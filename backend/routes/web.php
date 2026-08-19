@@ -115,4 +115,16 @@ Route::middleware(['auth', 'role:admin'])
 Route::middleware(['auth', 'role:admin'])
     ->get('/master-data/machinery', \App\Livewire\MasterData\KelolaMachinery::class)
     ->name('master-data.machinery');
+
+// screen-034--mills-setting
+// Session-guarded ('auth') + role-guarded (admin AND mill_management, per
+// screen_tech_spec.actor_permissions — supervisor/operator have
+// can_access=false). Per-resource ownership scoping (Mill Management
+// restricted to their own business_unit_id) is enforced INSIDE
+// App\Livewire\Settings\MillsSetting / MillSettingService::checkAccess(),
+// not at this route-level middleware, since 'role:...' can only gate by
+// role, not by which mill is being configured.
+Route::middleware(['auth', 'role:admin,mill_management'])
+    ->get('/mill-settings', \App\Livewire\Settings\MillsSetting::class)
+    ->name('mill-settings');
 // === ASDLC_ROUTES_END ===

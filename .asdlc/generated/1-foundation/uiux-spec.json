@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
   "design_system": {
     "color_palette": [
@@ -482,6 +482,10 @@
     {
       "component": "station-tile",
       "notes": "Tile grid 3-kolom untuk station selector mobile (screen-006 dan layar sejenis). Aktif: background Station/Status Red (#D20000), ikon Lucide 20px putih (stroke 1.5) sesuai jenis stasiun (mis. Gauge untuk Weighbridge, Layers untuk Grading, Package untuk Cages Track) ditampilkan di atas label nama, shadow token 'card' (0 1px 2px rgba(0,0,0,0.06)) supaya tile tidak terasa flat, radius 'card' (12px). Disabled/placeholder: background Surface (#F7F7F7), ikon+teks Text Muted, label kecil 'Belum tersedia' di bawah nama — tetap tappable via aria-disabled (bukan atribut disabled native) agar tap tetap memicu info singkat. Urutan grid TETAP (bukan alfabetis by name) — lihat screen_type_patterns[type=list].body_area. Min touch target 44px pada seluruh tile."
+    },
+    {
+      "component": "web-form-input",
+      "notes": "Web only. Input form TIDAK PERNAH dirender disabled atau readonly, termasuk field computed/derived (mis. hasil hitungan otomatis seperti count atau total) — tampilkan sebagai input yang tetap dapat diedit user (boleh prefilled/computed sebagai nilai default, tapi tidak dikunci). Pengecualian yang tetap berlaku: pembatasan akses berbasis role (mis. field Checked By/Acknowledged By pada component 'form' yang disabled/hidden sesuai role user login) — itu kontrol otorisasi, bukan field computed yang dikunci, jadi tidak termasuk larangan ini. Field tanggal menggunakan native <input type=\"date\">; field tanggal+waktu menggunakan native <input type=\"datetime-local\"> — keduanya wajib mendukung pengetikan manual DAN date/time picker bawaan browser sekaligus, tidak boleh picker-only maupun readonly-text yang hanya menampilkan tanggal terformat."
     }
   ],
   "accessibility": {
@@ -510,5 +514,5 @@
       "images_and_media": "Gambar referensi stasiun/mesin disertai teks deskriptif singkat (nama stasiun/mesin)"
     }
   },
-  "design_notes": "Warna merah #D20000 dipakai ganda — sebagai warna default tombol grid stasiun (Figma) dan sebagai indikator status 'sedang berlangsung'/'paused' (section 6.2 PRD) — dibedakan lewat ikon dan teks label, bukan varian warna, sesuai keputusan mengikuti dokumen sumber. Dark mode berada di luar scope MVP. Level aksesibilitas Basic dipilih karena ini internal tool untuk operator lapangan, bukan aplikasi publik. Revisi 2026-08-18 (screen-006 terlihat 'jelek' — tile solid tanpa ikon, urutan alfabetis, reference-image placeholder tak bermakna): pattern 'list' tipe mobile diperjelas dengan ikon per-tile, shadow elevation, urutan grid tetap, dan reference-image dijadikan opsional bukan wajib — lihat screen_type_patterns[type=list] dan component_patterns 'station-tile'."
+  "design_notes": "Warna merah #D20000 dipakai ganda — sebagai warna default tombol grid stasiun (Figma) dan sebagai indikator status 'sedang berlangsung'/'paused' (section 6.2 PRD) — dibedakan lewat ikon dan teks label, bukan varian warna, sesuai keputusan mengikuti dokumen sumber. Dark mode berada di luar scope MVP. Level aksesibilitas Basic dipilih karena ini internal tool untuk operator lapangan, bukan aplikasi publik. Revisi 2026-08-18 (screen-006 terlihat 'jelek' — tile solid tanpa ikon, urutan alfabetis, reference-image placeholder tak bermakna): pattern 'list' tipe mobile diperjelas dengan ikon per-tile, shadow elevation, urutan grid tetap, dan reference-image dijadikan opsional bukan wajib — lihat screen_type_patterns[type=list] dan component_patterns 'station-tile'. Revisi 2026-08-19: ditambahkan component_patterns 'web-form-input' — konvensi baru bahwa input form web tidak boleh disabled/readonly (termasuk field computed), dan field date/datetime web wajib mendukung input manual + picker sekaligus."
 }

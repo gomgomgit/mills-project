@@ -50,6 +50,7 @@ describe('stationRepo — getActiveAndPlaceholderStations()', () => {
         name: 'Timbangan',
         type: 'weighbridge',
         is_active: 1,
+        icon: 'truck',
       },
       {
         id: 'station-2',
@@ -57,6 +58,7 @@ describe('stationRepo — getActiveAndPlaceholderStations()', () => {
         name: 'Stasiun X',
         type: 'other',
         is_active: 0,
+        icon: null,
       },
     ])
 
@@ -69,6 +71,7 @@ describe('stationRepo — getActiveAndPlaceholderStations()', () => {
         name: 'Timbangan',
         type: 'weighbridge',
         isActive: true,
+        icon: 'truck',
       },
       {
         id: 'station-2',
@@ -76,9 +79,27 @@ describe('stationRepo — getActiveAndPlaceholderStations()', () => {
         name: 'Stasiun X',
         type: 'other',
         isActive: false,
+        icon: null,
       },
     ]
     expect(result).toEqual(expected)
+  })
+
+  it('normalizes a missing/undefined icon column value to null (entity-catalog v7)', async () => {
+    vi.mocked(query).mockResolvedValue([
+      {
+        id: 'station-4',
+        business_unit_id: BUSINESS_UNIT_ID,
+        name: 'Cages Track',
+        type: 'cages-track',
+        is_active: 1,
+        icon: undefined,
+      },
+    ])
+
+    const result = await getActiveAndPlaceholderStations(BUSINESS_UNIT_ID)
+
+    expect(result[0].icon).toBeNull()
   })
 
   it('also normalizes is_active when the mocked row already provides a native boolean', async () => {

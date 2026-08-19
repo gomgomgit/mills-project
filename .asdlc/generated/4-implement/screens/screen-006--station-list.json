@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 6,
+  "ver": 7,
   "id": "screen-006--station-list",
   "name": "Station List",
   "module_id": "module-mobile-station-ops",
@@ -29,13 +29,11 @@
     "stationRepo.ts mengasumsikan 15 baris station (3 aktif + 12 placeholder) sudah ada di tabel lokal via sync sebelumnya",
     "StationGrid.vue pakai aria-disabled + styling (bukan atribut disabled native) agar tap tetap memunculkan pesan 'belum tersedia'",
     "Router pakai konvensi meta: { public: false } mengikuti guard yang sudah ada",
-    "Regresi: seluruh 8 file/44 test mobile dijalankan ulang, semua hijau",
     "Retrofit browser test (2026-08-18): infrastruktur jeep-sqlite/playwright/helpers.ts, lihat screen-005 untuk detail",
-    "BUG NYATA ditemukan & diperbaiki via browser test: business_unit_id tidak pernah disertakan di payload login (AuthService.php) — diperbaiki, regresi backend 96/96 tetap hijau",
-    "Revisi desain #1 & #2 (2026-08-18): ikon per-tipe stasiun, shadow, urutan tetap, lalu dicocokkan persis dengan mock Phase 2 (2 seksi: 'Stasiun MVP Aktif' / 'Skema Mendatang')",
-    "Fix gap sync data stasiun (2026-08-18): default seed lokal 15 stasiun MVP via seedDefaultStationsIfNeeded(), dipanggil dari login()",
-    "Revisi #3 (2026-08-18, respons ke feedback user: breadcrumb navigable, padding tile lebih besar, kembali ke Home, hamburger, indikator warna draft): StationListView.vue — header brand+hamburger disalin persis dari pola HomeView.vue (isNavMenuOpen/toggleNavMenu/goToChangePassword/onLogout); breadcrumb 'Home' jadi tombol tappable (router.push name='home'), 'Production Process Activity' tetap teks non-interaktif (aria-current='page'); loadDraftStatusByType() di-onMounted memanggil weighbridgeRecordRepo.getSummary(userId), gradingRecordRepo.getProgressSummary(userId), cagesTrackRecordRepo.getProgressSummary(userId) secara paralel (masing-masing .catch(()=>null) independen) — REUSE repo yang sudah ada, tidak membuat service query draft baru (draftRecordsRepo.ts sudah dihapus saat revisi Home, sengaja tidak dihidupkan lagi). StationGrid.vue — prop baru draftStatusByType (default {}); background tile aktif jadi conditional inline style: #d20000 (merah) jika hasDraft true, #1f2937 (hitam/netral) jika false; padding tile dinaikkan dari 10px 6px menjadi 22px 6px.",
-    "Regresi penuh diverifikasi independen (bukan hanya laporan agent): 175/175 vitest (20 file) + 54/54 Playwright e2e (12 file, termasuk home.spec.ts & HomeView.spec.ts yang berbagi pola header/hamburger yang sama) + vue-tsc --noEmit bersih tanpa error"
+    "BUG NYATA ditemukan & diperbaiki via browser test (2026-08-18): business_unit_id tidak pernah disertakan di payload login (AuthService.php) — diperbaiki, regresi backend 96/96 tetap hijau",
+    "Revisi desain #1-3 (2026-08-18): ikon per-tipe stasiun, shadow, urutan tetap, breadcrumb navigable, header brand+hamburger, indikator warna draft merah/hitam-netral",
+    "v7 (2026-08-19, tech-spec v5, Mills Setting feature): stationRepo.ts — StationSlot/StationRow tambah field icon (string|null), SELECT tambah kolom icon. StationGrid.vue — ICON_OVERRIDES lookup baru (10 nama: gauge/layers/package/truck/scale/warehouse/factory/container/box/boxes, cocok persis dengan MillSettingService::SUPPORTED_ICONS di backend), iconInnerHtml() konsultasi station.icon LEBIH DULU untuk tile aktif sebelum fallback ke ikon default per tipe (business_logic step 3); tile disabled/placeholder TIDAK PERNAH menerima override, apa pun nilai station.icon-nya. Tile color/shadow/radius/layout SAMA SEKALI TIDAK BERUBAH — murni penggantian glyph ikon, bukan foto/background (draft awal v3 salah asumsi foto, dikoreksi user jadi icon override di v4).",
+    "localSchema.ts (kolom icon + migrateStationTableToV7()) dan stores/auth.ts (fetchAndCacheStationIconOverrides()) SUDAH diimplementasikan oleh worker terpisah (shared infra untuk seluruh fitur Mills Setting) sebelum giliran screen ini — tidak disentuh ulang di sini, sesuai known limitation yang sudah didokumentasikan di tech-spec v5: override dicocokkan berdasarkan (business_unit_id, type), bukan station id asli."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -48,7 +46,7 @@
       "severity": "minor"
     },
     {
-      "description": "15 ikon SVG (3 aktif + 12 placeholder) di StationGrid.vue ditulis tangan meniru path mock/Lucide, belum di-pixel-diff terhadap sumber asli",
+      "description": "15 ikon SVG (3 aktif + 12 placeholder) di StationGrid.vue ditulis tangan meniru path mock/Lucide, belum di-pixel-diff terhadap sumber asli — berlaku juga untuk 10 ICON_OVERRIDES baru di v7 (hand-authored, bukan dari library Lucide asli karena package tidak terpasang)",
       "severity": "minor"
     },
     {
@@ -58,12 +56,20 @@
     {
       "description": "Default seed station bersifat lokal-per-business-unit dan statis (bukan sinkron dari data master Station sungguhan di backend) — known_issue lama, tidak berubah oleh revisi ini",
       "severity": "minor"
+    },
+    {
+      "description": "KNOWN LIMITATION (v7, dari coordinator): fetchAndCacheStationIconOverrides() mencocokkan berdasarkan (business_unit_id, type), bukan station id asli — aman untuk MVP (maks 1 station aktif per tipe per mill), berisiko silent-misapply icon jika mill nanti punya >1 station aktif tipe sama. Keputusan pragmatis eksplisit dari user, bukan bug yang perlu diperbaiki sekarang.",
+      "severity": "minor"
+    },
+    {
+      "description": "Regresi Playwright penuh (di luar scope screen ini) menunjukkan 1 test gagal di tests/e2e/form-cages-track.spec.ts:159 ('Form Cages Track — Hapus Baris Membebaskan Jam', tipped-hour-select-0 tidak berisi opsi '7') — kemungkinan besar terkait perubahan business rule jumlah_cages/cages_tipped di screen-012 (Mills Setting feature) yang sedang dikerjakan worker lain, BUKAN disebabkan oleh perubahan di screen-006 ini. Tidak diperbaiki di sini karena di luar scope directive (screen-006 only).",
+      "severity": "major"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-08-19T23:56:20Z",
+      "passed": 5,
       "failed": 0,
       "coverage": 0
     },
@@ -73,13 +79,13 @@
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-18T15:56:29Z",
-      "passed": 24,
+      "run_at": "2026-08-19T23:56:20Z",
+      "passed": 32,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-08-18T15:58:00Z",
-      "passed": 5,
+      "run_at": "2026-08-19T23:58:00Z",
+      "passed": 6,
       "failed": 0
     }
   }

@@ -70,4 +70,14 @@ class StationFactory extends Factory
     {
         return $this->state(fn () => ['code' => $code]);
     }
+
+    /**
+     * Sets an explicit `icon` override — used by screen-034--mills-setting's
+     * test suite. Added additively; `definition()`'s default (icon
+     * omitted, so it stays null) is unchanged.
+     */
+    public function withIcon(string $icon): self
+    {
+        return $this->state(fn () => ['icon' => $icon]);
+    }
 }

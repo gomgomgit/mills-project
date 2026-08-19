@@ -144,6 +144,10 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: useAuthStoreMock,
 }))
 
+vi.mock('@/stores/floatingClock', () => ({
+  useFloatingClockStore: () => ({ enabled: false, toggle: vi.fn() }),
+}))
+
 const { getAllRecordsMock, getDraftWithTippedTimesMock } = vi.hoisted(() => ({
   getAllRecordsMock: vi.fn(),
   getDraftWithTippedTimesMock: vi.fn(),

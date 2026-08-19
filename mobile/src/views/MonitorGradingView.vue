@@ -63,6 +63,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useFloatingClockStore } from '@/stores/floatingClock'
 import {
   gradingRecordRepo,
   type GradingDraftListItem,
@@ -72,6 +73,7 @@ import StatusBadge from '@/components/StatusBadge.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const floatingClockStore = useFloatingClockStore()
 
 const drafts = ref<GradingDraftListItem[]>([])
 const loading = ref(false)
@@ -246,6 +248,7 @@ function goToStationList() {
         <button type="button" class="nav-menu-item" data-testid="nav-menu-change-password" @click="goToChangePassword">
           Ganti Password
         </button>
+        <button type="button" class="nav-menu-item" data-testid="nav-menu-toggle-floating-clock" @click="floatingClockStore.toggle()">{{ floatingClockStore.enabled ? 'Nonaktifkan Jam Mengambang' : 'Aktifkan Jam Mengambang' }}</button>
         <button type="button" class="nav-menu-item" data-testid="nav-menu-logout" @click="onLogout">Logout</button>
       </div>
     </header>

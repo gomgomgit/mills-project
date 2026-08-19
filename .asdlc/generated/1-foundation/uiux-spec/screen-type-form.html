@@ -3,252 +3,195 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Form | Mill Smart Log</title>
+  <title>form | Mills Smart Log</title>
   <link rel="stylesheet" href="assets/design-tokens.css">
   <link rel="stylesheet" href="assets/components.css">
   <link rel="stylesheet" href="assets/shell.css">
   <style>
-    /* Page-specific layout only — no colour/radius/shadow literals, CSS variables only */
-    body {
-      background: var(--color-surface);
-      min-height: 100vh;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding: var(--space-xl) var(--space-md);
+    /* page-specific layout only — no colour values, no radius/shadow, CSS variables only */
+    .form-card { max-width: 920px; }
+    .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-md); }
+    .detail-row-info { display: flex; flex-direction: column; gap: 2px; }
+    .detail-row-title { font-size: var(--font-size-sm); font-weight: var(--font-weight-sm); color: var(--color-foreground); }
+    .detail-row-sub { font-size: var(--font-size-xs); color: var(--color-muted-foreground); }
+    .role-note { display: flex; align-items: center; gap: var(--space-xs); }
+    .role-lock { font-size: var(--font-size-xs); color: var(--color-muted-foreground); }
+    .draft-flag { display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-md); }
+    @media (max-width: 1024px) {
+      .form-row, .form-grid-3 { grid-template-columns: 1fr; }
     }
-    .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); }
-    .preview-label {
-      font-size: var(--font-size-xs);
-      color: var(--color-text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      font-weight: 600;
-    }
-
-    .mobile-shell { min-height: 780px; box-shadow: var(--shadow-dropdown); }
-
-    .mobile-header-title { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
-    .mobile-header-title h1 {
-      font-size: var(--font-size-lg);
-      font-weight: var(--font-weight-lg);
-      color: var(--color-text-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .icon-btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: var(--space-touch-target-min); height: var(--space-touch-target-min);
-      flex-shrink: 0; color: var(--color-text-primary); cursor: pointer;
-    }
-    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-
-    .form-section { display: flex; flex-direction: column; gap: var(--space-md); margin-bottom: var(--space-lg); }
-    .form-section-title {
-      font-size: var(--font-size-sm);
-      font-weight: 700;
-      color: var(--color-brand);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      padding-bottom: var(--space-xs);
-      border-bottom: 1px solid var(--color-border);
-    }
-
-    .role-lock-label { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
-    .role-lock-label svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; fill: none; flex-shrink: 0; }
-
-    .content-note {
-      display: flex; align-items: flex-start; gap: var(--space-sm);
-      background: var(--color-header-tint);
-      border-radius: var(--radius-input);
-      padding: var(--space-sm) var(--space-md);
-      font-size: var(--font-size-xs);
-      color: var(--color-text-primary);
-      margin-bottom: var(--space-lg);
-    }
-    .content-note svg { width: 16px; height: 16px; stroke: var(--color-brand); stroke-width: 1.5; fill: none; flex-shrink: 0; margin-top: 2px; }
   </style>
 </head>
 <body>
-  <div class="preview-wrap">
-    <div class="preview-label">Form &mdash; idle state (draft in progress, ready to edit) &middot; Mobile (Operator viewing as read-restricted role example)</div>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span>&#9881;</span>
+        <span class="label">Mills Smart Log</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="#">
+          <span>&#9635;</span>
+          <span class="label">Dashboard</span>
+        </a>
+        <a class="nav-item active" href="#">
+          <span>&#9776;</span>
+          <span class="label">Data Stasiun</span>
+        </a>
+        <a class="nav-item" href="#">
+          <span>&#9881;</span>
+          <span class="label">Pengaturan Akun</span>
+        </a>
+      </nav>
+    </aside>
 
-    <div class="mobile-shell">
-      <!-- Header: back + breadcrumb + title -->
-      <div class="mobile-header">
-        <span class="icon-btn" title="Kembali">
-          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        </span>
-        <div class="mobile-header-title">
-          <h1>WB New | WB Load Data</h1>
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-title">Weighbridge — Input Data</div>
+        <div class="topbar-end">
+          <span class="badge badge-neutral">Supervisor</span>
+          <span style="width:32px;height:32px;border-radius:999px;background:var(--color-brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:var(--font-size-xs);">SP</span>
         </div>
-        <span class="icon-btn" title="Menu">
-          <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-        </span>
-      </div>
-      <div class="mobile-breadcrumb">Production Process Activity &gt; Weighbridge &gt; WB New</div>
+      </header>
 
-      <!-- Body: long scrolling form -->
-      <div class="mobile-content">
-
-        <div class="content-note">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <span>Draft tersimpan lokal. Lanjutkan pengisian, lalu <strong>Save</strong> atau <strong>Pause</strong> untuk melanjutkan nanti.</span>
+      <main class="content-area">
+        <div class="breadcrumb">
+          <span>Data Stasiun</span>
+          <span class="sep">/</span>
+          <span>Weighbridge</span>
+          <span class="sep">/</span>
+          <span class="current">WB New</span>
         </div>
 
-        <form class="form">
-
-          <div class="form-section">
-            <div class="form-section-title">Identitas Weighbridge</div>
-
-            <div class="input-group">
-              <label class="input-label">WB ID</label>
-              <input class="input input-mobile" type="text" value="WB-2026-000482" disabled>
-              <span class="input-hint">Otomatis dibuat sistem saat record baru dibuka</span>
-            </div>
-
-            <div class="input-group">
-              <label class="input-label">WB Card No<span class="required">*</span></label>
-              <input class="input input-mobile" type="text" value="0048213" placeholder="Masukkan nomor kartu timbang">
-            </div>
-
-            <div class="input-group">
-              <label class="input-label">Running No</label>
-              <input class="input input-mobile" type="text" value="015" disabled>
-              <span class="input-hint">Nomor urut otomatis per hari</span>
-            </div>
-
-            <div class="input-group">
-              <label class="input-label">Date<span class="required">*</span></label>
-              <input class="input input-mobile" type="text" value="14 Agustus 2026">
-            </div>
+        <div class="page-header">
+          <div>
+            <div class="page-title">WB New | WB Load Data</div>
           </div>
-
-          <div class="form-section">
-            <div class="form-section-title">Kendaraan &amp; Pengemudi</div>
-
-            <div class="input-group">
-              <label class="input-label">License Plate No<span class="required">*</span></label>
-              <input class="input input-mobile" type="text" value="BM 8231 XA" placeholder="Contoh: BM 8231 XA">
-            </div>
-
-            <div class="input-group">
-              <label class="input-label">Vehicle No<span class="required">*</span></label>
-              <input class="input input-mobile" type="text" value="TRK-014">
-            </div>
-
-            <div class="input-group">
-              <label class="input-label">Driver<span class="required">*</span></label>
-              <input class="input input-mobile" type="text" value="Ahmad Fauzi" placeholder="Nama pengemudi">
-            </div>
+          <div class="page-actions">
+            <button class="btn btn-outline">&larr; Back</button>
           </div>
+        </div>
 
-          <div class="form-section">
-            <div class="form-section-title">Data Timbangan</div>
-
-            <div class="input-group">
-              <label class="input-label">First Weight<span class="required">*</span></label>
-              <input class="input input-mobile" type="text" value="18.420 kg">
-              <span class="input-hint">Ditimbang saat kendaraan masuk</span>
+        <div class="card form-card">
+          <div class="card-body">
+            <div class="draft-flag">
+              <span class="badge badge-neutral">Belum ada input tersimpan — draft baru</span>
             </div>
 
-            <div class="input-group">
-              <label class="input-label">Second Weight<span class="required">*</span></label>
-              <input class="input input-mobile" type="text" value="" placeholder="Timbang saat kendaraan keluar">
-              <span class="input-hint">Belum ditimbang &mdash; isi saat kendaraan keluar dari mill</span>
-            </div>
+            <form class="form">
+              <div class="form-row">
+                <div class="input-group">
+                  <label class="input-label">WB ID <span class="required">*</span></label>
+                  <input class="input" type="text" value="WB-00128" placeholder="WB-00128">
+                  <span class="input-hint">Diisi otomatis, tetap dapat diedit</span>
+                </div>
+                <div class="input-group">
+                  <label class="input-label">Tanggal <span class="required">*</span></label>
+                  <input class="input" type="date" value="2026-08-19">
+                </div>
+              </div>
 
-            <div class="input-group">
-              <label class="input-label">Net Weight</label>
-              <input class="input input-mobile" type="text" value="&mdash;" disabled>
-              <span class="input-hint">Otomatis terhitung: First Weight &minus; Second Weight</span>
-            </div>
+              <div class="form-row">
+                <div class="input-group">
+                  <label class="input-label">Business Unit <span class="required">*</span></label>
+                  <select class="input">
+                    <option>PKS Mill Smart Log</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <label class="input-label">Nomor Kendaraan <span class="required">*</span></label>
+                  <input class="input" type="text" placeholder="BM 8123 XY">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="input-group">
+                  <label class="input-label">Nama Supir</label>
+                  <input class="input" type="text" placeholder="Nama supir">
+                </div>
+                <div class="input-group">
+                  <label class="input-label">Estate / Supplier</label>
+                  <input class="input" type="text" placeholder="Estate atau nama pemasok">
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="input-group">
+                  <label class="input-label">Divisi</label>
+                  <input class="input" type="text" placeholder="Divisi kebun">
+                </div>
+                <div class="input-group">
+                  <label class="input-label">Blok</label>
+                  <input class="input" type="text" placeholder="Blok kebun">
+                </div>
+              </div>
+
+              <div class="form-section-title">Detail Timbang</div>
+              <div class="input-hint" style="margin-bottom: var(--space-sm);">Setiap penimbangan (masuk/keluar) dicatat sebagai satu baris detail.</div>
+
+              <div class="detail-row">
+                <div class="detail-row-info">
+                  <span class="detail-row-title">Timbang Masuk — 08:42</span>
+                  <span class="detail-row-sub">Gross 18.420 kg</span>
+                </div>
+                <div class="detail-row-actions">
+                  <button type="button" class="btn btn-outline btn-sm">Edit</button>
+                </div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-row-info">
+                  <span class="detail-row-title">Timbang Keluar — belum diisi</span>
+                  <span class="detail-row-sub">Menunggu input Tare</span>
+                </div>
+                <div class="detail-row-actions">
+                  <button type="button" class="btn btn-secondary btn-sm">+ Isi</button>
+                </div>
+              </div>
+              <button type="button" class="btn btn-outline btn-sm">+ Tambah Baris Timbang</button>
+
+              <div class="form-grid-3">
+                <div class="input-group">
+                  <label class="input-label">Gross Weight (kg)</label>
+                  <input class="input" type="number" value="18420" placeholder="0">
+                </div>
+                <div class="input-group">
+                  <label class="input-label">Tare Weight (kg)</label>
+                  <input class="input" type="number" placeholder="0">
+                </div>
+                <div class="input-group">
+                  <label class="input-label">Net Weight (kg)</label>
+                  <input class="input" type="number" value="0" placeholder="0">
+                  <span class="input-hint">Nilai hitung otomatis (Gross − Tare), tetap dapat diedit manual</span>
+                </div>
+              </div>
+
+              <div class="form-section-title">Verifikasi</div>
+
+              <div class="form-row">
+                <div class="input-group">
+                  <label class="input-label">Checked By</label>
+                  <input class="input" type="text" value="Supervisor — Budi Santoso" placeholder="Nama supervisor">
+                  <span class="input-hint">Aktif — Anda login sebagai Supervisor</span>
+                </div>
+                <div class="input-group role-note">
+                  <div style="flex:1;">
+                    <label class="input-label">Acknowledged By</label>
+                    <input class="input" type="text" placeholder="Hanya dapat diisi oleh Mill Management" disabled>
+                    <span class="role-lock">&#128274; Dikunci — hanya role Mill Management yang dapat mengisi field ini</span>
+                  </div>
+                </div>
+              </div>
+            </form>
           </div>
-
-          <div class="form-section">
-            <div class="form-section-title">Detail Muatan</div>
-
-            <div class="input-group">
-              <label class="input-label">Delivery Note</label>
-              <input class="input input-mobile" type="text" value="" placeholder="Nomor surat jalan (opsional)">
-            </div>
-
-            <div class="input-group">
-              <label class="input-label">Estate/Supplier/Buyer<span class="required">*</span></label>
-              <input class="input input-mobile" type="text" value="Estate Sei Rokan" placeholder="Nama estate/supplier/buyer">
-            </div>
-
-            <div class="input-group">
-              <label class="input-label">Divisi</label>
-              <input class="input input-mobile" type="text" value="Divisi 3" placeholder="Opsional">
-            </div>
-
-            <div class="input-group">
-              <label class="input-label">Blok</label>
-              <input class="input input-mobile" type="text" value="Blok C12" placeholder="Opsional">
-            </div>
-
-            <div class="input-group">
-              <label class="input-label">Quantity<span class="required">*</span></label>
-              <input class="input input-mobile" type="text" value="18.000 kg">
-            </div>
+          <div class="card-footer">
+            <button type="button" class="btn btn-destructive">Delete</button>
+            <button type="button" class="btn btn-warning">Pause</button>
+            <button type="button" class="btn btn-outline">Clear</button>
+            <button type="button" class="btn btn-outline">Back</button>
+            <button type="button" class="btn btn-primary">Save</button>
           </div>
-
-          <div class="form-section">
-            <div class="form-section-title">Verifikasi</div>
-
-            <div class="input-group">
-              <label class="input-label role-lock-label">
-                <span>Checked By</span>
-                <span class="badge badge-neutral">
-                  <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                  Supervisor only
-                </span>
-              </label>
-              <input class="input input-mobile" type="text" value="" placeholder="Diisi oleh Supervisor" disabled>
-              <span class="input-hint">Hanya dapat diisi oleh role Supervisor &mdash; tidak aktif untuk role Anda saat ini (Station Operator)</span>
-            </div>
-
-            <div class="input-group">
-              <label class="input-label role-lock-label">
-                <span>Acknowledged By</span>
-                <span class="badge badge-neutral">
-                  <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                  Mill Management only
-                </span>
-              </label>
-              <input class="input input-mobile" type="text" value="" placeholder="Diisi oleh Mill Management" disabled>
-              <span class="input-hint">Hanya dapat diisi oleh role Mill Management &mdash; tidak aktif untuk role Anda saat ini (Station Operator)</span>
-            </div>
-          </div>
-
-        </form>
-      </div>
-
-      <!-- Footer: action row, touch-target sized. Colour-coded by intent:
-           Back = muted icon-only (navigation, not a form action)
-           Pause = warning fill (distinct temporary-stop action)
-           Clear = neutral outline (de-emphasized secondary/reset)
-           Save = brand fill (primary/confirming action) -->
-      <div class="mobile-actions">
-        <button type="button" class="btn btn-icon-muted btn-icon" title="Back" aria-label="Back">
-          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-          <span class="sr-only">Back</span>
-        </button>
-        <button type="button" class="btn btn-warning">
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.5" fill="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-          Pause
-        </button>
-        <button type="button" class="btn btn-outline">
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.5" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          Clear
-        </button>
-        <button type="button" class="btn btn-primary">
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="#fff" stroke-width="1.5" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          Save
-        </button>
-      </div>
+        </div>
+      </main>
     </div>
   </div>
 </body>

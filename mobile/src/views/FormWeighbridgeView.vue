@@ -100,6 +100,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useFloatingClockStore } from '@/stores/floatingClock'
 import weighbridgeRecordRepo, {
   type WeighbridgeFormData,
   type WeighbridgeRecord,
@@ -111,6 +112,7 @@ import ConfirmDialog from '@/components/ConfirmDialog.vue'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const floatingClockStore = useFloatingClockStore()
 
 const recordId = String(route.params.id ?? '')
 
@@ -555,6 +557,7 @@ function goToMonitorWeighbridge(): void {
         <button type="button" class="nav-menu-item" data-testid="nav-menu-change-password" @click="goToChangePassword">
           Ganti Password
         </button>
+        <button type="button" class="nav-menu-item" data-testid="nav-menu-toggle-floating-clock" @click="floatingClockStore.toggle()">{{ floatingClockStore.enabled ? 'Nonaktifkan Jam Mengambang' : 'Aktifkan Jam Mengambang' }}</button>
         <button type="button" class="nav-menu-item" data-testid="nav-menu-logout" @click="onLogout">Logout</button>
       </div>
     </header>

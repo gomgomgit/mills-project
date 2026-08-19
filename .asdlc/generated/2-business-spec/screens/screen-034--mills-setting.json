@@ -1,0 +1,104 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-034--mills-setting",
+  "name": "Mills Setting",
+  "module_id": "module-mills-setting",
+  "description": "Layar bagi Admin dan Mill Management untuk mengatur profil aplikasi per mill (Business Unit) — nama aplikasi, logo, gambar halaman utama mobile, icon per stasiun, dan jumlah cages fisik yang dimiliki mill tersebut. Perubahan di sini memengaruhi tampilan Home mobile, Station List mobile, dan jumlah kolom checklist pada Form Cages Track.",
+  "actors": [
+    "actor-admin",
+    "actor-mill-management"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Mills Setting'"
+  ],
+  "information_displayed": [
+    "Pemilih Mill/Business Unit yang sedang dikonfigurasi — khusus Admin (Mill Management otomatis terarah ke mill miliknya sendiri, tanpa pemilih)",
+    "Nama aplikasi (app_name) saat ini untuk mill terpilih",
+    "Logo mill saat ini (preview gambar, atau placeholder jika belum diatur)",
+    "Gambar halaman utama mobile (home_page_image) saat ini (preview gambar, atau placeholder jika belum diatur)",
+    "Jumlah cages saat ini",
+    "Daftar station milik mill terpilih beserta icon Lucide yang dipakai masing-masing (default sesuai tipe stasiun, atau override jika sudah diatur)"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Mill",
+      "description": "Memilih Business Unit/mill mana yang akan dikonfigurasi Mills Setting-nya",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ubah Nama Aplikasi",
+      "description": "Mengubah nama aplikasi (app_name) yang ditampilkan ke user untuk mill ini",
+      "actor_ids": [
+        "actor-admin",
+        "actor-mill-management"
+      ]
+    },
+    {
+      "action": "Unggah/Ganti Logo",
+      "description": "Mengunggah atau mengganti gambar logo mill",
+      "actor_ids": [
+        "actor-admin",
+        "actor-mill-management"
+      ]
+    },
+    {
+      "action": "Unggah/Ganti Gambar Halaman Utama",
+      "description": "Mengunggah atau mengganti gambar yang tampil di halaman Home mobile",
+      "actor_ids": [
+        "actor-admin",
+        "actor-mill-management"
+      ]
+    },
+    {
+      "action": "Atur Jumlah Cages",
+      "description": "Mengatur jumlah fisik cages/lori yang dimiliki mill — menentukan jumlah kolom checklist pada grid Cages Tipped Time di Form Cages Track",
+      "actor_ids": [
+        "actor-admin",
+        "actor-mill-management"
+      ]
+    },
+    {
+      "action": "Pilih Icon Station",
+      "description": "Memilih salah satu station milik mill dan memilih icon dari daftar pilihan icon Lucide untuk station tersebut, atau mengembalikannya ke icon default sesuai tipe stasiun (Gauge=Weighbridge, Layers=Grading, Package=Cages Track)",
+      "actor_ids": [
+        "actor-admin",
+        "actor-mill-management"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan seluruh perubahan pada layar ini",
+      "actor_ids": [
+        "actor-admin",
+        "actor-mill-management"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Setiap mill (Business Unit) memiliki tepat satu Mills Setting",
+    "Jika mill belum memiliki Mills Setting (mis. Business Unit yang dibuat sebelum fitur ini ada), sistem otomatis membuat baris default (app_name = nama Business Unit, jumlah_cages = 1, gambar kosong) saat layar ini pertama kali dibuka untuk mill tersebut — nama aplikasi tidak pernah kosong meski belum pernah diatur manual",
+    "Mill Management hanya dapat mengatur mill (Business Unit) miliknya sendiri; Admin dapat mengatur mill mana pun",
+    "Jumlah cages harus lebih dari 0",
+    "Icon station hanya dapat diatur untuk station yang sudah terdaftar (dari Kelola Station) pada mill terkait; dipilih dari daftar icon Lucide yang tersedia, bukan unggah gambar",
+    "Jika icon station tidak diatur (kosong), station-tile memakai icon default sesuai tipe stasiun (Gauge=Weighbridge, Layers=Grading, Package=Cages Track) — sama seperti perilaku saat ini",
+    "Logo dan gambar halaman utama bersifat opsional — jika kosong, aplikasi menampilkan tampilan default tanpa gambar"
+  ],
+  "usecase_ids": [
+    "usecase-034--mills-setting"
+  ],
+  "edge_cases": [
+    "Mill belum punya Mills Setting sama sekali — sistem otomatis membuat default saat pertama diakses",
+    "Upload gambar (logo atau gambar halaman utama) dengan format atau ukuran tidak didukung — validasi gagal",
+    "Mengatur jumlah cages ke 0 atau negatif — validasi gagal",
+    "Belum ada station terdaftar untuk mill tersebut — bagian pengaturan icon station kosong dengan pesan penjelasan",
+    "Mill Management mencoba mengakses/mengubah mill lain selain miliknya — ditolak"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

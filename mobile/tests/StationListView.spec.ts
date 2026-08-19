@@ -47,6 +47,10 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: useAuthStoreMock,
 }))
 
+vi.mock('@/stores/floatingClock', () => ({
+  useFloatingClockStore: () => ({ enabled: false, toggle: vi.fn() }),
+}))
+
 const { getActiveAndPlaceholderStationsMock } = vi.hoisted(() => ({
   getActiveAndPlaceholderStationsMock: vi.fn(),
 }))
@@ -86,6 +90,7 @@ function makeStation(overrides: Partial<StationSlot> & { id: string }): StationS
     name: `Stasiun ${overrides.id}`,
     type: 'other',
     isActive: false,
+    icon: null,
     ...overrides,
   }
 }

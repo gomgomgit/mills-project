@@ -297,8 +297,8 @@ test.describe('Form Grading (screen-011)', () => {
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/grading\/form\/(.+)/)
 
-    // Fill partially — leave WB Card No/Vehicle Code/Estate/Netto/Quantity
-    // (all required) empty, and add no detail row at all.
+    // Fill partially — leave WB Card No/Estate/Netto/Quantity (all
+    // required) and Vehicle Code (optional) empty, and add no detail row at all.
     await page.getByLabel('Grading No').fill('GR-PAUSE-01')
 
     // Pause has NO required-field/detail-row validation — if it were

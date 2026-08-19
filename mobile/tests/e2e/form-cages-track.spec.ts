@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { login, USERS, getAuthUserId } from './helpers'
+import { login, USERS, getAuthUserId, getBusinessUnitId } from './helpers'
 
 // screen-012--form-cages-track / usecase-012--form-cages-track
 //
@@ -7,6 +7,18 @@ import { login, USERS, getAuthUserId } from './helpers'
 // the previous version of this file (built against the pre-v3
 // "No. Cages Track" + free-text cage/time-per-row model). Mirrors
 // form-grading.spec.ts's structure/conventions.
+//
+// UPDATED 2026-08-20 (tech-spec v3, business_logic step 5): the grid's N
+// (shared "Cage 1".."Cage N" checkbox column count) and the "Tambah baris"
+// enable/disable condition now come from the local `mill_setting` cache
+// (jumlah_cages), not the Cages Tipped header field — see `seedMillSetting()`
+// below for how this suite seeds that table directly (GET
+// /api/mill-settings/current, the real sync source, is not implemented on
+// the backend yet — see routes/api.php's own "NOT YET implemented" note
+// next to that route — so a real login never actually populates it).
+
+// Matches entity-catalog's `mill-setting` test_fixture (ms-001.jumlah_cages).
+const DEFAULT_JUMLAH_CAGES = 10
 
 async function fillRequiredHeaderFields(page: Page): Promise<void> {
   await page.locator('#field-cages-track-number').fill('CT-E2E-001')
@@ -42,9 +54,50 @@ async function searchableSelectOptionValues(page: Page, testId: string): Promise
   return root.getByRole('option').evaluateAll((options) => options.map((option) => option.getAttribute('data-value') ?? ''))
 }
 
+/**
+ * Seeds/overrides the local (offline) `mill_setting` table directly via
+ * the dev-only `window.__mslTestDb` bridge — same technique/rationale as
+ * helpers.ts's `seedStations()` (there is no in-app sync flow that
+ * reliably populates this table in this test environment — see this
+ * file's header comment above). `jumlahCages: null` deletes any existing
+ * row instead, to simulate "mill_setting not synced locally yet for this
+ * business unit" (distinct from a synced-but-zero value).
+ */
+async function seedMillSetting(page: Page, businessUnitId: string, jumlahCages: number | null): Promise<void> {
+  await page.evaluate(
+    async ({ buId, jumlahCages }) => {
+      const db = (window as unknown as { __mslTestDb: { run: (sql: string, params?: unknown[]) => Promise<unknown> } })
+        .__mslTestDb
+
+      if (jumlahCages === null) {
+        await db.run('DELETE FROM mill_setting WHERE business_unit_id = ?', [buId])
+        return
+      }
+
+      const now = new Date().toISOString()
+      await db.run(
+        `INSERT OR REPLACE INTO mill_setting (id, business_unit_id, app_name, logo, home_page_image, jumlah_cages, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [`e2e-mill-setting-${buId}`, buId, 'Mills Smart Log', null, null, jumlahCages, now, now],
+      )
+    },
+    { buId: businessUnitId, jumlahCages },
+  )
+}
+
 test.describe('Form Cages Track (screen-012)', () => {
   test.beforeEach(async ({ page }) => {
     await login(page)
+
+    // Default: mill_setting already synced locally with a positive
+    // jumlah_cages, matching entity-catalog's test_fixture — keeps every
+    // scenario below that adds a detail row working, now that "Tambah
+    // baris"/the grid's column count are mill_setting-driven rather than
+    // Cages Tipped-header-driven (2026-08-20, tech-spec v3). Scenarios
+    // exercising the mill_setting-driven behavior itself re-seed with a
+    // different value.
+    const businessUnitId = await getBusinessUnitId(page)
+    await seedMillSetting(page, businessUnitId, DEFAULT_JUMLAH_CAGES)
   })
 
   test('Form Cages Track — success as Station Operator', async ({ page }) => {
@@ -63,7 +116,10 @@ test.describe('Form Cages Track (screen-012)', () => {
     expect(await page.getByTestId('acknowledged-by-toggle').isDisabled()).toBe(true)
 
     await page.getByTestId('row-total-cages-0').textContent().then((t) => expect(t).toContain('2'))
-    await page.getByTestId('row-cages-remain-0').textContent().then((t) => expect(t).toContain('3'))
+    // cages_remain = mill_setting.jumlah_cages (DEFAULT_JUMLAH_CAGES = 10)
+    // minus this row's own total_cages (2) — NOT derived from the Cages
+    // Tipped header field (filled to 5 above by fillRequiredHeaderFields).
+    await page.getByTestId('row-cages-remain-0').textContent().then((t) => expect(t).toContain('8'))
 
     await page.getByTestId('save-button').click()
     await page.waitForURL('**/stations/cages-track/monitor')
@@ -111,29 +167,47 @@ test.describe('Form Cages Track (screen-012)', () => {
     await expect(page).toHaveURL(/\/stations\/cages-track\/form\//)
   })
 
-  test('Form Cages Track — Cages Tipped Belum Diisi Menonaktifkan Tambah Baris', async ({ page }) => {
+  // Replaces the pre-2026-08-20 "Cages Tipped Belum Diisi Menonaktifkan
+  // Tambah Baris" scenario: "Tambah baris" is no longer gated on the Cages
+  // Tipped header field — it's gated on the local mill_setting cache
+  // (business_logic step 5, tech-spec v3).
+  test('Form Cages Track — Data Jumlah Cages Mills Setting Belum Tersedia Menonaktifkan Tambah Baris', async ({ page }) => {
+    const businessUnitId = await getBusinessUnitId(page)
+    await seedMillSetting(page, businessUnitId, null)
+
     await page.goto('/stations/cages-track/monitor')
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/cages-track\/form\/(.+)/)
 
     await expect(page.getByTestId('add-tipped-time-row-button')).toBeDisabled()
+    await expect(page.getByTestId('add-row-jumlah-cages-hint')).toBeVisible()
 
-    await page.locator('#field-cages-tipped').fill('5')
+    await seedMillSetting(page, businessUnitId, DEFAULT_JUMLAH_CAGES)
+    await page.reload()
 
     await expect(page.getByTestId('add-tipped-time-row-button')).toBeEnabled()
+    await expect(page.getByTestId('add-row-jumlah-cages-hint')).toHaveCount(0)
   })
 
-  test('Form Cages Track — Cages Tipped Terkunci Setelah Baris Pertama Ditambahkan', async ({ page }) => {
+  // New scenario (2026-08-20, tech-spec v3): "Input Data Cages Track —
+  // Jumlah Kolom Grid Mengikuti Mills Setting, Bukan Cages Tipped Header".
+  test('Form Cages Track — Jumlah Kolom Grid Mengikuti Mills Setting, Bukan Cages Tipped Header', async ({ page }) => {
+    const businessUnitId = await getBusinessUnitId(page)
+    await seedMillSetting(page, businessUnitId, 8)
+
     await page.goto('/stations/cages-track/monitor')
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/cages-track\/form\/(.+)/)
 
-    await page.locator('#field-cages-tipped').fill('5')
-    await expect(page.locator('#field-cages-tipped')).toBeEnabled()
+    await page.locator('#field-cages-track-number').fill('CT-MS-001')
+    await page.locator('#field-cages-out').fill('12')
+    await page.locator('#field-cages-tipped').fill('15')
 
     await page.getByTestId('add-tipped-time-row-button').click()
 
-    await expect(page.locator('#field-cages-tipped')).toBeDisabled()
+    await expect(page.locator('[data-testid="cage-checkbox-grid-0"] input[type="checkbox"]')).toHaveCount(8)
+    await expect(page.getByTestId('cage-checkbox-0-8')).toBeVisible()
+    await expect(page.getByTestId('cage-checkbox-0-9')).toHaveCount(0)
   })
 
   test('Form Cages Track — Time Tidak Bisa Duplikat Atau Mundur', async ({ page }) => {
@@ -141,7 +215,6 @@ test.describe('Form Cages Track (screen-012)', () => {
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/cages-track\/form\/(.+)/)
 
-    await page.locator('#field-cages-tipped').fill('5')
     await page.getByTestId('add-tipped-time-row-button').click()
     await selectSearchableOption(page, 'tipped-hour-select-0', hourLabel(7))
     await page.getByTestId('add-tipped-time-row-button').click()
@@ -161,7 +234,6 @@ test.describe('Form Cages Track (screen-012)', () => {
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/cages-track\/form\/(.+)/)
 
-    await page.locator('#field-cages-tipped').fill('5')
     await page.getByTestId('add-tipped-time-row-button').click()
     await selectSearchableOption(page, 'tipped-hour-select-0', hourLabel(7))
     await page.getByTestId('add-tipped-time-row-button').click()

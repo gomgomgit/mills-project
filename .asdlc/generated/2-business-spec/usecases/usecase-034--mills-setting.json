@@ -1,0 +1,144 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "usecase-034--mills-setting",
+  "name": "Kelola Pengaturan Mill",
+  "description": "Admin atau Mill Management mengatur profil aplikasi untuk satu mill (Business Unit) — nama aplikasi, logo, gambar halaman utama mobile, jumlah cages fisik, dan gambar per station milik mill tersebut. Admin dapat memilih mill mana pun; Mill Management otomatis terarah ke mill miliknya sendiri.",
+  "actors": [
+    "actor-admin",
+    "actor-mill-management"
+  ],
+  "preconditions": [
+    "User sudah login sebagai Admin atau Mill Management"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Membuka layar Mills Setting"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan pemilih Mill (khusus Admin); untuk Mill Management, langsung memuat data mill miliknya tanpa pemilih"
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Memilih mill yang akan dikonfigurasi"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Memuat data Mills Setting mill terpilih (atau membuat baris default otomatis jika belum ada)"
+    },
+    {
+      "step": 5,
+      "actor": "actor-admin",
+      "description": "Mengubah nama aplikasi, mengunggah/mengganti logo, gambar halaman utama, dan/atau gambar station, serta mengatur jumlah cages"
+    },
+    {
+      "step": 6,
+      "actor": "actor-admin",
+      "description": "Menekan tombol Simpan"
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Memvalidasi input (jumlah cages harus lebih dari 0, format/ukuran gambar didukung)"
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Menyimpan perubahan dan menampilkan konfirmasi berhasil"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Validasi Gagal",
+      "trigger": "Step 7, jumlah cages ≤ 0 atau gambar yang diunggah tidak sesuai format/ukuran",
+      "steps": [
+        "System menampilkan pesan error di bawah field terkait",
+        "Perubahan tidak tersimpan",
+        "User dapat memperbaiki dan mencoba lagi"
+      ]
+    },
+    {
+      "name": "Mill Belum Punya Mills Setting",
+      "trigger": "Step 4, mill terpilih belum pernah memiliki Mills Setting sebelumnya",
+      "steps": [
+        "System membuat baris default otomatis: nama aplikasi = nama Business Unit, jumlah cages = 1, gambar kosong",
+        "User melanjutkan mengatur dari nilai default tersebut"
+      ]
+    },
+    {
+      "name": "Mill Management Akses Mill Lain",
+      "trigger": "Kapan saja, actor-mill-management mencoba mengakses atau mengubah mill selain miliknya sendiri",
+      "steps": [
+        "System menolak akses",
+        "User diarahkan kembali ke mill miliknya sendiri"
+      ]
+    },
+    {
+      "name": "Belum Ada Station Terdaftar",
+      "trigger": "Step 4-5, mill terpilih belum memiliki station terdaftar (dari Kelola Station)",
+      "steps": [
+        "System menampilkan bagian gambar per-station dalam keadaan kosong",
+        "System menampilkan pesan penjelasan bahwa belum ada station terdaftar untuk mill ini"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Mills Setting mill terpilih tersimpan dengan nilai baru (nama aplikasi/logo/gambar halaman utama/jumlah cages/gambar station)"
+  ],
+  "business_rules": [
+    "Setiap mill memiliki tepat satu Mills Setting",
+    "Mill Management hanya dapat mengatur mill miliknya sendiri; Admin dapat mengatur mill mana pun",
+    "Jumlah cages harus lebih dari 0",
+    "Gambar station hanya dapat diunggah untuk station yang sudah terdaftar pada mill terkait"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Admin berhasil mengatur Mills Setting mill terpilih",
+      "given": "Admin login dan memilih mill tertentu di layar Mills Setting",
+      "when": "Admin mengubah nama aplikasi, mengunggah logo, mengatur jumlah cages menjadi 5, lalu menekan Simpan",
+      "then": "Mills Setting mill tersebut tersimpan dengan nilai baru, konfirmasi berhasil ditampilkan"
+    },
+    {
+      "scenario": "Mill Management berhasil mengatur Mills Setting mill miliknya",
+      "given": "Mill Management login dan berada di layar Mills Setting, langsung terarah ke mill miliknya",
+      "when": "Mill Management mengubah gambar halaman utama dan menekan Simpan",
+      "then": "Mills Setting mill miliknya tersimpan dengan nilai baru"
+    },
+    {
+      "scenario": "Validasi gagal — jumlah cages tidak valid",
+      "given": "User berada di layar Mills Setting",
+      "when": "User mengisi jumlah cages dengan 0 lalu menekan Simpan",
+      "then": "Pesan error validasi ditampilkan di bawah field jumlah cages, perubahan tidak tersimpan"
+    },
+    {
+      "scenario": "Mill belum punya Mills Setting — dibuat default otomatis",
+      "given": "Mill terpilih belum pernah memiliki Mills Setting sebelumnya",
+      "when": "User membuka layar Mills Setting untuk mill tersebut",
+      "then": "Sistem menampilkan baris default: nama aplikasi = nama Business Unit, jumlah cages = 1, gambar kosong"
+    },
+    {
+      "scenario": "Mill Management mencoba akses mill lain — ditolak",
+      "given": "Mill Management login",
+      "when": "Mill Management mencoba mengakses atau mengubah Mills Setting mill yang bukan miliknya",
+      "then": "Sistem menolak akses"
+    },
+    {
+      "scenario": "Belum ada station terdaftar",
+      "given": "Mill terpilih belum punya station terdaftar",
+      "when": "User membuka bagian gambar per-station di layar Mills Setting",
+      "then": "Sistem menampilkan pesan penjelasan bahwa belum ada station, tanpa daftar station"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-034--mills-setting"
+  ]
+}

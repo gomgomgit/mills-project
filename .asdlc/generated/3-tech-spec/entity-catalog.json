@@ -1,5 +1,5 @@
 {
-  "ver": 5,
+  "ver": 7,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-08-19"
@@ -675,6 +675,12 @@
           "type": "timestamp",
           "required": true,
           "description": "Waktu record terakhir diperbarui."
+        },
+        {
+          "name": "icon",
+          "type": "string",
+          "required": false,
+          "description": "Override icon Lucide untuk station-tile (nama icon, mis. 'truck', 'scale') — opsional. Jika kosong, pakai default icon per tipe stasiun yang sudah ada di uiux-spec component_patterns 'station-tile' (Gauge=Weighbridge, Layers=Grading, Package=Cages Track)."
         }
       ],
       "relationships": [
@@ -703,7 +709,8 @@
         "no_of_machinery_group": 0,
         "is_active": true,
         "created_at": "2024-01-01T00:00:00Z",
-        "updated_at": "2024-01-01T00:00:00Z"
+        "updated_at": "2024-01-01T00:00:00Z",
+        "icon": null
       }
     },
     {
@@ -1831,7 +1838,7 @@
         "minimal satu Cages Tipped Time harus ada sebelum status=saved",
         "tippler_start_time diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
         "tippler_stop_time diisi otomatis sekali tepat saat Simpan ditekan, tidak dapat diedit manual",
-        "cages_tipped menentukan jumlah kolom checklist cage (1..cages_tipped) di setiap baris Cages Tipped Time"
+        "Jumlah kolom checklist cage (1..N) di setiap baris Cages Tipped Time mengacu ke mill-setting.jumlah_cages (via business_unit dari station terkait) — BUKAN ke cages_tipped. Field cages_tipped tetap input manual terpisah, tidak lagi menentukan jumlah kolom."
       ],
       "test_fixture": {
         "id": "ctr-001",
@@ -1920,6 +1927,96 @@
         "cages_remain": 0,
         "created_at": "2024-01-15T11:05:00Z",
         "updated_at": "2024-01-15T11:05:00Z"
+      }
+    },
+    {
+      "id": "mill-setting",
+      "name": "Mill Setting",
+      "description": "Pengaturan branding & konfigurasi operasional per mill (Business Unit) — nama aplikasi, logo, gambar home page mobile, dan jumlah cages fisik milik mill. Satu Business Unit memiliki tepat satu Mill Setting (1:1). Dikelola lewat screen Mills Setting oleh Admin & Mill Management.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "business_unit_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Business Unit — unik, satu Business Unit hanya punya satu Mill Setting."
+        },
+        {
+          "name": "app_name",
+          "type": "string",
+          "required": true,
+          "description": "Nama aplikasi yang ditampilkan ke user untuk mill ini (terpisah dari business-unit.name yang merupakan nama resmi bisnis)."
+        },
+        {
+          "name": "logo",
+          "type": "string",
+          "required": false,
+          "description": "Path/URL file logo mill, disimpan di Laravel Filesystem local disk."
+        },
+        {
+          "name": "home_page_image",
+          "type": "string",
+          "required": false,
+          "description": "Path/URL gambar yang ditampilkan di Home mobile (screen-005) untuk user dari mill ini."
+        },
+        {
+          "name": "jumlah_cages",
+          "type": "integer",
+          "required": true,
+          "description": "Jumlah fisik cages/lori yang dimiliki mill ini. Menentukan jumlah kolom checklist (1..N) pada grid Cages Tipped Time di Form Cages Track (screen-012) — menggantikan peran cages_tipped untuk keperluan ini."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record."
+        },
+        {
+          "name": "updated_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User yang terakhir memperbarui record."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "business-unit",
+          "type": "one-to-one",
+          "description": "Setiap Mill Setting merujuk tepat satu Business Unit, dan setiap Business Unit memiliki tepat satu Mill Setting."
+        }
+      ],
+      "constraints": [
+        "business_unit_id harus unik (1:1 dengan Business Unit)",
+        "jumlah_cages harus > 0"
+      ],
+      "test_fixture": {
+        "id": "ms-001",
+        "business_unit_id": "bu-001",
+        "app_name": "Mills Smart Log",
+        "logo": "storage/mill-settings/ms-001-logo.png",
+        "home_page_image": "storage/mill-settings/ms-001-home.jpg",
+        "jumlah_cages": 10,
+        "created_by": "usr-001",
+        "updated_by": null,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
       }
     }
   ]

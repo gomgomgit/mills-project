@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/569</span>
+                <span class='fraction'>0/577</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/569</span>
+                <span class='fraction'>0/577</span>
             </div>
         
             
@@ -632,7 +632,23 @@
 <a name='L567'></a><a href='#L567'>567</a>
 <a name='L568'></a><a href='#L568'>568</a>
 <a name='L569'></a><a href='#L569'>569</a>
-<a name='L570'></a><a href='#L570'>570</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L570'></a><a href='#L570'>570</a>
+<a name='L571'></a><a href='#L571'>571</a>
+<a name='L572'></a><a href='#L572'>572</a>
+<a name='L573'></a><a href='#L573'>573</a>
+<a name='L574'></a><a href='#L574'>574</a>
+<a name='L575'></a><a href='#L575'>575</a>
+<a name='L576'></a><a href='#L576'>576</a>
+<a name='L577'></a><a href='#L577'>577</a>
+<a name='L578'></a><a href='#L578'>578</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1281,15 +1297,18 @@
 <span class="cstat-no" title="statement not covered" > * (mirrors localSchema.ts's CREATE_WEIGHBRIDGE_RECORD column-for-column).</span>
 <span class="cstat-no" title="statement not covered" > * `getDraftById()`/`saveDraft()` below operate on this shape.</span>
 <span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export type WeighbridgeType = 'receive' | 'dispatch'</span>
+<span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >export interface WeighbridgeRecord {</span>
 <span class="cstat-no" title="statement not covered" >  id: string</span>
 <span class="cstat-no" title="statement not covered" >  station_id: string | null</span>
 <span class="cstat-no" title="statement not covered" >  wb_card_number: string | null</span>
-<span class="cstat-no" title="statement not covered" >  arrival_datetime: string | null</span>
-<span class="cstat-no" title="statement not covered" >  dispatch_datetime: string | null</span>
+<span class="cstat-no" title="statement not covered" >  weighbridge_type: WeighbridgeType | null</span>
+<span class="cstat-no" title="statement not covered" >  record_datetime: string | null</span>
 <span class="cstat-no" title="statement not covered" >  vehicle_number: string | null</span>
 <span class="cstat-no" title="statement not covered" >  driver_name: string | null</span>
 <span class="cstat-no" title="statement not covered" >  estate_supplier: string | null</span>
+<span class="cstat-no" title="statement not covered" >  destination: string | null</span>
 <span class="cstat-no" title="statement not covered" >  division: string | null</span>
 <span class="cstat-no" title="statement not covered" >  block: string | null</span>
 <span class="cstat-no" title="statement not covered" >  gross_weight: number | null</span>
@@ -1313,11 +1332,12 @@
 <span class="cstat-no" title="statement not covered" > */</span>
 <span class="cstat-no" title="statement not covered" >export interface WeighbridgeFormData {</span>
 <span class="cstat-no" title="statement not covered" >  wb_card_number: string</span>
-<span class="cstat-no" title="statement not covered" >  arrival_datetime: string</span>
-<span class="cstat-no" title="statement not covered" >  dispatch_datetime: string</span>
+<span class="cstat-no" title="statement not covered" >  weighbridge_type: WeighbridgeType</span>
+<span class="cstat-no" title="statement not covered" >  record_datetime: string</span>
 <span class="cstat-no" title="statement not covered" >  vehicle_number: string</span>
 <span class="cstat-no" title="statement not covered" >  driver_name: string</span>
 <span class="cstat-no" title="statement not covered" >  estate_supplier: string</span>
+<span class="cstat-no" title="statement not covered" >  destination: string</span>
 <span class="cstat-no" title="statement not covered" >  division: string</span>
 <span class="cstat-no" title="statement not covered" >  block: string</span>
 <span class="cstat-no" title="statement not covered" >  gross_weight: number | null</span>
@@ -1463,7 +1483,7 @@
 <span class="cstat-no" title="statement not covered" >/**</span>
 <span class="cstat-no" title="statement not covered" > * screen-007--monitor-weighbridge "today's counter" addition — count +</span>
 <span class="cstat-no" title="statement not covered" > * sums across every local weighbridge_record for the current user whose</span>
-<span class="cstat-no" title="statement not covered" > * `arrival_datetime` falls on today's local (device) date, regardless of</span>
+<span class="cstat-no" title="statement not covered" > * `record_datetime` falls on today's local (device) date, regardless of</span>
 <span class="cstat-no" title="statement not covered" > * status (no status filter, same as `getSummary()`). Computed with a</span>
 <span class="cstat-no" title="statement not covered" > * single SQL aggregate query, matching this repo's existing</span>
 <span class="cstat-no" title="statement not covered" > * `getSummary()` style. `date('now', 'localtime')` (rather than plain</span>
@@ -1477,7 +1497,7 @@
 <span class="cstat-no" title="statement not covered" >       COALESCE(SUM(net_weight), 0) AS sum_net_weight,</span>
 <span class="cstat-no" title="statement not covered" >       COALESCE(SUM(quantity), 0) AS sum_quantity</span>
 <span class="cstat-no" title="statement not covered" >     FROM weighbridge_record</span>
-<span class="cstat-no" title="statement not covered" >     WHERE created_by = ? AND date(arrival_datetime) = date('now', 'localtime')`,</span>
+<span class="cstat-no" title="statement not covered" >     WHERE created_by = ? AND date(record_datetime) = date('now', 'localtime')`,</span>
 <span class="cstat-no" title="statement not covered" >    [userId],</span>
 <span class="cstat-no" title="statement not covered" >  )</span>
 <span class="cstat-no" title="statement not covered" ></span>
@@ -1645,11 +1665,12 @@
 <span class="cstat-no" title="statement not covered" >  await run(</span>
 <span class="cstat-no" title="statement not covered" >    `UPDATE weighbridge_record</span>
 <span class="cstat-no" title="statement not covered" >     SET wb_card_number = ?,</span>
-<span class="cstat-no" title="statement not covered" >         arrival_datetime = ?,</span>
-<span class="cstat-no" title="statement not covered" >         dispatch_datetime = ?,</span>
+<span class="cstat-no" title="statement not covered" >         weighbridge_type = ?,</span>
+<span class="cstat-no" title="statement not covered" >         record_datetime = ?,</span>
 <span class="cstat-no" title="statement not covered" >         vehicle_number = ?,</span>
 <span class="cstat-no" title="statement not covered" >         driver_name = ?,</span>
 <span class="cstat-no" title="statement not covered" >         estate_supplier = ?,</span>
+<span class="cstat-no" title="statement not covered" >         destination = ?,</span>
 <span class="cstat-no" title="statement not covered" >         division = ?,</span>
 <span class="cstat-no" title="statement not covered" >         block = ?,</span>
 <span class="cstat-no" title="statement not covered" >         gross_weight = ?,</span>
@@ -1663,11 +1684,12 @@
 <span class="cstat-no" title="statement not covered" >     WHERE id = ?`,</span>
 <span class="cstat-no" title="statement not covered" >    [</span>
 <span class="cstat-no" title="statement not covered" >      formData.wb_card_number || null,</span>
-<span class="cstat-no" title="statement not covered" >      formData.arrival_datetime || null,</span>
-<span class="cstat-no" title="statement not covered" >      formData.dispatch_datetime || null,</span>
+<span class="cstat-no" title="statement not covered" >      formData.weighbridge_type || null,</span>
+<span class="cstat-no" title="statement not covered" >      formData.record_datetime || null,</span>
 <span class="cstat-no" title="statement not covered" >      formData.vehicle_number || null,</span>
 <span class="cstat-no" title="statement not covered" >      formData.driver_name || null,</span>
 <span class="cstat-no" title="statement not covered" >      formData.estate_supplier || null,</span>
+<span class="cstat-no" title="statement not covered" >      formData.destination || null,</span>
 <span class="cstat-no" title="statement not covered" >      formData.division || null,</span>
 <span class="cstat-no" title="statement not covered" >      formData.block || null,</span>
 <span class="cstat-no" title="statement not covered" >      formData.gross_weight,</span>
@@ -1713,11 +1735,12 @@
 <span class="cstat-no" title="statement not covered" >  await run(</span>
 <span class="cstat-no" title="statement not covered" >    `UPDATE weighbridge_record</span>
 <span class="cstat-no" title="statement not covered" >     SET wb_card_number = ?,</span>
-<span class="cstat-no" title="statement not covered" >         arrival_datetime = ?,</span>
-<span class="cstat-no" title="statement not covered" >         dispatch_datetime = ?,</span>
+<span class="cstat-no" title="statement not covered" >         weighbridge_type = ?,</span>
+<span class="cstat-no" title="statement not covered" >         record_datetime = ?,</span>
 <span class="cstat-no" title="statement not covered" >         vehicle_number = ?,</span>
 <span class="cstat-no" title="statement not covered" >         driver_name = ?,</span>
 <span class="cstat-no" title="statement not covered" >         estate_supplier = ?,</span>
+<span class="cstat-no" title="statement not covered" >         destination = ?,</span>
 <span class="cstat-no" title="statement not covered" >         division = ?,</span>
 <span class="cstat-no" title="statement not covered" >         block = ?,</span>
 <span class="cstat-no" title="statement not covered" >         gross_weight = ?,</span>
@@ -1731,11 +1754,12 @@
 <span class="cstat-no" title="statement not covered" >     WHERE id = ?`,</span>
 <span class="cstat-no" title="statement not covered" >    [</span>
 <span class="cstat-no" title="statement not covered" >      formData.wb_card_number || null,</span>
-<span class="cstat-no" title="statement not covered" >      formData.arrival_datetime || null,</span>
-<span class="cstat-no" title="statement not covered" >      formData.dispatch_datetime || null,</span>
+<span class="cstat-no" title="statement not covered" >      formData.weighbridge_type || null,</span>
+<span class="cstat-no" title="statement not covered" >      formData.record_datetime || null,</span>
 <span class="cstat-no" title="statement not covered" >      formData.vehicle_number || null,</span>
 <span class="cstat-no" title="statement not covered" >      formData.driver_name || null,</span>
 <span class="cstat-no" title="statement not covered" >      formData.estate_supplier || null,</span>
+<span class="cstat-no" title="statement not covered" >      formData.destination || null,</span>
 <span class="cstat-no" title="statement not covered" >      formData.division || null,</span>
 <span class="cstat-no" title="statement not covered" >      formData.block || null,</span>
 <span class="cstat-no" title="statement not covered" >      formData.gross_weight,</span>
@@ -1777,7 +1801,7 @@
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-08-19T03:55:31.392Z
+                at 2026-08-19T17:13:05.982Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

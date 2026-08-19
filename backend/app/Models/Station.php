@@ -31,6 +31,7 @@ class Station extends Model
         'is_active',
         'code',
         'description',
+        'icon',
     ];
 
     protected $casts = [

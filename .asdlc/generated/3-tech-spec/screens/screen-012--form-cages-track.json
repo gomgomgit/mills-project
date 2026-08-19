@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-08-19"
@@ -31,10 +31,10 @@
         "2. Auto-set Tanggal (date) dan Tippler Start Time = waktu saat ini HANYA jika draft baru (keduanya masih kosong); jika draft dilanjutkan (sudah punya nilai), pertahankan nilai tersimpan, tidak ditimpa",
         "3. Render field dikelompokkan per section: Identitas Cages Track (Cages Track Number, Tanggal), Tippler & Cages (Tippler Start Time, Tippler Stop Time, Cages Out, Cages Tipped), Verifikasi (Inputted By [read-only, dari current user], Checked By, Acknowledged By, Note), Cages Tipped Time (grid)",
         "4. Render breadcrumb (Home > Production Process Activity > Cages Track > Form, tappable) dan header dengan hamburger",
-        "5. Cages Tipped (header) menentukan N = jumlah kolom checklist Cage 1..N pada tiap baris grid; tombol 'Tambah baris' DISABLED sampai Cages Tipped terisi dengan nilai > 0",
-        "6. On Tambah baris Cages Tipped Time: tambah 1 baris baru (tanpa id) ke grid, time belum dipilih, seluruh checklist Cage 1..N unchecked",
+        "5. Load N = jumlah_cages dari local mill_setting reference table (SELECT jumlah_cages FROM mill_setting WHERE business_unit_id = ?, business_unit_id diturunkan dari station milik cages_track_record ini), dibaca sekali saat form dimuat. N menentukan jumlah kolom checklist Cage 1..N pada tiap baris grid. Tombol 'Tambah baris' DISABLED sampai N tersedia (mill_setting sudah tersinkron secara lokal, tidak null) DAN N > 0. Field Cages Tipped (header) TIDAK LAGI dipakai untuk menentukan N — tetap ada sebagai input manual terpisah dengan makna aslinya (jumlah cage yang akan di-tipping sesi ini), disimpan apa adanya tanpa memengaruhi grid",
+        "6. On Tambah baris Cages Tipped Time: tambah 1 baris baru (tanpa id) ke grid, time belum dipilih, seluruh checklist Cage 1..N (N dari langkah 5) unchecked",
         "7. Opsi dropdown Time per baris = jam 0-23 DIKURANGI (jam yang sudah dipakai baris manapun pada record ini) DAN (jam yang <= jam baris TERAKHIR yang ditambahkan) — dihitung ulang reaktif setiap kali baris manapun berubah/ditambah/dihapus",
-        "8. On centang/uncentang Cage checkbox pada suatu baris: update checked_cage_numbers baris tersebut (CSV); total_cages baris itu = COUNT cage yang tercentang; cages_remain baris itu = cages_tipped (header) MINUS total_cages baris itu — keduanya dihitung ulang reaktif, PER BARIS (tidak kumulatif lintas baris)",
+        "8. On centang/uncentang Cage checkbox pada suatu baris: update checked_cage_numbers baris tersebut (CSV); total_cages baris itu = COUNT cage yang tercentang; cages_remain baris itu = N (jumlah_cages dari mill_setting, langkah 5) MINUS total_cages baris itu — keduanya dihitung ulang reaktif, PER BARIS (tidak kumulatif lintas baris)",
         "9. On Hapus baris Cages Tipped Time: hapus baris dari form state; jika baris punya id (sudah tersimpan sebelumnya), tandai untuk DELETE saat Simpan/Pause berikutnya; jam yang dipakai baris tersebut otomatis kembali tersedia di dropdown baris lain (langkah 7 dihitung ulang)",
         "10. Checked By hanya dapat diisi/diedit jika role user saat ini = supervisor; disabled untuk role lain",
         "11. Acknowledged By hanya dapat diisi/diedit jika role user saat ini = mill_management; disabled untuk role lain",
@@ -55,6 +55,11 @@
           "entity_id": "cages-tipped-time",
           "operation": "SELECT",
           "description": "SELECT semua baris by cages_track_record_id"
+        },
+        {
+          "entity_id": "mill-setting",
+          "operation": "SELECT",
+          "description": "SELECT jumlah_cages by business_unit_id (read-only local reference table, sama pola dengan station — pre-seeded/sync di luar scope screen ini) untuk menentukan N kolom checklist grid"
         },
         {
           "entity_id": "cages-track-record",
@@ -92,8 +97,8 @@
           "handling": "Tampilkan pesan error khusus, record tidak tersimpan"
         },
         {
-          "condition": "Cages Tipped header belum diisi/masih 0",
-          "handling": "Tombol 'Tambah baris' disabled"
+          "condition": "Data mill_setting.jumlah_cages belum tersedia secara lokal (null/belum sync) atau bernilai 0 untuk business_unit terkait",
+          "handling": "Tombol 'Tambah baris' disabled, tampilkan pesan singkat bahwa data Jumlah Cages dari Mills Setting belum tersedia"
         },
         {
           "condition": "User membuka dropdown Time pada baris ketika jam tertentu sudah dipakai baris lain atau <= jam baris terakhir",
@@ -113,7 +118,7 @@
         },
         {
           "condition": "Draft di-Pause lalu dilanjutkan",
-          "handling": "Field form + grid Cages Tipped Time terisi dari draft tersimpan, opsi dropdown Time tiap baris otomatis mengecualikan jam yang sudah terpakai sejak awal render"
+          "handling": "Field form + grid Cages Tipped Time terisi dari draft tersimpan, opsi dropdown Time tiap baris otomatis mengecualikan jam yang sudah terpakai sejak awal render; N tetap dihitung dari mill_setting.jumlah_cages saat ini (bukan disimpan snapshot di record)"
         },
         {
           "condition": "Back dengan perubahan belum tersimpan",
@@ -128,7 +133,8 @@
         "Tanggal dan Tippler Start Time otomatis sekali saat draft baru dibuat",
         "Tippler Stop Time otomatis sekali tepat saat Simpan ditekan (bukan Pause)",
         "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
-        "Cages Tipped menentukan jumlah kolom checklist di grid Cages Tipped Time",
+        "Jumlah kolom checklist grid Cages Tipped Time mengacu ke mill_setting.jumlah_cages, bukan Cages Tipped header",
+        "Tambah baris disabled jika mill_setting.jumlah_cages belum tersedia/0",
         "Minimal satu baris Cages Tipped Time valid sebelum Simpan",
         "Time tiap baris harus > Time baris terakhir ditambahkan, tidak boleh duplikat",
         "Total Cages dan Cages Remain dihitung otomatis per baris, tidak dapat diedit manual"
@@ -145,19 +151,24 @@
           "expect": "both remain unchanged, not overwritten"
         },
         {
-          "description": "disables 'Tambah baris' when cages_tipped header is empty or zero",
-          "given": "cages_tipped field is null or 0",
+          "description": "disables 'Tambah baris' when mill_setting.jumlah_cages is unavailable locally (not synced)",
+          "given": "mill_setting lookup for the record's business_unit_id returns no row",
+          "expect": "add-row control is disabled, informational message shown"
+        },
+        {
+          "description": "disables 'Tambah baris' when mill_setting.jumlah_cages is 0",
+          "given": "mill_setting row found with jumlah_cages = 0",
           "expect": "add-row control is disabled"
         },
         {
-          "description": "enables 'Tambah baris' once cages_tipped header has a positive value",
-          "given": "cages_tipped field set to 10",
+          "description": "enables 'Tambah baris' once mill_setting.jumlah_cages is a positive value",
+          "given": "mill_setting row found with jumlah_cages = 10",
           "expect": "add-row control is enabled"
         },
         {
-          "description": "renders N checklist checkboxes per row matching the header's cages_tipped value",
-          "given": "cages_tipped = 10, one detail row added",
-          "expect": "that row renders 10 cage checkboxes, numbered 1 through 10"
+          "description": "renders N checklist checkboxes per row matching mill_setting.jumlah_cages, independent of the Cages Tipped header value",
+          "given": "mill_setting.jumlah_cages = 10, header Cages Tipped field = 5, one detail row added",
+          "expect": "that row renders 10 cage checkboxes (from mill_setting), NOT 5 (header value ignored for column count)"
         },
         {
           "description": "excludes hours already used by other rows from a row's Time dropdown options",
@@ -171,12 +182,12 @@
         },
         {
           "description": "computes total_cages for a row as the count of checked cage checkboxes in that row",
-          "given": "a row with cages 1, 3, 5 checked out of 10",
+          "given": "a row with cages 1, 3, 5 checked out of mill_setting.jumlah_cages=10",
           "expect": "that row's total_cages = 3"
         },
         {
-          "description": "computes cages_remain for a row as header cages_tipped minus that row's own total_cages",
-          "given": "header cages_tipped=10, a row with total_cages=3",
+          "description": "computes cages_remain for a row as mill_setting.jumlah_cages minus that row's own total_cages",
+          "given": "mill_setting.jumlah_cages=10, a row with total_cages=3",
           "expect": "that row's cages_remain = 7"
         },
         {
@@ -262,7 +273,14 @@
       ]
     }
   ],
-  "shared_entities": [],
+  "shared_entities": [
+    {
+      "entity_id": "mill-setting",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
   "screen_dependencies": [
     {
       "screen_id": "screen-009--monitor-cages-track",
@@ -271,15 +289,19 @@
     {
       "screen_id": "screen-015--data-preview-cages-track",
       "reason": "Referensi tampilan data setelah tersimpan"
+    },
+    {
+      "screen_id": "screen-034--mills-setting",
+      "reason": "Sumber data jumlah_cages yang menentukan jumlah kolom checklist grid Cages Tipped Time"
     }
   ],
   "implementation_notes": [
     "Simpan/Pause/Clear bersifat lokal (SQLite); pengiriman ke server terjadi lewat mekanisme sync manual terpisah, di luar scope screen ini",
     "cagesTrackRecordRepo.ts sudah punya blok lama (getDraftWithTippedTimes/saveDraft/dst) dari screen-012 versi pre-entity-catalog-v3 yang masih memakai kolom cage_number/tipped_time — HARUS DITULIS ULANG total di implementasi ini untuk memakai kolom v3 (tipped_hour, checked_cage_numbers, total_cages, cages_remain)",
     "checked_cage_numbers disimpan sebagai CSV string (mis. '1,3,5,7') — parsing/serialization dilakukan di level repo atau view, konsisten dengan keputusan entity-catalog",
-    "Cages Tipped (header) DIKUNCI/disabled setelah minimal 1 baris Cages Tipped Time ada, untuk mencegah N berubah di tengah pengisian grid — asumsi agent dari open_question business spec, perlu dikonfirmasi user di checkpoint",
     "Hapus baris mengikuti pola queue-for-deletion (baris dengan id ditandai, baru DELETE eksekusi saat Simpan/Pause berikutnya) — sama seperti Grading Detail, asumsi agent dari open_question business spec",
-    "Checked By/Acknowledged By TETAP ada di form ini (berbeda dari Weighbridge/Grading yang menghapusnya total) — mengikuti mock referensi yang eksplisit mencantumkan kedua field dengan role gating"
+    "Checked By/Acknowledged By TETAP ada di form ini (berbeda dari Weighbridge/Grading yang menghapusnya total) — mengikuti mock referensi yang eksplisit mencantumkan kedua field dengan role gating",
+    "BARU: perlu local reference table `mill_setting` di localSchema.ts (mirroring server entity mill-setting: id, business_unit_id UNIQUE, app_name, logo, home_page_image, jumlah_cages, timestamps), mengikuti pola read-only `station` (lihat stationRepo.ts's header comment) — pre-seeded/disinkronkan oleh mekanisme sync terpisah, di luar scope screen ini untuk mengimplementasikan sync-nya, hanya membaca. BARU: perlu millSettingRepo.ts kecil, read-only, pola sama seperti stationRepo.ts, mengekspos fungsi mis. getJumlahCages(businessUnitId): Promise<number | null>. business_unit_id record ini didapat dari join station (station_id pada cages_track_record) → station.business_unit_id — bukan disimpan langsung di cages_track_record"
   ],
   "test_scenarios": [
     {
@@ -340,6 +362,21 @@
         "route": "/stations/cages-track/form/:id",
         "action": "isi seluruh header, jangan tambah baris Cages Tipped Time, klik Simpan",
         "assert": "pesan error khusus muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Cages Track — Jumlah Kolom Grid Mengikuti Mills Setting, Bukan Cages Tipped Header",
+      "usecase_id": "usecase-012--form-cages-track",
+      "api_test": [],
+      "component_test": {
+        "component": "FormCagesTrackView",
+        "action": "set mill_setting.jumlah_cages=8 for the record's business unit, fill header Cages Tipped=15, add a detail row",
+        "assert": "the row renders exactly 8 checkboxes (from mill_setting), not 15 (header value has no effect on column count)"
+      },
+      "browser_test": {
+        "route": "/stations/cages-track/form/:id",
+        "action": "buka Form Cages Track pada mill dengan Jumlah Cages=8 di Mills Setting, isi Cages Tipped header dengan angka berbeda (mis. 15), tambah 1 baris",
+        "assert": "grid menampilkan 8 kolom checklist, sesuai Mills Setting, bukan 15"
       }
     },
     {

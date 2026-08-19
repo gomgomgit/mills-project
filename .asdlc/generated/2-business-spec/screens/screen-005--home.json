@@ -1,13 +1,13 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 2,
+  "ver": 3,
   "id": "screen-005--home",
   "name": "Home",
   "module_id": "module-mobile-station-ops",
-  "description": "Layar utama mobile setelah login yang menyambut user dan menjadi titik navigasi utama ke 3 area fungsi aplikasi: Estimates & Baselines, Production Process Activity, dan Dashboard & Reporting — ditampilkan sebagai header (nama sistem + ikon hamburger), hero image bertema mill, teks sambutan, dan 3 menu card. Layar ini murni untuk menyambut dan berpindah halaman — tidak lagi menampilkan status draft/record; status tersebut tetap terlihat di masing-masing layar Monitor per stasiun.",
+  "description": "Layar utama mobile setelah login yang menyambut user dan menjadi titik navigasi utama ke 3 area fungsi aplikasi: Estimates & Baselines, Production Process Activity, dan Dashboard & Reporting — ditampilkan sebagai header (nama sistem + ikon hamburger), hero image bertema mill (kini bersumber dari Mills Setting milik business unit user, dengan fallback gambar statis bawaan aplikasi), teks sambutan, dan 3 menu card. Layar ini murni untuk menyambut dan berpindah halaman — tidak lagi menampilkan status draft/record; status tersebut tetap terlihat di masing-masing layar Monitor per stasiun.",
   "actors": [
     "actor-station-operator",
     "actor-supervisor"
@@ -18,7 +18,7 @@
   ],
   "information_displayed": [
     "Nama sistem 'Mill Smart Log' pada header, dengan ikon hamburger menu",
-    "Hero image bertema mill/plantation di bawah header",
+    "Hero image di bawah header — diambil dari home_page_image milik Mills Setting business unit user (via Admin/Mill Management di web); jika belum tersedia (belum pernah di-fetch, offline saat pertama login, atau business unit belum diset home_page_image-nya), tampilkan gambar statis bertema mill/plantation bawaan aplikasi sebagai fallback",
     "Teks sambutan personal (mis. 'Hello, [nama user]' + 'Apa tugas hari ini?')",
     "3 menu card (ikon + nama menu): Estimates & Baselines, Production Process Activity, Dashboard & Reporting"
   ],
@@ -59,14 +59,16 @@
   "business_rules": [
     "Home tidak menampilkan status draft/record dari stasiun manapun — status tersebut hanya terlihat di layar Monitor masing-masing stasiun (Weighbridge/Grading/Cages Track)",
     "Hanya menu 'Production Process Activity' yang fungsional saat ini; 'Estimates & Baselines' dan 'Dashboard & Reporting' tetap tampil sebagai placeholder non-fungsional sampai layar tujuannya dibangun",
-    "Branding pada header memakai nama produk 'Mill Smart Log' — bukan nama/logo perusahaan/klien sesungguhnya"
+    "Branding pada header memakai nama produk 'Mill Smart Log' — bukan nama/logo perusahaan/klien sesungguhnya (nama produk header ini terpisah dari app_name di Mills Setting, yang dipakai untuk konteks branding lain, bukan header Home)",
+    "Hero image mengikuti home_page_image milik business unit user saat ini, di-cache secara lokal setelah berhasil diambil sehingga tetap tampil saat offline; TIDAK di-fetch ulang setiap kali layar dibuka — hanya saat cache belum ada atau device online dan cache dianggap kedaluwarsa"
   ],
   "usecase_ids": [
     "usecase-005--home"
   ],
   "edge_cases": [
     "User tap salah satu menu placeholder (Estimates & Baselines / Dashboard & Reporting) — harus ada feedback bahwa fitur belum tersedia, bukan diam saja",
-    "Nama user tidak tersedia/kosong — teks sambutan tetap tampil dengan fallback generik tanpa nama"
+    "Nama user tidak tersedia/kosong — teks sambutan tetap tampil dengan fallback generik tanpa nama",
+    "home_page_image belum pernah berhasil di-fetch (login pertama offline, API gagal, atau business unit belum diisi home_page_image-nya di Mills Setting) — tampilkan gambar statis fallback bawaan aplikasi, bukan area kosong/rusak"
   ],
   "test_priority": "medium",
   "open_questions": []

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { login, getAuthUserId } from './helpers'
+import { login, getAuthUserId, getBusinessUnitId } from './helpers'
 
 // screen-006--station-list / usecase-006--station-list "Pilih Stasiun"
 //
@@ -101,5 +101,44 @@ test.describe('Station List (screen-006)', () => {
     // Other active tiles (no draft seeded for them) stay dark-neutral.
     const gradingTile = page.locator('button.station-tile--active').filter({ hasText: 'Grading' })
     await expect(gradingTile).toHaveCSS('background-color', 'rgb(31, 41, 55)')
+  })
+
+  // entity-catalog v7 / tech-spec v4 — station.icon override (Mills Setting
+  // feature). Weighbridge station's local `icon` column starts NULL (per
+  // seedDefaultStationsIfNeeded()) — updated directly here to 'truck' via
+  // the __mslTestDb bridge (mirroring the pattern used above for the
+  // draft-status color test), since fetchAndCacheStationIconOverrides()
+  // syncing from a real Mills Setting-authored value is out of scope for
+  // this screen's own e2e coverage. Tile color/shadow/layout are asserted
+  // unchanged — only the icon glyph differs.
+  test('Pilih Stasiun — Ikon Stasiun Override', async ({ page }) => {
+    const weighbridgeTile = page.locator('button.station-tile--active').filter({ hasText: 'Weighbridge' })
+    const gradingTile = page.locator('button.station-tile--active').filter({ hasText: 'Grading' })
+
+    const iconBefore = await weighbridgeTile.locator('svg').innerHTML()
+    const gradingIconBefore = await gradingTile.locator('svg').innerHTML()
+
+    const businessUnitId = await getBusinessUnitId(page)
+    await page.evaluate(async (buId) => {
+      const db = (window as unknown as { __mslTestDb: { run: (sql: string, params?: unknown[]) => Promise<unknown> } })
+        .__mslTestDb
+      await db.run(`UPDATE station SET icon = 'truck' WHERE business_unit_id = ? AND type = 'weighbridge'`, [buId])
+    }, businessUnitId)
+
+    await page.reload()
+    await page.waitForURL('**/stations')
+
+    const weighbridgeTileAfterSeed = page.locator('button.station-tile--active').filter({ hasText: 'Weighbridge' })
+    const iconAfter = await weighbridgeTileAfterSeed.locator('svg').innerHTML()
+    expect(iconAfter).not.toEqual(iconBefore)
+
+    // Tile styling untouched — still the active tile background/shadow
+    // classes, not a photo/background-image swap.
+    await expect(weighbridgeTileAfterSeed).toHaveClass(/station-tile--active/)
+
+    // A station without an icon override still shows its default icon,
+    // unchanged by the sibling station's override.
+    const gradingIconAfter = await gradingTile.locator('svg').innerHTML()
+    expect(gradingIconAfter).toEqual(gradingIconBefore)
   })
 })

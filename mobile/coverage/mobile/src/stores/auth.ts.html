@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/208</span>
+                <span class='fraction'>0/222</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/208</span>
+                <span class='fraction'>0/222</span>
             </div>
         
             
@@ -271,7 +271,35 @@
 <a name='L206'></a><a href='#L206'>206</a>
 <a name='L207'></a><a href='#L207'>207</a>
 <a name='L208'></a><a href='#L208'>208</a>
-<a name='L209'></a><a href='#L209'>209</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -482,7 +510,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { defineStore } from 'pinia'<span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span></span>
 <span class="cstat-no" title="statement not covered" >import apiClient from '@/services/apiClient'</span>
 <span class="cstat-no" title="statement not covered" >import { tokenStorage } from '@/services/tokenStorage'</span>
-<span class="cstat-no" title="statement not covered" >import { seedDefaultStationsIfNeeded } from '@/services/localSchema'</span>
+<span class="cstat-no" title="statement not covered" >import { fetchAndCacheMillSetting, seedDefaultStationsIfNeeded } from '@/services/localSchema'</span>
 <span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >/**</span>
 <span class="cstat-no" title="statement not covered" > * OFFLINE_GRACE_PERIOD_MS — screen-002--login-mobile / "Token Sesi Lokal</span>
@@ -597,6 +625,20 @@
 <span class="cstat-no" title="statement not covered" >        } catch {</span>
 <span class="cstat-no" title="statement not covered" >          // Local SQLite write failed — non-fatal, login already succeeded.</span>
 <span class="cstat-no" title="statement not covered" >        }</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >        // Mills Setting feature (2026-08-19): mill-setting (app_name/logo/</span>
+<span class="cstat-no" title="statement not covered" >        // home_page_image/jumlah_cages) is genuinely server-authored data</span>
+<span class="cstat-no" title="statement not covered" >        // (edited via the web Mills Setting screen, screen-034), unlike the</span>
+<span class="cstat-no" title="statement not covered" >        // fixed local station seed above — fetched here, best-effort, same</span>
+<span class="cstat-no" title="statement not covered" >        // principle as seedDefaultStationsIfNeeded(): a failed/offline</span>
+<span class="cstat-no" title="statement not covered" >        // fetch must not block a successful login. Screens consuming this</span>
+<span class="cstat-no" title="statement not covered" >        // data (Home, Station List, Form Cages Track) each handle the</span>
+<span class="cstat-no" title="statement not covered" >        // "not cached yet" case themselves (see their own tech specs).</span>
+<span class="cstat-no" title="statement not covered" >        try {</span>
+<span class="cstat-no" title="statement not covered" >          await fetchAndCacheMillSetting(businessUnit.id)</span>
+<span class="cstat-no" title="statement not covered" >        } catch {</span>
+<span class="cstat-no" title="statement not covered" >          // Offline or request failed — non-fatal, login already succeeded.</span>
+<span class="cstat-no" title="statement not covered" >        }</span>
 <span class="cstat-no" title="statement not covered" >      }</span>
 <span class="cstat-no" title="statement not covered" >    },</span>
 <span class="cstat-no" title="statement not covered" ></span>
@@ -694,7 +736,7 @@
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-08-19T03:55:31.392Z
+                at 2026-08-19T17:13:05.982Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

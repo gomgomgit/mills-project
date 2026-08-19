@@ -258,6 +258,17 @@ const CREATE_CAGES_TIPPED_TIME = `
 // Read-only reference cache table — see stationRepo.ts, which already
 // assumes this exact column set (id, business_unit_id, name, type,
 // is_active); populated by a separate sync flow, never written here.
+//
+// entity-catalog v7 (2026-08-19, Mills Setting feature) added `icon`
+// (optional Lucide icon-name override for the station-tile; falls back to
+// the existing default icon per station type when null/unset) — see
+// migrateStationTableToV7() below for the "table pre-dates this column"
+// gap this repeats from every prior schema-change migration in this file.
+// `icon` is populated by fetchAndCacheStationIconOverrides() (below),
+// matched by (business_unit_id, type) rather than by id — see that
+// function's doc comment for why (local rows use synthetic ids, not real
+// server station UUIDs) and its known limitation (breaks if a mill ever
+// has >1 active station of the same type).
 const CREATE_STATION = `
   CREATE TABLE IF NOT EXISTS station (
     id TEXT PRIMARY KEY,
@@ -265,6 +276,30 @@ const CREATE_STATION = `
     name TEXT NOT NULL,
     type TEXT NOT NULL,
     is_active INTEGER NOT NULL DEFAULT 0,
+    icon TEXT,
+    created_at TEXT,
+    updated_at TEXT
+  )
+`
+
+// New read-only reference cache table (entity-catalog v6/v7, Mills Setting
+// feature) — server is the source of truth (edited via the web Mills
+// Setting screen, screen-034); mobile only reads it. One row per business
+// unit (business_unit_id UNIQUE, same 1:1 shape as the server `mill-setting`
+// entity). Populated by fetchAndCacheMillSetting() (below), called from
+// stores/auth.ts's login() alongside seedDefaultStationsIfNeeded() — unlike
+// `station`'s local-only synthetic seed, this data is genuinely
+// Admin/Mill-Management-authored and must come from the server, so it uses
+// a real GET /api/mill-settings/current fetch (see fetchAndCacheMillSetting()
+// doc comment for why a real fetch is used here and not another local seed).
+const CREATE_MILL_SETTING = `
+  CREATE TABLE IF NOT EXISTS mill_setting (
+    id TEXT PRIMARY KEY,
+    business_unit_id TEXT NOT NULL UNIQUE,
+    app_name TEXT,
+    logo TEXT,
+    home_page_image TEXT,
+    jumlah_cages INTEGER,
     created_at TEXT,
     updated_at TEXT
   )
@@ -278,6 +313,7 @@ const CREATE_TABLE_STATEMENTS: string[] = [
   CREATE_CAGES_TRACK_RECORD,
   CREATE_CAGES_TIPPED_TIME,
   CREATE_STATION,
+  CREATE_MILL_SETTING,
 ]
 
 /**
@@ -306,8 +342,10 @@ export async function initLocalSchema(): Promise<void> {
     await run(statement)
   }
 
+  await migrateWeighbridgeTableToV5()
   await migrateGradingTablesToV2()
   await migrateCagesTrackTablesToV3()
+  await migrateStationTableToV7()
 }
 
 /**
@@ -334,6 +372,29 @@ async function addMissingColumns(
 
     await run(`ALTER TABLE ${table} ADD COLUMN ${column.name} ${column.type}`)
   }
+}
+
+/**
+ * entity-catalog v5 (2026-08-19) merged weighbridge_record's
+ * arrival_datetime/dispatch_datetime into a single record_datetime column,
+ * and added weighbridge_type/destination (see CREATE_WEIGHBRIDGE_RECORD's
+ * own comment for the full rationale). Same "CREATE TABLE IF NOT EXISTS is
+ * a no-op on an existing table" gap as migrateGradingTablesToV2()/
+ * migrateCagesTrackTablesToV3() below — any device/browser whose
+ * weighbridge_record table pre-dates this change is left without
+ * weighbridge_type/record_datetime/destination, so every v5 read/write
+ * (including gradingRecordRepo.ts's WB Card No dropdown, which selects
+ * record_datetime) fails with "no such column: record_datetime" — the
+ * production bug this migration fixes. The old pre-v5 columns
+ * (arrival_datetime, dispatch_datetime) are deliberately left in place
+ * rather than dropped — same reasoning as the other migrations here.
+ */
+async function migrateWeighbridgeTableToV5(): Promise<void> {
+  await addMissingColumns('weighbridge_record', [
+    { name: 'weighbridge_type', type: 'TEXT' },
+    { name: 'record_datetime', type: 'TEXT' },
+    { name: 'destination', type: 'TEXT' },
+  ])
 }
 
 /**
@@ -400,6 +461,18 @@ async function migrateCagesTrackTablesToV3(): Promise<void> {
 }
 
 /**
+ * entity-catalog v7 (2026-08-19, Mills Setting feature) added `icon` to
+ * `station` (see CREATE_STATION's own comment). Same "CREATE TABLE IF NOT
+ * EXISTS is a no-op on an existing table" gap as every other migration in
+ * this file — any device/browser whose `station` table was seeded before
+ * this change is left without the `icon` column, so any v7 read against it
+ * fails with "no such column: icon".
+ */
+async function migrateStationTableToV7(): Promise<void> {
+  await addMissingColumns('station', [{ name: 'icon', type: 'TEXT' }])
+}
+
+/**
  * The 15 MVP stations (business_rules: "Hanya 3 stasiun MVP yang aktif
  * secara fungsional; 12 lainnya adalah placeholder skema data untuk fase
  * mendatang") — fixed, known domain data per entity-catalog's `station`
@@ -447,6 +520,106 @@ export async function seedDefaultStationsIfNeeded(businessUnitId: string): Promi
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [`default-${businessUnitId}-${station.idSuffix}`, businessUnitId, station.name, station.type, station.isActive ? 1 : 0, now, now],
     )
+  }
+}
+
+/**
+ * Fetches the current mill-setting (app_name/logo/home_page_image/
+ * jumlah_cages) from `GET /api/mill-settings/current` and upserts it into
+ * the local `mill_setting` table, keyed by `business_unit_id`.
+ *
+ * Unlike `seedDefaultStationsIfNeeded()`'s fixed local seed, this data is
+ * genuinely Admin/Mill-Management-authored (edited via the web Mills
+ * Setting screen, screen-034) — it cannot be hardcoded client-side, so this
+ * is a real network fetch, not another local seed. Called from
+ * `stores/auth.ts`'s `login()` right after `seedDefaultStationsIfNeeded()`,
+ * with the same best-effort semantics: a failed/offline fetch must not
+ * block a successful login (the caller wraps this in try/catch, same as
+ * the station seed) — screens needing mill_setting data (Home, Station
+ * List, Form Cages Track) each have their own local-cache-first / fallback
+ * handling for the case where no row exists yet (see their tech specs'
+ * edge_case_handling).
+ *
+ * Deliberately NOT registering the `apiClient` import at module load time
+ * beyond what's already imported here — this file otherwise only touches
+ * localDb, so the import is scoped to this one function's use.
+ */
+export async function fetchAndCacheMillSetting(businessUnitId: string): Promise<void> {
+  const { default: apiClient } = await import('@/services/apiClient')
+
+  const response = await apiClient.get('/api/mill-settings/current')
+  const data = response.data as {
+    business_unit_id?: string
+    app_name?: string | null
+    logo?: string | null
+    home_page_image?: string | null
+    jumlah_cages?: number | null
+  }
+
+  const now = new Date().toISOString()
+
+  await run(
+    `INSERT INTO mill_setting (id, business_unit_id, app_name, logo, home_page_image, jumlah_cages, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(business_unit_id) DO UPDATE SET
+       app_name = excluded.app_name,
+       logo = excluded.logo,
+       home_page_image = excluded.home_page_image,
+       jumlah_cages = excluded.jumlah_cages,
+       updated_at = excluded.updated_at`,
+    [
+      `mill-setting-${businessUnitId}`,
+      data.business_unit_id ?? businessUnitId,
+      data.app_name ?? null,
+      data.logo ?? null,
+      data.home_page_image ?? null,
+      data.jumlah_cages ?? null,
+      now,
+      now,
+    ],
+  )
+
+  await fetchAndCacheStationIconOverrides(businessUnitId)
+}
+
+/**
+ * Known limitation (2026-08-19, Mills Setting station-icon sync — explicit
+ * product decision): local `station` rows use synthetic deterministic ids
+ * (see `seedDefaultStationsIfNeeded()`'s `DEFAULT_STATIONS`, e.g.
+ * `default-${businessUnitId}-weighbridge`) that are NOT the real server
+ * `station` UUIDs Admin/Mill Management manage via Kelola Station / Mills
+ * Setting — there is no reliable id to join a server station row to its
+ * local counterpart (station.icon is server-authored, per-station data;
+ * see CREATE_STATION's own comment). Pragmatic fix: match by
+ * `(business_unit_id, type)` instead of by id, since every mill currently
+ * has AT MOST ONE active station per type (weighbridge/grading/cages-track)
+ * in this MVP — `DEFAULT_STATIONS` seeds exactly one row per type per
+ * business unit, so this is unambiguous today.
+ *
+ * WILL BREAK if a mill is ever given more than one active station of the
+ * same type: this update statement applies the server's icon to EVERY
+ * local row sharing that `(business_unit_id, type)` pair, which would
+ * silently apply the same icon to multiple distinct stations instead of
+ * the one it was actually set for. A real id-based sync (requiring local
+ * `station` rows to carry the real server id, not a synthetic one) is the
+ * correct long-term fix — deferred here since it needs a broader decision
+ * about how `station` sync works on mobile (see CREATE_STATION's and
+ * `seedDefaultStationsIfNeeded()`'s own comments on that pre-existing gap).
+ * screen-006--station-list's own implementation should carry the same
+ * caveat in its implementation_notes.
+ */
+async function fetchAndCacheStationIconOverrides(businessUnitId: string): Promise<void> {
+  const { default: apiClient } = await import('@/services/apiClient')
+
+  const response = await apiClient.get('/api/mill-settings/current/stations')
+  const stations = (response.data?.data ?? []) as Array<{ id: string; name: string; type: string; icon: string | null }>
+
+  for (const station of stations) {
+    await run('UPDATE station SET icon = ? WHERE business_unit_id = ? AND type = ?', [
+      station.icon,
+      businessUnitId,
+      station.type,
+    ])
   }
 }
 
@@ -503,6 +676,7 @@ export async function seedGradingParametersIfNeeded(): Promise<void> {
 export const localSchema = {
   initLocalSchema,
   seedDefaultStationsIfNeeded,
+  fetchAndCacheMillSetting,
   seedGradingParametersIfNeeded,
 }
 

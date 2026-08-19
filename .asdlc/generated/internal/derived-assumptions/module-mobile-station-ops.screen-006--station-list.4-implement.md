@@ -13,3 +13,10 @@
 - Setiap panggilan repo draft-status di-.catch(()=>null) independen (best-effort per repo, bukan all-or-nothing) ← bukan requirement eksplisit di tech-spec, ditambahkan agar satu repo gagal tidak memblokir 2 lainnya
 - Header brand+hamburger di StationListView.vue adalah salinan persis pola HomeView.vue (nama variabel/class sama) ← demi konsistensi visual & perilaku lintas layar, bukan diminta secara literal "harus identik" oleh user
 - Padding tile dinaikkan dari 10px 6px ke 22px 6px ← angka spesifik dipilih agen, user hanya minta "lebih besar" tanpa angka pasti
+
+## v7 — 2026-08-19
+
+- ICON_OVERRIDES di StationGrid.vue memakai persis 10 nama (gauge/layers/package/truck/scale/warehouse/factory/container/box/boxes) ← tech-spec v4/v5 hanya bilang "nama icon Lucide yang dikenali", tidak mendaftar nama pastinya; agen menemukan vocabulary sebenarnya dengan membaca `MillSettingService::SUPPORTED_ICONS` di backend agar konsisten dengan apa yang benar-benar bisa dipilih Admin di Mills Setting
+- SVG path tiap icon override ditulis tangan (bukan dari library Lucide asli, karena package `lucide-vue-next` tidak terpasang di mobile) ← konsisten dengan pola 15 icon existing lain di file yang sama, sudah ada known_issue serupa sebelumnya
+- Icon override HANYA berlaku untuk tile aktif, tidak pernah untuk tile disabled/placeholder ← translasi langsung dari business_logic step 3 tech-spec, bukan asumsi baru
+- 1 test e2e di luar scope (form-cages-track.spec.ts) ditemukan gagal saat regresi penuh, dicatat sebagai known_issue tapi TIDAK diperbaiki (di luar directive screen-006 only) ← disiplin scope, bukan diabaikan begitu saja

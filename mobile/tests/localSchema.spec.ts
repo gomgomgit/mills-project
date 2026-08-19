@@ -17,8 +17,13 @@ vi.mock('@/services/localDb', () => ({
   query: vi.fn(),
 }))
 
+vi.mock('@/services/apiClient', () => ({
+  default: { get: vi.fn() },
+}))
+
 import { query, run } from '@/services/localDb'
-import { initLocalSchema, seedDefaultStationsIfNeeded } from '@/services/localSchema'
+import apiClient from '@/services/apiClient'
+import { fetchAndCacheMillSetting, initLocalSchema, seedDefaultStationsIfNeeded } from '@/services/localSchema'
 
 const BUSINESS_UNIT_ID = 'bu-1'
 
@@ -70,6 +75,61 @@ describe('localSchema — seedDefaultStationsIfNeeded()', () => {
       expect(businessUnitId).toBe(BUSINESS_UNIT_ID)
       expect(id).toContain(BUSINESS_UNIT_ID)
     }
+  })
+})
+
+/**
+ * initLocalSchema() — v5 weighbridge_record column migration. Reproduces
+ * the real bug a user hit: `CREATE TABLE IF NOT EXISTS` is a no-op once a
+ * table already exists, so a browser whose weighbridge_record table was
+ * created under the pre-v5 shape (arrival_datetime/dispatch_datetime, no
+ * weighbridge_type/destination) never picks up the new v5 columns, and
+ * every v5 read/write — including gradingRecordRepo.ts's WB Card No
+ * dropdown, which selects record_datetime — fails with "no such column:
+ * record_datetime".
+ */
+describe('localSchema — initLocalSchema() weighbridge_record v5 migration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(run).mockResolvedValue({ changes: 1 })
+  })
+
+  it('adds every missing v5 column to weighbridge_record when the table pre-dates the v5 schema', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('weighbridge_record')) {
+        return [
+          { name: 'id' },
+          { name: 'station_id' },
+          { name: 'wb_card_number' },
+          { name: 'arrival_datetime' },
+          { name: 'dispatch_datetime' },
+          { name: 'status' },
+        ] as never
+      }
+
+      return [{ name: 'id' }] as never
+    })
+
+    await initLocalSchema()
+
+    const alterCalls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(alterCalls).toContain('ALTER TABLE weighbridge_record ADD COLUMN weighbridge_type TEXT')
+    expect(alterCalls).toContain('ALTER TABLE weighbridge_record ADD COLUMN record_datetime TEXT')
+    expect(alterCalls).toContain('ALTER TABLE weighbridge_record ADD COLUMN destination TEXT')
+  })
+
+  it('does not re-add a column that PRAGMA table_info already reports as present', async () => {
+    vi.mocked(query).mockResolvedValue([
+      { name: 'id' },
+      { name: 'weighbridge_type' },
+      { name: 'record_datetime' },
+      { name: 'destination' },
+    ] as never)
+
+    await initLocalSchema()
+
+    const alterCalls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(alterCalls.some((sql) => sql.includes('ALTER TABLE weighbridge_record'))).toBe(false)
   })
 })
 
@@ -202,5 +262,171 @@ describe('localSchema — initLocalSchema() cages_track_record/cages_tipped_time
 
     const alterCalls = vi.mocked(run).mock.calls.map((call) => call[0])
     expect(alterCalls.some((sql) => sql.includes('ALTER TABLE cages_track_record'))).toBe(false)
+  })
+})
+
+/**
+ * initLocalSchema() — v7 station.icon column migration (Mills Setting
+ * feature, entity-catalog v7). Same "CREATE TABLE IF NOT EXISTS is a no-op
+ * on an existing table" gap as every migration above — a device/browser
+ * whose `station` table was already seeded (e.g. via
+ * seedDefaultStationsIfNeeded() before this change shipped) never picks up
+ * the new `icon` column, so any v7 read against it fails with "no such
+ * column: icon".
+ */
+describe('localSchema — initLocalSchema() station.icon v7 migration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(run).mockResolvedValue({ changes: 1 })
+  })
+
+  it('adds the icon column to station when the table pre-dates the v7 schema', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('station')) {
+        return [{ name: 'id' }, { name: 'business_unit_id' }, { name: 'name' }, { name: 'type' }, { name: 'is_active' }] as never
+      }
+
+      return [{ name: 'id' }] as never
+    })
+
+    await initLocalSchema()
+
+    const alterCalls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(alterCalls).toContain('ALTER TABLE station ADD COLUMN icon TEXT')
+  })
+
+  it('does not re-add icon when PRAGMA table_info already reports it as present', async () => {
+    vi.mocked(query).mockResolvedValue([
+      { name: 'id' },
+      { name: 'business_unit_id' },
+      { name: 'name' },
+      { name: 'type' },
+      { name: 'is_active' },
+      { name: 'icon' },
+    ] as never)
+
+    await initLocalSchema()
+
+    const alterCalls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(alterCalls.some((sql) => sql.includes('ALTER TABLE station'))).toBe(false)
+  })
+})
+
+/**
+ * fetchAndCacheMillSetting() — Mills Setting feature. Unlike the seed/
+ * migration functions above, this makes a real GET /api/mill-settings/current
+ * call (mill-setting is server-authored, not fixed local domain data) and
+ * upserts the result into the local `mill_setting` table.
+ */
+describe('localSchema — fetchAndCacheMillSetting()', () => {
+  const BUSINESS_UNIT_ID = 'bu-1'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(run).mockResolvedValue({ changes: 1 })
+  })
+
+  it('upserts the fetched mill-setting into the local table, keyed by business_unit_id', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: {
+        business_unit_id: BUSINESS_UNIT_ID,
+        app_name: 'Mill A',
+        logo: 'storage/logo.png',
+        home_page_image: 'storage/home.png',
+        jumlah_cages: 10,
+      },
+    })
+
+    await fetchAndCacheMillSetting(BUSINESS_UNIT_ID)
+
+    expect(apiClient.get).toHaveBeenCalledWith('/api/mill-settings/current')
+    expect(run).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO mill_setting'),
+      expect.arrayContaining([expect.stringContaining(BUSINESS_UNIT_ID), BUSINESS_UNIT_ID, 'Mill A', 'storage/logo.png', 'storage/home.png', 10]),
+    )
+  })
+
+  it('propagates a fetch failure to the caller (best-effort handling belongs to the caller, e.g. auth store login())', async () => {
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('network error'))
+
+    await expect(fetchAndCacheMillSetting(BUSINESS_UNIT_ID)).rejects.toThrow('network error')
+    expect(run).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * fetchAndCacheMillSetting() also syncs per-station icon overrides (Mills
+ * Setting feature follow-up, 2026-08-19) via GET
+ * /api/mill-settings/current/stations, matching by
+ * (business_unit_id, type) rather than by id — see
+ * fetchAndCacheStationIconOverrides()'s doc comment in localSchema.ts for
+ * the known limitation this is a pragmatic, explicitly-accepted tradeoff
+ * for (breaks if a mill ever has >1 active station of the same type).
+ */
+describe('localSchema — fetchAndCacheMillSetting() station icon override sync', () => {
+  const BUSINESS_UNIT_ID = 'bu-1'
+
+  function mockMillSettingThenStations(stations: Array<{ id: string; name: string; type: string; icon: string | null }>) {
+    vi.mocked(apiClient.get).mockImplementation(async (url: string) => {
+      if (url === '/api/mill-settings/current') {
+        return {
+          data: {
+            business_unit_id: BUSINESS_UNIT_ID,
+            app_name: 'Mill A',
+            logo: null,
+            home_page_image: null,
+            jumlah_cages: 10,
+          },
+        }
+      }
+
+      if (url === '/api/mill-settings/current/stations') {
+        return { data: { data: stations } }
+      }
+
+      throw new Error(`unexpected apiClient.get url in test: ${url}`)
+    })
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(run).mockResolvedValue({ changes: 1 })
+  })
+
+  it('fetches the station list for the business unit after caching mill-setting', async () => {
+    mockMillSettingThenStations([])
+
+    await fetchAndCacheMillSetting(BUSINESS_UNIT_ID)
+
+    expect(apiClient.get).toHaveBeenCalledWith('/api/mill-settings/current/stations')
+  })
+
+  it('updates the matching local station row(s) icon by (business_unit_id, type)', async () => {
+    mockMillSettingThenStations([
+      { id: 'server-station-1', name: 'Weighbridge', type: 'weighbridge', icon: 'truck' },
+      { id: 'server-station-2', name: 'Grading', type: 'grading', icon: null },
+    ])
+
+    await fetchAndCacheMillSetting(BUSINESS_UNIT_ID)
+
+    const updateCalls = vi.mocked(run).mock.calls.filter((call) => (call[0] as string).includes('UPDATE station SET icon'))
+    expect(updateCalls).toHaveLength(2)
+    expect(updateCalls).toContainEqual([
+      'UPDATE station SET icon = ? WHERE business_unit_id = ? AND type = ?',
+      ['truck', BUSINESS_UNIT_ID, 'weighbridge'],
+    ])
+    expect(updateCalls).toContainEqual([
+      'UPDATE station SET icon = ? WHERE business_unit_id = ? AND type = ?',
+      [null, BUSINESS_UNIT_ID, 'grading'],
+    ])
+  })
+
+  it('does not run any station UPDATE when the business unit has no stations yet', async () => {
+    mockMillSettingThenStations([])
+
+    await fetchAndCacheMillSetting(BUSINESS_UNIT_ID)
+
+    const updateCalls = vi.mocked(run).mock.calls.filter((call) => (call[0] as string).includes('UPDATE station SET icon'))
+    expect(updateCalls).toHaveLength(0)
   })
 })

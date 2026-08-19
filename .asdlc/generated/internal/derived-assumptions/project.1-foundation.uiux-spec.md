@@ -15,3 +15,8 @@
 - component_patterns['station-tile'] ikon per jenis stasiun = Gauge (Weighbridge), Layers (Grading), Package (Cages Track), dari Lucide ← user tidak menentukan ikon spesifik; dipilih agen dari icon_library yang sudah ada berdasarkan makna semantik nama stasiun
 - screen_type_patterns[list].header_area (mobile) — gambar referensi dijadikan opsional (bukan wajib) ← user komplain placeholder gambar tidak bermakna; tidak ada asset final yang dinyatakan tersedia, jadi dihilangkan sebagai requirement wajib, bukan diganti asset lain
 - component_patterns['station-tile'] shadow = token 'card' yang sudah ada di design_system tapi sebelumnya tidak direferensikan komponen manapun ← agent derived untuk mengatasi keluhan 'flat/blocky', memakai token yang sudah didefinisikan bukan nilai baru
+
+## v3 — 2026-08-19
+
+- component_patterns['web-form-input'] pengecualian untuk field Checked By/Acknowledged By (role-based disable pada component 'form') tetap berlaku dan tidak termasuk larangan disabled/readonly baru ← user tidak menyebutkan pengecualian ini secara eksplisit; agen menyimpulkan agar konvensi baru tidak bertentangan dengan pola role-based access control yang sudah ada sebelumnya
+- component_patterns['web-form-input'] cakupan field date/datetime = native `<input type="date">`/`<input type="datetime-local">` secara spesifik (bukan sekadar "harus ada picker + manual") ← user hanya menyatakan "bisa input manual ataupun date picker"; agen memilih implementasi HTML native konkret yang sudah dipakai di semua form date existing (dikonfirmasi via audit) sebagai cara memenuhi requirement tersebut

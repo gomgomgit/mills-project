@@ -45,6 +45,14 @@
  * hardcoded (never includes `station.name`/user data in the HTML string
  * itself, which is rendered separately as text), so `v-html` here is
  * injecting only fixed, developer-authored SVG content — not an XSS risk.
+ *
+ * entity-catalog v7 (Mills Setting feature): active tiles additionally
+ * consult `station.icon` (an Admin/Mill-Management-set override, synced
+ * from the server) BEFORE the type-based default above — see
+ * ICON_OVERRIDES / `iconInnerHtml()`. Disabled/placeholder tiles never
+ * receive an override (business_logic step 3), and an unset/unrecognized
+ * `station.icon` value falls through to the same type-based default as
+ * before this feature — tile color/shadow/radius/layout are untouched.
  */
 import { computed, ref } from 'vue'
 import type { StationSlot, StationType } from '@/services/stationRepo'
@@ -99,6 +107,28 @@ const PLACEHOLDER_ICONS: Record<string, string> = {
 const FALLBACK_ICON = '<rect x="4" y="4" width="16" height="16" rx="2"/>'
 
 /**
+ * entity-catalog v7 (Mills Setting feature) — optional per-station icon
+ * override. Keys match `MillSettingService::SUPPORTED_ICONS` on the
+ * backend (the picker's controlled vocabulary in screen-034's Mills
+ * Setting form) exactly, lowercase. Only consulted for ACTIVE stations
+ * (business_logic step 3 — disabled/placeholder tiles never receive an
+ * override, regardless of `station.icon`). Same hand-authored 24-viewBox
+ * Lucide-style path convention as ACTIVE_ICONS/PLACEHOLDER_ICONS above.
+ */
+const ICON_OVERRIDES: Record<string, string> = {
+  gauge: '<path d="M12 12l4-4"/><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 8.5 6"/>',
+  layers: '<path d="M12 3 3 8l9 5 9-5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+  package: '<path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><line x1="12" y1="13" x2="12" y2="21"/>',
+  truck: '<rect x="1" y="7" width="13" height="10" rx="1"/><path d="M14 10h4l3 3v4h-7"/><circle cx="6" cy="19" r="2"/><circle cx="17" cy="19" r="2"/>',
+  scale: '<line x1="12" y1="3" x2="12" y2="21"/><path d="M5 7h14"/><path d="M5 7 2 13a3 3 0 0 0 6 0z"/><path d="M19 7l-3 6a3 3 0 0 0 6 0z"/>',
+  warehouse: '<path d="M3 10 12 4l9 6v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 20v-6h8v6"/>',
+  factory: '<path d="M3 21V10l6 4v-4l6 4v-4l6 4v7z"/><line x1="3" y1="21" x2="21" y2="21"/>',
+  container: '<rect x="2" y="6" width="20" height="12" rx="1"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="2" y1="14" x2="22" y2="14"/>',
+  box: '<rect x="4" y="4" width="16" height="16" rx="1"/>',
+  boxes: '<rect x="2" y="10" width="8" height="10" rx="1"/><rect x="14" y="10" width="8" height="10" rx="1"/><path d="M6 10V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4"/>',
+}
+
+/**
  * business_logic step 3 / edge_case_handling — active tile background:
  * red (`--color-station-red` / #D20000, same token the tile already used
  * for every active tile before this change) when the station's type has
@@ -118,8 +148,15 @@ function activeTileStyle(station: StationSlot): Record<string, string> {
 }
 
 function iconInnerHtml(station: StationSlot): string {
-  if (station.isActive && station.type in ACTIVE_ICONS) {
-    return ACTIVE_ICONS[station.type as keyof typeof ACTIVE_ICONS]
+  if (station.isActive) {
+    const override = station.icon ? ICON_OVERRIDES[station.icon.trim().toLowerCase()] : undefined
+    if (override) {
+      return override
+    }
+
+    if (station.type in ACTIVE_ICONS) {
+      return ACTIVE_ICONS[station.type as keyof typeof ACTIVE_ICONS]
+    }
   }
 
   return PLACEHOLDER_ICONS[station.name.trim().toLowerCase()] ?? FALLBACK_ICON

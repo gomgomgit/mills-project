@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 2,
+  "ver": 4,
   "id": "screen-005--home",
   "name": "Home",
   "module_id": "module-mobile-station-ops",
@@ -25,15 +25,56 @@
     {
       "usecase_id": "usecase-005--home",
       "usecase_name": "Navigasi Home",
-      "endpoints": [],
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/mill-settings/current",
+          "description": "Ambil mill-setting (app_name, logo, home_page_image, jumlah_cages) untuk business_unit user yang sedang login - dipanggil oleh fetchAndCacheMillSetting() saat login (shared infra), BUKAN dipanggil langsung oleh Home saat mount",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "business_unit_id": "uuid",
+              "app_name": "string",
+              "logo": "string|null",
+              "home_page_image": "string|null",
+              "jumlah_cages": "integer"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "MILL_SETTING_NOT_FOUND",
+                "condition": "Business unit belum punya mill-setting"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "Hasil disimpan ke tabel SQLite lokal mill_setting oleh fetchAndCacheMillSetting() saat login - lihat implementation_notes",
+            "rate_limit": ""
+          }
+        }
+      ],
       "business_logic": [
         "1. Render header (nama sistem 'Mill Smart Log' + ikon hamburger), hero image, teks sambutan personal, dan 3 menu card statis (Estimates & Baselines, Production Process Activity, Dashboard & Reporting)",
-        "2. Ambil nama user dari sesi login (Pinia auth store) untuk teks sambutan → jika kosong/tidak tersedia: gunakan fallback generik tanpa nama",
-        "3. Tap menu 'Production Process Activity' → navigasi ke route Station List (screen-006)",
-        "4. Tap menu 'Estimates & Baselines' atau 'Dashboard & Reporting' → tampilkan info singkat 'Segera Hadir', tidak menavigasi kemana pun",
-        "5. Tap ikon hamburger → buka menu navigasi (Ganti Password, Logout, dll)"
+        "2. Ambil nama user dari sesi login (Pinia auth store) untuk teks sambutan -> jika kosong/tidak tersedia: gunakan fallback generik tanpa nama",
+        "3. On mount: baca mill-setting dari tabel SQLite lokal `mill_setting` via `millSettingRepo.getMillSetting(businessUnitId)` (sudah di-populate saat login oleh `fetchAndCacheMillSetting()` di `localSchema.ts`/`stores/auth.ts`) - render home_page_image dari hasil query tersebut, offline-first (tidak ada network call dari Home sendiri)",
+        "4. Home TIDAK memanggil GET /api/mill-settings/current secara langsung - data selalu berasal dari refresh terakhir saat login; tidak ada background-fetch dari Home saat mount",
+        "5. Jika getMillSetting() mengembalikan null (belum pernah di-populate) ATAU home_page_image null: render gambar statis bawaan aplikasi (bundled asset) sebagai hero image",
+        "6. Tap menu 'Production Process Activity' -> navigasi ke route Station List (screen-006)",
+        "7. Tap menu 'Estimates & Baselines' atau 'Dashboard & Reporting' -> tampilkan info singkat 'Segera Hadir', tidak menavigasi kemana pun",
+        "8. Tap ikon hamburger -> buka menu navigasi (Ganti Password, Logout, dll)"
       ],
-      "data_operations": [],
+      "data_operations": [
+        {
+          "entity_id": "mill-setting",
+          "operation": "SELECT",
+          "description": "SELECT dari tabel SQLite lokal mill_setting via millSettingRepo.getMillSetting(businessUnitId) - data sudah di-populate saat login, Home hanya membaca, tidak fetch API"
+        }
+      ],
       "edge_case_handling": [
         {
           "condition": "User tap menu placeholder (Estimates & Baselines / Dashboard & Reporting)",
@@ -42,11 +83,20 @@
         {
           "condition": "Nama user tidak tersedia/kosong",
           "handling": "Tampilkan teks sambutan dengan fallback generik tanpa nama"
+        },
+        {
+          "condition": "getMillSetting() mengembalikan null (belum pernah di-populate, mis. login pertama gagal fetch)",
+          "handling": "Render gambar statis bawaan aplikasi (bundled asset) sebagai hero image, tanpa error terlihat ke user"
+        },
+        {
+          "condition": "mill_setting ada tapi home_page_image null (business unit belum diisi Mills Setting-nya)",
+          "handling": "Render gambar statis bawaan aplikasi sebagai hero image, sama seperti kondisi tanpa data"
         }
       ],
       "business_rules_applied": [
         "Home tidak menampilkan status draft/record dari stasiun manapun",
-        "Hanya menu Production Process Activity yang fungsional; menu lain adalah placeholder"
+        "Hanya menu Production Process Activity yang fungsional; menu lain adalah placeholder",
+        "Hero image mengikuti home_page_image milik business unit user, dibaca dari cache SQLite lokal yang di-populate saat login, tidak fetch API dari Home"
       ],
       "unit_test_cases": [
         {
@@ -80,6 +130,26 @@
           "expect": "menu navigasi terbuka (state open = true), menampilkan opsi Ganti Password, Logout, dll"
         },
         {
+          "description": "menampilkan hero image dari millSettingRepo.getMillSetting() saat data tersedia",
+          "given": "millSettingRepo.getMillSetting(businessUnitId) mengembalikan objek dengan home_page_image = URL valid",
+          "expect": "hero image di-render memakai URL tersebut, dibaca langsung saat mount tanpa network call"
+        },
+        {
+          "description": "tidak memanggil API mill-settings dari Home saat mount",
+          "given": "HomeView di-mount dengan mill_setting sudah ter-populate dari login",
+          "expect": "tidak ada request GET /api/mill-settings/current yang dipicu oleh HomeView sendiri"
+        },
+        {
+          "description": "fallback ke gambar statis bawaan ketika getMillSetting() mengembalikan null",
+          "given": "millSettingRepo.getMillSetting(businessUnitId) mengembalikan null (belum pernah di-populate)",
+          "expect": "hero image memakai aset statis bundled, bukan area kosong/broken image"
+        },
+        {
+          "description": "fallback ke gambar statis bawaan ketika home_page_image bernilai null",
+          "given": "getMillSetting() mengembalikan objek tapi home_page_image = null",
+          "expect": "hero image memakai aset statis bundled"
+        },
+        {
           "description": "returns success result when all conditions pass",
           "given": "user login valid dengan nama tersedia, semua data render statis (header, hero image, 3 menu card) siap",
           "expect": "HomeView ter-render lengkap: header + hero image + teks sambutan personal + 3 menu card, tanpa status draft/record apa pun"
@@ -87,7 +157,14 @@
       ]
     }
   ],
-  "shared_entities": [],
+  "shared_entities": [
+    {
+      "entity_id": "mill-setting",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
   "screen_dependencies": [
     {
       "screen_id": "screen-006--station-list",
@@ -95,19 +172,21 @@
     }
   ],
   "implementation_notes": [
-    "Home murni presentational + navigasi statis — tidak ada pembacaan SQLite lokal maupun panggilan API sama sekali (berbeda dari v1 yang query 3 tabel local record)",
+    "Home murni presentational + navigasi statis untuk sisi station-record - tidak ada pembacaan SQLite lokal untuk record maupun panggilan API terkait record apa pun",
     "Nama user diambil dari Pinia auth store (sudah tersedia dari alur login), bukan query terpisah",
-    "Hero image: aset gambar mill/plantation statis dibundle di aplikasi (bukan dari API)"
+    "Hero image kini dua-sumber: tabel SQLite lokal mill_setting (offline-first, dibaca via millSettingRepo.getMillSetting(businessUnitId)) dengan fallback ke aset statis bundled mill/plantation bawaan aplikasi jika data/home_page_image tidak tersedia",
+    "mill_setting di-populate saat login oleh fetchAndCacheMillSetting() (localSchema.ts/stores/auth.ts, shared infra dipakai juga oleh Form Cages Track) - Home HANYA membaca via millSettingRepo, tidak fetch API sendiri dan tidak melakukan caching sendiri (koreksi dari draft v3 yang menyebut cache localStorage tokenStorage-style - mekanisme final memakai tabel SQLite bersama, bukan localStorage)",
+    "app_name dan logo dari mill-setting TIDAK dipakai di layar ini - header Home tetap pakai nama produk statis 'Mill Smart Log' per business_rules; app_name/logo dicadangkan untuk konteks branding lain di luar scope revisi ini"
   ],
   "test_scenarios": [
     {
-      "scenario_ref": "Navigasi Home — success",
+      "scenario_ref": "Navigasi Home - success",
       "usecase_id": "usecase-005--home",
       "api_test": [],
       "component_test": {
         "component": "HomeView",
-        "action": "render komponen dengan authStore.user.name terisi, lalu klik menu card 'Production Process Activity'",
-        "assert": "header, hero image, teks sambutan personal, dan 3 menu card ter-render; navigasi (router-push) ke route Station List (screen-006) terpicu saat menu diklik"
+        "action": "render komponen dengan authStore.user.name terisi dan millSettingRepo.getMillSetting() mengembalikan home_page_image, lalu klik menu card 'Production Process Activity'",
+        "assert": "header, hero image (dari mill_setting lokal), teks sambutan personal, dan 3 menu card ter-render; navigasi (router-push) ke route Station List (screen-006) terpicu saat menu diklik"
       },
       "browser_test": {
         "route": "/home",
@@ -116,7 +195,7 @@
       }
     },
     {
-      "scenario_ref": "Navigasi Home — Menu Placeholder Dipilih",
+      "scenario_ref": "Navigasi Home - Menu Placeholder Dipilih",
       "usecase_id": "usecase-005--home",
       "api_test": [],
       "component_test": {
@@ -131,7 +210,7 @@
       }
     },
     {
-      "scenario_ref": "Navigasi Home — Nama User Tidak Tersedia",
+      "scenario_ref": "Navigasi Home - Nama User Tidak Tersedia",
       "usecase_id": "usecase-005--home",
       "api_test": [],
       "component_test": {
@@ -146,18 +225,33 @@
       }
     },
     {
-      "scenario_ref": "Navigasi Home — Tidak Menampilkan Status Draft",
+      "scenario_ref": "Navigasi Home - Tidak Menampilkan Status Draft",
       "usecase_id": "usecase-005--home",
       "api_test": [],
       "component_test": {
         "component": "HomeView",
-        "action": "render komponen HomeView pada kondisi normal (tanpa memanggil API/SQLite apa pun)",
+        "action": "render komponen HomeView pada kondisi normal (tanpa memanggil API/SQLite apa pun terkait record stasiun)",
         "assert": "tidak ada elemen status draft/record dari stasiun manapun yang ter-render; hanya sambutan dan 3 menu navigasi yang tampil"
       },
       "browser_test": {
         "route": "/home",
         "action": "buka /home",
         "assert": "tidak ada indikator/status draft atau record stasiun manapun terlihat di layar; hanya header, hero, sambutan, dan 3 menu card yang tampil"
+      }
+    },
+    {
+      "scenario_ref": "Navigasi Home - Hero Image Fallback Statis",
+      "usecase_id": "usecase-005--home",
+      "api_test": [],
+      "component_test": {
+        "component": "HomeView",
+        "action": "render komponen dengan millSettingRepo.getMillSetting() mengembalikan null (belum pernah di-populate)",
+        "assert": "hero image yang tampil adalah aset statis bundled bawaan aplikasi, bukan area kosong/broken image"
+      },
+      "browser_test": {
+        "route": "/home",
+        "action": "buka /home dalam kondisi mill_setting belum pernah ter-populate (mis. install baru, fetch saat login gagal)",
+        "assert": "hero image statis bawaan tetap tampil dengan baik, tidak ada broken image/area kosong"
       }
     }
   ]

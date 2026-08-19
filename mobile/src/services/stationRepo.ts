@@ -29,6 +29,14 @@ export interface StationSlot {
   name: string
   type: StationType
   isActive: boolean
+  /**
+   * entity-catalog v7 (Mills Setting feature) — optional Lucide icon-name
+   * override (one of MillSettingService::SUPPORTED_ICONS on the backend,
+   * e.g. 'truck', 'gauge'), synced by fetchAndCacheStationIconOverrides()
+   * in stores/auth.ts. `null`/unrecognized → StationGrid.vue falls back to
+   * the existing type-based default icon (business_logic step 3).
+   */
+  icon: string | null
 }
 
 interface StationRow {
@@ -37,6 +45,7 @@ interface StationRow {
   name: string
   type: StationType
   is_active: number | boolean
+  icon: string | null
 }
 
 function toStationSlot(row: StationRow): StationSlot {
@@ -50,6 +59,7 @@ function toStationSlot(row: StationRow): StationSlot {
     // (number from the real native driver, boolean from mocked test rows)
     // into a real boolean for the rest of the app.
     isActive: row.is_active === true || row.is_active === 1,
+    icon: row.icon ?? null,
   }
 }
 
@@ -68,7 +78,7 @@ function toStationSlot(row: StationRow): StationSlot {
  */
 export async function getActiveAndPlaceholderStations(businessUnitId: string): Promise<StationSlot[]> {
   const rows = await query<StationRow>(
-    `SELECT id, business_unit_id, name, type, is_active
+    `SELECT id, business_unit_id, name, type, is_active, icon
      FROM station WHERE business_unit_id = ?
      ORDER BY
        CASE type

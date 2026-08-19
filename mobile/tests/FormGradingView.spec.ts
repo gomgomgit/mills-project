@@ -127,6 +127,10 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: useAuthStoreMock,
 }))
 
+vi.mock('@/stores/floatingClock', () => ({
+  useFloatingClockStore: () => ({ enabled: false, toggle: vi.fn() }),
+}))
+
 const {
   getDraftWithDetailsMock,
   getWeighbridgeRecordOptionsMock,
@@ -648,7 +652,7 @@ describe('FormGradingView', () => {
 
     expect(wrapper.find('#field-grading-no-error').text()).toContain('wajib diisi')
     expect(wrapper.text()).toContain('WB Card No wajib diisi.')
-    expect(wrapper.find('#field-vehicle-code-error').text()).toContain('wajib diisi')
+    expect(wrapper.find('#field-vehicle-code-error').exists()).toBe(false)
     expect(wrapper.find('#field-estate-error').text()).toContain('wajib diisi')
     expect(wrapper.find('#field-netto-kg-error').text()).toContain('wajib diisi')
     expect(wrapper.find('#field-quantity-bunch-error').text()).toContain('wajib diisi')

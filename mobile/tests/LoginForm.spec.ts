@@ -73,6 +73,7 @@ vi.mock('@/services/apiClient', () => ({
 
 vi.mock('@/services/localSchema', () => ({
   seedDefaultStationsIfNeeded: vi.fn(() => Promise.resolve()),
+  fetchAndCacheMillSetting: vi.fn(() => Promise.resolve()),
   initLocalSchema: vi.fn(() => Promise.resolve()),
 }))
 

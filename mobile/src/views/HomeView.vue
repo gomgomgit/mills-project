@@ -20,9 +20,13 @@
  * `currentUser.name` (already available from the login flow) — no
  * separate query, per implementation_notes.
  *
- * Hero image: static local asset (`@/assets/home-hero-mill.jpg`),
- * imported and bundled like any other Vite asset — never fetched from a
- * remote URL at runtime, since this app is offline-first.
+ * Hero image (updated per screen_tech_spec ver 4): read from the current
+ * user's mill-setting (`millSettingRepo.getMillSetting(businessUnitId)`,
+ * local SQLite `mill_setting` table populated at login by
+ * `fetchAndCacheMillSetting()` in stores/auth.ts — this view performs NO
+ * network call itself). Falls back to the bundled static asset
+ * (`@/assets/home-hero-mill.jpg`) when no mill-setting is cached yet, or
+ * its `home_page_image` is null.
  *
  * Icons: hand-authored inline SVG (Lucide-style, 24px viewBox, stroke
  * 1.5, `currentColor`), following the exact pattern established in
@@ -44,13 +48,37 @@
  * show-then-auto-dismiss-after-a-few-seconds pattern already used by
  * StationGrid.vue's `infoMessage` for its own "belum tersedia" message.
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import heroImage from '@/assets/home-hero-mill.jpg'
+import { useFloatingClockStore } from '@/stores/floatingClock'
+import { getMillSetting } from '@/services/millSettingRepo'
+import staticHeroImage from '@/assets/home-hero-mill.jpg'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const floatingClockStore = useFloatingClockStore()
+
+/**
+ * business_logic step 3/5 — read once on mount from the local mill_setting
+ * cache; falls back to the bundled static asset when there's no cached
+ * mill-setting yet, or its home_page_image is null.
+ */
+const heroImage = ref<string>(staticHeroImage)
+
+onMounted(async () => {
+  const businessUnitId = authStore.businessUnit?.id
+
+  if (!businessUnitId) {
+    return
+  }
+
+  const setting = await getMillSetting(businessUnitId)
+
+  if (setting?.homePageImage) {
+    heroImage.value = setting.homePageImage
+  }
+})
 
 const welcomeText = computed(() => {
   const name = authStore.currentUser?.name?.trim()
@@ -183,6 +211,7 @@ const MENU_ICONS: Record<string, string> = {
         <button type="button" class="nav-menu-item" data-testid="nav-menu-change-password" @click="goToChangePassword">
           Ganti Password
         </button>
+        <button type="button" class="nav-menu-item" data-testid="nav-menu-toggle-floating-clock" @click="floatingClockStore.toggle()">{{ floatingClockStore.enabled ? 'Nonaktifkan Jam Mengambang' : 'Aktifkan Jam Mengambang' }}</button>
         <button type="button" class="nav-menu-item" data-testid="nav-menu-logout" @click="onLogout">Logout</button>
       </div>
     </header>

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import apiClient from '@/services/apiClient'
 import { tokenStorage } from '@/services/tokenStorage'
-import { seedDefaultStationsIfNeeded } from '@/services/localSchema'
+import { fetchAndCacheMillSetting, seedDefaultStationsIfNeeded } from '@/services/localSchema'
 
 /**
  * OFFLINE_GRACE_PERIOD_MS — screen-002--login-mobile / "Token Sesi Lokal
@@ -115,6 +115,20 @@ export const useAuthStore = defineStore('auth', {
           await seedDefaultStationsIfNeeded(businessUnit.id)
         } catch {
           // Local SQLite write failed — non-fatal, login already succeeded.
+        }
+
+        // Mills Setting feature (2026-08-19): mill-setting (app_name/logo/
+        // home_page_image/jumlah_cages) is genuinely server-authored data
+        // (edited via the web Mills Setting screen, screen-034), unlike the
+        // fixed local station seed above — fetched here, best-effort, same
+        // principle as seedDefaultStationsIfNeeded(): a failed/offline
+        // fetch must not block a successful login. Screens consuming this
+        // data (Home, Station List, Form Cages Track) each handle the
+        // "not cached yet" case themselves (see their own tech specs).
+        try {
+          await fetchAndCacheMillSetting(businessUnit.id)
+        } catch {
+          // Offline or request failed — non-fatal, login already succeeded.
         }
       }
     },

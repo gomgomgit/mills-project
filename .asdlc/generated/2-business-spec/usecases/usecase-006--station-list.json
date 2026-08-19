@@ -1,12 +1,12 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 2,
+  "ver": 4,
   "id": "usecase-006--station-list",
   "name": "Pilih Stasiun",
-  "description": "User memilih salah satu dari 3 stasiun MVP aktif untuk masuk ke layar Monitor stasiun tersebut. Grid menampilkan indikator warna status draft per stasiun, dan layar ini punya breadcrumb navigasi serta header dengan hamburger menu.",
+  "description": "User memilih salah satu dari 3 stasiun MVP aktif untuk masuk ke layar Monitor stasiun tersebut. Grid menampilkan indikator warna status draft per stasiun, ikon per-station yang bisa di-override lewat Mills Setting (opsional, default mengikuti tipe stasiun), dan layar ini punya breadcrumb navigasi serta header dengan hamburger menu.",
   "actors": [
     "actor-station-operator",
     "actor-supervisor"
@@ -23,7 +23,7 @@
     {
       "step": 2,
       "actor": "System",
-      "description": "Menampilkan grid stasiun (3 aktif dengan warna merah jika ada draft ongoing/paused pada stasiun itu atau hitam/netral jika tidak ada; 12 disabled), breadcrumb navigasi, dan header dengan hamburger"
+      "description": "Menampilkan grid stasiun (3 aktif dengan warna merah jika ada draft ongoing/paused pada stasiun itu atau hitam/netral jika tidak ada, ikon default per tipe atau override station.icon jika diisi; 12 disabled), breadcrumb navigasi, dan header dengan hamburger"
     },
     {
       "step": 3,
@@ -65,7 +65,8 @@
   ],
   "business_rules": [
     "Hanya 3 stasiun MVP yang aktif secara fungsional",
-    "Warna tombol stasiun aktif mencerminkan status draft: merah = ada draft ongoing/paused pada stasiun itu, hitam/netral = tidak ada draft"
+    "Warna tombol stasiun aktif mencerminkan status draft: merah = ada draft ongoing/paused pada stasiun itu, hitam/netral = tidak ada draft",
+    "Ikon tile stasiun aktif memakai station.icon jika diisi (override), else default per tipe (Gauge/Layers/Package) — bukan foto/background image"
   ],
   "bdd_scenarios": [
     {
@@ -103,6 +104,12 @@
       "given": "Stasiun aktif tidak punya record ongoing/paused milik user yang login",
       "when": "User membuka Station List",
       "then": "Tombol stasiun tersebut ditampilkan berwarna hitam/netral"
+    },
+    {
+      "scenario": "Pilih Stasiun — Ikon Stasiun Override",
+      "given": "Stasiun aktif punya override station.icon yang diisi lewat Mills Setting dengan nama icon Lucide yang valid",
+      "when": "User membuka Station List",
+      "then": "Tile stasiun tersebut menampilkan icon override tersebut, bukan icon default per tipe; warna, shadow, dan layout tile tidak berubah. Stasiun tanpa override tetap menampilkan icon default per tipe seperti biasa."
     }
   ],
   "related_screen_ids": [

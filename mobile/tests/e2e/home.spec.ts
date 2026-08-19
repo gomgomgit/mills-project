@@ -92,4 +92,17 @@ test.describe('Home (screen-005)', () => {
     await expect(page.locator('.station-summary')).toHaveCount(0)
     await expect(page.locator('.paused-drafts-list')).toHaveCount(0)
   })
+
+  // Scenario: "Navigasi Home — Hero Image Fallback Statis" (tech spec ver 4).
+  // No mill-setting has been seeded for the test business unit, so this
+  // exercises the real fallback-to-bundled-static-asset path end-to-end.
+  test('Navigasi Home — Hero Image Fallback Statis', async ({ page }) => {
+    await login(page)
+
+    const heroImage = page.locator('.hero-image')
+    await expect(heroImage).toBeVisible()
+
+    const naturalWidth = await heroImage.evaluate((img: HTMLImageElement) => img.naturalWidth)
+    expect(naturalWidth).toBeGreaterThan(0)
+  })
 })

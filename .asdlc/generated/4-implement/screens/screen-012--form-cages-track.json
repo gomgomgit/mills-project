@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-08-19"
@@ -26,25 +26,36 @@
     "CagesTippedTimeGrid.vue (component lama berbasis cage_number/tipped_time) TIDAK dipakai lagi — grid diimplementasikan inline di FormCagesTrackView.vue, mirip alasan FormGradingView.vue tidak memakai GradingDetailGrid.vue.",
     "REGRESI DITEMUKAN & DIPERBAIKI (2026-08-19): implementasi pertama (dari agent yang stall/gagal di tengah jalan setelah 10 menit tanpa progress, tanpa git untuk revert bersih) meninggalkan test file dalam kondisi rusak/setengah-edit — tests/cagesTrackRecordRepo.spec.ts memakai signature saveDraft() lama (4 argumen, hilang tippedTimeIdsToDelete) dan field lama (cage_number/tipped_time) sehingga saveDraft() selalu throw CagesTippedTimeRequiredError lebih awal, menyisakan mockResolvedValueOnce() yang belum terkonsumsi dan bocor ke test getTodaySummary()/getDrafts() yang sebenarnya tidak berhubungan (23 test gagal). tests/FormCagesTrackView.spec.ts sama sekali tidak diperbarui (masih menguji komponen versi lama). Kode produksi (cagesTrackRecordRepo.ts dan FormCagesTrackView.vue) ternyata SUDAH benar dan lengkap — hanya file test yang rusak. Ditulis ulang total: cagesTrackRecordRepo.spec.ts (38 test), FormCagesTrackView.spec.ts (28 test, file baru), tests/e2e/form-cages-track.spec.ts (17 skenario, file baru).",
     "BUG KOMPONEN ASLI DITEMUKAN & DIPERBAIKI (ditemukan lewat penulisan test independen, BUKAN oleh implementasi awal): availableHourOptions() di FormCagesTrackView.vue menghitung floor urutan jam dari 'elemen terakhir array tippedTimeRows' — salah ketika baris yang dihitung opsinya ADALAH elemen terakhir itu sendiri (floor jadi null, tidak ada pembatasan sama sekali) dan juga salah untuk baris non-terakhir begitu ada baris lebih baru. Diperbaiki: floor sekarang = MAX(tipped_hour) di antara SEMUA baris LAIN (bukan posisi array), konsisten dengan aturan bisnis 'jam tidak boleh mundur dari jam manapun yang sudah dipakai baris lain'. Ditemukan & diverifikasi lewat test 'excludes hours less than or equal to the most-recently-added row's hour' yang gagal sebelum fix.",
-    "Independently re-verified (bukan hanya laporan agent, seluruh perbaikan v3 dikerjakan langsung oleh command): 351/351 vitest seluruh app, 91/92 Playwright FULL SUITE (1 kegagalan di data-preview-cages-track.spec.ts adalah screen-015 yang memang belum direvisi — task terpisah, sudah diantisipasi, bukan regresi dari pekerjaan ini). 25/25 Playwright untuk form-cages-track+monitor-cages-track spesifik."
+    "Independently re-verified (bukan hanya laporan agent, seluruh perbaikan v3 dikerjakan langsung oleh command): 351/351 vitest seluruh app, 91/92 Playwright FULL SUITE (1 kegagalan di data-preview-cages-track.spec.ts adalah screen-015 yang memang belum direvisi — task terpisah, sudah diantisipasi, bukan regresi dari pekerjaan ini). 25/25 Playwright untuk form-cages-track+monitor-cages-track spesifik.",
+    "v4 (Mills Setting jumlah_cages): jumlahCagesFromMillSetting ref ditambahkan di FormCagesTrackView.vue, dimuat sekali onMounted via getJumlahCages(authStore.currentUser?.business_unit_id). cageColumns, canAddTippedTimeRow, dan cages_remain per baris sekarang semuanya diturunkan dari ref ini, bukan form.cages_tipped. Computed cagesTippedLocked dan hint header-nya DIHAPUS total — cages_tipped kini murni input manual biasa, tidak lagi memengaruhi grid, sesuai tech-spec v3.",
+    "v4: dipakai authStore.currentUser?.business_unit_id, BUKAN path literal spec (cages_track_record.station_id -> station.business_unit_id) — karena station_id belum pernah diisi oleh createDraft() saat ini (perbaikan itu milik alur pembuatan draft di Monitor screen, di luar scope perubahan ini). Secara fungsional setara untuk app mobile single-business-unit-per-sesi ini, dan konsisten dengan pola yang sudah dipakai saat login (fetchAndCacheMillSetting/seedDefaultStationsIfNeeded).",
+    "v4: hint baris kedua (data-testid=add-row-jumlah-cages-hint) ditambahkan di sebelah tombol Tambah baris untuk kondisi mill_setting belum tersedia/0, mengikuti pola hint UI yang sudah ada."
   ],
   "deferred_items": [],
   "known_issues": [
     {
-      "description": "DataPreviewCagesTrackView.vue (screen-015, belum direvisi) masih memakai bentuk field pre-v3 — known, task terpisah (#31) sudah direncanakan untuk merevisi screen ini berikutnya.",
+      "description": "DataPreviewCagesTrackView.vue (screen-015, belum direvisi) masih memakai bentuk field pre-v3 — known, task terpisah sudah direncanakan untuk merevisi screen ini berikutnya.",
       "severity": "minor"
     },
     {
-      "description": "Branch coverage tidak diukur (tooling coverage belum terpasang) — statement/line/function coverage 27/28 test di FormCagesTrackView.spec.ts + 38 di cagesTrackRecordRepo.spec.ts memberikan cakupan menyeluruh terhadap seluruh business_logic steps.",
+      "description": "cagesTrackRecordRepo.ts doc comment (~baris 101, 266) masih menyebut 'header's cages_tipped' untuk cages_remain — dokumentasi basi saja, tidak fungsional, dibiarkan (di luar scope file fix v4 ini).",
+      "severity": "minor"
+    },
+    {
+      "description": "station_id masih belum pernah diisi oleh cagesTrackRecordRepo.ts's createDraft() — path literal spec (record -> station -> business_unit_id) belum tersedia; milik alur pembuatan draft di Monitor screen.",
+      "severity": "minor"
+    },
+    {
+      "description": "GET /api/mill-settings/current BELUM diimplementasikan di backend (sesuai komentar 'NOT YET implemented' di routes/api.php) — login mobile sungguhan belum bisa mengisi cache lokal mill_setting. E2E suite menyiasati dengan seed langsung via window.__mslTestDb bridge. Perlu diverifikasi ulang end-to-end setelah endpoint itu tersedia.",
       "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-08-19T10:17:39Z",
-      "passed": 38,
+      "run_at": "2026-08-19T17:13:03Z",
+      "passed": 31,
       "failed": 0,
-      "coverage": 0
+      "coverage": 95.24
     },
     "integration": {
       "run_at": "",
@@ -52,12 +63,12 @@
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-19T10:17:22Z",
-      "passed": 28,
+      "run_at": "2026-08-19T17:13:03Z",
+      "passed": 31,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-08-19T10:19:00Z",
+      "run_at": "2026-08-19T17:13:23Z",
       "passed": 17,
       "failed": 0
     }

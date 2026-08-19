@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 3,
+  "ver": 4,
   "id": "screen-005--home",
   "name": "Home",
   "module_id": "module-mobile-station-ops",
@@ -21,17 +21,18 @@
     "mobile/tests/e2e/home.spec.ts"
   ],
   "implementation_notes": [
-    "Home ditulis ulang total (2026-08-18): dari layar status-draft menjadi navigation launcher murni (header + hero image + sambutan + 3 menu card) — tidak ada SQLite lokal maupun API sama sekali",
-    "Header: 'Mill Smart Log' branding + inline-SVG placeholder brand mark + hamburger membuka nav menu lokal (Ganti Password, Logout) — tidak ada komponen nav-menu bersama di codebase, jadi dibuat state lokal khusus layar ini",
-    "Hero image: aset statis mobile/src/assets/home-hero-mill.jpg (didownload dari Unsplash, diverifikasi HTTP 200 sebelum dipakai), diimport sebagai Vite asset — tidak fetch runtime, menjaga prinsip offline-first",
-    "'Segera Hadir' info message: pattern transient-message lokal (auto-dismiss 3 detik), meniru pola infoMessage di StationGrid.vue — tidak ada toast/snackbar bersama di codebase",
-    "Dead-code cleanup: mobile/src/components/PausedDraftsList.vue, mobile/src/composables/useHomeSummary.ts, mobile/src/services/draftRecordsRepo.ts, dan mobile/tests/useHomeSummary.spec.ts dihapus — diverifikasi via grep tidak ada consumer lain selain HomeView versi lama sebelum dihapus",
-    "tests/e2e/station-list.spec.ts diperbaiki: selector navigasi dari Home diubah dari getByRole('button', {name:'Daftar Stasiun'}) (sudah tidak ada) menjadi getByTestId('menu-card-production-process-activity') — ditemukan & diperbaiki saat verifikasi independen setelah screen-impl-agent selesai"
+    "Home ditulis ulang total (2026-08-18): dari layar status-draft menjadi navigation launcher murni (header + hero image + sambutan + 3 menu card) - tidak ada SQLite lokal maupun API sama sekali",
+    "Header: 'Mill Smart Log' branding + inline-SVG placeholder brand mark + hamburger membuka nav menu lokal (Ganti Password, Logout) - tidak ada komponen nav-menu bersama di codebase, jadi dibuat state lokal khusus layar ini",
+    "'Segera Hadir' info message: pattern transient-message lokal (auto-dismiss 3 detik), meniru pola infoMessage di StationGrid.vue - tidak ada toast/snackbar bersama di codebase",
+    "Dead-code cleanup: mobile/src/components/PausedDraftsList.vue, mobile/src/composables/useHomeSummary.ts, mobile/src/services/draftRecordsRepo.ts, dan mobile/tests/useHomeSummary.spec.ts dihapus - diverifikasi via grep tidak ada consumer lain selain HomeView versi lama sebelum dihapus",
+    "tests/e2e/station-list.spec.ts diperbaiki: selector navigasi dari Home diubah dari getByRole('button', {name:'Daftar Stasiun'}) (sudah tidak ada) menjadi getByTestId('menu-card-production-process-activity') - ditemukan & diperbaiki saat verifikasi independen setelah screen-impl-agent selesai",
+    "2026-08-19 (Mills Setting v4): hero image sekarang dua-sumber - dibaca via millSettingRepo.getMillSetting(businessUnitId) dari tabel SQLite lokal mill_setting (di-populate saat login oleh fetchAndCacheMillSetting(), shared infra dengan screen-012), fallback ke aset statis bundled home-hero-mill.jpg jika belum ada cache atau home_page_image null - dibaca sekali di onMounted, tidak ada network call dari Home sendiri",
+    "app_name/logo dari mill-setting sengaja TIDAK dipakai di layar ini - header tetap branding statis 'Mill Smart Log' per business spec"
   ],
   "deferred_items": [],
   "known_issues": [
     {
-      "description": "Tidak ada coverage tooling terkonfigurasi di mobile/vite.config.ts — unit coverage % tidak dapat diukur",
+      "description": "Tidak ada coverage tooling terkonfigurasi di mobile/vite.config.ts - unit coverage % tidak dapat diukur",
       "severity": "minor"
     }
   ],
@@ -48,13 +49,13 @@
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-18T08:08:54Z",
-      "passed": 10,
+      "run_at": "2026-08-19T23:52:35Z",
+      "passed": 14,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-08-18T08:15:00Z",
-      "passed": 4,
+      "run_at": "2026-08-19T23:56:00Z",
+      "passed": 5,
       "failed": 0
     }
   }

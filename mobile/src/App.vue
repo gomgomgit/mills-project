@@ -1,9 +1,11 @@
 <script setup lang="ts">
 // Root shell — screen views are registered as routes; see src/router.
+import FloatingClock from '@/components/FloatingClock.vue'
 </script>
 
 <template>
   <router-view />
+  <FloatingClock />
 </template>
 
 <!--

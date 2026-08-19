@@ -47,6 +47,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useFloatingClockStore } from '@/stores/floatingClock'
 import { stationRepo, type StationSlot, type StationType } from '@/services/stationRepo'
 import { weighbridgeRecordRepo } from '@/services/weighbridgeRecordRepo'
 import { gradingRecordRepo } from '@/services/gradingRecordRepo'
@@ -55,6 +56,7 @@ import StationGrid from '@/components/StationGrid.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const floatingClockStore = useFloatingClockStore()
 
 const stations = ref<StationSlot[]>([])
 const loading = ref(false)
@@ -203,6 +205,7 @@ function goToHome() {
         <button type="button" class="nav-menu-item" data-testid="nav-menu-change-password" @click="goToChangePassword">
           Ganti Password
         </button>
+        <button type="button" class="nav-menu-item" data-testid="nav-menu-toggle-floating-clock" @click="floatingClockStore.toggle()">{{ floatingClockStore.enabled ? 'Nonaktifkan Jam Mengambang' : 'Aktifkan Jam Mengambang' }}</button>
         <button type="button" class="nav-menu-item" data-testid="nav-menu-logout" @click="onLogout">Logout</button>
       </div>
     </header>

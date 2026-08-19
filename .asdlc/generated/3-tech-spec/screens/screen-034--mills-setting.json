@@ -1,0 +1,670 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-034--mills-setting",
+  "name": "Mills Setting",
+  "module_id": "module-mills-setting",
+  "route": "/mill-settings",
+  "auth_requirement": "authenticated (role: admin atau mill_management)",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Dapat mengakses/mengubah mill (business_unit_id) mana pun"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Hanya dapat mengakses/mengubah mill (business_unit_id) miliknya sendiri (user.business_unit_id)"
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": false,
+      "conditions": "Mills Setting terbatas untuk Admin dan Mill Management"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Mills Setting terbatas untuk Admin dan Mill Management"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-034--mills-setting",
+      "usecase_name": "Kelola Pengaturan Mill",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/mill-settings/:business_unit_id",
+          "description": "Ambil mill-setting untuk satu mill tertentu (Admin dapat memilih mill mana pun); membuat baris default otomatis jika belum ada",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "description": "ID Business Unit/mill"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "business_unit_id": "uuid",
+              "app_name": "string",
+              "logo": "string|null",
+              "home_page_image": "string|null",
+              "jumlah_cages": "integer",
+              "created_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "business_unit_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User Mill Management mengakses business_unit_id selain miliknya sendiri"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/mill-settings/:business_unit_id",
+          "description": "Mengubah nama aplikasi, jumlah cages, logo, dan/atau gambar halaman utama mill",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "description": "ID Business Unit/mill"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "app_name": "string, optional",
+              "jumlah_cages": "integer, optional, harus > 0 jika dikirim",
+              "logo": "file, optional, image jpg/png, max 2MB",
+              "home_page_image": "file, optional, image jpg/png, max 2MB"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "business_unit_id": "uuid",
+              "app_name": "string",
+              "logo": "string|null",
+              "home_page_image": "string|null",
+              "jumlah_cages": "integer"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "jumlah_cages ≤ 0, atau logo/home_page_image format/ukuran tidak didukung"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "business_unit_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User Mill Management mengakses business_unit_id selain miliknya sendiri"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/mill-settings/:business_unit_id/stations",
+          "description": "List station milik mill terkait beserta icon yang dipakai masing-masing (override atau null jika memakai default per tipe)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "description": "ID Business Unit/mill"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "type": "string",
+                  "icon": "string|null"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "business_unit_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User Mill Management mengakses business_unit_id selain miliknya sendiri"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/mill-settings/:business_unit_id/stations/:station_id",
+          "description": "Mengatur atau menghapus (reset ke default) icon override satu station milik mill terkait",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "description": "ID Business Unit/mill"
+              },
+              {
+                "name": "station_id",
+                "type": "uuid",
+                "description": "ID Station"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "icon": "string|null, optional, harus salah satu dari daftar icon yang didukung jika tidak null; null/kosong berarti reset ke icon default sesuai tipe stasiun"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "icon": "string|null"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "icon dikirim tapi bukan salah satu dari daftar icon yang didukung"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "business_unit_id tidak ditemukan, atau station_id tidak ditemukan/bukan milik business_unit_id ini"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User Mill Management mengakses business_unit_id selain miliknya sendiri"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate business_unit_id ada (SELECT Business Unit) → if not: return 404 NOT_FOUND",
+        "2. Jika role=mill_management, validate business_unit_id == user.business_unit_id → if not: return 403 FORBIDDEN (Admin tidak dibatasi)",
+        "3. GET /:business_unit_id: SELECT mill-setting WHERE business_unit_id → jika tidak ada baris, INSERT default (app_name = business_unit.name, jumlah_cages = 1) lalu return baris yang baru dibuat",
+        "4. PATCH /:business_unit_id: validate jumlah_cages > 0 jika dikirim → validate logo/home_page_image (jika dikirim) format/ukuran → if invalid: return 422 VALIDATION_ERROR → jika mill-setting belum ada, buat default dulu (langkah 3) sebelum di-update → simpan file logo/home_page_image ke Laravel Filesystem jika dikirim → UPDATE mill-setting",
+        "5. GET /:business_unit_id/stations: SELECT station WHERE business_unit_id, urut nama",
+        "6. PATCH /:business_unit_id/stations/:station_id: validate station_id ada DAN business_unit_id sama dengan station.business_unit_id → if not: return 404 NOT_FOUND → validate icon (jika dikirim dan tidak null) termasuk dalam daftar icon yang didukung → if invalid: return 422 VALIDATION_ERROR → UPDATE station.icon (null berarti reset ke default per tipe stasiun, tidak ada file yang disimpan)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "mill-setting",
+          "operation": "SELECT",
+          "description": "SELECT mill-setting WHERE business_unit_id, untuk GET dan sebelum PATCH"
+        },
+        {
+          "entity_id": "mill-setting",
+          "operation": "INSERT",
+          "description": "INSERT baris default (app_name = nama Business Unit, jumlah_cages = 1) jika belum ada baris untuk business_unit_id ini"
+        },
+        {
+          "entity_id": "mill-setting",
+          "operation": "UPDATE",
+          "description": "UPDATE app_name/logo/home_page_image/jumlah_cages sesuai field yang dikirim"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Validasi business_unit_id ada, dan mengambil name untuk default app_name"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "SELECT seluruh station milik business_unit_id, dan validasi station_id milik business_unit_id yang benar"
+        },
+        {
+          "entity_id": "station",
+          "operation": "UPDATE",
+          "description": "UPDATE station.icon (set ke nama icon terpilih, atau null untuk reset ke default) — murni update field string, tidak ada penyimpanan file"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "business_unit_id tidak ditemukan",
+          "handling": "Return 404 NOT_FOUND"
+        },
+        {
+          "condition": "User Mill Management mengakses business_unit_id selain miliknya sendiri",
+          "handling": "Return 403 FORBIDDEN"
+        },
+        {
+          "condition": "jumlah_cages dikirim ≤ 0",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.jumlah_cages"
+        },
+        {
+          "condition": "Upload logo/home_page_image dengan format atau ukuran tidak didukung",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.logo / errors.home_page_image"
+        },
+        {
+          "condition": "icon dikirim tapi tidak termasuk daftar icon yang didukung",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.icon"
+        },
+        {
+          "condition": "station_id tidak ditemukan atau bukan milik business_unit_id ini",
+          "handling": "Return 404 NOT_FOUND"
+        },
+        {
+          "condition": "Mill belum punya mill-setting sama sekali",
+          "handling": "Baris default dibuat otomatis pada GET/PATCH pertama, transparan bagi FE"
+        }
+      ],
+      "business_rules_applied": [
+        "Setiap mill memiliki tepat satu Mills Setting, dibuat otomatis jika belum ada",
+        "Mill Management hanya dapat mengatur mill miliknya sendiri; Admin dapat mengatur mill mana pun",
+        "Jumlah cages harus lebih dari 0",
+        "Icon station hanya dapat diatur untuk station yang sudah terdaftar pada mill terkait, dipilih dari daftar icon yang didukung; kosong berarti memakai default sesuai tipe stasiun"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "creates a default mill-setting row on first GET when none exists for the business unit",
+          "given": "MillSettingRepository.findByBusinessUnitId(id) returns null; BusinessUnitRepository.findById(id) returns an existing Business Unit named 'Business Unit A'",
+          "expect": "a new mill-setting row is inserted with app_name='Business Unit A', jumlah_cages=1, and returned in the response"
+        },
+        {
+          "description": "returns the existing mill-setting row as-is on GET when one already exists",
+          "given": "MillSettingRepository.findByBusinessUnitId(id) returns an existing row",
+          "expect": "return 200 with that row's current values, no new row inserted"
+        },
+        {
+          "description": "returns 404 NOT_FOUND when business_unit_id does not exist",
+          "given": "BusinessUnitRepository.findById(id) returns null",
+          "expect": "throw NotFoundException; http 404 NOT_FOUND"
+        },
+        {
+          "description": "returns 403 FORBIDDEN when a Mill Management user accesses a business_unit_id other than their own",
+          "given": "authenticated user role=mill_management with user.business_unit_id=X; request path business_unit_id=Y (Y != X)",
+          "expect": "throw ForbiddenException; http 403 FORBIDDEN"
+        },
+        {
+          "description": "allows an Admin user to access any business_unit_id",
+          "given": "authenticated user role=admin; request path business_unit_id=any valid id",
+          "expect": "request proceeds without the ownership check applied to Mill Management"
+        },
+        {
+          "description": "updates app_name on PATCH",
+          "given": "valid PATCH body {app_name: 'Mill Baru'}",
+          "expect": "mill-setting row's app_name updated to 'Mill Baru', returned in response"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when jumlah_cages is 0 or negative",
+          "given": "PATCH body {jumlah_cages: 0}",
+          "expect": "throw ValidationException with errors.jumlah_cages; http 422 VALIDATION_ERROR; no update performed"
+        },
+        {
+          "description": "updates jumlah_cages when a positive integer is sent",
+          "given": "PATCH body {jumlah_cages: 8}",
+          "expect": "mill-setting row's jumlah_cages updated to 8"
+        },
+        {
+          "description": "stores uploaded logo file and updates logo path on PATCH",
+          "given": "PATCH multipart body includes a valid logo image file",
+          "expect": "file is stored via Laravel Filesystem, mill-setting.logo path updated, logo present in response"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when uploaded logo has an unsupported format",
+          "given": "PATCH multipart body includes a logo file with an unsupported mime type",
+          "expect": "throw ValidationException with errors.logo; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "auto-creates the default row before applying an update when PATCH is called on a business unit with no existing mill-setting",
+          "given": "MillSettingRepository.findByBusinessUnitId(id) returns null on PATCH",
+          "expect": "a default row is created first, then the requested fields are applied on top of it, in a single response"
+        },
+        {
+          "description": "lists stations belonging to the given business_unit_id ordered by name, each with icon",
+          "given": "StationRepository.findByBusinessUnitId(id) returns 3 stations, 1 with icon='truck' set",
+          "expect": "return 200 with data array of 3 stations ordered by name, icon present/null per row accordingly"
+        },
+        {
+          "description": "sets a station's icon override on PATCH when a supported icon name is sent",
+          "given": "valid PATCH body {icon: 'truck'}; station_id belongs to business_unit_id",
+          "expect": "station.icon updated to 'truck', no file stored, icon returned in response"
+        },
+        {
+          "description": "resets a station's icon to default (null) when icon is sent as null",
+          "given": "station currently has icon='truck'; PATCH body {icon: null}",
+          "expect": "station.icon updated to null, response icon field is null, station-tile will fall back to its type default"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when the sent icon is not in the supported icon list",
+          "given": "PATCH body {icon: 'not-a-real-icon'}",
+          "expect": "throw ValidationException with errors.icon; http 422 VALIDATION_ERROR; no update performed"
+        },
+        {
+          "description": "returns 404 NOT_FOUND when setting the icon for a station_id that does not belong to the given business_unit_id",
+          "given": "StationRepository.findById(station_id) returns a station whose business_unit_id differs from the path business_unit_id",
+          "expect": "throw NotFoundException; http 404 NOT_FOUND; no update performed"
+        },
+        {
+          "description": "returns 403 FORBIDDEN for a Mill Management user attempting to update mill-setting or a station icon for a business_unit_id other than their own, on every mutating endpoint",
+          "given": "authenticated user role=mill_management with user.business_unit_id=X; PATCH path business_unit_id=Y (Y != X)",
+          "expect": "throw ForbiddenException; http 403 FORBIDDEN; no mutation performed"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT",
+        "UPDATE"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-030--kelola-station",
+      "reason": "Station harus sudah terdaftar via Kelola Station sebelum icon-nya dapat diatur di Mills Setting"
+    },
+    {
+      "screen_id": "screen-005--home",
+      "reason": "home_page_image yang diatur di sini ditampilkan di Home mobile via GET /api/mill-settings/current"
+    },
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Icon override per-station yang diatur di sini ditampilkan di Station List mobile (station-tile), fallback ke default per tipe jika kosong"
+    },
+    {
+      "screen_id": "screen-012--form-cages-track",
+      "reason": "jumlah_cages yang diatur di sini menentukan jumlah kolom checklist pada grid Cages Tipped Time"
+    }
+  ],
+  "implementation_notes": [
+    "logo dan home_page_image disimpan di Laravel Filesystem local disk, konsisten dengan pola logo Corporate/Company/Business Unit/picture Machinery",
+    "station.icon BUKAN file upload — murni field string berisi nama icon Lucide, divalidasi terhadap daftar tetap (allow-list) yang sama dengan yang dipakai default station-tile: gauge, layers, package, truck, scale, warehouse, factory, container, box, boxes (daftar awal, dapat diperluas). Tidak ada penyimpanan file/Laravel Filesystem untuk field ini",
+    "Response field logo/home_page_image TANPA suffix _url (bare field name), konsisten dengan konvensi yang sudah dipakai GET /api/mill-settings/current (screen-005) untuk entity mill-setting yang sama",
+    "Baris mill-setting dibuat lazy (auto-create-on-first-access), bukan saat Business Unit dibuat, agar Business Unit lama otomatis kompatibel tanpa migrasi data manual",
+    "403 FORBIDDEN untuk Mill Management yang mengakses business_unit_id lain diterapkan di seluruh endpoint secara konsisten",
+    "Endpoint GET .../current (screen-005) tetap terpisah dari GET/PATCH .../:business_unit_id (screen-034) — screen-034 butuh varian ber-parameter karena Admin harus bisa memilih mill mana pun, bukan hanya mill sendiri",
+    "Endpoint stations di bawah /api/mill-settings/:business_unit_id/... TERPISAH dari /api/stations milik screen-030 (yang Admin-only) — dibuat khusus di sini agar Mill Management juga bisa mengelola icon station mill-nya tanpa membuka akses Kelola Station penuh",
+    "FE: picker icon station dirender sebagai dropdown/select sederhana berisi daftar nama icon yang didukung (tidak ada konvensi icon-picker lain di codebase ini untuk dijadikan acuan) — opsi kosong/'Default' mengirim icon: null untuk reset",
+    "Livewire component dapat memanggil Service Layer yang sama dengan REST API, konsisten dengan pola master data lainnya",
+    "GET /api/business-units/options (sudah ada, dari screen-030) digunakan ulang untuk pemilih mill khusus Admin, tidak didaftarkan ulang di sini"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Mills Setting — Admin berhasil mengatur mill terpilih",
+      "usecase_id": "usecase-034--mills-setting",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/mill-settings/:business_unit_id"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/mill-settings/:business_unit_id"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_id}}",
+            "app_name": "Mill Baru",
+            "jumlah_cages": 8
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "MillsSettingForm",
+        "action": "pilih mill dari dropdown (Admin), ubah nama aplikasi dan jumlah cages, klik Simpan",
+        "assert": "form submit berhasil, nilai baru tersimpan dan tampil kembali"
+      },
+      "browser_test": {
+        "route": "/mill-settings",
+        "action": "sebagai Admin, pilih mill, ubah nama aplikasi dan jumlah cages, klik Simpan",
+        "assert": "toast konfirmasi muncul, nilai baru tampil saat halaman dimuat ulang"
+      }
+    },
+    {
+      "scenario_ref": "Mills Setting — Mill Management langsung terarah ke mill sendiri",
+      "usecase_id": "usecase-034--mills-setting",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/mill-settings/:business_unit_id"
+          },
+          "request_example": {
+            "business_unit_id": "{{own_business_unit_id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "MillsSettingForm",
+        "action": "sebagai Mill Management, buka layar Mills Setting",
+        "assert": "data mill milik sendiri langsung dimuat tanpa pemilih mill ditampilkan"
+      },
+      "browser_test": {
+        "route": "/mill-settings",
+        "action": "login sebagai Mill Management, navigasi ke Mills Setting",
+        "assert": "halaman langsung menampilkan data mill milik sendiri, tidak ada dropdown pemilih mill"
+      }
+    },
+    {
+      "scenario_ref": "Mills Setting — Mill belum punya setting, dibuat default",
+      "usecase_id": "usecase-034--mills-setting",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/mill-settings/:business_unit_id"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_id_without_setting}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "MillsSettingForm",
+        "action": "buka Mills Setting untuk mill yang belum pernah diatur",
+        "assert": "form menampilkan nilai default: nama aplikasi = nama mill, jumlah cages = 1"
+      },
+      "browser_test": {
+        "route": "/mill-settings",
+        "action": "pilih mill yang belum pernah diatur (Admin)",
+        "assert": "form menampilkan nilai default tanpa error"
+      }
+    },
+    {
+      "scenario_ref": "Mills Setting — Validasi jumlah cages gagal",
+      "usecase_id": "usecase-034--mills-setting",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/mill-settings/:business_unit_id"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_id}}",
+            "jumlah_cages": 0
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "MillsSettingForm",
+        "action": "isi jumlah cages dengan 0, klik Simpan",
+        "assert": "pesan error validasi muncul di bawah field jumlah cages, form tidak tersimpan"
+      },
+      "browser_test": {
+        "route": "/mill-settings",
+        "action": "isi jumlah cages dengan 0, klik Simpan",
+        "assert": "pesan error validasi ditampilkan, nilai lama tidak berubah"
+      }
+    },
+    {
+      "scenario_ref": "Mills Setting — Mill Management akses mill lain ditolak",
+      "usecase_id": "usecase-034--mills-setting",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/mill-settings/:business_unit_id"
+          },
+          "request_example": {
+            "business_unit_id": "{{other_business_unit_id}}"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "MillsSettingForm",
+        "action": "sebagai Mill Management, coba akses mill lain (mis. via URL langsung)",
+        "assert": "tampilan akses ditolak muncul, data mill lain tidak dirender"
+      },
+      "browser_test": {
+        "route": "/mill-settings",
+        "action": "login sebagai Mill Management, navigasi paksa ke business_unit_id lain",
+        "assert": "browser menampilkan status akses ditolak, tidak ada data mill lain yang bocor"
+      }
+    },
+    {
+      "scenario_ref": "Mills Setting — Pilih icon station",
+      "usecase_id": "usecase-034--mills-setting",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/mill-settings/:business_unit_id/stations"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/mill-settings/:business_unit_id/stations/:station_id"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_id}}",
+            "station_id": "{{station_id}}",
+            "icon": "truck"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "MillsSettingStationIcons",
+        "action": "pilih satu station dari daftar, pilih icon dari dropdown, klik Simpan",
+        "assert": "icon station tersimpan, preview icon di daftar diperbarui"
+      },
+      "browser_test": {
+        "route": "/mill-settings",
+        "action": "di bagian icon per-station, pilih icon baru untuk salah satu station",
+        "assert": "preview icon station diperbarui setelah tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Mills Setting — Belum ada station terdaftar",
+      "usecase_id": "usecase-034--mills-setting",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/mill-settings/:business_unit_id/stations"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_id_without_stations}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "MillsSettingStationIcons",
+        "action": "buka bagian pengaturan icon per-station untuk mill tanpa station terdaftar",
+        "assert": "pesan penjelasan 'belum ada station' ditampilkan, tidak ada daftar station"
+      },
+      "browser_test": {
+        "route": "/mill-settings",
+        "action": "pilih mill tanpa station terdaftar",
+        "assert": "bagian pengaturan icon station menampilkan pesan kosong, bukan error"
+      }
+    }
+  ]
+}

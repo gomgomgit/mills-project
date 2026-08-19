@@ -3,165 +3,167 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Form — Loading | Mill Smart Log</title>
+  <title>form — loading | Mills Smart Log</title>
   <link rel="stylesheet" href="assets/design-tokens.css">
   <link rel="stylesheet" href="assets/components.css">
   <link rel="stylesheet" href="assets/shell.css">
   <style>
-    /* Page-specific layout only — no colour/radius/shadow literals, CSS variables only */
-    body {
-      background: var(--color-surface);
-      min-height: 100vh;
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding: var(--space-xl) var(--space-md);
+    /* page-specific layout only — no colour values, no radius/shadow, CSS variables only */
+    .form-card { max-width: 920px; }
+    .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-md); }
+    .skel-field { display: flex; flex-direction: column; gap: var(--space-xs); }
+    .skel-label { width: 40%; }
+    .skel-input { height: var(--space-touch_target_min); }
+    @media (max-width: 1024px) {
+      .form-row, .form-grid-3 { grid-template-columns: 1fr; }
     }
-    .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); }
-    .preview-label {
-      font-size: var(--font-size-xs);
-      color: var(--color-text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      font-weight: 600;
-    }
-
-    .mobile-shell { min-height: 780px; box-shadow: var(--shadow-dropdown); }
-
-    .mobile-header-title { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
-    .mobile-header-title h1 {
-      font-size: var(--font-size-lg);
-      font-weight: var(--font-weight-lg);
-      color: var(--color-text-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .icon-btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: var(--space-touch-target-min); height: var(--space-touch-target-min);
-      flex-shrink: 0; color: var(--color-text-primary); cursor: pointer;
-    }
-    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-
-    .form-section { display: flex; flex-direction: column; gap: var(--space-md); margin-bottom: var(--space-lg); }
-    .form-section-title {
-      font-size: var(--font-size-sm);
-      font-weight: 700;
-      color: var(--color-brand);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      padding-bottom: var(--space-xs);
-      border-bottom: 1px solid var(--color-border);
-    }
-
-    .content-note {
-      display: flex; align-items: flex-start; gap: var(--space-sm);
-      background: var(--color-header-tint);
-      border-radius: var(--radius-input);
-      padding: var(--space-sm) var(--space-md);
-      font-size: var(--font-size-xs);
-      color: var(--color-text-primary);
-      margin-bottom: var(--space-lg);
-    }
-    .content-note svg { width: 16px; height: 16px; stroke: var(--color-brand); stroke-width: 1.5; fill: none; flex-shrink: 0; margin-top: 2px; }
-
-    /* Loading-state only: field skeletons sized to mimic real input height */
-    .field-skeleton { display: flex; flex-direction: column; gap: var(--space-xs); }
-    .skeleton-label { height: 0.8em; width: 35%; }
-    .skeleton-input { height: var(--space-touch-target-min); }
   </style>
 </head>
 <body>
-  <div class="preview-wrap">
-    <div class="preview-label">Form &mdash; loading state (edit mode, memuat data existing) &middot; Mobile</div>
-
-    <div class="mobile-shell">
-      <!-- Header: back + breadcrumb + title -->
-      <div class="mobile-header">
-        <span class="icon-btn" title="Kembali">
-          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        </span>
-        <div class="mobile-header-title">
-          <h1>WB Edit | WB Load Data</h1>
-        </div>
-        <span class="icon-btn" title="Menu">
-          <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-        </span>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span>&#9881;</span>
+        <span class="label">Mills Smart Log</span>
       </div>
-      <div class="mobile-breadcrumb">Production Process Activity &gt; Weighbridge &gt; WB Edit</div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="#">
+          <span>&#9635;</span>
+          <span class="label">Dashboard</span>
+        </a>
+        <a class="nav-item active" href="#">
+          <span>&#9776;</span>
+          <span class="label">Data Stasiun</span>
+        </a>
+        <a class="nav-item" href="#">
+          <span>&#9881;</span>
+          <span class="label">Pengaturan Akun</span>
+        </a>
+      </nav>
+    </aside>
 
-      <!-- Body: skeleton form mirroring idle field groups while existing record loads -->
-      <div class="mobile-content">
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-title">Weighbridge — Edit Data</div>
+        <div class="topbar-end">
+          <span class="badge badge-neutral">Supervisor</span>
+          <span style="width:32px;height:32px;border-radius:999px;background:var(--color-brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:var(--font-size-xs);">SP</span>
+        </div>
+      </header>
 
-        <div class="content-note">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <span>Memuat data record WB-2026-000482&hellip;</span>
+      <main class="content-area">
+        <div class="breadcrumb">
+          <span>Data Stasiun</span>
+          <span class="sep">/</span>
+          <span>Weighbridge</span>
+          <span class="sep">/</span>
+          <span class="current">WB-00128</span>
         </div>
 
-        <div class="form">
-
-          <div class="form-section">
-            <div class="form-section-title">Identitas Weighbridge</div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
+        <div class="page-header">
+          <div>
+            <div class="page-title">Memuat data WB-00128...</div>
           </div>
-
-          <div class="form-section">
-            <div class="form-section-title">Kendaraan &amp; Pengemudi</div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
+          <div class="page-actions">
+            <button class="btn btn-outline" disabled>&larr; Back</button>
           </div>
-
-          <div class="form-section">
-            <div class="form-section-title">Data Timbangan</div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-          </div>
-
-          <div class="form-section">
-            <div class="form-section-title">Detail Muatan</div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-          </div>
-
-          <div class="form-section">
-            <div class="form-section-title">Verifikasi</div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-            <div class="field-skeleton"><div class="skeleton skeleton-label"></div><div class="skeleton skeleton-input"></div></div>
-          </div>
-
         </div>
-      </div>
 
-      <!-- Footer: action row disabled while loading, Back stays available. Same colour-coded
-           variants as idle (Warning/Outline/Primary) — dimmed via .btn:disabled opacity so the
-           colour coding stays visible, just muted. -->
-      <div class="mobile-actions">
-        <button type="button" class="btn btn-icon-muted btn-icon" title="Back" aria-label="Back">
-          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-          <span class="sr-only">Back</span>
-        </button>
-        <button type="button" class="btn btn-warning" disabled>
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.5" fill="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-          Pause
-        </button>
-        <button type="button" class="btn btn-outline" disabled>
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.5" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          Clear
-        </button>
-        <button type="button" class="btn btn-primary" disabled>
-          <svg viewBox="0 0 24 24" width="16" height="16" stroke="#fff" stroke-width="1.5" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          Save
-        </button>
-      </div>
+        <div class="card form-card">
+          <div class="card-body">
+            <div class="draft-flag">
+              <div class="skeleton skeleton-text" style="width: 220px;"></div>
+            </div>
+
+            <div class="form">
+              <div class="form-row">
+                <div class="skel-field">
+                  <div class="skeleton skeleton-text skel-label"></div>
+                  <div class="skeleton skel-input"></div>
+                </div>
+                <div class="skel-field">
+                  <div class="skeleton skeleton-text skel-label"></div>
+                  <div class="skeleton skel-input"></div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="skel-field">
+                  <div class="skeleton skeleton-text skel-label"></div>
+                  <div class="skeleton skel-input"></div>
+                </div>
+                <div class="skel-field">
+                  <div class="skeleton skeleton-text skel-label"></div>
+                  <div class="skeleton skel-input"></div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="skel-field">
+                  <div class="skeleton skeleton-text skel-label"></div>
+                  <div class="skeleton skel-input"></div>
+                </div>
+                <div class="skel-field">
+                  <div class="skeleton skeleton-text skel-label"></div>
+                  <div class="skeleton skel-input"></div>
+                </div>
+              </div>
+
+              <div class="skeleton skeleton-title" style="width: 30%; margin-top: var(--space-md);"></div>
+
+              <div class="detail-row">
+                <div class="detail-row-info" style="flex:1;">
+                  <div class="skeleton skeleton-text" style="width: 55%;"></div>
+                  <div class="skeleton skeleton-text" style="width: 35%;"></div>
+                </div>
+                <div class="skeleton skeleton-text" style="width: 56px; height: 28px;"></div>
+              </div>
+              <div class="detail-row">
+                <div class="detail-row-info" style="flex:1;">
+                  <div class="skeleton skeleton-text" style="width: 50%;"></div>
+                  <div class="skeleton skeleton-text" style="width: 40%;"></div>
+                </div>
+                <div class="skeleton skeleton-text" style="width: 56px; height: 28px;"></div>
+              </div>
+
+              <div class="form-grid-3">
+                <div class="skel-field">
+                  <div class="skeleton skeleton-text skel-label"></div>
+                  <div class="skeleton skel-input"></div>
+                </div>
+                <div class="skel-field">
+                  <div class="skeleton skeleton-text skel-label"></div>
+                  <div class="skeleton skel-input"></div>
+                </div>
+                <div class="skel-field">
+                  <div class="skeleton skeleton-text skel-label"></div>
+                  <div class="skeleton skel-input"></div>
+                </div>
+              </div>
+
+              <div class="skeleton skeleton-title" style="width: 25%; margin-top: var(--space-md);"></div>
+
+              <div class="form-row">
+                <div class="skel-field">
+                  <div class="skeleton skeleton-text skel-label"></div>
+                  <div class="skeleton skel-input"></div>
+                </div>
+                <div class="skel-field">
+                  <div class="skeleton skeleton-text skel-label"></div>
+                  <div class="skeleton skel-input"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <button type="button" class="btn btn-destructive" disabled>Delete</button>
+            <button type="button" class="btn btn-warning" disabled>Pause</button>
+            <button type="button" class="btn btn-outline" disabled>Clear</button>
+            <button type="button" class="btn btn-outline" disabled>Back</button>
+            <button type="button" class="btn btn-primary" disabled>Save</button>
+          </div>
+        </div>
+      </main>
     </div>
   </div>
 </body>

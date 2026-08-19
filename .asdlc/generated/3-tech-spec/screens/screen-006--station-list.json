@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 2,
+  "ver": 5,
   "id": "screen-006--station-list",
   "name": "Station List",
   "module_id": "module-mobile-station-ops",
@@ -27,21 +27,21 @@
       "usecase_name": "Pilih Stasiun",
       "endpoints": [],
       "business_logic": [
-        "1. Load cached station list from local storage (synced from server station master data)",
-        "2. Query local draft records (weighbridge-record/grading-record/cages-track-record) WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), grouped by station type → determine hasDraft boolean per active station type",
-        "3. Render grid: is_active=true → tappable with color = merah if hasDraft else hitam/netral; is_active=false → disabled/info only",
+        "1. Load cached station list from local storage (synced from server station master data), termasuk kolom icon (nama icon Lucide opsional per station, override dari default icon berdasarkan type)",
+        "2. Query local draft records (weighbridge-record/grading-record/cages-track-record) WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), grouped by station type -> determine hasDraft boolean per active station type",
+        "3. Render grid: is_active=true -> tappable, icon = station.icon jika diisi dan dikenali (dari icon library Lucide yang sama dipakai station-tile), else default icon per type (Gauge=weighbridge, Layers=grading, Package=cages-track); warna background tile (merah/hitam-netral) dan seluruh styling lain (shadow, radius, ukuran) TIDAK berubah dari pola existing; is_active=false -> disabled/info only, icon default type tetap dipakai (tidak menerima override)",
         "4. Render breadcrumb (Home > Production Process Activity) as tappable segments",
         "5. Render header dengan 'Mill Smart Log' + hamburger menu (konsisten dengan Home)",
-        "6. On tap active station → navigate to Monitor screen for that station type",
-        "7. On tap disabled station → show 'belum tersedia' info, no navigation",
-        "8. On tap breadcrumb segment → navigate to corresponding route (e.g. Home)",
-        "9. On tap hamburger → open nav menu (Ganti Password, Logout)"
+        "6. On tap active station -> navigate to Monitor screen for that station type",
+        "7. On tap disabled station -> show 'belum tersedia' info, no navigation",
+        "8. On tap breadcrumb segment -> navigate to corresponding route (e.g. Home)",
+        "9. On tap hamburger -> open nav menu (Ganti Password, Logout)"
       ],
       "data_operations": [
         {
           "entity_id": "station",
           "operation": "SELECT",
-          "description": "SELECT cached local station list (business_unit scoped)"
+          "description": "SELECT cached local station list (business_unit scoped), termasuk kolom icon"
         },
         {
           "entity_id": "weighbridge-record",
@@ -71,11 +71,16 @@
         {
           "condition": "Tidak ada draft sama sekali di stasiun aktif",
           "handling": "Warna hitam/netral"
+        },
+        {
+          "condition": "station.icon berisi nama icon yang tidak valid/tidak dikenal",
+          "handling": "Fallback ke ikon default sesuai tipe stasiun (Gauge/Layers/Package)"
         }
       ],
       "business_rules_applied": [
         "Hanya 3 stasiun MVP yang aktif secara fungsional",
         "Warna tombol mencerminkan status draft: merah=ada draft, hitam/netral=tidak ada",
+        "Ikon tile memakai station.icon jika diisi (override), else default per tipe — bukan foto/background",
         "Breadcrumb harus dapat dinavigasi"
       ],
       "unit_test_cases": [
@@ -138,6 +143,21 @@
           "description": "returns success result when all conditions pass",
           "given": "station repo returns cached list of 15 stations (3 active, 12 disabled); draft record repos return valid ongoing/paused data for some active stations and empty for others",
           "expect": "returns view model list with correct is_active, tappable, color, and hasDraft computed per station"
+        },
+        {
+          "description": "uses station.icon as the tile's icon when it is set to a recognized Lucide icon name",
+          "given": "station row has icon = 'Truck' (a valid Lucide icon name) for the Weighbridge station",
+          "expect": "tile renders the 'Truck' icon instead of the default 'Gauge' icon"
+        },
+        {
+          "description": "falls back to the default type-based icon when station.icon is null/empty",
+          "given": "station row has icon = null for the Grading station",
+          "expect": "tile renders the default 'Layers' icon"
+        },
+        {
+          "description": "falls back to the default type-based icon when station.icon is an unrecognized name",
+          "given": "station row has icon = 'not-a-real-icon' for the Cages Track station",
+          "expect": "tile renders the default 'Package' icon, no error thrown"
         }
       ]
     }
@@ -159,12 +179,20 @@
     {
       "screen_id": "screen-009--monitor-cages-track",
       "reason": "Navigasi saat stasiun Cages Track dipilih"
+    },
+    {
+      "screen_id": "screen-034--mills-setting",
+      "reason": "Sumber pengelolaan override station.icon yang ditampilkan di sini"
     }
   ],
   "implementation_notes": [
     "Data station dibaca dari cache lokal (disinkron dari server), bukan panggilan API langsung setiap kali screen dibuka",
     "Query draft records lokal (weighbridge-record/grading-record/cages-track-record) sekarang dilakukan di screen ini untuk indikator warna — mengambil alih peran yang dulu ada di Home v1 (sudah dihapus total dari Home v2/v3)",
-    "Breadcrumb & hamburger mengikuti pola header yang sama dengan Home v3 (konsistensi lintas layar)"
+    "Breadcrumb & hamburger mengikuti pola header yang sama dengan Home v3 (konsistensi lintas layar)",
+    "PENTING (pelajaran dari bug migrasi weighbridge_record sebelumnya): tabel lokal `station` di localSchema.ts perlu ditambah kolom `icon`, DAN perlu migration function (addMissingColumns, mengikuti pola migrateWeighbridgeTableToV5) untuk device dengan local DB lama yang tabelnya sudah ada sebelum kolom ini ditambahkan — CREATE TABLE IF NOT EXISTS saja tidak cukup",
+    "REVISI dari draft v3: station.icon BUKAN foto/background image — murni override nama icon Lucide, styling tile (warna, shadow, radius, layout) sama sekali tidak berubah dari sebelum fitur ini ada",
+    "Mekanisme sync yang mengisi tabel lokal `station` (termasuk kolom icon) berada di luar scope screen ini — kini diimplementasikan sebagai fetchAndCacheStationIconOverrides() yang dipanggil saat login",
+    "KNOWN LIMITATION: fetchAndCacheStationIconOverrides() mencocokkan override icon berdasarkan (business_unit_id, type) — BUKAN berdasarkan station id asli — karena row station lokal memakai id sintetis yang tidak berhubungan dengan UUID server (celah pre-existing di codebase ini, bukan diperkenalkan oleh fitur ini). Ini aman untuk saat ini karena tiap mill maksimal punya 1 station aktif per tipe di MVP, tapi akan salah menerapkan icon secara diam-diam (silent misapply) jika suatu mill nanti punya >1 station aktif dengan tipe yang sama. User secara eksplisit memilih pendekatan pragmatis ini dibanding membangun sinkronisasi station berbasis id asli (pekerjaan terpisah yang lebih besar)."
   ],
   "test_scenarios": [
     {
@@ -255,6 +283,21 @@
         "route": "/stations",
         "action": "ensure no draft records exist for the logged-in user in local SQLite, navigate to Station List",
         "assert": "active station tiles are displayed with the black/neutral color indicator"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun — Ikon Stasiun Override",
+      "usecase_id": "usecase-006--station-list",
+      "api_test": [],
+      "component_test": {
+        "component": "StationGrid",
+        "action": "seed a station row with icon = 'Truck', render grid",
+        "assert": "the tile for that station renders the 'Truck' icon instead of the default type-based icon; tile color/shadow/layout unchanged"
+      },
+      "browser_test": {
+        "route": "/stations",
+        "action": "seed local SQLite station table with icon='Truck' for the Weighbridge station, navigate to Station List",
+        "assert": "Weighbridge tile displays the 'Truck' icon; a station with no icon override still shows its default type-based icon"
       }
     }
   ]

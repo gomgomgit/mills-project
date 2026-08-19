@@ -99,6 +99,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useFloatingClockStore } from '@/stores/floatingClock'
 import gradingRecordRepo, {
   GradingDetailRequiredError,
   type GradingDetailFormRow,
@@ -114,6 +115,7 @@ import SearchableSelect, { type SearchableSelectOption } from '@/components/Sear
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const floatingClockStore = useFloatingClockStore()
 
 const recordId = String(route.params.id ?? '')
 
@@ -125,7 +127,6 @@ const recordId = String(route.params.id ?? '')
 const REQUIRED_FIELDS: (keyof GradingHeaderFormData)[] = [
   'grading_number',
   'weighbridge_record_id',
-  'vehicle_code',
   'estate_supplier',
   'netto',
   'quantity',
@@ -134,7 +135,6 @@ const REQUIRED_FIELDS: (keyof GradingHeaderFormData)[] = [
 const REQUIRED_FIELD_LABELS: Record<string, string> = {
   grading_number: 'Grading No',
   weighbridge_record_id: 'WB Card No',
-  vehicle_code: 'Vehicle Code',
   estate_supplier: 'Estate',
   netto: 'Netto',
   quantity: 'Quantity',
@@ -705,6 +705,7 @@ function goToMonitorGrading(): void {
         <button type="button" class="nav-menu-item" data-testid="nav-menu-change-password" @click="goToChangePassword">
           Ganti Password
         </button>
+        <button type="button" class="nav-menu-item" data-testid="nav-menu-toggle-floating-clock" @click="floatingClockStore.toggle()">{{ floatingClockStore.enabled ? 'Nonaktifkan Jam Mengambang' : 'Aktifkan Jam Mengambang' }}</button>
         <button type="button" class="nav-menu-item" data-testid="nav-menu-logout" @click="onLogout">Logout</button>
       </div>
     </header>
@@ -784,7 +785,6 @@ function goToMonitorGrading(): void {
         <FormField
           v-model="form.vehicle_code"
           label="Vehicle Code"
-          required
           :error="errors.vehicle_code"
           :disabled="actionInProgress"
         />

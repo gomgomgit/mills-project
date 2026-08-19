@@ -1,9 +1,7 @@
-@import url('https://fonts.bunny.net/css?family=inter:400,600,700');
+@import url('https://fonts.bunny.net/css?family=inter:400,500,600,700');
 
 :root {
-  /* ---------------------------------------------------------------- */
-  /* Colors                                                            */
-  /* ---------------------------------------------------------------- */
+  /* ============ Colors (design_system.color_palette) ============ */
   --color-background: #FFFFFF;
   --color-surface: #F7F7F7;
   --color-border: #E3E3E3;
@@ -18,76 +16,50 @@
   --color-header-tint: #D6F6E5;
   --color-input-bg: #EDEBEB;
 
-  /* Aliases used by shared component/shell CSS */
+  /* Aliases used by shared components/shell (derived from tokens above) */
   --color-foreground: var(--color-text-primary);
-  --color-muted: var(--color-surface);
   --color-muted-foreground: var(--color-text-muted);
+  --color-muted: var(--color-surface);
   --color-sidebar-bg: var(--color-surface);
 
-  /* ---------------------------------------------------------------- */
-  /* Typography                                                        */
-  /* ---------------------------------------------------------------- */
+  /* ============ Typography (design_system.typography) ============ */
   --font-family: 'Inter', sans-serif;
   --font-size-base: 16px;
   --letter-spacing: normal;
-  --line-height: 1.5;
+  --line-height-base: 1.5;
 
-  --font-size-h1: 28px;
-  --font-weight-h1: 700;
-  --line-height-h1: var(--line-height);
+  /* One pair per scale entry */
+  --font-size-h1: 28px;      --font-weight-h1: 700;      --line-height-h1: var(--line-height-base);
+  --font-size-h2: 22px;      --font-weight-h2: 600;      --line-height-h2: var(--line-height-base);
+  --font-size-h3: 18px;      --font-weight-h3: 600;      --line-height-h3: var(--line-height-base);
+  --font-size-body: 16px;    --font-weight-body: 400;    --line-height-body: var(--line-height-base);
+  --font-size-small: 14px;   --font-weight-small: 400;   --line-height-small: var(--line-height-base);
+  --font-size-caption: 12px; --font-weight-caption: 400; --line-height-caption: var(--line-height-base);
 
-  --font-size-h2: 22px;
-  --font-weight-h2: 600;
-  --line-height-h2: var(--line-height);
+  /* Generic scale aliases (derived from scale above, used by shared components) */
+  --font-size-xs: var(--font-size-caption);   --font-weight-xs: var(--font-weight-caption);
+  --font-size-sm: var(--font-size-small);     --font-weight-sm: var(--font-weight-small);
+  --font-size-lg: var(--font-size-h3);        --font-weight-lg: var(--font-weight-h3);
+  --font-size-xl: var(--font-size-h2);        --font-weight-xl: var(--font-weight-h2);
+  --font-size-2xl: var(--font-size-h1);       --font-weight-2xl: var(--font-weight-h1);
 
-  --font-size-h3: 18px;
-  --font-weight-h3: 600;
-  --line-height-h3: var(--line-height);
+  /* ============ Spacing (design_system.spacing) ============ */
+  --space-sidebar_width: 240px;
+  --space-sidebar_collapsed_width: 64px;
+  --space-top_header_height: 56px;
+  --space-mobile_header_height: 64px;
+  --space-base_unit: 4px;
+  --space-touch_target_min: 44px;
 
-  --font-size-body: 16px;
-  --font-weight-body: 400;
-  --line-height-body: var(--line-height);
-
-  --font-size-small: 14px;
-  --font-weight-small: 400;
-  --line-height-small: var(--line-height);
-
-  --font-size-caption: 12px;
-  --font-weight-caption: 400;
-  --line-height-caption: var(--line-height);
-
-  /* Aliases used by shared component/shell CSS (xs/sm/md/lg/xl naming) */
-  --font-size-xl: var(--font-size-h1);
-  --font-weight-xl: var(--font-weight-h1);
-  --font-size-lg: var(--font-size-h3);
-  --font-weight-lg: var(--font-weight-h3);
-  --font-size-sm: var(--font-size-small);
-  --font-weight-sm: var(--font-weight-small);
-  --font-size-xs: var(--font-size-caption);
-  --font-weight-xs: var(--font-weight-caption);
-  --font-size-2xl: 32px;
-
-  /* ---------------------------------------------------------------- */
-  /* Spacing                                                            */
-  /* ---------------------------------------------------------------- */
-  --space-sidebar-width: 240px;
-  --space-sidebar-collapsed-width: 64px;
-  --space-top-header-height: 56px;
-  --space-mobile-header-height: 64px;
-  --space-base-unit: 4px;
-  --space-touch-target-min: 44px;
-
-  /* Scale derived from base-unit (4px) for shared component/shell CSS */
+  /* Derived generic spacing scale (multiples of base_unit, used by shared components) */
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
   --space-lg: 24px;
   --space-xl: 32px;
-  --space-2xl: 64px;
+  --space-2xl: 48px;
 
-  /* ---------------------------------------------------------------- */
-  /* Border radius                                                     */
-  /* ---------------------------------------------------------------- */
+  /* ============ Border radius (design_system.border_radius) ============ */
   --radius-input: 6px;
   --radius-card: 12px;
   --radius-modal: 16px;
@@ -95,27 +67,12 @@
   --radius-chip: 999px;
   --radius-badge: var(--radius-chip);
 
-  /* ---------------------------------------------------------------- */
-  /* Shadows                                                            */
-  /* ---------------------------------------------------------------- */
+  /* ============ Shadow (design_system.shadow) ============ */
   --shadow-card: 0 1px 2px rgba(0,0,0,0.06);
   --shadow-dropdown: 0 4px 8px rgba(0,0,0,0.1);
   --shadow-modal: 0 10px 24px rgba(0,0,0,0.16);
   --shadow-sm: var(--shadow-card);
-
-  /* ---------------------------------------------------------------- */
-  /* Icon library reference (Lucide, 20px, stroke 1.5)                 */
-  /* ---------------------------------------------------------------- */
-  --icon-size-default: 20px;
-  --icon-stroke-width: 1.5;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: var(--font-family);
-  font-size: var(--font-size-base);
-  letter-spacing: var(--letter-spacing);
-  line-height: var(--line-height);
-  color: var(--color-foreground, #1F2937);
-  background: var(--color-background, #fff);
-}
+body { font-family: var(--font-family); font-size: var(--font-size-base); letter-spacing: var(--letter-spacing); line-height: var(--line-height-base); color: var(--color-foreground); background: var(--color-background); }

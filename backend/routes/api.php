@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CorporateController;
 use App\Http\Controllers\Api\GradingRecordController;
 use App\Http\Controllers\Api\MachineryController;
 use App\Http\Controllers\Api\MachineryGroupController;
+use App\Http\Controllers\Api\MillSettingController;
 use App\Http\Controllers\Api\StationController;
 use App\Http\Controllers\Api\WeighbridgeRecordController;
 use Illuminate\Support\Facades\Route;
@@ -263,5 +264,30 @@ Route::middleware(['auth:web', 'role:admin'])->group(function () {
     Route::post('/machinery', [MachineryController::class, 'store']);
     Route::patch('/machinery/{id}', [MachineryController::class, 'update']);
     Route::delete('/machinery/{id}', [MachineryController::class, 'destroy']);
+});
+
+// screen-034--mills-setting
+// Admin + Mill Management (per screen_tech_spec.actor_permissions) —
+// per-resource ownership scoping (Mill Management restricted to their own
+// business_unit_id) is enforced INSIDE MillSettingService::checkAccess(),
+// not at the route/middleware layer, since 'role:...' can only gate by
+// role, not by which :business_unit_id was requested.
+//
+// IMPORTANT — route ordering: GET /api/mill-settings/current and
+// /api/mill-settings/current/stations (self-scoped, mobile-facing —
+// screen-005--home, screen-012--form-cages-track, screen-006's mobile
+// consumers) MUST be registered BEFORE the :businessUnitId routes below,
+// or Laravel would match the literal "current" segment against the
+// {businessUnitId} parameter instead of reaching these dedicated routes.
+Route::middleware(['auth:web,sanctum', 'role:operator,supervisor,mill_management,admin'])->group(function () {
+    Route::get('/mill-settings/current', [MillSettingController::class, 'current']);
+    Route::get('/mill-settings/current/stations', [MillSettingController::class, 'currentStations']);
+});
+
+Route::middleware(['auth:web', 'role:admin,mill_management'])->group(function () {
+    Route::get('/mill-settings/{businessUnitId}', [MillSettingController::class, 'show']);
+    Route::patch('/mill-settings/{businessUnitId}', [MillSettingController::class, 'update']);
+    Route::get('/mill-settings/{businessUnitId}/stations', [MillSettingController::class, 'stations']);
+    Route::patch('/mill-settings/{businessUnitId}/stations/{stationId}', [MillSettingController::class, 'setStationIcon']);
 });
 // === ASDLC_ROUTES_END ===

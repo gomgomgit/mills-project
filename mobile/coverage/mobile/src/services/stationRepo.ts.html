@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/91</span>
+                <span class='fraction'>0/101</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/91</span>
+                <span class='fraction'>0/101</span>
             </div>
         
             
@@ -154,7 +154,27 @@
 <a name='L89'></a><a href='#L89'>89</a>
 <a name='L90'></a><a href='#L90'>90</a>
 <a name='L91'></a><a href='#L91'>91</a>
-<a name='L92'></a><a href='#L92'>92</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -276,6 +296,14 @@
 <span class="cstat-no" title="statement not covered" >  name: string</span>
 <span class="cstat-no" title="statement not covered" >  type: StationType</span>
 <span class="cstat-no" title="statement not covered" >  isActive: boolean</span>
+<span class="cstat-no" title="statement not covered" >  /**</span>
+<span class="cstat-no" title="statement not covered" >   * entity-catalog v7 (Mills Setting feature) — optional Lucide icon-name</span>
+<span class="cstat-no" title="statement not covered" >   * override (one of MillSettingService::SUPPORTED_ICONS on the backend,</span>
+<span class="cstat-no" title="statement not covered" >   * e.g. 'truck', 'gauge'), synced by fetchAndCacheStationIconOverrides()</span>
+<span class="cstat-no" title="statement not covered" >   * in stores/auth.ts. `null`/unrecognized → StationGrid.vue falls back to</span>
+<span class="cstat-no" title="statement not covered" >   * the existing type-based default icon (business_logic step 3).</span>
+<span class="cstat-no" title="statement not covered" >   */</span>
+<span class="cstat-no" title="statement not covered" >  icon: string | null</span>
 <span class="cstat-no" title="statement not covered" >}</span>
 <span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >interface StationRow {</span>
@@ -284,6 +312,7 @@
 <span class="cstat-no" title="statement not covered" >  name: string</span>
 <span class="cstat-no" title="statement not covered" >  type: StationType</span>
 <span class="cstat-no" title="statement not covered" >  is_active: number | boolean</span>
+<span class="cstat-no" title="statement not covered" >  icon: string | null</span>
 <span class="cstat-no" title="statement not covered" >}</span>
 <span class="cstat-no" title="statement not covered" ></span>
 <span class="cstat-no" title="statement not covered" >function toStationSlot(row: StationRow): StationSlot {</span>
@@ -297,6 +326,7 @@
 <span class="cstat-no" title="statement not covered" >    // (number from the real native driver, boolean from mocked test rows)</span>
 <span class="cstat-no" title="statement not covered" >    // into a real boolean for the rest of the app.</span>
 <span class="cstat-no" title="statement not covered" >    isActive: row.is_active === true || row.is_active === 1,</span>
+<span class="cstat-no" title="statement not covered" >    icon: row.icon ?? null,</span>
 <span class="cstat-no" title="statement not covered" >  }</span>
 <span class="cstat-no" title="statement not covered" >}</span>
 <span class="cstat-no" title="statement not covered" ></span>
@@ -315,7 +345,7 @@
 <span class="cstat-no" title="statement not covered" > */</span>
 <span class="cstat-no" title="statement not covered" >export async function getActiveAndPlaceholderStations(businessUnitId: string): Promise&lt;StationSlot[]&gt; {</span>
 <span class="cstat-no" title="statement not covered" >  const rows = await query&lt;StationRow&gt;(</span>
-<span class="cstat-no" title="statement not covered" >    `SELECT id, business_unit_id, name, type, is_active</span>
+<span class="cstat-no" title="statement not covered" >    `SELECT id, business_unit_id, name, type, is_active, icon</span>
 <span class="cstat-no" title="statement not covered" >     FROM station WHERE business_unit_id = ?</span>
 <span class="cstat-no" title="statement not covered" >     ORDER BY</span>
 <span class="cstat-no" title="statement not covered" >       CASE type</span>
@@ -343,7 +373,7 @@
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-08-19T03:55:31.392Z
+                at 2026-08-19T17:13:05.982Z
             </div>
         <script src="../../../prettify.js"></script>
         <script>

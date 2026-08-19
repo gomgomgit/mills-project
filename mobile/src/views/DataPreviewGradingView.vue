@@ -119,6 +119,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useFloatingClockStore } from '@/stores/floatingClock'
 import gradingRecordRepo, {
   type GradingDetailRow,
   type GradingParameterOption,
@@ -130,6 +131,7 @@ import FormField from '@/components/FormField.vue'
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const floatingClockStore = useFloatingClockStore()
 
 function currentUserId(): string | null {
   return authStore.currentUser?.id ?? null
@@ -460,6 +462,7 @@ function goToMonitorGrading(): void {
         <button type="button" class="nav-menu-item" data-testid="nav-menu-change-password" @click="goToChangePassword">
           Ganti Password
         </button>
+        <button type="button" class="nav-menu-item" data-testid="nav-menu-toggle-floating-clock" @click="floatingClockStore.toggle()">{{ floatingClockStore.enabled ? 'Nonaktifkan Jam Mengambang' : 'Aktifkan Jam Mengambang' }}</button>
         <button type="button" class="nav-menu-item" data-testid="nav-menu-logout" @click="onLogout">Logout</button>
       </div>
     </header>

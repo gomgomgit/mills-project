@@ -1,5 +1,5 @@
 {
-  "ver": 17,
+  "ver": 20,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-08-19"
@@ -49,6 +49,18 @@
       "description": "Mengubah password akun user mobile yang sedang login (via Sanctum token) setelah verifikasi password lama",
       "screen_id": "screen-004--ganti-password-mobile",
       "usecase_id": "usecase-004--ganti-password-mobile",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/mill-settings/current",
+      "description": "Ambil mill-setting (app_name, logo, home_page_image, jumlah_cages) untuk business_unit user yang sedang login, dipakai Home mobile (hero image, cached lokal offline-first)",
+      "screen_id": "screen-005--home",
+      "usecase_id": "usecase-005--home",
       "auth_required": true,
       "actor_ids": [
         "actor-station-operator",
@@ -464,6 +476,54 @@
       "auth_required": true,
       "actor_ids": [
         "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/mill-settings/:business_unit_id",
+      "description": "Ambil mill-setting untuk satu mill tertentu (Admin dapat memilih mill mana pun); membuat baris default otomatis jika belum ada",
+      "screen_id": "screen-034--mills-setting",
+      "usecase_id": "usecase-034--mills-setting",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-mill-management"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/mill-settings/:business_unit_id",
+      "description": "Mengubah nama aplikasi, jumlah cages, logo, dan/atau gambar halaman utama mill",
+      "screen_id": "screen-034--mills-setting",
+      "usecase_id": "usecase-034--mills-setting",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-mill-management"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/mill-settings/:business_unit_id/stations",
+      "description": "List station milik mill terkait beserta icon yang dipakai masing-masing",
+      "screen_id": "screen-034--mills-setting",
+      "usecase_id": "usecase-034--mills-setting",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-mill-management"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/mill-settings/:business_unit_id/stations/:station_id",
+      "description": "Mengatur atau menghapus (reset ke default) icon override satu station milik mill terkait",
+      "screen_id": "screen-034--mills-setting",
+      "usecase_id": "usecase-034--mills-setting",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin",
+        "actor-mill-management"
       ]
     }
   ]

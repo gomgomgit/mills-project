@@ -72,6 +72,16 @@ vi.mock('@/stores/auth', () => ({
   useAuthStore: useAuthStoreMock,
 }))
 
+vi.mock('@/stores/floatingClock', () => ({
+  useFloatingClockStore: () => ({ enabled: false, toggle: vi.fn() }),
+}))
+
+const { getMillSettingMock } = vi.hoisted(() => ({ getMillSettingMock: vi.fn() }))
+
+vi.mock('@/services/millSettingRepo', () => ({
+  getMillSetting: getMillSettingMock,
+}))
+
 function mockAuthUser(name: string | null | undefined): void {
   const user = {
     id: 'user-1',
@@ -81,13 +91,19 @@ function mockAuthUser(name: string | null | undefined): void {
     business_unit_id: 'bu-1',
   }
 
-  useAuthStoreMock.mockReturnValue({ user, currentUser: user, logout: logoutMock })
+  useAuthStoreMock.mockReturnValue({
+    user,
+    currentUser: user,
+    businessUnit: { id: 'bu-1', name: 'Business Unit A' },
+    logout: logoutMock,
+  })
 }
 
 describe('HomeView — "Navigasi Home"', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     logoutMock.mockResolvedValue(undefined)
+    getMillSettingMock.mockResolvedValue(null)
     mockAuthUser('Budi')
   })
 
@@ -236,5 +252,82 @@ describe('HomeView — menu navigasi (hamburger)', () => {
 
     expect(logoutMock).toHaveBeenCalledTimes(1)
     expect(pushMock).toHaveBeenCalledWith({ name: 'login' })
+  })
+})
+
+// Scenario: "Navigasi Home — Hero Image Fallback Statis" (tech spec ver 3/4)
+// Also satisfies unit_test_cases: "menampilkan hero image dari
+// millSettingRepo.getMillSetting() saat data tersedia", "tidak memanggil API
+// mill-settings dari Home saat mount" (v3 wording — mechanism corrected in
+// v4 to millSettingRepo/SQLite, still asserted as "never fetches remotely"
+// here), "fallback ke gambar statis bawaan ketika getMillSetting()
+// mengembalikan null", "fallback ke gambar statis bawaan ketika
+// home_page_image bernilai null".
+describe('HomeView — hero image dari Mills Setting', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    logoutMock.mockResolvedValue(undefined)
+    mockAuthUser('Budi')
+  })
+
+  it('renders the mill-setting home_page_image as hero image when cached data is available', async () => {
+    getMillSettingMock.mockResolvedValue({
+      id: 'ms-1',
+      businessUnitId: 'bu-1',
+      appName: 'Mill A App',
+      logo: null,
+      homePageImage: 'https://cdn.example.com/mill-a-hero.jpg',
+      jumlahCages: 10,
+    })
+
+    const wrapper = mount(HomeView)
+    await flushPromises()
+
+    expect(getMillSettingMock).toHaveBeenCalledWith('bu-1')
+    expect(wrapper.get('.hero-image').attributes('src')).toBe('https://cdn.example.com/mill-a-hero.jpg')
+  })
+
+  it('falls back to the bundled static hero image when no mill-setting is cached yet', async () => {
+    getMillSettingMock.mockResolvedValue(null)
+
+    const wrapper = mount(HomeView)
+    await flushPromises()
+
+    const src = wrapper.get('.hero-image').attributes('src')
+    expect(src).toBeTruthy()
+    expect(src).not.toBe('https://cdn.example.com/mill-a-hero.jpg')
+  })
+
+  it('falls back to the bundled static hero image when the cached mill-setting has a null home_page_image', async () => {
+    getMillSettingMock.mockResolvedValue({
+      id: 'ms-1',
+      businessUnitId: 'bu-1',
+      appName: 'Mill A App',
+      logo: null,
+      homePageImage: null,
+      jumlahCages: 10,
+    })
+
+    const wrapper = mount(HomeView)
+    await flushPromises()
+
+    const src = wrapper.get('.hero-image').attributes('src')
+    expect(src).toBeTruthy()
+    expect(src).not.toBe('https://cdn.example.com/mill-a-hero.jpg')
+  })
+
+  it('does not call getMillSetting when the current user has no business unit', async () => {
+    useAuthStoreMock.mockReturnValue({
+      user: { id: 'user-1', username: 'operator01', name: 'Budi', role: 'operator', business_unit_id: null },
+      currentUser: { id: 'user-1', username: 'operator01', name: 'Budi', role: 'operator', business_unit_id: null },
+      businessUnit: null,
+      logout: logoutMock,
+    })
+
+    const wrapper = mount(HomeView)
+    await flushPromises()
+
+    expect(getMillSettingMock).not.toHaveBeenCalled()
+    expect(wrapper.get('.hero-image').attributes('src')).toBeTruthy()
   })
 })

@@ -1,39 +1,51 @@
 /**
  * FormCagesTrackView.spec.ts — screen-012--form-cages-track /
  * usecase-012--form-cages-track (entity-catalog v3 full rewrite,
- * 2026-08-19).
- *
- * FULL REWRITE, replacing every test in the previous version of this file
- * (built against cages_track_record/cages_tipped_time's pre-v3 shape — a
- * flat header with no Tippler/Cages fields, a "one row per cage"
- * cage_number/tipped_time grid). Mirrors FormGradingView.spec.ts's
- * structure/mocking conventions closely.
+ * 2026-08-19; updated 2026-08-20 for tech-spec v3's business_logic step 5
+ * change — see below).
  *
  * Component tests covering:
  *   1. Date/Tippler Start Time auto-set once for a new draft, preserved
  *      for a resumed one.
- *   2. Cages Tipped locks (disabled) once ≥1 detail row exists.
- *   3. "Tambah baris" disabled until Cages Tipped > 0.
- *   4. Cage checklist renders N checkboxes matching Cages Tipped.
- *   5. Time dropdown excludes hours used by other rows AND hours ≤ the
+ *   2. UPDATED 2026-08-20: "Tambah baris" (`canAddTippedTimeRow`) is
+ *      disabled until the local mill_setting cache has a synced,
+ *      positive `jumlah_cages` for the current session's business unit
+ *      (loaded once on mount via millSettingRepo.getJumlahCages()) — no
+ *      longer driven by the header's Cages Tipped field. Cages Tipped
+ *      itself is now a fully plain manual input, never locked/disabled,
+ *      with zero coupling to the grid (the old `cagesTippedLocked`
+ *      computed was removed entirely).
+ *   3. UPDATED 2026-08-20: Cage checklist renders N checkboxes matching
+ *      mill_setting.jumlah_cages, independent of whatever value is typed
+ *      into the Cages Tipped header field.
+ *   4. Time dropdown excludes hours used by other rows AND hours ≤ the
  *      most-recently-added row's hour.
- *   6. Checking/unchecking a cage recomputes Total Cages/Cages Remain for
- *      that row only.
- *   7. Removing a row frees its hour for other rows.
- *   8. Checked By toggle interactive only for supervisor.
- *   9. Acknowledged By toggle interactive only for mill_management.
- *   10. Simpan validation (missing required field, no valid detail rows)
- *       blocks save; success freezes tippler_stop_time and navigates.
- *   11. Pause skips validation and does not freeze tippler_stop_time.
- *   12. Clear confirm/cancel.
- *   13. Back dirty/clean.
- *   14. Breadcrumb + hamburger.
+ *   5. UPDATED 2026-08-20: Checking/unchecking a cage recomputes Total
+ *      Cages/Cages Remain for that row only; Cages Remain is
+ *      mill_setting.jumlah_cages MINUS that row's own Total Cages —
+ *      neither is affected by the Cages Tipped header value.
+ *   6. Removing a row frees its hour for other rows.
+ *   7. Checked By toggle interactive only for supervisor.
+ *   8. Acknowledged By toggle interactive only for mill_management.
+ *   9. Simpan validation (missing required field, no valid detail rows)
+ *      blocks save; success freezes tippler_stop_time and navigates.
+ *   10. Pause skips validation and does not freeze tippler_stop_time.
+ *   11. Clear confirm/cancel.
+ *   12. Back dirty/clean.
+ *   13. Breadcrumb + hamburger.
  *
  * Mocking strategy mirrors FormGradingView.spec.ts: 'vue-router' and
  * '@/stores/auth' mocked at module level; '@/services/cagesTrackRecordRepo'
  * mocked at module level (its own behavior already covered by
  * cagesTrackRecordRepo.spec.ts) so this file never touches localDb.ts / a
- * real SQLite connection.
+ * real SQLite connection. ADDED 2026-08-20: '@/services/millSettingRepo'
+ * is now also mocked at module level (mirrors HomeView.spec.ts's own
+ * `getMillSettingMock` pattern) — `getJumlahCagesMock` defaults to
+ * resolving `10` in the outer `beforeEach` (matching entity-catalog's
+ * `mill-setting` test_fixture, ms-001.jumlah_cages) so every pre-existing
+ * test that adds a detail row keeps working unchanged; individual tests
+ * override via `mockResolvedValueOnce()` where the mill_setting value
+ * itself is what's under test.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
@@ -54,6 +66,10 @@ const { useAuthStoreMock } = vi.hoisted(() => ({ useAuthStoreMock: vi.fn() }))
 
 vi.mock('@/stores/auth', () => ({
   useAuthStore: useAuthStoreMock,
+}))
+
+vi.mock('@/stores/floatingClock', () => ({
+  useFloatingClockStore: () => ({ enabled: false, toggle: vi.fn() }),
 }))
 
 const { getDraftWithTippedTimesMock, saveDraftMock, pauseDraftWithFormDataMock, deleteDraftMock } = vi.hoisted(
@@ -85,6 +101,20 @@ vi.mock('@/services/cagesTrackRecordRepo', () => {
 })
 
 import { CagesTippedTimeRequiredError } from '@/services/cagesTrackRecordRepo'
+
+// business_logic step 5 (tech-spec v3) — N (the grid's shared "Cage
+// 1".."Cage N" checkbox column count) now comes from the local
+// mill_setting reference cache, not the Cages Tipped header field. Mocked
+// at module level the same way HomeView.spec.ts mocks this repo's
+// `getMillSetting`.
+const { getJumlahCagesMock } = vi.hoisted(() => ({ getJumlahCagesMock: vi.fn() }))
+
+vi.mock('@/services/millSettingRepo', () => ({
+  getJumlahCages: getJumlahCagesMock,
+}))
+
+// Matches entity-catalog's `mill-setting` test_fixture (ms-001.jumlah_cages).
+const DEFAULT_JUMLAH_CAGES = 10
 
 function makeDraftRecord(overrides: Partial<CagesTrackRecord> = {}): CagesTrackRecord {
   return {
@@ -121,9 +151,14 @@ function makeTippedTimeRow(overrides: Partial<CagesTippedTimeRow> = {}): CagesTi
   }
 }
 
+// business_unit_id: derived by the component from
+// `authStore.currentUser?.business_unit_id` (see FormCagesTrackView.vue's
+// onMounted block) to look up the local mill_setting cache — added
+// 2026-08-20, mirrors HomeView.spec.ts's `mockAuthUser()`'s
+// `business_unit_id: 'bu-1'`.
 function setCurrentUser(role: 'operator' | 'supervisor' | 'mill_management' = 'operator'): void {
   useAuthStoreMock.mockReturnValue({
-    currentUser: { id: 'user-1', username: 'operator01', name: 'Operator Satu', role },
+    currentUser: { id: 'user-1', username: 'operator01', name: 'Operator Satu', role, business_unit_id: 'bu-1' },
     logout: vi.fn().mockResolvedValue(undefined),
   })
 }
@@ -211,6 +246,13 @@ describe('FormCagesTrackView', () => {
     vi.clearAllMocks()
     useRouteMock.mockReturnValue({ params: { id: 'draft-1' } })
     setCurrentUser('operator')
+    // Default: mill_setting already synced locally with a positive
+    // jumlah_cages, matching entity-catalog's test_fixture — keeps every
+    // pre-existing test below (written before N came from mill_setting)
+    // working unchanged. Tests that exercise the mill_setting-driven
+    // enable/disable logic itself override this via
+    // `mockResolvedValueOnce()`.
+    getJumlahCagesMock.mockResolvedValue(DEFAULT_JUMLAH_CAGES)
   })
 
   afterEach(() => {
@@ -260,20 +302,11 @@ describe('FormCagesTrackView', () => {
     )
   })
 
-  // 2
-  it('disables Cages Tipped once at least one tipped-time row exists (loaded from a resumed draft)', async () => {
-    getDraftWithTippedTimesMock.mockResolvedValueOnce({
-      record: makeDraftRecord({ status: 'draft_paused', cages_tipped: 10 }),
-      tippedTimes: [makeTippedTimeRow()],
-    })
-
-    const wrapper = mount(FormCagesTrackView)
-    await flushPromises()
-
-    expect(wrapper.find('#field-cages-tipped').attributes('disabled')).toBeDefined()
-  })
-
-  it('disables Cages Tipped once a row is added this session', async () => {
+  // 2 — Cages Tipped (header) is now a fully plain manual input at all
+  // times, decoupled from the grid (2026-08-20, tech-spec v3). The old
+  // "locks once a row exists" tests were removed along with the
+  // `cagesTippedLocked` computed itself.
+  it('keeps Cages Tipped editable at all times, even after a detail row is added', async () => {
     getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
 
     const wrapper = mount(FormCagesTrackView)
@@ -281,40 +314,70 @@ describe('FormCagesTrackView', () => {
 
     expect(wrapper.find('#field-cages-tipped').attributes('disabled')).toBeUndefined()
 
-    await wrapper.find('#field-cages-tipped').setValue('10')
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
+    await wrapper.find('#field-cages-tipped').setValue('42')
 
-    expect(wrapper.find('#field-cages-tipped').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('#field-cages-tipped').attributes('disabled')).toBeUndefined()
+    expect((wrapper.find('#field-cages-tipped').element as HTMLInputElement).value).toBe('42')
   })
 
-  // 3
-  it('disables "Tambah baris" until Cages Tipped has a value greater than 0', async () => {
+  // 3 — "Tambah baris" (canAddTippedTimeRow) is gated on the local
+  // mill_setting cache, not the Cages Tipped header field (2026-08-20,
+  // tech-spec v3, business_logic step 5).
+  it("disables 'Tambah baris' when mill_setting.jumlah_cages is unavailable locally (not synced)", async () => {
+    getJumlahCagesMock.mockResolvedValueOnce(null)
     getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
 
     const wrapper = mount(FormCagesTrackView)
     await flushPromises()
 
     expect(wrapper.find('[data-testid="add-tipped-time-row-button"]').attributes('disabled')).toBeDefined()
-
-    await wrapper.find('#field-cages-tipped').setValue('5')
-
-    expect(wrapper.find('[data-testid="add-tipped-time-row-button"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('[data-testid="add-row-jumlah-cages-hint"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="add-row-jumlah-cages-hint"]').text()).toContain(
+      'Data Jumlah Cages dari Mills Setting belum tersedia.',
+    )
   })
 
-  // 4
-  it('renders N cage checkboxes matching the Cages Tipped header value', async () => {
+  it("disables 'Tambah baris' when mill_setting.jumlah_cages is 0", async () => {
+    getJumlahCagesMock.mockResolvedValueOnce(0)
     getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
 
     const wrapper = mount(FormCagesTrackView)
     await flushPromises()
 
-    await wrapper.find('#field-cages-tipped').setValue('4')
+    expect(wrapper.find('[data-testid="add-tipped-time-row-button"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="add-row-jumlah-cages-hint"]').exists()).toBe(true)
+  })
+
+  it("enables 'Tambah baris' once mill_setting.jumlah_cages is a positive value", async () => {
+    getJumlahCagesMock.mockResolvedValueOnce(10)
+    getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
+
+    const wrapper = mount(FormCagesTrackView)
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="add-tipped-time-row-button"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('[data-testid="add-row-jumlah-cages-hint"]').exists()).toBe(false)
+  })
+
+  // 4 — replaces the pre-2026-08-20 "renders N cage checkboxes matching
+  // the Cages Tipped header value" test: N now comes from mill_setting,
+  // NOT the header field, which this test deliberately sets to a
+  // different value to prove the decoupling.
+  it('renders N checklist checkboxes per row matching mill_setting.jumlah_cages, independent of the Cages Tipped header value', async () => {
+    getJumlahCagesMock.mockResolvedValueOnce(10)
+    getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
+
+    const wrapper = mount(FormCagesTrackView)
+    await flushPromises()
+
+    await wrapper.find('#field-cages-tipped').setValue('5')
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
 
-    expect(wrapper.find('[data-testid="cage-checkbox-grid-0"]').findAll('input[type="checkbox"]')).toHaveLength(4)
+    expect(wrapper.find('[data-testid="cage-checkbox-grid-0"]').findAll('input[type="checkbox"]')).toHaveLength(10)
     expect(wrapper.find('[data-testid="cage-checkbox-0-1"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="cage-checkbox-0-4"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="cage-checkbox-0-5"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cage-checkbox-0-10"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cage-checkbox-0-11"]').exists()).toBe(false)
   })
 
   // 5
@@ -324,7 +387,6 @@ describe('FormCagesTrackView', () => {
     const wrapper = mount(FormCagesTrackView)
     await flushPromises()
 
-    await wrapper.find('#field-cages-tipped').setValue('5')
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
     await chooseSearchableOption(wrapper, 'tipped-hour-select-0', hourLabel(7))
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
@@ -341,7 +403,6 @@ describe('FormCagesTrackView', () => {
     const wrapper = mount(FormCagesTrackView)
     await flushPromises()
 
-    await wrapper.find('#field-cages-tipped').setValue('5')
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
     await chooseSearchableOption(wrapper, 'tipped-hour-select-0', hourLabel(7))
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
@@ -354,14 +415,49 @@ describe('FormCagesTrackView', () => {
     }
   })
 
-  // 6
+  // 6 — computes total_cages / cages_remain for a row; both are now
+  // derived from mill_setting.jumlah_cages, not the Cages Tipped header
+  // field (2026-08-20, tech-spec v3).
+  it('computes total_cages for a row as the count of checked cage checkboxes in that row, independent of the Cages Tipped header value', async () => {
+    getJumlahCagesMock.mockResolvedValueOnce(10)
+    getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
+
+    const wrapper = mount(FormCagesTrackView)
+    await flushPromises()
+
+    // Deliberately different from mill_setting's jumlah_cages, to verify
+    // no lingering dependency on this field.
+    await wrapper.find('#field-cages-tipped').setValue('99')
+    await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
+    await wrapper.find('[data-testid="cage-checkbox-0-1"]').setValue(true)
+    await wrapper.find('[data-testid="cage-checkbox-0-3"]').setValue(true)
+    await wrapper.find('[data-testid="cage-checkbox-0-5"]').setValue(true)
+
+    expect(wrapper.find('[data-testid="row-total-cages-0"]').text()).toContain('3')
+  })
+
+  it("computes cages_remain for a row as mill_setting.jumlah_cages minus that row's own total_cages", async () => {
+    getJumlahCagesMock.mockResolvedValueOnce(10)
+    getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
+
+    const wrapper = mount(FormCagesTrackView)
+    await flushPromises()
+
+    await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
+    await wrapper.find('[data-testid="cage-checkbox-0-1"]').setValue(true)
+    await wrapper.find('[data-testid="cage-checkbox-0-2"]').setValue(true)
+    await wrapper.find('[data-testid="cage-checkbox-0-3"]').setValue(true)
+
+    expect(wrapper.find('[data-testid="row-total-cages-0"]').text()).toContain('3')
+    expect(wrapper.find('[data-testid="row-cages-remain-0"]').text()).toContain('7')
+  })
+
   it('recomputes Total Cages and Cages Remain for a row when its own checklist changes, without affecting other rows', async () => {
     getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
 
     const wrapper = mount(FormCagesTrackView)
     await flushPromises()
 
-    await wrapper.find('#field-cages-tipped').setValue('10')
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
 
@@ -381,7 +477,6 @@ describe('FormCagesTrackView', () => {
     const wrapper = mount(FormCagesTrackView)
     await flushPromises()
 
-    await wrapper.find('#field-cages-tipped').setValue('5')
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
     await chooseSearchableOption(wrapper, 'tipped-hour-select-0', hourLabel(7))
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')

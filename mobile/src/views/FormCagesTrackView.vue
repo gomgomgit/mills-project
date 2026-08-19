@@ -51,10 +51,12 @@
  *    before the `saveDraft()` call that persists it; explicitly left
  *    untouched by `onPause()` (see that function's own comment). `cages_out`
  *    (required, freely editable at all times, never locked). `cages_tipped`
- *    (required integer > 0; freely editable until the FIRST
- *    cages_tipped_time row exists — loaded from a resumed draft OR added
- *    this session — then rendered disabled; this is what determines the
- *    grid's shared N-checkbox column count).
+ *    (required integer > 0; freely editable at ALL times, never locked —
+ *    UPDATED 2026-08-19, tech-spec v3: this header field no longer
+ *    determines the grid's N-checkbox column count and has zero coupling
+ *    to `tippedTimeRows` — it is saved as-is with its original meaning
+ *    ("jumlah cage yang akan di-tipping sesi ini"). See the "Cages Tipped
+ *    Time" bullet below for where N now comes from.).
  *
  *  - "Verifikasi" section: "Inputted By" is a plain read-only display of
  *    `authStore.currentUser?.name` (NOT an editable field, NOT part of
@@ -72,18 +74,29 @@
  *    as every other role-gated field in this app. `note` (optional free
  *    text) also lives in this section per the mock.
  *
- *  - "Cages Tipped Time" section — the dynamic grid. `cageColumns`
- *    (computed from the header's `cages_tipped`) drives the shared
- *    "Cage 1".."Cage N" checkbox columns rendered identically in every
- *    row. Each row's Time <select> options are computed reactively by
+ *  - "Cages Tipped Time" section — the dynamic grid. UPDATED 2026-08-19
+ *    (tech-spec v3, business_logic step 5): N (the shared "Cage 1".."Cage
+ *    N" checkbox column count, `cageColumns`) is no longer derived from
+ *    the header's `cages_tipped` — it now comes from the local
+ *    `mill_setting` reference cache's `jumlah_cages`
+ *    (`jumlahCagesFromMillSetting`, loaded once on mount via
+ *    `millSettingRepo.getJumlahCages()`, keyed by the current session's
+ *    business unit — see that ref's own comment for the exact
+ *    business-unit-id derivation and its documented scope limitation).
+ *    Each row's Time <select> options are computed reactively by
  *    `availableHourOptions()` — see that function's own comment for the
  *    exact exclusion rule (already-used-by-another-row, plus a floor at
  *    the HIGHEST hour among all other rows, both exempting the row's own
  *    current selection). Checking/unchecking a cage checkbox updates that
  *    row's `checked_cage_numbers` (comma-separated, sorted ascending, via
  *    `toggleCage()`); `rowTotalCages()`/`rowCagesRemain()` are pure
- *    per-row display functions, never accumulated across rows.
- *    "Tambah baris" is disabled until `cages_tipped > 0`; "Hapus baris" on
+ *    per-row display functions, never accumulated across rows —
+ *    `rowCagesRemain()` is now N (mill_setting) MINUS that row's own
+ *    total, not header `cages_tipped` MINUS total.
+ *    "Tambah baris" (`canAddTippedTimeRow`) is disabled until N is loaded
+ *    (mill_setting synced locally, not null) AND N > 0 — a short inline
+ *    hint is shown next to the button whenever it's disabled for this
+ *    reason (edge_case_handling, tech-spec v3). "Hapus baris" on
  *    a row with an `id` (loaded from an existing draft) queues it in
  *    `pendingDeletionIds` (deleted only at the next Simpan/Pause) rather
  *    than deleting immediately, exact same pattern as
@@ -130,6 +143,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useFloatingClockStore } from '@/stores/floatingClock'
 import cagesTrackRecordRepo, {
   CagesTippedTimeRequiredError,
   type CagesTippedTimeFormRow,
@@ -138,6 +152,7 @@ import cagesTrackRecordRepo, {
   type CagesTrackHeaderFormData,
   type CagesTrackRecord,
 } from '@/services/cagesTrackRecordRepo'
+import { getJumlahCages } from '@/services/millSettingRepo'
 import FormField from '@/components/FormField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import SearchableSelect, { type SearchableSelectOption } from '@/components/SearchableSelect.vue'
@@ -145,6 +160,7 @@ import SearchableSelect, { type SearchableSelectOption } from '@/components/Sear
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const floatingClockStore = useFloatingClockStore()
 
 const recordId = String(route.params.id ?? '')
 
@@ -213,22 +229,61 @@ const actionInProgress = computed(() => saving.value || pausing.value || clearin
 const isSupervisor = computed(() => authStore.currentUser?.role === 'supervisor')
 const isMillManagement = computed(() => authStore.currentUser?.role === 'mill_management')
 
-// business_logic — cages_tipped locks (disabled) once at least one
-// cages_tipped_time row exists (loaded from a resumed draft OR added this
-// session) — freely editable before that.
-const cagesTippedLocked = computed(() => tippedTimeRows.value.length > 0)
+// business_logic step 5 (tech-spec v3) — N (the grid's shared "Cage
+// 1".."Cage N" checkbox column count) is loaded once, on mount, from the
+// local mill_setting reference cache — see the onMounted block right
+// below this ref for the exact load. null = not yet loaded / mill_setting
+// not synced locally yet for this business unit, distinct from a synced-
+// but-zero value; both disable "Tambah baris" per edge_case_handling
+// below, but the distinction is kept here in case a future UI wants to
+// message them differently.
+//
+// `form.cages_tipped` (the header field) is deliberately NOT involved
+// anywhere in this file's grid logic anymore (cageColumns/
+// canAddTippedTimeRow/rowCagesRemain) — tech-spec v3 explicitly
+// decouples it: "disimpan apa adanya tanpa memengaruhi grid". The old
+// `cagesTippedLocked` computed (which disabled the header field once
+// rows existed, back when it drove the grid) has been removed entirely
+// — `cages_tipped` is now a fully plain manual number input at all
+// times.
+const jumlahCagesFromMillSetting = ref<number | null>(null)
 
-// business_logic — "Tambah baris" is only enabled once cages_tipped has a
-// value > 0.
+onMounted(async () => {
+  // business_unit_id derivation: per business_logic step 5, the
+  // spec-literal source is this record's own station
+  // (cages_track_record.station_id → station.business_unit_id), but that
+  // plumbing does not exist yet — cagesTrackRecordRepo.ts's createDraft()
+  // never populates station_id, and wiring it up belongs to the Monitor
+  // screen's creation flow (out of this fix's scope — see known_issues
+  // reported to the orchestrator). Mobile sessions are
+  // single-business-unit-scoped in practice (one login = one business
+  // unit for the whole session), so `authStore.currentUser
+  // ?.business_unit_id` — the same value stores/auth.ts's own login()
+  // already uses for the analogous fetchAndCacheMillSetting()/
+  // seedDefaultStationsIfNeeded() calls — is equivalent to the
+  // spec-literal source today and is this app's established pattern for
+  // "current business unit of the logged-in mobile session".
+  const businessUnitId = authStore.currentUser?.business_unit_id
+
+  if (!businessUnitId) {
+    return
+  }
+
+  jumlahCagesFromMillSetting.value = await getJumlahCages(businessUnitId)
+})
+
+// business_logic step 5/edge_case_handling — "Tambah baris" is only
+// enabled once N has been loaded (mill_setting synced locally, not null)
+// AND N > 0.
 const canAddTippedTimeRow = computed(
-  () => form.cages_tipped !== null && form.cages_tipped !== undefined && form.cages_tipped > 0,
+  () => jumlahCagesFromMillSetting.value !== null && jumlahCagesFromMillSetting.value > 0,
 )
 
-// business_logic — the shared "Cage 1".."Cage N" checkbox columns
-// rendered identically in every row, N = header's cages_tipped (0 → no
-// columns at all, e.g. before it's been entered).
+// business_logic step 5 — the shared "Cage 1".."Cage N" checkbox columns
+// rendered identically in every row, N = mill_setting.jumlah_cages for
+// this session's business unit (0/not-yet-loaded → no columns at all).
 const cageColumns = computed<number[]>(() => {
-  const n = form.cages_tipped ?? 0
+  const n = jumlahCagesFromMillSetting.value ?? 0
 
   if (n <= 0) {
     return []
@@ -480,17 +535,18 @@ function rowTotalCages(row: CagesTippedTimeFormRow): number {
 }
 
 function rowCagesRemain(row: CagesTippedTimeFormRow): number {
-  return (form.cages_tipped ?? 0) - rowTotalCages(row)
+  return (jumlahCagesFromMillSetting.value ?? 0) - rowTotalCages(row)
 }
 
-// business_logic step 6 — "Tambah baris": only enabled once cages_tipped
-// > 0 (see canAddTippedTimeRow above).
+// business_logic step 6 — "Tambah baris": only enabled once N
+// (jumlahCagesFromMillSetting) is loaded and > 0 (see
+// canAddTippedTimeRow above).
 function addTippedTimeRow(): void {
   tippedTimeRows.value.push({
     tipped_hour: null,
     checked_cage_numbers: '',
     total_cages: 0,
-    cages_remain: form.cages_tipped ?? 0,
+    cages_remain: jumlahCagesFromMillSetting.value ?? 0,
   })
 }
 
@@ -557,8 +613,9 @@ function validateTippedTimeRows(): boolean {
  * Builds the `tippedTimeRows` payload sent to saveDraft()/
  * pauseDraftWithFormData() — each row's `total_cages`/`cages_remain` are
  * (re)computed fresh from that row's own `checked_cage_numbers` plus the
- * current header `cages_tipped`, right before the call, rather than
- * tracked live on the row object between renders.
+ * current mill_setting-derived N (`jumlahCagesFromMillSetting`), right
+ * before the call, rather than tracked live on the row object between
+ * renders.
  */
 function buildTippedTimeRowsPayload(): CagesTippedTimeFormRow[] {
   return tippedTimeRows.value.map((row) => ({
@@ -777,6 +834,7 @@ function goToMonitorCagesTrack(): void {
         <button type="button" class="nav-menu-item" data-testid="nav-menu-change-password" @click="goToChangePassword">
           Ganti Password
         </button>
+        <button type="button" class="nav-menu-item" data-testid="nav-menu-toggle-floating-clock" @click="floatingClockStore.toggle()">{{ floatingClockStore.enabled ? 'Nonaktifkan Jam Mengambang' : 'Aktifkan Jam Mengambang' }}</button>
         <button type="button" class="nav-menu-item" data-testid="nav-menu-logout" @click="onLogout">Logout</button>
       </div>
     </header>
@@ -846,11 +904,8 @@ function goToMonitorCagesTrack(): void {
           type="number"
           required
           :error="errors.cages_tipped"
-          :disabled="actionInProgress || cagesTippedLocked"
+          :disabled="actionInProgress"
         />
-        <p v-if="cagesTippedLocked" class="form-field-hint">
-          Cages Tipped terkunci karena sudah ada baris Cages Tipped Time.
-        </p>
       </section>
 
       <section class="form-section" aria-label="Verifikasi">
@@ -924,7 +979,9 @@ function goToMonitorCagesTrack(): void {
               />
               Cage {{ cageNumber }}
             </label>
-            <p v-if="cageColumns.length === 0" class="form-field-hint">Isi Cages Tipped pada header terlebih dahulu.</p>
+            <p v-if="cageColumns.length === 0" class="form-field-hint">
+              Data Jumlah Cages dari Mills Setting belum tersedia.
+            </p>
           </div>
 
           <div class="tipped-time-row-summary">
@@ -952,6 +1009,9 @@ function goToMonitorCagesTrack(): void {
         >
           Tambah baris
         </button>
+        <p v-if="!canAddTippedTimeRow" class="form-field-hint" data-testid="add-row-jumlah-cages-hint">
+          Data Jumlah Cages dari Mills Setting belum tersedia.
+        </p>
       </section>
     </form>
 

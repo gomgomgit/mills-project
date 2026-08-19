@@ -27,6 +27,7 @@ function makeStation(overrides: Partial<StationSlot> & { id: string }): StationS
     name: `Stasiun ${overrides.id}`,
     type: 'other',
     isActive: false,
+    icon: null,
     ...overrides,
   }
 }
@@ -193,6 +194,67 @@ describe('StationGrid', () => {
 
       const disabledTile = wrapper.get('[data-testid="station-tile-station-placeholder-0"]')
       expect(disabledTile.attributes('aria-disabled')).toBe('true')
+    })
+  })
+
+  // entity-catalog v7 / tech-spec v4 — station.icon override (Mills Setting
+  // feature). Covers the 3 new unit_test_cases: valid override, null
+  // fallback, unrecognized-name fallback. tile color/shadow/layout are
+  // asserted unchanged (this is an icon-only change, not a photo/background).
+  describe('station.icon override', () => {
+    it("uses station.icon as the tile's icon when it is set to a recognized override name", () => {
+      const station = makeStation({
+        id: 'station-wb',
+        name: 'Timbangan',
+        type: 'weighbridge',
+        isActive: true,
+        icon: 'truck',
+      })
+      const wrapper = mount(StationGrid, { props: { stations: [station] } })
+
+      const iconHtml = wrapper.get('[data-testid="station-tile-station-wb"] svg').element.innerHTML
+      // 'truck' override path (circle wheels) — distinct from the default
+      // 'weighbridge' path (a single <rect> deck, no <circle>).
+      expect(iconHtml).toContain('cy="19"')
+      // Tile styling (background/shadow/radius/layout) is untouched by the
+      // icon override — same class/inline-style contract as before.
+      const tile = wrapper.get('[data-testid="station-tile-station-wb"]')
+      expect(tile.classes()).toContain('station-tile--active')
+    })
+
+    it('falls back to the default type-based icon when station.icon is null', () => {
+      const withIcon = makeStation({ id: 'a', type: 'weighbridge', isActive: true, icon: 'truck' })
+      const withoutIcon = makeStation({ id: 'b', type: 'weighbridge', isActive: true, icon: null })
+      const wrapper = mount(StationGrid, { props: { stations: [withIcon, withoutIcon] } })
+
+      const iconWithHtml = wrapper.get('[data-testid="station-tile-a"] svg').element.innerHTML
+      const iconWithoutHtml = wrapper.get('[data-testid="station-tile-b"] svg').element.innerHTML
+
+      expect(iconWithHtml).not.toEqual(iconWithoutHtml)
+      expect(iconWithoutHtml).toContain('width="20" height="10"') // default weighbridge icon
+    })
+
+    it('falls back to the default type-based icon when station.icon is an unrecognized name', () => {
+      const station = makeStation({
+        id: 'station-ct',
+        type: 'cages-track',
+        isActive: true,
+        icon: 'not-a-real-icon',
+      })
+      const wrapper = mount(StationGrid, { props: { stations: [station] } })
+
+      const iconHtml = wrapper.get('[data-testid="station-tile-station-ct"] svg').element.innerHTML
+      // Default cages-track icon (two side-by-side <rect> cages), not the
+      // FALLBACK_ICON square either.
+      expect(iconHtml).toContain('x="3" y="4" width="7" height="16"')
+    })
+
+    it('never applies station.icon on a disabled/placeholder tile, even when set', () => {
+      const station = makeStation({ id: 'station-ph', isActive: false, icon: 'truck' })
+      const wrapper = mount(StationGrid, { props: { stations: [station] } })
+
+      const iconHtml = wrapper.get('[data-testid="station-tile-station-ph"] svg').element.innerHTML
+      expect(iconHtml).not.toContain('cy="19"')
     })
   })
 })

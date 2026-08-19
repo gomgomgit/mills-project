@@ -1,0 +1,88 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-031--kelola-machinery",
+  "name": "Kelola Machinery",
+  "module_id": "module-master-data",
+  "description": "Layar bagi Admin untuk mengelola data master Machinery — mesin/peralatan individual di bawah Machinery Group. Admin dapat melihat daftar Machinery (dapat difilter per Machinery Group), menambah Machinery baru dengan memilih Machinery Group induk dan mengisi spesifikasi teknis lengkap, mengedit data yang sudah ada, serta mengelola riwayat asuransi dan pajak/pembelian mesin langsung di dalam form Machinery (bukan layar terpisah).",
+  "actors": [
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Master Data' > 'Kelola Machinery'"
+  ],
+  "information_displayed": [
+    "Daftar Machinery: kode peralatan, nama, tipe peralatan, merek, nama Machinery Group induk, tanggal dibuat",
+    "Form tambah/edit — Identitas: dropdown pilih Machinery Group induk, kode peralatan, nama, deskripsi, gambar mesin",
+    "Form tambah/edit — Spesifikasi Teknis: nomor registrasi, pembuat, model, tipe peralatan, nomor part, nomor seri, gearbox, motor, mounting, RPM, chain, kapasitas, merek, tahun pembuatan, aset tetap, aktivitas kontrol, kepemilikan/ITE",
+    "Form tambah/edit — Riwayat Asuransi (grid baris berulang): kepemilikan, nomor polis, perusahaan asuransi, tanggal kedaluwarsa, premi, nilai pertanggungan",
+    "Form tambah/edit — Riwayat Pajak/Pembelian (grid baris berulang): tanggal pembelian, biaya pembelian, jenis kebijakan, nama/telepon/fax/email kontak vendor"
+  ],
+  "available_actions": [
+    {
+      "action": "Lihat daftar Machinery",
+      "description": "Menampilkan seluruh Machinery dengan Machinery Group induk, dapat difilter per Machinery Group",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah Machinery",
+      "description": "Membuat Machinery baru dengan memilih Machinery Group induk, mengisi kode peralatan dan nama, serta field spesifikasi teknis lain jika diperlukan",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit Machinery",
+      "description": "Mengubah data Machinery yang sudah ada, termasuk seluruh field spesifikasi dan Machinery Group induk",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus Machinery",
+      "description": "Menghapus Machinery beserta seluruh riwayat asuransi dan pajak/pembelian yang menyertainya",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah/Edit/Hapus baris Riwayat Asuransi",
+      "description": "Mengelola baris riwayat asuransi langsung di dalam form Machinery (bukan layar terpisah)",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah/Edit/Hapus baris Riwayat Pajak/Pembelian",
+      "description": "Mengelola baris riwayat pajak/pembelian langsung di dalam form Machinery (bukan layar terpisah)",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Kode peralatan (equipment_code) harus unik di seluruh sistem",
+    "Machinery harus terkait ke tepat satu Machinery Group yang sudah ada (dipilih via dropdown, bukan input bebas)",
+    "Station dan Business Unit Machinery selalu mengikuti Machinery Group yang dipilih (diturunkan otomatis, bukan input terpisah, demi konsistensi hierarki)",
+    "Hanya Admin yang dapat mengakses dan mengelola data Machinery beserta riwayat asuransi dan pajak/pembeliannya",
+    "Menghapus Machinery akan turut menghapus seluruh baris riwayat asuransi dan pajak/pembelian yang menyertainya (bukan diblokir seperti level master data lain) — riwayat ini murni anak dari satu Machinery, tidak direferensikan entity lain",
+    "Field selain kode peralatan, nama, dan Machinery Group bersifat opsional, termasuk seluruh baris riwayat asuransi dan pajak/pembelian"
+  ],
+  "usecase_ids": [
+    "usecase-031--kelola-machinery"
+  ],
+  "edge_cases": [
+    "Percobaan menyimpan kode peralatan yang sudah dipakai Machinery lain — validasi gagal",
+    "Belum ada Machinery Group sama sekali — form Tambah Machinery tidak dapat diisi, arahkan Admin untuk membuat Machinery Group dahulu",
+    "Belum ada Machinery sama sekali — tampilkan empty state dengan ajakan tambah data pertama",
+    "Upload gambar mesin dengan format/ukuran tidak didukung — validasi gagal",
+    "Machinery dihapus sementara masih memiliki baris riwayat asuransi/pajak — seluruh baris riwayat turut terhapus tanpa peringatan blokir (berbeda dari delete-guard di level master data lain)"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

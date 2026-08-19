@@ -25,6 +25,7 @@ import apiClient, { type NormalizedApiError } from '@/services/apiClient'
 import { toDisplayMessage } from '@/services/errorHandler'
 import { useAuthStore } from '@/stores/auth'
 import { useConnectivityGuard } from '@/composables/useConnectivityGuard'
+import SearchableSelect, { type SearchableSelectOption } from '@/components/SearchableSelect.vue'
 
 interface BusinessUnitOption {
   id: string
@@ -40,6 +41,7 @@ type FormStatus = 'idle' | 'submitting' | 'error' | 'success'
 
 const status = ref<FormStatus>('idle')
 const errorMessage = ref<string | null>(null)
+const showPassword = ref(false)
 
 const form = reactive({
   username: '',
@@ -55,6 +57,13 @@ const fieldErrors = reactive<{ username: string | null; password: string | null;
 
 const businessUnits = ref<BusinessUnitOption[]>([])
 const businessUnitsLoadFailed = ref(false)
+
+// SearchableSelect's fixed { value, label } option shape — this component
+// owns no filtering logic of its own, just maps the already-loaded, full
+// businessUnits list once per change.
+const businessUnitOptions = computed<SearchableSelectOption[]>(() =>
+  businessUnits.value.map((unit) => ({ value: unit.id, label: unit.name })),
+)
 
 /**
  * KNOWN GAP: no `GET /api/business-units` (or equivalent public listing)
@@ -179,14 +188,33 @@ async function onSubmit() {
       <label for="password">
         Password <span class="required">*</span>
       </label>
-      <input
-        id="password"
-        v-model="form.password"
-        type="password"
-        autocomplete="current-password"
-        :disabled="isSubmitting"
-        @blur="validate"
-      />
+      <div class="password-input-group">
+        <input
+          id="password"
+          v-model="form.password"
+          :type="showPassword ? 'text' : 'password'"
+          autocomplete="current-password"
+          :disabled="isSubmitting"
+          @blur="validate"
+        />
+        <button
+          type="button"
+          class="toggle-password-button"
+          :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
+          :aria-pressed="showPassword"
+          tabindex="-1"
+          @click="showPassword = !showPassword"
+        >
+          <svg v-if="showPassword" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+            <line x1="1" y1="1" x2="23" y2="23" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+      </div>
       <p v-if="fieldErrors.password" class="field-error">{{ fieldErrors.password }}</p>
     </div>
 
@@ -194,17 +222,14 @@ async function onSubmit() {
       <label for="business_unit_id">
         Business Area <span class="required">*</span>
       </label>
-      <select
+      <SearchableSelect
         id="business_unit_id"
         v-model="form.business_unit_id"
+        :options="businessUnitOptions"
+        placeholder="Pilih Business Area"
         :disabled="isSubmitting"
-        @change="validate"
-      >
-        <option value="" disabled>Pilih Business Area</option>
-        <option v-for="unit in businessUnits" :key="unit.id" :value="unit.id">
-          {{ unit.name }}
-        </option>
-      </select>
+        @select="validate"
+      />
       <p v-if="fieldErrors.business_unit_id" class="field-error">{{ fieldErrors.business_unit_id }}</p>
       <p v-if="businessUnitsLoadFailed" class="field-error">
         Daftar Business Area tidak dapat dimuat. Coba lagi saat online.
@@ -246,8 +271,8 @@ label {
   color: #dc2626;
 }
 
-input,
-select {
+input {
+  box-sizing: border-box;
   min-height: 44px;
   padding: 0 12px;
   background-color: #edebeb;
@@ -258,14 +283,12 @@ select {
   color: #1f2937;
 }
 
-input:focus,
-select:focus {
+input:focus {
   outline: 2px solid #249360;
   outline-offset: 1px;
 }
 
-input:disabled,
-select:disabled {
+input:disabled {
   opacity: 0.6;
 }
 
@@ -273,6 +296,32 @@ select:disabled {
   color: #dc2626;
   font-size: 12px;
   margin: 0;
+}
+
+.password-input-group {
+  position: relative;
+}
+
+.password-input-group input {
+  width: 100%;
+  padding-right: 44px;
+}
+
+.toggle-password-button {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: #249360;
+  background: transparent;
+  border: none;
+  cursor: pointer;
 }
 
 .submit-button {

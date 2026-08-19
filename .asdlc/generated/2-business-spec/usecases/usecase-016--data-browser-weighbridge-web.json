@@ -1,12 +1,12 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-16"
+    "updated_at": "2026-08-19"
   },
   "id": "usecase-016--data-browser-weighbridge-web",
   "name": "Telusuri & Ekspor Data Weighbridge",
-  "description": "User menelusuri data record Weighbridge dengan filter, membuka detail, dan mengekspor hasil filter ke CSV/Excel.",
+  "description": "User menelusuri data record Weighbridge dengan filter (termasuk tipe Receive/Dispatch), membuka detail, dan mengekspor hasil filter ke CSV/Excel.",
   "actors": [
     "actor-supervisor",
     "actor-mill-management",
@@ -24,12 +24,12 @@
     {
       "step": 2,
       "actor": "System",
-      "description": "Menampilkan tabel data record terbaru"
+      "description": "Menampilkan tabel data record terbaru, termasuk kolom Tipe (Receive/Dispatch) dan Tujuan Muatan"
     },
     {
       "step": 3,
       "actor": "actor-supervisor",
-      "description": "Menyesuaikan filter (tanggal, business unit)"
+      "description": "Menyesuaikan filter (tanggal, Tipe Receive/Dispatch, business unit)"
     },
     {
       "step": 4,
@@ -84,7 +84,9 @@
   "business_rules": [
     "Data mencakup hasil sync mobile & input web",
     "Ekspor mengikuti filter aktif",
-    "Daftar termuat <=2 detik untuk dataset normal"
+    "Daftar termuat <=2 detik untuk dataset normal",
+    "Kolom Tanggal & Waktu adalah 1 kolom tunggal (record_datetime), bukan kolom Arrival/Dispatch terpisah",
+    "Kolom Tujuan Muatan hanya terisi untuk baris bertipe Dispatch"
   ],
   "bdd_scenarios": [
     {
@@ -116,6 +118,12 @@
       "given": "User (Supervisor/Mill Management/Admin) sudah login ke web app",
       "when": "User melakukan ekspor data namun dataset terlalu besar atau terjadi error saat proses ekspor",
       "then": "System menampilkan pesan error ekspor"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Weighbridge — Filter Berdasarkan Tipe",
+      "given": "User (Supervisor/Mill Management/Admin) sudah login ke web app dan tabel menampilkan campuran record Receive dan Dispatch",
+      "when": "User memilih filter Tipe = Dispatch (atau Receive)",
+      "then": "Tabel hanya menampilkan record dengan weighbridge_type sesuai filter yang dipilih"
     }
   ],
   "related_screen_ids": [

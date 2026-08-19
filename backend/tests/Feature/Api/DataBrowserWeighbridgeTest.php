@@ -95,6 +95,24 @@ it('berhasil: lists filtered/paginated records then exports them as csv', functi
     expect($exportResponse->headers->get('Content-Type'))->toStartWith('text/csv');
 });
 
+// Scenario: "Telusuri & Ekspor Data Weighbridge — Filter Berdasarkan Tipe"
+it('Filter Berdasarkan Tipe: returns only records matching the weighbridge_type filter', function () {
+    WeighbridgeRecord::factory()->forStation($this->station)->ofType('receive')->count(2)->create();
+    WeighbridgeRecord::factory()->forStation($this->station)->ofType('dispatch')->count(3)->create();
+
+    $response = $this->actingAs($this->admin, 'web')->getJson('/api/weighbridge-records?'.http_build_query([
+        'weighbridge_type' => 'dispatch',
+        'page' => 1,
+        'per_page' => 20,
+    ]));
+
+    $response->assertOk();
+    $response->assertJsonCount(3, 'data');
+    collect($response->json('data'))->each(
+        fn (array $row) => expect($row['weighbridge_type'])->toBe('dispatch')
+    );
+});
+
 // Scenario: "Telusuri & Ekspor Data Weighbridge — Tidak Ada Data Sesuai Filter"
 it('Tidak Ada Data Sesuai Filter: returns 200 with an empty data list and meta.total = 0', function () {
     WeighbridgeRecord::factory()
@@ -175,11 +193,12 @@ it('Ekspor Gagal: returns 422 EXPORT_FAILED when the filtered dataset exceeds th
                 'id' => (string) \Illuminate\Support\Str::uuid(),
                 'station_id' => $this->station->id,
                 'wb_card_number' => 'WB-BULK-'.($inserted + $i),
-                'arrival_datetime' => $now,
-                'dispatch_datetime' => null,
+                'weighbridge_type' => 'receive',
+                'record_datetime' => $now,
                 'vehicle_number' => 'B 1234 XX',
                 'driver_name' => 'Bulk Driver',
                 'estate_supplier' => 'Bulk Estate',
+                'destination' => null,
                 'division' => null,
                 'block' => null,
                 'gross_weight' => 10000,

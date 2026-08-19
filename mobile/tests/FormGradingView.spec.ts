@@ -78,13 +78,25 @@
  *     actual markup.
  *   - Inputs are targeted via FormField.vue's deterministic slugified
  *     `field-<label-slug>` ids (e.g. `#field-grading-no` for "Grading
- *     No", `#field-netto-kg` for "Netto (kg)") for header fields, the raw
- *     `data-testid="wb-card-no-select"` <select> for WB Card No, and
- *     per-row `detail-parameter-select-<index>` / explicit
- *     `#detail-qty-<index>` / `#detail-uom-<index>` ids +
+ *     No", `#field-netto-kg` for "Netto (kg)") for header fields, and
+ *     per-row explicit `#detail-qty-<index>` / `#detail-uom-<index>` ids +
  *     `detail-percentage-<index>` data-testid for the Grading Detail
  *     grid. Footer actions / header / breadcrumb / nav-menu elements are
  *     targeted via their `data-testid` attributes.
+ *   - WB Card No and per-row Quality Parameter are now SearchableSelect.vue
+ *     instances (`data-testid="wb-card-no-select"` /
+ *     `data-testid="detail-parameter-select-<index>"` on the component's
+ *     root element, per SearchableSelect.vue's own attribute-fallthrough
+ *     convention) rather than plain `<select>`s — selection is driven via
+ *     the `chooseSearchableOption()` helper below (focus -> find the
+ *     `role="option"` list item by its exact label text -> mousedown, the
+ *     same open-then-click a real user does), the currently-selected value
+ *     is read via `searchableSelectValue()` (the root's `data-value`
+ *     attribute, SearchableSelect.vue's own `<select>.value`-equivalent
+ *     testability hook) instead of `(el as HTMLSelectElement).value`, and
+ *     the rendered option list is read via `searchableSelectOptionTexts()`
+ *     (after `openSearchableSelect()`) instead of a plain `option` CSS
+ *     selector.
  *   - Only the 'Date' timer is faked (`vi.useFakeTimers({ toFake: ['Date'] })`
  *     + `vi.setSystemTime(...)`) — Form Grading's Date field is
  *     auto-set-ONCE on load (not a live ticker, unlike Form Weighbridge's
@@ -248,9 +260,68 @@ function nowLocalDateTimeString(now: Date): string {
   return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}`
 }
 
+// --- SearchableSelect.vue interaction helpers -----------------------------
+// Faithful replacements for the old `wrapper.find('[data-testid="..."]')
+// .setValue(value)` / `.findAll('[data-testid="..."] option')` patterns
+// used against a plain <select> — see this file's header comment for the
+// full rationale.
+
+function searchableSelectRoot(wrapper: ReturnType<typeof mount>, testId: string) {
+  return wrapper.find(`[data-testid="${testId}"]`)
+}
+
+// The <select>.value equivalent — SearchableSelect.vue's root element
+// carries `data-value`, mirroring the current modelValue.
+function searchableSelectValue(wrapper: ReturnType<typeof mount>, testId: string): string {
+  return searchableSelectRoot(wrapper, testId).attributes('data-value') ?? ''
+}
+
+async function openSearchableSelect(wrapper: ReturnType<typeof mount>, testId: string): Promise<void> {
+  await searchableSelectRoot(wrapper, testId).find('input').trigger('focus')
+}
+
+function searchableSelectOptionTexts(wrapper: ReturnType<typeof mount>, testId: string): string[] {
+  return searchableSelectRoot(wrapper, testId)
+    .findAll('[role="option"]')
+    .map((option) => option.text())
+}
+
+// Opens the popup, finds the `role="option"` item with the exact given
+// label, and selects it via mousedown (SearchableSelect.vue commits the
+// selection on mousedown, before any blur would close the popup) — the
+// same open-then-click sequence a real user drives.
+async function chooseSearchableOption(
+  wrapper: ReturnType<typeof mount>,
+  testId: string,
+  optionLabel: string,
+): Promise<void> {
+  await openSearchableSelect(wrapper, testId)
+
+  const match = searchableSelectRoot(wrapper, testId)
+    .findAll('[role="option"]')
+    .find((option) => option.text() === optionLabel)
+
+  if (!match) {
+    throw new Error(
+      `chooseSearchableOption: no option labeled "${optionLabel}" for [data-testid="${testId}"]. Visible: ${searchableSelectOptionTexts(wrapper, testId).join(', ')}`,
+    )
+  }
+
+  await match.trigger('mousedown')
+}
+
+// PARAM_KG/PARAM_BUNCH's ids -> labels, so every call site below can keep
+// passing the same ids ('param-kg'/'param-bunch') it always has, with the
+// id -> label lookup for the SearchableSelect interaction isolated here.
+function parameterLabelById(parameterId: string): string {
+  if (parameterId === PARAM_KG.id) return PARAM_KG.name
+  if (parameterId === PARAM_BUNCH.id) return PARAM_BUNCH.name
+  throw new Error(`parameterLabelById: unknown parameterId "${parameterId}"`)
+}
+
 async function fillRequiredHeaderFields(wrapper: ReturnType<typeof mount>): Promise<void> {
   await wrapper.find('#field-grading-no').setValue('GR-3001')
-  await wrapper.find('[data-testid="wb-card-no-select"]').setValue('wb-1')
+  await chooseSearchableOption(wrapper, 'wb-card-no-select', WB_OPTION_1.wb_card_number!)
   await wrapper.find('#field-vehicle-code').setValue('VC-001')
   await wrapper.find('#field-estate').setValue('Estate A')
   await wrapper.find('#field-netto-kg').setValue('1000')
@@ -264,7 +335,7 @@ async function addValidDetailRow(
   quantity: number,
 ): Promise<void> {
   await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
-  await wrapper.find(`[data-testid="detail-parameter-select-${index}"]`).setValue(parameterId)
+  await chooseSearchableOption(wrapper, `detail-parameter-select-${index}`, parameterLabelById(parameterId))
   await wrapper.find(`#detail-qty-${index}`).setValue(String(quantity))
 }
 
@@ -325,10 +396,11 @@ describe('FormGradingView', () => {
     const wrapper = mount(FormGradingView)
     await flushPromises()
 
-    const options = wrapper.findAll('[data-testid="wb-card-no-select"] option')
-    expect(options).toHaveLength(3) // placeholder + 2 options
-    expect(options[1].text()).toContain('WB-2001')
-    expect(options[2].text()).toContain('WB-2002')
+    await openSearchableSelect(wrapper, 'wb-card-no-select')
+    const optionTexts = searchableSelectOptionTexts(wrapper, 'wb-card-no-select')
+    expect(optionTexts).toHaveLength(2)
+    expect(optionTexts[0]).toContain('WB-2001')
+    expect(optionTexts[1]).toContain('WB-2002')
   })
 
   // 3
@@ -338,7 +410,7 @@ describe('FormGradingView', () => {
     const wrapper = mount(FormGradingView)
     await flushPromises()
 
-    await wrapper.find('[data-testid="wb-card-no-select"]').setValue('wb-1')
+    await chooseSearchableOption(wrapper, 'wb-card-no-select', 'WB-2001')
 
     expect((wrapper.find('#field-license-plate-no').element as HTMLInputElement).value).toBe('B 1234 CD')
     expect((wrapper.find('#field-estate').element as HTMLInputElement).value).toBe('Estate A')
@@ -352,11 +424,11 @@ describe('FormGradingView', () => {
     const wrapper = mount(FormGradingView)
     await flushPromises()
 
-    await wrapper.find('[data-testid="wb-card-no-select"]').setValue('wb-1')
+    await chooseSearchableOption(wrapper, 'wb-card-no-select', 'WB-2001')
     await wrapper.find('#field-license-plate-no').setValue('MANUAL-EDIT-001')
 
     // Unrelated form activity that causes re-renders but is not the WB
-    // Card No select's own @change handler.
+    // Card No select's own @select handler.
     await wrapper.find('#field-netto-kg').setValue('1000')
     await wrapper.find('#field-note').setValue('Sebuah catatan')
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
@@ -374,7 +446,7 @@ describe('FormGradingView', () => {
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
     expect((wrapper.find('#detail-uom-0').element as HTMLInputElement).value).toBe('')
 
-    await wrapper.find('[data-testid="detail-parameter-select-0"]').setValue('param-bunch')
+    await chooseSearchableOption(wrapper, 'detail-parameter-select-0', PARAM_BUNCH.name)
 
     expect((wrapper.find('#detail-uom-0').element as HTMLInputElement).value).toBe('bunch')
     expect(wrapper.find('#detail-uom-0').attributes('disabled')).toBeDefined()
@@ -430,7 +502,7 @@ describe('FormGradingView', () => {
 
     const rows = wrapper.findAll('[data-testid="grading-detail-row"]')
     expect(rows).toHaveLength(1)
-    expect((wrapper.find('[data-testid="detail-parameter-select-0"]').element as HTMLSelectElement).value).toBe('')
+    expect(searchableSelectValue(wrapper, 'detail-parameter-select-0')).toBe('')
     expect((wrapper.find('#detail-qty-0').element as HTMLInputElement).value).toBe('')
   })
 
@@ -443,14 +515,16 @@ describe('FormGradingView', () => {
 
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
-    await wrapper.find('[data-testid="detail-parameter-select-0"]').setValue('param-kg')
+    await chooseSearchableOption(wrapper, 'detail-parameter-select-0', PARAM_KG.name)
 
-    const row0Values = wrapper.findAll('[data-testid="detail-parameter-select-0"] option').map((o) => o.attributes('value'))
-    const row1Values = wrapper.findAll('[data-testid="detail-parameter-select-1"] option').map((o) => o.attributes('value'))
+    await openSearchableSelect(wrapper, 'detail-parameter-select-0')
+    const row0Labels = searchableSelectOptionTexts(wrapper, 'detail-parameter-select-0')
+    await openSearchableSelect(wrapper, 'detail-parameter-select-1')
+    const row1Labels = searchableSelectOptionTexts(wrapper, 'detail-parameter-select-1')
 
-    expect(row0Values).toContain('param-kg') // still visible in its own dropdown
-    expect(row1Values).not.toContain('param-kg') // hidden from the other row
-    expect(row1Values).toContain('param-bunch') // unaffected parameter still available everywhere
+    expect(row0Labels).toContain(PARAM_KG.name) // still visible in its own dropdown
+    expect(row1Labels).not.toContain(PARAM_KG.name) // hidden from the other row
+    expect(row1Labels).toContain(PARAM_BUNCH.name) // unaffected parameter still available everywhere
   })
 
   it('makes a Quality Parameter available again in other rows once the row using it is removed', async () => {
@@ -461,15 +535,16 @@ describe('FormGradingView', () => {
 
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
-    await wrapper.find('[data-testid="detail-parameter-select-0"]').setValue('param-kg')
+    await chooseSearchableOption(wrapper, 'detail-parameter-select-0', PARAM_KG.name)
 
-    let row1Values = wrapper.findAll('[data-testid="detail-parameter-select-1"] option').map((o) => o.attributes('value'))
-    expect(row1Values).not.toContain('param-kg')
+    await openSearchableSelect(wrapper, 'detail-parameter-select-1')
+    expect(searchableSelectOptionTexts(wrapper, 'detail-parameter-select-1')).not.toContain(PARAM_KG.name)
 
     await wrapper.findAll('[data-testid="remove-detail-row-button"]')[0].trigger('click')
 
-    row1Values = wrapper.findAll('[data-testid="detail-parameter-select-0"] option').map((o) => o.attributes('value'))
-    expect(row1Values).toContain('param-kg')
+    // The remaining row shifts down to index 0 once row 0 is removed.
+    await openSearchableSelect(wrapper, 'detail-parameter-select-0')
+    expect(searchableSelectOptionTexts(wrapper, 'detail-parameter-select-0')).toContain(PARAM_KG.name)
   })
 
   it('makes a Quality Parameter available again in other rows once the row\'s selection is changed to a different parameter', async () => {
@@ -480,16 +555,17 @@ describe('FormGradingView', () => {
 
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
     await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
-    await wrapper.find('[data-testid="detail-parameter-select-0"]').setValue('param-kg')
+    await chooseSearchableOption(wrapper, 'detail-parameter-select-0', PARAM_KG.name)
 
-    let row1Values = wrapper.findAll('[data-testid="detail-parameter-select-1"] option').map((o) => o.attributes('value'))
-    expect(row1Values).not.toContain('param-kg')
+    await openSearchableSelect(wrapper, 'detail-parameter-select-1')
+    expect(searchableSelectOptionTexts(wrapper, 'detail-parameter-select-1')).not.toContain(PARAM_KG.name)
 
-    await wrapper.find('[data-testid="detail-parameter-select-0"]').setValue('param-bunch')
+    await chooseSearchableOption(wrapper, 'detail-parameter-select-0', PARAM_BUNCH.name)
 
-    row1Values = wrapper.findAll('[data-testid="detail-parameter-select-1"] option').map((o) => o.attributes('value'))
-    expect(row1Values).toContain('param-kg')
-    expect(row1Values).not.toContain('param-bunch')
+    await openSearchableSelect(wrapper, 'detail-parameter-select-1')
+    const row1Labels = searchableSelectOptionTexts(wrapper, 'detail-parameter-select-1')
+    expect(row1Labels).toContain(PARAM_KG.name)
+    expect(row1Labels).not.toContain(PARAM_BUNCH.name)
   })
 
   // 9a
@@ -680,7 +756,7 @@ describe('FormGradingView', () => {
     await flushPromises()
 
     expect((wrapper.find('#field-grading-no').element as HTMLInputElement).value).toBe('GR-9002')
-    expect((wrapper.find('[data-testid="wb-card-no-select"]').element as HTMLSelectElement).value).toBe('wb-2')
+    expect(searchableSelectValue(wrapper, 'wb-card-no-select')).toBe('wb-2')
     expect((wrapper.find('#field-license-plate-no').element as HTMLInputElement).value).toBe('B 5678 EF')
     expect((wrapper.find('#field-vehicle-code').element as HTMLInputElement).value).toBe('VC-002')
     expect((wrapper.find('#field-estate').element as HTMLInputElement).value).toBe('Estate B')
@@ -690,9 +766,7 @@ describe('FormGradingView', () => {
     expect((wrapper.find('#field-note').element as HTMLInputElement).value).toBe('Catatan lama')
 
     expect(wrapper.findAll('[data-testid="grading-detail-row"]')).toHaveLength(1)
-    expect((wrapper.find('[data-testid="detail-parameter-select-0"]').element as HTMLSelectElement).value).toBe(
-      'param-kg',
-    )
+    expect(searchableSelectValue(wrapper, 'detail-parameter-select-0')).toBe('param-kg')
     expect((wrapper.find('#detail-qty-0').element as HTMLInputElement).value).toBe('400')
   })
 
@@ -849,15 +923,16 @@ describe('FormGradingView', () => {
   })
 
   // 16
-  it('renders only the placeholder option (plus a hint) with no crash when there is no local weighbridge_record data at all', async () => {
+  it('renders only the placeholder (plus a hint) with no crash when there is no local weighbridge_record data at all', async () => {
     getDraftWithDetailsMock.mockResolvedValueOnce({ record: makeDraftRecord(), details: [] })
     getWeighbridgeRecordOptionsMock.mockResolvedValueOnce([])
 
     const wrapper = mount(FormGradingView)
     await flushPromises()
 
-    const options = wrapper.findAll('[data-testid="wb-card-no-select"] option')
-    expect(options).toHaveLength(1)
+    await openSearchableSelect(wrapper, 'wb-card-no-select')
+    expect(searchableSelectOptionTexts(wrapper, 'wb-card-no-select')).toHaveLength(0)
+    expect(wrapper.find('.searchable-select-empty').text()).toBe('Tidak ada data tersedia.')
     expect(wrapper.text()).toContain('Tidak ada data weighbridge lokal.')
   })
 })

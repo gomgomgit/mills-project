@@ -13,8 +13,7 @@ import LoginForm from '@/components/LoginForm.vue'
 <template>
   <main class="login-view">
     <header class="login-header">
-      <div class="logo">EHP</div>
-      <h1 class="app-name">Mills System</h1>
+      <h1 class="app-name">Mills Smart Log</h1>
     </header>
 
     <section class="login-body">
@@ -42,19 +41,6 @@ import LoginForm from '@/components/LoginForm.vue'
   flex-direction: column;
   align-items: center;
   gap: 8px;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 12px;
-  background-color: #249360;
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 22px;
 }
 
 .app-name {

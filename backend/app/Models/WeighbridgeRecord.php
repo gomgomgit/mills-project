@@ -22,11 +22,12 @@ class WeighbridgeRecord extends Model
     protected $fillable = [
         'station_id',
         'wb_card_number',
-        'arrival_datetime',
-        'dispatch_datetime',
+        'weighbridge_type',
+        'record_datetime',
         'vehicle_number',
         'driver_name',
         'estate_supplier',
+        'destination',
         'division',
         'block',
         'gross_weight',
@@ -40,8 +41,7 @@ class WeighbridgeRecord extends Model
     ];
 
     protected $casts = [
-        'arrival_datetime' => 'datetime',
-        'dispatch_datetime' => 'datetime',
+        'record_datetime' => 'datetime',
         'gross_weight' => 'float',
         'tare_weight' => 'float',
         'net_weight' => 'float',

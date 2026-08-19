@@ -1,13 +1,13 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-16"
+    "updated_at": "2026-08-19"
   },
   "id": "screen-016--data-browser-weighbridge-web",
   "name": "Data Browser Weighbridge (Web)",
   "module_id": "module-web-station-data",
-  "description": "Tabel data record Weighbridge tersimpan (dari sync mobile maupun input web), dengan filter tanggal/business unit dan ekspor CSV/Excel.",
+  "description": "Tabel data record Weighbridge tersimpan (dari sync mobile maupun input web), dengan filter tanggal/tipe/business unit dan ekspor CSV/Excel.",
   "actors": [
     "actor-supervisor",
     "actor-mill-management",
@@ -17,14 +17,14 @@
     "Menu Data Stasiun di sidebar, pilih Weighbridge"
   ],
   "information_displayed": [
-    "Tabel data record (WB ID, tanggal, kendaraan, supir, net weight, status sinkron)",
-    "Filter: rentang tanggal, business unit",
+    "Tabel data record (WB ID, Tipe (Receive/Dispatch), Tanggal & Waktu, kendaraan, supir, Tujuan Muatan (untuk tipe Dispatch, '-' untuk Receive), net weight, status sinkron)",
+    "Filter: rentang tanggal, Tipe (Receive/Dispatch), business unit",
     "Tombol ekspor CSV/Excel"
   ],
   "available_actions": [
     {
       "action": "Filter data",
-      "description": "Menyaring data berdasarkan tanggal/business unit",
+      "description": "Menyaring data berdasarkan tanggal/tipe (Receive/Dispatch)/business unit",
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
@@ -71,7 +71,9 @@
   "business_rules": [
     "Data yang ditampilkan mencakup baik hasil sync dari mobile maupun input langsung dari web",
     "Ekspor mengikuti filter yang sedang aktif",
-    "Daftar harus termuat <=2 detik untuk dataset normal"
+    "Daftar harus termuat <=2 detik untuk dataset normal",
+    "Kolom Tanggal & Waktu menampilkan record_datetime record tersebut (hanya 1 kolom tanggal, menggantikan kolom Arrival/Dispatch terpisah versi sebelumnya)",
+    "Kolom Tujuan Muatan menampilkan '-' untuk baris bertipe Receive (field ini hanya relevan/terisi untuk tipe Dispatch)"
   ],
   "usecase_ids": [
     "usecase-016--data-browser-weighbridge-web"

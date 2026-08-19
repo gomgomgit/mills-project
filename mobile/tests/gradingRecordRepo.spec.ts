@@ -28,7 +28,7 @@
  *   - `getDraftWithDetails()` — header + detail rows load, not-found null
  *     branch.
  *   - `getWeighbridgeRecordOptions()` — every local weighbridge_record
- *     row, any status, ordered by arrival_datetime DESC, NOT scoped to
+ *     row, any status, ordered by record_datetime DESC, NOT scoped to
  *     created_by (new).
  *   - `getGradingParameterOptions()` — every grading_parameter row,
  *     ordered by sort_order (new).
@@ -430,12 +430,12 @@ describe('gradingRecordRepo', () => {
   // screen-011--form-grading — FormGradingView.vue's "WB Card No" dropdown
   // reference list.
   describe('getWeighbridgeRecordOptions()', () => {
-    it('returns ALL local weighbridge_record rows regardless of status, ordered by arrival_datetime DESC, NOT scoped to created_by', async () => {
+    it('returns ALL local weighbridge_record rows regardless of status, ordered by record_datetime DESC, NOT scoped to created_by', async () => {
       const rows: WeighbridgeRecordOption[] = [
         {
           id: 'wb-1',
           wb_card_number: 'WB-2001',
-          arrival_datetime: '2026-08-18T09:00:00.000Z',
+          record_datetime: '2026-08-18T09:00:00.000Z',
           vehicle_number: 'B 1234 AA',
           estate_supplier: 'Estate A',
           division: 'Divisi 1',
@@ -443,7 +443,7 @@ describe('gradingRecordRepo', () => {
         {
           id: 'wb-2',
           wb_card_number: 'WB-2002',
-          arrival_datetime: '2026-08-17T09:00:00.000Z',
+          record_datetime: '2026-08-17T09:00:00.000Z',
           vehicle_number: 'B 5678 BB',
           estate_supplier: 'Estate B',
           division: 'Divisi 2',
@@ -457,7 +457,7 @@ describe('gradingRecordRepo', () => {
       expect(query).toHaveBeenCalledTimes(1)
       const [sql, params] = vi.mocked(query).mock.calls[0]
       expect(sql).toContain('FROM weighbridge_record')
-      expect(sql).toContain('ORDER BY arrival_datetime DESC')
+      expect(sql).toContain('ORDER BY record_datetime DESC')
       expect(sql).not.toContain('created_by')
       // Deliberately no WHERE param at all — every local row is returned,
       // regardless of which device user created it.

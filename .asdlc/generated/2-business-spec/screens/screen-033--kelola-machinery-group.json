@@ -1,0 +1,69 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-033--kelola-machinery-group",
+  "name": "Kelola Machinery Group",
+  "module_id": "module-master-data",
+  "description": "Layar bagi Admin untuk mengelola data master Machinery Group — pengelompokan mesin per Station (mis. kelompok mesin press, kelompok mesin boiler). Admin dapat melihat daftar Machinery Group (dapat difilter per Station), menambah Machinery Group baru dengan memilih Business Unit dan Station induk, mengedit data yang sudah ada, dan menghapus Machinery Group yang tidak lagi memiliki Machinery terkait.",
+  "actors": [
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Master Data' > 'Kelola Machinery Group'"
+  ],
+  "information_displayed": [
+    "Daftar Machinery Group: kode grup, deskripsi, satuan, nama Station induk, jumlah Machinery terkait, tanggal dibuat",
+    "Form tambah/edit: dropdown pilih Business Unit lalu Station induk, kode grup, deskripsi, satuan, workshop factor, biaya per peralatan"
+  ],
+  "available_actions": [
+    {
+      "action": "Lihat daftar Machinery Group",
+      "description": "Menampilkan seluruh Machinery Group dengan Station induk dan jumlah Machinery terkait masing-masing, dapat difilter per Station",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah Machinery Group",
+      "description": "Membuat Machinery Group baru dengan memilih Station induk dan mengisi kode grup",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit Machinery Group",
+      "description": "Mengubah data Machinery Group yang sudah ada, termasuk kode, deskripsi, satuan, workshop factor, biaya per peralatan, dan Station induk",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus Machinery Group",
+      "description": "Menghapus Machinery Group, hanya diizinkan jika tidak ada Machinery yang masih terkait",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Kode grup (group_code) harus unik di seluruh sistem",
+    "Machinery Group tidak dapat dihapus jika masih memiliki satu atau lebih Machinery terkait",
+    "Hanya Admin yang dapat mengakses dan mengelola data Machinery Group",
+    "Machinery Group harus terkait ke tepat satu Station yang sudah ada",
+    "Station yang dipilih harus berada di bawah Business Unit yang sama dengan Machinery Group (konsistensi hierarki)"
+  ],
+  "usecase_ids": [
+    "usecase-033--kelola-machinery-group"
+  ],
+  "edge_cases": [
+    "Percobaan menghapus Machinery Group yang masih memiliki Machinery terkait — ditolak dengan pesan penjelasan",
+    "Percobaan menyimpan kode grup yang sudah dipakai Machinery Group lain — validasi gagal",
+    "Belum ada Station sama sekali — form Tambah Machinery Group tidak dapat diisi, arahkan Admin untuk membuat Station dahulu",
+    "Belum ada Machinery Group sama sekali — tampilkan empty state dengan ajakan tambah data pertama"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

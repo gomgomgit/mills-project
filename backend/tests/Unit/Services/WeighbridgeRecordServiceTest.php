@@ -112,7 +112,7 @@ it('returns a paginated, filtered list with the shared pagination meta shape', f
     ]);
     expect($result['data'])->toHaveCount(2);
     expect(array_keys($result['data'][0]))->toBe([
-        'id', 'wb_card_number', 'arrival_datetime', 'vehicle_number', 'driver_name', 'net_weight', 'status',
+        'id', 'wb_card_number', 'weighbridge_type', 'record_datetime', 'vehicle_number', 'driver_name', 'destination', 'net_weight', 'status',
     ]);
 
     // Page 2 has the remaining 1 matching record.
@@ -123,6 +123,28 @@ it('returns a paginated, filtered list with the shared pagination meta shape', f
     ], 2, 2);
     expect($page2['data'])->toHaveCount(1);
     expect($page2['meta']['page'])->toBe(2);
+});
+
+// unit_test_case 3b: filters by weighbridge_type when provided.
+it('filters by weighbridge_type when provided', function () {
+    WeighbridgeRecord::factory()
+        ->forStation($this->station)
+        ->ofType('receive')
+        ->count(2)
+        ->create();
+
+    WeighbridgeRecord::factory()
+        ->forStation($this->station)
+        ->ofType('dispatch')
+        ->count(3)
+        ->create();
+
+    $result = $this->service->listRecords(['weighbridge_type' => 'dispatch'], 1, 20);
+
+    expect($result['meta']['total'])->toBe(3);
+    foreach ($result['data'] as $row) {
+        expect($row['weighbridge_type'])->toBe('dispatch');
+    }
 });
 
 // unit_test_case 4: returns 422 INVALID_DATE_RANGE on the export endpoint
@@ -153,11 +175,12 @@ it('throws ExportFailedException when the filtered dataset exceeds the export ro
                 'id' => (string) Str::uuid(),
                 'station_id' => $this->station->id,
                 'wb_card_number' => 'WB-BULK-'.($inserted + $i),
-                'arrival_datetime' => $now,
-                'dispatch_datetime' => null,
+                'weighbridge_type' => 'receive',
+                'record_datetime' => $now,
                 'vehicle_number' => 'B 1234 XX',
                 'driver_name' => 'Bulk Driver',
                 'estate_supplier' => 'Bulk Estate',
+                'destination' => null,
                 'division' => null,
                 'block' => null,
                 'gross_weight' => 10000,

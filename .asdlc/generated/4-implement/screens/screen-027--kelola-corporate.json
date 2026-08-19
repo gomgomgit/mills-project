@@ -1,0 +1,85 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-027--kelola-corporate",
+  "name": "Kelola Corporate",
+  "module_id": "module-master-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/CorporateController.php",
+    "backend/app/Services/CorporateService.php",
+    "backend/app/Exceptions/CorporateHasCompaniesException.php",
+    "backend/app/Exceptions/ApiExceptionHandler.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/factories/CorporateFactory.php",
+    "backend/database/migrations/2026_08_19_000001_add_fields_to_corporates_table.php",
+    "backend/app/Models/Corporate.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/CorporateServiceTest.php",
+    "backend/tests/Feature/Api/KelolaCorporateTest.php",
+    "backend/tests/Feature/Livewire/KelolaCorporateTest.php",
+    "backend/tests/Browser/KelolaCorporateTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/MasterData/KelolaCorporate.php",
+    "backend/resources/views/livewire/master-data/kelola-corporate.blade.php",
+    "backend/resources/views/master-data/corporates.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "REWORK ver 2 (2026-08-19, adopsi ERD docs/MMS_Weighbridge_ERD_Operational_MVP_v3.1.mermaid): field diperluas dari 2 (name) menjadi ~20 (corporate_code unik terpisah + 16 field kontak/legal/kepegawaian opsional + logo upload + created_by/updated_by audit). id TETAP uuid PK/FK (tidak diganti corporate_code) untuk menghindari cascading FK-type change ke Station/User.",
+    "Logo disimpan via Laravel Filesystem local disk (FILESYSTEM_DISK=local, direktori corporate-logos) — memanfaatkan disk 'local' bawaan Laravel 11 yang punya 'serve'=>true (auto-registrasi route /storage/{path}), tanpa perlu disk 'public'/storage:link. Konvensi ini menjadi acuan untuk Company/Business Unit selanjutnya.",
+    "created_by/updated_by diset server-side dari auth()->id(), tidak pernah dibaca dari request input — diverifikasi test anti-spoof",
+    "corporate_code/created_by nullable di level DB (bukan NOT NULL) untuk menghindari ALTER TABLE gagal terhadap baris seed lama; 'wajib' ditegakkan di level validasi CorporateService saja",
+    "FIX ROUND 1 (GD extension tidak tersedia di sandbox, tidak ada akses sudo untuk instal): 7 test yang memakai UploadedFile::fake()->image() diganti ke fake()->create('logo.jpg', sizeKb, 'image/jpeg') — binary fake tanpa dependensi GD, tidak mengurangi cakupan nyata karena yang diuji adalah aturan MIME/ukuran, bukan pemrosesan gambar",
+    "FIX ROUND 2 (bug nyata, diperbaiki di kode): kelola-corporate.blade.php memanggil $logo->temporaryUrl() tanpa syarat, menyebabkan FileNotPreviewableException untuk mime tidak previewable (pdf dll) sebelum validasi sempat menghasilkan errors.logo yang bersih. Diperbaiki dengan computed property logoIsPreviewable (allowlist jpg/jpeg/png) yang menjaga pemanggilan temporaryUrl().",
+    "Independently re-verified oleh command: re-run `php artisan test` — 368/368 lulus (full suite gabungan 027+028+029); baca CorporateService.php penuh untuk konfirmasi validasi corporate_code/name/logo dan pola created_by/updated_by sesuai tech spec"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "PATCH multipart/form-data dengan logo upload memerlukan field _method=PATCH pada POST untuk konsumen API non-test-client nyata — keterbatasan PHP, tidak memengaruhi Livewire form atau Feature test",
+      "severity": "minor"
+    },
+    {
+      "description": "corporate_code dan created_by nullable di level DB meski 'wajib' secara bisnis — wajib ditegakkan hanya di level validasi CorporateService, demi menghindari ALTER TABLE gagal terhadap baris seed lama",
+      "severity": "minor"
+    },
+    {
+      "description": "7 test Corporate memakai UploadedFile::fake()->create() bukan ->image() sebagai workaround GD extension yang tidak ada di sandbox ini — jika suatu saat ext-gd tersedia, bisa dikembalikan ke ->image() untuk fake gambar yang lebih realistis, meski tidak wajib karena yang diuji adalah aturan MIME/ukuran bukan pemrosesan gambar",
+      "severity": "minor"
+    },
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada Playwright/Node infra di sandbox backend/, konsisten dengan keterbatasan yang sudah diterima di screen 016/027 (dan seterusnya)",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-19T14:00:00Z",
+      "passed": 24,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-19T14:00:00Z",
+      "passed": 26,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-19T14:00:00Z",
+      "passed": 22,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

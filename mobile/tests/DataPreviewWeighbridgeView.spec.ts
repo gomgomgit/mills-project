@@ -39,15 +39,15 @@
  * `searchFilter` still defaults to `''`; `onResetFilter()` still resets
  * `dateFilter` back to `''` (Reset Filter still shows everything, not
  * back-to-today) — both unchanged. Two things follow from this:
- *   - `makeRecord()`'s default `arrival_datetime` below is now computed as
+ *   - `makeRecord()`'s default `record_datetime` below is now computed as
  *     TODAY (via a test-local `todayLocalDateString()` that mirrors the
  *     component's own algorithm) instead of a hardcoded past date, so
  *     every pre-existing test that seeds records via `makeRecord()`
- *     without overriding `arrival_datetime` (unit_test_cases 2, 4, 6-13,
+ *     without overriding `record_datetime` (unit_test_cases 2, 4, 6-13,
  *     18, plus the wb_card_number-fallback test) still renders those
  *     records under the new default today-filter, exactly as it did
  *     before under the old always-empty default. Tests that explicitly
- *     override `arrival_datetime` to exercise date filtering
+ *     override `record_datetime` to exercise date filtering
  *     (unit_test_cases 3, 5) are untouched — they already set an explicit
  *     date filter before asserting.
  *   - Three new tests were added (19-21) directly covering the new
@@ -109,14 +109,17 @@ function makeRecord(overrides: Partial<WeighbridgeRecord> & { id: string }): Wei
   return {
     station_id: 'station-1',
     wb_card_number: 'WB-1001',
+    weighbridge_type: 'receive',
     // Defaults to TODAY (not a fixed past date) so every pre-existing test
     // that doesn't override this field keeps rendering under the new
     // default-to-today date filter without needing per-test date setup.
-    arrival_datetime: `${todayLocalDateString()}T08:00`,
-    dispatch_datetime: '2026-08-17T10:00',
+    // entity-catalog v5 merged arrival_datetime/dispatch_datetime into this
+    // single record_datetime field.
+    record_datetime: `${todayLocalDateString()}T08:00`,
     vehicle_number: 'B 1234 CD',
     driver_name: 'Budi Santoso',
     estate_supplier: 'Estate A',
+    destination: null,
     division: 'Divisi 1',
     block: 'Blok 3',
     gross_weight: 15000,
@@ -171,7 +174,7 @@ describe('DataPreviewWeighbridgeView', () => {
 
   // unit_test_case 2
   it('returns all records when no date or search filter is applied', async () => {
-    // Both records rely on makeRecord()'s default arrival_datetime, which
+    // Both records rely on makeRecord()'s default record_datetime, which
     // is TODAY — matching the date filter's new default, so they both
     // still render with zero user interaction (i.e. "no filter applied"
     // from the user's point of view).
@@ -191,8 +194,8 @@ describe('DataPreviewWeighbridgeView', () => {
   // unit_test_case 3
   it('filters records by exact date match when a date filter is applied', async () => {
     const records = [
-      makeRecord({ id: 'rec-aug10', arrival_datetime: '2026-08-10T08:00', wb_card_number: 'WB-AUG10' }),
-      makeRecord({ id: 'rec-aug11', arrival_datetime: '2026-08-11T08:00', wb_card_number: 'WB-AUG11' }),
+      makeRecord({ id: 'rec-aug10', record_datetime: '2026-08-10T08:00', wb_card_number: 'WB-AUG10' }),
+      makeRecord({ id: 'rec-aug11', record_datetime: '2026-08-11T08:00', wb_card_number: 'WB-AUG11' }),
     ]
     getAllRecordsMock.mockResolvedValueOnce(records)
 
@@ -208,7 +211,7 @@ describe('DataPreviewWeighbridgeView', () => {
 
   // unit_test_case 4
   it('filters records by a case-insensitive substring on wb_card_number or driver_name', async () => {
-    // All three records use makeRecord()'s default arrival_datetime
+    // All three records use makeRecord()'s default record_datetime
     // (TODAY), so they already pass the default date filter before the
     // search filter below is applied on top — no date-filter setup needed
     // to isolate the search-filter behavior under test here.
@@ -239,7 +242,7 @@ describe('DataPreviewWeighbridgeView', () => {
   // unit_test_case 5
   it('returns an empty array when the combined date and search filter matches no record', async () => {
     const records = [
-      makeRecord({ id: 'rec-1', arrival_datetime: '2026-08-11T08:00', wb_card_number: 'WB-1001', driver_name: 'Budi' }),
+      makeRecord({ id: 'rec-1', record_datetime: '2026-08-11T08:00', wb_card_number: 'WB-1001', driver_name: 'Budi' }),
     ]
     getAllRecordsMock.mockResolvedValueOnce(records)
 
@@ -273,10 +276,10 @@ describe('DataPreviewWeighbridgeView', () => {
   // unit_test_case 20
   it('filters records by dateFilter\'s default (today) value on initial render', async () => {
     const records = [
-      // Default arrival_datetime (today) — should be visible by default.
+      // Default record_datetime (today) — should be visible by default.
       makeRecord({ id: 'rec-today', wb_card_number: 'WB-TODAY' }),
       // Explicit non-today date — should be filtered out by default.
-      makeRecord({ id: 'rec-other-day', arrival_datetime: '2020-01-01T08:00', wb_card_number: 'WB-OTHERDAY' }),
+      makeRecord({ id: 'rec-other-day', record_datetime: '2020-01-01T08:00', wb_card_number: 'WB-OTHERDAY' }),
     ]
     getAllRecordsMock.mockResolvedValueOnce(records)
 
@@ -291,7 +294,7 @@ describe('DataPreviewWeighbridgeView', () => {
   it('allows user to change or clear the date filter after the default is applied', async () => {
     const records = [
       makeRecord({ id: 'rec-today', wb_card_number: 'WB-TODAY' }),
-      makeRecord({ id: 'rec-past', arrival_datetime: '2020-01-01T08:00', wb_card_number: 'WB-PAST' }),
+      makeRecord({ id: 'rec-past', record_datetime: '2020-01-01T08:00', wb_card_number: 'WB-PAST' }),
     ]
     getAllRecordsMock.mockResolvedValueOnce(records)
 
@@ -441,14 +444,16 @@ describe('DataPreviewWeighbridgeView', () => {
    * ---------------------------------------------------------------- */
 
   // unit_test_case 14
-  it('renders the record read-only when a record is found by id in detail mode', async () => {
+  it('renders the record read-only when a record is found by id in detail mode (receive type)', async () => {
     useRouteMock.mockReturnValue(detailRoute('record-1'))
     // Detail mode is unaffected by the list's date-filter default (it
     // fetches by id via getDraftById, never touches loadList()/dateFilter)
-    // — arrival_datetime is pinned explicitly here since this test asserts
+    // — record_datetime is pinned explicitly here since this test asserts
     // its exact rendered value below, unlike list-mode tests that rely on
     // makeRecord()'s today-based default.
-    getDraftByIdMock.mockResolvedValueOnce(makeRecord({ id: 'record-1', arrival_datetime: '2026-08-17T08:00' }))
+    getDraftByIdMock.mockResolvedValueOnce(
+      makeRecord({ id: 'record-1', weighbridge_type: 'receive', record_datetime: '2026-08-17T08:00' }),
+    )
 
     const wrapper = mount(DataPreviewWeighbridgeView)
     await flushPromises()
@@ -458,9 +463,9 @@ describe('DataPreviewWeighbridgeView', () => {
     expect(wrapper.find('[data-testid="record-not-found"]').exists()).toBe(false)
 
     const fieldChecks: Array<[string, string]> = [
+      ['#field-tipe-weighbridge', 'Receive'],
       ['#field-no-wb-card', 'WB-1001'],
-      ['#field-tanggal-jam-datang', '2026-08-17T08:00'],
-      ['#field-tanggal-jam-berangkat', '2026-08-17T10:00'],
+      ['#field-tanggal-waktu-arrival', '2026-08-17T08:00'],
       ['#field-no-kendaraan', 'B 1234 CD'],
       ['#field-nama-sopir', 'Budi Santoso'],
       ['#field-estate-supplier', 'Estate A'],
@@ -469,7 +474,7 @@ describe('DataPreviewWeighbridgeView', () => {
       ['#field-berat-kotor-gross-weight', '15000'],
       ['#field-berat-kosong-tare-weight', '5000'],
       ['#field-berat-bersih-net-weight', '10000'],
-      ['#field-kuantitas', '1'],
+      ['#field-kuantitas-tandan', '1'],
       ['#field-checked-by', 'Supervisor Satu'],
       ['#field-acknowledged-by', 'Mill Manager'],
     ]
@@ -480,6 +485,41 @@ describe('DataPreviewWeighbridgeView', () => {
       expect((field.element as HTMLInputElement).value).toBe(expectedValue)
       expect(field.attributes('disabled')).toBeDefined()
     }
+
+    // 'Tanggal & Waktu Dispatch' and 'Tujuan Muatan' are receive-only
+    // absent: neither field is rendered for a receive-type record.
+    expect(wrapper.find('#field-tanggal-waktu-dispatch').exists()).toBe(false)
+    expect(wrapper.find('#field-tujuan-muatan').exists()).toBe(false)
+  })
+
+  // unit_test_case 22 (entity-catalog v5) — dispatch type: single date field
+  // relabeled to 'Tanggal & Waktu Dispatch', 'Tanggal & Waktu Arrival' is
+  // NOT rendered, and Tujuan Muatan (destination) appears with its value.
+  it('renders the record read-only when a record is found by id in detail mode (dispatch type)', async () => {
+    useRouteMock.mockReturnValue(detailRoute('record-2'))
+    getDraftByIdMock.mockResolvedValueOnce(
+      makeRecord({
+        id: 'record-2',
+        weighbridge_type: 'dispatch',
+        record_datetime: '2026-08-17T09:00',
+        destination: 'PKS Sukamaju',
+      }),
+    )
+
+    const wrapper = mount(DataPreviewWeighbridgeView)
+    await flushPromises()
+
+    expect(wrapper.find('#field-tipe-weighbridge').exists()).toBe(true)
+    expect((wrapper.find('#field-tipe-weighbridge').element as HTMLInputElement).value).toBe('Dispatch')
+
+    const dispatchDate = wrapper.find('#field-tanggal-waktu-dispatch')
+    expect(dispatchDate.exists()).toBe(true)
+    expect((dispatchDate.element as HTMLInputElement).value).toBe('2026-08-17T09:00')
+    expect(wrapper.find('#field-tanggal-waktu-arrival').exists()).toBe(false)
+
+    const destination = wrapper.find('#field-tujuan-muatan')
+    expect(destination.exists()).toBe(true)
+    expect((destination.element as HTMLInputElement).value).toBe('PKS Sukamaju')
   })
 
   // unit_test_case 15

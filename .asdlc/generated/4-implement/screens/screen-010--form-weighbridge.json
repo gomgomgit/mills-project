@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 4,
+  "ver": 5,
   "id": "screen-010--form-weighbridge",
   "name": "Form Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -20,27 +20,34 @@
     "mobile/tests/e2e/form-weighbridge.spec.ts"
   ],
   "implementation_notes": [
-    "Tambah '(kg)' pada label Berat Masuk (Gross), Berat Keluar (Tare), Net Weight (Kuantitas tidak diberi kg)",
-    "Tambah field 'Tanggal Dispatch' (disabled, computed dispatchDateDisplay = formatDateID(form.dispatch_datetime)) sebelum 'Waktu Dispatch' — reuse fungsi format tanggal yang sama dengan Arrival, ikut live-ticking otomatis karena computed atas field reaktif yang sama",
-    "REQUIRED_FIELD_LABELS.gross_weight (teks pesan error validasi) sengaja TIDAK diberi '(kg)' karena bukan label field yang terlihat",
-    "FormField.vue slugify label jadi id — perubahan label mengubah 3 element id, disesuaikan di test",
-    "Regresi penuh diverifikasi independen: 223/223 vitest (20 file) + 66/66 Playwright e2e (12 file), backend (php artisan serve) dikonfirmasi hidup sebelum run"
+    "FormWeighbridgeView.vue: ditambahkan weighbridge_type tab selector (data-testid='weighbridge-type-receive'/'weighbridge-type-dispatch', role='tab'/aria-selected), default 'receive' untuk draft baru, dipertahankan saat resume.",
+    "Section Arrival/Dispatch terpisah + live-ticking dispatch clock (setInterval) dihapus, diganti 1 pasang field record_datetime (disabled) — label switch via recordDateLabel/recordTimeLabel computed berdasarkan tipe.",
+    "applyRecordDatetimeAutoSet() mengimplementasikan logika auto-set-sekali yang identik (tanpa ticking) untuk kedua tipe; dipanggil dari populateForm() dan onSelectType() (yang membuang record_datetime/destination dulu, sesuai spec).",
+    "destination ('Tujuan Muatan') hanya dirender saat type=dispatch, masuk requiredFields computed secara kondisional; buildPayload() memaksa destination='' saat type=receive sebagai jaminan defensif.",
+    "DIRTY_CHECK_FIELDS menambahkan destination; weighbridge_type/record_datetime tetap dikecualikan (field derived/otomatis, konsisten dengan pola pengecualian sebelumnya).",
+    "Label Kuantitas diubah jadi 'Kuantitas (tandan)'; dispatchTimer/startDispatchTicker/stopDispatchTicker/onBeforeUnmount dihapus total.",
+    "Checked By tetap dihapus total dari layar ini (carry-over dari v4) — kolom checked_by/acknowledged_by di entity tetap ada, tapi screen ini tidak membaca/menulisnya.",
+    "Regresi penuh diverifikasi independen: npx vitest run unscoped = 21 file test, 407 test, semua lulus; npx vue-tsc --noEmit bersih untuk FormWeighbridgeView.vue."
   ],
   "deferred_items": [],
   "known_issues": [
     {
-      "description": "Coverage unit test tidak terukur — @vitest/coverage-v8 belum terinstal",
+      "description": "Coverage unit test tidak terukur — @vitest/coverage-v8/istanbul belum terkonfigurasi di project mobile ini (gap pre-existing project-wide, bukan diperkenalkan round ini)",
       "severity": "minor"
     },
     {
       "description": "checked_by/acknowledged_by selalu dikirim string kosong dari screen ini (kolom masih ada di skema, dibaca layar lain) — konsekuensi disengaja dari penghapusan Checked By, bukan bug",
       "severity": "minor"
+    },
+    {
+      "description": "FormWeighbridgeView.spec.ts skenario 'Ganti Tipe Setelah Field Terisi' membandingkan record_datetime terhadap system-time advance 120 detik untuk membuktikan re-derivasi menghasilkan timestamp baru yang genuine; jika implementasi auto-set berubah dari new Date().toISOString(), assertion exact-match ini perlu ditinjau ulang",
+      "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-08-19T15:07:28Z",
+      "passed": 21,
       "failed": 0,
       "coverage": 0
     },
@@ -50,13 +57,13 @@
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-18T21:27:11Z",
-      "passed": 21,
+      "run_at": "2026-08-19T15:07:28Z",
+      "passed": 28,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-08-18T21:30:00Z",
-      "passed": 9,
+      "run_at": "2026-08-19T15:08:13Z",
+      "passed": 13,
       "failed": 0
     }
   }

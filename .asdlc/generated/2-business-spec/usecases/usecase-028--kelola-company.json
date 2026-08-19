@@ -1,0 +1,154 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "usecase-028--kelola-company",
+  "name": "Kelola Company",
+  "description": "Admin mengelola data master Company (entitas perusahaan di bawah Corporate) melalui web — melihat daftar, menambah dengan profil lengkap (kode, identitas, kontak, legal) dan memilih Corporate induk, mengedit, dan menghapus Company.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login ke web app",
+    "Minimal satu Corporate sudah ada untuk dapat menambah Company"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Admin membuka menu Master Data > Kelola Company"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Sistem menampilkan daftar Company beserta kode, Corporate induk, dan jumlah Business Unit terkait masing-masing"
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Admin klik Tambah Company, memilih Corporate induk dari dropdown, mengisi kode dan nama (wajib), serta field profil lain jika diperlukan"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Sistem memvalidasi kode unik secara global dan nama unik dalam Corporate terpilih, menyimpan Company baru, dan menampilkannya di daftar"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Edit Company",
+      "trigger": "Step 2 — Admin klik Edit pada salah satu baris Company",
+      "steps": [
+        "Admin mengubah kode, nama, Corporate induk, dan/atau field profil lain",
+        "Sistem memvalidasi kode unik secara global dan nama unik dalam Corporate terpilih",
+        "Sistem menyimpan perubahan dan memperbarui daftar"
+      ]
+    },
+    {
+      "name": "Hapus Company — berhasil",
+      "trigger": "Step 2 — Admin klik Hapus pada Company yang tidak memiliki Business Unit terkait",
+      "steps": [
+        "Sistem menghapus Company",
+        "Sistem memperbarui daftar"
+      ]
+    },
+    {
+      "name": "Hapus Company — ditolak",
+      "trigger": "Step 2 — Admin klik Hapus pada Company yang masih memiliki satu atau lebih Business Unit terkait",
+      "steps": [
+        "Sistem menolak penghapusan",
+        "Sistem menampilkan pesan bahwa Company masih memiliki Business Unit terkait"
+      ]
+    },
+    {
+      "name": "Kode duplikat",
+      "trigger": "Step 4 (atau langkah simpan pada Edit) — Admin menyimpan kode yang sudah dipakai Company lain (Corporate manapun)",
+      "steps": [
+        "Sistem menolak penyimpanan",
+        "Sistem menampilkan pesan validasi kode sudah dipakai"
+      ]
+    },
+    {
+      "name": "Nama duplikat dalam Corporate yang sama",
+      "trigger": "Step 4 (atau langkah simpan pada Edit) — Admin menyimpan nama yang sudah dipakai Company lain dalam Corporate yang sama",
+      "steps": [
+        "Sistem menolak penyimpanan",
+        "Sistem menampilkan pesan validasi nama sudah dipakai dalam Corporate tersebut"
+      ]
+    },
+    {
+      "name": "Belum ada Corporate",
+      "trigger": "Step 3 — Admin membuka form Tambah Company saat belum ada Corporate sama sekali",
+      "steps": [
+        "Sistem menampilkan form tanpa opsi Corporate yang dapat dipilih",
+        "Sistem mengarahkan Admin untuk membuat Corporate terlebih dahulu"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Company baru/ubahan tersimpan dan terlihat di daftar dengan Corporate induk yang benar",
+    "Atau Company terhapus dari daftar jika tidak ada Business Unit terkait"
+  ],
+  "business_rules": [
+    "Kode Company harus unik di seluruh sistem",
+    "Nama Company harus unik dalam satu Corporate (Company yang sama boleh dipakai di Corporate berbeda)",
+    "Company tidak dapat dihapus jika masih memiliki satu atau lebih Business Unit terkait",
+    "Hanya Admin yang dapat mengakses dan mengelola data Company",
+    "Company harus terkait ke tepat satu Corporate yang sudah ada"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Kelola Company — success",
+      "given": "Admin sudah login ke web app dan minimal satu Corporate sudah ada",
+      "when": "Admin membuka menu Master Data > Kelola Company, klik Tambah Company, memilih Corporate induk, dan mengisi kode dan nama Company",
+      "then": "Company baru tersimpan dengan kode unik global dan nama yang divalidasi unik dalam Corporate terpilih, ditampilkan di daftar dengan Corporate induk yang benar"
+    },
+    {
+      "scenario": "Kelola Company — Edit Company",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Company",
+      "when": "Admin klik Edit pada salah satu baris Company, mengubah kode/nama/Corporate induk/field profil, lalu menyimpan",
+      "then": "Sistem memvalidasi kode unik global dan nama unik dalam Corporate terpilih, menyimpan perubahan, dan memperbarui daftar Company"
+    },
+    {
+      "scenario": "Kelola Company — Hapus Company — berhasil",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Company yang tidak memiliki Business Unit terkait",
+      "when": "Admin klik Hapus pada Company tersebut",
+      "then": "Sistem menghapus Company dan memperbarui daftar"
+    },
+    {
+      "scenario": "Kelola Company — Hapus Company — ditolak",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Company yang masih memiliki satu atau lebih Business Unit terkait",
+      "when": "Admin klik Hapus pada Company tersebut",
+      "then": "Sistem menolak penghapusan dan menampilkan pesan bahwa Company masih memiliki Business Unit terkait"
+    },
+    {
+      "scenario": "Kelola Company — Kode duplikat",
+      "given": "Admin sudah login ke web app dan minimal satu Corporate sudah ada",
+      "when": "Admin menyimpan kode Company (saat Tambah atau Edit) yang sudah dipakai Company lain, di Corporate manapun",
+      "then": "Sistem menolak penyimpanan dan menampilkan pesan validasi bahwa kode sudah dipakai"
+    },
+    {
+      "scenario": "Kelola Company — Nama duplikat dalam Corporate yang sama",
+      "given": "Admin sudah login ke web app dan minimal satu Corporate sudah ada",
+      "when": "Admin menyimpan nama Company (saat Tambah atau Edit) yang sudah dipakai Company lain dalam Corporate yang sama",
+      "then": "Sistem menolak penyimpanan dan menampilkan pesan validasi bahwa nama sudah dipakai dalam Corporate tersebut"
+    },
+    {
+      "scenario": "Kelola Company — Belum ada Corporate",
+      "given": "Admin sudah login ke web app dan belum ada Corporate sama sekali",
+      "when": "Admin membuka form Tambah Company",
+      "then": "Sistem menampilkan form tanpa opsi Corporate yang dapat dipilih dan mengarahkan Admin untuk membuat Corporate terlebih dahulu"
+    },
+    {
+      "scenario": "Kelola Company — akses ditolak untuk non-Admin",
+      "given": "Pengguna sudah login ke web app namun bukan berperan sebagai Admin",
+      "when": "Pengguna mencoba mengakses menu Master Data > Kelola Company",
+      "then": "Sistem menolak akses karena hanya Admin yang dapat mengakses dan mengelola data Company"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-028--kelola-company"
+  ]
+}

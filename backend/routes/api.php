@@ -3,7 +3,12 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BusinessUnitController;
 use App\Http\Controllers\Api\CagesTrackRecordController;
+use App\Http\Controllers\Api\CompanyController;
+use App\Http\Controllers\Api\CorporateController;
 use App\Http\Controllers\Api\GradingRecordController;
+use App\Http\Controllers\Api\MachineryController;
+use App\Http\Controllers\Api\MachineryGroupController;
+use App\Http\Controllers\Api\StationController;
 use App\Http\Controllers\Api\WeighbridgeRecordController;
 use Illuminate\Support\Facades\Route;
 
@@ -110,4 +115,153 @@ Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/cages-track-records', [CagesTrackRecordController::class, 'index']);
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/cages-track-records/export', [CagesTrackRecordController::class, 'export']);
+
+// screen-027--kelola-corporate
+// Session-guarded ('auth:web' — this is an admin-only web master-data
+// screen, no mobile counterpart) + role-guarded (admin only, per
+// screen_tech_spec.actor_permissions — supervisor/mill_management/operator
+// all have can_access=false for this screen). Grouped (rather than
+// repeating the middleware call per route like screen-016/017/018) since
+// all four CRUD routes here share the exact same guard — functionally
+// identical, just less repetition.
+Route::middleware(['auth:web', 'role:admin'])->group(function () {
+    Route::get('/corporates', [CorporateController::class, 'index']);
+    Route::post('/corporates', [CorporateController::class, 'store']);
+    Route::patch('/corporates/{id}', [CorporateController::class, 'update']);
+    Route::delete('/corporates/{id}', [CorporateController::class, 'destroy']);
+});
+
+// screen-028--kelola-company
+// Session-guarded ('auth:web') + role-guarded (admin only, per
+// screen_tech_spec.actor_permissions — supervisor/mill_management/operator
+// all have can_access=false for this screen). Mirrors screen-027's
+// registration pattern exactly (grouped middleware, one shared guard for
+// all routes). GET /corporates/options is declared in THIS group (not
+// CorporateController's) even though it queries the Corporate model —
+// it's a screen-028-specific dropdown-population endpoint (feeds the
+// Company form's Corporate-select), not a general Corporate CRUD
+// endpoint, so it lives on CompanyController alongside the rest of this
+// screen's endpoints per its tech-spec's api_contracts. No route-order
+// conflict with CorporateController's routes above: none of those declare
+// a GET /corporates/{id}-shaped route that "options" could collide with.
+Route::middleware(['auth:web', 'role:admin'])->group(function () {
+    Route::get('/companies', [CompanyController::class, 'index']);
+    Route::get('/corporates/options', [CompanyController::class, 'corporateOptions']);
+    Route::post('/companies', [CompanyController::class, 'store']);
+    Route::patch('/companies/{id}', [CompanyController::class, 'update']);
+    Route::delete('/companies/{id}', [CompanyController::class, 'destroy']);
+});
+
+// screen-029--kelola-business-unit
+// GET /business-units stays PUBLIC/merged — see
+// BusinessUnitController::index()'s docblock (pre-existing route,
+// registered above near /login, unchanged): it now serves both the
+// legacy screen-001/002 login picker AND this screen's paginated/
+// filtered list, selected by presence of page/per_page/company_id query
+// params. Session-guarded ('auth:web') + role-guarded (admin only, per
+// screen_tech_spec.actor_permissions — supervisor/mill_management/
+// operator all have can_access=false for this screen) for the remaining
+// 4 routes below — these are the admin-gated create/update/delete/
+// companyOptions actions. GET /companies/options is declared in THIS
+// group (not CompanyController's) even though it queries the Company
+// model — it's a screen-029-specific dropdown-population endpoint (feeds
+// the Business Unit form's Company-select), not a general Company CRUD
+// endpoint, so it lives on BusinessUnitController alongside the rest of
+// this screen's endpoints per its tech-spec's api_contracts, mirroring
+// screen-028's GET /corporates/options precedent exactly. No route-order
+// conflict with CompanyController's routes above: none of those declare
+// a GET /companies/{id}-shaped route that "options" could collide with.
+Route::middleware(['auth:web', 'role:admin'])->group(function () {
+    Route::get('/companies/options', [BusinessUnitController::class, 'companyOptions']);
+    Route::post('/business-units', [BusinessUnitController::class, 'store']);
+    Route::patch('/business-units/{id}', [BusinessUnitController::class, 'update']);
+    Route::delete('/business-units/{id}', [BusinessUnitController::class, 'destroy']);
+});
+
+// screen-030--kelola-station
+// Unlike BusinessUnitController::index()'s merged public/admin
+// GET /business-units above, GET /stations has no pre-existing public
+// endpoint to accommodate — every action for this screen is uniformly
+// admin-gated ('auth:web' + 'role:admin', per screen_tech_spec.
+// actor_permissions — supervisor/mill_management/operator all have
+// can_access=false for this screen), so no legacy-branch merge decision
+// was needed on StationController::index() (see that method's
+// docblock). GET /business-units/options is declared on
+// StationController (not BusinessUnitController) even though it queries
+// the BusinessUnit model — it's a screen-030-specific dropdown-
+// population endpoint (feeds the Station form's Business Unit-select),
+// not a general Business Unit CRUD endpoint, so it lives alongside the
+// rest of this screen's endpoints per its tech-spec's api_contracts,
+// mirroring screen-029's GET /companies/options precedent exactly (grep
+// confirmed no route named `business-units/options` existed anywhere in
+// this codebase before this screen). No route-order conflict with
+// BusinessUnitController's routes above: none of those declare a
+// GET /business-units/{id}-shaped route that "options" could collide
+// with.
+Route::middleware(['auth:web', 'role:admin'])->group(function () {
+    Route::get('/stations', [StationController::class, 'index']);
+    Route::get('/business-units/options', [StationController::class, 'businessUnitOptions']);
+    Route::post('/stations', [StationController::class, 'store']);
+    Route::patch('/stations/{id}', [StationController::class, 'update']);
+    Route::delete('/stations/{id}', [StationController::class, 'destroy']);
+});
+
+// screen-033--kelola-machinery-group
+// Session-guarded ('auth:web') + role-guarded (admin only, per
+// screen_tech_spec.actor_permissions — supervisor/mill_management/
+// operator all have can_access=false for this screen). Mirrors
+// screen-030's registration pattern exactly — every action here is
+// uniformly admin-gated, no public-endpoint collision to accommodate.
+// GET /stations/options is declared on MachineryGroupController (not
+// StationController) even though it queries the Station model — it's a
+// screen-033-specific dropdown-population endpoint (feeds the Machinery
+// Group form's Station-select, returning {id, name, business_unit_id}
+// per row so the FE can copy business_unit_id client-side for display
+// before submit — the server independently re-derives it from station_id
+// again on write, never trusting client input for that field), not a
+// general Station CRUD endpoint — mirrors screen-030's
+// GET /business-units/options precedent exactly (grep confirmed no route
+// named `stations/options` existed anywhere in this codebase before this
+// screen). No route-order conflict with StationController's routes
+// above: none of those declare a GET /stations/{id}-shaped route that
+// "options" could collide with.
+Route::middleware(['auth:web', 'role:admin'])->group(function () {
+    Route::get('/machinery-groups', [MachineryGroupController::class, 'index']);
+    Route::get('/stations/options', [MachineryGroupController::class, 'stationOptions']);
+    Route::post('/machinery-groups', [MachineryGroupController::class, 'store']);
+    Route::patch('/machinery-groups/{id}', [MachineryGroupController::class, 'update']);
+    Route::delete('/machinery-groups/{id}', [MachineryGroupController::class, 'destroy']);
+});
+
+// screen-031--kelola-machinery
+// Session-guarded ('auth:web') + role-guarded (admin only, per
+// screen_tech_spec.actor_permissions — supervisor/mill_management/
+// operator all have can_access=false for this screen). Mirrors
+// screen-033's registration pattern exactly — every action here is
+// uniformly admin-gated, no public-endpoint collision to accommodate.
+// GET /machinery-groups/options is declared on MachineryController (not
+// MachineryGroupController) even though it queries the MachineryGroup
+// model — it's a screen-031-specific dropdown-population endpoint (feeds
+// the Machinery form's Machinery Group-select, returning
+// {id, group_code, station_id, business_unit_id} per row so the FE can
+// copy station_id/business_unit_id client-side for display before submit
+// — the server independently re-derives both from machinery_group_id
+// again on write, never trusting client input for either), not a general
+// MachineryGroup CRUD endpoint — mirrors screen-033's
+// GET /stations/options precedent exactly, one level down (grep
+// confirmed no route named `machinery-groups/options` existed anywhere
+// in this codebase before this screen). No route-order conflict with
+// MachineryGroupController's routes above: GET /machinery-groups/options
+// is registered before any GET /machinery-groups/{id}-shaped route could
+// be declared (none exists on MachineryGroupController), and this
+// screen's own GET /machinery/{id} below only matches the `/machinery`
+// prefix, not `/machinery-groups`.
+Route::middleware(['auth:web', 'role:admin'])->group(function () {
+    Route::get('/machinery', [MachineryController::class, 'index']);
+    Route::get('/machinery-groups/options', [MachineryController::class, 'groupOptions']);
+    Route::get('/machinery/{id}', [MachineryController::class, 'show']);
+    Route::post('/machinery', [MachineryController::class, 'store']);
+    Route::patch('/machinery/{id}', [MachineryController::class, 'update']);
+    Route::delete('/machinery/{id}', [MachineryController::class, 'destroy']);
+});
 // === ASDLC_ROUTES_END ===

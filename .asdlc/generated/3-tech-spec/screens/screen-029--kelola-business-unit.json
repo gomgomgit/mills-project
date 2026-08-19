@@ -1,0 +1,767 @@
+{
+  "ver": 3,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-029--kelola-business-unit",
+  "name": "Kelola Business Unit",
+  "module_id": "module-master-data",
+  "route": "/master-data/business-units",
+  "auth_requirement": "role: admin (kecuali GET /api/business-units, lihat catatan)",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": false,
+      "conditions": "Master data terbatas untuk role Admin"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": false,
+      "conditions": "Master data terbatas untuk role Admin"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Master data terbatas untuk role Admin"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "usecase_name": "Kelola Business Unit",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/business-units",
+          "description": "List Business Unit. GABUNGAN dengan endpoint publik pra-existing screen-001/002 (Business Area picker pra-login): tanpa query param -> perilaku lama publik tidak berubah ({data:[{id,name}]}); dengan page/per_page/company_id -> mode list terpaginasi screen-029 (company_name, station_count). Endpoint ini PUBLIK/tanpa auth (pengecualian sengaja dari role:admin, lihat implementation_notes)",
+          "auth_required": false,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "company_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter Business Unit milik satu Company"
+              },
+              {
+                "name": "page",
+                "type": "integer",
+                "required": false,
+                "default": "1",
+                "description": "Halaman"
+              },
+              {
+                "name": "per_page",
+                "type": "integer",
+                "required": false,
+                "default": "20",
+                "description": "Jumlah per halaman, max 100"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "code": "string",
+                  "name": "string",
+                  "company_id": "uuid",
+                  "company_name": "string",
+                  "station_count": "integer",
+                  "created_at": "timestamp"
+                }
+              ],
+              "meta": {
+                "page": "integer",
+                "per_page": "integer",
+                "total": "integer",
+                "total_pages": "integer"
+              }
+            },
+            "error_codes": []
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/companies/options",
+          "description": "List ringkas seluruh Company (id, name) untuk dropdown pilih Company induk pada form Business Unit",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/business-units",
+          "description": "Membuat Business Unit baru dengan profil lengkap",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "company_id": "uuid, required, harus Company yang ada",
+              "code": "string, required, unik secara global",
+              "name": "string, required",
+              "business_unit_type_code": "string, optional",
+              "short_name": "string, optional",
+              "leader_name": "string, optional",
+              "lawyer_name": "string, optional",
+              "address": "string, optional",
+              "telephone_no": "string, optional",
+              "fax_no": "string, optional",
+              "contact_no": "string, optional",
+              "extension_no": "string, optional",
+              "email": "string, optional, format email",
+              "website": "string, optional",
+              "map": "string, optional",
+              "tax_register_no": "string, optional",
+              "insurance_no": "string, optional",
+              "epf_employer": "string, optional",
+              "socso_employer": "string, optional",
+              "labor_union": "string, optional",
+              "logo": "file, optional, image jpg/png, max 2MB"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "code": "string",
+              "name": "string",
+              "company_id": "uuid",
+              "company_name": "string",
+              "business_unit_type_code": "string",
+              "short_name": "string",
+              "leader_name": "string",
+              "lawyer_name": "string",
+              "address": "string",
+              "telephone_no": "string",
+              "fax_no": "string",
+              "contact_no": "string",
+              "extension_no": "string",
+              "email": "string",
+              "website": "string",
+              "map": "string",
+              "tax_register_no": "string",
+              "insurance_no": "string",
+              "epf_employer": "string",
+              "socso_employer": "string",
+              "labor_union": "string",
+              "logo_url": "string",
+              "station_count": 0,
+              "created_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "name kosong, code kosong/sudah dipakai (global), company_id tidak valid, atau logo tidak valid"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/business-units/:id",
+          "description": "Mengubah data Business Unit",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID Business Unit"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "company_id": "uuid, required, harus Company yang ada",
+              "code": "string, required, unik secara global (kecuali dirinya sendiri)",
+              "name": "string, required",
+              "business_unit_type_code": "string, optional",
+              "short_name": "string, optional",
+              "leader_name": "string, optional",
+              "lawyer_name": "string, optional",
+              "address": "string, optional",
+              "telephone_no": "string, optional",
+              "fax_no": "string, optional",
+              "contact_no": "string, optional",
+              "extension_no": "string, optional",
+              "email": "string, optional, format email",
+              "website": "string, optional",
+              "map": "string, optional",
+              "tax_register_no": "string, optional",
+              "insurance_no": "string, optional",
+              "epf_employer": "string, optional",
+              "socso_employer": "string, optional",
+              "labor_union": "string, optional",
+              "logo": "file, optional, image jpg/png, max 2MB"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "code": "string",
+              "name": "string",
+              "company_id": "uuid",
+              "company_name": "string",
+              "business_unit_type_code": "string",
+              "short_name": "string",
+              "leader_name": "string",
+              "lawyer_name": "string",
+              "address": "string",
+              "telephone_no": "string",
+              "fax_no": "string",
+              "contact_no": "string",
+              "extension_no": "string",
+              "email": "string",
+              "website": "string",
+              "map": "string",
+              "tax_register_no": "string",
+              "insurance_no": "string",
+              "epf_employer": "string",
+              "socso_employer": "string",
+              "labor_union": "string",
+              "logo_url": "string",
+              "station_count": "integer",
+              "created_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "name kosong, code kosong/sudah dipakai (global), company_id tidak valid, atau logo tidak valid"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Business Unit id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/business-units/:id",
+          "description": "Menghapus Business Unit jika tidak memiliki Station terkait",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID Business Unit"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "deleted": true
+            },
+            "error_codes": [
+              {
+                "http_code": 409,
+                "error_code": "BUSINESS_UNIT_HAS_STATIONS",
+                "condition": "Business Unit masih memiliki satu atau lebih Station terkait"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Business Unit id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by company_id, eager-load Company untuk company_name, hitung station_count via COUNT station WHERE business_unit_id. Endpoint ini digabung dengan endpoint publik pra-login screen-001/002 (lihat implementation_notes) — tanpa query param, kembalikan bentuk lama tanpa autentikasi",
+        "2. GET /api/companies/options: SELECT id, name dari seluruh Company, urut nama, untuk dropdown form (tanpa pagination)",
+        "3. POST create: validate company_id ada → validate name required → validate code required + unik secara GLOBAL → validate logo (jika ada) → if invalid: return 422 VALIDATION_ERROR → simpan logo jika ada → insert Business Unit baru dengan seluruh field profil",
+        "4. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate company_id ada → validate name required → validate code required + unik global (exclude self) → validate logo (jika diganti) → if invalid: return 422 VALIDATION_ERROR → update Business Unit dengan seluruh field profil",
+        "5. DELETE: validate id exists → if not: return 404 NOT_FOUND → count Station WHERE business_unit_id=id → if count > 0: return 409 BUSINESS_UNIT_HAS_STATIONS → else delete Business Unit"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "SELECT Business Unit dipaginasi dengan Company induk + station_count, opsional filter company_id"
+        },
+        {
+          "entity_id": "company",
+          "operation": "SELECT",
+          "description": "SELECT ringkas seluruh Company untuk dropdown; SELECT untuk validasi company_id ada saat create/update"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "INSERT",
+          "description": "INSERT Business Unit baru dengan seluruh field profil"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "UPDATE",
+          "description": "UPDATE seluruh field profil Business Unit"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "DELETE",
+          "description": "DELETE Business Unit jika tidak ada Station terkait"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "COUNT Station WHERE business_unit_id sebelum delete"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Kode Business Unit sudah dipakai Business Unit lain (Company manapun)",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.code — keunikan berlaku GLOBAL, bukan per-Company"
+        },
+        {
+          "condition": "Business Unit masih memiliki Station terkait saat dihapus",
+          "handling": "Return 409 BUSINESS_UNIT_HAS_STATIONS"
+        },
+        {
+          "condition": "Belum ada Company sama sekali",
+          "handling": "GET /api/companies/options mengembalikan data: [], FE menonaktifkan/mengarahkan form Tambah Business Unit"
+        },
+        {
+          "condition": "id tidak ditemukan pada update/delete",
+          "handling": "Return 404 NOT_FOUND"
+        },
+        {
+          "condition": "company_id tidak valid/tidak ditemukan",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.company_id"
+        },
+        {
+          "condition": "name kosong",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.name"
+        },
+        {
+          "condition": "Upload logo dengan format/ukuran tidak didukung",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.logo"
+        }
+      ],
+      "business_rules_applied": [
+        "Kode Business Unit harus unik di seluruh sistem",
+        "Business Unit tidak dapat dihapus jika masih memiliki satu atau lebih Station terkait",
+        "Hanya Admin yang dapat mengakses dan mengelola data Business Unit (kecuali membaca daftar mentah via GET /api/business-units, endpoint bersama pra-login)",
+        "Business Unit harus terkait ke tepat satu Company yang sudah ada"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns paginated business unit list with company_name and station_count for each row",
+          "given": "BusinessUnitRepository.findPaginated() returns rows joined with Company and Station count",
+          "expect": "return 200 with data array including company_name and station_count per row, plus pagination meta"
+        },
+        {
+          "description": "filters list by company_id when provided",
+          "given": "query param company_id=X is provided",
+          "expect": "only business units belonging to company_id=X are returned"
+        },
+        {
+          "description": "GET /api/business-units with no query params returns the pre-existing legacy shape without authentication (login picker contract unchanged)",
+          "given": "unauthenticated request, no page/per_page/company_id params",
+          "expect": "return 200 with { data: [{id, name}, ...] }, unchanged from before this screen existed"
+        },
+        {
+          "description": "returns Company options list unpaginated for dropdown",
+          "given": "CompanyRepository.all() returns existing Companies",
+          "expect": "return 200 with data: [{id, name}, ...] ordered by name"
+        },
+        {
+          "description": "returns empty Company options list when no Company exists",
+          "given": "CompanyRepository.all() returns empty collection",
+          "expect": "return 200 with data: []"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating Business Unit with non-existent company_id",
+          "given": "CompanyRepository.findById(company_id) returns null",
+          "expect": "throw ValidationException with errors.company_id; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating Business Unit with empty name",
+          "given": "input name is empty string",
+          "expect": "throw ValidationException with errors.name; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating Business Unit with empty or globally-duplicate code",
+          "given": "input code is empty, or BusinessUnitRepository.existsByCode(code) returns true (regardless of which company_id the existing row belongs to)",
+          "expect": "throw ValidationException with errors.code; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when uploaded logo has an unsupported format or exceeds size limit",
+          "given": "uploaded logo file is not jpg/png, or exceeds 2MB",
+          "expect": "throw ValidationException with errors.logo populated; http 422 VALIDATION_ERROR; no file stored"
+        },
+        {
+          "description": "returns 404 NOT_FOUND when updating/deleting Business Unit with non-existent id",
+          "given": "BusinessUnitRepository.findById(id) returns null",
+          "expect": "throw NotFoundException; http 404 NOT_FOUND"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when updating Business Unit with code already used by another Business Unit (global scope)",
+          "given": "BusinessUnitRepository.findById(id) returns existing Business Unit; BusinessUnitRepository.existsByCodeExcludingId(code, id) returns true",
+          "expect": "throw ValidationException with errors.code; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "allows updating Business Unit keeping its own unchanged code (self excluded from uniqueness check)",
+          "given": "code is unchanged from the Business Unit's current code",
+          "expect": "update succeeds, no VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 409 BUSINESS_UNIT_HAS_STATIONS when deleting Business Unit that still has related Station records",
+          "given": "BusinessUnitRepository.findById(id) returns existing Business Unit; StationRepository.countByBusinessUnitId(id) returns 3 (> 0)",
+          "expect": "throw ConflictException; http 409 BUSINESS_UNIT_HAS_STATIONS; Business Unit is not deleted"
+        },
+        {
+          "description": "returns success result with full profile when all conditions pass",
+          "given": "BusinessUnitRepository.existsByCode()/ExcludingId() return false, CompanyRepository.findById() returns a valid Company, logo validation passes or is omitted, StationRepository.countByBusinessUnitId() returns 0 where relevant, BusinessUnitRepository.save()/delete() persist successfully",
+          "expect": "return the created/updated Business Unit object with id, code, name, company_id, company_name, all profile fields, station_count, created_at (or { deleted: true } for delete)"
+        },
+        {
+          "description": "returns 403 FORBIDDEN for companyOptions/create/update/delete when authenticated user is not Admin",
+          "given": "authenticated user role != admin",
+          "expect": "return 403 FORBIDDEN, no data/mutation returned"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "entity_id": "company",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-028--kelola-company",
+      "reason": "Business Unit harus terkait ke Company yang sudah ada; jika belum ada Company, Admin diarahkan ke Kelola Company dahulu"
+    }
+  ],
+  "implementation_notes": [
+    "403 FORBIDDEN pada seluruh endpoint disimpulkan dari actor_permissions, sama seperti screen-027/028, KECUALI GET /api/business-units (lihat poin berikut)",
+    "Livewire component dapat memanggil Service Layer yang sama dengan REST API, konsisten dengan pola screen-016/017/018/027/028",
+    "station_count dihitung via withCount('stations'), company_name via eager-load with('company')",
+    "CRITICAL: keunikan code Business Unit berlaku GLOBAL, BUKAN per-Company — kontras dengan screen-028 (Company.name, per-Corporate) dan screen-027 (Corporate.name + corporate_code, keduanya global). name Business Unit tidak punya constraint keunikan sama sekali.",
+    "REWORK ver 2 (2026-08-19, adopsi ERD): id tetap uuid PK/FK. code (sudah ada sejak ver 1) TIDAK diganti nama field-nya. 17 field profil baru + business_unit_type_code + logo ditambahkan, seluruhnya opsional kecuali code, name, dan company_id.",
+    "Logo disimpan di Laravel Filesystem local disk, diekspos di response sebagai logo_url — pola sama dengan Corporate/Company",
+    "KOREKSI ver 3 (ditemukan saat implementasi, bukan diasumsikan di awal): GET /api/business-units TERNYATA sudah ada sebelum screen-029 — endpoint publik/tanpa auth yang dipakai screen-001/002 untuk dropdown 'Business Area' pra-login (dipanggil tanpa query param, mengharapkan {data:[{id,name}]} polos). Laravel tidak bisa mendaftarkan 2 route pada method+URI yang sama, sehingga kedua perilaku digabung dalam SATU action index(): tanpa page/per_page/company_id -> cabang lama TIDAK BERUBAH (tetap publik); dengan salah satu param tersebut -> cabang list terpaginasi screen-029 (masih publik juga, bukan hanya cabang lama). Ini PENGECUALIAN SENGAJA dari 'role:admin di semua endpoint' — store/update/destroy/companyOptions tetap admin-gated penuh. Skenario 'Akses ditolak untuk non-Admin' di bawah diuji lewat companyOptions (bukan lagi GET /api/business-units)."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Kelola Business Unit — success",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/companies/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/business-units"
+          },
+          "request_example": {
+            "company_id": "{{company_id}}",
+            "name": "Mill Unit 1",
+            "code": "BU-MILL1"
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "BusinessUnitForm",
+        "action": "pilih Company induk dari dropdown, isi nama dan kode unik, klik Simpan",
+        "assert": "form submit berhasil, baris baru muncul di daftar dengan nama Company yang benar dan station_count 0"
+      },
+      "browser_test": {
+        "route": "/master-data/business-units",
+        "action": "klik Tambah Business Unit, pilih Company, isi nama dan kode, klik Simpan",
+        "assert": "baris Business Unit baru muncul di tabel dengan Company induk yang benar"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Business Unit — Edit Business Unit",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/business-units/:id"
+          },
+          "request_example": {
+            "id": "<existing-business-unit-id>",
+            "company_id": "{{company_id}}",
+            "name": "Mill Unit 1 Updated",
+            "code": "BU-MILL1B"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "BusinessUnitForm",
+        "action": "klik Edit pada baris Business Unit, ubah nama/kode/Company induk, klik Simpan",
+        "assert": "baris Business Unit diperbarui dengan nilai baru"
+      },
+      "browser_test": {
+        "route": "/master-data/business-units",
+        "action": "klik Edit pada baris, ubah nama/kode/Company, klik Simpan",
+        "assert": "tabel menampilkan data yang sudah diperbarui"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Business Unit — Hapus Business Unit — berhasil",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/business-units/:id"
+          },
+          "request_example": {
+            "id": "<business-unit-id-no-stations>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "BusinessUnitList",
+        "action": "klik Hapus pada baris Business Unit tanpa Station terkait, konfirmasi",
+        "assert": "baris Business Unit terhapus dari daftar"
+      },
+      "browser_test": {
+        "route": "/master-data/business-units",
+        "action": "klik Hapus pada Business Unit tanpa Station terkait, konfirmasi dialog",
+        "assert": "baris Business Unit hilang dari daftar"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Business Unit — Hapus Business Unit — ditolak",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/business-units/:id"
+          },
+          "request_example": {
+            "id": "<business-unit-id-with-stations>"
+          },
+          "expected_status": 409,
+          "expected_error_code": "BUSINESS_UNIT_HAS_STATIONS"
+        }
+      ],
+      "component_test": {
+        "component": "BusinessUnitList",
+        "action": "klik Hapus pada baris Business Unit yang masih memiliki Station terkait, konfirmasi",
+        "assert": "pesan error ditampilkan, baris tetap ada di daftar"
+      },
+      "browser_test": {
+        "route": "/master-data/business-units",
+        "action": "klik Hapus pada Business Unit dengan Station terkait, konfirmasi dialog",
+        "assert": "pesan error 'Business Unit masih memiliki Station terkait' ditampilkan, baris tidak hilang"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Business Unit — Kode duplikat",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/business-units"
+          },
+          "request_example": {
+            "company_id": "{{company_id}}",
+            "name": "Mill Unit Lain",
+            "code": "BU-MILL1"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "BusinessUnitForm",
+        "action": "isi kode Business Unit (Tambah/Edit) yang sudah dipakai Business Unit lain, klik Simpan",
+        "assert": "pesan validasi muncul di bawah field kode, form tidak tersimpan"
+      },
+      "browser_test": {
+        "route": "/master-data/business-units",
+        "action": "submit form Business Unit (Tambah/Edit) dengan kode yang sudah dipakai",
+        "assert": "pesan validasi kode sudah dipakai ditampilkan, tidak ada baris baru/berubah"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Business Unit — Belum ada Company",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/companies/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "BusinessUnitForm",
+        "action": "buka form Tambah Business Unit saat daftar opsi Company kosong",
+        "assert": "dropdown Company kosong/nonaktif, form menampilkan arahan untuk membuat Company dahulu"
+      },
+      "browser_test": {
+        "route": "/master-data/business-units",
+        "action": "klik Tambah Business Unit saat belum ada Company sama sekali",
+        "assert": "form tampil tanpa opsi Company yang dapat dipilih, arahan membuat Company dahulu terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Business Unit — Akses ditolak untuk non-Admin",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/companies/options"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "BusinessUnitManagement",
+        "action": "coba muat layar Kelola Business Unit sebagai user non-Admin",
+        "assert": "tampilan akses ditolak muncul, daftar/kontrol Business Unit tidak dirender"
+      },
+      "browser_test": {
+        "route": "/master-data/business-units",
+        "action": "navigasi ke /master-data/business-units sebagai user non-Admin",
+        "assert": "browser menampilkan status akses ditolak/redirect, layar Kelola Business Unit tidak dapat diakses"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Business Unit — Company induk wajib dipilih",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/business-units"
+          },
+          "request_example": {
+            "name": "Mill Unit Tanpa Company",
+            "code": "BU-NOCO"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "BusinessUnitForm",
+        "action": "coba submit form Tambah Business Unit tanpa memilih Company induk",
+        "assert": "pesan validasi 'Company wajib dipilih' ditampilkan di bawah dropdown Company, form tidak tersimpan"
+      },
+      "browser_test": {
+        "route": "/master-data/business-units",
+        "action": "klik Tambah Business Unit, isi nama dan kode tanpa memilih Company, klik Simpan",
+        "assert": "pesan validasi Company wajib dipilih ditampilkan, tidak ada baris baru"
+      }
+    }
+  ]
+}

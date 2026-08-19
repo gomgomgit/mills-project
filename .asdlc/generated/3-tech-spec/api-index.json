@@ -1,8 +1,8 @@
 {
-  "ver": 11,
+  "ver": 17,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
   "endpoints": [
     {
@@ -130,6 +130,339 @@
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/corporates",
+      "description": "List Corporate dengan jumlah Company terkait, dipaginasi",
+      "screen_id": "screen-027--kelola-corporate",
+      "usecase_id": "usecase-027--kelola-corporate",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/corporates",
+      "description": "Membuat Corporate baru dengan profil lengkap",
+      "screen_id": "screen-027--kelola-corporate",
+      "usecase_id": "usecase-027--kelola-corporate",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/corporates/:id",
+      "description": "Mengubah data Corporate",
+      "screen_id": "screen-027--kelola-corporate",
+      "usecase_id": "usecase-027--kelola-corporate",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/corporates/:id",
+      "description": "Menghapus Corporate jika tidak memiliki Company terkait",
+      "screen_id": "screen-027--kelola-corporate",
+      "usecase_id": "usecase-027--kelola-corporate",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies",
+      "description": "List Company dengan Corporate induk dan jumlah Business Unit terkait, dipaginasi, opsional filter per Corporate",
+      "screen_id": "screen-028--kelola-company",
+      "usecase_id": "usecase-028--kelola-company",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/corporates/options",
+      "description": "List ringkas seluruh Corporate untuk dropdown pilih Corporate induk pada form Company",
+      "screen_id": "screen-028--kelola-company",
+      "usecase_id": "usecase-028--kelola-company",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/companies",
+      "description": "Membuat Company baru dengan profil lengkap",
+      "screen_id": "screen-028--kelola-company",
+      "usecase_id": "usecase-028--kelola-company",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/companies/:id",
+      "description": "Mengubah data Company",
+      "screen_id": "screen-028--kelola-company",
+      "usecase_id": "usecase-028--kelola-company",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/companies/:id",
+      "description": "Menghapus Company jika tidak memiliki Business Unit terkait",
+      "screen_id": "screen-028--kelola-company",
+      "usecase_id": "usecase-028--kelola-company",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/business-units",
+      "description": "List Business Unit. Digabung dengan endpoint publik pra-login screen-001/002 (Business Area picker) — lihat screen-029 tech-spec ver 3",
+      "screen_id": "screen-029--kelola-business-unit",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "auth_required": false,
+      "actor_ids": [
+        "actor-admin",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/companies/options",
+      "description": "List ringkas seluruh Company untuk dropdown pilih Company induk pada form Business Unit",
+      "screen_id": "screen-029--kelola-business-unit",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/business-units",
+      "description": "Membuat Business Unit baru dengan profil lengkap",
+      "screen_id": "screen-029--kelola-business-unit",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/business-units/:id",
+      "description": "Mengubah data Business Unit",
+      "screen_id": "screen-029--kelola-business-unit",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/business-units/:id",
+      "description": "Menghapus Business Unit jika tidak memiliki Station terkait",
+      "screen_id": "screen-029--kelola-business-unit",
+      "usecase_id": "usecase-029--kelola-business-unit",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/stations",
+      "description": "List Station dengan Business Unit induk dan jumlah Machinery Group terkait, dipaginasi, opsional filter per Business Unit",
+      "screen_id": "screen-030--kelola-station",
+      "usecase_id": "usecase-030--kelola-station",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/business-units/options",
+      "description": "List ringkas seluruh Business Unit untuk dropdown pilih Business Unit induk pada form Station",
+      "screen_id": "screen-030--kelola-station",
+      "usecase_id": "usecase-030--kelola-station",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/stations",
+      "description": "Membuat Station baru",
+      "screen_id": "screen-030--kelola-station",
+      "usecase_id": "usecase-030--kelola-station",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/stations/:id",
+      "description": "Mengubah data Station",
+      "screen_id": "screen-030--kelola-station",
+      "usecase_id": "usecase-030--kelola-station",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/stations/:id",
+      "description": "Menghapus Station jika tidak memiliki Machinery Group/Machinery terkait",
+      "screen_id": "screen-030--kelola-station",
+      "usecase_id": "usecase-030--kelola-station",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/machinery-groups",
+      "description": "List Machinery Group dengan Station induk dan jumlah Machinery terkait, dipaginasi, opsional filter per Station",
+      "screen_id": "screen-033--kelola-machinery-group",
+      "usecase_id": "usecase-033--kelola-machinery-group",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/stations/options",
+      "description": "List ringkas seluruh Station (id, name, business_unit_id) untuk dropdown pilih Station induk pada form Machinery Group",
+      "screen_id": "screen-033--kelola-machinery-group",
+      "usecase_id": "usecase-033--kelola-machinery-group",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/machinery-groups",
+      "description": "Membuat Machinery Group baru",
+      "screen_id": "screen-033--kelola-machinery-group",
+      "usecase_id": "usecase-033--kelola-machinery-group",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/machinery-groups/:id",
+      "description": "Mengubah data Machinery Group",
+      "screen_id": "screen-033--kelola-machinery-group",
+      "usecase_id": "usecase-033--kelola-machinery-group",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/machinery-groups/:id",
+      "description": "Menghapus Machinery Group jika tidak memiliki Machinery terkait",
+      "screen_id": "screen-033--kelola-machinery-group",
+      "usecase_id": "usecase-033--kelola-machinery-group",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/machinery",
+      "description": "List Machinery dengan Machinery Group induk, dipaginasi, opsional filter per Machinery Group",
+      "screen_id": "screen-031--kelola-machinery",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/machinery-groups/options",
+      "description": "List ringkas seluruh Machinery Group untuk dropdown pilih Machinery Group induk pada form Machinery",
+      "screen_id": "screen-031--kelola-machinery",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/machinery/:id",
+      "description": "Detail satu Machinery lengkap dengan seluruh baris Riwayat Asuransi dan Pajak/Pembelian, untuk mengisi form Edit",
+      "screen_id": "screen-031--kelola-machinery",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/machinery",
+      "description": "Membuat Machinery baru beserta baris Riwayat Asuransi dan Pajak/Pembelian (opsional)",
+      "screen_id": "screen-031--kelola-machinery",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/machinery/:id",
+      "description": "Mengubah data Machinery beserta baris Riwayat Asuransi/Pajak (replace-semua)",
+      "screen_id": "screen-031--kelola-machinery",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/machinery/:id",
+      "description": "Menghapus Machinery beserta seluruh baris Riwayat Asuransi/Pajak (cascade, tidak diblokir)",
+      "screen_id": "screen-031--kelola-machinery",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "auth_required": true,
+      "actor_ids": [
         "actor-admin"
       ]
     }

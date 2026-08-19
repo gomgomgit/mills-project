@@ -1,0 +1,64 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-028--kelola-company",
+  "name": "Kelola Company",
+  "module_id": "module-master-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/CompanyController.php",
+    "backend/app/Services/CompanyService.php",
+    "backend/app/Exceptions/CompanyHasBusinessUnitsException.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/migrations/2026_08_19_000002_add_fields_to_companies_table.php",
+    "backend/app/Models/Company.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/CompanyServiceTest.php",
+    "backend/tests/Feature/Api/KelolaCompanyTest.php",
+    "backend/tests/Feature/Livewire/KelolaCompanyTest.php",
+    "backend/tests/Browser/KelolaCompanyTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/MasterData/KelolaCompany.php",
+    "backend/resources/views/livewire/master-data/kelola-company.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "REWORK ver 2 (2026-08-19, adopsi ERD): field diperluas menjadi ~21 (company_code BARU unik GLOBAL + 16 field kontak/legal/kepegawaian opsional + logo + last_update + created_by/updated_by). name TETAP unik PER-CORPORATE (tidak berubah dari ver 1) — dua aturan keunikan independen berdampingan pada company_code (global) dan name (per-corporate_id), diverifikasi eksplisit lewat test cross-corporate.",
+    "Logo mengikuti konvensi Corporate: FILESYSTEM_DISK=local, direktori company-logos. Preview Blade dijaga terhadap bug FileNotPreviewableException yang sama seperti Corporate (guard sebelum temporaryUrl()).",
+    "last_update (date, opsional) tidak punya padanan di Corporate — field top-level Livewire tersendiri, validasi Rule::date tersendiri, bukan bagian dari TEXT_FIELDS",
+    "FIX ROUND 1 (bug nyata, ditemukan test-writer-agent saat sanity run): last_update sempat hilang diam-diam karena CompanyService::normalizeTextFields() tidak melacaknya di field list manapun. Diperbaiki dengan DATE_FIELDS const khusus, diverifikasi end-to-end (service, API, Livewire).",
+    "Semua test logo memakai UploadedFile::fake()->create() (bukan ->image()) — workaround GD extension yang sama seperti Corporate",
+    "Independently re-verified oleh command: re-run `php artisan test` — 368/368 lulus (full suite gabungan 027+028+029); baca CompanyService.php penuh untuk konfirmasi dua aturan keunikan independen (company_code global, name per-corporate) diimplementasikan dengan benar dalam satu Validator pass"
+  ],
+  "deferred_items": [],
+  "known_issues": [],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-19T14:15:00Z",
+      "passed": 33,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-19T14:15:00Z",
+      "passed": 32,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-19T14:15:00Z",
+      "passed": 26,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

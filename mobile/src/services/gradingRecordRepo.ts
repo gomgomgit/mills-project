@@ -83,7 +83,7 @@ import { query, run } from '@/services/localDb'
  *   - `GradingDetailRow` gains grading_parameter_id/uom/percentage, loses
  *     `category`.
  *   - New `getWeighbridgeRecordOptions()` (every local weighbridge_record
- *     row, any status, ordered by arrival_datetime DESC — deliberately
+ *     row, any status, ordered by record_datetime DESC — deliberately
  *     NOT scoped to `created_by`, unlike every other reader in this file;
  *     this is the WB Card No dropdown's reference list, and a grading
  *     record may legitimately reference a weighbridge_record created by a
@@ -277,7 +277,7 @@ export interface GradingParameterOption {
 export interface WeighbridgeRecordOption {
   id: string
   wb_card_number: string | null
-  arrival_datetime: string | null
+  record_datetime: string | null
   vehicle_number: string | null
   estate_supplier: string | null
   division: string | null
@@ -639,9 +639,9 @@ export async function getDraftWithDetails(recordId: string): Promise<GradingDraf
  */
 export async function getWeighbridgeRecordOptions(): Promise<WeighbridgeRecordOption[]> {
   return query<WeighbridgeRecordOption>(
-    `SELECT id, wb_card_number, arrival_datetime, vehicle_number, estate_supplier, division
+    `SELECT id, wb_card_number, record_datetime, vehicle_number, estate_supplier, division
      FROM weighbridge_record
-     ORDER BY arrival_datetime DESC`,
+     ORDER BY record_datetime DESC`,
   )
 }
 

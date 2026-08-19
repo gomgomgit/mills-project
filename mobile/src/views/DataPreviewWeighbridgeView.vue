@@ -70,15 +70,25 @@
  * original implementation — see DETAIL_STATUS_BADGE_MAP below.
  *
  * Date filter: matches business_logic requirement against
- * `arrival_datetime`'s date portion (the WeighbridgeRecord field
- * representing "the truck's date", confirmed against
- * weighbridgeRecordRepo.ts's WeighbridgeRecord shape — `dispatch_datetime`
- * is the departure time, not a date-filter candidate). The date filter
- * `<input type="date">`'s value (`YYYY-MM-DD`) is compared against the
- * first 10 characters of `arrival_datetime` (an ISO-ish datetime-local
- * string, per FormWeighbridgeView.vue's `type="datetime-local"` field —
- * see this screen's own original detail-mode rendering below), so no
- * separate date-parsing library is needed.
+ * `record_datetime`'s date portion (the single unified WeighbridgeRecord
+ * date/time field — entity-catalog v5 merged the previous
+ * `arrival_datetime`/`dispatch_datetime` pair into this one field,
+ * confirmed against weighbridgeRecordRepo.ts's WeighbridgeRecord shape).
+ * The date filter `<input type="date">`'s value (`YYYY-MM-DD`) is compared
+ * against the first 10 characters of `record_datetime` (an ISO-ish
+ * datetime-local string, per FormWeighbridgeView.vue's
+ * `type="datetime-local"` field — see this screen's own original
+ * detail-mode rendering below), so no separate date-parsing library is
+ * needed.
+ *
+ * Update (entity-catalog v5, Weighbridge receive/dispatch): detail mode now
+ * renders `weighbridge_type` (Receive/Dispatch), a single `record_datetime`
+ * field labeled 'Tanggal & Waktu Arrival' or 'Tanggal & Waktu Dispatch'
+ * depending on `weighbridge_type` (mirrors FormWeighbridgeView.vue's same
+ * type-dependent label), and `destination` (Tujuan Muatan) — rendered ONLY
+ * when `weighbridge_type === 'dispatch'`, per tech spec v4 business_logic
+ * step 8. Quantity's label now shows its unit ('(tandan)') for clarity —
+ * static label text only, not a data/type change.
  *
  * known_issues:
  *  - None — MonitorWeighbridgeView.vue's 'Load Data' button already calls
@@ -184,7 +194,7 @@ const filteredRecords = computed(() => {
 
   return allRecords.value.filter((item) => {
     if (date) {
-      const recordDate = item.arrival_datetime ? item.arrival_datetime.slice(0, 10) : ''
+      const recordDate = item.record_datetime ? item.record_datetime.slice(0, 10) : ''
       if (recordDate !== date) {
         return false
       }
@@ -272,6 +282,15 @@ const DETAIL_STATUS_BADGE_MAP: Record<WeighbridgeRecord['status'], { status: Bad
 }
 
 const detailBadgeInfo = computed(() => (detailRecord.value ? DETAIL_STATUS_BADGE_MAP[detailRecord.value.status] : null))
+
+// entity-catalog v5 — weighbridge_type-dependent detail labels, mirroring
+// FormWeighbridgeView.vue's own Receive/Dispatch label logic. Falls back to
+// the 'receive' label when weighbridge_type is null (legacy/unset rows).
+const detailTypeLabel = computed(() => (detailRecord.value?.weighbridge_type === 'dispatch' ? 'Dispatch' : 'Receive'))
+const detailDatetimeLabel = computed(() =>
+  detailRecord.value?.weighbridge_type === 'dispatch' ? 'Tanggal & Waktu Dispatch' : 'Tanggal & Waktu Arrival',
+)
+const isDetailDispatch = computed(() => detailRecord.value?.weighbridge_type === 'dispatch')
 
 /* ---------------------------------------------------------------------- *
  * Shared — mode-driven loading, title, back navigation.
@@ -373,7 +392,7 @@ function goToMonitorWeighbridge(): void {
           <circle cx="12" cy="12" r="9" />
           <path d="M8 12l3 3 5-6" />
         </svg>
-        <span class="brand-name">Mill Smart Log</span>
+        <span class="brand-name">Mills Smart Log</span>
       </div>
 
       <button
@@ -503,18 +522,31 @@ function goToMonitorWeighbridge(): void {
       </p>
 
       <div v-else-if="detailRecord" class="preview-body">
+        <FormField :model-value="detailTypeLabel" label="Tipe Weighbridge" disabled data-testid="detail-weighbridge-type" />
         <FormField :model-value="detailRecord.wb_card_number" label="No. WB Card" disabled />
-        <FormField :model-value="detailRecord.arrival_datetime" label="Tanggal/Jam Datang" type="datetime-local" disabled />
-        <FormField :model-value="detailRecord.dispatch_datetime" label="Tanggal/Jam Berangkat" type="datetime-local" disabled />
+        <FormField
+          :model-value="detailRecord.record_datetime"
+          :label="detailDatetimeLabel"
+          type="datetime-local"
+          disabled
+          data-testid="detail-record-datetime"
+        />
         <FormField :model-value="detailRecord.vehicle_number" label="No. Kendaraan" disabled />
         <FormField :model-value="detailRecord.driver_name" label="Nama Sopir" disabled />
         <FormField :model-value="detailRecord.estate_supplier" label="Estate/Supplier" disabled />
+        <FormField
+          v-if="isDetailDispatch"
+          :model-value="detailRecord.destination"
+          label="Tujuan Muatan"
+          disabled
+          data-testid="detail-destination"
+        />
         <FormField :model-value="detailRecord.division" label="Divisi" disabled />
         <FormField :model-value="detailRecord.block" label="Blok" disabled />
         <FormField :model-value="detailRecord.gross_weight" label="Berat Kotor (Gross Weight)" type="number" disabled />
         <FormField :model-value="detailRecord.tare_weight" label="Berat Kosong (Tare Weight)" type="number" disabled />
         <FormField :model-value="detailRecord.net_weight" label="Berat Bersih (Net Weight)" type="number" disabled />
-        <FormField :model-value="detailRecord.quantity" label="Kuantitas" type="number" disabled />
+        <FormField :model-value="detailRecord.quantity" label="Kuantitas (tandan)" type="number" disabled />
         <FormField :model-value="detailRecord.checked_by" label="Checked By" disabled />
         <FormField :model-value="detailRecord.acknowledged_by" label="Acknowledged By" disabled />
       </div>

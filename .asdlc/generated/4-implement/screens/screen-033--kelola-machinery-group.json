@@ -1,0 +1,72 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-033--kelola-machinery-group",
+  "name": "Kelola Machinery Group",
+  "module_id": "module-master-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/database/migrations/2026_08_19_000006_add_fields_to_machinery_groups_table.php",
+    "backend/app/Exceptions/MachineryGroupHasMachineryException.php",
+    "backend/app/Services/MachineryGroupService.php",
+    "backend/app/Http/Controllers/Api/MachineryGroupController.php",
+    "backend/app/Models/MachineryGroup.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/MachineryGroupServiceTest.php",
+    "backend/tests/Feature/Api/KelolaMachineryGroupTest.php",
+    "backend/tests/Feature/Livewire/KelolaMachineryGroupTest.php",
+    "backend/tests/Browser/KelolaMachineryGroupTest.php",
+    "backend/database/factories/MachineryGroupFactory.php",
+    "backend/database/factories/MachineryFactory.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/MasterData/KelolaMachineryGroup.php",
+    "backend/resources/views/livewire/master-data/kelola-machinery-group.blade.php",
+    "backend/resources/views/master-data/machinery-groups.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "Memperluas (bukan membuat ulang) tabel/model machinery_groups placeholder yang dibuat screen-030 — migration baru menambah group_code (unik global)/description/unit/workshop_factor/cost_per_equipment; model diperluas dengan field + relasi machinery() baru, station()/businessUnit() tidak diubah",
+    "machinery_group_id ditambahkan ke tabel machinery (sebelumnya belum ada di placeholder Machinery) via migration yang sama — TIDAK ditambahkan ke Machinery::$fillable (sengaja, itu tugas screen-031)",
+    "business_unit_id SELALU diturunkan server-side dari Station terpilih, tidak pernah dibaca dari request — MachineryGroupController::FIELDS sengaja tidak menyertakan business_unit_id sehingga nilai spoofed di request body gugur sebelum sampai ke service; diverifikasi eksplisit lewat test di level service maupun HTTP",
+    "GET /api/stations/options mengembalikan {id, name, business_unit_id} per baris — dipakai FE murni untuk tampilan (selectedBusinessUnitName di Livewire), server tetap independen menurunkan ulang business_unit_id dari station_id saat submit",
+    "vendor/bin/pint --test menandai beberapa isu gaya (new_with_parentheses, urutan import) yang sudah ada di semua service file sejenis (StationService.php dkk) — tidak diperbaiki karena bukan regresi baru, dan menjalankan pint sekali sempat mengubah routes/web.php jauh melebihi blok baru screen ini serta menyimpang dari 2 gaya kecil StationService.php — direvert demi konsistensi dengan gaya codebase yang sudah ada",
+    "Independently re-verified oleh command: re-run `php artisan test` — 523/523 lulus (full suite gabungan 027-030+033); baca MachineryGroupService.php penuh untuk konfirmasi business_unit_id benar-benar diturunkan server-side dan tidak pernah dibaca dari $data"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada Playwright/Node infra di sandbox backend/, konsisten dengan keterbatasan yang sudah diterima di seluruh screen web lain",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-19T15:30:00Z",
+      "passed": 24,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-19T15:30:00Z",
+      "passed": 25,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-19T15:30:00Z",
+      "passed": 20,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

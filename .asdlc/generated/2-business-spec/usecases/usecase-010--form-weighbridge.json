@@ -1,12 +1,12 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 3,
+  "ver": 5,
   "id": "usecase-010--form-weighbridge",
   "name": "Input Data Weighbridge",
-  "description": "User mengisi dan menyimpan data log Weighbridge (kendaraan, supir, asal muatan, berat timbang), dengan Tanggal/Waktu Arrival otomatis, Waktu Dispatch live-ticking otomatis, dan Net Weight terhitung otomatis.",
+  "description": "User memilih tipe Weighbridge (Receive/Dispatch) via tombol tab, lalu mengisi dan menyimpan data log Weighbridge (kendaraan, supir, asal muatan, tujuan muatan untuk tipe Dispatch, berat timbang). Tanggal & Waktu record diisi otomatis sekali saat tipe dipilih/draft dibuat (perilaku sama untuk Arrival maupun Dispatch), tidak dapat diedit. Net Weight terhitung otomatis.",
   "actors": [
     "actor-station-operator",
     "actor-supervisor"
@@ -23,25 +23,35 @@
     {
       "step": 2,
       "actor": "System",
-      "description": "Auto-isi Tanggal & Waktu Arrival (sekali), mulai live-ticking Waktu Dispatch, render field per section, render breadcrumb dan header dengan hamburger"
+      "description": "Render form dengan tipe default Receive untuk draft baru (atau tipe tersimpan untuk draft lanjutan), render breadcrumb dan header dengan hamburger"
     },
     {
       "step": 3,
       "actor": "actor-station-operator",
-      "description": "Mengisi field header (WB ID, kendaraan, supir, estate, divisi, blok) dan data berat (Gross, Tare -- Net Weight otomatis terhitung, Kuantitas)"
+      "description": "Memilih Tipe Weighbridge (Receive atau Dispatch) via tombol tab bersebelahan"
     },
     {
       "step": 4,
+      "actor": "System",
+      "description": "Menyesuaikan field tanggal & tujuan muatan sesuai tipe: Receive → auto-isi Tanggal & Waktu Arrival sekali, sembunyikan Tujuan Muatan; Dispatch → auto-isi Tanggal & Waktu Dispatch sekali, tampilkan field Tujuan Muatan (wajib)"
+    },
+    {
+      "step": 5,
+      "actor": "actor-station-operator",
+      "description": "Mengisi field header (WB ID, kendaraan, supir, estate, divisi, blok), Tujuan Muatan (jika tipe Dispatch), dan data berat (Gross, Tare -- Net Weight otomatis terhitung, Kuantitas)"
+    },
+    {
+      "step": 6,
       "actor": "actor-station-operator",
       "description": "Menekan tombol Simpan"
     },
     {
-      "step": 5,
+      "step": 7,
       "actor": "System",
-      "description": "Memvalidasi field wajib, freeze Waktu Dispatch ke waktu saat ini"
+      "description": "Memvalidasi field wajib (termasuk Tujuan Muatan jika tipe Dispatch)"
     },
     {
-      "step": 6,
+      "step": 8,
       "actor": "System",
       "description": "Menyimpan record (status=saved) dan mengarahkan ke Monitor Weighbridge"
     }
@@ -49,7 +59,7 @@
   "alternative_flows": [
     {
       "name": "Field Wajib Belum Lengkap",
-      "trigger": "Step 5, ada field wajib kosong",
+      "trigger": "Step 7, ada field wajib kosong (termasuk Tujuan Muatan jika tipe Dispatch)",
       "steps": [
         "System menampilkan pesan error di bawah field terkait",
         "Record tidak tersimpan",
@@ -57,11 +67,19 @@
       ]
     },
     {
+      "name": "Ganti Tipe Setelah Field Terisi",
+      "trigger": "Step 3-6, actor mengganti pilihan tab tipe setelah field tanggal/tujuan muatan sempat terisi",
+      "steps": [
+        "System membuang nilai tanggal & tujuan muatan lama",
+        "System menyesuaikan field baru sesuai tipe yang baru dipilih (ulangi langkah 4)"
+      ]
+    },
+    {
       "name": "Lanjutkan Draft Paused",
       "trigger": "Entry point via tap item list, bukan New Data",
       "steps": [
-        "Field-field form terisi dari data draft tersimpan sebelumnya",
-        "Waktu Dispatch tetap live-ticking dari saat form dibuka (bukan dari nilai draft lama)"
+        "Field-field form (termasuk tipe yang dipilih dan tanggal & waktu yang sudah terisi) terisi dari data draft tersimpan sebelumnya",
+        "Tidak ada field tanggal yang di-reset saat draft dibuka ulang, untuk tipe manapun"
       ]
     },
     {
@@ -75,7 +93,7 @@
       "name": "Pause Progress",
       "trigger": "Actor menekan tombol Pause",
       "steps": [
-        "Sistem menyimpan field form saat ini sebagai draft berstatus paused",
+        "Sistem menyimpan field form saat ini (termasuk tipe) sebagai draft berstatus paused, tanpa validasi field wajib",
         "Sistem mengarahkan kembali ke Monitor Weighbridge"
       ]
     },
@@ -110,8 +128,10 @@
     "Data kendaraan/supir/estate/divisi/blok teks bebas",
     "Record tersimpan langsung, bukan approval workflow",
     "Field wajib bertanda asterisk dengan validasi inline",
-    "Tanggal & Waktu Arrival otomatis sekali saat form dibuka",
-    "Waktu Dispatch live-ticking otomatis sampai Simpan ditekan",
+    "Tipe Weighbridge default Receive untuk draft baru, dapat diganti kapan saja sebelum Simpan",
+    "Tanggal & Waktu Arrival otomatis sekali saat tipe Receive dipilih/draft dibuat",
+    "Tanggal & Waktu Dispatch otomatis sekali saat tipe Dispatch dipilih/draft dibuat (sama seperti Arrival)",
+    "Tujuan Muatan wajib diisi hanya saat tipe Dispatch",
     "Net Weight dihitung otomatis dari Gross - Tare"
   ],
   "bdd_scenarios": [
@@ -119,7 +139,7 @@
       "scenario": "Input Data Weighbridge — success",
       "given": "User sudah login dan berada di Monitor Weighbridge, membuka Form Weighbridge draft baru",
       "when": "User mengisi field header (WB ID, tanggal, kendaraan, supir, estate, divisi, blok) dan data berat (Gross, Tare, Kuantitas), lalu menekan Simpan",
-      "then": "Record Weighbridge tersimpan dengan status baru, Net Weight terhitung otomatis, Waktu Dispatch dibekukan pada saat Simpan ditekan"
+      "then": "Record Weighbridge tersimpan dengan status baru, Net Weight terhitung otomatis, Tanggal & Waktu tetap nilai yang otomatis terisi sekali sebelumnya"
     },
     {
       "scenario": "Input Data Weighbridge — Field Wajib Belum Lengkap",
@@ -131,7 +151,7 @@
       "scenario": "Input Data Weighbridge — Lanjutkan Draft Paused",
       "given": "User sudah login dan berada di Monitor Weighbridge, terdapat draft Weighbridge yang tersimpan sebelumnya",
       "when": "User memilih untuk melanjutkan draft yang ada, bukan membuat draft baru",
-      "then": "Field-field form terisi otomatis dari data draft yang tersimpan sebelumnya"
+      "then": "Field-field form terisi otomatis dari data draft yang tersimpan sebelumnya, termasuk tanggal & waktu, tidak ada yang di-reset"
     },
     {
       "scenario": "Input Data Weighbridge — Back Dengan Perubahan Belum Tersimpan",
@@ -162,6 +182,18 @@
       "given": "User sudah login dan berada di Form Weighbridge",
       "when": "Actor menekan ikon hamburger kapan saja di layar ini",
       "then": "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+    },
+    {
+      "scenario": "Input Data Weighbridge — success (dengan tipe & tujuan muatan)",
+      "given": "User sudah login dan berada di Monitor Weighbridge, membuka Form Weighbridge (draft baru atau lanjutan)",
+      "when": "User memilih Tipe Weighbridge (Receive atau Dispatch) via tombol tab, mengisi field header (WB ID, kendaraan, supir, estate, divisi, blok), Tujuan Muatan (jika tipe Dispatch), dan data berat (Gross, Tare, Kuantitas), lalu menekan Simpan",
+      "then": "System memvalidasi field wajib (termasuk Tujuan Muatan jika tipe Dispatch); Tanggal & Waktu (Arrival atau Dispatch sesuai tipe) tetap nilai yang otomatis terisi sekali sebelumnya, tidak berubah saat Simpan; Net Weight terhitung otomatis dari Gross dikurangi Tare; record tersimpan dengan status baru/updated dan sistem mengarahkan ke Monitor Weighbridge"
+    },
+    {
+      "scenario": "Input Data Weighbridge — Ganti Tipe Setelah Field Terisi",
+      "given": "User sudah login dan berada di Monitor Weighbridge, sedang mengisi Form Weighbridge",
+      "when": "Actor mengganti pilihan tab Tipe Weighbridge setelah field tanggal/tujuan muatan sempat terisi",
+      "then": "System membuang nilai tanggal & tujuan muatan lama, lalu menyesuaikan field sesuai tipe yang baru dipilih (auto-isi sekali Tanggal & Waktu dan sembunyikan Tujuan Muatan untuk Receive, atau auto-isi sekali Tanggal & Waktu dan tampilkan field Tujuan Muatan wajib untuk Dispatch)"
     }
   ],
   "related_screen_ids": [

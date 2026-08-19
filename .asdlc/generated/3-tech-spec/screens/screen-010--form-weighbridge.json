@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 4,
+  "ver": 6,
   "id": "screen-010--form-weighbridge",
   "name": "Form Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -28,17 +28,18 @@
       "endpoints": [],
       "business_logic": [
         "1. Load draft record by id (route param) into form state",
-        "2. Auto-set Tanggal & Waktu Arrival = waktu saat ini HANYA jika draft baru (arrival_datetime masih kosong); jika draft dilanjutkan (sudah punya nilai), pertahankan nilai arrival_datetime tersimpan, tidak ditimpa",
-        "3. Tanggal & Waktu Dispatch SELALU live-ticking dari tanggal+waktu saat ini pada setiap form dibuka (baik draft baru maupun dilanjutkan), sampai Simpan ditekan → nilai final dibekukan tepat saat Simpan diklik",
-        "4. Net Weight dihitung reaktif = Gross Weight - Tare Weight setiap kali salah satu berubah, field disabled (tidak bisa diedit manual)",
-        "5. Render field dikelompokkan per section: Identitas Weighbridge, Kendaraan & Supir, Asal Muatan, Data Timbangan, Dispatch. Label Gross/Tare/Net Weight menampilkan satuan '(kg)'",
-        "6. Render breadcrumb (Home > Production Process Activity > Weighbridge > Form, tappable) dan header dengan hamburger",
-        "7. On Simpan: validasi field wajib → jika lengkap: bekukan dispatch_datetime ke waktu saat ini → UPDATE record (semua field, status=saved) → navigasi ke Monitor Weighbridge",
-        "8. On Pause: UPDATE record (field form saat ini apa adanya, status=draft_paused, TANPA validasi field wajib) → navigasi ke Monitor Weighbridge",
-        "9. On Clear: tampilkan dialog konfirmasi → jika dikonfirmasi: DELETE record → navigasi ke Monitor; jika dibatalkan: tidak ada perubahan",
-        "10. On Back: jika form dirty: tampilkan dialog konfirmasi → jika dikonfirmasi, buang perubahan di memori, navigasi ke Monitor; jika tidak dirty, navigasi langsung",
-        "11. On tap breadcrumb segment → navigasi ke route terkait",
-        "12. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+        "2. Jika draft baru (weighbridge_type belum ada di record), set weighbridge_type='receive' sebagai default; render tombol tab Type sesuai weighbridge_type saat ini",
+        "3. Terapkan logika record_datetime: auto-set record_datetime = waktu saat ini SEKALI HANYA jika masih kosong (draft baru, atau tipe baru saja dipilih/berganti); jika sudah ada nilai tersimpan (draft dilanjutkan, atau tipe sudah pernah di-set sebelumnya), pertahankan nilai tersebut, tidak ditimpa — perilaku ini SAMA untuk weighbridge_type='receive' maupun 'dispatch'",
+        "4. On tap tab Type (ganti weighbridge_type): buang nilai record_datetime dan destination saat ini, lalu ulangi langkah 3 untuk tipe baru (auto-set record_datetime sekali untuk tipe baru); jika tipe baru = receive, sembunyikan & kosongkan field destination; jika dispatch, tampilkan field destination (wajib)",
+        "5. Net Weight dihitung reaktif = Gross Weight - Tare Weight setiap kali salah satu berubah, field disabled (tidak bisa diedit manual)",
+        "6. Render field dikelompokkan per section: Identitas Weighbridge (tombol tab Type, WB Card Number, field tanggal & waktu sesuai tipe, field Tujuan Muatan jika tipe dispatch), Kendaraan & Supir, Asal Muatan, Data Timbangan. Label Gross/Tare/Net Weight menampilkan '(kg)', label Kuantitas menampilkan '(tandan)'",
+        "7. Render breadcrumb (Home > Production Process Activity > Weighbridge > Form, tappable) dan header dengan hamburger",
+        "8. On Simpan: validasi field wajib (termasuk destination jika weighbridge_type=dispatch) → jika lengkap: UPDATE record (semua field termasuk weighbridge_type, record_datetime, destination, status=saved) → navigasi ke Monitor Weighbridge",
+        "9. On Pause: UPDATE record (field form saat ini apa adanya termasuk weighbridge_type/record_datetime/destination, status=draft_paused, TANPA validasi field wajib) → navigasi ke Monitor Weighbridge",
+        "10. On Clear: tampilkan dialog konfirmasi → jika dikonfirmasi: DELETE record → navigasi ke Monitor; jika dibatalkan: tidak ada perubahan",
+        "11. On Back: jika form dirty: tampilkan dialog konfirmasi → jika dikonfirmasi, buang perubahan di memori, navigasi ke Monitor; jika tidak dirty, navigasi langsung",
+        "12. On tap breadcrumb segment → navigasi ke route terkait",
+        "13. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
       ],
       "data_operations": [
         {
@@ -49,7 +50,7 @@
         {
           "entity_id": "weighbridge-record",
           "operation": "UPDATE",
-          "description": "UPDATE semua field form + status=saved pada Simpan"
+          "description": "UPDATE semua field form (termasuk weighbridge_type, record_datetime, destination) + status=saved pada Simpan"
         },
         {
           "entity_id": "weighbridge-record",
@@ -64,12 +65,16 @@
       ],
       "edge_case_handling": [
         {
-          "condition": "Field wajib belum lengkap saat Simpan",
+          "condition": "Field wajib belum lengkap saat Simpan (termasuk destination jika tipe dispatch)",
           "handling": "Tampilkan error inline per field, record tidak tersimpan"
         },
         {
           "condition": "Draft di-Pause lalu dilanjutkan",
-          "handling": "Field form terisi dari draft tersimpan, KECUALI Tanggal & Waktu Dispatch yang tetap live-ticking dari saat form dibuka"
+          "handling": "Field form terisi dari draft tersimpan (termasuk weighbridge_type dan record_datetime); tidak ada field tanggal yang di-reset untuk tipe manapun"
+        },
+        {
+          "condition": "Ganti tipe Weighbridge setelah field tanggal/destination terisi",
+          "handling": "Nilai lama dibuang, field baru menyesuaikan sesuai tipe yang baru dipilih (auto-set record_datetime sekali untuk tipe baru)"
         },
         {
           "condition": "Back dengan perubahan belum tersimpan",
@@ -84,116 +89,112 @@
         "Data kendaraan/supir/estate/divisi/blok teks bebas",
         "Record tersimpan langsung, bukan approval workflow",
         "Field wajib bertanda asterisk dengan validasi inline",
-        "Tanggal & Waktu Arrival otomatis sekali saat draft baru dibuat",
-        "Tanggal & Waktu Dispatch live-ticking otomatis sampai Simpan ditekan",
-        "Net Weight dihitung otomatis dari Gross - Tare",
-        "Label field berat menampilkan satuan (kg)"
+        "Tipe Weighbridge default Receive, dapat diganti sebelum Simpan",
+        "Tanggal & Waktu Arrival otomatis sekali untuk tipe Receive",
+        "Tanggal & Waktu Dispatch otomatis sekali untuk tipe Dispatch (sama seperti Arrival)",
+        "Tujuan Muatan wajib diisi hanya saat tipe Dispatch",
+        "Net Weight dihitung otomatis dari Gross - Tare"
       ],
       "unit_test_cases": [
         {
-          "description": "sets arrival_datetime to current time when draft is new (arrival_datetime empty)",
-          "given": "loaded draft record has arrival_datetime = null/empty",
-          "expect": "arrival_datetime set to current timestamp (now) exactly once on mount"
+          "description": "sets weighbridge_type to 'receive' by default when loading a new draft (weighbridge_type absent)",
+          "given": "weighbridgeRepo.findById() returns record with weighbridge_type = null/undefined",
+          "expect": "form state weighbridge_type is initialized to 'receive'"
         },
         {
-          "description": "preserves stored arrival_datetime when resuming a paused draft",
-          "given": "loaded draft record has arrival_datetime = '2026-08-18T08:00:00' (already set)",
-          "expect": "arrival_datetime remains '2026-08-18T08:00:00', not overwritten"
+          "description": "preserves stored weighbridge_type when loading a continued draft",
+          "given": "weighbridgeRepo.findById() returns record with weighbridge_type = 'dispatch'",
+          "expect": "form state weighbridge_type is set to 'dispatch' (not overwritten to default)"
         },
         {
-          "description": "dispatch_datetime starts live-ticking from current time on mount for a brand-new draft",
-          "given": "form mounted with a brand-new draft (no prior dispatch_datetime)",
-          "expect": "dispatch_datetime updates continuously to current time (ticking) until Simpan pressed"
+          "description": "auto-sets record_datetime to current time when type=receive and stored value is empty (new draft or type just switched to receive)",
+          "given": "weighbridge_type='receive', record_datetime empty/null",
+          "expect": "record_datetime is set once to current system time and field becomes non-editable"
         },
         {
-          "description": "dispatch_datetime starts live-ticking from current time on mount for a resumed draft, ignoring the stale stored value",
-          "given": "loaded draft record has dispatch_datetime = '2026-08-17T10:00:00' (old saved value)",
-          "expect": "dispatch_datetime ticking starts from current time (now); stored value is not used as the starting point"
+          "description": "preserves stored record_datetime when type=receive and value already set",
+          "given": "weighbridge_type='receive', record_datetime has an existing stored value",
+          "expect": "record_datetime retains the stored value; not overwritten with current time"
         },
         {
-          "description": "freezes dispatch_datetime to the exact moment Simpan is pressed",
-          "given": "dispatch_datetime ticking is active, Simpan clicked at time T",
-          "expect": "dispatch_datetime stops ticking and is fixed to T"
+          "description": "auto-sets record_datetime to current time when type=dispatch and stored value is empty (new draft or type just switched to dispatch)",
+          "given": "weighbridge_type='dispatch', record_datetime empty/null",
+          "expect": "record_datetime is set once to current system time and field becomes non-editable (same behavior as receive, no continuous ticking)"
         },
         {
-          "description": "displays both date and time portions of dispatch_datetime (not time-only)",
-          "given": "dispatch_datetime = '2026-08-18T14:30:00.000Z'",
-          "expect": "dispatchDateDisplay shows the formatted date (e.g. '18 Agustus 2026') and dispatchTimeDisplay shows the formatted time (e.g. '14:30') as two separate disabled fields"
+          "description": "preserves stored record_datetime when type=dispatch and value already set (draft resumed)",
+          "given": "weighbridge_type='dispatch', record_datetime has an existing stored value",
+          "expect": "record_datetime retains the stored value; not overwritten or re-ticked on resume"
         },
         {
-          "description": "computes net_weight reactively as gross_weight - tare_weight when gross_weight changes",
-          "given": "tare_weight = 1000, gross_weight changes to 5000",
-          "expect": "net_weight recalculated to 4000"
+          "description": "discards record_datetime and destination and reapplies auto-set-once logic when switching tab receive → dispatch",
+          "given": "form has weighbridge_type='receive' with record_datetime set, destination hidden/empty; user taps 'dispatch' tab",
+          "expect": "record_datetime is discarded then auto-set once to current time (not live-ticking); destination field becomes visible and required, with any prior value cleared"
         },
         {
-          "description": "computes net_weight reactively as gross_weight - tare_weight when tare_weight changes",
-          "given": "gross_weight = 5000, tare_weight changes to 1200",
-          "expect": "net_weight recalculated to 3800"
+          "description": "discards record_datetime and destination and reapplies auto-set-once logic when switching tab dispatch → receive",
+          "given": "form has weighbridge_type='dispatch' with record_datetime set and destination filled; user taps 'receive' tab",
+          "expect": "record_datetime is discarded then auto-set once to current time; destination field is hidden, cleared, and no longer required"
         },
         {
-          "description": "net_weight field remains disabled/non-editable regardless of computed value",
-          "given": "net_weight computed = 4000",
-          "expect": "net_weight field disabled=true; direct user edit attempt has no effect on stored value"
+          "description": "computes Net Weight reactively as Gross Weight minus Tare Weight",
+          "given": "Gross Weight = 5000, Tare Weight = 2000",
+          "expect": "Net Weight field = 3000 and remains disabled/non-editable"
         },
         {
-          "description": "returns validation errors and does not save when required fields are incomplete on Simpan",
-          "given": "required field is empty, Simpan triggered",
-          "expect": "validation fails, inline error returned per field, weighbridgeRepo.update() not called"
+          "description": "recomputes Net Weight when Gross Weight or Tare Weight changes",
+          "given": "Net Weight already computed as 3000; Tare Weight is subsequently updated to 2200",
+          "expect": "Net Weight recomputes to (Gross Weight - 2200)"
         },
         {
-          "description": "saves record with status=saved and frozen dispatch_datetime when all required fields are complete on Simpan",
-          "given": "all required fields filled, Simpan triggered at time T",
-          "expect": "weighbridgeRepo.update() called with all form fields, status='saved', dispatch_datetime=T; navigation to Monitor Weighbridge triggered"
+          "description": "returns validation error when a required field is empty on Simpan (type=receive)",
+          "given": "weighbridge_type='receive', WB Card Number (or another required field) is empty",
+          "expect": "inline validation error shown per empty field; weighbridgeRepo.update() is not called; record is not saved"
         },
         {
-          "description": "updates record with status=draft_paused without validating required fields on Pause",
-          "given": "required field is empty, Pause triggered",
-          "expect": "weighbridgeRepo.update() called with current field values as-is, status='draft_paused', no validation errors; navigation to Monitor Weighbridge triggered"
+          "description": "returns validation error when destination is empty on Simpan (type=dispatch)",
+          "given": "weighbridge_type='dispatch', all fields filled except destination",
+          "expect": "inline validation error shown for destination field; weighbridgeRepo.update() is not called; record is not saved"
         },
         {
-          "description": "shows confirmation dialog before deleting on Clear",
-          "given": "Clear button pressed",
-          "expect": "confirmation dialog displayed; weighbridgeRepo.delete() not yet called"
+          "description": "saves record with status=saved when Simpan is pressed with type=dispatch and all required fields valid",
+          "given": "weighbridge_type='dispatch', all required fields including destination filled, record_datetime already auto-set",
+          "expect": "weighbridgeRepo.update() called with status='saved' and the existing record_datetime unchanged (not modified at save time); navigation to Monitor Weighbridge is triggered"
+        },
+        {
+          "description": "saves record with status=saved when Simpan is pressed with type=receive and all required fields valid",
+          "given": "weighbridge_type='receive', all required fields filled, record_datetime already auto-set",
+          "expect": "weighbridgeRepo.update() called with status='saved' and the existing record_datetime unchanged; navigation to Monitor Weighbridge is triggered"
+        },
+        {
+          "description": "saves draft with status=draft_paused without validating required fields when Pause is pressed",
+          "given": "form has one or more required fields empty; weighbridgeRepo.update() mocked",
+          "expect": "weighbridgeRepo.update() called with current field values as-is and status='draft_paused', no validation errors thrown; navigation to Monitor Weighbridge is triggered"
         },
         {
           "description": "deletes record and navigates to Monitor when Clear is confirmed",
-          "given": "Clear confirmation dialog confirmed",
-          "expect": "weighbridgeRepo.delete() called with record id; navigation to Monitor Weighbridge triggered"
+          "given": "user confirms Clear dialog; weighbridgeRepo.delete() mocked to succeed",
+          "expect": "weighbridgeRepo.delete() called with the record id; navigation to Monitor Weighbridge is triggered"
         },
         {
-          "description": "does not delete record when Clear confirmation is cancelled",
-          "given": "Clear confirmation dialog cancelled",
-          "expect": "weighbridgeRepo.delete() not called; form state unchanged"
+          "description": "makes no changes when Clear dialog is canceled",
+          "given": "user cancels the Clear confirmation dialog",
+          "expect": "weighbridgeRepo.delete() is not called; form state remains unchanged"
         },
         {
-          "description": "shows confirmation dialog on Back when form is dirty",
-          "given": "form state isDirty = true, Back pressed",
-          "expect": "confirmation dialog displayed before navigation"
+          "description": "shows confirmation dialog and discards in-memory changes on Back when form is dirty and confirmed",
+          "given": "form state isDirty=true; user confirms the Back dialog",
+          "expect": "in-memory changes are discarded (no repo write); navigation to Monitor Weighbridge is triggered"
         },
         {
           "description": "navigates directly on Back when form is not dirty",
-          "given": "form state isDirty = false, Back pressed",
-          "expect": "navigates to Monitor Weighbridge immediately, no dialog shown"
-        },
-        {
-          "description": "discards in-memory changes and navigates when Back confirmation is confirmed",
-          "given": "form dirty, Back confirmation dialog confirmed",
-          "expect": "in-memory changes discarded, navigation to Monitor Weighbridge triggered, no update call made"
-        },
-        {
-          "description": "navigates to related route when a breadcrumb segment is tapped",
-          "given": "breadcrumb segment 'Weighbridge' tapped",
-          "expect": "router navigates to the corresponding Weighbridge route"
-        },
-        {
-          "description": "opens navigation menu when hamburger icon is tapped",
-          "given": "hamburger icon tapped",
-          "expect": "navigation menu opens showing Ganti Password and Logout options"
+          "given": "form state isDirty=false",
+          "expect": "navigation to Monitor Weighbridge is triggered immediately, without showing a confirmation dialog"
         },
         {
           "description": "returns success result when all conditions pass",
-          "given": "new draft loaded, all required fields filled, gross/tare provided, Simpan pressed",
-          "expect": "record saved with status='saved'; arrival_datetime set to load-time; dispatch_datetime frozen at Simpan-time; net_weight = gross - tare; navigation to Monitor Weighbridge triggered"
+          "given": "weighbridgeRepo.findById() returns a valid continued draft, weighbridge_type='dispatch', all required fields including destination are valid, weighbridgeRepo.update() resolves successfully",
+          "expect": "record_datetime remains at its auto-set value (unchanged by Simpan), Net Weight correctly computed, weighbridgeRepo.update() resolves with the saved record (status='saved'), navigation to Monitor Weighbridge is triggered"
         }
       ]
     }
@@ -211,10 +212,11 @@
   ],
   "implementation_notes": [
     "Simpan/Pause/Clear bersifat lokal (SQLite); pengiriman ke server terjadi lewat mekanisme sync manual terpisah, di luar scope screen ini",
-    "Dispatch live-ticking clock butuh interval timer (mis. setInterval 1 detik) yang di-clear saat unmount atau saat Simpan dibekukan, untuk menghindari memory leak",
+    "record_datetime TIDAK lagi butuh interval timer/live-ticking untuk tipe manapun — auto-set sekali (pola yang sama dengan Arrival versi lama) kini berlaku untuk Receive maupun Dispatch; ini menyederhanakan implementasi dibanding draft sebelumnya (tidak perlu setInterval, tidak perlu clear/restart timer saat ganti tipe atau unmount)",
     "Checked By dihapus total dari layar ini — kolom checked_by di entity tetap ada di skema tapi tidak lagi dibaca/ditulis dari screen ini",
-    "Tanggal Dispatch (field baru) memakai fungsi format tanggal yang sama dengan Tanggal Arrival (formatDateID) — tidak perlu fungsi baru, hanya panggil ulang terhadap dispatch_datetime",
-    "Label (kg) ditambahkan sebagai teks statis pada label field Gross/Tare/Net Weight, bukan perubahan tipe data/unit konversi — nilai tetap tersimpan sebagai angka polos di kolom yang sama"
+    "arrival_datetime dan dispatch_datetime lama disatukan menjadi satu kolom record_datetime pada entity-catalog v5; label tampilan tetap berbeda sesuai weighbridge_type yang dipilih, namun perilaku pengisian (auto-set sekali, tidak dapat diedit) kini identik untuk kedua tipe",
+    "Field Tujuan Muatan (destination) baru, hanya dirender saat weighbridge_type=dispatch, wajib diisi saat itu",
+    "Label (kg) pada Gross/Tare/Net Weight dan (tandan) pada Kuantitas adalah teks statis pada label field, bukan perubahan tipe data/unit konversi — nilai tetap tersimpan sebagai angka polos di kolom yang sama"
   ],
   "test_scenarios": [
     {
@@ -223,13 +225,28 @@
       "api_test": [],
       "component_test": {
         "component": "FormWeighbridgeView",
-        "action": "fill header/vehicle/origin/weighbridge data fields, click Simpan",
-        "assert": "record saved with new status, net_weight computed, dispatch_datetime (date+time) frozen at save time"
+        "action": "select Weighbridge Type tab (Receive or Dispatch); fill header/vehicle/origin fields; fill Destination field if Dispatch type is selected; fill weight fields (Gross, Tare, Kuantitas); click Simpan",
+        "assert": "required-field validation passes; Net Weight = Gross - Tare and stays disabled; record_datetime retains its auto-filled value regardless of type (Receive or Dispatch), unchanged by clicking Simpan; repo update called with status='saved'; navigation to Monitor Weighbridge triggered"
       },
       "browser_test": {
         "route": "/stations/weighbridge/form/:id",
-        "action": "login, buka Form Weighbridge draft baru dari Monitor, isi seluruh field wajib termasuk data berat, klik Simpan",
-        "assert": "navigasi ke Monitor Weighbridge menampilkan record baru dengan status tersimpan"
+        "action": "login, buka Form Weighbridge draft baru dari Monitor, pilih tab Tipe (Receive/Dispatch), isi seluruh field wajib termasuk Tujuan Muatan jika Dispatch dan data berat, klik Simpan",
+        "assert": "navigasi ke Monitor Weighbridge menampilkan record baru dengan status tersimpan, tipe dan tanggal (terisi otomatis sekali saat tipe dipilih, tidak berubah oleh klik Simpan) sesuai yang dipilih"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Weighbridge — Ganti Tipe Setelah Field Terisi",
+      "usecase_id": "usecase-010--form-weighbridge",
+      "api_test": [],
+      "component_test": {
+        "component": "FormWeighbridgeView",
+        "action": "with record_datetime/destination already populated under the current Type tab, click the other Type tab button",
+        "assert": "previously populated record_datetime and destination values are cleared/reset; the newly selected type's field logic re-applies (auto-set once, same behavior for either type); Destination field visibility/required state toggles accordingly"
+      },
+      "browser_test": {
+        "route": "/stations/weighbridge/form/:id",
+        "action": "biarkan tanggal (dan tujuan muatan jika Dispatch) terisi di bawah tab Tipe awal, lalu tap tab Tipe yang lain",
+        "assert": "tampilan tanggal dan tujuan muatan reset dan terisi ulang otomatis sekali sesuai tipe baru; field Tujuan Muatan muncul/hilang sesuai"
       }
     },
     {
@@ -238,12 +255,12 @@
       "api_test": [],
       "component_test": {
         "component": "FormWeighbridgeView",
-        "action": "leave a required field empty, click Simpan",
+        "action": "leave a required field empty (or leave Destination empty when type=Dispatch), click Simpan",
         "assert": "inline error message shown on the empty required field, save handler not invoked"
       },
       "browser_test": {
         "route": "/stations/weighbridge/form/:id",
-        "action": "buka Form Weighbridge, kosongkan salah satu field wajib, klik Simpan",
+        "action": "buka Form Weighbridge, kosongkan salah satu field wajib (atau Tujuan Muatan saat tipe Dispatch), klik Simpan",
         "assert": "pesan error inline muncul pada field terkait, form tetap di halaman ini, record tidak tersimpan"
       }
     },
@@ -253,13 +270,13 @@
       "api_test": [],
       "component_test": {
         "component": "FormWeighbridgeView",
-        "action": "mount form with an existing draft_paused record loaded",
-        "assert": "all form fields populated from the saved draft, except dispatch date/time which starts live-ticking from current time rather than the stored value"
+        "action": "mount form with an existing draft_paused record loaded (including its weighbridge_type and record_datetime)",
+        "assert": "all form fields populated from the saved draft including weighbridge_type and record_datetime; no field is reset or re-ticked for either type"
       },
       "browser_test": {
         "route": "/stations/weighbridge/form/:id",
         "action": "dari Monitor Weighbridge, tap draft paused sebelumnya untuk dilanjutkan",
-        "assert": "semua field terisi sesuai draft tersimpan, Tanggal & Waktu Dispatch menunjukkan tanggal/jam saat ini yang terus berjalan (bukan nilai draft lama)"
+        "assert": "semua field terisi sesuai draft tersimpan termasuk tipe dan tanggal, tidak ada yang berubah/reset"
       }
     },
     {

@@ -34,12 +34,13 @@
 
         <div class="ct-filterbar__field">
             <label for="business_unit_id" class="ct-filterbar__label">Business Unit</label>
-            <select id="business_unit_id" wire:model.live="business_unit_id" class="ct-filterbar__input">
-                <option value="">Semua Business Unit</option>
-                @foreach ($businessUnits as $businessUnit)
-                    <option value="{{ $businessUnit->id }}">{{ $businessUnit->name }}</option>
-                @endforeach
-            </select>
+            <x-searchable-select
+                id="business_unit_id"
+                wire:model.live="business_unit_id"
+                :options="collect($businessUnits)->map(fn ($businessUnit) => ['value' => $businessUnit->id, 'label' => $businessUnit->name])->all()"
+                placeholder="Semua Business Unit"
+                class="ct-filterbar__input"
+            />
         </div>
     </div>
 

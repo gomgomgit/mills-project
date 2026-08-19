@@ -82,6 +82,18 @@ it('berhasil: shows filtered rows and export links after setting filter properti
         ->assertSee('Ekspor Excel');
 });
 
+// Scenario: "Telusuri & Ekspor Data Weighbridge — Filter Berdasarkan Tipe"
+it('Filter Berdasarkan Tipe: shows only records matching the selected weighbridge_type', function () {
+    WeighbridgeRecord::factory()->forStation($this->station)->ofType('receive')->count(2)->create();
+    WeighbridgeRecord::factory()->forStation($this->station)->ofType('dispatch')->count(3)->create();
+
+    Livewire::actingAs($this->user)
+        ->test(DataBrowserWeighbridge::class)
+        ->set('weighbridge_type', 'dispatch')
+        ->assertViewHas('records', fn ($records) => count($records) === 3
+            && collect($records)->every(fn ($record) => $record['weighbridge_type'] === 'dispatch'));
+});
+
 // Scenario: "Telusuri & Ekspor Data Weighbridge — Tidak Ada Data Sesuai Filter"
 it('Tidak Ada Data Sesuai Filter: shows the empty state when no records match the filter', function () {
     WeighbridgeRecord::factory()

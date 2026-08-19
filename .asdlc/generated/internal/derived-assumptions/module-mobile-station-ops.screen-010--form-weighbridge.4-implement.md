@@ -19,3 +19,8 @@
 
 - dispatchDateDisplay reuse formatDateID() yang sama dengan arrivalDateDisplay ← tidak perlu fungsi baru, dispatch_datetime sudah format ISO yang sama
 - REQUIRED_FIELD_LABELS.gross_weight tidak diberi '(kg)' ← itu teks pesan error validasi, bukan label field yang terlihat user, jadi tidak termasuk instruksi "label weight"
+
+## v5 — 2026-08-19
+
+- DIRTY_CHECK_FIELDS menambahkan destination sebagai field dirty-check, sementara weighbridge_type/record_datetime tetap dikecualikan ← tech spec tidak eksplisit menyebut field mana yang masuk dirty-check; agent mengikuti pola lama (field auto/derived dikecualikan, field yang diketik user dimasukkan)
+- buildPayload() memaksa destination='' saat type=receive sebagai jaminan defensif tambahan (bukan hanya UI hide) ← konsisten dengan pola enforcement checked_by dua-lapis (UI + payload) yang sudah ada di screen ini sejak v1, tidak dinyatakan eksplisit di tech spec v6

@@ -22,7 +22,8 @@ use Throwable;
  *
  * Filters accepted by both listRecords() and export(): 'date_from',
  * 'date_to' (both nullable date strings, filtered against
- * arrival_datetime), 'business_unit_id' (nullable uuid, filtered via the
+ * record_datetime), 'weighbridge_type' (nullable enum receive/dispatch),
+ * 'business_unit_id' (nullable uuid, filtered via the
  * station->business_unit_id relationship).
  */
 class WeighbridgeRecordService
@@ -41,11 +42,11 @@ class WeighbridgeRecordService
      * build the filtered query, paginate via the shared Pagination helper,
      * and return the {data, meta} shape.
      *
-     * @param  array{date_from?: ?string, date_to?: ?string, business_unit_id?: ?string}  $filters
+     * @param  array{date_from?: ?string, date_to?: ?string, weighbridge_type?: ?string, business_unit_id?: ?string}  $filters
      */
     public function listRecords(array $filters, int $page, int $perPage): array
     {
-        $query = $this->buildFilteredQuery($filters)->orderByDesc('arrival_datetime');
+        $query = $this->buildFilteredQuery($filters)->orderByDesc('record_datetime');
 
         $paginator = $query->paginate(perPage: $perPage, page: $page);
 
@@ -63,11 +64,11 @@ class WeighbridgeRecordService
      * CSV-served-as-xlsx fallback — see implementation_notes) body, and
      * return it as a StreamedResponse for download.
      *
-     * @param  array{date_from?: ?string, date_to?: ?string, business_unit_id?: ?string}  $filters
+     * @param  array{date_from?: ?string, date_to?: ?string, weighbridge_type?: ?string, business_unit_id?: ?string}  $filters
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)->orderByDesc('arrival_datetime');
+        $query = $this->buildFilteredQuery($filters)->orderByDesc('record_datetime');
 
         $total = $query->count();
 
@@ -87,11 +88,12 @@ class WeighbridgeRecordService
                 // 8.4 deprecates relying on fputcsv()'s default $escape).
                 fputcsv($handle, [
                     'WB Card Number',
-                    'Arrival Datetime',
-                    'Dispatch Datetime',
+                    'Type',
+                    'Record Datetime',
                     'Vehicle Number',
                     'Driver Name',
                     'Estate/Supplier',
+                    'Destination',
                     'Division',
                     'Block',
                     'Gross Weight',
@@ -105,11 +107,12 @@ class WeighbridgeRecordService
                     /** @var WeighbridgeRecord $record */
                     fputcsv($handle, [
                         $record->wb_card_number,
-                        optional($record->arrival_datetime)->toDateTimeString(),
-                        optional($record->dispatch_datetime)->toDateTimeString(),
+                        $record->weighbridge_type,
+                        optional($record->record_datetime)->toDateTimeString(),
                         $record->vehicle_number,
                         $record->driver_name,
                         $record->estate_supplier,
+                        $record->destination,
                         $record->division,
                         $record->block,
                         $record->gross_weight,
@@ -168,15 +171,16 @@ class WeighbridgeRecordService
     /**
      * buildFilteredQuery() — business_logic step 1-2: validate the date
      * range (date_from > date_to → INVALID_DATE_RANGE) then apply the
-     * business_unit_id (via station->business_unit_id) and arrival_datetime
-     * BETWEEN filters.
+     * business_unit_id (via station->business_unit_id), weighbridge_type,
+     * and record_datetime BETWEEN filters.
      *
-     * @param  array{date_from?: ?string, date_to?: ?string, business_unit_id?: ?string}  $filters
+     * @param  array{date_from?: ?string, date_to?: ?string, weighbridge_type?: ?string, business_unit_id?: ?string}  $filters
      */
     protected function buildFilteredQuery(array $filters): Builder
     {
         $dateFrom = $filters['date_from'] ?? null;
         $dateTo = $filters['date_to'] ?? null;
+        $weighbridgeType = $filters['weighbridge_type'] ?? null;
         $businessUnitId = $filters['business_unit_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
@@ -191,12 +195,16 @@ class WeighbridgeRecordService
             });
         }
 
+        if ($weighbridgeType) {
+            $query->where('weighbridge_type', $weighbridgeType);
+        }
+
         if ($dateFrom) {
-            $query->whereDate('arrival_datetime', '>=', $dateFrom);
+            $query->whereDate('record_datetime', '>=', $dateFrom);
         }
 
         if ($dateTo) {
-            $query->whereDate('arrival_datetime', '<=', $dateTo);
+            $query->whereDate('record_datetime', '<=', $dateTo);
         }
 
         return $query;
@@ -204,17 +212,19 @@ class WeighbridgeRecordService
 
     /**
      * Maps a WeighbridgeRecord to the list endpoint's success_schema row
-     * shape: { id, wb_card_number, arrival_datetime, vehicle_number,
-     * driver_name, net_weight, status }.
+     * shape: { id, wb_card_number, weighbridge_type, record_datetime,
+     * vehicle_number, driver_name, destination, net_weight, status }.
      */
     protected function toListRow(WeighbridgeRecord $record): array
     {
         return [
             'id' => $record->id,
             'wb_card_number' => $record->wb_card_number,
-            'arrival_datetime' => optional($record->arrival_datetime)->toIso8601String(),
+            'weighbridge_type' => $record->weighbridge_type,
+            'record_datetime' => optional($record->record_datetime)->toIso8601String(),
             'vehicle_number' => $record->vehicle_number,
             'driver_name' => $record->driver_name,
+            'destination' => $record->destination,
             'net_weight' => $record->net_weight,
             'status' => $record->status?->value,
         ];

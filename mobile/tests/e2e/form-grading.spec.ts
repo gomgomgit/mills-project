@@ -61,22 +61,22 @@ async function seedWeighbridgeRecord(
     vehicleNumber?: string | null
     estateSupplier?: string | null
     division?: string | null
-    arrivalDatetime?: string | null
+    recordDatetime?: string | null
   },
 ): Promise<void> {
   await page.evaluate(
-    async ({ userId, id, wbCardNumber, vehicleNumber, estateSupplier, division, arrivalDatetime }) => {
+    async ({ userId, id, wbCardNumber, vehicleNumber, estateSupplier, division, recordDatetime }) => {
       const db = (window as unknown as { __mslTestDb: { run: (sql: string, params?: unknown[]) => Promise<unknown> } })
         .__mslTestDb
       const now = new Date().toISOString()
       await db.run(
         `INSERT OR REPLACE INTO weighbridge_record
-           (id, status, wb_card_number, arrival_datetime, vehicle_number, estate_supplier, division, created_by, created_at, updated_at)
-         VALUES (?, 'saved', ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, status, wb_card_number, weighbridge_type, record_datetime, vehicle_number, estate_supplier, division, created_by, created_at, updated_at)
+         VALUES (?, 'saved', ?, 'receive', ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           wbCardNumber ?? null,
-          arrivalDatetime ?? now,
+          recordDatetime ?? now,
           vehicleNumber ?? null,
           estateSupplier ?? null,
           division ?? null,
@@ -86,7 +86,7 @@ async function seedWeighbridgeRecord(
         ],
       )
     },
-    { userId, id: overrides.id, wbCardNumber: overrides.wbCardNumber, vehicleNumber: overrides.vehicleNumber, estateSupplier: overrides.estateSupplier, division: overrides.division, arrivalDatetime: overrides.arrivalDatetime },
+    { userId, id: overrides.id, wbCardNumber: overrides.wbCardNumber, vehicleNumber: overrides.vehicleNumber, estateSupplier: overrides.estateSupplier, division: overrides.division, recordDatetime: overrides.recordDatetime },
   )
 }
 
@@ -111,6 +111,63 @@ async function seedGradingParameters(page: Page): Promise<void> {
       )
     }
   })
+}
+
+// WB Card No / per-row Quality Parameter are now SearchableSelect.vue
+// instances (typeable/searchable combobox) rather than plain <select>s —
+// selection is the real open-then-click sequence a user drives, replacing
+// the old single `.selectOption(value)` DOM call. `data-value` on both the
+// component root (SearchableSelect.vue's own `<select>.value`-equivalent
+// testability hook) and each `role="option"` item lets assertions on the
+// current/available selection still key off the underlying id rather than
+// the visible label, exactly like the old `.locator('option')`/
+// `HTMLOptionElement.value` reads this replaces.
+//
+// Two selection helpers:
+//   - `typeAndSelectSearchableOption` types a filter query first, THEN
+//     clicks by exact visible label — a genuine, real-browser exercise of
+//     the typeable/searchable behavior itself (type to filter, click the
+//     filtered result). Used for WB Card No, where this suite's own
+//     fixture `wb_card_number` values (e.g. "WB-GR-001") are guaranteed
+//     unique labels.
+//   - `selectSearchableOptionByValue` clicks by the option's underlying
+//     `data-value` instead of its label. Used for Quality Parameter, where
+//     the REAL app seeds its own 16 canonical grading_parameter rows at
+//     boot (seedGradingParametersIfNeeded(), wired into main.ts) and some
+//     of those can share a visible NAME with this suite's own fixture rows
+//     (e.g. "Brondolan Segar") while having a different id — label-based
+//     selection would then be ambiguous (Playwright's strict mode
+//     correctly refuses to guess between them).
+async function typeAndSelectSearchableOption(
+  page: Page,
+  testId: string,
+  query: string,
+  optionLabel: string,
+): Promise<void> {
+  const root = page.getByTestId(testId)
+  const input = root.locator('input')
+  await input.click()
+  await input.fill(query)
+
+  const option = root.getByRole('option', { name: optionLabel, exact: true })
+  await option.waitFor({ state: 'visible', timeout: 15_000 })
+  await option.click()
+}
+
+async function selectSearchableOptionByValue(page: Page, testId: string, optionValue: string): Promise<void> {
+  const root = page.getByTestId(testId)
+  await root.locator('input').click()
+
+  const option = root.locator(`[role="option"][data-value="${optionValue}"]`)
+  await option.waitFor({ state: 'visible', timeout: 15_000 })
+  await option.click()
+}
+
+async function searchableSelectOptionValues(page: Page, testId: string): Promise<string[]> {
+  const root = page.getByTestId(testId)
+  await root.locator('input').click()
+
+  return root.getByRole('option').evaluateAll((options) => options.map((option) => option.getAttribute('data-value') ?? ''))
 }
 
 async function getGradingRecord(page: Page, id: string): Promise<Record<string, unknown> | null> {
@@ -160,7 +217,7 @@ test.describe('Form Grading (screen-011)', () => {
 
     await page.getByLabel('Grading No').fill('GR-E2E-001')
 
-    await page.getByTestId('wb-card-no-select').selectOption('e2e-wb-for-grading-1')
+    await typeAndSelectSearchableOption(page, 'wb-card-no-select', 'WB-GR-00', 'WB-GR-001')
     // WB Card No selection auto-fills these three fields.
     await expect(page.getByLabel('License Plate No')).toHaveValue('B 1234 GR')
     await expect(page.getByLabel('Estate')).toHaveValue('Estate Grading A')
@@ -171,7 +228,7 @@ test.describe('Form Grading (screen-011)', () => {
     await page.getByLabel('Quantity (bunch)').fill('50')
 
     await page.getByTestId('add-detail-row-button').click()
-    await page.getByTestId('detail-parameter-select-0').selectOption('e2e-grading-param-kg')
+    await selectSearchableOptionByValue(page, 'detail-parameter-select-0', 'e2e-grading-param-kg')
     await page.locator('#detail-qty-0').fill('250')
 
     // Quality Parameter selection snapshots the UOM, and Percentage is
@@ -221,7 +278,7 @@ test.describe('Form Grading (screen-011)', () => {
     await page.waitForURL(/\/stations\/grading\/form\/(.+)/)
 
     await page.getByLabel('Grading No').fill('GR-E2E-002')
-    await page.getByTestId('wb-card-no-select').selectOption('e2e-wb-for-grading-2')
+    await typeAndSelectSearchableOption(page, 'wb-card-no-select', 'WB-GR-00', 'WB-GR-002')
     await page.getByLabel('Vehicle Code').fill('VC-E2E-002')
     await page.getByLabel('Estate').fill('Estate C')
     await page.getByLabel('Netto (kg)').fill('500')
@@ -309,25 +366,21 @@ test.describe('Form Grading (screen-011)', () => {
     await page.getByTestId('add-detail-row-button').click()
     await page.getByTestId('add-detail-row-button').click()
 
-    await page.getByTestId('detail-parameter-select-0').selectOption('e2e-grading-param-kg')
+    await selectSearchableOptionByValue(page, 'detail-parameter-select-0', 'e2e-grading-param-kg')
 
-    // Assert by option `value` (the parameter id), not visible text — the
-    // real app seeds its own 16 canonical parameters at boot
+    // Assert by option `data-value` (the parameter id), not visible text —
+    // the real app seeds its own 16 canonical parameters at boot
     // (seedGradingParametersIfNeeded(), wired into main.ts), some of which
     // share a NAME with this test's own fixture rows (e.g. "Brondolan
     // Segar") but have a different id. Only the id this test actually
     // selected should be excluded from the other row.
-    const row1Values = await page.getByTestId('detail-parameter-select-1').locator('option').evaluateAll((options) =>
-      options.map((option) => (option as HTMLOptionElement).value),
-    )
+    const row1Values = await searchableSelectOptionValues(page, 'detail-parameter-select-1')
     expect(row1Values).not.toContain('e2e-grading-param-kg')
     expect(row1Values).toContain('e2e-grading-param-bunch')
 
     // Removing the row that used it frees the parameter up again.
     await page.getByTestId('remove-detail-row-button').first().click()
-    const row0ValuesAfterRemove = await page.getByTestId('detail-parameter-select-0').locator('option').evaluateAll((options) =>
-      options.map((option) => (option as HTMLOptionElement).value),
-    )
+    const row0ValuesAfterRemove = await searchableSelectOptionValues(page, 'detail-parameter-select-0')
     expect(row0ValuesAfterRemove).toContain('e2e-grading-param-kg')
   })
 

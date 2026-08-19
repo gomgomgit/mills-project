@@ -14,6 +14,12 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  * screen-016--data-browser-weighbridge-web (no prior screen needed a
  * Station factory; WeighbridgeRecord::station() is a required belongsTo,
  * so WeighbridgeRecordFactory needs this to exist).
+ *
+ * `other()`/`withCode()` states below were added additively by
+ * test-writer-agent for screen-030--kelola-station's test suite
+ * (StationServiceTest / KelolaStationTest, both Api and Livewire) — the
+ * existing `definition()` default and `weighbridge()`/`forBusinessUnit()`
+ * states above are completely unchanged.
  */
 class StationFactory extends Factory
 {
@@ -39,5 +45,29 @@ class StationFactory extends Factory
         return $this->state(fn () => [
             'business_unit_id' => $businessUnit instanceof BusinessUnit ? $businessUnit->id : $businessUnit,
         ]);
+    }
+
+    /**
+     * `type = other` + `is_active = false` — the only valid combination
+     * for type=other per StationService::validate()'s cross-field rule
+     * (is_active may never be true when type is "other"). Used by
+     * screen-030--kelola-station's test suite to seed a valid "Other"
+     * station without tripping that rule.
+     */
+    public function other(): self
+    {
+        return $this->state(fn () => [
+            'type' => StationType::Other,
+            'is_active' => false,
+        ]);
+    }
+
+    /**
+     * Sets an explicit `code` — used by screen-030--kelola-station's test
+     * suite for uniqueness-conflict fixtures.
+     */
+    public function withCode(string $code): self
+    {
+        return $this->state(fn () => ['code' => $code]);
     }
 }

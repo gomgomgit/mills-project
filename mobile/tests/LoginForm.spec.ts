@@ -125,10 +125,37 @@ async function mountLoginForm() {
   return wrapper
 }
 
+// --- SearchableSelect.vue interaction helpers -----------------------------
+// Business Area is now a SearchableSelect.vue instance — `id="business_unit_id"`
+// is bound to its inner <input> (SearchableSelect.vue's own `<label for>`
+// convention), so `#business_unit_id` still resolves to a single focusable
+// element, same as before. Selection is now driven by opening the popup
+// (focus) and clicking the `role="option"` item with the exact label text,
+// the same open-then-click sequence a real user does, rather than a single
+// synchronous `.setValue(id)` DOM assignment. See FormGradingView.spec.ts's
+// header comment for the fuller rationale (mirrored here).
+async function chooseBusinessUnit(
+  wrapper: Awaited<ReturnType<typeof mountLoginForm>>,
+  unitName: string,
+): Promise<void> {
+  const root = wrapper.find('#business_unit_id')
+  await root.trigger('focus')
+
+  const match = wrapper
+    .findAll('[role="option"]')
+    .find((option) => option.text() === unitName)
+
+  if (!match) {
+    throw new Error(`chooseBusinessUnit: no option labeled "${unitName}" found`)
+  }
+
+  await match.trigger('mousedown')
+}
+
 async function fillValidForm(wrapper: Awaited<ReturnType<typeof mountLoginForm>>) {
   await wrapper.find('#username').setValue('operator01')
   await wrapper.find('#password').setValue('Passw0rd!')
-  await wrapper.find('#business_unit_id').setValue('bu-001')
+  await chooseBusinessUnit(wrapper, 'Mill A')
 }
 
 describe('LoginForm — POST /api/login (mobile, device_name)', () => {
@@ -243,7 +270,7 @@ describe('LoginForm — POST /api/login (mobile, device_name)', () => {
 
     await wrapper.find('#username').setValue('operator01')
     await wrapper.find('#password').setValue('abc')
-    await wrapper.find('#business_unit_id').setValue('bu-001')
+    await chooseBusinessUnit(wrapper, 'Mill A')
 
     await wrapper.find('form').trigger('submit')
     await flushPromises()
@@ -266,7 +293,7 @@ describe('LoginForm — POST /api/login (mobile, device_name)', () => {
     const wrapper = await mountLoginForm()
     await wrapper.find('#username').setValue('operator01')
     await wrapper.find('#password').setValue('Passw0rd!')
-    await wrapper.find('#business_unit_id').setValue('bu-002')
+    await chooseBusinessUnit(wrapper, 'Mill B')
 
     await wrapper.find('form').trigger('submit')
     await flushPromises()

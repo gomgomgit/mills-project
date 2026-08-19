@@ -1,0 +1,154 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "usecase-030--kelola-station",
+  "name": "Kelola Station",
+  "description": "Admin mengelola data master Station (stasiun produksi mill di bawah Business Unit) melalui web — melihat daftar, menambah dengan memilih Business Unit induk dan tipe, mengedit, dan menghapus Station.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login ke web app",
+    "Minimal satu Business Unit sudah ada untuk dapat menambah Station"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Admin membuka menu Master Data > Kelola Station"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Sistem menampilkan daftar Station beserta kode, tipe, status aktif, Business Unit induk, dan jumlah Machinery Group terkait masing-masing"
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Admin klik Tambah Station, memilih Business Unit induk dan tipe dari dropdown, mengisi nama, serta field lain jika diperlukan"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Sistem memvalidasi kode unik (jika diisi) dan status aktif sesuai tipe, menyimpan Station baru, dan menampilkannya di daftar"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Edit Station",
+      "trigger": "Step 2 — Admin klik Edit pada salah satu baris Station",
+      "steps": [
+        "Admin mengubah kode, nama, deskripsi, tipe, status aktif, dan/atau Business Unit induk",
+        "Sistem memvalidasi kode unik (jika diisi) dan status aktif sesuai tipe",
+        "Sistem menyimpan perubahan dan memperbarui daftar"
+      ]
+    },
+    {
+      "name": "Hapus Station — berhasil",
+      "trigger": "Step 2 — Admin klik Hapus pada Station yang tidak memiliki Machinery Group atau Machinery terkait",
+      "steps": [
+        "Sistem menghapus Station",
+        "Sistem memperbarui daftar"
+      ]
+    },
+    {
+      "name": "Hapus Station — ditolak",
+      "trigger": "Step 2 — Admin klik Hapus pada Station yang masih memiliki Machinery Group atau Machinery terkait",
+      "steps": [
+        "Sistem menolak penghapusan",
+        "Sistem menampilkan pesan bahwa Station masih memiliki Machinery Group/Machinery terkait"
+      ]
+    },
+    {
+      "name": "Kode duplikat",
+      "trigger": "Step 4 (atau langkah simpan pada Edit) — Admin menyimpan kode yang sudah dipakai Station lain",
+      "steps": [
+        "Sistem menolak penyimpanan",
+        "Sistem menampilkan pesan validasi kode sudah dipakai"
+      ]
+    },
+    {
+      "name": "Status aktif tidak sesuai tipe",
+      "trigger": "Step 4 (atau langkah simpan pada Edit) — Admin mengaktifkan (is_active=true) Station bertipe Other",
+      "steps": [
+        "Sistem menolak penyimpanan",
+        "Sistem menampilkan pesan bahwa hanya tipe Weighbridge/Grading/Cages Track yang boleh aktif"
+      ]
+    },
+    {
+      "name": "Belum ada Business Unit",
+      "trigger": "Step 3 — Admin membuka form Tambah Station saat belum ada Business Unit sama sekali",
+      "steps": [
+        "Sistem menampilkan form tanpa opsi Business Unit yang dapat dipilih",
+        "Sistem mengarahkan Admin untuk membuat Business Unit terlebih dahulu"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Station baru/ubahan tersimpan dan terlihat di daftar dengan Business Unit induk yang benar",
+    "Atau Station terhapus dari daftar jika tidak ada Machinery Group/Machinery terkait"
+  ],
+  "business_rules": [
+    "Kode Station harus unik jika diisi",
+    "Status aktif hanya diperbolehkan untuk tipe Weighbridge, Grading, atau Cages Track",
+    "Station tidak dapat dihapus jika masih memiliki satu atau lebih Machinery Group atau Machinery terkait",
+    "Hanya Admin yang dapat mengakses dan mengelola data Station",
+    "Station harus terkait ke tepat satu Business Unit yang sudah ada"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Kelola Station — success",
+      "given": "Admin sudah login ke web app dan minimal satu Business Unit sudah ada",
+      "when": "Admin membuka menu Kelola Station, menambah Station baru dengan memilih Business Unit induk dan tipe Weighbridge, mengisi nama, dan mengaktifkannya",
+      "then": "Station baru tersimpan dan terlihat di daftar dengan Business Unit induk yang benar"
+    },
+    {
+      "scenario": "Kelola Station — Edit Station",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Station",
+      "when": "Admin klik Edit pada salah satu baris Station dan mengubah nama, deskripsi, dan/atau field lain",
+      "then": "Sistem memvalidasi kode dan status aktif, menyimpan perubahan, dan memperbarui daftar"
+    },
+    {
+      "scenario": "Kelola Station — Hapus Station — berhasil",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Station yang tidak memiliki Machinery Group/Machinery terkait",
+      "when": "Admin klik Hapus pada Station tersebut",
+      "then": "Sistem menghapus Station dan memperbarui daftar"
+    },
+    {
+      "scenario": "Kelola Station — Hapus Station — ditolak",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Station yang masih memiliki Machinery Group/Machinery terkait",
+      "when": "Admin klik Hapus pada Station tersebut",
+      "then": "Sistem menolak penghapusan dan menampilkan pesan bahwa Station masih memiliki Machinery Group/Machinery terkait"
+    },
+    {
+      "scenario": "Kelola Station — Kode duplikat",
+      "given": "Admin sudah login ke web app dan minimal satu Business Unit sudah ada",
+      "when": "Admin menyimpan kode Station yang sudah dipakai Station lain",
+      "then": "Sistem menolak penyimpanan dan menampilkan pesan validasi kode sudah dipakai"
+    },
+    {
+      "scenario": "Kelola Station — Status aktif tidak sesuai tipe",
+      "given": "Admin sudah login ke web app dan sedang menambah atau mengedit Station bertipe Other",
+      "when": "Admin mencoba mengaktifkan (is_active=true) Station tersebut",
+      "then": "Sistem menolak penyimpanan dan menampilkan pesan bahwa hanya tipe Weighbridge/Grading/Cages Track yang boleh aktif"
+    },
+    {
+      "scenario": "Kelola Station — Belum ada Business Unit",
+      "given": "Admin sudah login ke web app dan belum ada Business Unit sama sekali",
+      "when": "Admin membuka form Tambah Station",
+      "then": "Sistem menampilkan form tanpa opsi Business Unit yang dapat dipilih dan mengarahkan Admin untuk membuat Business Unit terlebih dahulu"
+    },
+    {
+      "scenario": "Kelola Station — akses ditolak untuk non-Admin",
+      "given": "Pengguna sudah login ke web app namun bukan berperan sebagai Admin",
+      "when": "Pengguna mencoba mengakses menu Master Data > Kelola Station",
+      "then": "Sistem menolak akses karena hanya Admin yang dapat mengakses dan mengelola data Station"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-030--kelola-station"
+  ]
+}

@@ -9,6 +9,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 
 /**
@@ -57,9 +58,19 @@ class ApiExceptionHandler
             ], 403);
         }
 
-        if ($e instanceof ModelNotFoundException) {
+        // Laravel 11's Handler::render() runs prepareException() before any
+        // custom render callback sees the exception, which converts
+        // ModelNotFoundException -> NotFoundHttpException (with the original
+        // ModelNotFoundException as getPrevious()). Detect that wrapping here
+        // and prefer the default 404 message over the raw Eloquent message
+        // (e.g. "No query results for model [...] <id>"), instead of falling
+        // through to the generic HttpExceptionInterface branch below, which
+        // would otherwise leak $e->getMessage(). Any other NotFoundHttpException
+        // (e.g. an explicit abort(404, 'custom message')) still falls through
+        // to the generic HttpExceptionInterface branch below unchanged.
+        if ($e instanceof NotFoundHttpException && $e->getPrevious() instanceof ModelNotFoundException) {
             return response()->json([
-                'message' => 'Data tidak ditemukan.',
+                'message' => static::defaultMessageFor(404),
             ], 404);
         }
 

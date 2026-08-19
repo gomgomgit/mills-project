@@ -1,13 +1,13 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 4,
+  "ver": 6,
   "id": "screen-010--form-weighbridge",
   "name": "Form Weighbridge",
   "module_id": "module-mobile-station-ops",
-  "description": "Form input/edit data log Weighbridge yang mencatat data kendaraan, supir, asal muatan, dan berat timbang, dengan field dikelompokkan per section, waktu Arrival & Dispatch otomatis (termasuk tanggal), dan Net Weight terhitung otomatis.",
+  "description": "Form input/edit data log Weighbridge yang mencatat data kendaraan, supir, asal muatan (dan tujuan muatan untuk tipe Dispatch), serta berat timbang. Weighbridge memiliki 2 tipe — Receive dan Dispatch — dipilih via 2 tombol tab bersebelahan; field tanggal & waktu record mengikuti tipe yang dipilih, diisi otomatis sekali saat tipe tersebut dipilih/draft dibuat dan tidak dapat diedit (hanya 1 field tanggal ditampilkan di satu waktu, perilaku sama untuk kedua tipe), dan Net Weight terhitung otomatis.",
   "actors": [
     "actor-station-operator",
     "actor-supervisor"
@@ -18,16 +18,25 @@
   ],
   "information_displayed": [
     "WB Card Number/ID",
-    "Tanggal & Waktu Arrival — otomatis terisi sekali saat form dibuka, tidak dapat diedit",
+    "Tipe Weighbridge: Receive atau Dispatch — dipilih via 2 tombol tab bersebelahan, default Receive untuk draft baru",
+    "Tanggal & Waktu — label mengikuti tipe yang dipilih ('Tanggal & Waktu Arrival' untuk Receive, 'Tanggal & Waktu Dispatch' untuk Dispatch), diisi otomatis sekali saat tipe tersebut dipilih/draft dibuat, tidak dapat diedit manual — hanya 1 field tanggal yang ditampilkan pada satu waktu, perilaku sama untuk kedua tipe",
+    "Tujuan Muatan — hanya muncul saat tipe Dispatch dipilih, input teks bebas, wajib diisi",
     "Data kendaraan (No. Kendaraan, Nama Supir) - input teks bebas",
     "Estate/Supplier asal, Divisi, Blok - input teks bebas",
-    "Berat masuk (Gross) (kg) dan berat keluar (Tare) (kg) - input manual; Net Weight (kg) dihitung otomatis (Gross - Tare), tidak dapat diedit; Kuantitas",
-    "Tanggal & Waktu Dispatch — otomatis mengikuti tanggal dan waktu saat ini secara real-time, tidak dapat diedit, berhenti mengikuti waktu saat Simpan ditekan",
+    "Berat masuk (Gross) (kg) dan berat keluar (Tare) (kg) - input manual; Net Weight (kg) dihitung otomatis (Gross - Tare), tidak dapat diedit; Kuantitas (tandan)",
     "Breadcrumb navigasi (Home > Production Process Activity > Weighbridge > Form) yang dapat ditap",
     "Header 'Mill Smart Log' + ikon hamburger menu",
-    "Field dikelompokkan per section: Identitas Weighbridge, Kendaraan & Supir, Asal Muatan, Data Timbangan, Dispatch"
+    "Field dikelompokkan per section: Identitas Weighbridge (termasuk tipe, WB Card Number, tanggal & waktu, tujuan muatan), Kendaraan & Supir, Asal Muatan, Data Timbangan"
   ],
   "available_actions": [
+    {
+      "action": "Pilih Tipe (Receive/Dispatch)",
+      "description": "Menentukan tipe transaksi Weighbridge via tombol tab; mengubah label field tanggal & waktu yang ditampilkan dan memunculkan/menyembunyikan field Tujuan Muatan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
     {
       "action": "Simpan",
       "description": "Menyimpan record data Weighbridge secara final",
@@ -81,18 +90,22 @@
     "Data kendaraan, supir, estate/supplier, divisi, blok tetap input teks bebas (bukan dropdown master data) di MVP",
     "Record tersimpan langsung begitu Simpan ditekan (bukan approval workflow berjenjang)",
     "Field wajib ditandai asterisk merah dengan validasi inline",
-    "Tanggal & Waktu Arrival diisi otomatis sekali saat form dibuka, tidak dapat diedit manual",
-    "Tanggal & Waktu Dispatch diisi otomatis mengikuti tanggal & waktu saat ini secara real-time sampai Simpan ditekan; nilai final adalah tanggal & waktu tepat saat Simpan ditekan",
+    "Tipe Weighbridge (Receive/Dispatch) dipilih via tombol tab bersebelahan; default Receive untuk draft baru, dapat diganti kapan saja sebelum Simpan",
+    "Saat tipe Receive dipilih: Tanggal & Waktu Arrival diisi otomatis sekali saat tipe dipilih/draft dibuat, tidak dapat diedit manual; field Tujuan Muatan tidak ditampilkan dan tidak divalidasi",
+    "Saat tipe Dispatch dipilih: Tanggal & Waktu Dispatch diisi otomatis sekali saat tipe dipilih/draft dibuat, tidak dapat diedit manual (perilaku sama seperti Arrival); field Tujuan Muatan wajib diisi",
+    "Jika user mengganti tipe Weighbridge setelah field tanggal/tujuan muatan sempat terisi, nilai lama dibuang dan field baru menyesuaikan ulang sesuai tipe yang baru dipilih",
     "Net Weight dihitung otomatis dari Gross Weight dikurangi Tare Weight, tidak dapat diedit manual",
     "Breadcrumb harus dapat dinavigasi",
-    "Label field berat (Gross, Tare, Net Weight) menampilkan satuan (kg) untuk kejelasan"
+    "Label field berat (Gross, Tare, Net Weight) menampilkan satuan (kg) untuk kejelasan",
+    "Label Kuantitas menampilkan satuan (tandan) untuk kejelasan"
   ],
   "usecase_ids": [
     "usecase-010--form-weighbridge"
   ],
   "edge_cases": [
-    "Field wajib belum lengkap saat Simpan ditekan",
-    "Draft yang di-Pause lalu dilanjutkan - data harus terisi kembali sesuai draft tersimpan",
+    "Field wajib belum lengkap saat Simpan ditekan (termasuk Tujuan Muatan jika tipe Dispatch)",
+    "User mengganti tipe Weighbridge setelah field tanggal/tujuan muatan sudah terisi — nilai lama dibuang, field menyesuaikan tipe baru",
+    "Draft yang di-Pause lalu dilanjutkan - data (termasuk tipe yang dipilih dan tanggal & waktu yang sudah terisi) harus terisi kembali sesuai draft tersimpan, tidak ada field tanggal yang di-reset saat draft dibuka ulang",
     "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
     "User menekan Clear (perlu konfirmasi sebelum hapus permanen)"
   ],

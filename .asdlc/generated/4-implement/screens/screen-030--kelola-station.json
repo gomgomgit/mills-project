@@ -1,0 +1,76 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-030--kelola-station",
+  "name": "Kelola Station",
+  "module_id": "module-master-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/database/migrations/2026_08_19_000004_add_fields_to_stations_table.php",
+    "backend/database/migrations/2026_08_19_000005_create_machinery_groups_table.php",
+    "backend/app/Models/MachineryGroup.php",
+    "backend/app/Exceptions/StationHasMachineryException.php",
+    "backend/app/Services/StationService.php",
+    "backend/app/Http/Controllers/Api/StationController.php",
+    "backend/app/Models/Station.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/StationServiceTest.php",
+    "backend/tests/Feature/Api/KelolaStationTest.php",
+    "backend/tests/Feature/Livewire/KelolaStationTest.php",
+    "backend/tests/Browser/KelolaStationTest.php",
+    "backend/database/factories/MachineryGroupFactory.php",
+    "backend/database/factories/MachineryFactory.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/MasterData/KelolaStation.php",
+    "backend/resources/views/master-data/stations.blade.php",
+    "backend/resources/views/livewire/master-data/kelola-station.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "First-time implementation — CRUD lengkap untuk Station dengan field ERD sejak awal, DIATAS field existing (business_unit_id, name, type, is_active) yang sudah dipakai luas oleh mobile screen 006/007-009 dan web screen 016/017/018 — field tersebut TIDAK diubah/dihapus, hanya ditambah code (opsional, unik jika diisi) dan description",
+    "is_active punya aturan cross-field: hanya boleh true jika type in (weighbridge, grading, cages-track), ditegakkan via Validator::make()->after() closure",
+    "code nullable + Rule::unique bersama-sama — pendekatan idiomatis Laravel yang benar: unique hanya menolak duplikat nilai non-null asli, banyak baris NULL tetap boleh hidup berdampingan",
+    "Dibuat placeholder minimal untuk 2 entity yang belum ada: tabel+model MachineryGroup (business_unit_id, station_id, timestamps saja) dan model Machinery (untuk delete-guard). Keduanya akan DIPERLUAS oleh screen-033 (Kelola Machinery Group) dan screen-031 (Kelola Machinery) via migration baru masing-masing, BUKAN dibuat ulang dari nol — mengikuti konvensi 'migration baru menambah kolom' yang konsisten sepanjang round ini",
+    "409 STATION_HAS_MACHINERY memeriksa DUA entity anak (MachineryGroup DAN Machinery langsung)",
+    "FIX ROUND 1 (bug nyata ditemukan test-writer-agent): KelolaStation::buildValidator() awalnya mem-key payload validasi client-side dengan 'name'/'code'/'description' polos, bukan 'form.name'/'form.code'/'form.description' bersarang — pesan error validasi gagal muncul di bawah field yang benar (hanya fallback validasi server-side di dalam catch save() yang benar). Diperbaiki dengan me-restrukturisasi payload jadi array bersarang genuine ['form' => [...]] (bukan flat key literal 'form.name', yang tidak resolve via dot-notation Laravel) — diverifikasi 3 assertion test diperbarui.",
+    "Tidak ada field logo pada Station (sesuai entity-catalog/ERD)",
+    "Independently re-verified oleh command: re-run `php artisan test` — 454/454 lulus (full suite gabungan 027+028+029+030); baca StationService.php dan MachineryGroup.php/migration placeholder penuh untuk konfirmasi delete-guard dan pola placeholder-untuk-diperluas sesuai rencana"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada Playwright/Node infra di sandbox backend/, konsisten dengan keterbatasan yang sudah diterima di seluruh screen web lain",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-19T15:00:00Z",
+      "passed": 31,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-19T15:00:00Z",
+      "passed": 33,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-19T15:00:00Z",
+      "passed": 29,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,722 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-030--kelola-station",
+  "name": "Kelola Station",
+  "module_id": "module-master-data",
+  "route": "/master-data/stations",
+  "auth_requirement": "role: admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": false,
+      "conditions": "Master data terbatas untuk role Admin"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": false,
+      "conditions": "Master data terbatas untuk role Admin"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Master data terbatas untuk role Admin"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-030--kelola-station",
+      "usecase_name": "Kelola Station",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/stations",
+          "description": "List Station dengan Business Unit induk dan jumlah Machinery Group terkait, dipaginasi, opsional filter per Business Unit",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter Station milik satu Business Unit"
+              },
+              {
+                "name": "page",
+                "type": "integer",
+                "required": false,
+                "default": "1",
+                "description": "Halaman"
+              },
+              {
+                "name": "per_page",
+                "type": "integer",
+                "required": false,
+                "default": "20",
+                "description": "Jumlah per halaman, max 100"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "code": "string",
+                  "name": "string",
+                  "type": "string",
+                  "is_active": "boolean",
+                  "business_unit_id": "uuid",
+                  "business_unit_name": "string",
+                  "machinery_group_count": "integer",
+                  "created_at": "timestamp"
+                }
+              ],
+              "meta": {
+                "page": "integer",
+                "per_page": "integer",
+                "total": "integer",
+                "total_pages": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/business-units/options",
+          "description": "List ringkas seluruh Business Unit (id, name) untuk dropdown pilih Business Unit induk pada form Station",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/stations",
+          "description": "Membuat Station baru",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "business_unit_id": "uuid, required, harus Business Unit yang ada",
+              "code": "string, optional, unik jika diisi",
+              "name": "string, required",
+              "description": "string, optional",
+              "type": "enum(weighbridge, grading, cages-track, other), required",
+              "is_active": "boolean, required, hanya true jika type in (weighbridge, grading, cages-track)"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "code": "string",
+              "name": "string",
+              "description": "string",
+              "type": "string",
+              "is_active": "boolean",
+              "business_unit_id": "uuid",
+              "business_unit_name": "string",
+              "machinery_group_count": 0,
+              "created_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "name kosong, code sudah dipakai, business_unit_id tidak valid, atau is_active=true untuk type=other"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/stations/:id",
+          "description": "Mengubah data Station",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID Station"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "business_unit_id": "uuid, required, harus Business Unit yang ada",
+              "code": "string, optional, unik jika diisi (kecuali dirinya sendiri)",
+              "name": "string, required",
+              "description": "string, optional",
+              "type": "enum(weighbridge, grading, cages-track, other), required",
+              "is_active": "boolean, required, hanya true jika type in (weighbridge, grading, cages-track)"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "code": "string",
+              "name": "string",
+              "description": "string",
+              "type": "string",
+              "is_active": "boolean",
+              "business_unit_id": "uuid",
+              "business_unit_name": "string",
+              "machinery_group_count": "integer",
+              "created_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "name kosong, code sudah dipakai, business_unit_id tidak valid, atau is_active=true untuk type=other"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Station id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/stations/:id",
+          "description": "Menghapus Station jika tidak memiliki Machinery Group/Machinery terkait",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID Station"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "deleted": true
+            },
+            "error_codes": [
+              {
+                "http_code": 409,
+                "error_code": "STATION_HAS_MACHINERY",
+                "condition": "Station masih memiliki satu atau lebih Machinery Group atau Machinery terkait"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Station id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by business_unit_id, eager-load BusinessUnit untuk business_unit_name, hitung machinery_group_count via COUNT machinery_group WHERE station_id",
+        "2. GET /api/business-units/options: SELECT id, name dari seluruh Business Unit, urut nama, untuk dropdown form (tanpa pagination)",
+        "3. POST create: validate business_unit_id ada → validate name required → validate code unik jika diisi → validate is_active hanya true untuk type weighbridge/grading/cages-track → if invalid: return 422 VALIDATION_ERROR → insert Station baru",
+        "4. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate business_unit_id ada → validate name required → validate code unik jika diisi (exclude self) → validate is_active sesuai type → if invalid: return 422 VALIDATION_ERROR → update Station",
+        "5. DELETE: validate id exists → if not: return 404 NOT_FOUND → count MachineryGroup WHERE station_id=id + count Machinery WHERE station_id=id → if either > 0: return 409 STATION_HAS_MACHINERY → else delete Station"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "SELECT Station dipaginasi dengan Business Unit induk + machinery_group_count, opsional filter business_unit_id"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "SELECT ringkas seluruh Business Unit untuk dropdown; SELECT untuk validasi business_unit_id ada saat create/update"
+        },
+        {
+          "entity_id": "station",
+          "operation": "INSERT",
+          "description": "INSERT Station baru"
+        },
+        {
+          "entity_id": "station",
+          "operation": "UPDATE",
+          "description": "UPDATE Station"
+        },
+        {
+          "entity_id": "station",
+          "operation": "DELETE",
+          "description": "DELETE Station jika tidak ada Machinery Group/Machinery terkait"
+        },
+        {
+          "entity_id": "machinery-group",
+          "operation": "SELECT",
+          "description": "COUNT Machinery Group WHERE station_id sebelum delete"
+        },
+        {
+          "entity_id": "machinery",
+          "operation": "SELECT",
+          "description": "COUNT Machinery WHERE station_id sebelum delete"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Kode Station sudah dipakai Station lain",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.code"
+        },
+        {
+          "condition": "Station masih memiliki Machinery Group/Machinery terkait saat dihapus",
+          "handling": "Return 409 STATION_HAS_MACHINERY"
+        },
+        {
+          "condition": "is_active=true untuk type=other",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.is_active"
+        },
+        {
+          "condition": "Belum ada Business Unit sama sekali",
+          "handling": "GET /api/business-units/options mengembalikan data: [], FE menonaktifkan/mengarahkan form Tambah Station"
+        },
+        {
+          "condition": "id tidak ditemukan pada update/delete",
+          "handling": "Return 404 NOT_FOUND"
+        },
+        {
+          "condition": "business_unit_id tidak valid/tidak ditemukan",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.business_unit_id"
+        }
+      ],
+      "business_rules_applied": [
+        "Kode Station harus unik jika diisi",
+        "Status aktif hanya diperbolehkan untuk tipe Weighbridge, Grading, atau Cages Track",
+        "Station tidak dapat dihapus jika masih memiliki satu atau lebih Machinery Group atau Machinery terkait",
+        "Hanya Admin yang dapat mengakses dan mengelola data Station",
+        "Station harus terkait ke tepat satu Business Unit yang sudah ada"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns paginated station list with business_unit_name and machinery_group_count for each row",
+          "given": "StationRepository.findPaginated() returns rows joined with BusinessUnit and MachineryGroup count",
+          "expect": "return 200 with data array including business_unit_name and machinery_group_count per row, plus pagination meta"
+        },
+        {
+          "description": "filters list by business_unit_id when provided",
+          "given": "query param business_unit_id=X is provided",
+          "expect": "only stations belonging to business_unit_id=X are returned"
+        },
+        {
+          "description": "returns 403 FORBIDDEN when authenticated user is not Admin (list)",
+          "given": "authenticated user role != admin",
+          "expect": "return 403 FORBIDDEN, no data returned"
+        },
+        {
+          "description": "returns Business Unit options list unpaginated for dropdown",
+          "given": "BusinessUnitRepository.all() returns existing Business Units",
+          "expect": "return 200 with data: [{id, name}, ...] ordered by name"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating Station with non-existent business_unit_id",
+          "given": "BusinessUnitRepository.findById(business_unit_id) returns null",
+          "expect": "throw ValidationException with errors.business_unit_id; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating Station with empty name",
+          "given": "input name is empty string",
+          "expect": "throw ValidationException with errors.name; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating Station with a duplicate code",
+          "given": "input code is non-empty and StationRepository.existsByCode(code) returns true",
+          "expect": "throw ValidationException with errors.code; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "allows creating Station with a null/empty code (code is optional)",
+          "given": "input code is null or omitted",
+          "expect": "Station is created successfully with code=null, no VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when is_active=true is set for type=other",
+          "given": "input type='other', is_active=true",
+          "expect": "throw ValidationException with errors.is_active; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "allows is_active=true for type in (weighbridge, grading, cages-track)",
+          "given": "input type='weighbridge', is_active=true",
+          "expect": "Station is created/updated successfully, no VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 404 NOT_FOUND when updating/deleting Station with non-existent id",
+          "given": "StationRepository.findById(id) returns null",
+          "expect": "throw NotFoundException; http 404 NOT_FOUND"
+        },
+        {
+          "description": "allows updating Station keeping its own unchanged code (self excluded from uniqueness check)",
+          "given": "code is unchanged from the Station's current code",
+          "expect": "update succeeds, no VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 409 STATION_HAS_MACHINERY when deleting Station that still has related MachineryGroup or Machinery records",
+          "given": "StationRepository.findById(id) returns existing Station; MachineryGroupRepository.countByStationId(id) or MachineryRepository.countByStationId(id) returns > 0",
+          "expect": "throw ConflictException; http 409 STATION_HAS_MACHINERY; Station is not deleted"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "StationRepository.existsByCode() (Excluding variant) returns false, BusinessUnitRepository.findById() returns a valid Business Unit, MachineryGroupRepository/MachineryRepository counts return 0 where relevant, StationRepository.save()/delete() persist successfully",
+          "expect": "return the created/updated Station object with id, code, name, description, type, is_active, business_unit_id, business_unit_name, machinery_group_count, created_at (or { deleted: true } for delete)"
+        },
+        {
+          "description": "returns 403 FORBIDDEN for create/update/delete when authenticated user is not Admin",
+          "given": "authenticated user role != admin",
+          "expect": "return 403 FORBIDDEN, no mutation performed"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-029--kelola-business-unit",
+      "reason": "Station harus terkait ke Business Unit yang sudah ada; jika belum ada Business Unit, Admin diarahkan ke Kelola Business Unit dahulu"
+    }
+  ],
+  "implementation_notes": [
+    "403 FORBIDDEN pada seluruh endpoint disimpulkan dari actor_permissions, sama seperti screen-027/028/029",
+    "Livewire component dapat memanggil Service Layer yang sama dengan REST API, konsisten dengan pola master data lainnya",
+    "machinery_group_count dihitung via withCount('machineryGroups'), business_unit_name via eager-load with('businessUnit')",
+    "Station TIDAK punya field logo (tidak ada di ERD maupun entity-catalog untuk Station)",
+    "Field `type` (enum weighbridge/grading/cages-track/other) DIPERTAHANKAN dari entity-catalog v1-v3 meski tidak ada di ERD literal — krusial bagi mobile app (screen-006/007-009) yang sudah diimplementasikan dan bergantung padanya. Form Kelola Station merender ini sebagai dropdown, bukan field baru.",
+    "409 STATION_HAS_MACHINERY memeriksa DUA entity anak (machinery-group DAN machinery langsung) karena keduanya punya FK station_id langsung per entity-catalog v4"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Kelola Station — success",
+      "usecase_id": "usecase-030--kelola-station",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/stations"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_id}}",
+            "name": "Weighbridge 2",
+            "type": "weighbridge",
+            "is_active": true
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "StationForm",
+        "action": "pilih Business Unit induk dan tipe Weighbridge dari dropdown, isi nama, aktifkan, klik Simpan",
+        "assert": "form submit berhasil, baris baru muncul di daftar dengan Business Unit induk yang benar dan machinery_group_count 0"
+      },
+      "browser_test": {
+        "route": "/master-data/stations",
+        "action": "klik Tambah Station, pilih Business Unit dan tipe, isi nama, klik Simpan",
+        "assert": "baris Station baru muncul di tabel dengan Business Unit induk yang benar"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Station — Edit Station",
+      "usecase_id": "usecase-030--kelola-station",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/stations/:id"
+          },
+          "request_example": {
+            "id": "<existing-station-id>",
+            "business_unit_id": "{{business_unit_id}}",
+            "name": "Weighbridge 2 Updated",
+            "type": "weighbridge",
+            "is_active": true
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "StationForm",
+        "action": "klik Edit pada baris Station, ubah nama/deskripsi, klik Simpan",
+        "assert": "baris Station diperbarui dengan nilai baru"
+      },
+      "browser_test": {
+        "route": "/master-data/stations",
+        "action": "klik Edit pada baris, ubah nama, klik Simpan",
+        "assert": "tabel menampilkan nama yang sudah diperbarui"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Station — Hapus Station — berhasil",
+      "usecase_id": "usecase-030--kelola-station",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/stations/:id"
+          },
+          "request_example": {
+            "id": "<station-id-no-machinery>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "StationList",
+        "action": "klik Hapus pada baris Station tanpa Machinery Group/Machinery terkait, konfirmasi",
+        "assert": "baris Station terhapus dari daftar"
+      },
+      "browser_test": {
+        "route": "/master-data/stations",
+        "action": "klik Hapus pada Station tanpa Machinery Group/Machinery terkait, konfirmasi dialog",
+        "assert": "baris Station hilang dari daftar"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Station — Hapus Station — ditolak",
+      "usecase_id": "usecase-030--kelola-station",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/stations/:id"
+          },
+          "request_example": {
+            "id": "<station-id-with-machinery>"
+          },
+          "expected_status": 409,
+          "expected_error_code": "STATION_HAS_MACHINERY"
+        }
+      ],
+      "component_test": {
+        "component": "StationList",
+        "action": "klik Hapus pada baris Station yang masih memiliki Machinery Group/Machinery terkait, konfirmasi",
+        "assert": "pesan error ditampilkan, baris tetap ada di daftar"
+      },
+      "browser_test": {
+        "route": "/master-data/stations",
+        "action": "klik Hapus pada Station dengan Machinery terkait, konfirmasi dialog",
+        "assert": "pesan error 'Station masih memiliki Machinery Group/Machinery terkait' ditampilkan, baris tidak hilang"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Station — Kode duplikat",
+      "usecase_id": "usecase-030--kelola-station",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/stations"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_id}}",
+            "code": "STN-WB-001",
+            "name": "Weighbridge Lain",
+            "type": "weighbridge",
+            "is_active": true
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "StationForm",
+        "action": "isi kode Station (Tambah/Edit) yang sudah dipakai Station lain, klik Simpan",
+        "assert": "pesan validasi muncul di bawah field kode, form tidak tersimpan"
+      },
+      "browser_test": {
+        "route": "/master-data/stations",
+        "action": "submit form Station (Tambah/Edit) dengan kode yang sudah dipakai",
+        "assert": "pesan validasi kode sudah dipakai ditampilkan, tidak ada baris baru/berubah"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Station — Status aktif tidak sesuai tipe",
+      "usecase_id": "usecase-030--kelola-station",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/stations"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_id}}",
+            "name": "Placeholder Station",
+            "type": "other",
+            "is_active": true
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "StationForm",
+        "action": "pilih tipe Other lalu coba aktifkan status aktif, klik Simpan",
+        "assert": "pesan validasi ditampilkan bahwa hanya Weighbridge/Grading/Cages Track yang boleh aktif, form tidak tersimpan"
+      },
+      "browser_test": {
+        "route": "/master-data/stations",
+        "action": "pilih tipe Other, aktifkan toggle status aktif, klik Simpan",
+        "assert": "pesan validasi ditampilkan, Station tidak tersimpan sebagai aktif"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Station — Belum ada Business Unit",
+      "usecase_id": "usecase-030--kelola-station",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "StationForm",
+        "action": "buka form Tambah Station saat daftar opsi Business Unit kosong",
+        "assert": "dropdown Business Unit kosong/nonaktif, form menampilkan arahan untuk membuat Business Unit dahulu"
+      },
+      "browser_test": {
+        "route": "/master-data/stations",
+        "action": "klik Tambah Station saat belum ada Business Unit sama sekali",
+        "assert": "form tampil tanpa opsi Business Unit yang dapat dipilih, arahan membuat Business Unit dahulu terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Station — akses ditolak untuk non-Admin",
+      "usecase_id": "usecase-030--kelola-station",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/stations"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "StationManagement",
+        "action": "coba muat layar Kelola Station sebagai user non-Admin",
+        "assert": "tampilan akses ditolak muncul, daftar/kontrol Station tidak dirender"
+      },
+      "browser_test": {
+        "route": "/master-data/stations",
+        "action": "navigasi ke /master-data/stations sebagai user non-Admin",
+        "assert": "browser menampilkan status akses ditolak/redirect, layar Kelola Station tidak dapat diakses"
+      }
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "usecase-029--kelola-business-unit",
+  "name": "Kelola Business Unit",
+  "description": "Admin mengelola data master Business Unit (mill/unit operasional di bawah Company) melalui web — melihat daftar, menambah dengan profil lengkap (kode, identitas, kontak, legal) dan memilih Company induk, mengedit, dan menghapus Business Unit.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login ke web app",
+    "Minimal satu Company sudah ada untuk dapat menambah Business Unit"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Admin membuka menu Master Data > Kelola Business Unit"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Sistem menampilkan daftar Business Unit beserta kode, Company induk, dan jumlah Station terkait masing-masing"
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Admin klik Tambah Business Unit, memilih Company induk dari dropdown, mengisi nama dan kode (wajib), serta field profil lain jika diperlukan"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Sistem memvalidasi kode unik secara global, menyimpan Business Unit baru, dan menampilkannya di daftar"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Edit Business Unit",
+      "trigger": "Step 2 — Admin klik Edit pada salah satu baris Business Unit",
+      "steps": [
+        "Admin mengubah nama, kode, Company induk, dan/atau field profil lain",
+        "Sistem memvalidasi kode unik secara global",
+        "Sistem menyimpan perubahan dan memperbarui daftar"
+      ]
+    },
+    {
+      "name": "Hapus Business Unit — berhasil",
+      "trigger": "Step 2 — Admin klik Hapus pada Business Unit yang tidak memiliki Station terkait",
+      "steps": [
+        "Sistem menghapus Business Unit",
+        "Sistem memperbarui daftar"
+      ]
+    },
+    {
+      "name": "Hapus Business Unit — ditolak",
+      "trigger": "Step 2 — Admin klik Hapus pada Business Unit yang masih memiliki satu atau lebih Station terkait",
+      "steps": [
+        "Sistem menolak penghapusan",
+        "Sistem menampilkan pesan bahwa Business Unit masih memiliki Station terkait"
+      ]
+    },
+    {
+      "name": "Kode duplikat",
+      "trigger": "Step 4 (atau langkah simpan pada Edit) — Admin menyimpan kode yang sudah dipakai Business Unit lain (di Company manapun)",
+      "steps": [
+        "Sistem menolak penyimpanan",
+        "Sistem menampilkan pesan validasi kode sudah dipakai"
+      ]
+    },
+    {
+      "name": "Belum ada Company",
+      "trigger": "Step 3 — Admin membuka form Tambah Business Unit saat belum ada Company sama sekali",
+      "steps": [
+        "Sistem menampilkan form tanpa opsi Company yang dapat dipilih",
+        "Sistem mengarahkan Admin untuk membuat Company terlebih dahulu"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Business Unit baru/ubahan tersimpan dan terlihat di daftar dengan Company induk yang benar",
+    "Atau Business Unit terhapus dari daftar jika tidak ada Station terkait"
+  ],
+  "business_rules": [
+    "Kode Business Unit harus unik di seluruh sistem (bukan hanya dalam satu Company)",
+    "Business Unit tidak dapat dihapus jika masih memiliki satu atau lebih Station terkait",
+    "Hanya Admin yang dapat mengakses dan mengelola data Business Unit",
+    "Business Unit harus terkait ke tepat satu Company yang sudah ada"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Kelola Business Unit — success",
+      "given": "Admin sudah login ke web app dan minimal satu Company sudah ada",
+      "when": "Admin membuka menu Kelola Business Unit, menambah Business Unit baru dengan memilih Company induk serta mengisi nama dan kode",
+      "then": "Business Unit baru tersimpan dan terlihat di daftar dengan Company induk yang benar"
+    },
+    {
+      "scenario": "Kelola Business Unit — Edit Business Unit",
+      "given": "Admin sudah login ke web app dan minimal satu Company sudah ada",
+      "when": "Admin klik Edit pada salah satu baris Business Unit dan mengubah nama, kode, dan/atau Company induk",
+      "then": "Sistem memvalidasi kode unik secara global, menyimpan perubahan, dan memperbarui daftar"
+    },
+    {
+      "scenario": "Kelola Business Unit — Hapus Business Unit — berhasil",
+      "given": "Admin sudah login ke web app dan minimal satu Company sudah ada",
+      "when": "Admin klik Hapus pada Business Unit yang tidak memiliki Station terkait",
+      "then": "Sistem menghapus Business Unit dan memperbarui daftar"
+    },
+    {
+      "scenario": "Kelola Business Unit — Hapus Business Unit — ditolak",
+      "given": "Admin sudah login ke web app dan minimal satu Company sudah ada",
+      "when": "Admin klik Hapus pada Business Unit yang masih memiliki satu atau lebih Station terkait",
+      "then": "Sistem menolak penghapusan dan menampilkan pesan bahwa Business Unit masih memiliki Station terkait"
+    },
+    {
+      "scenario": "Kelola Business Unit — Kode duplikat",
+      "given": "Admin sudah login ke web app dan minimal satu Company sudah ada",
+      "when": "Admin menyimpan kode Business Unit yang sudah dipakai Business Unit lain (di Company manapun), baik saat menambah maupun mengedit",
+      "then": "Sistem menolak penyimpanan dan menampilkan pesan validasi kode sudah dipakai"
+    },
+    {
+      "scenario": "Kelola Business Unit — Belum ada Company",
+      "given": "Admin sudah login ke web app",
+      "when": "Admin membuka form Tambah Business Unit saat belum ada Company sama sekali",
+      "then": "Sistem menampilkan form tanpa opsi Company yang dapat dipilih dan mengarahkan Admin untuk membuat Company terlebih dahulu"
+    },
+    {
+      "scenario": "Kelola Business Unit — Akses ditolak untuk non-Admin",
+      "given": "Actor selain Admin (misalnya Supervisor atau Mill Management) sudah login ke web app",
+      "when": "Actor tersebut mencoba mengakses menu Kelola Business Unit",
+      "then": "Sistem menolak akses dan tidak menampilkan menu/fitur Kelola Business Unit"
+    },
+    {
+      "scenario": "Kelola Business Unit — Company induk wajib dipilih",
+      "given": "Admin sudah login ke web app dan minimal satu Company sudah ada",
+      "when": "Admin mencoba menyimpan Business Unit tanpa memilih Company induk",
+      "then": "Sistem menolak penyimpanan dan menampilkan pesan bahwa Company induk wajib dipilih"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-029--kelola-business-unit"
+  ]
+}

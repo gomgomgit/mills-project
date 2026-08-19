@@ -1,0 +1,71 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-027--kelola-corporate",
+  "name": "Kelola Corporate",
+  "module_id": "module-master-data",
+  "description": "Layar bagi Admin untuk mengelola data master Corporate — level teratas hierarki organisasi (Corporate > Company > Business Unit > Station > Machinery). Admin dapat melihat daftar Corporate, menambah Corporate baru dengan profil lengkap (identitas, kontak, legal), mengedit data yang sudah ada, dan menghapus Corporate yang tidak lagi memiliki Company terkait.",
+  "actors": [
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Master Data' > 'Kelola Corporate'"
+  ],
+  "information_displayed": [
+    "Daftar Corporate: kode, nama, jumlah Company terkait, tanggal dibuat",
+    "Form tambah/edit — Identitas: kode Corporate, nama, nama singkat, nama pimpinan, nama pengacara/penasihat hukum, logo",
+    "Form tambah/edit — Kontak: alamat, telepon, fax, kontak, extension, email, website, link peta",
+    "Form tambah/edit — Legal & Kepegawaian: nomor registrasi pajak, nomor asuransi, EPF employer, SOCSO employer, serikat pekerja"
+  ],
+  "available_actions": [
+    {
+      "action": "Lihat daftar Corporate",
+      "description": "Menampilkan seluruh Corporate dengan kode, nama, dan jumlah Company terkait masing-masing",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah Corporate",
+      "description": "Membuat Corporate baru dengan mengisi kode, nama, dan profil lengkap (kontak, legal, kepegawaian, logo)",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit Corporate",
+      "description": "Mengubah data Corporate yang sudah ada, termasuk kode, nama, dan seluruh field profil",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus Corporate",
+      "description": "Menghapus Corporate, hanya diizinkan jika tidak ada Company yang masih terkait",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Kode Corporate harus unik di seluruh sistem",
+    "Nama Corporate harus unik di seluruh sistem",
+    "Corporate tidak dapat dihapus jika masih memiliki satu atau lebih Company terkait",
+    "Hanya Admin yang dapat mengakses dan mengelola data Corporate",
+    "Field selain kode dan nama (kontak, legal, kepegawaian, logo) bersifat opsional"
+  ],
+  "usecase_ids": [
+    "usecase-027--kelola-corporate"
+  ],
+  "edge_cases": [
+    "Percobaan menghapus Corporate yang masih memiliki Company terkait — ditolak dengan pesan penjelasan",
+    "Percobaan menyimpan kode atau nama Corporate yang sudah dipakai Corporate lain — validasi gagal",
+    "Belum ada Corporate sama sekali — tampilkan empty state dengan ajakan tambah data pertama",
+    "Upload logo dengan format/ukuran tidak didukung — validasi gagal"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

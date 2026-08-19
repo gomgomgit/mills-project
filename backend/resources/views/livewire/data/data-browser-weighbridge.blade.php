@@ -33,13 +33,23 @@
         </div>
 
         <div class="wb-filterbar__field">
-            <label for="business_unit_id" class="wb-filterbar__label">Business Unit</label>
-            <select id="business_unit_id" wire:model.live="business_unit_id" class="wb-filterbar__input">
-                <option value="">Semua Business Unit</option>
-                @foreach ($businessUnits as $businessUnit)
-                    <option value="{{ $businessUnit->id }}">{{ $businessUnit->name }}</option>
-                @endforeach
+            <label for="weighbridge_type" class="wb-filterbar__label">Tipe</label>
+            <select id="weighbridge_type" wire:model.live="weighbridge_type" class="wb-filterbar__input">
+                <option value="">Semua Tipe</option>
+                <option value="receive">Receive</option>
+                <option value="dispatch">Dispatch</option>
             </select>
+        </div>
+
+        <div class="wb-filterbar__field">
+            <label for="business_unit_id" class="wb-filterbar__label">Business Unit</label>
+            <x-searchable-select
+                id="business_unit_id"
+                wire:model.live="business_unit_id"
+                :options="collect($businessUnits)->map(fn ($businessUnit) => ['value' => $businessUnit->id, 'label' => $businessUnit->name])->all()"
+                placeholder="Semua Business Unit"
+                class="wb-filterbar__input"
+            />
         </div>
     </div>
 
@@ -48,9 +58,11 @@
             <thead class="wb-table__head">
                 <tr>
                     <th>No. Kartu WB</th>
-                    <th>Tanggal Kedatangan</th>
+                    <th>Tipe</th>
+                    <th>Tanggal &amp; Waktu</th>
                     <th>No. Kendaraan</th>
                     <th>Nama Pengemudi</th>
+                    <th>Tujuan Muatan</th>
                     <th>Berat Bersih (kg)</th>
                     <th>Status</th>
                 </tr>
@@ -71,9 +83,13 @@
                         @endif
                     >
                         <td>{{ $record['wb_card_number'] }}</td>
-                        <td>{{ $record['arrival_datetime'] ? \Illuminate\Support\Carbon::parse($record['arrival_datetime'])->format('d/m/Y H:i') : '-' }}</td>
+                        <td>
+                            <span class="wb-badge wb-badge--type-{{ $record['weighbridge_type'] }}">{{ ucfirst($record['weighbridge_type']) }}</span>
+                        </td>
+                        <td>{{ $record['record_datetime'] ? \Illuminate\Support\Carbon::parse($record['record_datetime'])->format('d/m/Y H:i') : '-' }}</td>
                         <td>{{ $record['vehicle_number'] }}</td>
                         <td>{{ $record['driver_name'] }}</td>
+                        <td>{{ $record['destination'] ?: '-' }}</td>
                         <td>{{ $record['net_weight'] !== null ? number_format($record['net_weight'], 2) : '-' }}</td>
                         <td>
                             <span class="wb-badge wb-badge--{{ $record['status'] }}">{{ $record['status'] }}</span>
@@ -81,7 +97,7 @@
                     </tr>
                 @empty
                     <tr class="wb-table__row wb-table__row--static">
-                        <td colspan="6">
+                        <td colspan="8">
                             <div class="wb-empty">
                                 <div class="wb-empty__illustration" aria-hidden="true">&#128203;</div>
                                 <p class="wb-empty__title">Tidak ada data</p>
@@ -285,6 +301,16 @@
         .wb-badge--draft_paused {
             background: #fffbeb;
             color: #b45309;
+        }
+
+        .wb-badge--type-receive {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+
+        .wb-badge--type-dispatch {
+            background: #fdf4ff;
+            color: #a21caf;
         }
 
         .wb-empty {

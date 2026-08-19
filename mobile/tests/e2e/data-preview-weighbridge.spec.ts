@@ -63,28 +63,33 @@ async function seedWeighbridgeRecord(
     status?: 'draft_ongoing' | 'draft_paused' | 'saved' | 'synced'
     wbCardNumber?: string | null
     driverName?: string | null
-    arrivalDatetime?: string | null
+    // entity-catalog v5 merged arrival_datetime/dispatch_datetime into a
+    // single record_datetime column, plus weighbridge_type + destination.
+    weighbridgeType?: 'receive' | 'dispatch'
+    recordDatetime?: string | null
+    destination?: string | null
     updatedAt?: string
   },
 ): Promise<void> {
   await page.evaluate(
-    async ({ userId, id, status, wbCardNumber, driverName, arrivalDatetime, updatedAt }) => {
+    async ({ userId, id, status, wbCardNumber, driverName, weighbridgeType, recordDatetime, destination, updatedAt }) => {
       const db = (window as unknown as { __mslTestDb: { run: (sql: string, params?: unknown[]) => Promise<unknown> } })
         .__mslTestDb
       const now = updatedAt ?? new Date().toISOString()
       await db.run(
         `INSERT OR REPLACE INTO weighbridge_record
-           (id, status, wb_card_number, driver_name, arrival_datetime, dispatch_datetime, vehicle_number,
+           (id, status, wb_card_number, driver_name, weighbridge_type, record_datetime, destination, vehicle_number,
             estate_supplier, division, block, gross_weight, tare_weight, net_weight, quantity,
             checked_by, acknowledged_by, created_by, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           status ?? 'saved',
           wbCardNumber ?? null,
           driverName ?? null,
-          arrivalDatetime ?? null,
-          '2026-08-17T10:00',
+          weighbridgeType ?? 'receive',
+          recordDatetime ?? null,
+          destination ?? null,
           'B 1234 CD',
           'Estate A',
           'Divisi 1',
@@ -101,7 +106,17 @@ async function seedWeighbridgeRecord(
         ],
       )
     },
-    { userId, id: overrides.id, status: overrides.status, wbCardNumber: overrides.wbCardNumber, driverName: overrides.driverName, arrivalDatetime: overrides.arrivalDatetime, updatedAt: overrides.updatedAt },
+    {
+      userId,
+      id: overrides.id,
+      status: overrides.status,
+      wbCardNumber: overrides.wbCardNumber,
+      driverName: overrides.driverName,
+      weighbridgeType: overrides.weighbridgeType,
+      recordDatetime: overrides.recordDatetime,
+      destination: overrides.destination,
+      updatedAt: overrides.updatedAt,
+    },
   )
 }
 
@@ -139,14 +154,14 @@ test.describe('Data Preview Weighbridge (screen-013)', () => {
       driverName: 'Budi Santoso',
       // Dated TODAY so it's visible under the list's default date filter
       // with no filter interaction yet — see this file's header comment.
-      arrivalDatetime: `${today}T08:00`,
+      recordDatetime: `${today}T08:00`,
     })
     await seedWeighbridgeRecord(page, userId, {
       id: 'e2e-wb-other',
       status: 'synced',
       wbCardNumber: 'WB-OTHER-02',
       driverName: 'Citra',
-      arrivalDatetime: `${today}T09:00`,
+      recordDatetime: `${today}T09:00`,
     })
 
     await page.goto('/stations/weighbridge/preview')
@@ -177,7 +192,7 @@ test.describe('Data Preview Weighbridge (screen-013)', () => {
       // Dated TODAY so the row is present under the default date filter
       // to be tapped — the previous version left this null/unset, which
       // is no longer visible by default (recordDate '' !== today).
-      arrivalDatetime: `${todayLocalDateString()}T08:00`,
+      recordDatetime: `${todayLocalDateString()}T08:00`,
     })
 
     await page.goto('/stations/weighbridge/preview')
@@ -195,13 +210,13 @@ test.describe('Data Preview Weighbridge (screen-013)', () => {
       id: 'e2e-wb-aug10',
       status: 'saved',
       wbCardNumber: 'WB-AUG10',
-      arrivalDatetime: '2026-08-10T08:00',
+      recordDatetime: '2026-08-10T08:00',
     })
     await seedWeighbridgeRecord(page, userId, {
       id: 'e2e-wb-aug11',
       status: 'saved',
       wbCardNumber: 'WB-AUG11',
-      arrivalDatetime: '2026-08-11T08:00',
+      recordDatetime: '2026-08-11T08:00',
     })
 
     await page.goto('/stations/weighbridge/preview')
@@ -234,7 +249,7 @@ test.describe('Data Preview Weighbridge (screen-013)', () => {
       // Dated TODAY so it stays visible against the list's default
       // (untouched) date filter throughout this scenario, which only
       // exercises the search filter.
-      arrivalDatetime: `${todayLocalDateString()}T08:00`,
+      recordDatetime: `${todayLocalDateString()}T08:00`,
     })
 
     await page.goto('/stations/weighbridge/preview')
@@ -294,7 +309,7 @@ test.describe('Data Preview Weighbridge (screen-013)', () => {
       // (today) filter once Back navigates away from detail mode below —
       // detail mode itself (the initial page.goto) is unaffected by the
       // date filter either way.
-      arrivalDatetime: `${todayLocalDateString()}T08:00`,
+      recordDatetime: `${todayLocalDateString()}T08:00`,
     })
 
     await page.goto('/stations/weighbridge/preview/e2e-wb-back')
@@ -305,5 +320,40 @@ test.describe('Data Preview Weighbridge (screen-013)', () => {
     await page.waitForURL('**/stations/weighbridge/preview')
     await expect(page).not.toHaveURL('**/stations/weighbridge/monitor')
     await expect(page.getByTestId('record-item-e2e-wb-back')).toBeVisible()
+  })
+
+  // Scenario: "Field Sesuai Tipe Weighbridge" (entity-catalog v5) — detail
+  // fields adapt to weighbridge_type: receive shows 'Tanggal & Waktu
+  // Arrival' with no Tujuan Muatan; dispatch shows 'Tanggal & Waktu
+  // Dispatch' plus a Tujuan Muatan value.
+  test('Data Preview Weighbridge — Field Sesuai Tipe Weighbridge', async ({ page }) => {
+    const userId = await getAuthUserId(page)
+    await seedWeighbridgeRecord(page, userId, {
+      id: 'e2e-wb-receive',
+      status: 'saved',
+      wbCardNumber: 'WB-RECEIVE-01',
+      weighbridgeType: 'receive',
+      recordDatetime: '2026-08-17T08:00',
+    })
+    await seedWeighbridgeRecord(page, userId, {
+      id: 'e2e-wb-dispatch',
+      status: 'saved',
+      wbCardNumber: 'WB-DISPATCH-01',
+      weighbridgeType: 'dispatch',
+      recordDatetime: '2026-08-17T09:00',
+      destination: 'PKS Sukamaju',
+    })
+
+    await page.goto('/stations/weighbridge/preview/e2e-wb-receive')
+    await expect(page.getByLabel('Tipe Weighbridge')).toHaveValue('Receive')
+    await expect(page.getByLabel('Tanggal & Waktu Arrival')).toBeVisible()
+    await expect(page.getByLabel('Tanggal & Waktu Dispatch')).toHaveCount(0)
+    await expect(page.getByLabel('Tujuan Muatan')).toHaveCount(0)
+
+    await page.goto('/stations/weighbridge/preview/e2e-wb-dispatch')
+    await expect(page.getByLabel('Tipe Weighbridge')).toHaveValue('Dispatch')
+    await expect(page.getByLabel('Tanggal & Waktu Dispatch')).toBeVisible()
+    await expect(page.getByLabel('Tanggal & Waktu Arrival')).toHaveCount(0)
+    await expect(page.getByLabel('Tujuan Muatan')).toHaveValue('PKS Sukamaju')
   })
 })

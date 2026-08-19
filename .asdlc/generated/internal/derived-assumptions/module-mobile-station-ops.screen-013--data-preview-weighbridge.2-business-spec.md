@@ -16,3 +16,7 @@
 
 - Filter tanggal default hari ini SAAT LIST DIBUKA (bukan permanen/tidak bisa diubah) — user tetap bisa ubah/kosongkan ← instruksi eksplisit user, tapi scope "bisa diubah" adalah interpretasi wajar (default bukan berarti terkunci)
 - edge_case baru: tidak ada data hari ini saat filter default aktif → sama seperti "filter tidak menghasilkan apapun" (bukan kondisi error terpisah)
+
+## v4 — 2026-08-19
+
+- Label field tanggal & tujuan muatan di detail read-only ("Tanggal & Waktu Arrival"/"Tanggal & Waktu Dispatch") mengikuti wording yang sama dengan Form Weighbridge (screen-010) ← konsistensi lintas-screen, tidak dinyatakan eksplisit user, diturunkan dari entity-catalog v5 (weighbridge_type, record_datetime, destination) dan instruksi user untuk menyesuaikan tampilan load data

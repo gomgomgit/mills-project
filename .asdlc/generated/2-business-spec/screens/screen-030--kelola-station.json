@@ -1,0 +1,71 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-030--kelola-station",
+  "name": "Kelola Station",
+  "module_id": "module-master-data",
+  "description": "Layar bagi Admin untuk mengelola data master Station — stasiun produksi mill di bawah Business Unit (3 aktif di MVP: Weighbridge, Grading, Cages Track; 12 lainnya placeholder skema masa depan). Admin dapat melihat daftar Station (dapat difilter per Business Unit), menambah Station baru dengan memilih Business Unit induk dan tipe stasiun, mengedit data yang sudah ada, dan menghapus Station yang tidak lagi memiliki Machinery Group atau Machinery terkait.",
+  "actors": [
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Master Data' > 'Kelola Station'"
+  ],
+  "information_displayed": [
+    "Daftar Station: kode, nama, tipe, status aktif, nama Business Unit induk, jumlah Machinery Group terkait, tanggal dibuat",
+    "Form tambah/edit: dropdown pilih Business Unit induk, kode (opsional), nama, deskripsi, tipe (dropdown: Weighbridge/Grading/Cages Track/Other), status aktif"
+  ],
+  "available_actions": [
+    {
+      "action": "Lihat daftar Station",
+      "description": "Menampilkan seluruh Station dengan kode, tipe, status aktif, Business Unit induk, dan jumlah Machinery Group terkait, dapat difilter per Business Unit",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah Station",
+      "description": "Membuat Station baru dengan memilih Business Unit induk, tipe, dan mengisi nama",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit Station",
+      "description": "Mengubah data Station yang sudah ada, termasuk kode, nama, deskripsi, tipe, status aktif, dan Business Unit induk",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus Station",
+      "description": "Menghapus Station, hanya diizinkan jika tidak ada Machinery Group atau Machinery yang masih terkait",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Kode Station harus unik jika diisi (field opsional)",
+    "Status aktif (is_active=true) hanya diperbolehkan untuk tipe Weighbridge, Grading, atau Cages Track — tipe Other (placeholder) harus is_active=false",
+    "Station tidak dapat dihapus jika masih memiliki satu atau lebih Machinery Group atau Machinery terkait",
+    "Hanya Admin yang dapat mengakses dan mengelola data Station",
+    "Station harus terkait ke tepat satu Business Unit yang sudah ada (dipilih via dropdown, bukan input bebas)",
+    "Jumlah Machinery Group yang ditampilkan dihitung otomatis, bukan diisi manual"
+  ],
+  "usecase_ids": [
+    "usecase-030--kelola-station"
+  ],
+  "edge_cases": [
+    "Percobaan menghapus Station yang masih memiliki Machinery Group atau Machinery terkait — ditolak dengan pesan penjelasan",
+    "Percobaan menyimpan kode Station yang sudah dipakai Station lain — validasi gagal",
+    "Percobaan mengaktifkan (is_active=true) Station bertipe Other — validasi gagal",
+    "Belum ada Business Unit sama sekali — form Tambah Station tidak dapat diisi, arahkan Admin untuk membuat Business Unit dahulu",
+    "Belum ada Station sama sekali — tampilkan empty state dengan ajakan tambah data pertama"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

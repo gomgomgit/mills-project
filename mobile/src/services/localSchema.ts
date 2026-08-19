@@ -94,16 +94,22 @@ import { query, run } from '@/services/localDb'
  * seed data, not a live sync.
  */
 
+// entity-catalog v5 (2026-08-19): arrival_datetime/dispatch_datetime merged
+// into a single record_datetime column (arrival time for
+// weighbridge_type='receive', dispatch time for weighbridge_type='dispatch');
+// weighbridge_type and destination (dispatch-only, required in the app
+// layer) added. See screen-010--form-weighbridge's tech spec v6.
 const CREATE_WEIGHBRIDGE_RECORD = `
   CREATE TABLE IF NOT EXISTS weighbridge_record (
     id TEXT PRIMARY KEY,
     station_id TEXT,
     wb_card_number TEXT,
-    arrival_datetime TEXT,
-    dispatch_datetime TEXT,
+    weighbridge_type TEXT,
+    record_datetime TEXT,
     vehicle_number TEXT,
     driver_name TEXT,
     estate_supplier TEXT,
+    destination TEXT,
     division TEXT,
     block TEXT,
     gross_weight REAL,

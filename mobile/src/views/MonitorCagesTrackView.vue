@@ -229,7 +229,7 @@ function goToStationList() {
           <circle cx="12" cy="12" r="9" />
           <path d="M8 12l3 3 5-6" />
         </svg>
-        <span class="brand-name">Mill Smart Log</span>
+        <span class="brand-name">Mills Smart Log</span>
       </div>
 
       <button

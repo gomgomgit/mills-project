@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'com.millsmartlog.mobile',
-  appName: 'Mill Smart Log',
+  appName: 'Mills Smart Log',
   webDir: 'dist',
 }
 

@@ -32,7 +32,7 @@ class WeighbridgeRecordController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->only(['date_from', 'date_to', 'business_unit_id']);
+        $filters = $request->only(['date_from', 'date_to', 'weighbridge_type', 'business_unit_id']);
 
         $page = max((int) $request->query('page', Pagination::DEFAULT_PAGE), 1);
         $perPage = Pagination::resolvePerPage($request);
@@ -51,7 +51,7 @@ class WeighbridgeRecordController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
-        $filters = $request->only(['date_from', 'date_to', 'business_unit_id']);
+        $filters = $request->only(['date_from', 'date_to', 'weighbridge_type', 'business_unit_id']);
         $format = (string) $request->query('format', 'csv');
 
         return $this->service->export($filters, $format);

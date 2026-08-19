@@ -78,15 +78,18 @@ export interface CurrentDraft {
  * (mirrors localSchema.ts's CREATE_WEIGHBRIDGE_RECORD column-for-column).
  * `getDraftById()`/`saveDraft()` below operate on this shape.
  */
+export type WeighbridgeType = 'receive' | 'dispatch'
+
 export interface WeighbridgeRecord {
   id: string
   station_id: string | null
   wb_card_number: string | null
-  arrival_datetime: string | null
-  dispatch_datetime: string | null
+  weighbridge_type: WeighbridgeType | null
+  record_datetime: string | null
   vehicle_number: string | null
   driver_name: string | null
   estate_supplier: string | null
+  destination: string | null
   division: string | null
   block: string | null
   gross_weight: number | null
@@ -110,11 +113,12 @@ export interface WeighbridgeRecord {
  */
 export interface WeighbridgeFormData {
   wb_card_number: string
-  arrival_datetime: string
-  dispatch_datetime: string
+  weighbridge_type: WeighbridgeType
+  record_datetime: string
   vehicle_number: string
   driver_name: string
   estate_supplier: string
+  destination: string
   division: string
   block: string
   gross_weight: number | null
@@ -260,7 +264,7 @@ export async function getSummary(userId: string): Promise<WeighbridgeSummary> {
 /**
  * screen-007--monitor-weighbridge "today's counter" addition — count +
  * sums across every local weighbridge_record for the current user whose
- * `arrival_datetime` falls on today's local (device) date, regardless of
+ * `record_datetime` falls on today's local (device) date, regardless of
  * status (no status filter, same as `getSummary()`). Computed with a
  * single SQL aggregate query, matching this repo's existing
  * `getSummary()` style. `date('now', 'localtime')` (rather than plain
@@ -274,7 +278,7 @@ export async function getTodaySummary(userId: string): Promise<WeighbridgeTodayS
        COALESCE(SUM(net_weight), 0) AS sum_net_weight,
        COALESCE(SUM(quantity), 0) AS sum_quantity
      FROM weighbridge_record
-     WHERE created_by = ? AND date(arrival_datetime) = date('now', 'localtime')`,
+     WHERE created_by = ? AND date(record_datetime) = date('now', 'localtime')`,
     [userId],
   )
 
@@ -442,11 +446,12 @@ export async function saveDraft(
   await run(
     `UPDATE weighbridge_record
      SET wb_card_number = ?,
-         arrival_datetime = ?,
-         dispatch_datetime = ?,
+         weighbridge_type = ?,
+         record_datetime = ?,
          vehicle_number = ?,
          driver_name = ?,
          estate_supplier = ?,
+         destination = ?,
          division = ?,
          block = ?,
          gross_weight = ?,
@@ -460,11 +465,12 @@ export async function saveDraft(
      WHERE id = ?`,
     [
       formData.wb_card_number || null,
-      formData.arrival_datetime || null,
-      formData.dispatch_datetime || null,
+      formData.weighbridge_type || null,
+      formData.record_datetime || null,
       formData.vehicle_number || null,
       formData.driver_name || null,
       formData.estate_supplier || null,
+      formData.destination || null,
       formData.division || null,
       formData.block || null,
       formData.gross_weight,
@@ -510,11 +516,12 @@ export async function pauseDraftWithFormData(
   await run(
     `UPDATE weighbridge_record
      SET wb_card_number = ?,
-         arrival_datetime = ?,
-         dispatch_datetime = ?,
+         weighbridge_type = ?,
+         record_datetime = ?,
          vehicle_number = ?,
          driver_name = ?,
          estate_supplier = ?,
+         destination = ?,
          division = ?,
          block = ?,
          gross_weight = ?,
@@ -528,11 +535,12 @@ export async function pauseDraftWithFormData(
      WHERE id = ?`,
     [
       formData.wb_card_number || null,
-      formData.arrival_datetime || null,
-      formData.dispatch_datetime || null,
+      formData.weighbridge_type || null,
+      formData.record_datetime || null,
       formData.vehicle_number || null,
       formData.driver_name || null,
       formData.estate_supplier || null,
+      formData.destination || null,
       formData.division || null,
       formData.block || null,
       formData.gross_weight,

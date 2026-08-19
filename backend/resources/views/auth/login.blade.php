@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login — Mill Smart Log</title>
+    <title>Login — Mills Smart Log</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -110,6 +110,33 @@
 
         .form-field__input--error {
             border-color: var(--color-destructive);
+        }
+
+        .form-field__input-group {
+            position: relative;
+        }
+
+        .form-field__input-group .form-field__input {
+            padding-right: 84px;
+        }
+
+        .form-field__toggle-password {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 500;
+            font-family: inherit;
+            color: var(--color-brand);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        .form-field__toggle-password:hover {
+            text-decoration: underline;
         }
 
         .form-field__error {

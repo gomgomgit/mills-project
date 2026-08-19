@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 4,
+  "ver": 5,
   "id": "screen-007--monitor-weighbridge",
   "name": "Monitor Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -27,7 +27,7 @@
       "usecase_name": "Monitor Weighbridge",
       "endpoints": [],
       "business_logic": [
-        "1. Load counter hari ini: agregasi (COUNT, SUM net_weight, SUM quantity) dari seluruh local weighbridge_record milik user WHERE tanggal(arrival_datetime) = hari ini, status apapun",
+        "1. Load counter hari ini: agregasi (COUNT, SUM net_weight, SUM quantity) dari seluruh local weighbridge_record milik user WHERE tanggal(record_datetime) = hari ini, status apapun (tipe Receive maupun Dispatch)",
         "2. Load list of local weighbridge-record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC → each item labeled uniformly 'Pause'",
         "3. Render 3 card counter sebaris (Jumlah WB, Jumlah Net Weight (kg), Jumlah Quantity (kg)) di atas list draft/pause",
         "4. Render breadcrumb (Home > Production Process Activity > Weighbridge, tappable) dan header dengan 'Mill Smart Log' + hamburger",
@@ -41,7 +41,7 @@
         {
           "entity_id": "weighbridge-record",
           "operation": "SELECT",
-          "description": "SELECT agregat (COUNT, SUM net_weight, SUM quantity) WHERE created_by = current user AND date(arrival_datetime) = hari ini, status apapun"
+          "description": "SELECT agregat (COUNT, SUM net_weight, SUM quantity) WHERE created_by = current user AND date(record_datetime) = hari ini, status apapun"
         },
         {
           "entity_id": "weighbridge-record",
@@ -64,14 +64,14 @@
           "handling": "List perlu scroll agar semua tetap dapat diakses"
         },
         {
-          "condition": "Belum ada data (status apapun) dengan arrival_datetime = hari ini",
+          "condition": "Belum ada data (status apapun) dengan record_datetime = hari ini",
           "handling": "Ketiga card counter menampilkan 0"
         }
       ],
       "business_rules_applied": [
         "User bisa punya beberapa draft/pause berjalan bersamaan, semua tampil di list",
         "Ongoing dan paused digabung sebagai satu istilah Pause secara tampilan",
-        "Counter hari ini dihitung dari seluruh record (status apapun) dengan tanggal Arrival = hari ini"
+        "Counter hari ini dihitung dari seluruh record (status apapun) dengan tanggal record (record_datetime) = hari ini"
       ],
       "unit_test_cases": [
         {
@@ -125,12 +125,12 @@
           "expect": "call navigate(StationList)"
         },
         {
-          "description": "computes today's counter (count, sum net_weight, sum quantity) from records with arrival_datetime = today, any status",
-          "given": "weighbridgeRepo returns 3 records dated today with net_weight/quantity values, mixed statuses (draft_ongoing, saved)",
+          "description": "computes today's counter (count, sum net_weight, sum quantity) from records with record_datetime = today, any status, any weighbridge_type",
+          "given": "weighbridgeRepo returns 3 records dated today with net_weight/quantity values, mixed statuses (draft_ongoing, saved) and mixed weighbridge_type (receive, dispatch)",
           "expect": "counter = { countWb: 3, sumNetWeight: <correct sum>, sumQuantity: <correct sum> }"
         },
         {
-          "description": "excludes records with arrival_datetime not equal to today from the counter",
+          "description": "excludes records with record_datetime not equal to today from the counter",
           "given": "weighbridgeRepo returns records dated yesterday and today",
           "expect": "counter only reflects today's records, yesterday's excluded"
         },
@@ -162,7 +162,7 @@
     "Query list draft memakai fungsi getDrafts(userId) yang sudah ada",
     "Tap list item TIDAK memanggil resumeDraft()/mengubah status lagi",
     "Breadcrumb & hamburger mengikuti pola yang sama dengan Home v3 dan Station List v2",
-    "Query counter hari ini butuh fungsi repo BARU (mis. getTodaySummary(userId)) — agregat SQL (COUNT/SUM) dengan filter date(arrival_datetime) = date('now', 'localtime') di SQLite",
+    "Query counter hari ini butuh fungsi repo BARU (mis. getTodaySummary(userId)) — agregat SQL (COUNT/SUM) dengan filter date(record_datetime) = date('now', 'localtime') di SQLite — record_datetime menggantikan arrival_datetime/dispatch_datetime lama pada entity-catalog v5, kolom tunggal untuk kedua tipe Receive/Dispatch",
     "Ringkasan lama (semua waktu, dihapus di v3) TIDAK dihidupkan lagi — counter baru ini spesifik 'hari ini', bukan pengembalian summary lama"
   ],
   "test_scenarios": [
@@ -267,7 +267,7 @@
       },
       "browser_test": {
         "route": "/stations/weighbridge/monitor",
-        "action": "seed 2-3 weighbridge_record rows with arrival_datetime = today for the logged-in user, navigate to Monitor Weighbridge",
+        "action": "seed 2-3 weighbridge_record rows with record_datetime = today (weighbridge_type receive or dispatch) for the logged-in user, navigate to Monitor Weighbridge",
         "assert": "the 3 counter cards show the correct totals matching the seeded data"
       }
     },

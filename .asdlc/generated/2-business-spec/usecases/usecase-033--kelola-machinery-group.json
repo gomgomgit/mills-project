@@ -1,0 +1,140 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "usecase-033--kelola-machinery-group",
+  "name": "Kelola Machinery Group",
+  "description": "Admin mengelola data master Machinery Group (pengelompokan mesin per Station) melalui web — melihat daftar, menambah dengan memilih Station induk, mengedit, dan menghapus Machinery Group.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login ke web app",
+    "Minimal satu Station sudah ada untuk dapat menambah Machinery Group"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Admin membuka menu Master Data > Kelola Machinery Group"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Sistem menampilkan daftar Machinery Group beserta kode, Station induk, dan jumlah Machinery terkait masing-masing"
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Admin klik Tambah Machinery Group, memilih Station induk dari dropdown, mengisi kode grup, serta field lain jika diperlukan"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Sistem memvalidasi kode grup unik secara global, menyimpan Machinery Group baru, dan menampilkannya di daftar"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Edit Machinery Group",
+      "trigger": "Step 2 — Admin klik Edit pada salah satu baris Machinery Group",
+      "steps": [
+        "Admin mengubah kode, deskripsi, satuan, workshop factor, biaya per peralatan, dan/atau Station induk",
+        "Sistem memvalidasi kode grup unik secara global",
+        "Sistem menyimpan perubahan dan memperbarui daftar"
+      ]
+    },
+    {
+      "name": "Hapus Machinery Group — berhasil",
+      "trigger": "Step 2 — Admin klik Hapus pada Machinery Group yang tidak memiliki Machinery terkait",
+      "steps": [
+        "Sistem menghapus Machinery Group",
+        "Sistem memperbarui daftar"
+      ]
+    },
+    {
+      "name": "Hapus Machinery Group — ditolak",
+      "trigger": "Step 2 — Admin klik Hapus pada Machinery Group yang masih memiliki satu atau lebih Machinery terkait",
+      "steps": [
+        "Sistem menolak penghapusan",
+        "Sistem menampilkan pesan bahwa Machinery Group masih memiliki Machinery terkait"
+      ]
+    },
+    {
+      "name": "Kode duplikat",
+      "trigger": "Step 4 (atau langkah simpan pada Edit) — Admin menyimpan kode grup yang sudah dipakai Machinery Group lain",
+      "steps": [
+        "Sistem menolak penyimpanan",
+        "Sistem menampilkan pesan validasi kode sudah dipakai"
+      ]
+    },
+    {
+      "name": "Belum ada Station",
+      "trigger": "Step 3 — Admin membuka form Tambah Machinery Group saat belum ada Station sama sekali",
+      "steps": [
+        "Sistem menampilkan form tanpa opsi Station yang dapat dipilih",
+        "Sistem mengarahkan Admin untuk membuat Station terlebih dahulu"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Machinery Group baru/ubahan tersimpan dan terlihat di daftar dengan Station induk yang benar",
+    "Atau Machinery Group terhapus dari daftar jika tidak ada Machinery terkait"
+  ],
+  "business_rules": [
+    "Kode grup (group_code) harus unik di seluruh sistem",
+    "Machinery Group tidak dapat dihapus jika masih memiliki satu atau lebih Machinery terkait",
+    "Hanya Admin yang dapat mengakses dan mengelola data Machinery Group",
+    "Machinery Group harus terkait ke tepat satu Station yang sudah ada",
+    "Station yang dipilih harus berada di bawah Business Unit yang sama dengan Machinery Group"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Kelola Machinery Group — success",
+      "given": "Admin sudah login ke web app dan minimal satu Station sudah ada",
+      "when": "Admin membuka menu Kelola Machinery Group, menambah Machinery Group baru dengan memilih Station induk dan mengisi kode grup",
+      "then": "Machinery Group baru tersimpan dan terlihat di daftar dengan Station induk yang benar"
+    },
+    {
+      "scenario": "Kelola Machinery Group — Edit Machinery Group",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery Group",
+      "when": "Admin klik Edit pada salah satu baris Machinery Group dan mengubah kode/deskripsi/field lain",
+      "then": "Sistem memvalidasi kode unik secara global, menyimpan perubahan, dan memperbarui daftar"
+    },
+    {
+      "scenario": "Kelola Machinery Group — Hapus Machinery Group — berhasil",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery Group yang tidak memiliki Machinery terkait",
+      "when": "Admin klik Hapus pada Machinery Group tersebut",
+      "then": "Sistem menghapus Machinery Group dan memperbarui daftar"
+    },
+    {
+      "scenario": "Kelola Machinery Group — Hapus Machinery Group — ditolak",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery Group yang masih memiliki satu atau lebih Machinery terkait",
+      "when": "Admin klik Hapus pada Machinery Group tersebut",
+      "then": "Sistem menolak penghapusan dan menampilkan pesan bahwa Machinery Group masih memiliki Machinery terkait"
+    },
+    {
+      "scenario": "Kelola Machinery Group — Kode duplikat",
+      "given": "Admin sudah login ke web app dan minimal satu Station sudah ada",
+      "when": "Admin menyimpan kode grup yang sudah dipakai Machinery Group lain",
+      "then": "Sistem menolak penyimpanan dan menampilkan pesan validasi kode sudah dipakai"
+    },
+    {
+      "scenario": "Kelola Machinery Group — Belum ada Station",
+      "given": "Admin sudah login ke web app dan belum ada Station sama sekali",
+      "when": "Admin membuka form Tambah Machinery Group",
+      "then": "Sistem menampilkan form tanpa opsi Station yang dapat dipilih dan mengarahkan Admin untuk membuat Station terlebih dahulu"
+    },
+    {
+      "scenario": "Kelola Machinery Group — akses ditolak untuk non-Admin",
+      "given": "Pengguna sudah login ke web app namun bukan berperan sebagai Admin",
+      "when": "Pengguna mencoba mengakses menu Master Data > Kelola Machinery Group",
+      "then": "Sistem menolak akses karena hanya Admin yang dapat mengakses dan mengelola data Machinery Group"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-033--kelola-machinery-group"
+  ]
+}

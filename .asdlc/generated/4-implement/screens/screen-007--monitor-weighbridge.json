@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 4,
+  "ver": 5,
   "id": "screen-007--monitor-weighbridge",
   "name": "Monitor Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -23,7 +23,10 @@
     "Tambah section 'Hari Ini': 3 card sebaris (Jumlah WB, Jumlah Net Weight (kg), Jumlah Quantity (kg)) di atas list draft/pause",
     "weighbridgeRecordRepo.ts: ditambah getTodaySummary(userId) — COUNT/SUM WHERE created_by=user AND date(arrival_datetime)=date('now','localtime'), status apapun (murni additive, fungsi lain tidak diubah)",
     "loadTodaySummary() gagal secara silent (counter tetap 0) jika error — tidak memblokir UX list draft yang sudah ada",
-    "Regresi penuh diverifikasi independen: 222/222 vitest (20 file). Playwright monitor-weighbridge.spec.ts sempat 8/8 gagal karena backend (php artisan serve) mati di tengah sesi — setelah backend dinyalakan ulang, 8/8 lulus (bukan bug kode, murni environment)"
+    "Regresi penuh diverifikasi independen: 222/222 vitest (20 file). Playwright monitor-weighbridge.spec.ts sempat 8/8 gagal karena backend (php artisan serve) mati di tengah sesi — setelah backend dinyalakan ulang, 8/8 lulus (bukan bug kode, murni environment)",
+    "entity-catalog v5 (2026-08-19): weighbridge-record field arrival_datetime/dispatch_datetime disatukan menjadi record_datetime (kolom tunggal, berlaku sama untuk tipe Receive maupun Dispatch); getTodaySummary()'s filter di weighbridgeRecordRepo.ts dan localSchema.ts sudah diperbarui oleh proses shared-rename terpisah (di luar scope screen ini) — tidak ada perubahan kode diperlukan di MonitorWeighbridgeView.vue maupun repo itu sendiri untuk screen ini, karena keduanya sudah konsisten dengan schema baru",
+    "Diperbaiki dalam pass ini: 2 file test (weighbridgeRecordRepo.spec.ts, e2e/monitor-weighbridge.spec.ts) masih memakai fixture/kolom lama arrival_datetime/dispatch_datetime dan index parameter UPDATE yang sudah bergeser (destination menambah 1 kolom baru pada SET saveDraft()/pauseDraftWithFormData()) — diperbarui ke weighbridge_type/record_datetime/destination dan index yang benar (checked_by index 13, acknowledged_by 14, updated_at 15, recordId 16, division 7, block 8)",
+    "KETERBATASAN SCOPE: FormWeighbridgeView.vue (screen-010, bukan screen ini) saat ini GAGAL type-check (vue-tsc) karena masih memakai arrival_datetime/dispatch_datetime lama yang sudah dihapus dari WeighbridgeRecord/WeighbridgeFormData interface — di luar scope Phase 4 screen-007, akan diperbaiki saat screen-010 Phase 4 dijalankan"
   ],
   "deferred_items": [],
   "known_issues": [
@@ -49,12 +52,12 @@
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-18T21:04:28Z",
-      "passed": 17,
+      "run_at": "2026-08-19T21:55:50Z",
+      "passed": 41,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-08-18T21:12:00Z",
+      "run_at": "2026-08-19T22:05:00Z",
       "passed": 8,
       "failed": 0
     }

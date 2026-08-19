@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 3,
+  "ver": 4,
   "id": "screen-013--data-preview-weighbridge",
   "name": "Data Preview Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -34,7 +34,7 @@
         "5. On tap item list berstatus saved/synced → pindah ke mode DETAIL (route dapat id param) menampilkan record tersebut read-only",
         "6. On filter tanggal diubah (termasuk dikosongkan) → saring list sesuai nilai filter yang baru",
         "7. On kata kunci pencarian dimasukkan → saring list berdasarkan kecocokan substring case-insensitive (wb_card_number atau driver_name)",
-        "8. Mode DETAIL: load record by id (route param) → jika ditemukan, render semua field read-only; jika tidak ditemukan, tampilkan error 'record tidak ditemukan' dengan Back",
+        "8. Mode DETAIL: load record by id (route param) → jika ditemukan, render semua field read-only, dengan record_datetime berlabel sesuai weighbridge_type ('Tanggal & Waktu Arrival' jika receive, 'Tanggal & Waktu Dispatch' jika dispatch — hanya 1 field ditampilkan), destination dirender HANYA jika weighbridge_type=dispatch, dan label quantity menampilkan '(tandan)'; jika tidak ditemukan, tampilkan error 'record tidak ditemukan' dengan Back",
         "9. On Back di mode LIST → navigasi ke Monitor Weighbridge",
         "10. On Back di mode DETAIL → navigasi kembali ke mode LIST (id param dihapus dari route)",
         "11. On tap breadcrumb segment → navigasi ke route terkait",
@@ -173,6 +173,21 @@
           "description": "returns success result when all conditions pass",
           "given": "weighbridgeRepo.getAllRecords(userId) returns valid records for the current user, no filter/lookup errors occur",
           "expect": "list mode renders the full/filtered record list successfully with correct status labels and default today filter, no exception thrown"
+        },
+        {
+          "description": "renders record_datetime with label 'Tanggal & Waktu Arrival' when detail record.weighbridge_type is 'receive'",
+          "given": "detail record = { weighbridge_type: 'receive', record_datetime: '2026-08-19T08:00:00Z', ... }",
+          "expect": "detail view shows a single date/time field labeled 'Tanggal & Waktu Arrival' with that value; no 'Dispatch' label rendered"
+        },
+        {
+          "description": "renders record_datetime with label 'Tanggal & Waktu Dispatch' when detail record.weighbridge_type is 'dispatch'",
+          "given": "detail record = { weighbridge_type: 'dispatch', record_datetime: '2026-08-19T09:00:00Z', destination: 'PKS Sukamaju', ... }",
+          "expect": "detail view shows a single date/time field labeled 'Tanggal & Waktu Dispatch' with that value; no 'Arrival' label rendered"
+        },
+        {
+          "description": "renders destination field only when detail record.weighbridge_type is 'dispatch'",
+          "given": "two detail records, one with weighbridge_type='receive' (destination=null) and one with weighbridge_type='dispatch' (destination='PKS Sukamaju')",
+          "expect": "destination field is absent/not rendered for the receive record, and rendered with its value for the dispatch record"
         }
       ]
     }
@@ -192,7 +207,8 @@
     "Layar ini murni membaca data lokal SQLite, tidak ada panggilan API",
     "Mode list dan detail berbagi 1 komponen/route yang sama (bedanya cuma ada/tidaknya :id param)",
     "Filter tanggal & search dilakukan client-side terhadap hasil query getAllRecords",
-    "Default dateFilter = tanggal lokal hari ini (format YYYY-MM-DD, konsisten dengan input type=date), diisi SEKALI saat komponen mount di mode list — bukan setiap kali list mode dimasuki ulang dari detail (Back dari detail TIDAK mereset filter yang sudah diubah user kembali ke hari ini)"
+    "Default dateFilter = tanggal lokal hari ini (format YYYY-MM-DD, konsisten dengan input type=date), diisi SEKALI saat komponen mount di mode list — bukan setiap kali list mode dimasuki ulang dari detail (Back dari detail TIDAK mereset filter yang sudah diubah user kembali ke hari ini)",
+    "Field label untuk record_datetime/destination di detail read-only harus konsisten dengan Form Weighbridge (screen-010): 'Tanggal & Waktu Arrival' vs 'Tanggal & Waktu Dispatch', destination dirender hanya untuk tipe dispatch. Sumber data field ini sudah unified sebagai weighbridge_type/record_datetime/destination di entity-catalog v5 — tidak ada lagi arrival_datetime/dispatch_datetime terpisah."
   ],
   "test_scenarios": [
     {
@@ -343,6 +359,21 @@
         "route": "/stations/weighbridge/preview/:id?",
         "action": "from detail mode, press the Back button",
         "assert": "browser URL changes from /stations/weighbridge/preview/:id to /stations/weighbridge/preview (list mode); Monitor Weighbridge screen is NOT shown"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Weighbridge Tersimpan — Field Sesuai Tipe Weighbridge",
+      "usecase_id": "usecase-013--data-preview-weighbridge",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewWeighbridgeView",
+        "action": "open detail mode for a receive-type record, then separately for a dispatch-type record",
+        "assert": "receive record shows 'Tanggal & Waktu Arrival' and no Tujuan Muatan field; dispatch record shows 'Tanggal & Waktu Dispatch' and a Tujuan Muatan field with its value"
+      },
+      "browser_test": {
+        "route": "/stations/weighbridge/preview/:id?",
+        "action": "view detail for a saved receive-type record, then a saved dispatch-type record",
+        "assert": "receive detail page shows Tanggal & Waktu Arrival with no Tujuan Muatan row; dispatch detail page shows Tanggal & Waktu Dispatch plus a Tujuan Muatan row"
       }
     }
   ]

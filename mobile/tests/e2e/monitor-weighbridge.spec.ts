@@ -46,12 +46,14 @@ async function seedWeighbridgeDraft(
 
 /**
  * "today's counter" addition — seeds a full `weighbridge_record` row
- * (status/arrival_datetime/net_weight/quantity), for the new "Hari Ini"
+ * (status/record_datetime/net_weight/quantity), for the new "Hari Ini"
  * section (weighbridgeRecordRepo.getTodaySummary()). Separate from
  * seedWeighbridgeDraft() above (which only sets the columns the
- * draft/pause LIST needs) — the counter needs arrival_datetime + the two
+ * draft/pause LIST needs) — the counter needs record_datetime + the two
  * numeric sum columns as well, mirroring
  * data-preview-weighbridge.spec.ts's seedWeighbridgeRecord() helper.
+ * record_datetime replaces the old arrival_datetime/dispatch_datetime pair
+ * as of entity-catalog v5 — a single column for both Receive and Dispatch.
  */
 async function seedWeighbridgeRecordForCounter(
   page: Page,
@@ -59,30 +61,30 @@ async function seedWeighbridgeRecordForCounter(
   overrides: {
     id: string
     status?: 'draft_ongoing' | 'draft_paused' | 'saved' | 'synced'
-    arrivalDatetime: string
+    recordDatetime: string
     netWeight: number
     quantity: number
   },
 ): Promise<void> {
   await page.evaluate(
-    async ({ userId, id, status, arrivalDatetime, netWeight, quantity }) => {
+    async ({ userId, id, status, recordDatetime, netWeight, quantity }) => {
       const db = (window as unknown as { __mslTestDb: { run: (sql: string, params?: unknown[]) => Promise<unknown> } })
         .__mslTestDb
       const now = new Date().toISOString()
       await db.run(
         `INSERT OR REPLACE INTO weighbridge_record
-           (id, status, arrival_datetime, net_weight, quantity, created_by, created_at, updated_at)
+           (id, status, record_datetime, net_weight, quantity, created_by, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [id, status ?? 'saved', arrivalDatetime, netWeight, quantity, userId, now, now],
+        [id, status ?? 'saved', recordDatetime, netWeight, quantity, userId, now, now],
       )
     },
-    { userId, id: overrides.id, status: overrides.status, arrivalDatetime: overrides.arrivalDatetime, netWeight: overrides.netWeight, quantity: overrides.quantity },
+    { userId, id: overrides.id, status: overrides.status, recordDatetime: overrides.recordDatetime, netWeight: overrides.netWeight, quantity: overrides.quantity },
   )
 }
 
 /**
  * Formats a local (device-timezone) date-time string in the same
- * naive/no-offset "YYYY-MM-DDTHH:mm" shape this app's own arrival_datetime
+ * naive/no-offset "YYYY-MM-DDTHH:mm" shape this app's own record_datetime
  * values use (see FormWeighbridgeView.vue's <input type="datetime-local">
  * binding) — required here (rather than `Date#toISOString()`, which is
  * UTC) because `getTodaySummary()`'s SQL filters via
@@ -187,14 +189,14 @@ test.describe('Monitor Weighbridge (screen-007)', () => {
     await seedWeighbridgeRecordForCounter(page, userId, {
       id: 'e2e-wb-counter-today-1',
       status: 'saved',
-      arrivalDatetime: toLocalDateTimeString(today, '08:00'),
+      recordDatetime: toLocalDateTimeString(today, '08:00'),
       netWeight: 10000,
       quantity: 1,
     })
     await seedWeighbridgeRecordForCounter(page, userId, {
       id: 'e2e-wb-counter-today-2',
       status: 'draft_ongoing',
-      arrivalDatetime: toLocalDateTimeString(today, '11:30'),
+      recordDatetime: toLocalDateTimeString(today, '11:30'),
       netWeight: 8000,
       quantity: 2,
     })
@@ -202,7 +204,7 @@ test.describe('Monitor Weighbridge (screen-007)', () => {
     await seedWeighbridgeRecordForCounter(page, userId, {
       id: 'e2e-wb-counter-yesterday',
       status: 'saved',
-      arrivalDatetime: toLocalDateTimeString(yesterday, '09:00'),
+      recordDatetime: toLocalDateTimeString(yesterday, '09:00'),
       netWeight: 99999,
       quantity: 99,
     })
@@ -223,7 +225,7 @@ test.describe('Monitor Weighbridge (screen-007)', () => {
     await seedWeighbridgeRecordForCounter(page, userId, {
       id: 'e2e-wb-counter-none-today',
       status: 'saved',
-      arrivalDatetime: toLocalDateTimeString(yesterday, '09:00'),
+      recordDatetime: toLocalDateTimeString(yesterday, '09:00'),
       netWeight: 5000,
       quantity: 1,
     })

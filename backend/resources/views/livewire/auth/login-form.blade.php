@@ -1,5 +1,5 @@
 <div class="login-card" wire:loading.class="login-card--busy" wire:target="login">
-    <h1 class="login-card__title">Mill Smart Log</h1>
+    <h1 class="login-card__title">Mills Smart Log</h1>
     <p class="login-card__subtitle">Masuk untuk melanjutkan</p>
 
     @if ($errorMessage)
@@ -26,17 +26,28 @@
             @enderror
         </div>
 
-        <div class="form-field">
+        <div class="form-field" x-data="{ showPassword: false }">
             <label for="password" class="form-field__label">
                 Password <span class="form-field__required">*</span>
             </label>
-            <input
-                type="password"
-                id="password"
-                wire:model="password"
-                class="form-field__input @error('password') form-field__input--error @enderror"
-                autocomplete="current-password"
-            >
+            <div class="form-field__input-group">
+                <input
+                    :type="showPassword ? 'text' : 'password'"
+                    id="password"
+                    wire:model="password"
+                    class="form-field__input @error('password') form-field__input--error @enderror"
+                    autocomplete="current-password"
+                >
+                <button
+                    type="button"
+                    class="form-field__toggle-password"
+                    @click="showPassword = !showPassword"
+                    :aria-label="showPassword ? 'Sembunyikan password' : 'Tampilkan password'"
+                    tabindex="-1"
+                >
+                    <span x-text="showPassword ? 'Sembunyikan' : 'Tampilkan'"></span>
+                </button>
+            </div>
             @error('password')
                 <p class="form-field__error">{{ $message }}</p>
             @enderror
@@ -46,16 +57,13 @@
             <label for="business_unit_id" class="form-field__label">
                 Business Area <span class="form-field__required">*</span>
             </label>
-            <select
+            <x-searchable-select
                 id="business_unit_id"
                 wire:model="business_unit_id"
-                class="form-field__input @error('business_unit_id') form-field__input--error @enderror"
-            >
-                <option value="">Pilih business area&hellip;</option>
-                @foreach ($businessUnits as $businessUnit)
-                    <option value="{{ $businessUnit->id }}">{{ $businessUnit->name }}</option>
-                @endforeach
-            </select>
+                :options="collect($businessUnits)->map(fn ($businessUnit) => ['value' => $businessUnit->id, 'label' => $businessUnit->name])->all()"
+                placeholder="Pilih business area…"
+                :class="'form-field__input'.($errors->has('business_unit_id') ? ' form-field__input--error' : '')"
+            />
             @error('business_unit_id')
                 <p class="form-field__error">{{ $message }}</p>
             @enderror

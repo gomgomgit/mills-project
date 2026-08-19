@@ -1,0 +1,79 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-031--kelola-machinery",
+  "name": "Kelola Machinery",
+  "module_id": "module-master-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/database/migrations/2026_08_19_000007_add_fields_to_machinery_table.php",
+    "backend/database/migrations/2026_08_19_000008_create_machinery_insurances_table.php",
+    "backend/database/migrations/2026_08_19_000009_create_machinery_tax_purchases_table.php",
+    "backend/app/Models/MachineryInsurance.php",
+    "backend/app/Models/MachineryTaxPurchase.php",
+    "backend/app/Models/Machinery.php",
+    "backend/app/Services/MachineryService.php",
+    "backend/app/Http/Controllers/Api/MachineryController.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/MachineryServiceTest.php",
+    "backend/tests/Feature/Api/KelolaMachineryTest.php",
+    "backend/tests/Feature/Livewire/KelolaMachineryTest.php",
+    "backend/tests/Browser/KelolaMachineryTest.php",
+    "backend/database/factories/MachineryInsuranceFactory.php",
+    "backend/database/factories/MachineryTaxPurchaseFactory.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/MasterData/KelolaMachinery.php",
+    "backend/resources/views/livewire/master-data/kelola-machinery.blade.php",
+    "backend/resources/views/master-data/machinery.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "Screen TERAKHIR dari seluruh round adopsi ERD (027→028→029→030→033→031)",
+    "Memperluas (bukan membuat ulang) tabel/model machinery placeholder — mengklaim machinery_group_id ke $fillable (sebelumnya sengaja belum diklaim oleh screen-033), menambah business_unit_id + equipment_code (unik global) + 17 field spesifikasi teknis opsional + picture",
+    "station_id DAN business_unit_id SELALU diturunkan server-side dari MachineryGroup terpilih — satu level lebih dalam dari pola MachineryGroupService (business_unit_id Machinery diturunkan dari machinery_group_id, BUKAN dari station_id langsung, karena MachineryGroup sudah membawa business_unit_id terverifikasi dari Station-nya sendiri)",
+    "2 entity anak baru dari nol: MachineryInsurance (machinery_insurances) dan MachineryTaxPurchase (machinery_tax_purchases), keduanya cascadeOnDelete() ke machinery_id di level DB sebagai safety net, PLUS penghapusan eksplisit di service layer (untuk kejelasan/testability) sebelum menghapus Machinery induk",
+    "Child-row REPLACE-ALL: update() hanya mengganti insurances/tax_purchases jika key-nya ADA di payload (bahkan array kosong = hapus semua baris) — key yang TIDAK ADA sama sekali = baris lama tidak disentuh. create() selalu sync keduanya.",
+    "TIDAK ADA delete-guard — satu-satunya screen master data dalam round ini yang menghapus tanpa pemeriksaan referensi, karena insurance/tax_purchase murni anak Machinery tanpa identitas independen",
+    "GET /api/machinery/:id (endpoint baru, tidak ada di screen master data lain) mengembalikan detail lengkap + insurances[] + tax_purchases[] untuk mengisi form Edit",
+    "picture disimpan di Laravel Filesystem local disk (PICTURE_DISK=local, direktori machinery-pictures), pola sama dengan logo Corporate/Company/Business Unit",
+    "Semua test upload gambar memakai UploadedFile::fake()->create() (bukan ->image()) — workaround GD extension yang konsisten sepanjang round ini",
+    "Independently re-verified oleh command: re-run `php artisan test` — 599/599 lulus (full suite gabungan seluruh 6 screen master data: 027-031, 033); baca MachineryService.php penuh untuk konfirmasi transaksi DB, replace-all semantics, dan tidak-ada-delete-guard sesuai tech spec"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada Playwright/Node infra di sandbox backend/, konsisten dengan keterbatasan yang sudah diterima di seluruh screen web lain",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-19T16:00:00Z",
+      "passed": 26,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-19T16:00:00Z",
+      "passed": 26,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-19T16:00:00Z",
+      "passed": 24,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

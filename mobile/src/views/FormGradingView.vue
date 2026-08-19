@@ -109,6 +109,7 @@ import gradingRecordRepo, {
 } from '@/services/gradingRecordRepo'
 import FormField from '@/components/FormField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import SearchableSelect, { type SearchableSelectOption } from '@/components/SearchableSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -363,16 +364,33 @@ function wbOptionLabel(option: WeighbridgeRecordOption): string {
   return option.wb_card_number?.trim() ? option.wb_card_number : `(Tanpa WB Card No) ${option.id}`
 }
 
-// business_logic — WB Card No auto-fill. Runs ONLY at selection time (this
-// @change handler), never as a reactive/computed binding — so
-// license_plate_no/estate_supplier/division stay freely editable
-// afterward and are never silently reset by anything else.
-function onWbCardChange(): void {
-  const selected = wbOptions.value.find((option) => option.id === form.weighbridge_record_id)
+// SearchableSelect's fixed { value, label } option shape, extended with the
+// raw record fields onWbCardSelect() below needs — the FULL matched option
+// object SearchableSelect's `select` event carries back is exactly one of
+// these entries, so those extra fields ride along for free.
+interface WbCardSelectOption extends SearchableSelectOption {
+  vehicle_number: string | null
+  estate_supplier: string | null
+  division: string | null
+}
 
-  if (!selected) {
-    return
-  }
+const wbSelectOptions = computed<WbCardSelectOption[]>(() =>
+  wbOptions.value.map((option) => ({
+    value: option.id,
+    label: wbOptionLabel(option),
+    vehicle_number: option.vehicle_number,
+    estate_supplier: option.estate_supplier,
+    division: option.division,
+  })),
+)
+
+// business_logic — WB Card No auto-fill. Runs ONLY at selection time (this
+// SearchableSelect `select` handler, carrying the full matched option
+// object), never as a reactive/computed binding — so license_plate_no/
+// estate_supplier/division stay freely editable afterward and are never
+// silently reset by anything else.
+function onWbCardSelect(option: SearchableSelectOption): void {
+  const selected = option as WbCardSelectOption
 
   form.license_plate_no = selected.vehicle_number ?? ''
   form.estate_supplier = selected.estate_supplier ?? ''
@@ -396,17 +414,26 @@ function removeDetailRow(index: number): void {
   detailRows.value.splice(index, 1)
 }
 
+// SearchableSelect's fixed { value, label } option shape, extended with
+// `uom` — onParameterSelect() below reads it straight off the emitted
+// option instead of re-looking it up in parameterOptions.
+interface ParameterSelectOption extends SearchableSelectOption {
+  uom: string
+}
+
 // business_logic — Quality Parameter selection snapshots that parameter's
-// uom onto the row (not a live join — see this file's header comment).
-function onParameterChange(index: number): void {
+// uom onto the row (not a live join — see this file's header comment). Runs
+// off the FULL matched option SearchableSelect's `select` event carries,
+// same "select event carries the record, not just the id" pattern as
+// onWbCardSelect() above.
+function onParameterSelect(index: number, option: SearchableSelectOption): void {
   const row = detailRows.value[index]
 
   if (!row) {
     return
   }
 
-  const selected = parameterOptions.value.find((option) => option.id === row.grading_parameter_id)
-  row.uom = selected?.uom ?? ''
+  row.uom = (option as ParameterSelectOption).uom ?? ''
 }
 
 // business_logic — each Quality Parameter can only be used in ONE detail
@@ -417,6 +444,8 @@ function onParameterChange(index: number): void {
 // changing, or removing a row's selection elsewhere immediately frees/
 // reserves the parameter across the whole grid — no separate "recompute"
 // call needed, this recomputes naturally whenever detailRows.value changes.
+// SearchableSelect never computes this availability itself — it's always
+// handed the already-filtered list to show right now.
 function availableParameterOptions(index: number): GradingParameterOption[] {
   const usedElsewhere = new Set(
     detailRows.value
@@ -426,6 +455,14 @@ function availableParameterOptions(index: number): GradingParameterOption[] {
   )
 
   return parameterOptions.value.filter((option) => !usedElsewhere.has(option.id))
+}
+
+function parameterSelectOptions(index: number): ParameterSelectOption[] {
+  return availableParameterOptions(index).map((option) => ({
+    value: option.id,
+    label: option.name,
+    uom: option.uom,
+  }))
 }
 
 // business_logic — Percentage per row: qty/header.netto*100 when
@@ -647,7 +684,7 @@ function goToMonitorGrading(): void {
           <circle cx="12" cy="12" r="9" />
           <path d="M8 12l3 3 5-6" />
         </svg>
-        <span class="brand-name">Mill Smart Log</span>
+        <span class="brand-name">Mills Smart Log</span>
       </div>
 
       <button
@@ -725,21 +762,17 @@ function goToMonitorGrading(): void {
           <label for="wb-card-no-select" class="form-field-label">
             WB Card No <span class="form-field-required" aria-hidden="true">*</span>
           </label>
-          <select
+          <SearchableSelect
             id="wb-card-no-select"
-            class="form-field-select"
             :class="{ 'form-field-input--error': errors.weighbridge_record_id }"
             data-testid="wb-card-no-select"
             v-model="form.weighbridge_record_id"
+            :options="wbSelectOptions"
+            placeholder="Pilih WB Card No"
             :disabled="actionInProgress"
             :aria-invalid="Boolean(errors.weighbridge_record_id)"
-            @change="onWbCardChange"
-          >
-            <option value="">Pilih WB Card No</option>
-            <option v-for="option in wbOptions" :key="option.id" :value="option.id">
-              {{ wbOptionLabel(option) }}
-            </option>
-          </select>
+            @select="onWbCardSelect"
+          />
           <p v-if="wbOptions.length === 0" class="form-field-hint">Tidak ada data weighbridge lokal.</p>
           <p v-if="wbOptionsError" class="form-field-error" role="alert">{{ wbOptionsError }}</p>
           <p v-if="errors.weighbridge_record_id" class="form-field-error" role="alert">
@@ -808,19 +841,15 @@ function goToMonitorGrading(): void {
         >
           <div class="form-field">
             <label :for="`detail-parameter-${index}`" class="form-field-label">Quality Parameter</label>
-            <select
+            <SearchableSelect
               :id="`detail-parameter-${index}`"
-              class="form-field-select"
               :data-testid="`detail-parameter-select-${index}`"
               v-model="row.grading_parameter_id"
+              :options="parameterSelectOptions(index)"
+              placeholder="Pilih Quality Parameter"
               :disabled="actionInProgress"
-              @change="onParameterChange(index)"
-            >
-              <option value="">Pilih Quality Parameter</option>
-              <option v-for="option in availableParameterOptions(index)" :key="option.id" :value="option.id">
-                {{ option.name }}
-              </option>
-            </select>
+              @select="(option) => onParameterSelect(index, option)"
+            />
           </div>
 
           <div class="detail-row-fields">
@@ -1131,22 +1160,6 @@ function goToMonitorGrading(): void {
 
 .form-field-required {
   color: #dc2626;
-}
-
-.form-field-select {
-  min-height: 44px;
-  padding: 0 12px;
-  background-color: #edebeb;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  font-size: 16px;
-  font-family: inherit;
-  color: #1f2937;
-  box-sizing: border-box;
-}
-
-.form-field-select:disabled {
-  opacity: 0.6;
 }
 
 .form-field-input--error {

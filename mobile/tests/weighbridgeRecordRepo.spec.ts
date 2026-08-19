@@ -84,11 +84,12 @@ function makeDraftRecord(overrides: Partial<WeighbridgeRecord> = {}): Weighbridg
     id: 'draft-1',
     station_id: 'station-1',
     wb_card_number: null,
-    arrival_datetime: null,
-    dispatch_datetime: null,
+    weighbridge_type: null,
+    record_datetime: null,
     vehicle_number: null,
     driver_name: null,
     estate_supplier: null,
+    destination: null,
     division: null,
     block: null,
     gross_weight: null,
@@ -108,11 +109,12 @@ function makeDraftRecord(overrides: Partial<WeighbridgeRecord> = {}): Weighbridg
 function makeValidFormData(overrides: Partial<WeighbridgeFormData> = {}): WeighbridgeFormData {
   return {
     wb_card_number: 'WB-2001',
-    arrival_datetime: '2026-08-18T08:00',
-    dispatch_datetime: '2026-08-18T10:00',
+    weighbridge_type: 'dispatch',
+    record_datetime: '2026-08-18T10:00',
     vehicle_number: 'B 5678 EF',
     driver_name: 'Andi',
     estate_supplier: 'Estate B',
+    destination: 'PKS Tujuan B',
     division: 'Divisi 2',
     block: 'Blok 5',
     gross_weight: 20000,
@@ -272,11 +274,12 @@ describe('weighbridgeRecordRepo', () => {
       const pausedRecord = makeDraftRecord({
         id: 'draft-paused-1',
         wb_card_number: 'WB-1001',
-        arrival_datetime: '2026-08-17T08:00',
-        dispatch_datetime: '2026-08-17T10:00',
+        weighbridge_type: 'receive',
+        record_datetime: '2026-08-17T08:00',
         vehicle_number: 'B 1234 CD',
         driver_name: 'Budi',
         estate_supplier: 'Estate A',
+        destination: null,
         division: 'Divisi 1',
         block: 'Blok 3',
         gross_weight: 15000,
@@ -311,7 +314,7 @@ describe('weighbridgeRecordRepo', () => {
       expect(result).not.toBeNull()
       expect(result?.status).toBe('draft_ongoing')
       expect(result?.wb_card_number).toBeNull()
-      expect(result?.arrival_datetime).toBeNull()
+      expect(result?.record_datetime).toBeNull()
       expect(result?.checked_by).toBeNull()
       expect(result?.gross_weight).toBeNull()
     })
@@ -339,9 +342,12 @@ describe('weighbridgeRecordRepo', () => {
 
       expect(run).toHaveBeenCalledTimes(1)
       const [, params] = vi.mocked(run).mock.calls[0]
-      // checked_by is the 13th positional UPDATE param (index 12) per
-      // saveDraft()'s SET column order.
-      expect(params[12]).toBeNull()
+      // checked_by is the 14th positional UPDATE param (index 13) per
+      // saveDraft()'s SET column order (wb_card_number, weighbridge_type,
+      // record_datetime, vehicle_number, driver_name, estate_supplier,
+      // destination, division, block, gross_weight, tare_weight,
+      // net_weight, quantity, checked_by, ...).
+      expect(params[13]).toBeNull()
     })
 
     it('strips checked_by to null when currentUserRole is neither operator nor supervisor (mill_management)', async () => {
@@ -353,7 +359,7 @@ describe('weighbridgeRecordRepo', () => {
       await saveDraft('draft-3b', formData, 'mill_management')
 
       const [, params] = vi.mocked(run).mock.calls[0]
-      expect(params[12]).toBeNull()
+      expect(params[13]).toBeNull()
     })
 
     it('keeps checked_by when currentUserRole is supervisor and formData.checked_by is set', async () => {
@@ -367,7 +373,7 @@ describe('weighbridgeRecordRepo', () => {
       await saveDraft('draft-3c', formData, 'supervisor')
 
       const [, params] = vi.mocked(run).mock.calls[0]
-      expect(params[12]).toBe('Supervisor Satu')
+      expect(params[13]).toBe('Supervisor Satu')
     })
 
     // unit_test_case 8: "returns success — all fields valid, UPDATE
@@ -394,12 +400,12 @@ describe('weighbridgeRecordRepo', () => {
         expect.arrayContaining(['WB-2001', 'draft-4']),
       )
       const [, params] = vi.mocked(run).mock.calls[0]
-      // updated_at (index 14) is a freshly generated timestamp string, not
+      // updated_at (index 15) is a freshly generated timestamp string, not
       // a field carried over from formData.
-      expect(typeof params[14]).toBe('string')
-      expect(params[14].length).toBeGreaterThan(0)
+      expect(typeof params[15]).toBe('string')
+      expect(params[15].length).toBeGreaterThan(0)
       // recordId is the final WHERE-clause param.
-      expect(params[15]).toBe('draft-4')
+      expect(params[16]).toBe('draft-4')
 
       expect(query).toHaveBeenCalledTimes(1)
       expect(query).toHaveBeenCalledWith(
@@ -418,9 +424,9 @@ describe('weighbridgeRecordRepo', () => {
       await saveDraft('draft-5', formData, 'operator')
 
       const [, params] = vi.mocked(run).mock.calls[0]
-      expect(params[6]).toBeNull() // division
-      expect(params[7]).toBeNull() // block
-      expect(params[13]).toBeNull() // acknowledged_by
+      expect(params[7]).toBeNull() // division
+      expect(params[8]).toBeNull() // block
+      expect(params[14]).toBeNull() // acknowledged_by
     })
   })
   // screen-007--monitor-weighbridge "today's counter" addition.
@@ -429,9 +435,11 @@ describe('weighbridgeRecordRepo', () => {
       // The repo delegates aggregation to SQL — this test verifies
       // getTodaySummary() maps the aggregate row's snake_case columns to
       // the expected camelCase shape, matching what a WHERE
-      // date(arrival_datetime) = date('now','localtime') aggregate over
-      // 2-3 today-dated rows (draft_ongoing/draft_paused/saved, same
-      // userId) would produce.
+      // date(record_datetime) = date('now','localtime') aggregate over
+      // 2-3 today-dated rows (draft_ongoing/draft_paused/saved, any
+      // weighbridge_type, same userId) would produce. record_datetime
+      // replaces the old arrival_datetime/dispatch_datetime pair as of
+      // entity-catalog v5 — a single column for both Receive and Dispatch.
       vi.mocked(query).mockResolvedValueOnce([
         { count_wb: 3, sum_net_weight: 24000, sum_quantity: 6 },
       ])
@@ -441,13 +449,13 @@ describe('weighbridgeRecordRepo', () => {
       expect(result).toEqual({ countWb: 3, sumNetWeight: 24000, sumQuantity: 6 })
       expect(query).toHaveBeenCalledTimes(1)
       expect(query).toHaveBeenCalledWith(
-        expect.stringContaining("date(arrival_datetime) = date('now', 'localtime')"),
+        expect.stringContaining("date(record_datetime) = date('now', 'localtime')"),
         [USER_ID],
       )
       expect(query).toHaveBeenCalledWith(expect.not.stringContaining('AND status'), [USER_ID])
     })
 
-    it("excludes records whose arrival_datetime is not today from the counter", async () => {
+    it("excludes records whose record_datetime is not today from the counter", async () => {
       // The SQL WHERE clause itself is responsible for the date exclusion
       // (asserted above via stringContaining the date(...) filter); at
       // the repo-unit level this is verified by confirming the mapped

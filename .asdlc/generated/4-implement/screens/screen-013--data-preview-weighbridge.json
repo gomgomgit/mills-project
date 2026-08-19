@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
-  "ver": 4,
+  "ver": 5,
   "id": "screen-013--data-preview-weighbridge",
   "name": "Data Preview Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -23,7 +23,8 @@
     "searchFilter tetap default kosong (tidak ada default untuk pencarian)",
     "hasActiveFilter otomatis true secara default sekarang (karena dateFilter tidak lagi kosong) — tombol Reset Filter akan muncul kalau hari ini tidak ada data, sesuai edge_case_handling yang diminta",
     "onResetFilter() sengaja TETAP reset ke string kosong (tampilkan semua), bukan balik ke hari ini — di luar scope perubahan ini, dicatat sebagai known_issue/opsi follow-up jika mau diubah",
-    "Regresi penuh diverifikasi independen: 226/226 vitest (20 file) + 67/67 Playwright e2e (12 file), backend dikonfirmasi hidup sebelum run"
+    "entity-catalog v5 (Weighbridge receive/dispatch): DataPreviewWeighbridgeView.vue diperbarui mengikuti rename shared schema/repo (weighbridge_type/record_datetime/destination menggantikan arrival_datetime/dispatch_datetime, dilakukan oleh worker lain). List-mode date filter sekarang membaca record_datetime. Detail mode menambahkan field Tipe Weighbridge (Receive/Dispatch), me-label ulang field tanggal tunggal sesuai tipe ('Tanggal & Waktu Arrival'/'Tanggal & Waktu Dispatch'), menambahkan field Tujuan Muatan (dirender hanya saat dispatch), dan mengubah label Kuantitas menjadi 'Kuantitas (tandan)'.",
+    "Regresi diverifikasi: vue-tsc bersih untuk file ini (error pre-existing di FormWeighbridgeView.vue/CagesTippedTimeGrid.vue/GradingDetailGrid.vue bukan scope perubahan ini); vitest 400/400 (seluruh suite mobile, termasuk 24/24 untuk screen ini); Playwright e2e 11/11 untuk screen ini, 99/102 untuk seluruh suite mobile."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -34,6 +35,10 @@
     {
       "description": "onResetFilter() reset ke kosong (tampilkan semua), bukan balik ke default hari ini — perilaku ini disengaja/sesuai scope permintaan (Reset Filter = tampilkan semua data), bukan bug",
       "severity": "minor"
+    },
+    {
+      "description": "Full-suite Playwright run (102 tests) menemukan 3 kegagalan e2e TIDAK terkait screen ini, disebabkan shared schema rename (weighbridge_record.arrival_datetime/dispatch_datetime dihapus): tests/e2e/form-weighbridge.spec.ts (screen-010, sudah diketahui — ditangani worker lain) dan tests/e2e/form-grading.spec.ts (screen-011, 2 test, BELUM diketahui sebelumnya — file ini men-seed weighbridge_record via kolom lama untuk kebutuhan FK pada test Form Grading). form-grading.spec.ts di luar scope revisi Weighbridge ini dan tidak disentuh; perlu ditangani terpisah oleh screen-011 atau proses cleanup shared-file.",
+      "severity": "major"
     }
   ],
   "test_results": {
@@ -49,13 +54,13 @@
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-18T21:48:59Z",
-      "passed": 23,
+      "run_at": "2026-08-19T21:56:20Z",
+      "passed": 24,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-08-18T21:52:00Z",
-      "passed": 10,
+      "run_at": "2026-08-19T22:05:00Z",
+      "passed": 11,
       "failed": 0
     }
   }

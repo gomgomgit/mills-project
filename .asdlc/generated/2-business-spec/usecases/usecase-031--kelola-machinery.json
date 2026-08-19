@@ -1,0 +1,154 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "usecase-031--kelola-machinery",
+  "name": "Kelola Machinery",
+  "description": "Admin mengelola data master Machinery (mesin/peralatan individual di bawah Machinery Group) melalui web — melihat daftar, menambah dengan memilih Machinery Group induk dan mengisi spesifikasi teknis, mengedit, menghapus Machinery, serta mengelola riwayat asuransi dan pajak/pembelian sebagai baris grid di dalam form Machinery yang sama.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login ke web app",
+    "Minimal satu Machinery Group sudah ada untuk dapat menambah Machinery"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Admin membuka menu Master Data > Kelola Machinery"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Sistem menampilkan daftar Machinery beserta kode peralatan, nama, dan Machinery Group induk"
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Admin klik Tambah Machinery, memilih Machinery Group induk dari dropdown, mengisi kode peralatan dan nama, serta field spesifikasi teknis lain jika diperlukan"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Sistem memvalidasi kode peralatan unik secara global, menyimpan Machinery baru (Station/Business Unit diturunkan otomatis dari Machinery Group), dan menampilkannya di daftar"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Edit Machinery",
+      "trigger": "Step 2 — Admin klik Edit pada salah satu baris Machinery",
+      "steps": [
+        "Admin mengubah kode peralatan, nama, field spesifikasi lain, dan/atau Machinery Group induk",
+        "Sistem memvalidasi kode peralatan unik secara global",
+        "Sistem menyimpan perubahan dan memperbarui daftar"
+      ]
+    },
+    {
+      "name": "Hapus Machinery",
+      "trigger": "Step 2 — Admin klik Hapus pada salah satu baris Machinery",
+      "steps": [
+        "Sistem menghapus Machinery beserta seluruh baris riwayat asuransi dan pajak/pembelian yang menyertainya",
+        "Sistem memperbarui daftar"
+      ]
+    },
+    {
+      "name": "Kode peralatan duplikat",
+      "trigger": "Step 4 (atau langkah simpan pada Edit) — Admin menyimpan kode peralatan yang sudah dipakai Machinery lain",
+      "steps": [
+        "Sistem menolak penyimpanan",
+        "Sistem menampilkan pesan validasi kode peralatan sudah dipakai"
+      ]
+    },
+    {
+      "name": "Kelola baris Riwayat Asuransi",
+      "trigger": "Di dalam form Tambah/Edit Machinery — Admin menambah, mengubah, atau menghapus baris pada grid Riwayat Asuransi",
+      "steps": [
+        "Admin mengisi/mengubah kepemilikan, nomor polis, perusahaan asuransi, tanggal kedaluwarsa, premi, dan/atau nilai pertanggungan pada satu baris",
+        "Sistem menyimpan perubahan baris tersebut bersamaan dengan penyimpanan Machinery"
+      ]
+    },
+    {
+      "name": "Kelola baris Riwayat Pajak/Pembelian",
+      "trigger": "Di dalam form Tambah/Edit Machinery — Admin menambah, mengubah, atau menghapus baris pada grid Riwayat Pajak/Pembelian",
+      "steps": [
+        "Admin mengisi/mengubah tanggal pembelian, biaya pembelian, jenis kebijakan, dan/atau data kontak vendor pada satu baris",
+        "Sistem menyimpan perubahan baris tersebut bersamaan dengan penyimpanan Machinery"
+      ]
+    },
+    {
+      "name": "Belum ada Machinery Group",
+      "trigger": "Step 3 — Admin membuka form Tambah Machinery saat belum ada Machinery Group sama sekali",
+      "steps": [
+        "Sistem menampilkan form tanpa opsi Machinery Group yang dapat dipilih",
+        "Sistem mengarahkan Admin untuk membuat Machinery Group terlebih dahulu"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Machinery baru/ubahan tersimpan dan terlihat di daftar dengan Machinery Group induk yang benar, beserta baris riwayat asuransi/pajak yang tersimpan",
+    "Atau Machinery terhapus dari daftar beserta seluruh riwayat asuransi/pajak yang menyertainya"
+  ],
+  "business_rules": [
+    "Kode peralatan (equipment_code) harus unik di seluruh sistem",
+    "Machinery harus terkait ke tepat satu Machinery Group yang sudah ada",
+    "Station dan Business Unit Machinery selalu mengikuti Machinery Group yang dipilih",
+    "Hanya Admin yang dapat mengakses dan mengelola data Machinery beserta riwayat asuransi dan pajak/pembeliannya",
+    "Menghapus Machinery turut menghapus seluruh baris riwayat asuransi dan pajak/pembelian, tidak diblokir"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Kelola Machinery — success",
+      "given": "Admin sudah login ke web app dan minimal satu Machinery Group sudah ada",
+      "when": "Admin membuka menu Kelola Machinery, menambah Machinery baru dengan memilih Machinery Group induk, mengisi kode peralatan dan nama",
+      "then": "Machinery baru tersimpan dan terlihat di daftar dengan Machinery Group induk yang benar"
+    },
+    {
+      "scenario": "Kelola Machinery — Edit Machinery",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery",
+      "when": "Admin klik Edit pada salah satu baris Machinery dan mengubah kode peralatan/nama/field spesifikasi lain",
+      "then": "Sistem memvalidasi kode peralatan unik secara global, menyimpan perubahan, dan memperbarui daftar"
+    },
+    {
+      "scenario": "Kelola Machinery — Hapus Machinery",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery yang memiliki baris riwayat asuransi/pajak",
+      "when": "Admin klik Hapus pada Machinery tersebut",
+      "then": "Sistem menghapus Machinery beserta seluruh baris riwayat asuransi dan pajak/pembelian yang menyertainya, tanpa penolakan"
+    },
+    {
+      "scenario": "Kelola Machinery — Kode peralatan duplikat",
+      "given": "Admin sudah login ke web app dan minimal satu Machinery Group sudah ada",
+      "when": "Admin menyimpan kode peralatan yang sudah dipakai Machinery lain",
+      "then": "Sistem menolak penyimpanan dan menampilkan pesan validasi kode peralatan sudah dipakai"
+    },
+    {
+      "scenario": "Kelola Machinery — Kelola baris Riwayat Asuransi",
+      "given": "Admin sudah login ke web app dan sedang membuka form Tambah/Edit Machinery",
+      "when": "Admin menambah satu baris Riwayat Asuransi dengan mengisi nomor polis dan tanggal kedaluwarsa, lalu menyimpan Machinery",
+      "then": "Baris Riwayat Asuransi tersimpan bersamaan dengan data Machinery"
+    },
+    {
+      "scenario": "Kelola Machinery — Kelola baris Riwayat Pajak/Pembelian",
+      "given": "Admin sudah login ke web app dan sedang membuka form Tambah/Edit Machinery",
+      "when": "Admin menambah satu baris Riwayat Pajak/Pembelian dengan mengisi tanggal dan biaya pembelian, lalu menyimpan Machinery",
+      "then": "Baris Riwayat Pajak/Pembelian tersimpan bersamaan dengan data Machinery"
+    },
+    {
+      "scenario": "Kelola Machinery — Belum ada Machinery Group",
+      "given": "Admin sudah login ke web app dan belum ada Machinery Group sama sekali",
+      "when": "Admin membuka form Tambah Machinery",
+      "then": "Sistem menampilkan form tanpa opsi Machinery Group yang dapat dipilih dan mengarahkan Admin untuk membuat Machinery Group terlebih dahulu"
+    },
+    {
+      "scenario": "Kelola Machinery — akses ditolak untuk non-Admin",
+      "given": "Pengguna sudah login ke web app namun bukan berperan sebagai Admin",
+      "when": "Pengguna mencoba mengakses menu Master Data > Kelola Machinery",
+      "then": "Sistem menolak akses karena hanya Admin yang dapat mengakses dan mengelola data Machinery"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-031--kelola-machinery"
+  ]
+}

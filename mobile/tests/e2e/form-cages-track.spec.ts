@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { login, USERS, getAuthUserId } from './helpers'
 
 // screen-012--form-cages-track / usecase-012--form-cages-track
@@ -8,10 +8,38 @@ import { login, USERS, getAuthUserId } from './helpers'
 // "No. Cages Track" + free-text cage/time-per-row model). Mirrors
 // form-grading.spec.ts's structure/conventions.
 
-async function fillRequiredHeaderFields(page: import('@playwright/test').Page): Promise<void> {
+async function fillRequiredHeaderFields(page: Page): Promise<void> {
   await page.locator('#field-cages-track-number').fill('CT-E2E-001')
   await page.locator('#field-cages-out').fill('12')
   await page.locator('#field-cages-tipped').fill('5')
+}
+
+// Matches FormCagesTrackView.vue's own hourLabel() exactly.
+function hourLabel(hour: number): string {
+  return `${String(hour).padStart(2, '0')}:00`
+}
+
+// Time is now a SearchableSelect.vue instance (typeable/searchable
+// combobox) rather than a plain <select> — selection is the real
+// open-then-click sequence a user drives, replacing the old single
+// `.selectOption(value)` DOM call. See form-grading.spec.ts's own
+// `selectSearchableOption()`/`searchableSelectOptionValues()` (mirrored
+// here) for the fuller rationale, including why `data-value` (not the
+// visible label) is what these helpers read/assert on.
+async function selectSearchableOption(page: Page, testId: string, optionLabel: string): Promise<void> {
+  const root = page.getByTestId(testId)
+  await root.locator('input').click()
+
+  const option = root.getByRole('option', { name: optionLabel, exact: true })
+  await option.waitFor({ state: 'visible', timeout: 15_000 })
+  await option.click()
+}
+
+async function searchableSelectOptionValues(page: Page, testId: string): Promise<string[]> {
+  const root = page.getByTestId(testId)
+  await root.locator('input').click()
+
+  return root.getByRole('option').evaluateAll((options) => options.map((option) => option.getAttribute('data-value') ?? ''))
 }
 
 test.describe('Form Cages Track (screen-012)', () => {
@@ -27,7 +55,7 @@ test.describe('Form Cages Track (screen-012)', () => {
     await fillRequiredHeaderFields(page)
 
     await page.getByTestId('add-tipped-time-row-button').click()
-    await page.getByTestId('tipped-hour-select-0').selectOption('7')
+    await selectSearchableOption(page, 'tipped-hour-select-0', hourLabel(7))
     await page.getByTestId('cage-checkbox-0-1').check()
     await page.getByTestId('cage-checkbox-0-2').check()
 
@@ -53,7 +81,7 @@ test.describe('Form Cages Track (screen-012)', () => {
     expect(await page.getByTestId('acknowledged-by-toggle').isDisabled()).toBe(true)
 
     await page.getByTestId('add-tipped-time-row-button').click()
-    await page.getByTestId('tipped-hour-select-0').selectOption('7')
+    await selectSearchableOption(page, 'tipped-hour-select-0', hourLabel(7))
     await page.getByTestId('cage-checkbox-0-1').check()
 
     await page.getByTestId('save-button').click()
@@ -115,18 +143,13 @@ test.describe('Form Cages Track (screen-012)', () => {
 
     await page.locator('#field-cages-tipped').fill('5')
     await page.getByTestId('add-tipped-time-row-button').click()
-    await page.getByTestId('tipped-hour-select-0').selectOption('7')
+    await selectSearchableOption(page, 'tipped-hour-select-0', hourLabel(7))
     await page.getByTestId('add-tipped-time-row-button').click()
 
-    // Skip the first option — Vue's `:value="null"` placeholder ("Pilih
-    // Jam") serializes its DOM `value` attribute to the literal string
-    // "null" in a real browser (jsdom differs), which Number("null")
-    // would turn into NaN. Selection itself is unaffected (v-model tracks
-    // the bound value internally, not via this raw attribute) — this is
-    // purely about reading the right options for this assertion.
-    const row1Values = await page.getByTestId('tipped-hour-select-1').locator('option').evaluateAll((options) =>
-      options.slice(1).map((option) => (option as HTMLOptionElement).value),
-    )
+    // SearchableSelect.vue has no placeholder *option* at all (unlike the
+    // old plain <select>'s `:value="null"` placeholder item) — every
+    // rendered `role="option"` here is a real, selectable hour.
+    const row1Values = await searchableSelectOptionValues(page, 'tipped-hour-select-1')
 
     for (const v of row1Values) {
       expect(Number(v)).toBeGreaterThan(7)
@@ -140,14 +163,12 @@ test.describe('Form Cages Track (screen-012)', () => {
 
     await page.locator('#field-cages-tipped').fill('5')
     await page.getByTestId('add-tipped-time-row-button').click()
-    await page.getByTestId('tipped-hour-select-0').selectOption('7')
+    await selectSearchableOption(page, 'tipped-hour-select-0', hourLabel(7))
     await page.getByTestId('add-tipped-time-row-button').click()
 
     await page.getByTestId('remove-tipped-time-row-button').first().click()
 
-    const row0Values = await page.getByTestId('tipped-hour-select-0').locator('option').evaluateAll((options) =>
-      options.map((option) => (option as HTMLOptionElement).value),
-    )
+    const row0Values = await searchableSelectOptionValues(page, 'tipped-hour-select-0')
     expect(row0Values).toContain('7')
   })
 

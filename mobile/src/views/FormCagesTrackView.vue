@@ -140,6 +140,7 @@ import cagesTrackRecordRepo, {
 } from '@/services/cagesTrackRecordRepo'
 import FormField from '@/components/FormField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import SearchableSelect, { type SearchableSelectOption } from '@/components/SearchableSelect.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -428,6 +429,14 @@ function availableHourOptions(index: number): number[] {
   }
 
   return options
+}
+
+// SearchableSelect never computes availability itself — it's always handed
+// the already-filtered list to show right now, same pattern
+// FormGradingView.vue's parameterSelectOptions() uses for its own per-row
+// dropdown.
+function hourSelectOptions(index: number): SearchableSelectOption[] {
+  return availableHourOptions(index).map((hour) => ({ value: hour, label: hourLabel(hour) }))
 }
 
 function parseCheckedCages(value: string): number[] {
@@ -747,7 +756,7 @@ function goToMonitorCagesTrack(): void {
           <circle cx="12" cy="12" r="9" />
           <path d="M8 12l3 3 5-6" />
         </svg>
-        <span class="brand-name">Mill Smart Log</span>
+        <span class="brand-name">Mills Smart Log</span>
       </div>
 
       <button
@@ -894,18 +903,14 @@ function goToMonitorCagesTrack(): void {
         >
           <div class="form-field">
             <label :for="`tipped-hour-${index}`" class="form-field-label">Time</label>
-            <select
+            <SearchableSelect
               :id="`tipped-hour-${index}`"
-              class="form-field-select"
               :data-testid="`tipped-hour-select-${index}`"
               v-model="row.tipped_hour"
+              :options="hourSelectOptions(index)"
+              placeholder="Pilih Jam"
               :disabled="actionInProgress"
-            >
-              <option :value="null">Pilih Jam</option>
-              <option v-for="hour in availableHourOptions(index)" :key="hour" :value="hour">
-                {{ hourLabel(hour) }}
-              </option>
-            </select>
+            />
           </div>
 
           <div class="cage-checkbox-grid" :data-testid="`cage-checkbox-grid-${index}`">
@@ -1218,21 +1223,6 @@ function goToMonitorCagesTrack(): void {
   color: #dc2626;
 }
 
-.form-field-select {
-  min-height: 44px;
-  padding: 0 12px;
-  background-color: #edebeb;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  font-size: 16px;
-  font-family: inherit;
-  color: #1f2937;
-  box-sizing: border-box;
-}
-
-.form-field-select:disabled {
-  opacity: 0.6;
-}
 
 .form-field-hint {
   margin: 0;

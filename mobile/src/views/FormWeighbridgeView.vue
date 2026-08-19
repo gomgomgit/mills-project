@@ -17,36 +17,50 @@
  *    WeighbridgeFormData still requires both keys, so `buildPayload()`
  *    below always sends them as empty strings — this view simply never
  *    collects or forwards a real value for either.
- *  - Fields are now grouped into 5 titled sections (Identitas Weighbridge /
- *    Kendaraan & Supir / Asal Muatan / Data Timbangan / Dispatch) instead
- *    of a flat list, matching this screen's mock
- *    (.asdlc/generated/2-business-spec/screens/html/
+ *  - Fields are now grouped into titled sections (Identitas Weighbridge /
+ *    Kendaraan & Supir / Asal Muatan / Data Timbangan) matching this
+ *    screen's mock (.asdlc/generated/2-business-spec/screens/html/
  *    screen-010--form-weighbridge.html) minus its Verifikasi/Checked By
  *    section.
- *  - Arrival (Tanggal/Waktu Arrival) is now fully auto/disabled: set once
- *    from `new Date()` in memory on load ONLY when the loaded record has no
- *    `arrival_datetime` yet (a brand-new draft); a resumed draft's stored
- *    value is kept as-is. Never user-editable.
- *  - Dispatch (Waktu Dispatch) is now fully auto/disabled and
- *    LIVE-TICKING: a `setInterval` overwrites `form.dispatch_datetime`
- *    with `new Date()` every second from mount (ignoring whatever was
- *    previously stored — both for a new AND a resumed draft) until
- *    'Simpan' is pressed, at which point the interval is stopped and the
- *    value is frozen to the exact instant Simpan was clicked.
  *  - Net Weight is now a pure `computed()` (Gross − Tare), never a plain
  *    editable field — displayed disabled.
- *  - New 'Pause' and 'Clear' footer actions (previously owned by Monitor
+ *  - 'Pause' and 'Clear' footer actions (previously owned by Monitor
  *    Weighbridge, screen-007, before its own list-view rewrite removed
  *    them): 'Pause' persists the current field values as a checkpoint
- *    (no required-field validation) via the new
+ *    (no required-field validation) via
  *    weighbridgeRecordRepo.pauseDraftWithFormData() and sets
  *    status='draft_paused'; 'Clear' shows ConfirmDialog.vue then
  *    permanently deletes the draft via deleteDraft().
- *  - 'Back' dirty-check now compares only the user-editable fields
- *    (wb_card_number/vehicle_number/driver_name/estate_supplier/division/
- *    block/gross_weight/tare_weight/quantity) — arrival_datetime and
- *    dispatch_datetime are deliberately excluded so the live-ticking
- *    dispatch clock can never by itself make the form look "dirty".
+ *
+ * SCHEMA REVISION (2026-08-19, entity-catalog v5 / tech spec v6):
+ *  - `arrival_datetime`/`dispatch_datetime` are merged into a single
+ *    `record_datetime` column on `weighbridge_record` (see
+ *    localSchema.ts/weighbridgeRecordRepo.ts). A new `weighbridge_type`
+ *    ('receive' | 'dispatch') column decides what `record_datetime` means:
+ *    arrival time for 'receive', dispatch time for 'dispatch'.
+ *  - Identitas Weighbridge now has a two-button type selector
+ *    (Receive/Dispatch) — brand-new drafts default to 'receive'; resuming a
+ *    draft preserves its stored `weighbridge_type`.
+ *  - `record_datetime` is auto-set-once IDENTICALLY for both types — set
+ *    from `new Date()` only when currently empty (brand-new draft, or right
+ *    after a type switch discarded it); a stored value is otherwise never
+ *    overwritten. Unlike the old dispatch field, there is NO live ticking
+ *    for either type — the previous `setInterval`-driven "Dispatch" section
+ *    is removed entirely, along with the onSimpan-time "freeze" hack that
+ *    existed only to stop that ticker.
+ *  - Switching the type tab discards the current `record_datetime` and
+ *    `destination`, then immediately re-applies the auto-set-once rule for
+ *    the newly selected type.
+ *  - A new `destination` field ("Tujuan Muatan") renders (and is required)
+ *    only when `weighbridge_type === 'dispatch'`; hidden and unvalidated
+ *    for 'receive'.
+ *  - Quantity's label gains a unit: "Kuantitas (tandan)".
+ *  - 'Back' dirty-check (business_logic step 8) now also tracks
+ *    `destination` (a real user-editable field for dispatch records) in
+ *    addition to the previously-tracked fields; `record_datetime` stays
+ *    excluded (still automatic, never user-edited) and `weighbridge_type`
+ *    stays excluded (switching type resets/re-derives the auto fields
+ *    rather than being treated as its own dirty signal).
  *
  * Header/breadcrumb/nav-menu: copied verbatim (structure, class names,
  * composable/method naming — isNavMenuOpen/toggleNavMenu/closeNavMenu/
@@ -60,16 +74,19 @@
  *  1. Receives the draft `id` via route param (already INSERTed by Monitor
  *     Weighbridge's 'New Data' / by tapping an existing draft, screen-007)
  *     and loads it via getDraftById() on mount.
- *  2. Tanggal/Waktu Arrival auto-set once (in memory) only for a brand-new
- *     draft; kept as-is when resuming. Always disabled in the UI.
- *  3. Waktu Dispatch live-ticks to "now" every second from mount (new AND
- *     resumed drafts alike) until Simpan freezes it. Always disabled.
+ *  2. `weighbridge_type` defaults to 'receive' for a brand-new draft (no
+ *     stored value), or is preserved as-is when resuming. Tapping a type
+ *     tab switches it, discarding + re-auto-setting `record_datetime` and
+ *     clearing `destination`.
+ *  3. Tanggal/Waktu (Arrival or Dispatch, per the active type) auto-set
+ *     once, in memory, only when `record_datetime` is currently empty;
+ *     otherwise the stored value is kept as-is. Always disabled in the UI.
  *  4. Net Weight = Gross − Tare, computed reactively, always disabled.
  *  5. 'Simpan' validates required fields client-side (wb_card_number,
- *     vehicle_number, driver_name, estate_supplier, gross_weight) — inline
- *     error per field, no save on failure. On success: freezes dispatch,
- *     calls saveDraft() (status='saved'), navigates to
- *     `monitor-weighbridge`.
+ *     vehicle_number, driver_name, estate_supplier, gross_weight, plus
+ *     destination when type='dispatch') — inline error per field, no save
+ *     on failure. On success: calls saveDraft() (status='saved'), navigates
+ *     to `monitor-weighbridge`.
  *  6. 'Pause' persists current field values as-is (no required-field
  *     validation) via pauseDraftWithFormData() (status='draft_paused'),
  *     navigates to `monitor-weighbridge`.
@@ -80,12 +97,13 @@
  *     loaded-draft snapshot) shows ConfirmDialog.vue before leaving; if not
  *     dirty, navigates directly to `monitor-weighbridge`.
  */
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import weighbridgeRecordRepo, {
   type WeighbridgeFormData,
   type WeighbridgeRecord,
+  type WeighbridgeType,
 } from '@/services/weighbridgeRecordRepo'
 import FormField from '@/components/FormField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
@@ -101,16 +119,17 @@ const recordId = String(route.params.id ?? '')
  * `net_weight` (computed, see `netWeight` below) and `checked_by` /
  * `acknowledged_by` (removed from this screen entirely) are added back in
  * `buildPayload()` only, right before a save/pause call, so this reactive
- * form object only ever holds fields the user (or the auto/live logic)
- * actually touches.
+ * form object only ever holds fields the user (or the auto logic) actually
+ * touches.
  */
 interface FormState {
   wb_card_number: string
-  arrival_datetime: string
-  dispatch_datetime: string
+  weighbridge_type: WeighbridgeType
+  record_datetime: string
   vehicle_number: string
   driver_name: string
   estate_supplier: string
+  destination: string
   division: string
   block: string
   gross_weight: number | null
@@ -118,7 +137,10 @@ interface FormState {
   quantity: number | null
 }
 
-const REQUIRED_FIELDS: (keyof FormState)[] = [
+// business_logic step 5 — fields always required, regardless of
+// weighbridge_type. `destination` is appended conditionally by
+// `requiredFields` below (dispatch-only).
+const BASE_REQUIRED_FIELDS: (keyof FormState)[] = [
   'wb_card_number',
   'vehicle_number',
   'driver_name',
@@ -132,17 +154,26 @@ const REQUIRED_FIELD_LABELS: Record<string, string> = {
   driver_name: 'Nama Supir',
   estate_supplier: 'Estate/Supplier Asal',
   gross_weight: 'Berat Masuk (Gross)',
+  destination: 'Tujuan Muatan',
 }
 
+// business_logic step 6 — `destination` ("Tujuan Muatan") is required only
+// for dispatch records; hidden and unvalidated for receive.
+const requiredFields = computed<(keyof FormState)[]>(() =>
+  form.weighbridge_type === 'dispatch' ? [...BASE_REQUIRED_FIELDS, 'destination'] : BASE_REQUIRED_FIELDS,
+)
+
 // business_logic step 8 — fields compared for the Back dirty-check.
-// arrival_datetime/dispatch_datetime are deliberately excluded (both are
-// automatic/disabled, and dispatch ticks every second — including either
-// would make the form register as "dirty" purely from the clock).
+// `record_datetime` is deliberately excluded (automatic/disabled, never
+// user-edited) and so is `weighbridge_type` (switching type re-derives the
+// auto fields rather than being its own dirty signal); `destination` is
+// included since it is now a real user-editable field (for dispatch).
 const DIRTY_CHECK_FIELDS: (keyof FormState)[] = [
   'wb_card_number',
   'vehicle_number',
   'driver_name',
   'estate_supplier',
+  'destination',
   'division',
   'block',
   'gross_weight',
@@ -153,11 +184,12 @@ const DIRTY_CHECK_FIELDS: (keyof FormState)[] = [
 function emptyFormState(): FormState {
   return {
     wb_card_number: '',
-    arrival_datetime: '',
-    dispatch_datetime: '',
+    weighbridge_type: 'receive',
+    record_datetime: '',
     vehicle_number: '',
     driver_name: '',
     estate_supplier: '',
+    destination: '',
     division: '',
     block: '',
     gross_weight: null,
@@ -234,51 +266,60 @@ function formatTimeID(iso: string): string {
   return new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }).format(date)
 }
 
-const arrivalDateDisplay = computed(() => formatDateID(form.arrival_datetime))
-const arrivalTimeDisplay = computed(() => formatTimeID(form.arrival_datetime))
-const dispatchDateDisplay = computed(() => formatDateID(form.dispatch_datetime))
-const dispatchTimeDisplay = computed(() => formatTimeID(form.dispatch_datetime))
+// business_logic step 2/3 — the single `record_datetime` field's label and
+// display switch with the active `weighbridge_type` ("Arrival" for
+// receive, "Dispatch" for dispatch), but the auto-set-once behavior and
+// disabled rendering are identical for both.
+const recordDateLabel = computed(() => (form.weighbridge_type === 'dispatch' ? 'Tanggal Dispatch' : 'Tanggal Arrival'))
+const recordTimeLabel = computed(() => (form.weighbridge_type === 'dispatch' ? 'Waktu Dispatch' : 'Waktu Arrival'))
+const recordDateDisplay = computed(() => formatDateID(form.record_datetime))
+const recordTimeDisplay = computed(() => formatTimeID(form.record_datetime))
 
-/**
- * business_logic step 3 — live dispatch ticker. Started once the draft has
- * loaded successfully, cleared on unmount and right before a Simpan/Pause
- * call (so the value stops changing under the write). Restarted on a
- * failed Simpan/Pause so the field stays "live" if the user stays on the
- * page and retries.
- */
-let dispatchTimer: ReturnType<typeof setInterval> | null = null
-
-function startDispatchTicker(): void {
-  form.dispatch_datetime = nowIso()
-  dispatchTimer = setInterval(() => {
-    form.dispatch_datetime = nowIso()
-  }, 1000)
-}
-
-function stopDispatchTicker(): void {
-  if (dispatchTimer !== null) {
-    clearInterval(dispatchTimer)
-    dispatchTimer = null
+// business_logic step 3 — auto-set-once rule, identical for both types: set
+// `record_datetime` from `new Date()` only when currently empty (brand-new
+// draft, or right after a type switch discarded it); a stored value is
+// otherwise never overwritten. No live ticking.
+function applyRecordDatetimeAutoSet(): void {
+  if (!form.record_datetime) {
+    form.record_datetime = nowIso()
   }
 }
 
-onBeforeUnmount(stopDispatchTicker)
+// business_logic step 2 — tapping a type tab switches `weighbridge_type`,
+// discards the current `record_datetime`/`destination`, then immediately
+// re-applies the auto-set-once rule for the newly selected type. Tapping
+// the already-active tab is a no-op (nothing to switch).
+function onSelectType(type: WeighbridgeType): void {
+  if (form.weighbridge_type === type) {
+    return
+  }
 
-// business_logic step 2 — Arrival auto-set (once, in memory) only for a
-// brand-new draft (no stored arrival_datetime yet); a resumed draft's
-// stored value is kept untouched.
+  form.weighbridge_type = type
+  form.record_datetime = ''
+  form.destination = ''
+  applyRecordDatetimeAutoSet()
+}
+
+// business_logic step 1/2 — populate the form from a loaded draft.
+// `weighbridge_type` defaults to 'receive' when the loaded record has none
+// stored yet (brand-new draft); a resumed draft's stored value is kept
+// as-is. `record_datetime` follows the same auto-set-once rule as a type
+// switch (business_logic step 3).
 function populateForm(record: WeighbridgeRecord): void {
   form.wb_card_number = record.wb_card_number ?? ''
-  form.arrival_datetime =
-    record.arrival_datetime && record.arrival_datetime.trim() !== '' ? record.arrival_datetime : nowIso()
+  form.weighbridge_type = record.weighbridge_type === 'dispatch' ? 'dispatch' : 'receive'
+  form.record_datetime = record.record_datetime && record.record_datetime.trim() !== '' ? record.record_datetime : ''
   form.vehicle_number = record.vehicle_number ?? ''
   form.driver_name = record.driver_name ?? ''
   form.estate_supplier = record.estate_supplier ?? ''
+  form.destination = record.destination ?? ''
   form.division = record.division ?? ''
   form.block = record.block ?? ''
   form.gross_weight = record.gross_weight ?? null
   form.tare_weight = record.tare_weight ?? null
   form.quantity = record.quantity ?? null
+
+  applyRecordDatetimeAutoSet()
 
   loadedSnapshot = dirtySnapshot()
 }
@@ -312,22 +353,19 @@ async function loadDraft(): Promise<void> {
 
 onMounted(async () => {
   await loadDraft()
-
-  if (!notFound.value && !loadErrorMessage.value) {
-    startDispatchTicker()
-  }
 })
 
 // business_logic step 5 — required-field validation with inline
-// per-field errors. arrival_datetime/dispatch_datetime are never checked
-// here — they're automatic and already guaranteed non-empty by the time
-// Simpan can be reached.
+// per-field errors. `record_datetime` is never checked here — it's
+// automatic and already guaranteed non-empty by the time Simpan can be
+// reached. `destination` is only checked when it's actually part of
+// `requiredFields` (dispatch only).
 function validate(): boolean {
   for (const key of Object.keys(errors) as (keyof FormState)[]) {
     delete errors[key]
   }
 
-  for (const field of REQUIRED_FIELDS) {
+  for (const field of requiredFields.value) {
     const value = form[field]
     const isEmpty = value === null || value === undefined || value === ''
 
@@ -343,11 +381,15 @@ function validate(): boolean {
  * Builds the full WeighbridgeFormData payload sent to saveDraft()/
  * pauseDraftWithFormData() — merges the editable `form` state with the
  * computed `netWeight`, plus empty `checked_by`/`acknowledged_by` (this
- * screen collects neither; see header comment).
+ * screen collects neither; see header comment). `destination` is always
+ * forced to an empty string for `weighbridge_type === 'receive'`
+ * regardless of whatever is currently in `form.destination`, so a
+ * receive record can never persist a stray destination value.
  */
 function buildPayload(): WeighbridgeFormData {
   return {
     ...form,
+    destination: form.weighbridge_type === 'dispatch' ? form.destination : '',
     net_weight: netWeight.value,
     checked_by: '',
     acknowledged_by: '',
@@ -363,15 +405,12 @@ async function onSimpan(): Promise<void> {
   }
 
   saving.value = true
-  stopDispatchTicker()
-  form.dispatch_datetime = nowIso()
 
   try {
     await weighbridgeRecordRepo.saveDraft(recordId, buildPayload(), authStore.currentUser?.role)
     router.push({ name: 'monitor-weighbridge' })
   } catch (err) {
     actionErrorMessage.value = err instanceof Error ? err.message : 'Gagal menyimpan data timbangan.'
-    startDispatchTicker()
   } finally {
     saving.value = false
   }
@@ -382,14 +421,12 @@ async function onSimpan(): Promise<void> {
 async function onPause(): Promise<void> {
   actionErrorMessage.value = null
   pausing.value = true
-  stopDispatchTicker()
 
   try {
     await weighbridgeRecordRepo.pauseDraftWithFormData(recordId, buildPayload())
     router.push({ name: 'monitor-weighbridge' })
   } catch (err) {
     actionErrorMessage.value = err instanceof Error ? err.message : 'Gagal menyimpan progres (Pause).'
-    startDispatchTicker()
   } finally {
     pausing.value = false
   }
@@ -497,7 +534,7 @@ function goToMonitorWeighbridge(): void {
           <circle cx="12" cy="12" r="9" />
           <path d="M8 12l3 3 5-6" />
         </svg>
-        <span class="brand-name">Mill Smart Log</span>
+        <span class="brand-name">Mills Smart Log</span>
       </div>
 
       <button
@@ -568,6 +605,33 @@ function goToMonitorWeighbridge(): void {
       <section class="form-section" aria-label="Identitas Weighbridge">
         <h2 class="form-section-title">Identitas Weighbridge</h2>
 
+        <div class="type-selector" role="tablist" aria-label="Tipe Weighbridge">
+          <button
+            type="button"
+            class="type-tab"
+            :class="{ 'type-tab--active': form.weighbridge_type === 'receive' }"
+            role="tab"
+            :aria-selected="form.weighbridge_type === 'receive'"
+            data-testid="weighbridge-type-receive"
+            :disabled="actionInProgress"
+            @click="onSelectType('receive')"
+          >
+            Receive
+          </button>
+          <button
+            type="button"
+            class="type-tab"
+            :class="{ 'type-tab--active': form.weighbridge_type === 'dispatch' }"
+            role="tab"
+            :aria-selected="form.weighbridge_type === 'dispatch'"
+            data-testid="weighbridge-type-dispatch"
+            :disabled="actionInProgress"
+            @click="onSelectType('dispatch')"
+          >
+            Dispatch
+          </button>
+        </div>
+
         <FormField
           v-model="form.wb_card_number"
           label="WB Card Number/ID"
@@ -575,8 +639,8 @@ function goToMonitorWeighbridge(): void {
           :error="errors.wb_card_number"
           :disabled="actionInProgress"
         />
-        <FormField :model-value="arrivalDateDisplay" label="Tanggal Arrival" disabled />
-        <FormField :model-value="arrivalTimeDisplay" label="Waktu Arrival" disabled />
+        <FormField :model-value="recordDateDisplay" :label="recordDateLabel" disabled />
+        <FormField :model-value="recordTimeDisplay" :label="recordTimeLabel" disabled />
       </section>
 
       <section class="form-section" aria-label="Kendaraan & Supir">
@@ -608,6 +672,14 @@ function goToMonitorWeighbridge(): void {
           :error="errors.estate_supplier"
           :disabled="actionInProgress"
         />
+        <FormField
+          v-if="form.weighbridge_type === 'dispatch'"
+          v-model="form.destination"
+          label="Tujuan Muatan"
+          required
+          :error="errors.destination"
+          :disabled="actionInProgress"
+        />
         <FormField v-model="form.division" label="Divisi" :disabled="actionInProgress" />
         <FormField v-model="form.block" label="Blok" :disabled="actionInProgress" />
       </section>
@@ -625,14 +697,7 @@ function goToMonitorWeighbridge(): void {
         />
         <FormField v-model="form.tare_weight" label="Berat Keluar (Tare) (kg)" type="number" :disabled="actionInProgress" />
         <FormField :model-value="netWeight" label="Net Weight (kg)" type="number" disabled />
-        <FormField v-model="form.quantity" label="Kuantitas" type="number" :disabled="actionInProgress" />
-      </section>
-
-      <section class="form-section" aria-label="Dispatch">
-        <h2 class="form-section-title">Dispatch</h2>
-
-        <FormField :model-value="dispatchDateDisplay" label="Tanggal Dispatch" disabled />
-        <FormField :model-value="dispatchTimeDisplay" label="Waktu Dispatch" disabled />
+        <FormField v-model="form.quantity" label="Kuantitas (tandan)" type="number" :disabled="actionInProgress" />
       </section>
     </form>
 
@@ -894,6 +959,35 @@ function goToMonitorWeighbridge(): void {
   color: #249360;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+.type-selector {
+  display: flex;
+  gap: 8px;
+}
+
+.type-tab {
+  flex: 1 1 0;
+  min-height: 44px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.type-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.type-tab--active {
+  border-color: #249360;
+  background-color: #249360;
+  color: #ffffff;
 }
 
 .action-footer {

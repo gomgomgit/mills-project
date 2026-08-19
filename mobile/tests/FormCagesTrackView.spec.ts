@@ -157,6 +157,51 @@ async function fillRequiredHeaderFields(wrapper: ReturnType<typeof mount>): Prom
   await wrapper.find('#field-cages-tipped').setValue('10')
 }
 
+// Matches FormCagesTrackView.vue's own hourLabel() exactly.
+function hourLabel(hour: number): string {
+  return `${String(hour).padStart(2, '0')}:00`
+}
+
+// --- SearchableSelect.vue interaction helpers -----------------------------
+// Faithful replacements for the old `wrapper.find('[data-testid="..."]')
+// .setValue(value)` / `.findAll('[data-testid="..."] option')` patterns
+// used against the Time <select> — see FormGradingView.spec.ts's header
+// comment for the full rationale (mirrored here).
+
+function searchableSelectRoot(wrapper: ReturnType<typeof mount>, testId: string) {
+  return wrapper.find(`[data-testid="${testId}"]`)
+}
+
+function searchableSelectOptionTexts(wrapper: ReturnType<typeof mount>, testId: string): string[] {
+  return searchableSelectRoot(wrapper, testId)
+    .findAll('[role="option"]')
+    .map((option) => option.text())
+}
+
+async function openSearchableSelect(wrapper: ReturnType<typeof mount>, testId: string): Promise<void> {
+  await searchableSelectRoot(wrapper, testId).find('input').trigger('focus')
+}
+
+async function chooseSearchableOption(
+  wrapper: ReturnType<typeof mount>,
+  testId: string,
+  optionLabel: string,
+): Promise<void> {
+  await openSearchableSelect(wrapper, testId)
+
+  const match = searchableSelectRoot(wrapper, testId)
+    .findAll('[role="option"]')
+    .find((option) => option.text() === optionLabel)
+
+  if (!match) {
+    throw new Error(
+      `chooseSearchableOption: no option labeled "${optionLabel}" for [data-testid="${testId}"]. Visible: ${searchableSelectOptionTexts(wrapper, testId).join(', ')}`,
+    )
+  }
+
+  await match.trigger('mousedown')
+}
+
 const T0 = '2026-08-19T08:00:00.000Z'
 
 describe('FormCagesTrackView', () => {
@@ -281,15 +326,13 @@ describe('FormCagesTrackView', () => {
 
     await wrapper.find('#field-cages-tipped').setValue('5')
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
-    await wrapper.find('[data-testid="tipped-hour-select-0"]').setValue('7')
+    await chooseSearchableOption(wrapper, 'tipped-hour-select-0', hourLabel(7))
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
 
-    const row1Values = wrapper
-      .find('[data-testid="tipped-hour-select-1"]')
-      .findAll('option')
-      .map((o) => o.attributes('value'))
+    await openSearchableSelect(wrapper, 'tipped-hour-select-1')
+    const row1Labels = searchableSelectOptionTexts(wrapper, 'tipped-hour-select-1')
 
-    expect(row1Values).not.toContain('7')
+    expect(row1Labels).not.toContain(hourLabel(7))
   })
 
   it('excludes hours less than or equal to the most-recently-added row\'s hour', async () => {
@@ -300,17 +343,14 @@ describe('FormCagesTrackView', () => {
 
     await wrapper.find('#field-cages-tipped').setValue('5')
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
-    await wrapper.find('[data-testid="tipped-hour-select-0"]').setValue('7')
+    await chooseSearchableOption(wrapper, 'tipped-hour-select-0', hourLabel(7))
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
 
-    const row1Values = wrapper
-      .find('[data-testid="tipped-hour-select-1"]')
-      .findAll('option')
-      .map((o) => o.attributes('value'))
-      .filter((v): v is string => Boolean(v))
+    await openSearchableSelect(wrapper, 'tipped-hour-select-1')
+    const row1Labels = searchableSelectOptionTexts(wrapper, 'tipped-hour-select-1')
 
-    for (const v of row1Values) {
-      expect(Number(v)).toBeGreaterThan(7)
+    for (const label of row1Labels) {
+      expect(Number(label.split(':')[0])).toBeGreaterThan(7)
     }
   })
 
@@ -343,16 +383,14 @@ describe('FormCagesTrackView', () => {
 
     await wrapper.find('#field-cages-tipped').setValue('5')
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
-    await wrapper.find('[data-testid="tipped-hour-select-0"]').setValue('7')
+    await chooseSearchableOption(wrapper, 'tipped-hour-select-0', hourLabel(7))
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
 
     await wrapper.findAll('[data-testid="remove-tipped-time-row-button"]')[0].trigger('click')
 
-    const row0Values = wrapper
-      .find('[data-testid="tipped-hour-select-0"]')
-      .findAll('option')
-      .map((o) => o.attributes('value'))
-    expect(row0Values).toContain('7')
+    await openSearchableSelect(wrapper, 'tipped-hour-select-0')
+    const row0Labels = searchableSelectOptionTexts(wrapper, 'tipped-hour-select-0')
+    expect(row0Labels).toContain(hourLabel(7))
   })
 
   it('queues an existing (has-id) row for deletion on Hapus baris rather than deleting immediately', async () => {
@@ -467,7 +505,7 @@ describe('FormCagesTrackView', () => {
 
     await fillRequiredHeaderFields(wrapper)
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
-    await wrapper.find('[data-testid="tipped-hour-select-0"]').setValue('7')
+    await chooseSearchableOption(wrapper, 'tipped-hour-select-0', hourLabel(7))
     await wrapper.find('[data-testid="cage-checkbox-0-1"]').setValue(true)
 
     await wrapper.find('[data-testid="save-button"]').trigger('click')
@@ -488,7 +526,7 @@ describe('FormCagesTrackView', () => {
 
     await fillRequiredHeaderFields(wrapper)
     await wrapper.find('[data-testid="add-tipped-time-row-button"]').trigger('click')
-    await wrapper.find('[data-testid="tipped-hour-select-0"]').setValue('7')
+    await chooseSearchableOption(wrapper, 'tipped-hour-select-0', hourLabel(7))
     await wrapper.find('[data-testid="cage-checkbox-0-1"]').setValue(true)
 
     await wrapper.find('[data-testid="save-button"]').trigger('click')

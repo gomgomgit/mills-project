@@ -23,3 +23,15 @@
 
 - Dispatch sekarang juga menampilkan TANGGAL (bukan cuma waktu) ← instruksi eksplisit user, mengikuti pola Arrival yang sudah punya Tanggal+Waktu terpisah
 - Label (kg) ditambahkan ke Gross/Tare/Net Weight, TIDAK ke Kuantitas ← user hanya sebut "weight dan net", Kuantitas punya satuan berbeda/tidak disebutkan
+
+## v5 — 2026-08-19
+
+- Tipe Weighbridge (Receive/Dispatch) default = Receive untuk draft baru ← tidak dinyatakan eksplisit user, dipilih agar tidak ada state kosong ambigu saat form dibuka
+- Perilaku tanggal dipertahankan PER-TIPE dari desain lama, bukan disatukan: Receive tetap auto-isi sekali (seperti Arrival lama), Dispatch tetap live-ticking sampai Simpan (seperti Dispatch lama) ← user hanya minta "1 field tanggal di tabel" (tampilan/skema), bukan mengubah perilaku pengisian; agent mempertahankan perilaku yang sudah disetujui sebelumnya per tipe
+- Mengganti tipe di tengah pengisian membuang nilai tanggal/tujuan muatan lama dan reset sesuai tipe baru ← konsekuensi logis dari field bersama yang kini mutually exclusive per tipe, tidak dinyatakan eksplisit
+- Section "Dispatch" terpisah dihapus, digabung ke section "Identitas Weighbridge" bersama tipe & tanggal & tujuan muatan ← konsekuensi struktural dari field tanggal yang kini tunggal, bukan instruksi eksplisit
+
+## v6 — 2026-08-19 (inline correction saat checkpoint)
+
+- Tanggal & Waktu Dispatch DIUBAH dari live-ticking sampai Simpan menjadi auto-isi SEKALI saat tipe dipilih/draft dibuat, tidak dapat diedit — sama persis dengan perilaku Receive/Arrival ← instruksi eksplisit user saat REVISI checkpoint, mengoreksi asumsi agent di v5 yang mempertahankan perilaku live-ticking lama
+- Edge case "Lanjutkan Draft Paused" disederhanakan: tidak ada lagi pengecualian untuk tipe Dispatch (field tanggal tidak pernah di-reset saat draft dibuka ulang, untuk tipe manapun) ← konsekuensi langsung dari perubahan di atas

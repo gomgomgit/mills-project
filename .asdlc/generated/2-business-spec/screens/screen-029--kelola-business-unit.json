@@ -1,0 +1,72 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-029--kelola-business-unit",
+  "name": "Kelola Business Unit",
+  "module_id": "module-master-data",
+  "description": "Layar bagi Admin untuk mengelola data master Business Unit — mill/unit operasional di bawah Company. Admin dapat melihat daftar Business Unit (dapat difilter per Company), menambah Business Unit baru dengan profil lengkap (identitas, kontak, legal) dan memilih Company induk, mengedit data yang sudah ada, dan menghapus Business Unit yang tidak lagi memiliki Station terkait.",
+  "actors": [
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Master Data' > 'Kelola Business Unit'"
+  ],
+  "information_displayed": [
+    "Daftar Business Unit: kode, nama, nama Company induk, jumlah Station terkait, tanggal dibuat",
+    "Form tambah/edit — Identitas: dropdown pilih Company induk, kode Business Unit, tipe Business Unit, nama, nama singkat, nama pimpinan, nama pengacara/penasihat hukum, logo",
+    "Form tambah/edit — Kontak: alamat, telepon, fax, kontak, extension, email, website, link peta",
+    "Form tambah/edit — Legal & Kepegawaian: nomor registrasi pajak, nomor asuransi, EPF employer, SOCSO employer, serikat pekerja"
+  ],
+  "available_actions": [
+    {
+      "action": "Lihat daftar Business Unit",
+      "description": "Menampilkan seluruh Business Unit dengan kode, Company induk, dan jumlah Station terkait masing-masing, dapat difilter per Company",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah Business Unit",
+      "description": "Membuat Business Unit baru dengan memilih Company induk dan mengisi kode, nama, serta profil lengkap (kontak, legal, kepegawaian, logo)",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit Business Unit",
+      "description": "Mengubah data Business Unit yang sudah ada, termasuk kode, nama, Company induk, dan seluruh field profil",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus Business Unit",
+      "description": "Menghapus Business Unit, hanya diizinkan jika tidak ada Station yang masih terkait",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Kode Business Unit harus unik di seluruh sistem (bukan hanya dalam satu Company)",
+    "Business Unit tidak dapat dihapus jika masih memiliki satu atau lebih Station terkait",
+    "Hanya Admin yang dapat mengakses dan mengelola data Business Unit",
+    "Business Unit harus terkait ke tepat satu Company yang sudah ada (dipilih via dropdown, bukan input bebas)",
+    "Field selain kode, nama, dan Company induk bersifat opsional"
+  ],
+  "usecase_ids": [
+    "usecase-029--kelola-business-unit"
+  ],
+  "edge_cases": [
+    "Percobaan menghapus Business Unit yang masih memiliki Station terkait — ditolak dengan pesan penjelasan",
+    "Percobaan menyimpan kode Business Unit yang sudah dipakai Business Unit lain — validasi gagal (berlaku global, bukan per-Company)",
+    "Belum ada Company sama sekali — form Tambah Business Unit tidak dapat diisi, arahkan Admin untuk membuat Company dahulu",
+    "Belum ada Business Unit sama sekali — tampilkan empty state dengan ajakan tambah data pertama",
+    "Upload logo dengan format/ukuran tidak didukung — validasi gagal"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

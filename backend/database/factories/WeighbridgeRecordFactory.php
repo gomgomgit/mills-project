@@ -26,16 +26,18 @@ class WeighbridgeRecordFactory extends Factory
         $gross = $this->faker->randomFloat(2, 5000, 20000);
         $tare = $this->faker->randomFloat(2, 1000, 4000);
 
-        $arrival = $this->faker->dateTimeBetween('-30 days', 'now');
+        $recordDatetime = $this->faker->dateTimeBetween('-30 days', 'now');
+        $weighbridgeType = $this->faker->randomElement(['receive', 'dispatch']);
 
         return [
             'station_id' => Station::factory(),
             'wb_card_number' => 'WB-'.$this->faker->unique()->numerify('######'),
-            'arrival_datetime' => $arrival,
-            'dispatch_datetime' => (clone $arrival)->modify('+1 hour'),
+            'weighbridge_type' => $weighbridgeType,
+            'record_datetime' => $recordDatetime,
             'vehicle_number' => strtoupper($this->faker->bothify('B ####??')),
             'driver_name' => $this->faker->name(),
             'estate_supplier' => $this->faker->company(),
+            'destination' => $weighbridgeType === 'dispatch' ? $this->faker->city() : null,
             'division' => $this->faker->word(),
             'block' => $this->faker->bothify('Blok ##'),
             'gross_weight' => $gross,
@@ -56,7 +58,12 @@ class WeighbridgeRecordFactory extends Factory
 
     public function arrivedAt(\DateTimeInterface|string $datetime): self
     {
-        return $this->state(fn () => ['arrival_datetime' => $datetime]);
+        return $this->state(fn () => ['record_datetime' => $datetime]);
+    }
+
+    public function ofType(string $weighbridgeType): self
+    {
+        return $this->state(fn () => ['weighbridge_type' => $weighbridgeType]);
     }
 
     public function status(RecordStatus $status): self

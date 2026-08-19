@@ -1,0 +1,626 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-027--kelola-corporate",
+  "name": "Kelola Corporate",
+  "module_id": "module-master-data",
+  "route": "/master-data/corporates",
+  "auth_requirement": "role: admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": false,
+      "conditions": "Master data terbatas untuk role Admin"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": false,
+      "conditions": "Master data terbatas untuk role Admin"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Master data terbatas untuk role Admin"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-027--kelola-corporate",
+      "usecase_name": "Kelola Corporate",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/corporates",
+          "description": "List Corporate dengan jumlah Company terkait, dipaginasi",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "page",
+                "type": "integer",
+                "required": false,
+                "default": "1",
+                "description": "Halaman"
+              },
+              {
+                "name": "per_page",
+                "type": "integer",
+                "required": false,
+                "default": "20",
+                "description": "Jumlah per halaman, max 100"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "corporate_code": "string",
+                  "name": "string",
+                  "company_count": "integer",
+                  "created_at": "timestamp"
+                }
+              ],
+              "meta": {
+                "page": "integer",
+                "per_page": "integer",
+                "total": "integer",
+                "total_pages": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/corporates",
+          "description": "Membuat Corporate baru dengan profil lengkap",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "corporate_code": "string, required, unique",
+              "name": "string, required, unique",
+              "short_name": "string, optional",
+              "leader_name": "string, optional",
+              "lawyer_name": "string, optional",
+              "address": "string, optional",
+              "telephone_no": "string, optional",
+              "fax_no": "string, optional",
+              "contact_no": "string, optional",
+              "extension_no": "string, optional",
+              "email": "string, optional, format email",
+              "website": "string, optional",
+              "map": "string, optional",
+              "tax_register_no": "string, optional",
+              "insurance_no": "string, optional",
+              "epf_employer": "string, optional",
+              "socso_employer": "string, optional",
+              "labor_union": "string, optional",
+              "logo": "file, optional, image jpg/png, max 2MB"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "corporate_code": "string",
+              "name": "string",
+              "short_name": "string",
+              "leader_name": "string",
+              "lawyer_name": "string",
+              "address": "string",
+              "telephone_no": "string",
+              "fax_no": "string",
+              "contact_no": "string",
+              "extension_no": "string",
+              "email": "string",
+              "website": "string",
+              "map": "string",
+              "tax_register_no": "string",
+              "insurance_no": "string",
+              "epf_employer": "string",
+              "socso_employer": "string",
+              "labor_union": "string",
+              "logo_url": "string",
+              "company_count": 0,
+              "created_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "corporate_code/name kosong atau sudah dipakai Corporate lain, atau logo format/ukuran tidak valid"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/corporates/:id",
+          "description": "Mengubah data Corporate",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID Corporate"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "corporate_code": "string, required, unique (kecuali dirinya sendiri)",
+              "name": "string, required, unique (kecuali dirinya sendiri)",
+              "short_name": "string, optional",
+              "leader_name": "string, optional",
+              "lawyer_name": "string, optional",
+              "address": "string, optional",
+              "telephone_no": "string, optional",
+              "fax_no": "string, optional",
+              "contact_no": "string, optional",
+              "extension_no": "string, optional",
+              "email": "string, optional, format email",
+              "website": "string, optional",
+              "map": "string, optional",
+              "tax_register_no": "string, optional",
+              "insurance_no": "string, optional",
+              "epf_employer": "string, optional",
+              "socso_employer": "string, optional",
+              "labor_union": "string, optional",
+              "logo": "file, optional, image jpg/png, max 2MB"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "corporate_code": "string",
+              "name": "string",
+              "short_name": "string",
+              "leader_name": "string",
+              "lawyer_name": "string",
+              "address": "string",
+              "telephone_no": "string",
+              "fax_no": "string",
+              "contact_no": "string",
+              "extension_no": "string",
+              "email": "string",
+              "website": "string",
+              "map": "string",
+              "tax_register_no": "string",
+              "insurance_no": "string",
+              "epf_employer": "string",
+              "socso_employer": "string",
+              "labor_union": "string",
+              "logo_url": "string",
+              "company_count": "integer",
+              "created_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "corporate_code/name kosong atau sudah dipakai Corporate lain, atau logo format/ukuran tidak valid"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Corporate id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/corporates/:id",
+          "description": "Menghapus Corporate jika tidak memiliki Company terkait",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID Corporate"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "deleted": true
+            },
+            "error_codes": [
+              {
+                "http_code": 409,
+                "error_code": "CORPORATE_HAS_COMPANIES",
+                "condition": "Corporate masih memiliki satu atau lebih Company terkait"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Corporate id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. GET list: paginate sesuai shared-decisions.pagination, hitung company_count via COUNT company WHERE corporate_id",
+        "2. POST create: validate corporate_code required+unique → validate name required+unique → validate logo (jika ada) format/ukuran → if invalid: return 422 VALIDATION_ERROR → simpan logo ke Laravel Filesystem jika ada → insert Corporate baru dengan seluruh field profil",
+        "3. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate corporate_code required+unique (exclude self) → validate name required+unique (exclude self) → validate logo (jika diganti) → if invalid: return 422 VALIDATION_ERROR → update Corporate dengan seluruh field profil",
+        "4. DELETE: validate id exists → if not: return 404 NOT_FOUND → count Company WHERE corporate_id=id → if count > 0: return 409 CORPORATE_HAS_COMPANIES → else delete Corporate"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "corporate",
+          "operation": "SELECT",
+          "description": "SELECT Corporate dipaginasi dengan company_count"
+        },
+        {
+          "entity_id": "corporate",
+          "operation": "INSERT",
+          "description": "INSERT Corporate baru dengan seluruh field profil"
+        },
+        {
+          "entity_id": "corporate",
+          "operation": "UPDATE",
+          "description": "UPDATE seluruh field profil Corporate"
+        },
+        {
+          "entity_id": "corporate",
+          "operation": "DELETE",
+          "description": "DELETE Corporate jika tidak ada Company terkait"
+        },
+        {
+          "entity_id": "company",
+          "operation": "SELECT",
+          "description": "COUNT Company WHERE corporate_id sebelum delete"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Kode atau nama Corporate sudah dipakai Corporate lain",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.corporate_code atau errors.name"
+        },
+        {
+          "condition": "Corporate masih memiliki Company terkait saat dihapus",
+          "handling": "Return 409 CORPORATE_HAS_COMPANIES"
+        },
+        {
+          "condition": "Daftar Corporate kosong",
+          "handling": "Return 200 dengan data: []"
+        },
+        {
+          "condition": "id tidak ditemukan pada update/delete",
+          "handling": "Return 404 NOT_FOUND"
+        },
+        {
+          "condition": "Upload logo dengan format/ukuran tidak didukung",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.logo"
+        },
+        {
+          "condition": "User bukan Admin mengakses endpoint",
+          "handling": "Return 403 FORBIDDEN"
+        }
+      ],
+      "business_rules_applied": [
+        "Kode Corporate harus unik di seluruh sistem",
+        "Nama Corporate harus unik di seluruh sistem",
+        "Corporate tidak dapat dihapus jika masih memiliki satu atau lebih Company terkait",
+        "Hanya Admin yang dapat mengakses dan mengelola data Corporate",
+        "Field selain kode dan nama bersifat opsional"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating Corporate with empty or duplicate corporate_code",
+          "given": "input corporate_code is empty, or CorporateRepository.existsByCode(code) returns true",
+          "expect": "throw ValidationException with errors.corporate_code populated; http 422, error_code VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating Corporate with empty or duplicate name",
+          "given": "input name is empty, or CorporateRepository.existsByName(name) returns true",
+          "expect": "throw ValidationException with errors.name populated; http 422, error_code VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when uploaded logo has an unsupported format or exceeds size limit",
+          "given": "uploaded logo file is not jpg/png, or exceeds 2MB",
+          "expect": "throw ValidationException with errors.logo populated; http 422, error_code VALIDATION_ERROR; no file stored"
+        },
+        {
+          "description": "returns 404 NOT_FOUND when updating Corporate with non-existent id",
+          "given": "CorporateRepository.findById(id) returns null",
+          "expect": "throw NotFoundException; http 404, error_code NOT_FOUND"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when updating Corporate with code or name already used by another Corporate",
+          "given": "CorporateRepository.findById(id) returns an existing Corporate; CorporateRepository.existsByCodeExcludingId()/existsByNameExcludingId() returns true",
+          "expect": "throw ValidationException with errors.corporate_code or errors.name populated; http 422, error_code VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 404 NOT_FOUND when deleting Corporate with non-existent id",
+          "given": "CorporateRepository.findById(id) returns null",
+          "expect": "throw NotFoundException; http 404, error_code NOT_FOUND"
+        },
+        {
+          "description": "returns 409 CORPORATE_HAS_COMPANIES when deleting Corporate that still has related Company records",
+          "given": "CorporateRepository.findById(id) returns an existing Corporate; CompanyRepository.countByCorporateId(id) returns 3 (> 0)",
+          "expect": "throw ConflictException; http 409, error_code CORPORATE_HAS_COMPANIES; Corporate is not deleted"
+        },
+        {
+          "description": "returns success result with full profile when all conditions pass",
+          "given": "CorporateRepository.existsByCode()/existsByName() (and Excluding variants) return false, logo validation passes or is omitted, CompanyRepository.countByCorporateId() returns 0 where relevant, CorporateRepository.save()/delete() persist successfully",
+          "expect": "return the created/updated Corporate object with id, corporate_code, name, and all profile fields, company_count, created_at (or { deleted: true } for delete)"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "corporate",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    }
+  ],
+  "screen_dependencies": [],
+  "implementation_notes": [
+    "403 FORBIDDEN pada seluruh endpoint disimpulkan dari actor_permissions (bukan tercantum literal di business spec) — role selain Admin ditolak di level middleware/policy, bukan hanya UI hidden",
+    "Livewire component dapat memanggil Service Layer yang sama dengan REST API (arsitektur Layered per arch-spec) — endpoint /api/corporates di atas adalah kontrak untuk keperluan test/dokumentasi, implementasi FE boleh memanggil service langsung dari Livewire tanpa round-trip HTTP terpisah, konsisten dengan pola screen-016/017/018",
+    "REWORK ver 2 (2026-08-19, adopsi ERD docs/MMS_Weighbridge_ERD_Operational_MVP_v3.1.mermaid): id tetap uuid sebagai primary key/FK (TIDAK diganti corporate_code) — lihat entity-catalog v4 derived-assumptions untuk alasan lengkap (menghindari cascading FK-type change ke Station/User yang sudah diimplementasikan). corporate_code ditambahkan sebagai field unik terpisah. 17 field profil baru (kontak/legal/kepegawaian/logo) ditambahkan, seluruhnya opsional kecuali corporate_code dan name. unit_test_cases diperluas dari 6 (ver 1) menjadi 8 untuk mencakup validasi corporate_code dan logo.",
+    "Logo disimpan di Laravel Filesystem local disk (konsisten dengan machinery.picture_url), path/URL disimpan di kolom logo, diekspos di response sebagai logo_url"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Kelola Corporate — success",
+      "usecase_id": "usecase-027--kelola-corporate",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/corporates"
+          },
+          "request_example": {
+            "corporate_code": "CORP-002",
+            "name": "PT Sawit Makmur Jaya"
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "CorporateForm",
+        "action": "fill Corporate code and name inputs with unique, unused values (profile fields left blank) and click Simpan/Tambah",
+        "assert": "form submits successfully, new Corporate row appears in the list with company_count 0"
+      },
+      "browser_test": {
+        "route": "/master-data/corporates",
+        "action": "click Tambah Corporate, fill code and name fields with unique values, click Simpan",
+        "assert": "new Corporate row appears in the Corporate list table"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Corporate — Edit Corporate",
+      "usecase_id": "usecase-027--kelola-corporate",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/corporates/:id"
+          },
+          "request_example": {
+            "id": "<existing-corporate-id>",
+            "corporate_code": "CORP-001",
+            "name": "PT Sawit Makmur Baru",
+            "address": "Jl. Baru No. 10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "CorporateForm",
+        "action": "click Edit on a Corporate row, change the name and address fields, click Simpan",
+        "assert": "Corporate list row reflects the updated name"
+      },
+      "browser_test": {
+        "route": "/master-data/corporates",
+        "action": "click Edit icon on a Corporate row, update the name field, click Simpan",
+        "assert": "Corporate list displays the updated name"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Corporate — Hapus Corporate — berhasil",
+      "usecase_id": "usecase-027--kelola-corporate",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/corporates/:id"
+          },
+          "request_example": {
+            "id": "<corporate-id-with-no-companies>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "CorporateList",
+        "action": "click Hapus on a Corporate row with no related Company and confirm deletion",
+        "assert": "Corporate row is removed from the list"
+      },
+      "browser_test": {
+        "route": "/master-data/corporates",
+        "action": "click Hapus icon on a Corporate row with zero related Company, confirm the deletion dialog",
+        "assert": "Corporate row is removed from the list"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Corporate — Hapus Corporate — ditolak",
+      "usecase_id": "usecase-027--kelola-corporate",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/corporates/:id"
+          },
+          "request_example": {
+            "id": "<corporate-id-with-companies>"
+          },
+          "expected_status": 409,
+          "expected_error_code": "CORPORATE_HAS_COMPANIES"
+        }
+      ],
+      "component_test": {
+        "component": "CorporateList",
+        "action": "click Hapus on a Corporate row that has related Company records and confirm deletion",
+        "assert": "error message shown stating the Corporate still has related Company; row remains in the list"
+      },
+      "browser_test": {
+        "route": "/master-data/corporates",
+        "action": "click Hapus icon on a Corporate row with related Company records, confirm the deletion dialog",
+        "assert": "error toast/message displayed that Corporate still has related Company; list is unchanged"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Corporate — Kode duplikat",
+      "usecase_id": "usecase-027--kelola-corporate",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/corporates"
+          },
+          "request_example": {
+            "corporate_code": "CORP-001",
+            "name": "PT Lain"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "CorporateForm",
+        "action": "fill Corporate code field (add or edit form) with a code already used by another Corporate, click Simpan",
+        "assert": "validation error message shown under the code field stating the code is already in use"
+      },
+      "browser_test": {
+        "route": "/master-data/corporates",
+        "action": "submit the Corporate form (add or edit) with a code already used by another Corporate",
+        "assert": "validation error displayed indicating the code is already taken; form is not submitted"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Corporate — Nama duplikat",
+      "usecase_id": "usecase-027--kelola-corporate",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/corporates"
+          },
+          "request_example": {
+            "corporate_code": "CORP-003",
+            "name": "PT Sawit Makmur Jaya"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "CorporateForm",
+        "action": "fill Corporate name field (add or edit form) with a name already used by another Corporate, click Simpan",
+        "assert": "validation error message shown under the name field stating the name is already in use"
+      },
+      "browser_test": {
+        "route": "/master-data/corporates",
+        "action": "submit the Corporate form (add or edit) with a name already used by another Corporate",
+        "assert": "validation error displayed indicating the name is already taken; form is not submitted"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Corporate — akses ditolak untuk selain Admin",
+      "usecase_id": "usecase-027--kelola-corporate",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/corporates"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "CorporateManagement",
+        "action": "attempt to load the Kelola Corporate screen as a logged-in non-Admin user",
+        "assert": "access denied message shown; Corporate list and management controls are not rendered"
+      },
+      "browser_test": {
+        "route": "/master-data/corporates",
+        "action": "navigate to /master-data/corporates as a logged-in non-Admin user",
+        "assert": "browser shows an access-denied/forbidden state or redirects away from the Corporate management screen"
+      }
+    }
+  ]
+}

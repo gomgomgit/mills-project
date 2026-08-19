@@ -1,26 +1,146 @@
 {
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-08-19"
   },
-  "ver": 3,
   "entities": [
     {
       "id": "corporate",
       "name": "Corporate",
-      "description": "Level teratas hierarki organisasi mill.",
+      "description": "Level teratas hierarki organisasi mill. Field diperluas mengikuti docs/MMS_Weighbridge_ERD_Operational_MVP_v3.1.mermaid (adopsi penuh field korporasi/legal/kontak), dengan id tetap uuid (bukan corporate_code) sebagai primary key agar tidak mengubah FK di entitas lain.",
       "fields": [
         {
           "name": "id",
           "type": "uuid",
           "required": true,
-          "description": "Identifier unik, dibuat sebagai UUID."
+          "description": "Identifier unik, dibuat sebagai UUID. Primary key — TIDAK diganti corporate_code (lihat corporate_code di bawah) agar tidak ada dampak pada entitas lain."
+        },
+        {
+          "name": "corporate_code",
+          "type": "string",
+          "required": true,
+          "description": "Kode identifikasi bisnis Corporate (dari ERD sebagai natural key) — unik, diisi manual oleh Admin, TIDAK dipakai sebagai FK oleh entitas lain (yang tetap memakai id uuid)."
         },
         {
           "name": "name",
           "type": "string",
           "required": true,
-          "description": "Nama Corporate."
+          "description": "Nama Corporate (ERD: corporate_name)."
+        },
+        {
+          "name": "short_name",
+          "type": "string",
+          "required": false,
+          "description": "Nama singkat Corporate."
+        },
+        {
+          "name": "leader_name",
+          "type": "string",
+          "required": false,
+          "description": "Nama pimpinan Corporate."
+        },
+        {
+          "name": "lawyer_name",
+          "type": "string",
+          "required": false,
+          "description": "Nama pengacara/penasihat hukum Corporate."
+        },
+        {
+          "name": "address",
+          "type": "string",
+          "required": false,
+          "description": "Alamat Corporate."
+        },
+        {
+          "name": "telephone_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor telepon."
+        },
+        {
+          "name": "fax_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor fax."
+        },
+        {
+          "name": "contact_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor kontak."
+        },
+        {
+          "name": "extension_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor extension."
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "required": false,
+          "description": "Alamat email."
+        },
+        {
+          "name": "website",
+          "type": "string",
+          "required": false,
+          "description": "URL website."
+        },
+        {
+          "name": "map",
+          "type": "string",
+          "required": false,
+          "description": "Link/koordinat peta lokasi."
+        },
+        {
+          "name": "tax_register_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor registrasi pajak."
+        },
+        {
+          "name": "insurance_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor asuransi."
+        },
+        {
+          "name": "epf_employer",
+          "type": "string",
+          "required": false,
+          "description": "Nomor EPF employer."
+        },
+        {
+          "name": "socso_employer",
+          "type": "string",
+          "required": false,
+          "description": "Nomor SOCSO employer."
+        },
+        {
+          "name": "labor_union",
+          "type": "string",
+          "required": false,
+          "description": "Informasi serikat pekerja."
+        },
+        {
+          "name": "logo",
+          "type": "string",
+          "required": false,
+          "description": "Path/URL file logo, disimpan di Laravel Filesystem local disk."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record."
+        },
+        {
+          "name": "updated_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User yang terakhir memperbarui record."
         },
         {
           "name": "created_at",
@@ -43,11 +163,32 @@
         }
       ],
       "constraints": [
-        "name harus unik"
+        "name harus unik",
+        "corporate_code harus unik"
       ],
       "test_fixture": {
         "id": "corp-001",
+        "corporate_code": "CORP-001",
         "name": "PT Sawit Nusantara",
+        "short_name": "PSN",
+        "leader_name": "Budi Hartono",
+        "lawyer_name": "Andi Wijaya, S.H.",
+        "address": "Jl. Industri Sawit No. 1, Medan",
+        "telephone_no": "061-1234567",
+        "fax_no": "061-1234568",
+        "contact_no": "081234567890",
+        "extension_no": "101",
+        "email": "corporate@sawitnusantara.co.id",
+        "website": "https://sawitnusantara.co.id",
+        "map": "https://maps.google.com/?q=3.5952,98.6722",
+        "tax_register_no": "01.234.567.8-123.000",
+        "insurance_no": "INS-CORP-001",
+        "epf_employer": "EPF-001",
+        "socso_employer": "SOCSO-001",
+        "labor_union": "Serikat Pekerja Sawit Nusantara",
+        "logo": "storage/logos/corp-001.png",
+        "created_by": "usr-001",
+        "updated_by": null,
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z"
       }
@@ -55,7 +196,7 @@
     {
       "id": "company",
       "name": "Company",
-      "description": "Entitas perusahaan di bawah Corporate.",
+      "description": "Entitas perusahaan di bawah Corporate. Field diperluas mengikuti ERD, id tetap uuid sebagai primary key/FK.",
       "fields": [
         {
           "name": "id",
@@ -67,13 +208,139 @@
           "name": "corporate_id",
           "type": "uuid",
           "required": true,
-          "description": "FK ke Corporate induk."
+          "description": "FK ke Corporate induk (tetap uuid, bukan corporate_code)."
+        },
+        {
+          "name": "company_code",
+          "type": "string",
+          "required": true,
+          "description": "Kode identifikasi bisnis Company (dari ERD sebagai natural key) — unik secara global, diisi manual oleh Admin."
         },
         {
           "name": "name",
           "type": "string",
           "required": true,
-          "description": "Nama Company."
+          "description": "Nama Company (ERD: company_name)."
+        },
+        {
+          "name": "short_name",
+          "type": "string",
+          "required": false,
+          "description": "Nama singkat Company."
+        },
+        {
+          "name": "leader_name",
+          "type": "string",
+          "required": false,
+          "description": "Nama pimpinan Company."
+        },
+        {
+          "name": "lawyer_name",
+          "type": "string",
+          "required": false,
+          "description": "Nama pengacara/penasihat hukum Company."
+        },
+        {
+          "name": "address",
+          "type": "string",
+          "required": false,
+          "description": "Alamat Company."
+        },
+        {
+          "name": "telephone_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor telepon."
+        },
+        {
+          "name": "fax_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor fax."
+        },
+        {
+          "name": "contact_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor kontak."
+        },
+        {
+          "name": "extension_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor extension."
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "required": false,
+          "description": "Alamat email."
+        },
+        {
+          "name": "website",
+          "type": "string",
+          "required": false,
+          "description": "URL website."
+        },
+        {
+          "name": "map",
+          "type": "string",
+          "required": false,
+          "description": "Link/koordinat peta lokasi."
+        },
+        {
+          "name": "tax_register_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor registrasi pajak."
+        },
+        {
+          "name": "insurance_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor asuransi."
+        },
+        {
+          "name": "epf_employer",
+          "type": "string",
+          "required": false,
+          "description": "Nomor EPF employer."
+        },
+        {
+          "name": "socso_employer",
+          "type": "string",
+          "required": false,
+          "description": "Nomor SOCSO employer."
+        },
+        {
+          "name": "labor_union",
+          "type": "string",
+          "required": false,
+          "description": "Informasi serikat pekerja."
+        },
+        {
+          "name": "logo",
+          "type": "string",
+          "required": false,
+          "description": "Path/URL file logo."
+        },
+        {
+          "name": "last_update",
+          "type": "date",
+          "required": false,
+          "description": "Tanggal pembaruan data terakhir yang dilaporkan (ERD: company_last_update) — terpisah dari updated_at sistem, mis. tanggal laporan terakhir dikirim ke kantor pusat."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record."
+        },
+        {
+          "name": "updated_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User yang terakhir memperbarui record."
         },
         {
           "name": "created_at",
@@ -96,12 +363,34 @@
         }
       ],
       "constraints": [
-        "name unik dalam satu corporate"
+        "name unik dalam satu corporate",
+        "company_code harus unik secara global"
       ],
       "test_fixture": {
         "id": "comp-001",
         "corporate_id": "corp-001",
+        "company_code": "COMP-001",
         "name": "PT Sawit Nusantara Mill 1",
+        "short_name": "SNM1",
+        "leader_name": "Siti Aminah",
+        "lawyer_name": "Andi Wijaya, S.H.",
+        "address": "Jl. Pabrik No. 5, Medan",
+        "telephone_no": "061-2234567",
+        "fax_no": "061-2234568",
+        "contact_no": "081234567891",
+        "extension_no": "201",
+        "email": "mill1@sawitnusantara.co.id",
+        "website": "https://mill1.sawitnusantara.co.id",
+        "map": "https://maps.google.com/?q=3.6000,98.6800",
+        "tax_register_no": "01.234.567.9-123.000",
+        "insurance_no": "INS-COMP-001",
+        "epf_employer": "EPF-COMP-001",
+        "socso_employer": "SOCSO-COMP-001",
+        "labor_union": "Serikat Pekerja Mill 1",
+        "logo": "storage/logos/comp-001.png",
+        "last_update": "2024-01-01",
+        "created_by": "usr-001",
+        "updated_by": null,
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z"
       }
@@ -109,7 +398,7 @@
     {
       "id": "business-unit",
       "name": "Business Unit",
-      "description": "Mill/unit operasional di bawah Company.",
+      "description": "Mill/unit operasional di bawah Company. Field diperluas mengikuti ERD, id tetap uuid sebagai primary key/FK.",
       "fields": [
         {
           "name": "id",
@@ -133,7 +422,127 @@
           "name": "code",
           "type": "string",
           "required": true,
-          "description": "Kode singkat Business Unit."
+          "description": "Kode singkat Business Unit — unik secara global (ERD: business_unit_code)."
+        },
+        {
+          "name": "business_unit_type_code",
+          "type": "string",
+          "required": false,
+          "description": "Kode tipe Business Unit (klasifikasi internal, per ERD)."
+        },
+        {
+          "name": "short_name",
+          "type": "string",
+          "required": false,
+          "description": "Nama singkat Business Unit."
+        },
+        {
+          "name": "leader_name",
+          "type": "string",
+          "required": false,
+          "description": "Nama pimpinan Business Unit."
+        },
+        {
+          "name": "lawyer_name",
+          "type": "string",
+          "required": false,
+          "description": "Nama pengacara/penasihat hukum Business Unit."
+        },
+        {
+          "name": "address",
+          "type": "string",
+          "required": false,
+          "description": "Alamat Business Unit."
+        },
+        {
+          "name": "telephone_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor telepon."
+        },
+        {
+          "name": "fax_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor fax."
+        },
+        {
+          "name": "contact_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor kontak."
+        },
+        {
+          "name": "extension_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor extension."
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "required": false,
+          "description": "Alamat email."
+        },
+        {
+          "name": "website",
+          "type": "string",
+          "required": false,
+          "description": "URL website."
+        },
+        {
+          "name": "map",
+          "type": "string",
+          "required": false,
+          "description": "Link/koordinat peta lokasi."
+        },
+        {
+          "name": "tax_register_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor registrasi pajak."
+        },
+        {
+          "name": "insurance_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor asuransi."
+        },
+        {
+          "name": "epf_employer",
+          "type": "string",
+          "required": false,
+          "description": "Nomor EPF employer."
+        },
+        {
+          "name": "socso_employer",
+          "type": "string",
+          "required": false,
+          "description": "Nomor SOCSO employer."
+        },
+        {
+          "name": "labor_union",
+          "type": "string",
+          "required": false,
+          "description": "Informasi serikat pekerja."
+        },
+        {
+          "name": "logo",
+          "type": "string",
+          "required": false,
+          "description": "Path/URL file logo."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record."
+        },
+        {
+          "name": "updated_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User yang terakhir memperbarui record."
         },
         {
           "name": "created_at",
@@ -158,6 +567,16 @@
           "entity_id": "user",
           "type": "one-to-many",
           "description": "Satu Business Unit dapat memiliki banyak User yang ditugaskan padanya."
+        },
+        {
+          "entity_id": "machinery-group",
+          "type": "one-to-many",
+          "description": "Satu Business Unit dapat memiliki banyak Machinery Group."
+        },
+        {
+          "entity_id": "machinery",
+          "type": "one-to-many",
+          "description": "Satu Business Unit dapat memiliki banyak Machinery (denormalized, mengikuti ERD)."
         }
       ],
       "constraints": [
@@ -168,6 +587,26 @@
         "company_id": "comp-001",
         "name": "Business Unit A",
         "code": "BU-A",
+        "business_unit_type_code": "MILL",
+        "short_name": "BUA",
+        "leader_name": "Rudi Hartanto",
+        "lawyer_name": "Andi Wijaya, S.H.",
+        "address": "Jl. Unit A No. 1, Medan",
+        "telephone_no": "061-3234567",
+        "fax_no": "061-3234568",
+        "contact_no": "081234567892",
+        "extension_no": "301",
+        "email": "bua@sawitnusantara.co.id",
+        "website": "",
+        "map": "https://maps.google.com/?q=3.6050,98.6850",
+        "tax_register_no": "01.234.568.0-123.000",
+        "insurance_no": "INS-BU-001",
+        "epf_employer": "EPF-BU-001",
+        "socso_employer": "SOCSO-BU-001",
+        "labor_union": "Serikat Pekerja BU A",
+        "logo": "storage/logos/bu-001.png",
+        "created_by": "usr-001",
+        "updated_by": null,
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z"
       }
@@ -175,7 +614,7 @@
     {
       "id": "station",
       "name": "Station",
-      "description": "Stasiun produksi mill — 3 aktif di MVP (Weighbridge, Grading, Cages Track), 12 lainnya placeholder skema masa depan.",
+      "description": "Stasiun produksi mill — 3 aktif di MVP (Weighbridge, Grading, Cages Track), 12 lainnya placeholder skema masa depan. Field code/description/no_of_machinery_group ditambah dari ERD; field type tetap dipertahankan (TIDAK ada di ERD literal) karena krusial bagi mobile app (screen-006 Station List dan Monitor 007-009) yang sudah diimplementasikan dan diverifikasi berdasarkan field ini.",
       "fields": [
         {
           "name": "id",
@@ -190,16 +629,34 @@
           "description": "FK ke Business Unit induk."
         },
         {
+          "name": "code",
+          "type": "string",
+          "required": false,
+          "description": "Kode Station, unik jika diisi (per ERD)."
+        },
+        {
           "name": "name",
           "type": "string",
           "required": true,
           "description": "Nama Station."
         },
         {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": "Deskripsi Station (per ERD)."
+        },
+        {
           "name": "type",
           "type": "enum(weighbridge, grading, cages-track, other)",
           "required": true,
-          "description": "Tipe stasiun; 'other' menampung 12 placeholder stasiun masa depan."
+          "description": "Tipe stasiun; 'other' menampung 12 placeholder stasiun masa depan. DIPERTAHANKAN meski tidak ada di ERD literal — dipakai langsung oleh screen-006/007/008/009 mobile yang sudah diimplementasikan."
+        },
+        {
+          "name": "no_of_machinery_group",
+          "type": "integer",
+          "required": false,
+          "description": "Jumlah Machinery Group yang terkait — DIHITUNG (COUNT machinery-group WHERE station_id), bukan diisi manual, konsisten dengan pola company_count/business_unit_count di master data lain."
         },
         {
           "name": "is_active",
@@ -225,25 +682,34 @@
           "entity_id": "machinery",
           "type": "one-to-many",
           "description": "Satu Station dapat memiliki banyak Machinery."
+        },
+        {
+          "entity_id": "machinery-group",
+          "type": "one-to-many",
+          "description": "Satu Station dapat memiliki banyak Machinery Group."
         }
       ],
       "constraints": [
-        "Hanya station bertipe weighbridge/grading/cages-track yang is_active=true di MVP; tipe lain adalah placeholder skema masa depan dengan is_active=false"
+        "Hanya station bertipe weighbridge/grading/cages-track yang is_active=true di MVP; tipe lain adalah placeholder skema masa depan dengan is_active=false",
+        "code unik jika diisi"
       ],
       "test_fixture": {
         "id": "stn-001",
         "business_unit_id": "bu-001",
+        "code": "STN-WB-001",
         "name": "Weighbridge 1",
+        "description": "Stasiun timbangan utama",
         "type": "weighbridge",
+        "no_of_machinery_group": 0,
         "is_active": true,
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z"
       }
     },
     {
-      "id": "machinery",
-      "name": "Machinery",
-      "description": "Mesin/peralatan yang terpasang pada sebuah Station.",
+      "id": "machinery-group",
+      "name": "Machinery Group",
+      "description": "Pengelompokan mesin per Station (mis. kelompok mesin press, kelompok mesin boiler) — entity baru per ERD, ditambahkan untuk mendukung field workshop_factor/cost_per_equipment/no_of_equipment yang dimiliki grup, bukan mesin individual.",
       "fields": [
         {
           "name": "id",
@@ -252,10 +718,125 @@
           "description": "Identifier unik, dibuat sebagai UUID."
         },
         {
+          "name": "business_unit_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Business Unit (denormalized, mengikuti ERD)."
+        },
+        {
           "name": "station_id",
           "type": "uuid",
           "required": true,
           "description": "FK ke Station induk."
+        },
+        {
+          "name": "group_code",
+          "type": "string",
+          "required": true,
+          "description": "Kode grup mesin, unik."
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": "Deskripsi grup mesin."
+        },
+        {
+          "name": "unit",
+          "type": "string",
+          "required": false,
+          "description": "Satuan pengukuran grup (mis. unit, set)."
+        },
+        {
+          "name": "workshop_factor",
+          "type": "float",
+          "required": false,
+          "description": "Faktor workshop untuk perhitungan biaya/maintenance."
+        },
+        {
+          "name": "cost_per_equipment",
+          "type": "float",
+          "required": false,
+          "description": "Biaya per unit peralatan dalam grup ini."
+        },
+        {
+          "name": "no_of_equipment",
+          "type": "integer",
+          "required": false,
+          "description": "Jumlah peralatan dalam grup — DIHITUNG (COUNT machinery WHERE machinery_group_id), bukan diisi manual, konsisten dengan station.no_of_machinery_group."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "machinery",
+          "type": "one-to-many",
+          "description": "Satu Machinery Group dapat memiliki banyak Machinery."
+        }
+      ],
+      "constraints": [
+        "group_code harus unik",
+        "station_id harus milik business_unit_id yang sama"
+      ],
+      "test_fixture": {
+        "id": "mg-001",
+        "business_unit_id": "bu-001",
+        "station_id": "stn-001",
+        "group_code": "MG-WB-001",
+        "description": "Grup Mesin Timbangan",
+        "unit": "unit",
+        "workshop_factor": 1.2,
+        "cost_per_equipment": 15000000,
+        "no_of_equipment": 1,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "machinery",
+      "name": "Machinery",
+      "description": "Mesin/peralatan yang terpasang pada sebuah Station, dikelompokkan dalam Machinery Group. Field diperluas signifikan mengikuti ERD (spesifikasi teknis mesin).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "business_unit_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Business Unit (denormalized, mengikuti ERD)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station induk."
+        },
+        {
+          "name": "machinery_group_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Machinery Group induk."
+        },
+        {
+          "name": "equipment_code",
+          "type": "string",
+          "required": true,
+          "description": "Kode peralatan, unik."
         },
         {
           "name": "name",
@@ -264,16 +845,231 @@
           "description": "Nama mesin."
         },
         {
-          "name": "picture",
+          "name": "description",
           "type": "string",
           "required": false,
-          "description": "Path/URL file gambar mesin, disimpan di Laravel Filesystem local disk."
+          "description": "Deskripsi mesin (ERD: description; menggantikan field 'notes' versi sebelumnya karena belum pernah diimplementasikan)."
         },
         {
-          "name": "notes",
+          "name": "picture_url",
           "type": "string",
           "required": false,
-          "description": "Catatan tambahan tentang mesin."
+          "description": "Path/URL file gambar mesin, disimpan di Laravel Filesystem local disk (ERD: picture_url; menggantikan nama field 'picture' versi sebelumnya)."
+        },
+        {
+          "name": "registration_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor registrasi mesin."
+        },
+        {
+          "name": "make",
+          "type": "string",
+          "required": false,
+          "description": "Pembuat/pabrikan mesin."
+        },
+        {
+          "name": "model",
+          "type": "string",
+          "required": false,
+          "description": "Model mesin."
+        },
+        {
+          "name": "equipment_type",
+          "type": "string",
+          "required": false,
+          "description": "Tipe peralatan."
+        },
+        {
+          "name": "part_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor part."
+        },
+        {
+          "name": "serial_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor seri."
+        },
+        {
+          "name": "gearbox",
+          "type": "string",
+          "required": false,
+          "description": "Spesifikasi gearbox."
+        },
+        {
+          "name": "motor",
+          "type": "string",
+          "required": false,
+          "description": "Spesifikasi motor."
+        },
+        {
+          "name": "mounting",
+          "type": "string",
+          "required": false,
+          "description": "Spesifikasi mounting."
+        },
+        {
+          "name": "rpm",
+          "type": "float",
+          "required": false,
+          "description": "Kecepatan putar (RPM)."
+        },
+        {
+          "name": "chain",
+          "type": "string",
+          "required": false,
+          "description": "Spesifikasi rantai."
+        },
+        {
+          "name": "capacity",
+          "type": "string",
+          "required": false,
+          "description": "Kapasitas mesin."
+        },
+        {
+          "name": "brand",
+          "type": "string",
+          "required": false,
+          "description": "Merek mesin."
+        },
+        {
+          "name": "year_made",
+          "type": "integer",
+          "required": false,
+          "description": "Tahun pembuatan."
+        },
+        {
+          "name": "fixed_asset",
+          "type": "string",
+          "required": false,
+          "description": "Nomor/status aset tetap."
+        },
+        {
+          "name": "control_activity",
+          "type": "string",
+          "required": false,
+          "description": "Aktivitas kontrol/pengawasan terkait mesin."
+        },
+        {
+          "name": "owner_ite",
+          "type": "string",
+          "required": false,
+          "description": "Kepemilikan/ITE terkait (per ERD)."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "machinery-insurance",
+          "type": "one-to-many",
+          "description": "Satu Machinery dapat memiliki banyak riwayat asuransi."
+        },
+        {
+          "entity_id": "machinery-tax-purchase",
+          "type": "one-to-many",
+          "description": "Satu Machinery dapat memiliki banyak riwayat pajak/pembelian."
+        }
+      ],
+      "constraints": [
+        "equipment_code harus unik",
+        "station_id harus milik business_unit_id yang sama",
+        "machinery_group_id harus milik station_id yang sama"
+      ],
+      "test_fixture": {
+        "id": "mch-001",
+        "business_unit_id": "bu-001",
+        "station_id": "stn-001",
+        "machinery_group_id": "mg-001",
+        "equipment_code": "EQ-WB-001",
+        "name": "Timbangan Digital A",
+        "description": "Timbangan digital utama stasiun Weighbridge 1",
+        "picture_url": "storage/machinery/mch-001.jpg",
+        "registration_no": "REG-001",
+        "make": "Avery Weigh-Tronix",
+        "model": "ZM series",
+        "equipment_type": "Timbangan Digital",
+        "part_no": "PN-001",
+        "serial_no": "SN-001",
+        "gearbox": "",
+        "motor": "",
+        "mounting": "Fixed",
+        "rpm": 0,
+        "chain": "",
+        "capacity": "80 ton",
+        "brand": "Avery Weigh-Tronix",
+        "year_made": 2020,
+        "fixed_asset": "FA-001",
+        "control_activity": "Kalibrasi tahunan",
+        "owner_ite": "PT Sawit Nusantara Mill 1",
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "machinery-insurance",
+      "name": "Machinery Insurance",
+      "description": "Riwayat asuransi per unit Machinery — entity anak baru per ERD, dikelola sebagai child-grid di dalam form Kelola Machinery.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "machinery_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Machinery induk."
+        },
+        {
+          "name": "ownership",
+          "type": "string",
+          "required": false,
+          "description": "Status kepemilikan (mis. milik sendiri, sewa)."
+        },
+        {
+          "name": "insurance_policy_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor polis asuransi."
+        },
+        {
+          "name": "insurance_company",
+          "type": "string",
+          "required": false,
+          "description": "Nama perusahaan asuransi."
+        },
+        {
+          "name": "insurance_expiry_date",
+          "type": "date",
+          "required": false,
+          "description": "Tanggal kedaluwarsa asuransi."
+        },
+        {
+          "name": "premium",
+          "type": "float",
+          "required": false,
+          "description": "Nilai premi."
+        },
+        {
+          "name": "amount_insured",
+          "type": "float",
+          "required": false,
+          "description": "Nilai pertanggungan."
         },
         {
           "name": "created_at",
@@ -291,11 +1087,102 @@
       "relationships": [],
       "constraints": [],
       "test_fixture": {
-        "id": "mch-001",
-        "station_id": "stn-001",
-        "name": "Timbangan Digital A",
-        "picture": "storage/machinery/mch-001.jpg",
-        "notes": "Kalibrasi terakhir Januari 2024",
+        "id": "mi-001",
+        "machinery_id": "mch-001",
+        "ownership": "Milik Sendiri",
+        "insurance_policy_no": "POL-001",
+        "insurance_company": "Asuransi Jasa Indonesia",
+        "insurance_expiry_date": "2025-12-31",
+        "premium": 5000000,
+        "amount_insured": 150000000,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "machinery-tax-purchase",
+      "name": "Machinery Tax/Purchase",
+      "description": "Riwayat pajak/pembelian per unit Machinery — entity anak baru per ERD, dikelola sebagai child-grid di dalam form Kelola Machinery.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "machinery_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Machinery induk."
+        },
+        {
+          "name": "purchase_date",
+          "type": "date",
+          "required": false,
+          "description": "Tanggal pembelian."
+        },
+        {
+          "name": "purchase_cost",
+          "type": "float",
+          "required": false,
+          "description": "Biaya pembelian."
+        },
+        {
+          "name": "policy_type",
+          "type": "string",
+          "required": false,
+          "description": "Jenis kebijakan/pajak."
+        },
+        {
+          "name": "contact_name",
+          "type": "string",
+          "required": false,
+          "description": "Nama kontak vendor/supplier."
+        },
+        {
+          "name": "contact_phone",
+          "type": "string",
+          "required": false,
+          "description": "Nomor telepon kontak."
+        },
+        {
+          "name": "contact_fax",
+          "type": "string",
+          "required": false,
+          "description": "Nomor fax kontak."
+        },
+        {
+          "name": "contact_email",
+          "type": "string",
+          "required": false,
+          "description": "Email kontak."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [],
+      "test_fixture": {
+        "id": "mtp-001",
+        "machinery_id": "mch-001",
+        "purchase_date": "2020-03-15",
+        "purchase_cost": 180000000,
+        "policy_type": "Pembelian Baru",
+        "contact_name": "Ahmad Vendor",
+        "contact_phone": "081298765432",
+        "contact_fax": "",
+        "contact_email": "vendor@averyweightronix.co.id",
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z"
       }
@@ -380,7 +1267,7 @@
     {
       "id": "weighbridge-record",
       "name": "Weighbridge Record",
-      "description": "Record log data stasiun Weighbridge (arrival/dispatch, berat kendaraan).",
+      "description": "Record log data stasiun Weighbridge (receive/dispatch, berat kendaraan).",
       "fields": [
         {
           "name": "id",
@@ -401,16 +1288,16 @@
           "description": "Nomor WB Card."
         },
         {
-          "name": "arrival_datetime",
-          "type": "timestamp",
+          "name": "weighbridge_type",
+          "type": "enum(receive, dispatch)",
           "required": true,
-          "description": "Waktu kedatangan kendaraan."
+          "description": "Tipe transaksi Weighbridge: receive (kendaraan masuk/kedatangan) atau dispatch (kendaraan keluar/pengiriman)."
         },
         {
-          "name": "dispatch_datetime",
+          "name": "record_datetime",
           "type": "timestamp",
-          "required": false,
-          "description": "Waktu keberangkatan kendaraan."
+          "required": true,
+          "description": "Waktu pencatatan record: diisi waktu kedatangan jika weighbridge_type=receive, atau waktu keberangkatan jika weighbridge_type=dispatch. Menggantikan arrival_datetime/dispatch_datetime terpisah — hanya 1 field tanggal per record."
         },
         {
           "name": "vehicle_number",
@@ -429,6 +1316,12 @@
           "type": "string",
           "required": true,
           "description": "Asal estate/supplier, input teks bebas."
+        },
+        {
+          "name": "destination",
+          "type": "string",
+          "required": false,
+          "description": "Tujuan muatan (input teks bebas). Wajib diisi jika weighbridge_type=dispatch; tidak dipakai jika weighbridge_type=receive."
         },
         {
           "name": "division",
@@ -464,7 +1357,7 @@
           "name": "quantity",
           "type": "float",
           "required": false,
-          "description": "Kuantitas muatan."
+          "description": "Kuantitas muatan, dalam satuan tandan."
         },
         {
           "name": "checked_by",
@@ -513,17 +1406,19 @@
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
-        "net_weight = gross_weight - tare_weight jika keduanya terisi"
+        "net_weight = gross_weight - tare_weight jika keduanya terisi",
+        "destination wajib diisi jika weighbridge_type = dispatch"
       ],
       "test_fixture": {
         "id": "wbr-001",
         "station_id": "stn-001",
         "wb_card_number": "WB-2024-0001",
-        "arrival_datetime": "2024-01-15T08:30:00Z",
-        "dispatch_datetime": "2024-01-15T09:00:00Z",
+        "weighbridge_type": "dispatch",
+        "record_datetime": "2024-01-15T09:00:00Z",
         "vehicle_number": "B 1234 XYZ",
         "driver_name": "Ahmad",
         "estate_supplier": "Estate Sukamaju",
+        "destination": "PKS Sukamaju",
         "division": "Divisi 2",
         "block": "Blok C12",
         "gross_weight": 15200.5,

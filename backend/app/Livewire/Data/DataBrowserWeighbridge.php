@@ -46,6 +46,8 @@ class DataBrowserWeighbridge extends Component
 
     public string $date_to = '';
 
+    public string $weighbridge_type = '';
+
     public string $business_unit_id = '';
 
     public int $page = 1;
@@ -65,6 +67,11 @@ class DataBrowserWeighbridge extends Component
     }
 
     public function updatedBusinessUnitId(): void
+    {
+        $this->resetToFirstPage();
+    }
+
+    public function updatedWeighbridgeType(): void
     {
         $this->resetToFirstPage();
     }
@@ -92,13 +99,14 @@ class DataBrowserWeighbridge extends Component
     }
 
     /**
-     * @return array{date_from: ?string, date_to: ?string, business_unit_id: ?string}
+     * @return array{date_from: ?string, date_to: ?string, weighbridge_type: ?string, business_unit_id: ?string}
      */
     protected function activeFilters(): array
     {
         return [
             'date_from' => $this->date_from !== '' ? $this->date_from : null,
             'date_to' => $this->date_to !== '' ? $this->date_to : null,
+            'weighbridge_type' => $this->weighbridge_type !== '' ? $this->weighbridge_type : null,
             'business_unit_id' => $this->business_unit_id !== '' ? $this->business_unit_id : null,
         ];
     }

@@ -1,0 +1,879 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-031--kelola-machinery",
+  "name": "Kelola Machinery",
+  "module_id": "module-master-data",
+  "route": "/master-data/machinery",
+  "auth_requirement": "role: admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": false,
+      "conditions": "Master data terbatas untuk role Admin"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": false,
+      "conditions": "Master data terbatas untuk role Admin"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Master data terbatas untuk role Admin"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-031--kelola-machinery",
+      "usecase_name": "Kelola Machinery",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/machinery",
+          "description": "List Machinery dengan Machinery Group induk, dipaginasi, opsional filter per Machinery Group",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "machinery_group_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter Machinery milik satu Machinery Group"
+              },
+              {
+                "name": "page",
+                "type": "integer",
+                "required": false,
+                "default": "1",
+                "description": "Halaman"
+              },
+              {
+                "name": "per_page",
+                "type": "integer",
+                "required": false,
+                "default": "20",
+                "description": "Jumlah per halaman, max 100"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "equipment_code": "string",
+                  "name": "string",
+                  "equipment_type": "string",
+                  "brand": "string",
+                  "machinery_group_id": "uuid",
+                  "machinery_group_code": "string",
+                  "created_at": "timestamp"
+                }
+              ],
+              "meta": {
+                "page": "integer",
+                "per_page": "integer",
+                "total": "integer",
+                "total_pages": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/machinery-groups/options",
+          "description": "List ringkas seluruh Machinery Group (id, group_code, station_id, business_unit_id) untuk dropdown pilih Machinery Group induk pada form Machinery",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "group_code": "string",
+                  "station_id": "uuid",
+                  "business_unit_id": "uuid"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/machinery/:id",
+          "description": "Detail satu Machinery lengkap dengan seluruh baris Riwayat Asuransi dan Riwayat Pajak/Pembelian, untuk mengisi form Edit",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID Machinery"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "equipment_code": "string",
+              "name": "string",
+              "description": "string",
+              "picture_url": "string",
+              "registration_no": "string",
+              "make": "string",
+              "model": "string",
+              "equipment_type": "string",
+              "part_no": "string",
+              "serial_no": "string",
+              "gearbox": "string",
+              "motor": "string",
+              "mounting": "string",
+              "rpm": "float",
+              "chain": "string",
+              "capacity": "string",
+              "brand": "string",
+              "year_made": "integer",
+              "fixed_asset": "string",
+              "control_activity": "string",
+              "owner_ite": "string",
+              "machinery_group_id": "uuid",
+              "station_id": "uuid",
+              "business_unit_id": "uuid",
+              "insurances": [
+                {
+                  "id": "uuid",
+                  "ownership": "string",
+                  "insurance_policy_no": "string",
+                  "insurance_company": "string",
+                  "insurance_expiry_date": "date",
+                  "premium": "float",
+                  "amount_insured": "float"
+                }
+              ],
+              "tax_purchases": [
+                {
+                  "id": "uuid",
+                  "purchase_date": "date",
+                  "purchase_cost": "float",
+                  "policy_type": "string",
+                  "contact_name": "string",
+                  "contact_phone": "string",
+                  "contact_fax": "string",
+                  "contact_email": "string"
+                }
+              ],
+              "created_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Machinery id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/machinery",
+          "description": "Membuat Machinery baru beserta baris Riwayat Asuransi dan Riwayat Pajak/Pembelian (opsional)",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "machinery_group_id": "uuid, required, harus Machinery Group yang ada",
+              "equipment_code": "string, required, unik secara global",
+              "name": "string, required",
+              "description": "string, optional",
+              "picture": "file, optional, image jpg/png, max 2MB",
+              "registration_no": "string, optional",
+              "make": "string, optional",
+              "model": "string, optional",
+              "equipment_type": "string, optional",
+              "part_no": "string, optional",
+              "serial_no": "string, optional",
+              "gearbox": "string, optional",
+              "motor": "string, optional",
+              "mounting": "string, optional",
+              "rpm": "float, optional",
+              "chain": "string, optional",
+              "capacity": "string, optional",
+              "brand": "string, optional",
+              "year_made": "integer, optional",
+              "fixed_asset": "string, optional",
+              "control_activity": "string, optional",
+              "owner_ite": "string, optional",
+              "insurances": "array, optional, tiap item: {ownership, insurance_policy_no, insurance_company, insurance_expiry_date, premium, amount_insured}, semua sub-field opsional",
+              "tax_purchases": "array, optional, tiap item: {purchase_date, purchase_cost, policy_type, contact_name, contact_phone, contact_fax, contact_email}, semua sub-field opsional"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "equipment_code": "string",
+              "name": "string",
+              "machinery_group_id": "uuid",
+              "station_id": "uuid",
+              "business_unit_id": "uuid",
+              "picture_url": "string",
+              "insurances": [
+                {
+                  "id": "uuid"
+                }
+              ],
+              "tax_purchases": [
+                {
+                  "id": "uuid"
+                }
+              ],
+              "created_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "equipment_code kosong/sudah dipakai, machinery_group_id tidak valid, atau picture tidak valid"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/machinery/:id",
+          "description": "Mengubah data Machinery beserta baris Riwayat Asuransi dan Riwayat Pajak/Pembelian (replace-semua: baris yang dikirim menggantikan seluruh baris lama)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID Machinery"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "machinery_group_id": "uuid, required, harus Machinery Group yang ada",
+              "equipment_code": "string, required, unik secara global (kecuali dirinya sendiri)",
+              "name": "string, required",
+              "insurances": "array, optional, sama seperti create — menggantikan seluruh baris lama",
+              "tax_purchases": "array, optional, sama seperti create — menggantikan seluruh baris lama"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "equipment_code": "string",
+              "name": "string",
+              "machinery_group_id": "uuid",
+              "station_id": "uuid",
+              "business_unit_id": "uuid",
+              "insurances": [
+                {
+                  "id": "uuid"
+                }
+              ],
+              "tax_purchases": [
+                {
+                  "id": "uuid"
+                }
+              ],
+              "created_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "equipment_code kosong/sudah dipakai, machinery_group_id tidak valid, atau picture tidak valid"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Machinery id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/machinery/:id",
+          "description": "Menghapus Machinery beserta seluruh baris Riwayat Asuransi dan Pajak/Pembelian (cascade, tidak diblokir)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID Machinery"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "deleted": true
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Machinery id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by machinery_group_id, eager-load MachineryGroup untuk machinery_group_code",
+        "2. GET /api/machinery-groups/options: SELECT id, group_code, station_id, business_unit_id dari seluruh Machinery Group, urut group_code, untuk dropdown form (tanpa pagination)",
+        "3. GET /api/machinery/:id: SELECT Machinery + eager-load insurances + tax_purchases untuk mengisi form Edit lengkap",
+        "4. POST create: validate machinery_group_id ada → validate equipment_code required + unik global → validate picture (jika ada) → if invalid: return 422 VALIDATION_ERROR → turunkan station_id/business_unit_id dari Machinery Group terpilih → simpan picture jika ada → insert Machinery baru → insert seluruh baris insurances/tax_purchases yang dikirim (child rows, tanpa validasi keunikan)",
+        "5. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate machinery_group_id ada → validate equipment_code required + unik global (exclude self) → validate picture (jika diganti) → if invalid: return 422 VALIDATION_ERROR → turunkan ulang station_id/business_unit_id dari Machinery Group terpilih → update Machinery → REPLACE seluruh baris insurances/tax_purchases lama dengan baris yang dikirim (hapus baris lama, insert baris baru — pola replace-semua, bukan diff/merge, karena grid child ini murni milik satu Machinery)",
+        "6. DELETE: validate id exists → if not: return 404 NOT_FOUND → hapus seluruh baris insurances/tax_purchases terkait → hapus Machinery (TIDAK ada delete-guard/pemeriksaan referensi — berbeda dari level master data lain)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "machinery",
+          "operation": "SELECT",
+          "description": "SELECT Machinery dipaginasi dengan Machinery Group induk, opsional filter machinery_group_id; SELECT detail + eager-load insurances/tax_purchases untuk edit"
+        },
+        {
+          "entity_id": "machinery-group",
+          "operation": "SELECT",
+          "description": "SELECT ringkas seluruh Machinery Group untuk dropdown; SELECT untuk validasi machinery_group_id ada dan mengambil station_id/business_unit_id-nya"
+        },
+        {
+          "entity_id": "machinery",
+          "operation": "INSERT",
+          "description": "INSERT Machinery baru, station_id/business_unit_id disalin dari Machinery Group terpilih"
+        },
+        {
+          "entity_id": "machinery",
+          "operation": "UPDATE",
+          "description": "UPDATE Machinery, station_id/business_unit_id disalin ulang dari Machinery Group terpilih"
+        },
+        {
+          "entity_id": "machinery",
+          "operation": "DELETE",
+          "description": "DELETE Machinery (cascade ke insurances/tax_purchases, tanpa guard)"
+        },
+        {
+          "entity_id": "machinery-insurance",
+          "operation": "INSERT",
+          "description": "INSERT seluruh baris insurances yang dikirim saat create"
+        },
+        {
+          "entity_id": "machinery-insurance",
+          "operation": "DELETE",
+          "description": "DELETE seluruh baris insurances lama sebelum insert ulang saat update (replace-semua); DELETE saat Machinery dihapus"
+        },
+        {
+          "entity_id": "machinery-tax-purchase",
+          "operation": "INSERT",
+          "description": "INSERT seluruh baris tax_purchases yang dikirim saat create"
+        },
+        {
+          "entity_id": "machinery-tax-purchase",
+          "operation": "DELETE",
+          "description": "DELETE seluruh baris tax_purchases lama sebelum insert ulang saat update (replace-semua); DELETE saat Machinery dihapus"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Kode peralatan sudah dipakai Machinery lain",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.equipment_code"
+        },
+        {
+          "condition": "Belum ada Machinery Group sama sekali",
+          "handling": "GET /api/machinery-groups/options mengembalikan data: [], FE menonaktifkan/mengarahkan form Tambah Machinery"
+        },
+        {
+          "condition": "id tidak ditemukan pada GET detail/update/delete",
+          "handling": "Return 404 NOT_FOUND"
+        },
+        {
+          "condition": "machinery_group_id tidak valid/tidak ditemukan",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.machinery_group_id"
+        },
+        {
+          "condition": "Upload gambar mesin dengan format/ukuran tidak didukung",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.picture"
+        },
+        {
+          "condition": "Machinery dihapus meski memiliki baris riwayat asuransi/pajak",
+          "handling": "Hapus seluruh baris riwayat terkait secara cascade, TIDAK diblokir (berbeda dari pola delete-guard di level master data lain)"
+        }
+      ],
+      "business_rules_applied": [
+        "Kode peralatan (equipment_code) harus unik di seluruh sistem",
+        "Machinery harus terkait ke tepat satu Machinery Group yang sudah ada",
+        "Station dan Business Unit Machinery selalu mengikuti Machinery Group yang dipilih",
+        "Hanya Admin yang dapat mengakses dan mengelola data Machinery beserta riwayat asuransi dan pajak/pembeliannya",
+        "Menghapus Machinery turut menghapus seluruh baris riwayat asuransi dan pajak/pembelian, tidak diblokir"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns paginated machinery list with machinery_group_code for each row",
+          "given": "MachineryRepository.findPaginated() returns rows joined with MachineryGroup",
+          "expect": "return 200 with data array including machinery_group_code per row, plus pagination meta"
+        },
+        {
+          "description": "filters list by machinery_group_id when provided",
+          "given": "query param machinery_group_id=X is provided",
+          "expect": "only machinery belonging to machinery_group_id=X are returned"
+        },
+        {
+          "description": "returns 403 FORBIDDEN when authenticated user is not Admin (list)",
+          "given": "authenticated user role != admin",
+          "expect": "return 403 FORBIDDEN, no data returned"
+        },
+        {
+          "description": "returns Machinery Group options list unpaginated for dropdown, including station_id/business_unit_id per row",
+          "given": "MachineryGroupRepository.all() returns existing Machinery Groups",
+          "expect": "return 200 with data: [{id, group_code, station_id, business_unit_id}, ...] ordered by group_code"
+        },
+        {
+          "description": "returns 404 NOT_FOUND when fetching detail of non-existent Machinery id",
+          "given": "MachineryRepository.findById(id) returns null",
+          "expect": "throw NotFoundException; http 404 NOT_FOUND"
+        },
+        {
+          "description": "returns full detail including insurances and tax_purchases arrays when fetching an existing Machinery",
+          "given": "MachineryRepository.findById(id) returns an existing Machinery with 2 insurance rows and 1 tax_purchase row",
+          "expect": "return 200 with insurances array of 2 items and tax_purchases array of 1 item, each with all their own fields"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating Machinery with non-existent machinery_group_id",
+          "given": "MachineryGroupRepository.findById(machinery_group_id) returns null",
+          "expect": "throw ValidationException with errors.machinery_group_id; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating Machinery with empty or duplicate equipment_code",
+          "given": "input equipment_code is empty, or MachineryRepository.existsByCode(code) returns true",
+          "expect": "throw ValidationException with errors.equipment_code; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "copies station_id and business_unit_id from the selected Machinery Group automatically, not from request input",
+          "given": "valid machinery_group_id belonging to station Y / business_unit X is provided, request body also contains a different spoofed station_id/business_unit_id",
+          "expect": "created Machinery's station_id equals Y and business_unit_id equals X, the spoofed values in the request body are ignored entirely"
+        },
+        {
+          "description": "creates Machinery with insurance and tax_purchase child rows in one request",
+          "given": "valid create payload includes 2 insurances items and 1 tax_purchases item",
+          "expect": "Machinery is created, exactly 2 MachineryInsurance rows and 1 MachineryTaxPurchase row are inserted, each linked via machinery_id"
+        },
+        {
+          "description": "allows creating Machinery with no insurance/tax_purchase rows at all",
+          "given": "insurances and tax_purchases are omitted or empty arrays",
+          "expect": "Machinery is created successfully with zero child rows, no error"
+        },
+        {
+          "description": "returns 404 NOT_FOUND when updating/deleting Machinery with non-existent id",
+          "given": "MachineryRepository.findById(id) returns null",
+          "expect": "throw NotFoundException; http 404 NOT_FOUND"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when updating Machinery with equipment_code already used by another Machinery",
+          "given": "MachineryRepository.findById(id) returns existing Machinery; MachineryRepository.existsByCodeExcludingId(code, id) returns true",
+          "expect": "throw ValidationException with errors.equipment_code; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "replaces all insurance/tax_purchase rows on update (old rows removed, new rows inserted) rather than merging by id",
+          "given": "existing Machinery has 3 insurance rows; update request sends 1 insurance row with no id",
+          "expect": "after update, exactly 1 insurance row exists for this Machinery (the 3 old rows are gone, replaced entirely by the 1 new row)"
+        },
+        {
+          "description": "deletes Machinery and cascades deletion to all its insurance/tax_purchase rows without any guard/rejection",
+          "given": "MachineryRepository.findById(id) returns an existing Machinery with 2 insurance rows and 3 tax_purchase rows",
+          "expect": "Machinery, all 2 insurance rows, and all 3 tax_purchase rows are deleted; no 409/guard error is ever thrown by this endpoint"
+        },
+        {
+          "description": "returns 403 FORBIDDEN for create/update/delete when authenticated user is not Admin",
+          "given": "authenticated user role != admin",
+          "expect": "return 403 FORBIDDEN, no mutation performed"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "machinery",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "entity_id": "machinery-group",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "machinery-insurance",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "DELETE"
+      ]
+    },
+    {
+      "entity_id": "machinery-tax-purchase",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "DELETE"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-033--kelola-machinery-group",
+      "reason": "Machinery harus terkait ke Machinery Group yang sudah ada; jika belum ada Machinery Group, Admin diarahkan ke Kelola Machinery Group dahulu"
+    }
+  ],
+  "implementation_notes": [
+    "403 FORBIDDEN pada seluruh endpoint disimpulkan dari actor_permissions, sama seperti master data lainnya",
+    "Livewire component dapat memanggil Service Layer yang sama dengan REST API, konsisten dengan pola master data lainnya",
+    "machinery_group_code diperoleh via eager-load with('machineryGroup')",
+    "station_id DAN business_unit_id Machinery SELALU disalin dari Machinery Group yang dipilih (bukan dropdown/input terpisah) — konsisten dengan pola anti-drift yang sama dipakai screen-033 (business_unit_id disalin dari Station)",
+    "Riwayat Asuransi dan Pajak/Pembelian dikelola sebagai grid child-row DI DALAM form Machinery yang sama (mirip pola Grading Detail di form-grading), BUKAN layar/route terpisah — disimpan/diperbarui bersamaan dengan Machinery dalam satu request POST/PATCH, pola replace-semua (bukan diff per-baris) saat update karena baris ini murni milik satu Machinery tanpa identitas independen yang perlu dipertahankan lintas edit",
+    "Machinery TIDAK punya delete-guard — berbeda signifikan dari Corporate/Company/Business Unit/Station/Machinery Group yang semuanya menolak penghapusan jika punya anak. Machinery adalah leaf paling bawah hierarki master data; insurance/tax_purchase murni anaknya sendiri (bukan direferensikan entity lain), sehingga cascade delete aman dan sesuai ekspektasi (dikonfirmasi eksplisit dalam business_rules)",
+    "picture disimpan di Laravel Filesystem local disk (konsisten dengan pola logo Corporate/Company/Business Unit), diekspos di response sebagai picture_url",
+    "GET /api/machinery/:id (detail lengkap + child rows) adalah endpoint BARU yang tidak ada di screen master data lain — diperlukan karena kompleksitas form Edit yang harus memuat 2 grid child sekaligus, tidak cukup hanya row ringkas dari GET list"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Kelola Machinery — success",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/machinery-groups/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/machinery"
+          },
+          "request_example": {
+            "machinery_group_id": "{{machinery_group_id}}",
+            "equipment_code": "EQ-WB-002",
+            "name": "Timbangan Digital B"
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "MachineryForm",
+        "action": "pilih Machinery Group induk dari dropdown, isi kode peralatan dan nama, klik Simpan",
+        "assert": "form submit berhasil, baris baru muncul di daftar dengan Machinery Group induk yang benar"
+      },
+      "browser_test": {
+        "route": "/master-data/machinery",
+        "action": "klik Tambah Machinery, pilih Machinery Group, isi kode dan nama, klik Simpan",
+        "assert": "baris Machinery baru muncul di tabel dengan Machinery Group induk yang benar"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Machinery — Edit Machinery",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/machinery/:id"
+          },
+          "request_example": {
+            "id": "<existing-machinery-id>",
+            "machinery_group_id": "{{machinery_group_id}}",
+            "equipment_code": "EQ-WB-002B",
+            "name": "Timbangan Digital B Updated"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "MachineryForm",
+        "action": "klik Edit pada baris Machinery, ubah nama/spesifikasi, klik Simpan",
+        "assert": "baris Machinery diperbarui dengan nilai baru"
+      },
+      "browser_test": {
+        "route": "/master-data/machinery",
+        "action": "klik Edit pada baris, ubah nama, klik Simpan",
+        "assert": "tabel menampilkan nama yang sudah diperbarui"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Machinery — Hapus Machinery",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/machinery/:id"
+          },
+          "request_example": {
+            "id": "<machinery-id-with-insurance-and-tax-rows>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "MachineryList",
+        "action": "klik Hapus pada baris Machinery yang punya baris riwayat asuransi/pajak, konfirmasi",
+        "assert": "baris Machinery terhapus dari daftar tanpa penolakan"
+      },
+      "browser_test": {
+        "route": "/master-data/machinery",
+        "action": "klik Hapus pada Machinery yang punya riwayat asuransi/pajak, konfirmasi dialog",
+        "assert": "baris Machinery hilang dari daftar, tidak ada pesan blokir"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Machinery — Kode peralatan duplikat",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/machinery"
+          },
+          "request_example": {
+            "machinery_group_id": "{{machinery_group_id}}",
+            "equipment_code": "EQ-WB-001",
+            "name": "Timbangan Lain"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "MachineryForm",
+        "action": "isi kode peralatan (Tambah/Edit) yang sudah dipakai Machinery lain, klik Simpan",
+        "assert": "pesan validasi muncul di bawah field kode peralatan, form tidak tersimpan"
+      },
+      "browser_test": {
+        "route": "/master-data/machinery",
+        "action": "submit form Machinery (Tambah/Edit) dengan kode peralatan yang sudah dipakai",
+        "assert": "pesan validasi kode sudah dipakai ditampilkan, tidak ada baris baru/berubah"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Machinery — Kelola baris Riwayat Asuransi",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/machinery"
+          },
+          "request_example": {
+            "machinery_group_id": "{{machinery_group_id}}",
+            "equipment_code": "EQ-WB-003",
+            "name": "Timbangan C",
+            "insurances": [
+              {
+                "insurance_policy_no": "POL-100",
+                "insurance_expiry_date": "2026-12-31"
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "MachineryForm",
+        "action": "tambah 1 baris grid Riwayat Asuransi, isi nomor polis dan tanggal kedaluwarsa, klik Simpan Machinery",
+        "assert": "baris asuransi tersimpan bersamaan dengan Machinery, muncul saat form dibuka ulang untuk edit"
+      },
+      "browser_test": {
+        "route": "/master-data/machinery",
+        "action": "buka form Tambah Machinery, tambah baris Riwayat Asuransi, isi nomor polis, klik Simpan",
+        "assert": "Machinery tersimpan; membuka kembali form Edit-nya menampilkan baris asuransi yang sama"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Machinery — Kelola baris Riwayat Pajak/Pembelian",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/machinery"
+          },
+          "request_example": {
+            "machinery_group_id": "{{machinery_group_id}}",
+            "equipment_code": "EQ-WB-004",
+            "name": "Timbangan D",
+            "tax_purchases": [
+              {
+                "purchase_date": "2026-01-10",
+                "purchase_cost": 175000000
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "MachineryForm",
+        "action": "tambah 1 baris grid Riwayat Pajak/Pembelian, isi tanggal dan biaya pembelian, klik Simpan Machinery",
+        "assert": "baris pajak/pembelian tersimpan bersamaan dengan Machinery, muncul saat form dibuka ulang untuk edit"
+      },
+      "browser_test": {
+        "route": "/master-data/machinery",
+        "action": "buka form Tambah Machinery, tambah baris Riwayat Pajak/Pembelian, isi tanggal pembelian, klik Simpan",
+        "assert": "Machinery tersimpan; membuka kembali form Edit-nya menampilkan baris pajak/pembelian yang sama"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Machinery — Belum ada Machinery Group",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/machinery-groups/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "MachineryForm",
+        "action": "buka form Tambah Machinery saat daftar opsi Machinery Group kosong",
+        "assert": "dropdown Machinery Group kosong/nonaktif, form menampilkan arahan untuk membuat Machinery Group dahulu"
+      },
+      "browser_test": {
+        "route": "/master-data/machinery",
+        "action": "klik Tambah Machinery saat belum ada Machinery Group sama sekali",
+        "assert": "form tampil tanpa opsi Machinery Group yang dapat dipilih, arahan membuat Machinery Group dahulu terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Machinery — akses ditolak untuk non-Admin",
+      "usecase_id": "usecase-031--kelola-machinery",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/machinery"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "MachineryManagement",
+        "action": "coba muat layar Kelola Machinery sebagai user non-Admin",
+        "assert": "tampilan akses ditolak muncul, daftar/kontrol Machinery tidak dirender"
+      },
+      "browser_test": {
+        "route": "/master-data/machinery",
+        "action": "navigasi ke /master-data/machinery sebagai user non-Admin",
+        "assert": "browser menampilkan status akses ditolak/redirect, layar Kelola Machinery tidak dapat diakses"
+      }
+    }
+  ]
+}

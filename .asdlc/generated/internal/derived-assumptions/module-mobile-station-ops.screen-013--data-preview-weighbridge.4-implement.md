@@ -24,3 +24,9 @@ Read/Edit tool tidak tersedia untuk sub-agent (3 screen berturut-turut). File ro
 
 - todayLocalDateString() dibangun manual (getFullYear/getMonth/getDate, bukan toISOString) ← toISOString() UTC-based bisa off-by-one-day tergantung timezone device
 - onResetFilter() sengaja TIDAK diubah untuk reset ke hari ini (tetap ke kosong/tampilkan semua) ← di luar scope instruksi user ("filter tanggal auto untuk hari ini" hanya soal default awal, bukan perilaku tombol reset), dicatat sebagai known_issue/opsi follow-up bukan bug tersembunyi
+
+## v5 — 2026-08-19
+
+- detailTypeLabel/detailDatetimeLabel fallback ke label 'Receive'/'Tanggal & Waktu Arrival' saat weighbridge_type bernilai null (record legacy/belum diset) ← tidak dinyatakan eksplisit di tech spec, defensive default konsisten dengan weighbridge_type default 'receive' di Form Weighbridge (screen-010)
+- Field Tipe Weighbridge & Tanggal/Tujuan Muatan ditambahkan sebagai FormField disabled biasa (bukan komponen khusus) ← konsisten dengan pola detail-mode read-only screen ini yang sudah ada sejak v1, tidak ada instruksi untuk styling berbeda
+- Temuan tak terduga (out of scope, diungkap bukan disembunyikan): full-suite Playwright run menemukan tests/e2e/form-grading.spec.ts (screen-011, 2 test) JUGA gagal akibat shared schema rename yang sama (men-seed weighbridge_record.arrival_datetime untuk kebutuhan FK) — sebelumnya hanya form-weighbridge.spec.ts (screen-010) yang diketahui coordinator. Tidak diperbaiki (di luar scope directive "screen-013 ONLY"), dicatat sebagai known_issue major di 4-implement.

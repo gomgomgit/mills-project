@@ -607,7 +607,7 @@ function goToMonitorCagesTrack(): void {
              Remain — all read directly from stored columns, no
              recomputation (historical data). See this file's header
              comment / implementation_notes. -->
-        <section class="tipped-time-section" aria-label="Cages Tipped Time">
+        <section class="tipped-time-section" aria-label="Riwayat Waktu Tip Cages">
           <h2 class="tipped-time-title">Cages Tipped Time</h2>
 
           <p v-if="detailRows.length === 0" class="status-text" data-testid="tipped-time-rows-empty">

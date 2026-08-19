@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-08-19"
   },
   "id": "screen-015--data-preview-cages-track",
   "name": "Data Preview Cages Track",
@@ -12,36 +12,35 @@
   "test_files_generated": [],
   "fe_files_generated": [
     "mobile/src/views/DataPreviewCagesTrackView.vue",
+    "mobile/src/services/cagesTrackRecordRepo.ts",
     "mobile/src/router/index.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/DataPreviewCagesTrackView.spec.ts",
-    "mobile/tests/e2e/data-preview-cages-track.spec.ts"
+    "mobile/tests/e2e/data-preview-cages-track.spec.ts",
+    "mobile/tests/cagesTrackRecordRepo.spec.ts"
   ],
   "implementation_notes": [
-    "Reuse getDraftWithTippedTimes() yang sudah ada (screen-012) daripada duplikat method baca",
-    "cages_tipped_time rows dirender sebagai list read-only sederhana, mirror DataPreviewGradingView.vue",
-    "Route path /stations/cages-track/preview/:id? mirror pola screen-013/014",
-    "Regresi penuh: 20 file/161 test, semua lulus",
-    "Ini menutup seluruh module-mobile-station-ops (screen 005-015)",
-    "Retrofit browser test (2026-08-18): deferred_items 'mobile-only, tidak ada server-renderable route' dikoreksi — lihat screen-005 untuk detail infrastruktur. Sama seperti screen-013/014, test browser mengakses route :id secara langsung, bukan lewat tombol Monitor Cages Track (lihat known_issue, di luar scope retrofit ini). Ini menutup retrofit browser test untuk seluruh module-mobile-station-ops (screen 005-015, total 50 test browser, semua lulus)",
-    "2 test browser (success, record tidak ditemukan) dijalankan nyata via npm run test:e2e — 2/2 lulus"
+    "Full rewrite (entity-catalog v3, 2026-08-19): DataPreviewCagesTrackView.vue mirrors DataPreviewWeighbridgeView.vue/DataPreviewGradingView.vue's dual-mode (list+filter+detail) pattern, restructured for cages_track_record's new v3 fields (tippler_start_time/tippler_stop_time/cages_out/cages_tipped/note) and the cages_tipped_time grid's full restructure (tipped_hour/checked_cage_numbers/total_cages/cages_remain)",
+    "cagesTrackRecordRepo.ts gained getAllRecords(userId) — simple SELECT * WHERE created_by = ? ORDER BY updated_at DESC, mirrors gradingRecordRepo.ts's own getAllRecords(); never touches cages_tipped_time (detail mode loads child rows separately via getDraftWithTippedTimes(), reused unmodified from screen-012)",
+    "Date filter compares against cages_track_record.date.slice(0, 10) — date is a full local datetime string (set via nowLocalDateTimeString() in FormCagesTrackView.vue), not a plain date column, so this mirrors DataPreviewWeighbridgeView.vue's arrival_datetime slice-based filter rather than DataPreviewGradingView.vue's exact-match date filter. Independently verified against localSchema.ts's CREATE_CAGES_TRACK_RECORD DDL (date TEXT) and the actual write site in FormCagesTrackView.vue",
+    "checked_cage_numbers (comma-separated TEXT, e.g. \"1,3,5\") parsed client-side by checkedCagesDisplay() into a readable \"Cage 1, Cage 3, Cage 5\" list; tipped_hour formatted as HH:00 via hourLabel() (copied verbatim from FormCagesTrackView.vue's own helper). total_cages/cages_remain rendered exactly as stored, never recomputed — historical data, matching the 'computed then persisted' pattern used throughout this station",
+    "Checked By/Acknowledged By ARE shown in detail mode (unlike Weighbridge/Grading, which omit them) — consistent with Form Cages Track's own decision to keep both fields; no role restriction on viewing, only on editing (already enforced in the Form)",
+    "'Inputted By' has no dedicated cages_track_record column (created_by is a user id, no local user-name lookup table exists) — rendered from authStore.currentUser?.name, same source FormCagesTrackView.vue's own 'Inputted By' field uses; valid because detail mode is only ever reached via this screen's own getAllRecords(userId)-scoped list (always the current user's own records)",
+    "This closes the entire Cages Track station overhaul (screens 009/012/015) on top of entity-catalog v3",
+    "Independently re-verified beyond the agent's own report (established practice this session after the screen-012 agent stall incident): full mobile vitest suite 385/385 passing across 20 files; cagesTrackRecordRepo.ts screen-009 functions (getProgressSummary/getTodaySummary/getDrafts/createDraft/resumeDraft/pauseDraft/deleteDraft) confirmed still present/untouched (36 grep matches) after the getAllRecords() addition; full Playwright suite 101/101 passing across the whole app (Weighbridge/Grading/Cages Track/Station List/Home/Auth), no regressions; DataPreviewCagesTrackView.vue read in full and confirmed correct (date-filter slice rationale cross-checked against localSchema.ts's actual DDL and FormCagesTrackView.vue's write site, not just the component's own comment); DataPreviewCagesTrackView.spec.ts read in full and confirmed to genuinely exercise the component's real logic (list/detail mode, filters, badge mapping, row-tap routing, watch()-driven route reactivity, breadcrumb/hamburger) rather than being superficial"
   ],
   "deferred_items": [],
   "known_issues": [
     {
-      "description": "MonitorCagesTrackView.vue (screen-009) onOpenDataPreview() navigasi tanpa parameter id — dikonfirmasi via inspeksi kode langsung, situasi identik dengan screen-007/013 dan screen-008/014. Belum diperbaiki oleh retrofit browser test ini — di luar scope",
-      "severity": "major"
-    },
-    {
-      "description": "Unit test coverage % tidak dapat diukur — tooling belum terpasang",
+      "description": "MonitorCagesTrackView.vue's (screen-009) 'Load Data' button navigates to this screen with no id param, which correctly lands on LIST mode — same resolution as screen-007/013 (Weighbridge) and screen-008/014 (Grading). Out of this screen's implementation scope; MonitorCagesTrackView.vue was not modified here.",
       "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-08-19T00:00:00Z",
+      "passed": 385,
       "failed": 0,
       "coverage": 0
     },
@@ -51,13 +50,13 @@
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-17T23:56:51Z",
-      "passed": 3,
+      "run_at": "2026-08-19T00:00:00Z",
+      "passed": 32,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-08-18T05:00:00Z",
-      "passed": 2,
+      "run_at": "2026-08-19T00:00:00Z",
+      "passed": 101,
       "failed": 0
     }
   }

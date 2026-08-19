@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ASDLC v101 — Dashboard</title>
+  <link rel="stylesheet" href="/css/styles.css"/>
+</head>
+<body>
+
+<!-- Reopen button (visible only when nav is collapsed) -->
+<button class="nav-reopen-btn" onclick="toggleNav()" title="Buka navigasi">›</button>
+
+<!-- ── Left Nav ─────────────────────────────────────────────────────────────── -->
+<nav class="nav">
+
+  <button class="nav-toggle-btn" onclick="toggleNav()" title="Tutup navigasi">‹</button>
+
+  <div class="nav-project" id="nav-app">Project Baru</div>
+
+  <div class="nav-item" data-page="dashboard" onclick="go('dashboard', this)">
+    <span class="nav-icon">📊</span>Dashboard
+  </div>
+
+  <div class="nav-divider"></div>
+
+  <!-- 1-Foundation -->
+  <div class="nav-section">
+    <div class="nav-section-header" onclick="toggleSection('foundation')">
+      <span class="nav-section-arrow" id="arrow-foundation">▾</span>
+      P1 · Foundation
+    </div>
+    <div class="nav-section-body" id="section-foundation">
+      <div class="nav-subitem" data-page="prd" onclick="go('prd', this)">
+        <span class="nav-subitem-icon">📋</span>PRD
+      </div>
+      <div class="nav-subitem" data-page="arch-spec" onclick="go('arch-spec', this)">
+        <span class="nav-subitem-icon">🏗️</span>Architectural Spec
+      </div>
+      <div class="nav-subitem" data-page="uiux-spec" onclick="go('uiux-spec', this)">
+        <span class="nav-subitem-icon">🎨</span>UI/UX Spec
+      </div>
+      <div class="nav-subitem" data-page="test-strategy" onclick="go('test-strategy', this)">
+        <span class="nav-subitem-icon">🧪</span>Test Strategy
+      </div>
+    </div>
+  </div>
+
+  <!-- 2-Business Specification -->
+  <div class="nav-section">
+    <div class="nav-section-header" onclick="toggleSection('business')">
+      <span class="nav-section-arrow" id="arrow-business">▸</span>
+      P2 · Business Spec
+    </div>
+    <div class="nav-section-body collapsed" id="section-business">
+      <div class="nav-subitem" data-page="actor-index" onclick="go('actor-index', this)">
+        <span class="nav-subitem-icon">👤</span>Actor Index
+      </div>
+      <div class="nav-subitem" data-page="screen-index" onclick="openScreenIndexModule('__all__', this)">
+        <span class="nav-subitem-icon">🗂️</span>All Modules
+      </div>
+      <div class="nav-subitem" data-page="usecase-index" onclick="go('usecase-index', this)">
+        <span class="nav-subitem-icon">📌</span>Use Case Index
+      </div>
+    </div>
+  </div>
+
+  <!-- 3-Technical Specification -->
+  <div class="nav-section">
+    <div class="nav-section-header" onclick="toggleSection('tech')">
+      <span class="nav-section-arrow" id="arrow-tech">▸</span>
+      P3 · Technical Spec
+    </div>
+    <div class="nav-section-body collapsed" id="section-tech">
+      <div class="nav-subitem" data-page="entity-catalog" onclick="go('entity-catalog', this)">
+        <span class="nav-subitem-icon">🗃️</span>Entity Catalog
+      </div>
+      <div class="nav-subitem" data-page="shared-decisions" onclick="go('shared-decisions', this)">
+        <span class="nav-subitem-icon">📋</span>Shared Decisions
+      </div>
+      <div class="nav-subitem" data-page="api-index" onclick="go('api-index', this)">
+        <span class="nav-subitem-icon">🔌</span>API Index
+      </div>
+    </div>
+  </div>
+
+  <!-- 4-Implementation -->
+  <div class="nav-section">
+    <div class="nav-section-header" onclick="toggleSection('impl')">
+      <span class="nav-section-arrow" id="arrow-impl">▸</span>
+      P4 · Implementation
+    </div>
+    <div class="nav-section-body collapsed" id="section-impl">
+      <div class="nav-subitem" data-page="scaffold" onclick="go('scaffold', this)">
+        <span class="nav-subitem-icon">🏗️</span>Scaffold
+      </div>
+      <div class="nav-subitem" data-page="entity-models" onclick="go('entity-models', this)">
+        <span class="nav-subitem-icon">🗄️</span>Entity Models
+      </div>
+      <div class="nav-subitem" data-page="shared-modules" onclick="go('shared-modules', this)">
+        <span class="nav-subitem-icon">📦</span>Shared Modules
+      </div>
+      <div class="nav-subitem" data-page="screen-impl-index" onclick="go('screen-impl-index', this)">
+        <span class="nav-subitem-icon">🖥️</span>Screen Impl Index
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-divider"></div>
+
+  <!-- Module & Screens -->
+  <div class="nav-section">
+    <div class="nav-section-header" onclick="toggleSection('modules')">
+      <span class="nav-section-arrow" id="arrow-modules">▸</span>
+      Module &amp; Screens
+    </div>
+    <div class="nav-section-body collapsed" id="section-modules">
+      <div class="nav-subitem" data-page="screen-index" onclick="openScreenIndexModule('__all__', this)">
+        <span class="nav-subitem-icon">🗂️</span>All Modules
+      </div>
+      <div id="nav-module-list"></div>
+    </div>
+  </div>
+
+  <!-- Testing -->
+  <div class="nav-section">
+    <div class="nav-section-header" onclick="toggleSection('testing')">
+      <span class="nav-section-arrow" id="arrow-testing">▸</span>
+      Testing
+    </div>
+    <div class="nav-section-body collapsed" id="section-testing">
+      <div class="nav-subitem" data-page="usecase-test-spec" onclick="go('usecase-test-spec', this)">
+        <span class="nav-subitem-icon">📌</span>Usecase Test Spec
+      </div>
+      <div class="nav-subitem" data-page="screen-test-spec" onclick="go('screen-test-spec', this)">
+        <span class="nav-subitem-icon">🖥️</span>Screen Test Spec
+      </div>
+      <div class="nav-subitem" data-page="screen-test-result-3" onclick="go('screen-test-result-3', this)">
+        <span class="nav-subitem-icon">📊</span>Screen Test Result
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-divider"></div>
+
+  <!-- Others -->
+  <div class="nav-section">
+    <div class="nav-section-header" onclick="toggleSection('others')">
+      <span class="nav-section-arrow" id="arrow-others">▾</span>
+      Others
+    </div>
+    <div class="nav-section-body" id="section-others">
+      <div class="nav-subitem" data-page="depgraph" onclick="go('depgraph', this)">
+        <span class="nav-icon-sm">🔗</span>Dependency Graph
+      </div>
+      <div class="nav-subitem" data-page="stale" onclick="go('stale', this)">
+        <span class="nav-icon-sm">⚠️</span>Stale
+        <span class="nav-badge" id="nb-stale">—</span>
+      </div>
+      <div class="nav-subitem nav-theme-toggle" onclick="toggleTheme()">
+        <span class="nav-icon-sm" id="theme-icon">🌙</span>
+        <span id="theme-label">Dark Mode</span>
+        <div class="theme-toggle-track">
+          <div class="theme-toggle-thumb"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-footer" id="nav-footer">—</div>
+</nav>
+
+<!-- ── Pages ────────────────────────────────────────────────────────────────── -->
+<div class="main" id="main">
+
+  <div id="page-dashboard" class="page active">
+    <div class="page-title">Dashboard</div>
+    <div class="page-sub" id="dashboard-sub">Development dashboard, built with the Agentic-SDLC framework.</div>
+    <div class="sec-title">Artifacts</div>
+    <div class="metrics-grid" id="metrics"></div>
+    <div class="sec-title">Phase Progress</div>
+    <div class="phase-grid" id="phase-progress"></div>
+    <div class="sec-title">Module & Screen Summary</div>
+    <div class="metrics-grid" id="dash-module-summary"></div>
+    <div class="sec-title">Testing Summary</div>
+    <div id="dash-test-summary"><div class="empty">Memuat…</div></div>
+    <div id="dash-stale"></div>
+  </div>
+
+  <div id="page-prd" class="page">
+    <div class="page-title-row">
+      <div class="page-title">📋 PRD</div>
+      <button class="json-view-btn" onclick="viewJson('prd')">{ } JSON</button>
+    </div>
+    <div class="page-sub">Product Requirements Document</div>
+    <div id="prd-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-arch-spec" class="page">
+    <div class="page-title-row">
+      <div class="page-title">🏗️ Architectural Spec</div>
+      <button class="json-view-btn" onclick="viewJson('arch-spec')">{ } JSON</button>
+    </div>
+    <div class="page-sub">Architecture, tech stack, deployment, integrations</div>
+    <div id="arch-spec-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-uiux-spec" class="page">
+    <div class="page-title-row">
+      <div class="page-title">🎨 UI/UX Spec</div>
+      <button class="json-view-btn" onclick="viewJson('uiux-spec')">{ } JSON</button>
+    </div>
+    <div class="page-sub">Design system, layout, screen types, accessibility</div>
+    <div id="uiux-spec-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-test-strategy" class="page">
+    <div class="page-title-row">
+      <div class="page-title">🧪 Test Strategy</div>
+      <button class="json-view-btn" onclick="viewJson('test-strategy')">{ } JSON</button>
+    </div>
+    <div class="page-sub">Unit test, integration test (BDD/Gherkin), auto-fix policy, definition of done</div>
+    <div id="test-strategy-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-screen-detail" class="page">
+    <div class="screen-detail-back" onclick="go('screen-index')">← Back to Module &amp; Screens Index</div>
+    <div class="page-title-row">
+      <div class="page-title" id="screen-detail-title">Screen</div>
+      <button class="json-view-btn" onclick="viewScreenJson()">{ } JSON</button>
+    </div>
+    <div class="screen-detail-id" id="screen-detail-id"></div>
+    <div class="page-sub" id="screen-detail-sub"></div>
+    <div id="screen-detail-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-screen-index" class="page">
+    <div class="page-title-row">
+      <div class="page-title">🗂️ Module &amp; Screens</div>
+      <button class="json-view-btn" onclick="viewJson('screen-index')">{ } JSON</button>
+    </div>
+    <div class="page-sub">List of screens grouped by module</div>
+    <div id="screen-index-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-usecase-index" class="page">
+    <div class="page-title-row">
+      <div class="page-title">📌 Use Case Index</div>
+      <button class="json-view-btn" onclick="viewJson('usecase-index')">{ } JSON</button>
+    </div>
+    <div class="page-sub">List of use cases and the screens involved</div>
+    <div id="usecase-index-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-usecase-detail" class="page">
+    <div class="screen-detail-back" onclick="go('usecase-index')">← Back to Use Case Index</div>
+    <div class="page-title-row">
+      <div class="page-title" id="usecase-detail-title">Use Case</div>
+      <button class="json-view-btn" onclick="viewUsecaseJson()">{ } JSON</button>
+    </div>
+    <div class="screen-detail-id" id="usecase-detail-id"></div>
+    <div id="usecase-detail-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-usecase-test-spec" class="page">
+    <div class="page-title-row">
+      <div class="page-title">📌 Usecase Test Spec</div>
+    </div>
+    <div class="page-sub">BDD scenarios — aggregated across all use cases</div>
+    <div id="usecase-test-spec-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-screen-test-spec" class="page">
+    <div class="page-title-row">
+      <div class="page-title">🖥️ Screen Test Spec</div>
+    </div>
+    <div class="page-sub">Pick a module, then a screen, to see its Unit / Integration / Component / Browser test spec</div>
+    <div class="testing-tabs" id="screen-test-spec-module-tabs"></div>
+    <div class="testing-tab-body">
+      <div id="screen-test-spec-body"><div class="empty">Memuat…</div></div>
+    </div>
+  </div>
+
+  <div id="page-screen-test-result-3" class="page">
+    <div class="page-title-row">
+      <div class="page-title">📊 Screen Test Result</div>
+    </div>
+    <div class="page-sub">Test execution results (unit/integration/component/browser) — aggregated across all implemented screens</div>
+    <div id="screen-test-result-3-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-entity-catalog" class="page">
+    <div class="page-title-row">
+      <div class="page-title">🗃️ Entity Catalog</div>
+      <button class="json-view-btn" onclick="viewJson('entity-catalog')">{ } JSON</button>
+    </div>
+    <div class="page-sub">Domain entities and data model</div>
+    <div id="entity-catalog-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-shared-decisions" class="page">
+    <div class="page-title-row">
+      <div class="page-title">📋 Shared Decisions</div>
+      <button class="json-view-btn" onclick="viewJson('shared-decisions')">{ } JSON</button>
+    </div>
+    <div class="page-sub">Cross-cutting technical decisions and conventions</div>
+    <div id="shared-decisions-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-api-index" class="page">
+    <div class="page-title-row">
+      <div class="page-title">🔌 API Index</div>
+      <button class="json-view-btn" onclick="viewJson('api-index')">{ } JSON</button>
+    </div>
+    <div class="page-sub">API endpoints and contract overview</div>
+    <div id="api-index-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-actor-index" class="page">
+    <div class="page-title-row">
+      <div class="page-title">👤 Actor Index</div>
+      <button class="json-view-btn" onclick="viewJson('actor-index')">{ } JSON</button>
+    </div>
+    <div class="page-sub">List of actors and roles in the system</div>
+    <div id="actor-index-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-depgraph" class="page">
+    <div class="page-title">🔗 Dependency Graph</div>
+    <div class="page-sub">Visualisasi dependency antar artifact · klik node untuk detail</div>
+    <div id="depgraph-wrap"><svg id="depgraph-svg"></svg></div>
+    <div class="dg-legend">
+      <div class="dg-legend-item"><div class="dg-legend-dot" style="background:var(--green-dim);border:1.5px solid var(--green)"></div>Written (clean)</div>
+      <div class="dg-legend-item"><div class="dg-legend-dot" style="background:var(--yellow-dim);border:1.5px solid var(--yellow)"></div>Stale</div>
+      <div class="dg-legend-item"><div class="dg-legend-dot" style="background:var(--gray-dim);border:1.5px solid var(--gray)"></div>Not started</div>
+    </div>
+  </div>
+
+  <div id="page-stale" class="page">
+    <div class="page-title">⚠️ Stale Artifacts</div>
+    <div class="page-sub">Artifact yang upstream-nya sudah berubah versi sejak terakhir ditulis</div>
+    <div id="stale-content"></div>
+  </div>
+
+  <div id="page-scaffold" class="page">
+    <div class="page-title-row">
+      <div class="page-title">🏗️ Scaffold</div>
+      <button class="json-view-btn" onclick="viewJson('scaffold')">{ } JSON</button>
+    </div>
+    <div class="page-sub">Project scaffold and directory structure</div>
+    <div id="scaffold-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-entity-models" class="page">
+    <div class="page-title-row">
+      <div class="page-title">🗄️ Entity Models</div>
+      <button class="json-view-btn" onclick="viewJson('entity-models')">{ } JSON</button>
+    </div>
+    <div class="page-sub">Entity model implementations</div>
+    <div id="entity-models-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-shared-modules" class="page">
+    <div class="page-title-row">
+      <div class="page-title">📦 Shared Modules</div>
+      <button class="json-view-btn" onclick="viewJson('shared-modules')">{ } JSON</button>
+    </div>
+    <div class="page-sub">Shared utility modules and helpers</div>
+    <div id="shared-modules-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-screen-impl-index" class="page">
+    <div class="page-title-row">
+      <div class="page-title">🖥️ Screen Impl Index</div>
+    </div>
+    <div class="page-sub">Implementation status per screen</div>
+    <div id="screen-impl-index-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+  <div id="page-screen-impl-detail" class="page">
+    <div class="screen-detail-back" onclick="go('screen-impl-index')">← Back to Screen Impl Index</div>
+    <div class="page-title-row">
+      <div class="page-title" id="screen-impl-detail-title">Screen Implementation</div>
+      <button class="json-view-btn" onclick="viewScreenImplJson()">{ } JSON</button>
+    </div>
+    <div class="screen-detail-id" id="screen-impl-detail-id"></div>
+    <div class="page-sub" id="screen-impl-detail-sub"></div>
+    <div id="screen-impl-detail-content"><div class="empty">Memuat…</div></div>
+  </div>
+
+</div><!-- /.main -->
+
+<!-- ── Detail Panel ──────────────────────────────────────────────────────────── -->
+<div class="panel" id="panel">
+  <div class="panel-header">
+    <div class="panel-close" onclick="closePanel()">&#x2715;</div>
+    <div class="panel-meta">
+      <div class="panel-key" id="panel-key"></div>
+      <div class="panel-title" id="panel-title"></div>
+    </div>
+    <div id="panel-badge"></div>
+  </div>
+  <div class="panel-tabs" id="panel-tabs"></div>
+  <div class="panel-body" id="panel-body">
+    <div class="panel-loading">Memuat…</div>
+  </div>
+</div>
+
+<!-- ── Scripts ───────────────────────────────────────────────────────────────── -->
+<script src="/js/theme.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/nav.js"></script>
+<script src="/js/panel.js"></script>
+<script src="/js/pages.js"></script>
+<script src="/js/main.js"></script>
+
+
+<!-- ── JSON Viewer Modal ──────────────────────────────────────────────────────── -->
+<div id="json-modal" class="json-modal-overlay" onclick="closeJsonModal(event)">
+  <div class="json-modal-box">
+    <div class="json-modal-header">
+      <span id="json-modal-title">JSON</span>
+      <button class="json-modal-close" onclick="document.getElementById('json-modal').classList.remove('open')">✕</button>
+    </div>
+    <pre id="json-modal-body" class="json-modal-body"></pre>
+  </div>
+</div>
+
+</body>
+</html>

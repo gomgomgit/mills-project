@@ -1,0 +1,69 @@
+{
+  "ver": 3,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "id": "screen-008--monitor-grading",
+  "name": "Monitor Grading",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/localSchema.ts",
+    "mobile/src/services/gradingRecordRepo.ts",
+    "mobile/src/views/MonitorGradingView.vue",
+    "mobile/src/router/index.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/gradingRecordRepo.spec.ts",
+    "mobile/tests/MonitorGradingView.spec.ts",
+    "mobile/tests/e2e/monitor-grading.spec.ts"
+  ],
+  "implementation_notes": [
+    "Full rewrite (v3) mirroring MonitorWeighbridgeView.vue/weighbridgeRecordRepo.ts's screen-007 v4 pattern: 'Hari Ini' 3-card counter row (Jumlah Grading / Jumlah Netto (kg) / Jumlah Quantity (bunch)) + scrollable draft/pause list (uniform 'Pause' label) + New Data/Load Data buttons + tappable breadcrumb + hamburger. Old single-summary/primary-action/Pause-Clear-on-Monitor UI removed entirely.",
+    "gradingRecordRepo.ts: added getTodaySummary(userId) (COUNT+SUM netto/quantity WHERE date(date)=today, any status) and getDrafts(userId) (draft_ongoing/draft_paused list, ORDER BY updated_at DESC) — purely additive, entity-catalog v2 columns (date/netto/quantity). The pre-existing screen-011 block (GradingRecord type, getDraftWithDetails(), saveDraft()) still assumes pre-v2 columns (vehicle_number/driver_name/block/category) and was deliberately left untouched — out of scope for this screen, will be revised when screen-011--form-grading itself is implemented against entity-catalog v2.",
+    "getProgressSummary()/resumeDraft()/pauseDraft()/deleteDraft() kept unchanged for other callers (StationListView.vue's draft-status lookup; parity/future use) even though this screen no longer calls them directly.",
+    "Environment fix during verification (not a code defect): task #18's backend migration work ran `php artisan migrate:fresh`, which wiped the ad-hoc-seeded business_unit/user rows that mobile/tests/e2e/helpers.ts's login() helper depends on (that file's own header comment already documented this exact risk and the recovery steps). Recreated 1 corporate/company/business_unit + 3 demo users (admin/supervisor01/operator01, password Passw0rd!) directly via tinker — this unblocked e2e login for the whole app, not just this screen.",
+    "Independently re-verified (not just agent self-report): 246/246 vitest across all 20 files, and monitor-grading.spec.ts 8/8 Playwright passing after the demo-account fix."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "gradingRecordRepo.ts's screen-011 block (GradingRecord/GradingDetailRow types, getDraftWithDetails(), saveDraft()) still targets pre-entity-catalog-v2 columns (vehicle_number, driver_name, block, category) that no longer exist in localSchema.ts's current grading_record/grading_detail DDL — will break if called as-is. Deliberately left untouched (out of scope for Monitor screen); must be rewritten as part of screen-011--form-grading's own implementation.",
+      "severity": "moderate"
+    },
+    {
+      "description": "Navigasi ke route names grading-form (screen-011) dan data-preview-grading (screen-014) tetap mengarah ke implementasi lama/pre-v2 sampai kedua screen tersebut direvisi — sequencing yang diharapkan dalam overhaul Grading ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tooling coverage belum terpasang di vitest config.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-18T23:24:00Z",
+      "passed": 30,
+      "failed": 0,
+      "coverage": 98.97
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-18T23:24:00Z",
+      "passed": 19,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-08-18T23:26:00Z",
+      "passed": 8,
+      "failed": 0
+    }
+  }
+}

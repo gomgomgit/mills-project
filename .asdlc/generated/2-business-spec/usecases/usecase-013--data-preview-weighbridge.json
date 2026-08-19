@@ -1,0 +1,177 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 3,
+  "id": "usecase-013--data-preview-weighbridge",
+  "name": "Lihat Data Weighbridge Tersimpan",
+  "description": "User membuka daftar seluruh record Weighbridge (draft maupun tersimpan) dengan filter tanggal (default hari ini) dan pencarian, lalu memilih salah satu untuk melanjutkan (jika draft) atau melihat detail read-only (jika sudah tersimpan).",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login dan berada di Monitor Weighbridge"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Tap 'Load Data' dari Monitor Weighbridge"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan list seluruh record (draft/pause dan saved/synced) dengan filter tanggal (default terisi hari ini) & pencarian, breadcrumb navigasi, dan header dengan hamburger"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "(opsional) mengubah filter tanggal dan/atau memasukkan kata kunci pencarian"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Tap salah satu item di list yang berstatus tersimpan/tersinkron"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Menampilkan detail read-only record tersebut"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tap Item Draft/Pause",
+      "trigger": "Step 4, item yang ditap berstatus draft/pause",
+      "steps": [
+        "System membuka Form Weighbridge untuk melanjutkan draft tersebut"
+      ]
+    },
+    {
+      "name": "Filter Tanggal/Pencarian Diterapkan",
+      "trigger": "Step 3, user mengubah filter tanggal dari default atau memasukkan kata kunci pencarian",
+      "steps": [
+        "System menyaring list sesuai filter yang diterapkan"
+      ]
+    },
+    {
+      "name": "Filter Tidak Menghasilkan Apapun",
+      "trigger": "Step 3, filter (termasuk default hari ini) tidak menghasilkan record yang cocok",
+      "steps": [
+        "System menampilkan pesan tidak ditemukan dengan opsi reset filter"
+      ]
+    },
+    {
+      "name": "List Kosong",
+      "trigger": "Step 2, belum ada record Weighbridge sama sekali untuk user ini",
+      "steps": [
+        "System menampilkan empty state pada list"
+      ]
+    },
+    {
+      "name": "Record Tidak Ditemukan (mode detail)",
+      "trigger": "Mode detail dibuka dengan id record yang tidak valid/tidak ada",
+      "steps": [
+        "System menampilkan pesan error 'record tidak ditemukan' beserta tombol Back"
+      ]
+    },
+    {
+      "name": "Tap Breadcrumb",
+      "trigger": "Kapan saja di layar ini, user tap salah satu segmen breadcrumb",
+      "steps": [
+        "System menavigasi ke halaman terkait"
+      ]
+    },
+    {
+      "name": "Buka Menu Hamburger",
+      "trigger": "Kapan saja di layar ini, user tap ikon hamburger",
+      "steps": [
+        "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+      ]
+    },
+    {
+      "name": "Back dari Mode Detail",
+      "trigger": "User berada di mode detail (sudah tap satu record), tap Back",
+      "steps": [
+        "System kembali ke tampilan list (bukan langsung ke Monitor Weighbridge)"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat list record, ATAU detail satu record secara read-only, ATAU berada di Form Weighbridge jika memilih item draft/pause"
+  ],
+  "business_rules": [
+    "Detail record bersifat murni read-only; koreksi data dilakukan lewat Form Weighbridge",
+    "List menampilkan seluruh record apapun statusnya",
+    "Filter tanggal & pencarian bekerja terhadap list yang sedang ditampilkan",
+    "Breadcrumb harus dapat dinavigasi",
+    "Filter tanggal default ke hari ini saat list pertama kali dibuka"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Data Weighbridge Tersimpan — Record Tidak Ditemukan",
+      "given": "User sudah login dan record Weighbridge sudah tersimpan",
+      "when": "User membuka Data Preview namun record Weighbridge yang dimaksud tidak ditemukan/belum ada",
+      "then": "Sistem menampilkan pesan error bahwa record tidak ditemukan beserta tombol Back untuk kembali"
+    },
+    {
+      "scenario": "Lihat Data Weighbridge Tersimpan — berhasil",
+      "given": "User sudah login dan berada di Monitor Weighbridge",
+      "when": "User tap 'Load Data' untuk membuka list seluruh record Weighbridge (draft/pause dan saved/synced) dengan filter tanggal (default hari ini) & pencarian, lalu memilih salah satu item yang berstatus tersimpan/tersinkron",
+      "then": "Sistem menampilkan detail record tersebut secara lengkap dan read-only"
+    },
+    {
+      "scenario": "Lihat Data Weighbridge Tersimpan — Tap Item Draft/Pause",
+      "given": "User sudah login dan berada di Monitor Weighbridge",
+      "when": "User tap item di list yang berstatus draft/pause",
+      "then": "Sistem membuka Form Weighbridge untuk melanjutkan draft tersebut"
+    },
+    {
+      "scenario": "Lihat Data Weighbridge Tersimpan — Filter Tanggal Default Hari Ini",
+      "given": "User sudah login dan memiliki record Weighbridge dengan campuran tanggal (hari ini dan bukan hari ini)",
+      "when": "User membuka Load Data untuk pertama kali (belum mengubah filter apapun)",
+      "then": "Filter tanggal otomatis terisi tanggal hari ini, dan list awal hanya menampilkan record hari ini"
+    },
+    {
+      "scenario": "Lihat Data Weighbridge Tersimpan — Filter Tanggal/Pencarian Diterapkan",
+      "given": "User sudah login dan berada di Monitor Weighbridge",
+      "when": "User mengubah filter tanggal dari default dan/atau memasukkan kata kunci pencarian pada list record Weighbridge",
+      "then": "Sistem menyaring list sesuai filter yang diterapkan"
+    },
+    {
+      "scenario": "Lihat Data Weighbridge Tersimpan — Filter Tidak Menghasilkan Apapun",
+      "given": "User sudah login dan berada di Monitor Weighbridge",
+      "when": "User menerapkan filter tanggal/pencarian (termasuk default hari ini) namun tidak ada record yang cocok",
+      "then": "Sistem menampilkan pesan tidak ditemukan dengan opsi reset filter"
+    },
+    {
+      "scenario": "Lihat Data Weighbridge Tersimpan — List Kosong",
+      "given": "User sudah login dan berada di Monitor Weighbridge",
+      "when": "User membuka list Weighbridge namun belum ada record Weighbridge sama sekali untuk user ini",
+      "then": "Sistem menampilkan empty state pada list"
+    },
+    {
+      "scenario": "Lihat Data Weighbridge Tersimpan — Tap Breadcrumb",
+      "given": "User sudah login dan berada di Monitor Weighbridge",
+      "when": "User menekan salah satu segmen breadcrumb kapan saja di layar ini",
+      "then": "Sistem menavigasi ke halaman yang terkait dengan segmen breadcrumb tersebut"
+    },
+    {
+      "scenario": "Lihat Data Weighbridge Tersimpan — Buka Menu Hamburger",
+      "given": "User sudah login dan berada di Monitor Weighbridge",
+      "when": "User menekan ikon hamburger kapan saja di layar ini",
+      "then": "Sistem menampilkan menu navigasi (Ganti Password, Logout, dll)"
+    },
+    {
+      "scenario": "Lihat Data Weighbridge Tersimpan — Back dari Mode Detail",
+      "given": "User sudah login dan berada di Monitor Weighbridge",
+      "when": "User berada di mode detail (sudah tap satu record) dan menekan Back",
+      "then": "Sistem kembali ke tampilan list, bukan langsung ke Monitor Weighbridge"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-013--data-preview-weighbridge"
+  ]
+}

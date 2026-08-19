@@ -1,0 +1,54 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-17"
+  },
+  "entities_implemented": [
+    "corporate",
+    "company",
+    "business-unit",
+    "station",
+    "machinery",
+    "user",
+    "weighbridge-record",
+    "grading-record",
+    "grading-detail",
+    "cages-track-record",
+    "cages-tipped-time"
+  ],
+  "files_generated": [
+    "backend/app/Models/Corporate.php",
+    "backend/app/Models/Company.php",
+    "backend/app/Models/BusinessUnit.php",
+    "backend/app/Models/Station.php",
+    "backend/app/Models/Machinery.php",
+    "backend/app/Models/User.php",
+    "backend/app/Models/WeighbridgeRecord.php",
+    "backend/app/Models/GradingRecord.php",
+    "backend/app/Models/GradingDetail.php",
+    "backend/app/Models/CagesTrackRecord.php",
+    "backend/app/Models/CagesTippedTime.php",
+    "backend/database/migrations/2025_01_15_000001_create_corporates_table.php",
+    "backend/database/migrations/2025_01_15_000002_create_companies_table.php",
+    "backend/database/migrations/2025_01_15_000003_create_business_units_table.php",
+    "backend/database/migrations/2025_01_15_000004_create_stations_table.php",
+    "backend/database/migrations/2025_01_15_000005_create_machinery_table.php",
+    "backend/database/migrations/2025_01_15_000006_create_users_table.php",
+    "backend/database/migrations/2025_01_15_000007_create_weighbridge_records_table.php",
+    "backend/database/migrations/2025_01_15_000008_create_grading_records_table.php",
+    "backend/database/migrations/2025_01_15_000009_create_grading_details_table.php",
+    "backend/database/migrations/2025_01_15_000010_create_cages_track_records_table.php",
+    "backend/database/migrations/2025_01_15_000011_create_cages_tipped_times_table.php",
+    "backend/app/Enums/StationType.php",
+    "backend/app/Enums/UserRole.php",
+    "backend/app/Enums/RecordStatus.php"
+  ],
+  "setup_notes": [
+    "Semua model menggunakan HasUuids (Laravel 11) — primary key UUID non-incrementing, auto-generate saat create",
+    "Urutan migration penting: corporates → companies → business_units → stations → machinery → users → weighbridge_records → grading_records → grading_details → cages_track_records → cages_tipped_times (users harus sebelum 3 record table karena FK checked_by/acknowledged_by/created_by)",
+    "User model extends Authenticatable + HasApiTokens (Sanctum), auth password memakai kolom password_hash (bukan konvensi default password)",
+    "Factory classes (database/factories/) belum dibuat — di luar scope entity-models-agent (model/migration saja); trait HasFactory sudah terpasang di tiap model",
+    "Belum dijalankan composer install / php artisan migrate karena vendor/ belum ada di scaffold ini — perlu dijalankan manual setelah shared-modules selesai untuk validasi terhadap database sungguhan"
+  ]
+}

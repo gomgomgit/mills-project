@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>List — error | MySimpleTodo</title>
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link rel="stylesheet" href="assets/components.css">
+  <link rel="stylesheet" href="assets/shell.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <style>
+    /* Page-specific layout for List screen — error state */
+    .list-toolbar {
+      display: flex;
+      align-items: center;
+      gap: calc(var(--base-unit) * 2);
+      margin-bottom: calc(var(--base-unit) * 4);
+    }
+    .error-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 24rem;
+    }
+    .error-content .alert {
+      max-width: 32rem;
+      width: 100%;
+    }
+    .error-content .alert-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .error-message {
+      margin-bottom: calc(var(--base-unit) * 3);
+    }
+    .error-message p {
+      font-size: var(--font-size-body);
+      color: var(--text-muted);
+      margin-top: calc(var(--base-unit) * 2);
+    }
+    .error-actions {
+      display: flex;
+      gap: calc(var(--base-unit) * 2);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">MySimpleTodo</div>
+      <nav class="sidebar-nav">
+        <a class="nav-item active" href="#">
+          <i data-lucide="list-checks" style="width:16px;height:16px;"></i>
+          All Tasks
+        </a>
+        <a class="nav-item" href="#">
+          <i data-lucide="plus-circle" style="width:16px;height:16px;"></i>
+          Add Task
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <div class="main-content">
+
+      <!-- Top bar -->
+      <header class="topbar">
+        <span style="font-weight: var(--font-weight-h2); font-size: var(--font-size-h3);">Task Management</span>
+        <div style="display:flex;align-items:center;gap:calc(var(--base-unit)*2);">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:var(--font-size-small);font-weight:600;">U</div>
+        </div>
+      </header>
+
+      <!-- Content area -->
+      <div class="content-area">
+
+        <!-- Page header -->
+        <div class="page-header">
+          <h1 class="page-title">All Tasks</h1>
+          <div class="page-actions">
+            <button class="btn btn-primary" disabled>
+              <i data-lucide="plus" style="width:14px;height:14px;"></i>
+              Add Task
+            </button>
+          </div>
+        </div>
+
+        <!-- Error state -->
+        <div class="error-content">
+          <div class="alert alert-error error-message">
+            <i data-lucide="alert-circle" class="alert-icon"></i>
+            <div>
+              <div class="alert-title">Failed to load tasks</div>
+              <p>Could not connect to the task database. This may be due to a connection issue or the database file being unavailable. Please try again.</p>
+            </div>
+          </div>
+          <div class="error-actions">
+            <button class="btn btn-primary">
+              <i data-lucide="refresh-ccw" style="width:14px;height:14px;"></i>
+              Retry
+            </button>
+            <button class="btn btn-outline">
+              <i data-lucide="arrow-left" style="width:14px;height:14px;"></i>
+              Go Back
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

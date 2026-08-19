@@ -1,0 +1,59 @@
+/* Mill Smart Log — app shell layout.
+   Web: fixed left sidebar (240px, collapses to 64px icon-only under 1024px) +
+   56px top header. Mobile: 64px top header with hamburger-triggered drawer nav,
+   no bottom tab bar. All values reference design-tokens.css custom properties. */
+
+/* ---------------------------------------------------------------- */
+/* Web shell (sidebar + top header)                                   */
+/* ---------------------------------------------------------------- */
+.app-shell { display: flex; height: 100vh; overflow: hidden; }
+
+.sidebar {
+  width: var(--space-sidebar-width);
+  flex-shrink: 0;
+  background: var(--color-sidebar-bg);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  transition: width 0.15s;
+}
+.sidebar-header { padding: var(--space-lg); border-bottom: 1px solid var(--color-border); font-weight: 700; font-size: var(--font-size-lg); color: var(--color-brand); display: flex; align-items: center; gap: var(--space-sm); }
+.sidebar-nav { padding: var(--space-md); display: flex; flex-direction: column; gap: var(--space-xs); flex: 1; }
+.nav-item { display: flex; align-items: center; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); border-radius: var(--radius-button); font-size: var(--font-size-sm); color: var(--color-muted-foreground); text-decoration: none; cursor: pointer; transition: background 0.1s; min-height: var(--space-touch-target-min); }
+.nav-item:hover  { background: color-mix(in srgb, var(--color-brand) 8%, transparent); color: var(--color-foreground); }
+.nav-item.active { background: color-mix(in srgb, var(--color-brand) 12%, transparent); color: var(--color-brand); font-weight: 500; }
+
+.main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.topbar { height: var(--space-top-header-height); border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; padding: 0 var(--space-lg); flex-shrink: 0; background: var(--color-background); }
+.topbar-title { font-size: var(--font-size-lg); font-weight: var(--font-weight-lg); }
+.topbar-end { display: flex; align-items: center; gap: var(--space-md); }
+.content-area { flex: 1; overflow-y: auto; padding: var(--space-lg); }
+
+/* Sidebar collapses to icon-only under 1024px (tablet adaptation) */
+@media (max-width: 1024px) {
+  .sidebar { width: var(--space-sidebar-collapsed-width); }
+  .sidebar-header span.label,
+  .nav-item span.label { display: none; }
+  .nav-item { justify-content: center; }
+}
+
+/* ---------------------------------------------------------------- */
+/* Mobile shell (header + hamburger drawer, no bottom tab bar)         */
+/* ---------------------------------------------------------------- */
+.mobile-shell { display: flex; flex-direction: column; height: 100vh; overflow: hidden; background: var(--color-background); }
+.mobile-header { height: var(--space-mobile-header-height); flex-shrink: 0; display: flex; align-items: center; gap: var(--space-md); padding: 0 var(--space-md); background: var(--color-background); border-bottom: 1px solid var(--color-border); }
+.mobile-header .hamburger { display: flex; align-items: center; justify-content: center; width: var(--space-touch-target-min); height: var(--space-touch-target-min); cursor: pointer; }
+.mobile-header .brand { font-weight: 700; font-size: var(--font-size-lg); color: var(--color-brand); display: flex; align-items: center; gap: var(--space-sm); }
+
+/* Inner-screen breadcrumb header (tinted), per screen_type_patterns */
+.mobile-subheader { background: var(--color-header-tint); padding: var(--space-sm) var(--space-md); display: flex; align-items: center; gap: var(--space-sm); }
+
+.mobile-content { flex: 1; overflow-y: auto; padding: var(--space-md); }
+.mobile-footer-actions { flex-shrink: 0; display: flex; gap: var(--space-sm); padding: var(--space-md); border-top: 1px solid var(--color-border); background: var(--color-background); }
+
+/* Drawer navigation (opened via hamburger) */
+.drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 40; }
+.drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 80%; max-width: 320px; background: var(--color-background); z-index: 41; display: flex; flex-direction: column; box-shadow: var(--shadow-modal); overflow-y: auto; }
+.drawer-header { padding: var(--space-lg); border-bottom: 1px solid var(--color-border); font-weight: 700; color: var(--color-brand); }
+.drawer-nav { padding: var(--space-md); display: flex; flex-direction: column; gap: var(--space-xs); }

@@ -1,0 +1,138 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "usecase-009--monitor-cages-track",
+  "name": "Monitor Cages Track",
+  "description": "User meninjau counter data hari ini dan list draft/pause miliknya, dan memilih untuk membuat data baru, melanjutkan salah satu draft, atau menelusuri data tersimpan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login dan memilih Cages Track dari Station List"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Tap Cages Track di Station List"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan counter hari ini (Jumlah Cages Track, Jumlah Cage/Lori Tercatat) dalam 2 card sebaris, list draft/pause milik user, breadcrumb navigasi, dan header dengan hamburger"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Tap 'New Data'"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Membuat draft baru dan mengarahkan ke Form Cages Track"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Lanjutkan Draft/Pause",
+      "trigger": "Step 3, actor tap salah satu item draft di list",
+      "steps": [
+        "System mengarahkan ke Form Cages Track dengan data draft yang dipilih"
+      ]
+    },
+    {
+      "name": "Load Data",
+      "trigger": "Step 3, actor tap 'Load Data'",
+      "steps": [
+        "System mengarahkan ke Data Preview Cages Track (list semua record, tersimpan maupun draft, dengan filter tanggal dan pencarian)"
+      ]
+    },
+    {
+      "name": "Tap Breadcrumb",
+      "trigger": "Kapan saja di layar ini, actor tap salah satu segmen breadcrumb",
+      "steps": [
+        "System menavigasi ke halaman terkait"
+      ]
+    },
+    {
+      "name": "Buka Menu Hamburger",
+      "trigger": "Kapan saja di layar ini, actor tap ikon hamburger",
+      "steps": [
+        "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+      ]
+    },
+    {
+      "name": "Belum Ada Draft",
+      "trigger": "Step 2, tidak ada draft/pause sama sekali",
+      "steps": [
+        "System menampilkan list kosong/empty state, tombol New Data tetap aktif"
+      ]
+    },
+    {
+      "name": "Belum Ada Data Hari Ini",
+      "trigger": "Step 2, tidak ada record (status apapun) dengan tanggal Date = hari ini",
+      "steps": [
+        "Kedua card counter menampilkan angka 0"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User berada di Form Cages Track (draft baru atau draft yang dipilih dari list), ATAU di Data Preview Cages Track (jika memilih Load Data)"
+  ],
+  "business_rules": [
+    "User bisa punya beberapa draft/pause berjalan bersamaan, semua tampil di list",
+    "Ongoing dan paused digabung sebagai satu istilah 'Pause' secara tampilan",
+    "Counter hari ini dihitung dari seluruh record (status apapun) dengan tanggal Date = hari ini"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Monitor Cages Track — success",
+      "given": "User sudah login dan memilih Cages Track dari Station List",
+      "when": "Actor meninjau counter hari ini dan list draft/pause, lalu menekan \"New Data\"",
+      "then": "System membuat draft baru dan mengarahkan actor ke Form Cages Track"
+    },
+    {
+      "scenario": "Monitor Cages Track — Lanjutkan Draft Paused",
+      "given": "User sudah login dan memilih Cages Track dari Station List",
+      "when": "Actor memilih untuk melanjutkan draft yang sudah berstatus paused",
+      "then": "System mengarahkan actor ke Form Cages Track dengan data draft tersimpan sebelumnya"
+    },
+    {
+      "scenario": "Monitor Cages Track — Load Data",
+      "given": "User sudah login dan memilih Cages Track dari Station List",
+      "when": "Actor menekan \"Load Data\"",
+      "then": "System mengarahkan actor ke Data Preview Cages Track, menampilkan list semua record (tersimpan maupun draft) dengan filter tanggal dan pencarian"
+    },
+    {
+      "scenario": "Monitor Cages Track — Tap Breadcrumb",
+      "given": "User sudah login dan memilih Cages Track dari Station List",
+      "when": "Actor menekan salah satu segmen breadcrumb kapan saja di layar Monitor Cages Track",
+      "then": "System menavigasi actor ke halaman terkait"
+    },
+    {
+      "scenario": "Monitor Cages Track — Buka Menu Hamburger",
+      "given": "User sudah login dan memilih Cages Track dari Station List",
+      "when": "Actor menekan ikon hamburger kapan saja di layar Monitor Cages Track",
+      "then": "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+    },
+    {
+      "scenario": "Monitor Cages Track — Belum Ada Draft",
+      "given": "User sudah login dan memilih Cages Track dari Station List",
+      "when": "Actor membuka layar Monitor Cages Track saat tidak ada draft/pause sama sekali",
+      "then": "System menampilkan list draft/pause dalam keadaan kosong (empty state), namun tombol New Data tetap aktif"
+    },
+    {
+      "scenario": "Monitor Cages Track — Belum Ada Data Hari Ini",
+      "given": "User sudah login dan memilih Cages Track dari Station List",
+      "when": "Actor membuka layar Monitor Cages Track saat tidak ada record berstatus apapun dengan tanggal Date = hari ini",
+      "then": "Kedua card counter (Jumlah Cages Track, Jumlah Cage/Lori Tercatat) menampilkan angka 0"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-009--monitor-cages-track"
+  ]
+}

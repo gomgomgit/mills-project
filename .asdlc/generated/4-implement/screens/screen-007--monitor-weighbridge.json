@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 4,
+  "id": "screen-007--monitor-weighbridge",
+  "name": "Monitor Weighbridge",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/weighbridgeRecordRepo.ts",
+    "mobile/src/views/MonitorWeighbridgeView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/weighbridgeRecordRepo.spec.ts",
+    "mobile/tests/MonitorWeighbridgeView.spec.ts",
+    "mobile/tests/e2e/monitor-weighbridge.spec.ts"
+  ],
+  "implementation_notes": [
+    "Tambah section 'Hari Ini': 3 card sebaris (Jumlah WB, Jumlah Net Weight (kg), Jumlah Quantity (kg)) di atas list draft/pause",
+    "weighbridgeRecordRepo.ts: ditambah getTodaySummary(userId) — COUNT/SUM WHERE created_by=user AND date(arrival_datetime)=date('now','localtime'), status apapun (murni additive, fungsi lain tidak diubah)",
+    "loadTodaySummary() gagal secara silent (counter tetap 0) jika error — tidak memblokir UX list draft yang sudah ada",
+    "Regresi penuh diverifikasi independen: 222/222 vitest (20 file). Playwright monitor-weighbridge.spec.ts sempat 8/8 gagal karena backend (php artisan serve) mati di tengah sesi — setelah backend dinyalakan ulang, 8/8 lulus (bukan bug kode, murni environment)"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "'Load Data' navigasi ke data-preview-weighbridge tanpa id (mode list) — SUDAH RESOLVED sejak screen-013 v2/v3 (mode list sudah didukung penuh)",
+      "severity": "resolved"
+    },
+    {
+      "description": "Unit coverage % tidak dapat diukur — tidak ada coverage provider terpasang",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-18T21:04:28Z",
+      "passed": 17,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-08-18T21:12:00Z",
+      "passed": 8,
+      "failed": 0
+    }
+  }
+}

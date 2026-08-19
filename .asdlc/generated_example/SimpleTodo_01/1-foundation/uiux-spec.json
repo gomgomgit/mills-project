@@ -1,0 +1,324 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "SimpleTodo",
+    "updated_at": "2026-06-23"
+  },
+  "design_system": {
+    "color_palette": [
+      {
+        "token": "Background",
+        "ref": "--bg",
+        "value": "#ffffff",
+        "description": "Background color for the app page"
+      },
+      {
+        "token": "Surface",
+        "ref": "--surface",
+        "value": "#f5f5f5",
+        "description": "Surface color for cards and elevated containers"
+      },
+      {
+        "token": "Border",
+        "ref": "--border",
+        "value": "#e5e7eb",
+        "description": "Border and divider color"
+      },
+      {
+        "token": "Text Primary",
+        "ref": "--text-primary",
+        "value": "#1f2937",
+        "description": "Primary text color for headings and body"
+      },
+      {
+        "token": "Text Muted",
+        "ref": "--text-muted",
+        "value": "#6b7280",
+        "description": "Muted text color for secondary labels and placeholders"
+      },
+      {
+        "token": "Brand",
+        "ref": "--primary",
+        "value": "#6366f1",
+        "description": "Primary brand accent color — DaisyUI indigo default"
+      },
+      {
+        "token": "Brand Hover",
+        "ref": "--primary-hover",
+        "value": "#4f46e5",
+        "description": "Brand color on hover state"
+      },
+      {
+        "token": "Destructive",
+        "ref": "--error",
+        "value": "#ef4444",
+        "description": "Destructive actions — delete task, error messages"
+      },
+      {
+        "token": "Success",
+        "ref": "--success",
+        "value": "#22c55e",
+        "description": "Success indicators — completed tasks, success toasts"
+      },
+      {
+        "token": "Warning",
+        "ref": "--warning",
+        "value": "#f59e0b",
+        "description": "Warning indicators — overdue tasks"
+      }
+    ],
+    "typography": {
+      "font_family": "Inter, sans-serif",
+      "base_size": "16px",
+      "scale": [
+        {
+          "level": "h1",
+          "size": "28px",
+          "weight": "700"
+        },
+        {
+          "level": "h2",
+          "size": "22px",
+          "weight": "600"
+        },
+        {
+          "level": "h3",
+          "size": "18px",
+          "weight": "600"
+        },
+        {
+          "level": "body",
+          "size": "16px",
+          "weight": "400"
+        },
+        {
+          "level": "small",
+          "size": "14px",
+          "weight": "400"
+        },
+        {
+          "level": "caption",
+          "size": "12px",
+          "weight": "400"
+        }
+      ],
+      "line_height": "1.5",
+      "letter_spacing": "normal"
+    },
+    "spacing": [
+      {
+        "name": "sidebar_width",
+        "value": "240px"
+      },
+      {
+        "name": "header_height",
+        "value": "60px"
+      },
+      {
+        "name": "content_padding",
+        "value": "24px"
+      },
+      {
+        "name": "gap_sm",
+        "value": "8px"
+      },
+      {
+        "name": "gap_md",
+        "value": "16px"
+      },
+      {
+        "name": "gap_lg",
+        "value": "24px"
+      }
+    ],
+    "border_radius": [
+      {
+        "context": "button",
+        "value": "0.5rem"
+      },
+      {
+        "context": "input",
+        "value": "0.5rem"
+      },
+      {
+        "context": "card",
+        "value": "0.75rem"
+      },
+      {
+        "context": "modal",
+        "value": "1rem"
+      },
+      {
+        "context": "chip",
+        "value": "0.25rem"
+      }
+    ],
+    "shadow": [
+      {
+        "level": "card",
+        "value": "0 1px 3px rgba(0,0,0,0.1)"
+      },
+      {
+        "level": "dropdown",
+        "value": "0 4px 6px rgba(0,0,0,0.12)"
+      },
+      {
+        "level": "modal",
+        "value": "0 10px 25px rgba(0,0,0,0.2)"
+      }
+    ],
+    "icon_library": {
+      "library": "Lucide",
+      "size_default": "16px",
+      "stroke_width": "1.5"
+    }
+  },
+  "layout": {
+    "shell_description": "Halaman memiliki sidebar kiri (fixed, width 240px) yang berisi daftar group. Header atas (height 60px) menampilkan nama aplikasi dan breadcrumb/judul halaman. Area konten utama di sebelah kanan sidebar, di bawah header.",
+    "navigation_per_role": [
+      {
+        "menu_item": "Dashboard",
+        "target": "/",
+        "roles": [
+          "User"
+        ]
+      },
+      {
+        "menu_item": "Groups",
+        "target": "/groups",
+        "roles": [
+          "User"
+        ]
+      }
+    ],
+    "adaptation": {
+      "strategy": "desktop-first",
+      "notes": "Sidebar tetap di desktop. Di mobile (below 768px), sidebar collapse menjadi hamburger menu. Konten utama jadi single column di mobile."
+    }
+  },
+  "screen_type_patterns": [
+    {
+      "type": "dashboard",
+      "description": "Halaman utama — ringkasan task (jumlah pending, done, overdue) dan daftar task hari ini",
+      "layout": "full-page",
+      "header_area": "Judul halaman 'Dashboard' + tombol 'Add Task'",
+      "body_area": "Stat cards (pending, done, overdue) diikuti daftar task hari ini",
+      "footer_area": "none",
+      "states": [
+        {
+          "state": "loading",
+          "display": "Skeleton cards untuk stat dan daftar task"
+        },
+        {
+          "state": "empty",
+          "display": "Pesan 'Tidak ada task hari ini' + tombol 'Buat task pertamamu'"
+        },
+        {
+          "state": "error",
+          "display": "Alert merah 'Gagal memuat data. Coba lagi.' dengan tombol retry"
+        },
+        {
+          "state": "data",
+          "display": "Stat cards + daftar task dengan checkbox, judul, due date"
+        }
+      ]
+    },
+    {
+      "type": "list",
+      "description": "Daftar task dalam sebuah group",
+      "layout": "full-page",
+      "header_area": "Judul group + tombol 'Add Task' + tombol 'Delete Group'",
+      "body_area": "Daftar task sebagai card dengan checkbox, judul, deskripsi singkat, due date badge",
+      "footer_area": "none",
+      "states": [
+        {
+          "state": "loading",
+          "display": "Skeleton list dari task cards"
+        },
+        {
+          "state": "empty",
+          "display": "Pesan 'Group ini kosong' + tombol 'Tambah task'"
+        },
+        {
+          "state": "error",
+          "display": "Alert merah dengan tombol retry"
+        },
+        {
+          "state": "data",
+          "display": "List task cards — checkbox hijau untuk done, teks dicoret"
+        }
+      ]
+    },
+    {
+      "type": "form",
+      "description": "Form buat/edit task — judul, deskripsi, due date, group",
+      "layout": "centered-card",
+      "header_area": "Judul 'Buat Task' atau 'Edit Task' + tombol close",
+      "body_area": "Form dengan field: input judul, textarea deskripsi, date picker due date, select group",
+      "footer_area": "Tombol 'Simpan' (primary) + 'Batal' (ghost)",
+      "states": [
+        {
+          "state": "idle",
+          "display": "Form kosong (create) atau terisi (edit)"
+        },
+        {
+          "state": "submitting",
+          "display": "Tombol simpan jadi loading (spinner), form disabled"
+        },
+        {
+          "state": "error",
+          "display": "Border merah di field yang error + pesan error di bawah input"
+        },
+        {
+          "state": "success",
+          "display": "Toast notifikasi 'Task disimpan!' lalu redirect"
+        }
+      ]
+    }
+  ],
+  "component_patterns": [
+    {
+      "component": "task-list-card",
+      "notes": "Setiap task dirender sebagai card dengan checkbox, judul (bold), deskripsi (truncated 1 baris), due date badge. Checkbox hijau → task done, dengan teks dicoret. Overdue ditandai badge kuning."
+    },
+    {
+      "component": "form",
+      "notes": "Form task menggunakan DaisyUI input, textarea, date picker, select. Validasi inline — border merah + pesan error di bawah input. Tombol simpan di footer form."
+    },
+    {
+      "component": "toast",
+      "notes": "Feedback setelah aksi (create/update/delete). Muncul di pojok kanan atas, auto-dismiss 3 detik. Warna hijau untuk success, merah untuk error."
+    },
+    {
+      "component": "loading",
+      "notes": "Skeleton screen untuk list (placeholder card dengan abu-abu), spinner untuk form submit. Skeleton mengikuti layout konten asli."
+    }
+  ],
+  "accessibility": {
+    "level": "None",
+    "color_contrast": {
+      "normal_text": "—",
+      "large_text": "—",
+      "ui_components": "—"
+    },
+    "input_navigation": {
+      "focus_indicator": "—",
+      "tab_or_swipe_order": "—",
+      "dismiss": "—",
+      "activate": "—"
+    },
+    "structure_semantics": {
+      "heading_hierarchy": "—",
+      "landmark_or_regions": "—",
+      "labels": "—",
+      "error_association": "—",
+      "live_regions": "—"
+    },
+    "text_content": {
+      "min_font_size": "—",
+      "icon_only_elements": "—",
+      "images_and_media": "—"
+    }
+  },
+  "design_notes": "DaisyUI mendukung dark mode out-of-the-box. Tidak dimasukkan di MVP, tapi struktur kode menjaga kompatibilitas jika ingin ditambahkan di masa depan."
+}

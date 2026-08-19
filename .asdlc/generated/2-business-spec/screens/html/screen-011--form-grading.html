@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form Grading | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only — no colour/radius/shadow literals, CSS variables only */
+    body {
+      background: var(--color-surface);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: var(--space-xl) var(--space-md);
+    }
+    .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); }
+    .preview-label {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+
+    .mobile-shell { min-height: 780px; box-shadow: var(--shadow-dropdown); }
+
+    .mobile-header-title { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
+    .mobile-header-title h1 {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-lg);
+      color: var(--color-text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: var(--space-touch-target-min); height: var(--space-touch-target-min);
+      flex-shrink: 0; color: var(--color-text-primary); cursor: pointer;
+    }
+    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    .form-section { display: flex; flex-direction: column; gap: var(--space-md); margin-bottom: var(--space-lg); }
+    .form-section-title {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: var(--color-brand);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding-bottom: var(--space-xs);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .form-section-title-row { display: flex; align-items: center; justify-content: space-between; padding-bottom: var(--space-xs); border-bottom: 1px solid var(--color-border); }
+    .form-section-title-row .form-section-title { border-bottom: none; padding-bottom: 0; }
+
+    .role-lock-label { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+    .role-lock-label svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; fill: none; flex-shrink: 0; }
+
+    .content-note {
+      display: flex; align-items: flex-start; gap: var(--space-sm);
+      background: var(--color-header-tint);
+      border-radius: var(--radius-input);
+      padding: var(--space-sm) var(--space-md);
+      font-size: var(--font-size-xs);
+      color: var(--color-text-primary);
+      margin-bottom: var(--space-lg);
+    }
+    .content-note svg { width: 16px; height: 16px; stroke: var(--color-brand); stroke-width: 1.5; fill: none; flex-shrink: 0; margin-top: 2px; }
+
+    .grading-detail-table th, .grading-detail-table td { font-size: var(--font-size-xs); padding: var(--space-xs) var(--space-sm); }
+    .row-action-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; color: var(--color-text-muted); cursor: pointer; }
+    .row-action-btn svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.5; fill: none; }
+    .add-row-btn { display: flex; align-items: center; justify-content: center; gap: var(--space-xs); width: 100%; padding: var(--space-sm); border: 1px dashed var(--color-border); border-radius: var(--radius-input); color: var(--color-brand); font-size: var(--font-size-sm); font-weight: var(--font-weight-sm); background: transparent; cursor: pointer; }
+    .add-row-btn svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.5; fill: none; }
+
+    .actors-note {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      font-style: italic;
+      margin-top: var(--space-lg);
+      max-width: 420px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-wrap">
+    <div class="preview-label">Form Grading &mdash; idle state (draft in progress) &middot; Mobile (Station Operator &mdash; Checked By locked)</div>
+
+    <div class="mobile-shell">
+      <!-- Header: back + title + menu -->
+      <div class="mobile-header">
+        <span class="icon-btn" title="Kembali">
+          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </span>
+        <div class="mobile-header-title">
+          <h1>Grading Baru | Grading Detail</h1>
+        </div>
+        <span class="icon-btn" title="Menu">
+          <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        </span>
+      </div>
+      <div class="mobile-breadcrumb">Production Process Activity &gt; Grading &gt; Grading Baru</div>
+
+      <!-- Body: long scrolling form -->
+      <div class="mobile-content">
+
+        <div class="content-note">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Draft tersimpan lokal. Lengkapi minimal satu baris Grading Detail, lalu <strong>Simpan</strong> atau <strong>Pause</strong> untuk melanjutkan nanti.</span>
+        </div>
+
+        <form class="form">
+
+          <div class="form-section">
+            <div class="form-section-title">Data Header Grading</div>
+
+            <div class="input-group">
+              <label class="input-label">Grading ID</label>
+              <input class="input input-mobile" type="text" value="GRD-2026-000127" disabled>
+              <span class="input-hint">Otomatis dibuat sistem saat record baru dibuka</span>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Tanggal<span class="required">*</span></label>
+              <input class="input input-mobile" type="text" value="15 Agustus 2026">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Nomor Kendaraan<span class="required">*</span></label>
+              <input class="input input-mobile" type="text" value="BM 8231 XA" placeholder="Contoh: BM 8231 XA">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Nama Supir<span class="required">*</span></label>
+              <input class="input input-mobile" type="text" value="Ahmad Fauzi" placeholder="Nama pengemudi">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Estate/Supplier<span class="required">*</span></label>
+              <input class="input input-mobile" type="text" value="Estate Sei Rokan" placeholder="Nama estate/supplier">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Divisi</label>
+              <input class="input input-mobile" type="text" value="Divisi 3" placeholder="Opsional">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Blok</label>
+              <input class="input input-mobile" type="text" value="Blok C12" placeholder="Opsional">
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title-row">
+              <div class="form-section-title">Grading Detail<span class="required">*</span></div>
+            </div>
+
+            <div class="table-wrapper">
+              <table class="grading-detail-table">
+                <thead>
+                  <tr>
+                    <th>Kriteria Buah</th>
+                    <th>Jumlah (Tandan)</th>
+                    <th>Persentase</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Buah Matang</td>
+                    <td>42</td>
+                    <td>84.0%</td>
+                    <td>
+                      <span class="row-action-btn" title="Edit baris">
+                        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Buah Mentah</td>
+                    <td>5</td>
+                    <td>10.0%</td>
+                    <td>
+                      <span class="row-action-btn" title="Edit baris">
+                        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Buah Kosong</td>
+                    <td>3</td>
+                    <td>6.0%</td>
+                    <td>
+                      <span class="row-action-btn" title="Edit baris">
+                        <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <button type="button" class="add-row-btn">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Tambah Baris Grading Detail
+            </button>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Verifikasi</div>
+
+            <div class="input-group">
+              <label class="input-label role-lock-label">
+                <span>Checked By</span>
+                <span class="badge badge-neutral">
+                  <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Supervisor only
+                </span>
+              </label>
+              <input class="input input-mobile" type="text" value="" placeholder="Diisi oleh Supervisor" disabled>
+              <span class="input-hint">Hanya dapat diisi/diedit oleh role Supervisor &mdash; tidak aktif untuk role Anda saat ini (Station Operator)</span>
+            </div>
+          </div>
+
+        </form>
+      </div>
+
+      <!-- Footer: action row, touch-target sized. Colour-coded by intent:
+           Back = muted icon-only (navigation, not a form action)
+           Pause = warning fill (distinct temporary-stop action)
+           Clear = neutral outline (de-emphasized secondary/reset)
+           Simpan = brand fill (primary/confirming action) -->
+      <div class="mobile-actions">
+        <button type="button" class="btn btn-icon-muted btn-icon" title="Back" aria-label="Back">
+          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          <span class="sr-only">Back</span>
+        </button>
+        <button type="button" class="btn btn-warning">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.5" fill="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          Pause
+        </button>
+        <button type="button" class="btn btn-outline">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.5" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Clear
+        </button>
+        <button type="button" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="#fff" stroke-width="1.5" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Simpan
+        </button>
+      </div>
+    </div>
+
+    <p class="actors-note">
+      Actors: Station Operator &middot; Supervisor &nbsp;&middot;&nbsp;
+      Entry points: Tap Mulai Input Baru dari Monitor Grading, Tap Lanjutkan draft paused dari Monitor Grading atau Home
+    </p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,59 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-02"
+  },
+  "id": "screen-002--task-form",
+  "name": "Task Form",
+  "module_id": "module-tasks",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-07-02T11:00:00Z",
+      "passed": 29,
+      "failed": 0,
+      "coverage": 98.3
+    },
+    "integration": {
+      "run_at": "2026-07-02T11:00:05Z",
+      "passed": 19,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-07-02T11:00:04Z",
+      "passed": 34,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-07-02T11:00:10Z",
+      "passed": 21,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/src/services/task-service.js"
+  ],
+  "test_files_generated": [
+    "backend/tests/unit/task-service.test.js",
+    "backend/tests/integration/tasks.integration.test.js"
+  ],
+  "fe_files_generated": [],
+  "fe_test_files_generated": [
+    "frontend/tests/unit/TaskForm.spec.js",
+    "frontend/tests/e2e/task-list.spec.js"
+  ],
+  "implementation_notes": [
+    "Task Form shares its two API endpoints (POST /api/tasks, PATCH /api/tasks/:id) and its Vue component (TaskForm.vue) with the Task List screen, which implemented them first — no new BE routes or FE components were needed for this screen.",
+    "Fixed a spec-compliance gap in updateTask(): it previously checked title === '' || title === null without trimming, so a whitespace-only title incorrectly passed validation on edit. Now mirrors createTask()'s trim-based check.",
+    "frontend/src/components/TaskForm.vue required no changes — already trims title client-side, unifies Cancel/X/Escape/click-outside into one dismiss handler, and disables Save while submitting.",
+    "Whitespace-only-title integration test was added only for POST /api/tasks (per tech spec's test_scenarios); the existing PATCH 'title cleared to empty string' integration test already exercises the same trim fix for edit."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "deleteTask/changeTaskStatus in task-service.js use raw string error-code literals instead of ERROR_CODES.* constants — unrelated to this screen's spec, pre-existing from Task List implementation, left as-is.",
+      "severity": "minor"
+    }
+  ]
+}

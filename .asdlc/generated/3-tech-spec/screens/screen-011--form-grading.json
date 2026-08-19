@@ -1,0 +1,569 @@
+{
+  "ver": 3,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-011--form-grading",
+  "name": "Form Grading",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/grading/form/:id",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-011--form-grading",
+      "usecase_name": "Input Data Grading",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load draft grading_record by id (route param) beserta seluruh grading_detail turunannya ke form state",
+        "2. Auto-set Tanggal (date) = waktu saat ini HANYA jika draft baru (date masih kosong); jika draft dilanjutkan (sudah punya nilai), pertahankan nilai date tersimpan, tidak ditimpa",
+        "3. Load daftar Weighbridge lokal (SEMUA record, status apapun, urut arrival_datetime terbaru dulu) untuk dropdown WB Card No; load daftar Grading Parameter (urut sort_order) untuk dropdown Quality Parameter tiap baris",
+        "4. On pilih WB Card No: auto-isi license_plate_no dari weighbridge_record.vehicle_number, estate_supplier dari weighbridge_record.estate_supplier, division dari weighbridge_record.division; ketiga field tetap dapat diedit manual setelahnya, TIDAK ditimpa ulang otomatis lagi setelah auto-fill awal (hanya terjadi sekali saat WB Card No dipilih)",
+        "5. On pilih Quality Parameter di suatu baris Grading Detail: uom baris di-set (snapshot, bukan live-join) dari grading_parameter.uom yang dipilih, field UOM disabled/read-only",
+        "6. Opsi dropdown Quality Parameter PER BARIS = seluruh grading_parameter DIKURANGI parameter yang sudah dipilih di baris LAIN pada grid yang sama (baris itu sendiri tetap menampilkan parameter yang sedang dipilihnya sebagai opsi, agar tetap terlihat/tidak hilang dari dropdown-nya sendiri) — daftar opsi ini dihitung ulang (reaktif) setiap kali baris manapun menambah/mengubah/menghapus pilihan Quality Parameter-nya, termasuk saat baris ditambah atau dihapus",
+        "7. Percentage tiap baris dihitung reaktif: qty/netto_header*100 jika uom baris='kg', qty/quantity_header*100 jika uom baris='bunch' — dihitung ulang setiap kali qty baris ITU SENDIRI berubah, atau netto/quantity header berubah (mempengaruhi SEMUA baris)",
+        "8. Render field dikelompokkan per section: Identitas Grading (Grading No, Tanggal), Referensi Weighbridge & Kendaraan (WB Card No, License Plate No, Vehicle Code), Asal Muatan (Estate, Divisi), Data Berat & Kuantitas (Netto (kg), Quantity (bunch), Note), Grading Detail (grid tambah/hapus baris)",
+        "9. Render breadcrumb (Home > Production Process Activity > Grading > Form, tappable) dan header dengan hamburger",
+        "10. On Tambah baris Grading Detail: tambah 1 baris kosong baru (tanpa id) ke grid",
+        "11. On Hapus baris Grading Detail: hapus baris dari form state; jika baris punya id (sudah tersimpan sebelumnya), tandai untuk DELETE saat Simpan berikutnya; Quality Parameter yang dipakai baris tersebut otomatis kembali tersedia di dropdown baris lain (langkah 6 dihitung ulang)",
+        "12. On Simpan: validasi field wajib (Grading No, WB Card No terpilih, Vehicle Code, Estate, Netto, Quantity) dan minimal 1 baris Grading Detail dengan Quality Parameter+Qty terisi → jika lengkap: UPDATE grading_record (semua field header, status=saved) → upsert grading_detail (baris tanpa id: INSERT baru; baris dengan id: UPDATE; baris yang ditandai dihapus: DELETE) → navigasi ke Monitor Grading",
+        "13. On Pause: UPDATE grading_record (field form apa adanya, status=draft_paused, TANPA validasi field wajib), grading_detail rows di-upsert apa adanya juga → navigasi ke Monitor Grading",
+        "14. On Clear: tampilkan dialog konfirmasi → jika dikonfirmasi: DELETE seluruh grading_detail milik record lalu DELETE grading_record → navigasi ke Monitor; jika dibatalkan: tidak ada perubahan",
+        "15. On Back: jika form dirty: tampilkan dialog konfirmasi → jika dikonfirmasi, buang perubahan di memori, navigasi ke Monitor; jika tidak dirty, navigasi langsung",
+        "16. On tap breadcrumb segment → navigasi ke route terkait",
+        "17. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "SELECT record by id untuk load form state"
+        },
+        {
+          "entity_id": "grading-detail",
+          "operation": "SELECT",
+          "description": "SELECT semua baris by grading_record_id"
+        },
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "SELECT",
+          "description": "SELECT semua record lokal (status apapun) untuk populate dropdown WB Card No"
+        },
+        {
+          "entity_id": "grading-parameter",
+          "operation": "SELECT",
+          "description": "SELECT semua parameter urut sort_order untuk populate dropdown Quality Parameter"
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "UPDATE",
+          "description": "UPDATE semua field header + status=saved pada Simpan, atau field apa adanya + status=draft_paused pada Pause"
+        },
+        {
+          "entity_id": "grading-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru (tanpa id sebelumnya) pada Simpan/Pause"
+        },
+        {
+          "entity_id": "grading-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris yang sudah punya id pada Simpan/Pause"
+        },
+        {
+          "entity_id": "grading-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris yang dihapus user dari grid, pada Simpan/Pause berikutnya; atau seluruh baris pada Clear"
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "DELETE",
+          "description": "DELETE record pada Clear yang dikonfirmasi"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Field wajib belum lengkap saat Simpan",
+          "handling": "Tampilkan error inline per field, record tidak tersimpan"
+        },
+        {
+          "condition": "Belum ada baris Grading Detail valid (Quality Parameter+Qty terisi) saat Simpan",
+          "handling": "Tampilkan pesan error khusus, record tidak tersimpan"
+        },
+        {
+          "condition": "Belum ada data Weighbridge lokal sama sekali",
+          "handling": "Dropdown WB Card No kosong/menampilkan opsi 'Tidak ada data Weighbridge'"
+        },
+        {
+          "condition": "User mengedit License Plate No/Estate/Divisi manual setelah auto-fill",
+          "handling": "Nilai manual dipertahankan, tidak ditimpa ulang oleh sistem selama sesi form ini"
+        },
+        {
+          "condition": "User membuka dropdown Quality Parameter pada suatu baris ketika parameter lain sudah dipakai di baris lain",
+          "handling": "Parameter yang sudah dipakai di baris LAIN disembunyikan dari daftar opsi; parameter yang sedang dipilih baris ITU SENDIRI tetap tampil sebagai opsi"
+        },
+        {
+          "condition": "Baris yang memakai suatu Quality Parameter dihapus, atau parameternya diganti ke parameter lain",
+          "handling": "Parameter yang sebelumnya terpakai otomatis kembali tersedia sebagai opsi di dropdown baris-baris lain"
+        },
+        {
+          "condition": "User menghapus baris Grading Detail yang sudah ada (punya id)",
+          "handling": "Baris hilang dari grid; ditandai untuk DELETE eksplisit dari grading_detail saat Simpan/Pause berikutnya"
+        },
+        {
+          "condition": "Draft di-Pause lalu dilanjutkan",
+          "handling": "Field form + grid Grading Detail terisi dari draft tersimpan, opsi dropdown tiap baris otomatis mengecualikan parameter yang sudah terpakai di baris lain sejak awal render"
+        },
+        {
+          "condition": "Back dengan perubahan belum tersimpan",
+          "handling": "Tampilkan dialog konfirmasi sebelum keluar"
+        },
+        {
+          "condition": "Clear ditekan",
+          "handling": "Tampilkan dialog konfirmasi wajib sebelum DELETE dieksekusi"
+        }
+      ],
+      "business_rules_applied": [
+        "WB Card No wajib dipilih dari dropdown, bukan teks bebas",
+        "License Plate No/Estate/Divisi auto-terisi dari Weighbridge, tetap dapat diedit manual",
+        "Minimal satu baris Grading Detail sebelum Simpan",
+        "Setiap Quality Parameter hanya dapat dipakai di satu baris, tidak muncul lagi di dropdown baris lain setelah dipilih",
+        "UOM tiap baris snapshot dari Quality Parameter yang dipilih, tidak dapat diedit manual",
+        "Percentage dihitung otomatis berdasarkan uom baris (kg terhadap Netto, bunch terhadap Quantity)",
+        "Tanggal otomatis sekali saat draft baru dibuat",
+        "Checked By tidak ditampilkan pada form ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "sets date to current time when draft is new (date empty)",
+          "given": "loaded draft record has date = null/empty",
+          "expect": "date set to current timestamp (now) exactly once on mount"
+        },
+        {
+          "description": "preserves stored date when resuming a paused draft",
+          "given": "loaded draft record has date = '2026-08-18T08:00:00' (already set)",
+          "expect": "date remains '2026-08-18T08:00:00', not overwritten"
+        },
+        {
+          "description": "populates WB Card No dropdown from all local weighbridge_record rows regardless of status",
+          "given": "weighbridgeRepo returns 3 records with mixed statuses (saved, draft_ongoing, synced)",
+          "expect": "dropdown options include all 3 records, ordered by arrival_datetime descending"
+        },
+        {
+          "description": "shows empty/placeholder option when no local weighbridge_record exists",
+          "given": "weighbridgeRepo returns []",
+          "expect": "dropdown renders empty state, WB Card No field has no selectable options"
+        },
+        {
+          "description": "auto-fills license_plate_no, estate_supplier, division from the selected weighbridge_record",
+          "given": "user selects a WB Card No option corresponding to a weighbridge_record with vehicle_number='B 1234 XYZ', estate_supplier='Estate A', division='Divisi 2'",
+          "expect": "form fields license_plate_no='B 1234 XYZ', estate_supplier='Estate A', division='Divisi 2' set"
+        },
+        {
+          "description": "does not re-overwrite manually edited auto-filled fields on subsequent renders",
+          "given": "WB Card No already selected and auto-fill applied, user then manually changes estate_supplier to a different value",
+          "expect": "estate_supplier retains the manually-edited value, not reset back to the weighbridge_record's original value"
+        },
+        {
+          "description": "sets detail row uom from the selected grading_parameter as a snapshot",
+          "given": "user selects Quality Parameter with uom='bunch' for a detail row",
+          "expect": "that row's uom field set to 'bunch', disabled/read-only"
+        },
+        {
+          "description": "excludes a Quality Parameter already selected in another row from that row's own dropdown options",
+          "given": "row 1 has grading_parameter_id='gp-003' selected; computing available options for row 2",
+          "expect": "row 2's available options list does NOT include 'gp-003'"
+        },
+        {
+          "description": "still includes a row's own currently selected Quality Parameter in its own dropdown options",
+          "given": "row 1 has grading_parameter_id='gp-003' selected; computing available options for row 1 itself",
+          "expect": "row 1's available options list DOES include 'gp-003'"
+        },
+        {
+          "description": "returns a Quality Parameter to other rows' available options once the row that had it selected is removed",
+          "given": "row 1 selected 'gp-003' (excluded from row 2's options), row 1 is then removed via Hapus baris",
+          "expect": "row 2's available options list now includes 'gp-003' again"
+        },
+        {
+          "description": "returns a Quality Parameter to other rows' available options once the row's selection is changed to a different parameter",
+          "given": "row 1 changes its selection from 'gp-003' to 'gp-005'",
+          "expect": "'gp-003' becomes available again in other rows' options; 'gp-005' becomes excluded from other rows' options"
+        },
+        {
+          "description": "computes percentage using netto when the row's uom is kg",
+          "given": "header netto=1000, detail row uom='kg', qty=250",
+          "expect": "row percentage = 25"
+        },
+        {
+          "description": "computes percentage using quantity when the row's uom is bunch",
+          "given": "header quantity=120, detail row uom='bunch', qty=30",
+          "expect": "row percentage = 25"
+        },
+        {
+          "description": "recomputes a row's percentage when that row's qty changes",
+          "given": "row uom='kg', header netto=1000, qty changes from 100 to 200",
+          "expect": "percentage recalculated from 10 to 20"
+        },
+        {
+          "description": "recomputes all rows' percentages when header netto or quantity changes",
+          "given": "2 detail rows, one uom='kg' one uom='bunch', header netto changes from 1000 to 2000",
+          "expect": "the kg-uom row's percentage recalculated using new netto; the bunch-uom row's percentage unaffected by netto change"
+        },
+        {
+          "description": "adds a new empty detail row when 'Tambah baris' is triggered",
+          "given": "grid currently has 1 row",
+          "expect": "grid has 2 rows after add, new row has no id, empty quality parameter and qty"
+        },
+        {
+          "description": "removes a detail row from form state when 'Hapus baris' is triggered on a row without an id",
+          "given": "a newly-added row (no id) is removed",
+          "expect": "row removed from form state; no DELETE recorded for save time (never existed in DB)"
+        },
+        {
+          "description": "marks an existing detail row for deletion when 'Hapus baris' is triggered on a row with an id",
+          "given": "a row loaded from an existing draft (has id) is removed",
+          "expect": "row removed from grid display; its id recorded in a pending-deletion list for the next Simpan/Pause"
+        },
+        {
+          "description": "returns validation errors and does not save when required header fields are incomplete on Simpan",
+          "given": "WB Card No not selected, Simpan triggered",
+          "expect": "validation fails, inline error returned, gradingRepo.saveDraft() not called"
+        },
+        {
+          "description": "returns validation error and does not save when no valid detail rows exist on Simpan",
+          "given": "all detail rows lack Quality Parameter or Qty, Simpan triggered",
+          "expect": "validation fails with detail-specific error, gradingRepo.saveDraft() not called"
+        },
+        {
+          "description": "saves record with status=saved, upserting new and updated rows, and deleting removed rows, when all required data is complete on Simpan",
+          "given": "all required header fields filled, 2 valid detail rows (1 new, 1 existing edited), 1 row marked for deletion, Simpan triggered",
+          "expect": "gradingRepo.saveDraft() called with header data, status='saved', the 2 upserted rows, and the 1 pending deletion id; navigation to Monitor Grading triggered"
+        },
+        {
+          "description": "updates record with status=draft_paused without validating required fields on Pause",
+          "given": "required field is empty, Pause triggered",
+          "expect": "gradingRepo update called with current field values as-is, status='draft_paused', no validation errors; navigation to Monitor Grading triggered"
+        },
+        {
+          "description": "shows confirmation dialog before deleting on Clear",
+          "given": "Clear button pressed",
+          "expect": "confirmation dialog displayed; delete not yet called"
+        },
+        {
+          "description": "deletes record and all its detail rows, then navigates to Monitor when Clear is confirmed",
+          "given": "Clear confirmation dialog confirmed",
+          "expect": "grading_detail rows deleted, grading_record deleted; navigation to Monitor Grading triggered"
+        },
+        {
+          "description": "does not delete record when Clear confirmation is cancelled",
+          "given": "Clear confirmation dialog cancelled",
+          "expect": "delete not called; form state unchanged"
+        },
+        {
+          "description": "shows confirmation dialog on Back when form is dirty",
+          "given": "form state isDirty = true, Back pressed",
+          "expect": "confirmation dialog displayed before navigation"
+        },
+        {
+          "description": "navigates directly on Back when form is not dirty",
+          "given": "form state isDirty = false, Back pressed",
+          "expect": "navigates to Monitor Grading immediately, no dialog shown"
+        },
+        {
+          "description": "navigates to related route when a breadcrumb segment is tapped",
+          "given": "breadcrumb segment 'Grading' tapped",
+          "expect": "router navigates to the corresponding Monitor Grading route"
+        },
+        {
+          "description": "opens navigation menu when hamburger icon is tapped",
+          "given": "hamburger icon tapped",
+          "expect": "navigation menu opens showing Ganti Password and Logout options"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "weighbridge-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "grading-parameter",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-008--monitor-grading",
+      "reason": "Asal & tujuan kembali setelah Simpan/Pause/Clear/Back"
+    },
+    {
+      "screen_id": "screen-014--data-preview-grading",
+      "reason": "Referensi tampilan data setelah tersimpan"
+    }
+  ],
+  "implementation_notes": [
+    "Simpan/Pause/Clear bersifat lokal (SQLite); pengiriman ke server terjadi lewat mekanisme sync manual terpisah, di luar scope screen ini",
+    "Opsi dropdown Quality Parameter per baris = computed reaktif atas seluruh detailRows.value (bukan hanya properti lokal baris itu) — setiap baris perlu tahu apa yang dipilih baris LAIN, sehingga computed ini harus bereaksi terhadap perubahan grading_parameter_id di baris manapun, bukan cuma baris dirinya sendiri",
+    "Cakupan dropdown WB Card No: SEMUA record weighbridge_record lokal apa pun statusnya, urut arrival_datetime terbaru dulu — asumsi agent karena tidak ada instruksi eksplisit user soal filter tanggal/status; jika salah, cukup revisi query-nya tanpa mengubah struktur field lain",
+    "Checked By TIDAK diimplementasikan pada form ini sama sekali (kolom checked_by di grading_record tetap ada di skema tapi tidak dibaca/ditulis dari screen ini) — mengikuti mock referensi yang tidak mencantumkannya",
+    "Percentage dan UOM tidak pernah diinput manual oleh user — keduanya read-only/computed di UI, hanya qty dan quality_parameter yang benar-benar interaktif per baris"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Input Data Grading — success",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "select WB Card No, fill Vehicle Code/Netto/Quantity/Note, add a Grading Detail row with Quality Parameter+Qty, click Simpan",
+        "assert": "record saved with status=saved, license_plate_no/estate_supplier/division auto-filled from selected weighbridge record, detail row's uom set from parameter and percentage computed"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "login, buka Form Grading draft baru dari Monitor, pilih WB Card No, isi seluruh field wajib, tambah 1 baris Grading Detail lengkap, klik Simpan",
+        "assert": "navigasi ke Monitor Grading, record baru berstatus tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Field Wajib Belum Lengkap",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "leave WB Card No unselected, click Simpan",
+        "assert": "inline error shown, save handler not invoked"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "buka Form Grading, jangan pilih WB Card No, klik Simpan",
+        "assert": "pesan error inline muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Belum Ada Baris Grading Detail",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "fill all header fields, leave Grading Detail grid empty, click Simpan",
+        "assert": "detail-specific error shown, save handler not invoked"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "isi seluruh header, jangan tambah baris Grading Detail, klik Simpan",
+        "assert": "pesan error khusus grading detail muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Belum Ada Data Weighbridge Lokal",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "render form when weighbridgeRepo returns no local records",
+        "assert": "WB Card No dropdown shows no selectable options / empty state"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "buka Form Grading baru tanpa ada data Weighbridge lokal sama sekali",
+        "assert": "dropdown WB Card No kosong/tidak ada opsi"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Edit Manual Setelah Auto-fill",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "select a WB Card No (auto-fill applied), then manually edit the auto-filled Estate field",
+        "assert": "Estate field retains the manually-edited value on subsequent re-renders, not reset"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "pilih WB Card No, lalu ubah manual field Estate yang sudah auto-terisi",
+        "assert": "nilai manual tetap tersimpan, tidak berubah kembali ke nilai asal Weighbridge"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Quality Parameter Tidak Bisa Duplikat Antar Baris",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "select a Quality Parameter in row 1, then open row 2's Quality Parameter dropdown",
+        "assert": "row 2's dropdown options do not include the parameter already selected in row 1; row 1's own dropdown still shows its selected parameter"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "tambah 2 baris Grading Detail, pilih Quality Parameter pada baris pertama, lalu buka dropdown Quality Parameter pada baris kedua",
+        "assert": "parameter yang sudah dipilih di baris pertama tidak muncul sebagai opsi di dropdown baris kedua"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Quality Parameter Tersedia Lagi Setelah Baris Dihapus",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "select a Quality Parameter in row 1 (excluding it from row 2's options), then remove row 1",
+        "assert": "row 2's dropdown options now include the previously-excluded parameter again"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "pilih Quality Parameter di baris pertama, hapus baris pertama, lalu buka dropdown Quality Parameter di baris yang tersisa",
+        "assert": "parameter yang sebelumnya terpakai kini muncul kembali sebagai opsi"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Hapus Baris Grading Detail",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "click 'Tambah baris', then click 'Hapus baris' on an existing (has-id) row",
+        "assert": "grid grows by one row on add; on remove of an existing row, row disappears from the grid and is queued for deletion at next save"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "tambah satu baris Grading Detail baru, lalu hapus salah satu baris yang sudah ada sebelumnya",
+        "assert": "baris baru muncul di grid; baris yang dihapus hilang dari tampilan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Lanjutkan Draft Paused",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "mount form with an existing draft_paused record and detail rows loaded",
+        "assert": "all header fields and detail grid populated from the saved draft"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "dari Monitor Grading, tap draft paused sebelumnya untuk dilanjutkan",
+        "assert": "semua field dan baris Grading Detail terisi sesuai draft tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Pause Progress",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "fill form partially (required field left empty), click Pause",
+        "assert": "update invoked with status=draft_paused and current field values, no validation errors shown, navigation to Monitor triggered"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "isi sebagian field (ada field wajib kosong), tekan tombol Pause",
+        "assert": "tidak ada error validasi ditampilkan, navigasi kembali ke Monitor Grading, draft tersimpan dengan status paused"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Clear Draft",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "click Clear then confirm the dialog; repeat and cancel the dialog",
+        "assert": "on confirm: delete invoked (record + detail rows) and navigation to Monitor triggered; on cancel: no delete call, form state unchanged"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "tekan tombol Clear lalu konfirmasi hapus; ulangi dan batalkan konfirmasi",
+        "assert": "saat dikonfirmasi: draft terhapus permanen dan navigasi ke Monitor; saat dibatalkan: tidak ada perubahan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Back Dengan Perubahan Belum Tersimpan",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "modify a field to make the form dirty, trigger back action",
+        "assert": "confirmation dialog rendered before navigation occurs"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "ubah salah satu field, tekan tombol Back sebelum Simpan",
+        "assert": "dialog konfirmasi keluar ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Tap Breadcrumb",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "click a breadcrumb segment (e.g. 'Grading')",
+        "assert": "router navigation triggered to the corresponding route"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "tekan salah satu segmen breadcrumb",
+        "assert": "browser berpindah ke halaman terkait"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Buka Menu Hamburger",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "click hamburger icon",
+        "assert": "navigation menu rendered showing Ganti Password and Logout options"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "tekan ikon hamburger pada header",
+        "assert": "menu navigasi terbuka menampilkan opsi Ganti Password dan Logout"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — WB Card No Harus Dipilih Dari Dropdown",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "verify WB Card No field renders as a select/dropdown control, not a free-text input",
+        "assert": "WB Card No is a select element bound to local weighbridge_record options, no free-text entry possible"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "periksa field WB Card No pada Form Grading",
+        "assert": "field berupa dropdown pilihan, bukan kotak teks bebas"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Grading — Checked By Tidak Ditampilkan",
+      "usecase_id": "usecase-011--form-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGradingView",
+        "action": "render the form for both an operator and a supervisor user",
+        "assert": "no Checked By field/control rendered in the DOM for either actor"
+      },
+      "browser_test": {
+        "route": "/stations/grading/form/:id",
+        "action": "buka Form Grading sebagai Operator, lalu sebagai Supervisor",
+        "assert": "field Checked By tidak muncul pada kedua kasus"
+      }
+    }
+  ]
+}

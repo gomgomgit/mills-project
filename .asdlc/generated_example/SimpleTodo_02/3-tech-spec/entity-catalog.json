@@ -1,0 +1,128 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "SimpleTodo",
+    "updated_at": "2026-06-25"
+  },
+  "entities": [
+    {
+      "id": "task",
+      "name": "Task",
+      "description": "A single to-do item with title, description, completion status, due date, and group membership.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "integer",
+          "required": true,
+          "description": "Primary key, auto-increment"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": "The main label for the task; minimum required field"
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": "Optional longer description; displayed as excerpt on Task List"
+        },
+        {
+          "name": "done",
+          "type": "boolean",
+          "required": true,
+          "description": "Whether the task is completed; defaults to false"
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "required": false,
+          "description": "The deadline date; null means no deadline"
+        },
+        {
+          "name": "group_id",
+          "type": "integer",
+          "required": false,
+          "description": "FK to the group this task belongs to; null means ungrouped"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Auto-set on insert; Lucid ORM default"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Auto-set on update; Lucid ORM default"
+        },
+        {
+          "name": "deleted_at",
+          "type": "timestamp",
+          "required": false,
+          "description": "Soft-delete timestamp; null means not deleted"
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "group",
+          "type": "many-to-one",
+          "description": "Many tasks belong to one group; a task without a group belongs to none"
+        }
+      ],
+      "constraints": [
+        "title must not be empty",
+        "A task belongs to only one group at a time"
+      ]
+    },
+    {
+      "id": "group",
+      "name": "Group",
+      "description": "A named container that organizes multiple tasks.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "integer",
+          "required": true,
+          "description": "Primary key, auto-increment"
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "The display name of the group"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Auto-set on insert; Lucid ORM default"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Auto-set on update; Lucid ORM default"
+        },
+        {
+          "name": "deleted_at",
+          "type": "timestamp",
+          "required": false,
+          "description": "Soft-delete timestamp; null means not deleted"
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "task",
+          "type": "one-to-many",
+          "description": "One group contains many tasks"
+        }
+      ],
+      "constraints": [
+        "name should be unique"
+      ]
+    }
+  ]
+}

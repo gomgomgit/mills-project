@@ -1,0 +1,124 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-16"
+  },
+  "id": "usecase-017--data-browser-grading-web",
+  "name": "Telusuri & Ekspor Data Grading",
+  "description": "User menelusuri data record Grading dengan filter, membuka detail, dan mengekspor hasil filter ke CSV/Excel.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web app"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Membuka Data Browser Grading dari menu Data Stasiun"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan tabel data record terbaru"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Menyesuaikan filter (tanggal, business unit)"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Menampilkan hasil sesuai filter"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Mengekspor data ke CSV/Excel"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menghasilkan file ekspor sesuai filter aktif"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tidak Ada Data Sesuai Filter",
+      "trigger": "Step 4",
+      "steps": [
+        "System menampilkan pesan tidak ada data ditemukan dengan opsi reset filter"
+      ]
+    },
+    {
+      "name": "Rentang Tanggal Tidak Valid",
+      "trigger": "Step 3, tanggal awal > tanggal akhir",
+      "steps": [
+        "System menampilkan pesan validasi, filter tidak diterapkan"
+      ]
+    },
+    {
+      "name": "Klik Baris Membuka Detail",
+      "trigger": "Step 2/4, actor klik salah satu baris",
+      "steps": [
+        "System membuka Detail Grading (Web) untuk record tersebut"
+      ]
+    },
+    {
+      "name": "Ekspor Gagal",
+      "trigger": "Step 6, dataset terlalu besar/error",
+      "steps": [
+        "System menampilkan pesan error ekspor"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat data sesuai filter",
+    "File ekspor dihasilkan jika diminta"
+  ],
+  "business_rules": [
+    "Data mencakup hasil sync mobile & input web",
+    "Ekspor mengikuti filter aktif",
+    "Daftar termuat <=2 detik untuk dataset normal"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Telusuri & Ekspor Data Grading — success",
+      "given": "User sudah login ke web app",
+      "when": "User membuka Data Browser Grading, menyesuaikan filter (tanggal, business unit), dan mengekspor hasil filter ke CSV/Excel",
+      "then": "User melihat data sesuai filter dan file ekspor dihasilkan sesuai filter aktif"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Grading — Tidak Ada Data Sesuai Filter",
+      "given": "User sudah login ke web app",
+      "when": "User menerapkan filter yang tidak memiliki data record yang sesuai",
+      "then": "System menampilkan pesan tidak ada data ditemukan dengan opsi reset filter"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Grading — Rentang Tanggal Tidak Valid",
+      "given": "User sudah login ke web app",
+      "when": "User mengatur filter dengan tanggal awal lebih besar dari tanggal akhir",
+      "then": "System menampilkan pesan validasi dan filter tidak diterapkan"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Grading — Klik Baris Membuka Detail",
+      "given": "User sudah login ke web app",
+      "when": "User mengklik salah satu baris pada tabel data record Grading",
+      "then": "System membuka halaman Detail Grading (Web) untuk record yang dipilih"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Grading — Ekspor Gagal",
+      "given": "User sudah login ke web app",
+      "when": "User mengekspor data dengan dataset yang terlalu besar atau terjadi error pada proses ekspor",
+      "then": "System menampilkan pesan error ekspor"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-017--data-browser-grading-web"
+  ]
+}

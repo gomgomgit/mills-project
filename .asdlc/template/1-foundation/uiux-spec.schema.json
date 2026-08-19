@@ -1,0 +1,39 @@
+{
+  "_tracked": [
+    "design_system",
+    "layout",
+    "screen_type_patterns",
+    "component_patterns",
+    "accessibility",
+    "design_notes"
+  ],
+  "_display_order": [
+    "design_system",
+    "layout",
+    "screen_type_patterns",
+    "component_patterns",
+    "accessibility",
+    "design_notes",
+    "meta"
+  ],
+  "ver": "Artifact-level version counter. Not used by dep-graph — field versions are tracked separately in project.json. May be incremented manually if needed.",
+  "meta.title": "Application name, copied from PRD meta.title.",
+  "meta.updated_at": "ISO date (YYYY-MM-DD) of the last write.",
+  "design_system.color_palette": "Token-based color palette. Each entry: { token: semantic name e.g. 'Brand' | 'Destructive' | 'Surface' | 'Text Primary', ref: platform-specific reference e.g. CSS var '--primary' for web, asset name 'BrandColor' for iOS, '@color/brand' for Android, value: hex or hsl or platform-native value, description: intended use context }.",
+  "design_system.typography": "Typography system. Fields: { font_family, base_size: e.g. '16px' or '16sp', scale: [{ level: e.g. 'h1' | 'body' | 'caption', size, weight }], line_height, letter_spacing }.",
+  "design_system.spacing": "Spatial dimensions relevant to this platform — free-form, define only what applies. Each entry: { name: dimension label e.g. 'sidebar_width' for web | 'bottom_tab_height' for mobile | 'toolbar_height' for desktop, value: e.g. '240px' | '56dp' }.",
+  "design_system.border_radius": "Radius per component category — define only categories used in this project. Each entry: { context: component type e.g. 'input' | 'card' | 'modal' | 'chip' | 'button', value: e.g. '6px' | '12dp' }.",
+  "design_system.shadow": "Elevation levels — define only levels used in this project. Each entry: { level: semantic name e.g. 'card' | 'dropdown' | 'modal' | 'raised', value: CSS box-shadow or platform equivalent }.",
+  "design_system.icon_library": "Icon set: { library: e.g. 'Lucide' | 'Heroicons' | 'SF Symbols' | 'Material Icons', size_default: e.g. '16px' | '24dp', stroke_width: e.g. '1.5' — only relevant for stroke-based icon sets (Lucide, Heroicons); omit for filled or platform-native icon sets (SF Symbols, Material Icons filled) }.",
+  "layout.shell_description": "Prose description of the global shell — which panels or navigation containers exist, their placement, and behavior. Platform-specific language is fine here (sidebar, bottom tab bar, navigation drawer, menubar, etc.).",
+  "layout.navigation_per_role": "Navigation items and their role-based visibility. Each entry: { menu_item: display label, target: destination identifier — URL path for web e.g. '/dashboard', screen name for mobile e.g. 'DashboardScreen', or view identifier for desktop, roles: list of actor names from PRD initial_actors that can see this item }.",
+  "layout.adaptation": "How the UI adapts to different screen sizes or form factors. Fields: { strategy: 'desktop-first' | 'mobile-first' | 'mobile-only' | 'desktop-only' | 'adaptive', notes: prose description of what changes across breakpoints or screen sizes — e.g. sidebar collapses, bottom sheet replaces modal, single-column replaces grid }.",
+  "screen_type_patterns": "Layout contract per screen type used in this project. Each entry: { type: 'auth' | 'dashboard' | 'list' | 'form' | 'detail' | 'settings' | 'wizard' | 'report', description: which screens belong to this type, layout: e.g. 'full-page' | 'centered-card' | 'bottom-sheet' | 'split-view', header_area: what appears in the top zone, body_area: main content zone description, footer_area: bottom zone or 'none', states: [{ state: 'loading' | 'empty' | 'error' | 'data' | 'submitting' | 'success', display: how this state looks }] }. Only include types that actually exist in the project.",
+  "component_patterns": "Non-default UI patterns per component type — free-form, define only components with notable conventions. Each entry: { component: free-form name e.g. 'data-table' | 'form' | 'bottom-sheet' | 'swipe-list' | 'modal' | 'toast' | 'loading', notes: prose description of the pattern, behavior, and states }.",
+  "accessibility.level": "Target compliance level — e.g. 'WCAG 2.1 AA' | 'WCAG 2.1 AAA' | 'iOS VoiceOver + WCAG 2.1 AA' | 'Android TalkBack compliant' | 'Basic' | 'None'.",
+  "accessibility.color_contrast": "Minimum contrast ratios — universal concept across web, mobile, and desktop. Fields: { normal_text: for small text e.g. '4.5:1', large_text: for large or bold text e.g. '3:1', ui_components: for borders and interactive elements e.g. '3:1' }.",
+  "accessibility.input_navigation": "Input method navigation rules — covers keyboard (web/desktop), gesture (mobile), and pointer (desktop). Fields: { focus_indicator: visual focus indicator for web/desktop e.g. '2px solid brand, 2px offset' — on native mobile the OS renders this (VoiceOver selection ring, TalkBack green border); only document if the app overrides the default, tab_or_swipe_order: traversal order description, dismiss: how overlays are dismissed e.g. 'Escape key' | 'swipe down' | 'back gesture', activate: how interactive elements are triggered e.g. 'Enter or Space' | 'tap' | 'double-tap for screen reader' }.",
+  "accessibility.structure_semantics": "Accessibility tree and semantic structure requirements — applicable across web (semantic HTML), mobile (accessibility labels and traits), and desktop (UI automation roles). Fields: { heading_hierarchy: content hierarchy for screen readers — web: h1/h2/h3 elements; iOS: UIAccessibilityTraitHeader; Android: ViewCompat.setAccessibilityHeading(); describe the rule not the implementation, landmark_or_regions: navigation landmarks or equivalent — web: header/nav/main/footer; mobile: accessibility containers or groupings, labels: input labelling requirement, error_association: how errors are linked to their field, live_regions: dynamic content announcement pattern — web: aria-live; iOS: UIAccessibilityPostNotification; Android: announceForAccessibility }.",
+  "accessibility.text_content": "Text and media rules. Fields: { min_font_size: e.g. '14px' | '12sp', icon_only_elements: labelling requirement for icon-only buttons or actions, images_and_media: alt text or content description requirement }.",
+  "design_notes": "Free-form notes on key design decisions, trade-offs, or constraints not captured in other fields — e.g. cross-cutting policies (avoid red/green for color-blind users), scope boundaries (dark mode is Phase 2), external references (brand guide URL), or motion/animation policy. Optional — leave empty string if nothing to add."
+}

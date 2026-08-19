@@ -1,0 +1,80 @@
+{
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-06-28"
+  },
+  "ver": 1,
+  "system_type": "Web app (Vue.js SPA + Express REST API)",
+  "architecture_pattern": {
+    "name": "MVC (Model-View-Controller)",
+    "description": "Simple, three-tier MVC pattern well-suited for a small, single-user web application. No need for complex patterns like CLEAN or Hexagonal — the app has one entity (Task) and basic CRUD operations.",
+    "components": [
+      {
+        "name": "View (Vue.js SPA)",
+        "role": "Renders the UI, handles user interactions, sends HTTP requests to the backend"
+      },
+      {
+        "name": "Controller (Express Routes)",
+        "role": "Receives HTTP requests, delegates to service layer, returns JSON responses"
+      },
+      {
+        "name": "Service (Business Logic)",
+        "role": "Handles task CRUD operations, validates input"
+      },
+      {
+        "name": "Model (SQLite + better-sqlite3)",
+        "role": "Persists and retrieves task data from SQLite"
+      }
+    ]
+  },
+  "tech_stack": [
+    {
+      "layer": "frontend",
+      "choice": "Vue.js 3 (Vite)"
+    },
+    {
+      "layer": "backend",
+      "choice": "Node.js with Express"
+    },
+    {
+      "layer": "database",
+      "choice": "SQLite (better-sqlite3)"
+    },
+    {
+      "layer": "ORM / data access",
+      "choice": "better-sqlite3 (direct SQL, no ORM needed for single-entity app)"
+    },
+    {
+      "layer": "migration",
+      "choice": "Database auto-sync on startup (simple schema check)"
+    },
+    {
+      "layer": "test framework",
+      "choice": "Vitest (backend + frontend tests)"
+    }
+  ],
+  "deployment": {
+    "model": "On-premise / Self-hosted",
+    "provider": "Run locally on user's machine"
+  },
+  "integrations": [],
+  "nfr": [
+    {
+      "category": "performance",
+      "requirement": "App loads in under 2 seconds"
+    },
+    {
+      "category": "availability",
+      "requirement": "No uptime SLA required — local app running on demand"
+    },
+    {
+      "category": "security",
+      "requirement": "No auth required (single-user, local-only)"
+    },
+    {
+      "category": "scalability",
+      "requirement": "Single-user — no horizontal scaling needed"
+    }
+  ],
+  "architecture_notes": "Choosing better-sqlite3 (synchronous) over an ORM keeps the stack minimal and avoids abstraction overhead for a single-entity app. Database schema is auto-created on first run — no migration tool needed at this scale."
+}

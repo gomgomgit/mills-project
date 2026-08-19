@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 2,
+  "id": "usecase-005--home",
+  "name": "Navigasi Home",
+  "description": "User membuka Home setelah login, melihat sambutan dan 3 menu navigasi, lalu memilih salah satu menu untuk berpindah ke area fungsi yang dituju.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Login berhasil / membuka Home"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan header (nama sistem 'Mill Smart Log' + ikon hamburger), hero image, teks sambutan personal, dan 3 menu card (Estimates & Baselines, Production Process Activity, Dashboard & Reporting)"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Memilih salah satu menu card"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Jika menu 'Production Process Activity' dipilih, navigasi ke Station List. Jika menu placeholder (Estimates & Baselines / Dashboard & Reporting) dipilih, tampilkan info singkat bahwa fitur belum tersedia"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Menu Placeholder Dipilih",
+      "trigger": "Step 3, user memilih Estimates & Baselines atau Dashboard & Reporting",
+      "steps": [
+        "Sistem menampilkan info singkat bahwa fitur belum tersedia",
+        "User tetap berada di Home"
+      ]
+    },
+    {
+      "name": "Nama User Tidak Tersedia",
+      "trigger": "Step 2, nama user kosong/tidak tersedia",
+      "steps": [
+        "Sistem menampilkan teks sambutan dengan fallback generik tanpa menyebut nama"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User berada di Station List (jika memilih Production Process Activity), atau tetap di Home (jika memilih menu placeholder atau tidak memilih apapun)"
+  ],
+  "business_rules": [
+    "Hanya menu Production Process Activity yang fungsional saat ini; menu lain adalah placeholder non-fungsional",
+    "Home tidak menampilkan status draft/record dari stasiun manapun"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Navigasi Home — success",
+      "given": "User sudah login",
+      "when": "User membuka Home, melihat header, hero image, teks sambutan personal, dan 3 menu card (Estimates & Baselines, Production Process Activity, Dashboard & Reporting), lalu memilih menu Production Process Activity",
+      "then": "User berpindah ke Station List"
+    },
+    {
+      "scenario": "Navigasi Home — Menu Placeholder Dipilih",
+      "given": "User sudah login",
+      "when": "User memilih menu Estimates & Baselines atau Dashboard & Reporting",
+      "then": "Sistem menampilkan info singkat bahwa fitur belum tersedia dan user tetap berada di Home"
+    },
+    {
+      "scenario": "Navigasi Home — Nama User Tidak Tersedia",
+      "given": "User sudah login",
+      "when": "Nama user kosong/tidak tersedia saat Home ditampilkan",
+      "then": "Sistem menampilkan teks sambutan dengan fallback generik tanpa menyebut nama"
+    },
+    {
+      "scenario": "Navigasi Home — Tidak Menampilkan Status Draft",
+      "given": "User sudah login",
+      "when": "User membuka Home",
+      "then": "Sistem tidak menampilkan status draft/record dari stasiun manapun; Home hanya menampilkan sambutan dan 3 menu navigasi"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-005--home"
+  ]
+}

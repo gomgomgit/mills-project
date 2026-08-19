@@ -1,0 +1,61 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-14"
+  },
+  "unit_test": {
+    "coverage_threshold": 80,
+    "scope": "Service layer, business logic, utility functions",
+    "mock_policy": "Mock all I/O: database, network, external services, time",
+    "run_command": "php artisan test --testsuite=Unit"
+  },
+  "integration_test": {
+    "style": "BDD",
+    "format": "Gherkin",
+    "scope": "All API endpoints",
+    "environment": {
+      "database": "real_test_db",
+      "external_services": "mock"
+    },
+    "seed_strategy": "factories",
+    "seed_command": "php artisan migrate:fresh --seed --env=testing",
+    "run_command": "php artisan test --testsuite=Feature"
+  },
+  "component_test": {
+    "framework": "Vitest + Vue Test Utils",
+    "scope": "All interactive components (forms, modals, dropdowns)",
+    "mock_api": true,
+    "run_command": "vitest run"
+  },
+  "browser_test": {
+    "tool": "Playwright",
+    "scope": "single-screen",
+    "environment": "local dev server with test database",
+    "headless": true,
+    "start_command": "php artisan serve",
+    "base_url": "http://localhost:8000",
+    "run_command": "playwright test"
+  },
+  "auto_fix": {
+    "enabled": true,
+    "max_retries": 5,
+    "on_environment_error": "stop",
+    "on_spec_mismatch": "pause",
+    "on_implementation_error": "auto_fix"
+  },
+  "done_definition": {
+    "screen_done_when": [
+      "All unit tests pass",
+      "Unit test coverage >= 80%",
+      "All API integration tests (BDD/Gherkin) pass",
+      "All component tests pass",
+      "All single-screen browser tests pass"
+    ],
+    "cannot_mark_done_if": [
+      "Any test is failing",
+      "Coverage is below threshold",
+      "Any test is skipped without a documented reason"
+    ]
+  }
+}

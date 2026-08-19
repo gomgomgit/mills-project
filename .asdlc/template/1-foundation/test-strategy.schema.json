@@ -1,0 +1,53 @@
+{
+  "_tracked": ["unit_test", "integration_test", "component_test", "browser_test", "auto_fix", "done_definition"],
+  "_display_order": ["unit_test", "integration_test", "component_test", "browser_test", "auto_fix", "done_definition"],
+  "ver": "Version counter. Starts at 1, incremented on every update.",
+  "meta": {
+    "title": "Project title (copied from PRD).",
+    "updated_at": "Date last updated (YYYY-MM-DD)."
+  },
+  "unit_test": {
+    "coverage_threshold": "Minimum line coverage % required for a screen to be marked done. Default: 80.",
+    "scope": "What is in scope for unit tests (e.g. service layer, business logic, utility functions).",
+    "mock_policy": "What must be mocked in unit tests (e.g. DB, network, external services, time).",
+    "run_command": "Shell command to run unit tests (e.g. 'pytest tests/unit', 'go test ./...', 'cargo test'). Stack-agnostic — enter the exact command for your project."
+  },
+  "integration_test": {
+    "style": "Test style. Always 'BDD' in this framework.",
+    "format": "Scenario format. Always 'Gherkin' (Given/When/Then) in this framework.",
+    "scope": "Which endpoints/flows are covered (e.g. all API endpoints).",
+    "environment": {
+      "database": "DB strategy for integration tests (e.g. real_test_db, in_memory).",
+      "external_services": "How external services are handled in integration tests (e.g. mock, sandbox, real)."
+    },
+    "seed_strategy": "How test data is created before each test (e.g. factories, fixtures, inline).",
+    "seed_command": "Shell command to seed the test database before integration tests run (e.g. 'make db-seed-test', 'flask seed-test'). Leave empty if seed is handled inside the test framework itself.",
+    "run_command": "Shell command to run integration tests (e.g. 'pytest tests/integration', 'mvn test -Pintegration'). Stack-agnostic."
+  },
+  "component_test": {
+    "framework": "Testing framework for UI components (e.g. React Testing Library, Vue Test Utils, Angular Testing Utilities). Derive from arch_spec.tech_stack.frontend. Empty string if no frontend.",
+    "scope": "What UI components are in scope (e.g. all interactive components: forms, modals, data-display components with business logic).",
+    "mock_api": "Whether API calls are mocked in component tests. Default: true — components are tested in isolation from the backend.",
+    "run_command": "Shell command to run component tests (e.g. 'vitest run', 'jest --testPathPattern=component'). Empty string if no frontend."
+  },
+  "browser_test": {
+    "tool": "Browser automation tool (e.g. Playwright, Cypress, Selenium). Playwright recommended for new projects.",
+    "scope": "Always 'single-screen' — tests cover one screen at a time. Multi-screen user journey tests are out of scope.",
+    "environment": "Target environment for browser tests (e.g. local dev server, staging server with test database).",
+    "headless": "Run browser in headless mode. Default: true. Set false for debugging.",
+    "start_command": "Shell command to start the full stack (BE + FE + DB) before browser tests run (e.g. 'make start-test', 'docker-compose -f docker-compose.test.yml up -d'). Leave empty if the server is started manually outside the framework.",
+    "base_url": "URL to health-check after start_command — agent polls this until it responds (200) or times out. Required if start_command is set (e.g. 'http://localhost:3000'). Leave empty if start_command is empty.",
+    "run_command": "Shell command to run browser tests (e.g. 'playwright test', 'cypress run --headless'). Stack-agnostic."
+  },
+  "auto_fix": {
+    "enabled": "Whether agent auto-fix is active when tests fail. Default: true.",
+    "max_retries": "Max auto-fix attempts before agent stops and escalates to user. Default: 5.",
+    "on_environment_error": "Policy when an environment error is detected (DB not reachable, port conflict). Always 'stop'.",
+    "on_spec_mismatch": "Policy when a test scenario contradicts the tech spec. Always 'pause' to request user confirmation.",
+    "on_implementation_error": "Policy when implementation logic fails a test. Always 'auto_fix' up to max_retries."
+  },
+  "done_definition": {
+    "screen_done_when": "List of conditions that must all be true for a screen to be marked done.",
+    "cannot_mark_done_if": "List of blocking conditions that prevent a screen from being marked done."
+  }
+}

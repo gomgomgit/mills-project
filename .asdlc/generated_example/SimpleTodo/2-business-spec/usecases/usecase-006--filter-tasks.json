@@ -1,0 +1,76 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-06-30"
+  },
+  "id": "usecase-006--filter-tasks",
+  "name": "Filter Tasks by Status",
+  "description": "The user narrows the visible task list by selecting a status from the filter control. Only tasks matching the selected status are shown. Selecting 'All' clears the filter and restores the full list.",
+  "actors": [
+    "actor-user"
+  ],
+  "preconditions": [
+    "The Task List screen is visible"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-user",
+      "description": "Selects a status from the filter control"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Shows only tasks matching the selected status"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "No tasks match",
+      "trigger": "At step 2, no tasks match the selected status",
+      "steps": [
+        "System displays a 'no results' message (not an error)",
+        "Filter control remains active"
+      ]
+    },
+    {
+      "name": "Filter cleared",
+      "trigger": "At step 1, the user selects 'All'",
+      "steps": [
+        "System shows all tasks again"
+      ]
+    }
+  ],
+  "postconditions": [
+    "The task list shows only tasks matching the selected filter, or all tasks if no filter is active"
+  ],
+  "business_rules": [
+    "Filter options are Todo, In Progress, Done, plus an 'All' option to clear the filter",
+    "Filtering is applied immediately — no submit action required",
+    "When no tasks match the filter, a 'no results' message is shown (not an error state)"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Filter Tasks by Status — success",
+      "given": "The user is on the Task List screen and tasks with different statuses exist",
+      "when": "The user selects a status from the filter control",
+      "then": "Only tasks matching the selected status are displayed"
+    },
+    {
+      "scenario": "Filter Tasks by Status — no results",
+      "given": "The user is on the Task List screen with a filter active",
+      "when": "No tasks match the selected status",
+      "then": "A 'no results' message is shown and no task cards are displayed"
+    },
+    {
+      "scenario": "Filter Tasks by Status — filter cleared",
+      "given": "The user has a status filter active",
+      "when": "The user selects 'All' to clear the filter",
+      "then": "All tasks are shown again"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-001--task-list"
+  ]
+}

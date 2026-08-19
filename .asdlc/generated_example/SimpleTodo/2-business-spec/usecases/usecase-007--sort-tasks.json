@@ -1,0 +1,67 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-01"
+  },
+  "id": "usecase-007--sort-tasks",
+  "name": "Sort Tasks by Due Date",
+  "description": "The user reorders the task list by due date, toggling between ascending and descending order. Tasks without a due date always appear at the end of the sorted list.",
+  "actors": [
+    "actor-user"
+  ],
+  "preconditions": [
+    "The Task List screen is visible"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-user",
+      "description": "Clicks the sort-by-due-date control"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Reorders the task list by due date in the selected direction"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Toggle direction",
+      "trigger": "At step 1, the user clicks the sort control again",
+      "steps": [
+        "System reverses the sort order (ascending ↔ descending)"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Tasks are displayed in the chosen due-date order, with undated tasks at the end"
+  ],
+  "business_rules": [
+    "Tasks without a due date always appear after those that have one, regardless of sort direction",
+    "Sort is applied to the currently filtered list if a filter is active"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Sort Tasks by Due Date — ascending",
+      "given": "The user is on the Task List screen with tasks that have due dates",
+      "when": "The user activates the sort-by-due-date control",
+      "then": "Tasks are reordered with the earliest due dates first; tasks without a due date appear at the end"
+    },
+    {
+      "scenario": "Sort Tasks by Due Date — descending",
+      "given": "The user has ascending sort active",
+      "when": "The user clicks the sort control again",
+      "then": "Tasks are reordered with the latest due dates first; tasks without a due date appear at the end"
+    },
+    {
+      "scenario": "Sort Tasks by Due Date — sort applied to filtered list",
+      "given": "The Task List screen is visible with a filter currently active",
+      "when": "The user sorts tasks by due date while the filtered view is applied",
+      "then": "The sort order is applied only to the currently filtered subset of tasks, not the full unfiltered list"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-001--task-list"
+  ]
+}

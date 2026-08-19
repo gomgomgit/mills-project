@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-02"
+  },
+  "ver": 1,
+  "modules_implemented": [
+    "db-client",
+    "error-handler"
+  ],
+  "fe_modules_implemented": [
+    "api-client",
+    "router",
+    "fe-error-handler"
+  ],
+  "test_infrastructure": {
+    "framework": "jest",
+    "config_file_path": "backend/jest.config.js"
+  },
+  "env_vars_required": [
+    {
+      "name": "DATABASE_URL",
+      "description": "SQLite connection string for Prisma. Format: file:<path-relative-to-schema.prisma>, e.g. file:./dev.db"
+    },
+    {
+      "name": "PORT",
+      "description": "Port the backend Express server listens on. Default: 3001"
+    },
+    {
+      "name": "APP_ENV",
+      "description": "Controls dev-only behavior such as verbose Prisma logging. Set to 'development' locally"
+    },
+    {
+      "name": "VITE_API_BASE_URL",
+      "description": "Base URL of the backend API used by the frontend api-client, e.g. http://localhost:3001"
+    }
+  ],
+  "files_generated": [
+    "backend/src/lib/db.js",
+    "backend/src/middleware/error-handler.js",
+    "backend/jest.config.js",
+    "backend/.env.example"
+  ],
+  "fe_files_generated": [
+    "frontend/src/lib/api-client.js",
+    "frontend/src/router/index.js",
+    "frontend/src/lib/error-handler.js",
+    "frontend/.env.example"
+  ],
+  "setup_notes": [
+    "Copy backend/.env.example to backend/.env and frontend/.env.example to frontend/.env before running (Vite only reads .env from its own package root, hence two separate files)",
+    "Run 'npm run db-setup' in backend/ (prisma migrate dev --name init && prisma generate) before using db.js, to create the SQLite DB and generate the Prisma client",
+    "auth-middleware and pagination-helper were intentionally skipped per shared_decisions (no auth mechanism, no pagination strategy)",
+    "frontend/src/router/index.js lazily imports ../views/TaskListView.vue, which does not exist yet — will be created by screen implementation",
+    "errorHandler is wired into backend/src/index.js, registered after the ASDLC_ROUTES markers (Express requires error middleware registered last, after all routes)"
+  ]
+}

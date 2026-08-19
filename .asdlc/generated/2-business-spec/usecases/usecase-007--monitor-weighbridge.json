@@ -1,0 +1,144 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 3,
+  "id": "usecase-007--monitor-weighbridge",
+  "name": "Monitor Weighbridge",
+  "description": "User meninjau counter data hari ini dan list draft/pause miliknya, dan memilih untuk membuat data baru, melanjutkan salah satu draft, atau menelusuri data tersimpan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login dan memilih Weighbridge dari Station List"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Tap Weighbridge di Station List"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan counter hari ini (Jumlah WB, Net Weight, Quantity) dalam 3 card sebaris, list draft/pause milik user, breadcrumb navigasi, dan header dengan hamburger"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Tap 'New Data'"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Membuat draft baru dan mengarahkan ke Form Weighbridge"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Lanjutkan Draft/Pause",
+      "trigger": "Step 3, actor tap salah satu item draft di list",
+      "steps": [
+        "System mengarahkan ke Form Weighbridge dengan data draft yang dipilih"
+      ]
+    },
+    {
+      "name": "Load Data",
+      "trigger": "Step 3, actor tap 'Load Data'",
+      "steps": [
+        "System mengarahkan ke Data Preview Weighbridge (list semua record, tersimpan maupun draft, dengan filter tanggal dan pencarian)"
+      ]
+    },
+    {
+      "name": "Tap Breadcrumb",
+      "trigger": "Kapan saja di layar ini, actor tap salah satu segmen breadcrumb",
+      "steps": [
+        "System menavigasi ke halaman terkait"
+      ]
+    },
+    {
+      "name": "Buka Menu Hamburger",
+      "trigger": "Kapan saja di layar ini, actor tap ikon hamburger",
+      "steps": [
+        "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+      ]
+    },
+    {
+      "name": "Belum Ada Draft",
+      "trigger": "Step 2, tidak ada draft/pause sama sekali",
+      "steps": [
+        "System menampilkan list kosong/empty state, tombol New Data tetap aktif"
+      ]
+    },
+    {
+      "name": "Belum Ada Data Hari Ini",
+      "trigger": "Step 2, tidak ada record (status apapun) dengan tanggal Arrival = hari ini",
+      "steps": [
+        "Ketiga card counter menampilkan angka 0"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User berada di Form Weighbridge (draft baru atau draft yang dipilih dari list), ATAU di Data Preview Weighbridge (jika memilih Load Data)"
+  ],
+  "business_rules": [
+    "User bisa punya beberapa draft/pause berjalan bersamaan, semua tampil di list",
+    "Ongoing dan paused digabung sebagai satu istilah 'Pause' secara tampilan",
+    "Counter hari ini dihitung dari seluruh record (status apapun) dengan tanggal Arrival = hari ini"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Monitor Weighbridge — success",
+      "given": "User sudah login dan telah memilih Weighbridge dari Station List",
+      "when": "User melihat counter hari ini dan list draft/pause, lalu menekan tombol \"New Data\"",
+      "then": "Sistem membuat draft baru dan mengarahkan user ke Form Weighbridge"
+    },
+    {
+      "scenario": "Monitor Weighbridge — Lanjutkan Draft/Pause",
+      "given": "User sudah login dan telah memilih Weighbridge dari Station List, dan terdapat draft/pause di list",
+      "when": "User tap salah satu item draft/pause di list",
+      "then": "Sistem mengarahkan user ke Form Weighbridge dengan data draft yang dipilih"
+    },
+    {
+      "scenario": "Monitor Weighbridge — Load Data",
+      "given": "User sudah login dan memilih Weighbridge dari Station List",
+      "when": "User menekan \"Load Data\" pada layar Monitor Weighbridge",
+      "then": "Sistem mengarahkan user ke Data Preview Weighbridge, menampilkan list semua record baik tersimpan maupun draft, lengkap dengan filter tanggal dan pencarian"
+    },
+    {
+      "scenario": "Monitor Weighbridge — Tap Breadcrumb",
+      "given": "User sudah login dan memilih Weighbridge dari Station List",
+      "when": "User menekan salah satu segmen breadcrumb kapan saja saat berada di layar Monitor Weighbridge",
+      "then": "Sistem menavigasi user ke halaman yang terkait dengan segmen breadcrumb tersebut"
+    },
+    {
+      "scenario": "Monitor Weighbridge — Buka Menu Hamburger",
+      "given": "User sudah login dan memilih Weighbridge dari Station List",
+      "when": "User menekan ikon hamburger kapan saja saat berada di layar Monitor Weighbridge",
+      "then": "Sistem menampilkan menu navigasi berisi opsi seperti Ganti Password dan Logout"
+    },
+    {
+      "scenario": "Monitor Weighbridge — Belum Ada Draft",
+      "given": "User sudah login dan memilih Weighbridge dari Station List",
+      "when": "User membuka layar Monitor Weighbridge dan tidak memiliki draft/pause sama sekali",
+      "then": "Sistem menampilkan list draft dalam keadaan kosong (empty state), sementara tombol New Data tetap aktif dan dapat digunakan"
+    },
+    {
+      "scenario": "Monitor Weighbridge — Counter Hari Ini Menampilkan Data",
+      "given": "User sudah login dan memiliki record Weighbridge (status apapun) dengan tanggal Arrival = hari ini",
+      "when": "User membuka layar Monitor Weighbridge",
+      "then": "Ketiga card counter (Jumlah WB, Net Weight, Quantity) menampilkan total yang benar dari record hari ini"
+    },
+    {
+      "scenario": "Monitor Weighbridge — Belum Ada Data Hari Ini",
+      "given": "User sudah login dan tidak memiliki record Weighbridge dengan tanggal Arrival = hari ini",
+      "when": "User membuka layar Monitor Weighbridge",
+      "then": "Ketiga card counter menampilkan angka 0"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-007--monitor-weighbridge"
+  ]
+}

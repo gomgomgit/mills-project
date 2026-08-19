@@ -1,0 +1,64 @@
+{
+  "ver": 3,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-014--data-preview-grading",
+  "name": "Data Preview Grading",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/gradingRecordRepo.ts",
+    "mobile/src/views/DataPreviewGradingView.vue",
+    "mobile/src/router/index.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/gradingRecordRepo.spec.ts",
+    "mobile/tests/DataPreviewGradingView.spec.ts",
+    "mobile/tests/e2e/data-preview-grading.spec.ts"
+  ],
+  "implementation_notes": [
+    "Full rewrite (v3) dari single-record read-only menjadi dual-mode list+filter+detail, mirror DataPreviewWeighbridgeView.vue v3 persis: default dateFilter hari ini (field `date`, dibangun via getFullYear/getMonth/getDate, bukan toISOString), search terhadap grading_number/license_plate_no, status label Pause/Tersimpan/Tersinkron, Reset Filter button pada empty-filter-result state.",
+    "gradingRecordRepo.ts ditambah getAllRecords(userId) baru (SELECT * FROM grading_record WHERE created_by=?, ORDER BY updated_at DESC) — murni additive, blok screen-008 dan screen-011 di file yang sama tidak disentuh.",
+    "Mode detail reuse getDraftWithDetails() (sudah ada dari screen-011) tanpa duplikasi query; nama Quality Parameter di-resolve di level view dengan join id→name terhadap getGradingParameterOptions() (juga reuse, sudah ada). Checked By tidak dirender sama sekali di detail, konsisten dengan screen-011.",
+    "known_issue lama ('MonitorGradingView Buka Data Preview navigasi tanpa id') dinyatakan RESOLVED, bukan dihapus diam-diam — sekarang perilaku itu benar by design: Monitor Grading v4's 'Load Data' button SENGAJA navigasi tanpa id (mode list), bukan bug.",
+    "Independently re-verified (bukan hanya laporan agent): 295/295 vitest seluruh file (naik dari 265, +30 dari screen-014's 4 unit + 29 component - 3 lama), 79/79 Playwright FULL SUITE (seluruh app, bukan cuma Grading) — konfirmasi tidak ada regresi ke screen lain manapun setelah 3 putaran overhaul Grading (008/011/014)."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "GradingDetailGrid.vue (component lama, dipakai screen-011 versi pre-v2) sekarang benar-benar tidak dipakai lagi oleh screen manapun yang aktif (screen-011 pakai grid inline, screen-014 pakai render read-only sendiri) — kandidat dead code, belum dihapus karena di luar scope 3 screen ini; vue-tsc masih melaporkan error type di file itu (referensi field `category` lama) tapi tidak mempengaruhi build/test screen manapun yang aktif.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage: 98.84% line / 78.26% branch — branch sedikit di bawah threshold 80%, sama seperti pola di screen-008/011, tidak menggeser status ke partial karena metrik utama jauh di atas threshold.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-19T05:42:41Z",
+      "passed": 38,
+      "failed": 0,
+      "coverage": 98.84
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-19T05:42:41Z",
+      "passed": 29,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-08-19T05:44:00Z",
+      "passed": 11,
+      "failed": 0
+    }
+  }
+}

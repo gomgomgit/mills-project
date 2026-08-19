@@ -1,0 +1,127 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-17"
+  },
+  "modules_implemented": [
+    "db-client",
+    "auth-middleware",
+    "error-handler",
+    "pagination-helper"
+  ],
+  "fe_modules_implemented": [
+    "api-client",
+    "auth-store",
+    "router",
+    "fe-error-handler"
+  ],
+  "test_infrastructure": {
+    "framework": "Pest (PHPUnit-based)",
+    "config_file_path": "backend/phpunit.xml"
+  },
+  "env_vars_required": [
+    {
+      "name": "APP_NAME",
+      "description": "App display name"
+    },
+    {
+      "name": "APP_ENV",
+      "description": "local / development / production"
+    },
+    {
+      "name": "APP_KEY",
+      "description": "Laravel app encryption key, generate via `php artisan key:generate`"
+    },
+    {
+      "name": "APP_DEBUG",
+      "description": "Verbose error output toggle"
+    },
+    {
+      "name": "APP_URL",
+      "description": "Base URL, dipakai untuk public disk links dan Sanctum stateful-domain default"
+    },
+    {
+      "name": "DB_CONNECTION",
+      "description": "mysql"
+    },
+    {
+      "name": "DB_HOST",
+      "description": "MySQL host"
+    },
+    {
+      "name": "DB_PORT",
+      "description": "MySQL port"
+    },
+    {
+      "name": "DB_DATABASE",
+      "description": "MySQL database name"
+    },
+    {
+      "name": "DB_USERNAME",
+      "description": "MySQL username"
+    },
+    {
+      "name": "DB_PASSWORD",
+      "description": "MySQL password"
+    },
+    {
+      "name": "SANCTUM_STATEFUL_DOMAINS",
+      "description": "Domain yang diizinkan stateful (cookie) auth untuk web Livewire, dipisah koma"
+    },
+    {
+      "name": "SESSION_DRIVER",
+      "description": "Default: file"
+    },
+    {
+      "name": "SESSION_LIFETIME",
+      "description": "Menit, default 120"
+    },
+    {
+      "name": "FILESYSTEM_DISK",
+      "description": "Default: local (on-premise file storage)"
+    },
+    {
+      "name": "VITE_API_BASE_URL",
+      "description": "(mobile) Base URL backend API yang dikonsumsi apiClient.ts"
+    }
+  ],
+  "files_generated": [
+    "backend/.env.example",
+    "backend/config/database.php",
+    "backend/config/auth.php",
+    "backend/config/sanctum.php",
+    "backend/config/session.php",
+    "backend/config/filesystems.php",
+    "backend/app/Http/Middleware/EnsureRole.php",
+    "backend/app/Exceptions/ApiExceptionHandler.php",
+    "backend/app/Exceptions/ErrorCodes.php",
+    "backend/app/Support/Pagination.php",
+    "backend/tests/TestCase.php",
+    "backend/tests/Pest.php",
+    "backend/phpunit.xml",
+    "backend/bootstrap/app.php"
+  ],
+  "fe_files_generated": [
+    "mobile/.env.example",
+    "mobile/src/services/apiClient.ts",
+    "mobile/src/services/tokenStorage.ts",
+    "mobile/src/stores/auth.ts",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/LoginView.vue",
+    "mobile/src/views/HomeView.vue",
+    "mobile/src/services/errorHandler.ts",
+    "mobile/src/vite-env.d.ts",
+    "mobile/vite.config.ts"
+  ],
+  "setup_notes": [
+    "Tidak ada migration password_reset_tokens/sessions table ditambahkan — tambahkan nanti jika fitur Lupa Password masuk scope",
+    "config/database.php, auth.php, sanctum.php, session.php, filesystems.php semua dibuat baru — diperlukan agar Laravel bisa boot, dibundel di bawah auth-middleware/db-client meski tidak diminta terpisah",
+    "mobile/src/services/tokenStorage.ts pakai localStorage sebagai placeholder — ganti dengan @capacitor/preferences (belum ada di package.json) sebelum build native shipping",
+    "mobile/src/router/index.ts pakai createWebHistory; pertimbangkan createWebHashHistory jika ada masalah deep-link di build native Capacitor",
+    "Tidak ada config/cors.php eksplisit, mengandalkan default Laravel HandleCors middleware",
+    "fe-error-handler showError() hanya console.log + return string, belum terhubung ke UI toast/snackbar — wiring visual ditunda ke impl-2-screen",
+    "Copy backend/.env.example → backend/.env dan mobile/.env.example → mobile/.env, isi nilai asli, lalu jalankan php artisan key:generate dan php artisan migrate sebelum menjalankan backend",
+    "composer install / npm install belum dijalankan — dependency sudah dideklarasikan di composer.json dan package.json, hanya @capacitor/preferences yang perlu ditambahkan nanti"
+  ]
+}

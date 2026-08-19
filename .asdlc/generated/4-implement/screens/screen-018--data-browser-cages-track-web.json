@@ -1,0 +1,88 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "id": "screen-018--data-browser-cages-track-web",
+  "name": "Data Browser Cages Track (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/CagesTrackRecordController.php",
+    "backend/app/Services/CagesTrackRecordService.php",
+    "backend/database/factories/CagesTrackRecordFactory.php",
+    "backend/database/factories/CagesTippedTimeFactory.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/CagesTrackRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserCagesTrackTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserCagesTrack.php",
+    "backend/resources/views/livewire/data/data-browser-cages-track.blade.php",
+    "backend/resources/views/data/cages-track.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DataBrowserCagesTrackTest.php",
+    "backend/tests/Browser/DataBrowserCagesTrackTest.php"
+  ],
+  "implementation_notes": [
+    "Mengikuti pola screen-016/017 persis (trio Data Browser Web) — CagesTrackRecordController/Service delegasi penuh ke service layer yang sama dipakai Livewire component, reuse InvalidDateRangeException/ExportFailedException/Pagination::format() dari screen-016, tidak diduplikasi",
+    "CagesTrackRecord::cagesTippedTimes() hasMany relationship sudah ada di model; tipped_time_count dihitung via withCount('cagesTippedTimes') di list maupun export",
+    "Factory default status = RecordStatus::Synced (bukan Saved) — model saving guard mensyaratkan minimal 1 CagesTippedTime tersimpan sebelum status bisa Saved",
+    "CagesTippedTimeFactory baru dibuat (belum ada sebelumnya) oleh test-writer-agent untuk seed fixture tipped_time_count non-zero",
+    "Tidak ada tombol 'Tambah Data' (konsisten dengan precedent screen-016/017 — route create/detail target belum diimplementasikan); hanya stub navigasi row-click -> detail yang dijaga Route::has()",
+    "Export CSV menyertakan kolom tipped_time_count terhitung, melebihi apa yang didokumentasikan literal di tech-spec response.success_schema export, karena itu adalah field utama layar ini (mirror endpoint list)",
+    "2 skenario browser test (Klik Baris Membuka Detail, Ekspor Gagal) di-test.skip() — bergantung pada screen-021 (belum dibangun) dan environment seed dataset besar; keduanya sudah dicover di layer HTTP/component",
+    "Regresi backend penuh: 116/116 test lulus (naik dari baseline 96/96, +20 test baru, 0 regresi di screen-016/017/001-004/BusinessUnit) — diverifikasi ulang langsung oleh command (bukan hanya laporan agent), retry_count: 0"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Deprecation warning framework pre-existing (\"Using null as array offset\" di BelongsTo) muncul saat export ketika acknowledged_by/checked_by null — identik dengan GradingRecordService::export(), bukan regresi",
+      "severity": "minor"
+    },
+    {
+      "description": "Laravel Pint menandai new_with_parentheses di CagesTrackRecordService.php — utang gaya kode pre-existing di seluruh repo, juga ada di GradingRecordService/WeighbridgeRecordService",
+      "severity": "minor"
+    },
+    {
+      "description": "Browser test file dibuat tapi tidak dapat dijalankan di sandbox ini (tidak ada infra Playwright/dev-server untuk browser test Livewire backend) — gap yang sama seperti screen-016/017",
+      "severity": "minor"
+    },
+    {
+      "description": "Skenario empty-state component test tidak menguji opsi 'reset filter' (tidak dirender Blade view saat ini) — mirror gap yang sudah didokumentasikan di screen-017",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV di sandbox ini, sama seperti screen-016/017, tidak menghalangi status complete sesuai precedent",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-18T14:20:00Z",
+      "passed": 8,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-18T14:20:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-18T14:20:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

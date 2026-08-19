@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only — no colour values, no radius/shadow, use CSS variables only */
+    body {
+      background: var(--color-surface);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: var(--space-xl) var(--space-md);
+    }
+    .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); }
+    .preview-label {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+
+    .mobile-shell { width: 390px; min-height: 780px; box-shadow: var(--shadow-dropdown); }
+
+    .brand-block { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: var(--space-touch-target-min); height: var(--space-touch-target-min);
+      flex-shrink: 0; color: var(--color-text-primary); cursor: pointer;
+    }
+    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Hero banner */
+    .hero-banner {
+      position: relative;
+      height: 168px;
+      border-radius: var(--radius-card);
+      background: linear-gradient(180deg, var(--color-header-tint) 0%, var(--color-surface) 100%);
+      overflow: hidden;
+      margin-bottom: var(--space-lg);
+    }
+    .hero-banner svg { width: 100%; height: 100%; display: block; }
+    .hero-caption {
+      position: absolute;
+      left: var(--space-md);
+      bottom: var(--space-sm);
+      font-size: var(--font-size-xs);
+      color: var(--color-brand);
+      background: color-mix(in srgb, var(--color-background) 78%, transparent);
+      padding: 2px var(--space-sm);
+      border-radius: var(--radius-chip);
+      font-weight: 600;
+    }
+
+    /* Welcome block */
+    .welcome-block { margin-bottom: var(--space-lg); }
+    .welcome-greeting { font-size: var(--font-size-xl); font-weight: var(--font-weight-xl); color: var(--color-text-primary); margin-bottom: 2px; }
+    .welcome-sub { font-size: var(--font-size-sm); color: var(--color-text-muted); }
+
+    /* Menu cards */
+    .menu-list { display: flex; flex-direction: column; gap: var(--space-md); }
+    .menu-card {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      padding: var(--space-md) var(--space-lg);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      cursor: pointer;
+      border: 1px solid var(--color-border);
+      text-align: left;
+      width: 100%;
+      min-height: calc(var(--space-touch-target-min) + var(--space-md));
+      background: var(--color-background);
+    }
+    .menu-card.functional { background: var(--color-brand); border-color: var(--color-brand); color: #fff; }
+    .menu-card.functional .menu-card-icon { background: color-mix(in srgb, #fff 20%, transparent); color: #fff; }
+    .menu-card.functional .menu-card-title { color: #fff; }
+    .menu-card.functional .menu-card-desc { color: color-mix(in srgb, #fff 85%, transparent); }
+    .menu-card.placeholder { color: var(--color-text-muted); }
+    .menu-card.placeholder .menu-card-icon { background: var(--color-surface); color: var(--color-text-muted); }
+
+    .menu-card-icon {
+      flex-shrink: 0;
+      width: 44px; height: 44px;
+      border-radius: var(--radius-button);
+      background: color-mix(in srgb, var(--color-brand) 12%, transparent);
+      color: var(--color-brand);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .menu-card-icon svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .menu-card-body { flex: 1; min-width: 0; }
+    .menu-card-title { font-size: var(--font-size-base); font-weight: 600; color: var(--color-text-primary); }
+    .menu-card-desc { font-size: var(--font-size-xs); color: var(--color-text-muted); margin-top: 2px; }
+    .menu-card-chevron { flex-shrink: 0; width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; opacity: 0.8; }
+
+    .actors-note {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      font-style: italic;
+      margin-top: var(--space-lg);
+      max-width: 420px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-wrap">
+    <div class="preview-label">Home &mdash; default state &middot; Mobile (Station Operator/Supervisor)</div>
+
+    <div class="mobile-shell">
+      <!-- Header: hamburger + brand name -->
+      <div class="mobile-header">
+        <span class="icon-btn" title="Menu" aria-label="Buka menu">
+          <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        </span>
+        <div class="brand-block">
+          <span class="brand">Mill Smart Log</span>
+        </div>
+      </div>
+
+      <div class="mobile-content">
+
+        <!-- Hero image bertema mill/plantation -->
+        <div class="hero-banner">
+          <svg viewBox="0 0 390 168" preserveAspectRatio="xMidYMax slice" role="img" aria-label="Ilustrasi kawasan mill kelapa sawit dengan menara silo dan pohon sawit">
+            <circle cx="330" cy="34" r="20" fill="var(--color-warning)" opacity="0.55"/>
+            <rect x="0" y="98" width="390" height="70" fill="var(--color-brand)" opacity="0.12"/>
+            <rect x="40" y="70" width="26" height="70" rx="2" fill="var(--color-brand)" opacity="0.55"/>
+            <rect x="72" y="86" width="26" height="54" rx="2" fill="var(--color-brand)" opacity="0.7"/>
+            <rect x="104" y="60" width="18" height="80" rx="9" fill="var(--color-brand)"/>
+            <circle cx="113" cy="52" r="10" fill="var(--color-brand)"/>
+            <rect x="230" y="76" width="90" height="64" rx="4" fill="var(--color-brand)" opacity="0.85"/>
+            <rect x="248" y="52" width="14" height="30" fill="var(--color-brand)" opacity="0.85"/>
+            <rect x="272" y="44" width="14" height="38" fill="var(--color-brand)" opacity="0.85"/>
+            <path d="M150 140 v-32 M150 108 l-14 -10 M150 108 l14 -10 M150 118 l-12 -8 M150 118 l12 -8" stroke="var(--color-brand)" stroke-width="4" stroke-linecap="round" fill="none"/>
+            <path d="M180 140 v-38 M180 102 l-14 -10 M180 102 l14 -10 M180 114 l-12 -8 M180 114 l12 -8" stroke="var(--color-brand)" stroke-width="4" stroke-linecap="round" fill="none"/>
+          </svg>
+          <span class="hero-caption">Kawasan Mill</span>
+        </div>
+
+        <!-- Welcome text -->
+        <div class="welcome-block">
+          <div class="welcome-greeting">Hello, Pak Ahmad</div>
+          <div class="welcome-sub">Apa tugas hari ini?</div>
+        </div>
+
+        <!-- 3 menu cards -->
+        <div class="menu-list">
+
+          <!-- Estimates & Baselines — placeholder, non-fungsional -->
+          <button type="button" class="menu-card placeholder" aria-disabled="true" aria-label="Estimates and Baselines, belum tersedia">
+            <span class="menu-card-icon">
+              <svg viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+            </span>
+            <span class="menu-card-body">
+              <span class="menu-card-title">Estimates &amp; Baselines</span>
+              <span class="menu-card-desc">Belum tersedia</span>
+            </span>
+          </button>
+
+          <!-- Production Process Activity — fungsional -->
+          <button type="button" class="menu-card functional" aria-label="Buka Production Process Activity">
+            <span class="menu-card-icon">
+              <svg viewBox="0 0 24 24"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/></svg>
+            </span>
+            <span class="menu-card-body">
+              <span class="menu-card-title">Production Process Activity</span>
+              <span class="menu-card-desc">Mulai atau lanjutkan input data stasiun</span>
+            </span>
+            <svg class="menu-card-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+
+          <!-- Dashboard & Reporting — placeholder, non-fungsional -->
+          <button type="button" class="menu-card placeholder" aria-disabled="true" aria-label="Dashboard and Reporting, belum tersedia">
+            <span class="menu-card-icon">
+              <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+            </span>
+            <span class="menu-card-body">
+              <span class="menu-card-title">Dashboard &amp; Reporting</span>
+              <span class="menu-card-desc">Belum tersedia</span>
+            </span>
+          </button>
+
+        </div>
+
+      </div>
+    </div>
+
+    <p class="actors-note">
+      Actors: Station Operator &middot; Supervisor &nbsp;&middot;&nbsp;
+      Entry points: Redirect otomatis setelah login mobile berhasil, Tap logo/ikon Home dari layar lain
+    </p>
+  </div>
+</body>
+</html>

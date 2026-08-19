@@ -1,0 +1,66 @@
+{
+  "ver": 4,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-011--form-grading",
+  "name": "Form Grading",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/gradingRecordRepo.ts",
+    "mobile/src/views/FormGradingView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/main.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/gradingRecordRepo.spec.ts",
+    "mobile/tests/FormGradingView.spec.ts",
+    "mobile/tests/e2e/form-grading.spec.ts"
+  ],
+  "implementation_notes": [
+    "Full rewrite (v3) mengikuti mock referensi persis + pola FormWeighbridgeView.vue v4: section Identitas Grading/Referensi Weighbridge & Kendaraan/Asal Muatan/Data Berat & Kuantitas/Grading Detail, WB Card No dropdown (SEMUA record weighbridge_record lokal apa pun status, terbaru dulu) dengan auto-fill sekali (bukan reaktif) ke license_plate_no/estate_supplier/division, Quality Parameter dropdown men-snapshot uom (bukan live-join), Percentage dihitung reaktif (qty/netto*100 jika kg, qty/quantity*100 jika bunch, recompute saat qty baris ATAU netto/quantity header berubah). Checked By dihapus total dari UI (kolom skema tetap ada).",
+    "gradingRecordRepo.ts screen-011 block ditulis ulang total (GradingRecord/GradingDetailRow/GradingParameterOption/WeighbridgeRecordOption/GradingHeaderFormData/GradingDetailFormRow/getDraftWithDetails/getWeighbridgeRecordOptions/getGradingParameterOptions/saveDraft/pauseDraftWithFormData) memakai kolom entity-catalog v2. Blok screen-008 TIDAK disentuh.",
+    "GradingDetailGrid.vue TIDAK dipakai lagi oleh screen ini (grid detail diimplementasi inline di FormGradingView.vue) — dead-code candidate lintas screen 011/014, dicatat sebagai known_issue, bukan dihapus sepihak.",
+    "BUG DITEMUKAN & DIPERBAIKI (v3, independen dari laporan agent): seedGradingParametersIfNeeded() sempat diekspor tapi TIDAK PERNAH dipanggil — diperbaiki dengan wiring ke mobile/src/main.ts.",
+    "v4 — fitur baru: setiap Quality Parameter hanya bisa dipakai di SATU baris Grading Detail. Ditambahkan availableParameterOptions(index) di FormGradingView.vue — computed reaktif atas SELURUH detailRows.value (bukan cuma baris sendiri) yang mengecualikan grading_parameter_id yang sudah dipakai baris LAIN dari opsi dropdown baris tersebut; baris itu sendiri tetap menampilkan parameter yang sedang dipilihnya. Reaktif otomatis terhadap tambah/hapus/ganti baris manapun — tidak perlu event handler tambahan karena computed membaca seluruh array. Murni pembatasan pilihan UI, tidak ada perubahan skema/validasi saat Simpan.",
+    "Independently re-verified (bukan hanya laporan agent, implementasi v4 dikerjakan langsung oleh command bukan sub-agent): 301/301 vitest (28 file FormGradingView.spec.ts, +3 test baru), 80/80 Playwright FULL SUITE seluruh app (10 form-grading termasuk 1 test e2e baru untuk exclusion + freed-on-remove). 1 kegagalan e2e sempat terjadi saat penulisan test (nama parameter fixture test bertabrakan dengan nama parameter asli hasil seedGradingParametersIfNeeded() — 'Brondolan Segar'/'Masak' adalah nama asli dari 16 parameter kanonis), diperbaiki dengan assert terhadap option value (id) bukan visible text."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "GradingDetailGrid.vue (component lama berbasis field category, dipakai screen-011 versi pre-v2) sudah tidak dipakai oleh screen manapun yang aktif (screen-011 pakai grid inline sejak v3, screen-014 pakai render read-only sendiri sejak diimplementasikan) — kandidat dead code, belum dihapus karena di luar scope revisi ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "Branch coverage sedikit di bawah threshold 80% pada gradingRecordRepo.ts/FormGradingView.vue — statement/line/function coverage 91-100%, tidak menggeser status ke partial.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-19T07:11:42Z",
+      "passed": 34,
+      "failed": 0,
+      "coverage": 98.79
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-19T07:11:42Z",
+      "passed": 28,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-08-19T07:13:00Z",
+      "passed": 10,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-14"
+  },
+  "overview": "Mill Smart Log adalah sistem manajemen operasional pabrik CPO (mill) yang mendigitalisasi log sheet stasiun produksi — Operator menginput data melalui aplikasi mobile offline-first, sementara Supervisor, Mill Management, dan Admin mengelola, memonitor, dan turut menginput data stasiun melalui web (dan mobile untuk Supervisor), menggantikan pencatatan manual berbasis kertas.",
+  "problem_statement": "Pencatatan log stasiun pabrik CPO secara manual (kertas) menyebabkan keterlambatan pelaporan, risiko kesalahan input, kesulitan konsolidasi data lintas stasiun, dan tidak adanya jalur input cadangan saat operator lapangan tidak dapat mengakses perangkat mobile.",
+  "goals": [
+    {
+      "item": "Mendigitalisasi log sheet tiga stasiun MVP (Weighbridge, Grading, Cages & Track) dari kertas ke aplikasi mobile offline-first",
+      "reason": "Mengurangi kesalahan input manual dan keterlambatan pelaporan"
+    },
+    {
+      "item": "Menyediakan web app bagi Admin, Supervisor, dan Mill Management untuk memonitor, mereview, mengekspor data, dan mengelola master data operasional",
+      "reason": "Memberi visibilitas dan kontrol terpusat atas data stasiun"
+    },
+    {
+      "item": "Mengizinkan Admin, Supervisor, dan Mill Management menginput/mengedit data form stasiun langsung dari web app",
+      "reason": "Menyediakan jalur input cadangan saat mobile tidak tersedia atau untuk koreksi data"
+    },
+    {
+      "item": "Menyiapkan struktur data (status sinkronisasi, ID stabil) agar records siap dikirim ke API/sync di fase mendatang",
+      "reason": "Memungkinkan integrasi sinkronisasi dan ERP tanpa migrasi skema besar nantinya"
+    },
+    {
+      "item": "Menyediakan basis data skalabel untuk 15 stasiun desain masa depan tanpa mengimplementasikan layar operasionalnya di MVP",
+      "reason": "Mempersiapkan ekspansi tanpa menambah kompleksitas MVP"
+    },
+    {
+      "item": "Menyediakan mekanisme sync manual dari mobile ke API Laravel (dipicu aksi eksplisit Operator/Supervisor)",
+      "reason": "Agar data tersimpan lokal masuk ke sistem pusat dan terlihat di web app, tanpa auto-sync background"
+    },
+    {
+      "item": "Membatasi pengisian field verifikasi pada form stasiun per-role: Checked By hanya oleh Supervisor, Acknowledged By hanya oleh Mill Management",
+      "reason": "Menjaga akuntabilitas verifikasi tanpa mengubah alur menjadi approval formal (record tetap langsung tersimpan)"
+    },
+    {
+      "item": "Menyediakan aksi Pause pada flow Monitor untuk tiga stasiun MVP (Weighbridge, Grading, Cages Track)",
+      "reason": "Memungkinkan Operator/Supervisor menghentikan sementara progress monitoring yang sedang berjalan"
+    },
+    {
+      "item": "Mendukung multiple draft/record berjalan bersamaan per stasiun",
+      "reason": "Operator bisa men-pause satu input, memulai input baru, lalu kembali melanjutkan input yang di-pause di waktu lain"
+    },
+    {
+      "item": "Menyediakan indikator visual/flag yang membedakan status data: tidak ada input / sedang berlangsung / paused (belum selesai)",
+      "reason": "Agar Operator/Supervisor mudah mengenali data yang masih perlu dilanjutkan, baik di level Home maupun daftar record per stasiun"
+    }
+  ],
+  "non_goals": [
+    {
+      "item": "Kontrol otomatis penuh terhadap operasi stasiun (PLC, valve, conveyor)",
+      "reason": "Di luar scope digitalisasi log sheet"
+    },
+    {
+      "item": "Implementasi logika/fungsi AI",
+      "reason": "Hanya placeholder UI di MVP, logika ditunda ke fase berikutnya"
+    },
+    {
+      "item": "Integrasi WhatsApp/SMS Gateway Alert",
+      "reason": "Ditunda sepenuhnya ke fase berikutnya"
+    },
+    {
+      "item": "Sinkronisasi otomatis dan berjenjang (mobile → local server → central server) serta sync background otomatis",
+      "reason": "Ditunda ke fase berikutnya; sync manual langsung mobile → API tunggal (Laravel) tetap masuk scope MVP"
+    },
+    {
+      "item": "Dukungan multi-mill/multi-business-unit",
+      "reason": "MVP dibatasi satu mill/business unit"
+    },
+    {
+      "item": "Formal approve/reject workflow (status pending-approval) dan audit log module",
+      "reason": "Pengisian Checked By/Acknowledged By bukan approval status, hanya pembatasan field per-role"
+    },
+    {
+      "item": "Full PDF template/report engine",
+      "reason": "Pelaporan MVP cukup dashboard, data browser, ekspor CSV/Excel dasar"
+    },
+    {
+      "item": "Implementasi 15 stasiun desain masa depan sebagai layar mobile/web",
+      "reason": "Tetap di level skema data saja untuk MVP"
+    }
+  ],
+  "initial_actors": [
+    "Station Operator (mobile — input data stasiun yang ditugaskan, kerja offline, memicu sync manual)",
+    "Supervisor (mobile & web — input/edit data stasiun sama seperti Operator, mengisi field Checked By, review, dashboard, ekspor)",
+    "Mill Management (web — review, dashboard, ekspor, input data stasiun, mengisi field Acknowledged By, akses laporan level manajemen)",
+    "Admin (web — kelola user/role, master data, setup stasiun & mesin, input/edit data form stasiun)"
+  ],
+  "assumptions": [
+    {
+      "assumption": "Pengguna web (Admin/Supervisor/Mill Management) memiliki koneksi internet stabil saat mengakses web app, tidak perlu offline-first di web",
+      "status": "tbd"
+    },
+    {
+      "assumption": "Data operasional (vehicle, driver, estate/supplier, divisi, blok) tetap input teks bebas tanpa master data terpisah di MVP",
+      "status": "confirmed"
+    },
+    {
+      "assumption": "Master data (Station, Machinery, dst) dikelola sepenuhnya oleh Admin via web, mobile hanya read-only",
+      "status": "confirmed"
+    }
+  ],
+  "constraints": [
+    {
+      "type": "technical",
+      "description": "Backend + Web App (Admin/Supervisor/Mill Management) sebagai satu aplikasi Laravel (PHP) dengan Livewire untuk UI, sekaligus REST API"
+    },
+    {
+      "type": "technical",
+      "description": "Mobile app (Operator, Supervisor) — Vue 3 + Capacitor, konsumsi REST API Laravel, autentikasi via Laravel Sanctum"
+    },
+    {
+      "type": "technical",
+      "description": "Offline-first di mobile dengan SQLite lokal untuk Weighbridge, Grading, Cages Track"
+    },
+    {
+      "type": "technical",
+      "description": "Database MySQL, mengikuti struktur ERD yang sudah didesain"
+    },
+    {
+      "type": "technical",
+      "description": "File/gambar (machinery picture, logo) disimpan sebagai object storage/Laravel filesystem disk, bukan binary di database"
+    },
+    {
+      "type": "business",
+      "description": "Scope MVP dibatasi satu mill/business unit — dukungan multi-mill ditunda ke fase berikutnya"
+    },
+    {
+      "type": "technical",
+      "description": "Fitur AI hanya placeholder UI/tombol tanpa logika — implementasi ditunda"
+    },
+    {
+      "type": "technical",
+      "description": "Fitur alert WhatsApp/SMS sepenuhnya ditunda ke fase berikutnya"
+    },
+    {
+      "type": "technical",
+      "description": "Sinkronisasi otomatis/berjenjang ke local/central server ditunda — Laravel backend menjadi satu-satunya sumber API untuk MVP"
+    },
+    {
+      "type": "technical",
+      "description": "Sync data dari mobile ke API Laravel harus dipicu manual oleh user (tombol/aksi eksplisit) — tidak ada auto-sync background"
+    },
+    {
+      "type": "business",
+      "description": "Field Checked By dan Acknowledged By pada form stasiun dibatasi per-role (Supervisor / Mill Management) di level aplikasi, bukan sekadar teks bebas"
+    }
+  ],
+  "success_metrics": [
+    "Operator/Supervisor bisa login dan menyimpan data Weighbridge/Grading/Cages Track secara offline tanpa kehilangan data saat app ditutup/koneksi putus/device restart",
+    "Data tersimpan lokal tampil di web dashboard & data preview setelah sync manual berhasil",
+    "Station list & saved records termuat ≤ 2 detik untuk dataset normal",
+    "Supervisor/Mill Management bisa memfilter (tanggal, business unit/mill, stasiun) dan mengekspor data ke CSV/Excel",
+    "Tampilan mobile sesuai arahan visual Figma untuk layar MVP yang diimplementasikan",
+    "Field Checked By/Acknowledged By tidak bisa diisi oleh role yang tidak berwenang (tervalidasi di level aplikasi)",
+    "Operator dapat mem-pause satu input, memulai input baru, dan kembali melanjutkan input yang di-pause tanpa kehilangan data — status setiap draft (ongoing/paused) terlihat jelas di UI"
+  ]
+}

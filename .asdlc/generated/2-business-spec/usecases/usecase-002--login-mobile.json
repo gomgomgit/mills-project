@@ -1,0 +1,140 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-14"
+  },
+  "id": "usecase-002--login-mobile",
+  "name": "Login Mobile",
+  "description": "Operator/Supervisor memasukkan kredensial dan Business Area untuk masuk ke aplikasi mobile; login pertama memerlukan koneksi internet, sesi berikutnya dapat berjalan offline.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User memiliki akun terdaftar dan aktif",
+    "Device memiliki koneksi internet untuk login pertama kali"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Membuka aplikasi mobile"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Memasukkan username/NIK dan password"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Memilih Business Area/Company"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Menekan tombol Login"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi kredensial & business area (online) atau memverifikasi token lokal (jika offline dan sudah pernah login sebelumnya)"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Mengarahkan user ke Home"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tidak Ada Koneksi Saat Login Pertama",
+      "trigger": "Step 5, device belum pernah aktivasi dan tidak ada koneksi internet",
+      "steps": [
+        "Sistem menampilkan pesan bahwa koneksi internet diperlukan untuk login pertama kali",
+        "Login ditolak sampai ada koneksi"
+      ]
+    },
+    {
+      "name": "Kredensial Salah",
+      "trigger": "Validasi step 5 gagal",
+      "steps": [
+        "Sistem menampilkan pesan error",
+        "Field password dikosongkan",
+        "User dapat mencoba lagi"
+      ]
+    },
+    {
+      "name": "Akun Dinonaktifkan",
+      "trigger": "Validasi step 5 menemukan akun nonaktif",
+      "steps": [
+        "Sistem menampilkan pesan akun tidak aktif",
+        "Login ditolak"
+      ]
+    },
+    {
+      "name": "Token Sesi Lokal Kadaluarsa",
+      "trigger": "Step 5 saat offline, token lokal sudah kadaluarsa",
+      "steps": [
+        "Sistem meminta user re-login secara online"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User berhasil masuk ke Home",
+    "Sesi tersimpan lokal untuk mode offline berikutnya"
+  ],
+  "business_rules": [
+    "Password minimal 6 karakter, case-sensitive, alfanumerik+simbol",
+    "Login pertama kali memerlukan koneksi internet aktif",
+    "Business area harus sesuai penugasan"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Login Mobile — berhasil",
+      "given": "User memiliki akun terdaftar dan aktif, dan device memiliki koneksi internet untuk login pertama kali",
+      "when": "User membuka aplikasi mobile, memasukkan username/NIK dan password, memilih Business Area/Company, lalu menekan tombol Login",
+      "then": "Sistem memvalidasi kredensial dan business area (atau memverifikasi token lokal jika offline dan sudah pernah login), lalu mengarahkan user ke Home; sesi tersimpan lokal untuk mode offline berikutnya"
+    },
+    {
+      "scenario": "Login Mobile — Tidak Ada Koneksi Saat Login Pertama",
+      "given": "User memiliki akun terdaftar dan aktif, dan device memiliki koneksi internet untuk login pertama kali",
+      "when": "Device belum pernah aktivasi/login sebelumnya dan user mencoba login tanpa koneksi internet",
+      "then": "Sistem menampilkan pesan bahwa koneksi internet diperlukan untuk login pertama kali, dan login ditolak sampai ada koneksi"
+    },
+    {
+      "scenario": "Login Mobile — Kredensial Salah",
+      "given": "User memiliki akun terdaftar dan aktif, dan device memiliki koneksi internet untuk login pertama kali",
+      "when": "User memasukkan username/NIK dan/atau password yang salah lalu menekan tombol Login",
+      "then": "Sistem menampilkan pesan error, field password dikosongkan, dan user dapat mencoba login kembali"
+    },
+    {
+      "scenario": "Login Mobile — Akun Dinonaktifkan",
+      "given": "User memiliki akun terdaftar dan aktif, dan device memiliki koneksi internet untuk login pertama kali",
+      "when": "User dengan akun yang telah dinonaktifkan mencoba login",
+      "then": "Sistem menampilkan pesan bahwa akun tidak aktif dan login ditolak"
+    },
+    {
+      "scenario": "Login Mobile — Token Sesi Lokal Kadaluarsa",
+      "given": "User memiliki akun terdaftar dan aktif, dan device memiliki koneksi internet untuk login pertama kali",
+      "when": "User mencoba login secara offline namun token sesi lokal yang tersimpan sudah kadaluarsa",
+      "then": "Sistem meminta user untuk melakukan re-login secara online"
+    },
+    {
+      "scenario": "Login Mobile — Password Tidak Memenuhi Format Minimum",
+      "given": "User memiliki akun terdaftar dan aktif, dan device memiliki koneksi internet untuk login pertama kali",
+      "when": "User memasukkan password yang kurang dari 6 karakter atau tidak sesuai format alfanumerik+simbol yang disyaratkan, lalu menekan tombol Login",
+      "then": "Sistem menolak login dan menampilkan pesan bahwa password tidak memenuhi format yang disyaratkan"
+    },
+    {
+      "scenario": "Login Mobile — Business Area Tidak Sesuai Penugasan",
+      "given": "User memiliki akun terdaftar dan aktif, dan device memiliki koneksi internet untuk login pertama kali",
+      "when": "User memilih Business Area/Company yang tidak sesuai dengan penugasannya lalu menekan tombol Login",
+      "then": "Sistem menolak login karena Business Area yang dipilih tidak sesuai dengan penugasan user"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-002--login-mobile"
+  ]
+}

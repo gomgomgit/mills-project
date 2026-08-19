@@ -1,0 +1,164 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 2,
+  "id": "screen-005--home",
+  "name": "Home",
+  "module_id": "module-mobile-station-ops",
+  "route": "/home",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-005--home",
+      "usecase_name": "Navigasi Home",
+      "endpoints": [],
+      "business_logic": [
+        "1. Render header (nama sistem 'Mill Smart Log' + ikon hamburger), hero image, teks sambutan personal, dan 3 menu card statis (Estimates & Baselines, Production Process Activity, Dashboard & Reporting)",
+        "2. Ambil nama user dari sesi login (Pinia auth store) untuk teks sambutan → jika kosong/tidak tersedia: gunakan fallback generik tanpa nama",
+        "3. Tap menu 'Production Process Activity' → navigasi ke route Station List (screen-006)",
+        "4. Tap menu 'Estimates & Baselines' atau 'Dashboard & Reporting' → tampilkan info singkat 'Segera Hadir', tidak menavigasi kemana pun",
+        "5. Tap ikon hamburger → buka menu navigasi (Ganti Password, Logout, dll)"
+      ],
+      "data_operations": [],
+      "edge_case_handling": [
+        {
+          "condition": "User tap menu placeholder (Estimates & Baselines / Dashboard & Reporting)",
+          "handling": "Tampilkan info singkat 'Segera Hadir', tidak menavigasi"
+        },
+        {
+          "condition": "Nama user tidak tersedia/kosong",
+          "handling": "Tampilkan teks sambutan dengan fallback generik tanpa nama"
+        }
+      ],
+      "business_rules_applied": [
+        "Home tidak menampilkan status draft/record dari stasiun manapun",
+        "Hanya menu Production Process Activity yang fungsional; menu lain adalah placeholder"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "menampilkan teks sambutan dengan nama user ketika nama tersedia di auth store",
+          "given": "Pinia auth store mengembalikan user.name = 'Budi' (nilai non-kosong)",
+          "expect": "teks sambutan personal menampilkan nama user, misal 'Selamat datang, Budi'"
+        },
+        {
+          "description": "menampilkan teks sambutan fallback generik ketika nama user kosong/tidak tersedia",
+          "given": "Pinia auth store mengembalikan user.name = null / undefined / string kosong",
+          "expect": "teks sambutan menampilkan fallback generik tanpa nama, misal 'Selamat datang'"
+        },
+        {
+          "description": "menavigasi ke Station List ketika menu 'Production Process Activity' ditekan",
+          "given": "user menekan menu card 'Production Process Activity'",
+          "expect": "router.push dipanggil dengan route Station List (screen-006)"
+        },
+        {
+          "description": "menampilkan info 'Segera Hadir' dan tidak menavigasi ketika menu 'Estimates & Baselines' ditekan",
+          "given": "user menekan menu card 'Estimates & Baselines'",
+          "expect": "info/toast 'Segera Hadir' ditampilkan; router.push TIDAK dipanggil, tetap di Home"
+        },
+        {
+          "description": "menampilkan info 'Segera Hadir' dan tidak menavigasi ketika menu 'Dashboard & Reporting' ditekan",
+          "given": "user menekan menu card 'Dashboard & Reporting'",
+          "expect": "info/toast 'Segera Hadir' ditampilkan; router.push TIDAK dipanggil, tetap di Home"
+        },
+        {
+          "description": "membuka menu navigasi ketika ikon hamburger ditekan",
+          "given": "user menekan ikon hamburger di header",
+          "expect": "menu navigasi terbuka (state open = true), menampilkan opsi Ganti Password, Logout, dll"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "user login valid dengan nama tersedia, semua data render statis (header, hero image, 3 menu card) siap",
+          "expect": "HomeView ter-render lengkap: header + hero image + teks sambutan personal + 3 menu card, tanpa status draft/record apa pun"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Navigasi dari Home ke Station List"
+    }
+  ],
+  "implementation_notes": [
+    "Home murni presentational + navigasi statis — tidak ada pembacaan SQLite lokal maupun panggilan API sama sekali (berbeda dari v1 yang query 3 tabel local record)",
+    "Nama user diambil dari Pinia auth store (sudah tersedia dari alur login), bukan query terpisah",
+    "Hero image: aset gambar mill/plantation statis dibundle di aplikasi (bukan dari API)"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Navigasi Home — success",
+      "usecase_id": "usecase-005--home",
+      "api_test": [],
+      "component_test": {
+        "component": "HomeView",
+        "action": "render komponen dengan authStore.user.name terisi, lalu klik menu card 'Production Process Activity'",
+        "assert": "header, hero image, teks sambutan personal, dan 3 menu card ter-render; navigasi (router-push) ke route Station List (screen-006) terpicu saat menu diklik"
+      },
+      "browser_test": {
+        "route": "/home",
+        "action": "buka /home setelah login, verifikasi tampilan header/hero/sambutan/3 menu card, lalu klik menu card 'Production Process Activity'",
+        "assert": "browser berpindah ke route Station List (screen-006)"
+      }
+    },
+    {
+      "scenario_ref": "Navigasi Home — Menu Placeholder Dipilih",
+      "usecase_id": "usecase-005--home",
+      "api_test": [],
+      "component_test": {
+        "component": "HomeView",
+        "action": "klik menu card 'Estimates & Baselines' lalu (secara terpisah) 'Dashboard & Reporting'",
+        "assert": "info singkat 'Segera Hadir' ditampilkan, tidak ada event navigasi ter-emit, komponen tetap menampilkan Home"
+      },
+      "browser_test": {
+        "route": "/home",
+        "action": "di /home, klik menu card 'Estimates & Baselines' dan 'Dashboard & Reporting' secara terpisah",
+        "assert": "notifikasi 'Segera Hadir' muncul di layar, URL tetap di /home (tidak berpindah halaman)"
+      }
+    },
+    {
+      "scenario_ref": "Navigasi Home — Nama User Tidak Tersedia",
+      "usecase_id": "usecase-005--home",
+      "api_test": [],
+      "component_test": {
+        "component": "HomeView",
+        "action": "render komponen dengan authStore.user.name kosong/null",
+        "assert": "teks sambutan menampilkan fallback generik tanpa menyebut nama user"
+      },
+      "browser_test": {
+        "route": "/home",
+        "action": "login sebagai user tanpa nama (atau nama kosong) lalu buka /home",
+        "assert": "teks sambutan yang tampil di layar adalah fallback generik tanpa nama"
+      }
+    },
+    {
+      "scenario_ref": "Navigasi Home — Tidak Menampilkan Status Draft",
+      "usecase_id": "usecase-005--home",
+      "api_test": [],
+      "component_test": {
+        "component": "HomeView",
+        "action": "render komponen HomeView pada kondisi normal (tanpa memanggil API/SQLite apa pun)",
+        "assert": "tidak ada elemen status draft/record dari stasiun manapun yang ter-render; hanya sambutan dan 3 menu navigasi yang tampil"
+      },
+      "browser_test": {
+        "route": "/home",
+        "action": "buka /home",
+        "assert": "tidak ada indikator/status draft atau record stasiun manapun terlihat di layar; hanya header, hero, sambutan, dan 3 menu card yang tampil"
+      }
+    }
+  ]
+}

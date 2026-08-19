@@ -1,0 +1,111 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 2,
+  "id": "usecase-006--station-list",
+  "name": "Pilih Stasiun",
+  "description": "User memilih salah satu dari 3 stasiun MVP aktif untuk masuk ke layar Monitor stasiun tersebut. Grid menampilkan indikator warna status draft per stasiun, dan layar ini punya breadcrumb navigasi serta header dengan hamburger menu.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login dan berada di Home"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Membuka Station List dari Home"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan grid stasiun (3 aktif dengan warna merah jika ada draft ongoing/paused pada stasiun itu atau hitam/netral jika tidak ada; 12 disabled), breadcrumb navigasi, dan header dengan hamburger"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Memilih salah satu stasiun aktif"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Mengarahkan user ke Monitor stasiun yang dipilih"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tap Stasiun Disabled",
+      "trigger": "Step 3, user tap stasiun yang belum aktif",
+      "steps": [
+        "Sistem menampilkan info singkat \"belum tersedia\" tanpa navigasi"
+      ]
+    },
+    {
+      "name": "Tap Breadcrumb",
+      "trigger": "Kapan saja di layar ini, user tap salah satu segmen breadcrumb",
+      "steps": [
+        "Sistem menavigasi ke halaman yang sesuai dengan segmen breadcrumb yang ditap (mis. kembali ke Home)"
+      ]
+    },
+    {
+      "name": "Buka Menu Hamburger",
+      "trigger": "Kapan saja di layar ini, user tap ikon hamburger di header",
+      "steps": [
+        "Sistem menampilkan menu navigasi (Ganti Password, Logout, dll)"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User berada di layar Monitor stasiun terpilih (jika memilih stasiun aktif)",
+    "User dapat kembali ke Home melalui breadcrumb kapan saja"
+  ],
+  "business_rules": [
+    "Hanya 3 stasiun MVP yang aktif secara fungsional",
+    "Warna tombol stasiun aktif mencerminkan status draft: merah = ada draft ongoing/paused pada stasiun itu, hitam/netral = tidak ada draft"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Pilih Stasiun — success",
+      "given": "User sudah login dan berada di layar Home",
+      "when": "User membuka Station List dan memilih salah satu dari 3 stasiun aktif (Weighbridge, Grading, atau Cages Track)",
+      "then": "User diarahkan ke layar Monitor untuk stasiun yang dipilih"
+    },
+    {
+      "scenario": "Pilih Stasiun — Tap Stasiun Disabled",
+      "given": "User sudah login dan berada di layar Home",
+      "when": "User men-tap salah satu stasiun yang belum aktif (dari 12 stasiun disabled)",
+      "then": "Sistem menampilkan info singkat \"belum tersedia\" tanpa melakukan navigasi"
+    },
+    {
+      "scenario": "Pilih Stasiun — Tap Breadcrumb",
+      "given": "User sudah login dan berada di layar Home",
+      "when": "Kapan saja di layar Station List, user men-tap salah satu segmen breadcrumb",
+      "then": "Sistem menavigasi ke halaman yang sesuai dengan segmen breadcrumb yang ditap (misalnya kembali ke Home)"
+    },
+    {
+      "scenario": "Pilih Stasiun — Buka Menu Hamburger",
+      "given": "User sudah login dan berada di layar Home",
+      "when": "Kapan saja di layar Station List, user men-tap ikon hamburger di header",
+      "then": "Sistem menampilkan menu navigasi (Ganti Password, Logout, dll)"
+    },
+    {
+      "scenario": "Pilih Stasiun — Indikator Warna: Ada Draft",
+      "given": "Salah satu stasiun aktif (mis. Weighbridge) punya record berstatus ongoing atau paused milik user yang login",
+      "when": "User membuka Station List",
+      "then": "Tombol stasiun tersebut ditampilkan berwarna merah"
+    },
+    {
+      "scenario": "Pilih Stasiun — Indikator Warna: Tidak Ada Draft",
+      "given": "Stasiun aktif tidak punya record ongoing/paused milik user yang login",
+      "when": "User membuka Station List",
+      "then": "Tombol stasiun tersebut ditampilkan berwarna hitam/netral"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-006--station-list"
+  ]
+}

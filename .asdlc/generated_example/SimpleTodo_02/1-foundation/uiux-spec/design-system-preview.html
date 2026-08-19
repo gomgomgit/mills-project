@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design System Preview | SimpleTodo</title>
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link rel="stylesheet" href="assets/components.css">
+  <link rel="stylesheet" href="assets/shell.css">
+  <link rel="stylesheet" href="assets/daisyui.full.min.css">
+  <script src="assets/tailwindcdn.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: 'var(--primary)',
+            'primary-hover': 'var(--primary-hover)',
+            'primary-content': '#ffffff',
+            secondary: 'var(--surface)',
+            error: 'var(--error)',
+            success: 'var(--success)',
+            warning: 'var(--warning)',
+            'body-bg': 'var(--bg)',
+            'body-text': 'var(--text-primary)',
+            neutral: 'var(--text-muted)',
+          },
+          borderRadius: {
+            button: 'var(--radius-button)',
+            input: 'var(--radius-input)',
+            card: 'var(--radius-card)',
+            modal: 'var(--radius-modal)',
+            chip: 'var(--radius-chip)',
+          },
+          spacing: {
+            'sidebar-width': 'var(--sidebar-width)',
+            'header-height': 'var(--header-height)',
+            'content-padding': 'var(--content-padding)',
+            'gap-sm': 'var(--gap-sm)',
+            'gap-md': 'var(--gap-md)',
+            'gap-lg': 'var(--gap-lg)',
+          }
+        }
+      },
+      important: true
+    }
+  </script>
+  <style>
+    /* ─── Page-specific layout for the design system preview ─── */
+    html { scroll-behavior: smooth; }
+    .preview-sidebar { width: 210px; min-width: 210px; }
+    .preview-main { flex: 1; overflow-y: auto; padding: 32px 40px; scroll-behavior: smooth; }
+    .section { margin-bottom: 56px; scroll-margin-top: 16px; }
+    .section-title {
+      font-size: var(--font-size-h2);
+      font-weight: var(--font-weight-h2);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border);
+    }
+    .subsection-title {
+      font-size: var(--font-size-h3);
+      font-weight: var(--font-weight-h3);
+      margin-bottom: 12px;
+      margin-top: 24px;
+    }
+    .label-muted {
+      font-size: var(--font-size-caption);
+      color: var(--text-muted);
+    }
+    .preview-sidebar a {
+      display: block;
+      padding: 8px 16px;
+      font-size: var(--font-size-small);
+      color: var(--text-muted);
+      text-decoration: none;
+      border-radius: var(--radius-button);
+      transition: background-color 0.1s, color 0.1s;
+    }
+    .preview-sidebar a:hover {
+      background-color: color-mix(in srgb, var(--primary) 6%, transparent);
+      color: var(--text-primary);
+    }
+    .preview-sidebar a.active {
+      background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+      color: var(--primary);
+      font-weight: 500;
+    }
+    .color-swatch { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .color-block { width: 96px; height: 96px; border-radius: var(--radius-card); border: 1px solid var(--border); }
+    .shadow-showcase { width: 180px; height: 120px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-card); background: var(--bg); border: 1px solid var(--border); }
+    @media (max-width: 768px) {
+      .preview-sidebar { display: none; }
+      .preview-main { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="flex h-screen flex-col" style="background: var(--bg); color: var(--text-primary);">
+
+    <!-- ==================== Top Bar ==================== -->
+    <div class="sticky top-0 z-40 flex h-header-height items-center gap-4 border-b px-6"
+         style="background: var(--bg); border-color: var(--border); min-height: var(--header-height);">
+      <button class="btn btn-ghost btn-sm sidebar-toggle lg:hidden"
+              onclick="document.getElementById('previewSidebarMobile').classList.toggle('-translate-x-full')">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+      <h1 class="text-lg font-bold">SimpleTodo</h1>
+      <span class="badge badge-ghost">Design System Preview</span>
+      <div class="ml-auto flex items-center gap-2">
+        <span class="text-sm" style="color: var(--text-muted);">Tailwind CSS + DaisyUI</span>
+      </div>
+    </div>
+
+    <div class="flex flex-1 overflow-hidden">
+
+      <!-- ==================== Desktop Sidebar ==================== -->
+      <nav id="previewSidebar" class="hidden w-preview-sidebar border-r py-4 pr-2 lg:block"
+           style="border-color: var(--border);">
+        <p class="px-4 mb-3 text-xs font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Design Tokens</p>
+        <a href="#colors">Color Palette</a>
+        <a href="#typography">Typography</a>
+        <a href="#spacing">Spacing</a>
+        <a href="#border-radius">Border Radius</a>
+        <a href="#shadows">Shadows</a>
+        <a href="#icons">Icon Library</a>
+        <p class="px-4 mt-6 mb-3 text-xs font-semibold uppercase tracking-wider" style="color: var(--text-muted);">Components</p>
+        <a href="#buttons">Buttons</a>
+        <a href="#inputs">Inputs &amp; Forms</a>
+        <a href="#badges">Badges</a>
+        <a href="#cards">Cards</a>
+        <a href="#alerts">Alerts</a>
+        <a href="#toasts">Toasts</a>
+        <a href="#checkboxes">Checkboxes</a>
+        <a href="#modals">Modals</a>
+        <a href="#skeletons">Skeletons</a>
+        <a href="#empty-state">Empty State</a>
+        <a href="#table">Table</a>
+        <a href="#task-card">Task Card</a>
+        <a href="#layout">App Layout</a>
+      </nav>
+
+      <!-- ==================== Mobile Sidebar Overlay ==================== -->
+      <div id="previewSidebarMobile" class="fixed inset-0 z-50 -translate-x-full transition-transform lg:hidden">
+        <div class="absolute inset-0 bg-black/40" onclick="this.parentElement.classList.add('-translate-x-full')"></div>
+        <nav class="relative w-56 h-full py-4 pr-2" style="background: var(--bg); border-right: 1px solid var(--border);">
+          <div class="flex items-center justify-between px-4 mb-4">
+            <span class="font-bold">Navigation</span>
+            <button class="btn btn-ghost btn-sm" onclick="this.closest('.fixed').classList.add('-translate-x-full')">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <a href="#colors" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Color Palette</a>
+          <a href="#typography" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Typography</a>
+          <a href="#spacing" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Spacing</a>
+          <a href="#border-radius" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Border Radius</a>
+          <a href="#shadows" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Shadows</a>
+          <a href="#icons" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Icon Library</a>
+          <a href="#buttons" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Buttons</a>
+          <a href="#inputs" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Inputs &amp; Forms</a>
+          <a href="#badges" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Badges</a>
+          <a href="#cards" onclick="this.closest('.final').classList.add('-translate-x-full')">Cards</a>
+          <a href="#alerts" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Alerts</a>
+          <a href="#toasts" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Toasts</a>
+          <a href="#checkboxes" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Checkboxes</a>
+          <a href="#modals" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Modals</a>
+          <a href="#skeletons" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Skeletons</a>
+          <a href="#empty-state" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Empty State</a>
+          <a href="#table" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Table</a>
+          <a href="#task-card" onclick="this.closest('.fixed').classList.add('-translate-x-full')">Task Card</a>
+          <a href="#layout" onclick="this.closest('.fixed').classList.add('-translate-x-full')">App Layout</a>
+        </nav>
+      </div>
+
+      <!-- ==================== Main Content ==================== -->
+      <main class="preview-main">
+
+        <!-- Page Title -->
+        <div class="mb-8">
+          <h1 class="text-3xl font-bold mb-2">Design System</h1>
+          <p style="color: var(--text-muted);">Kumpulan token dan komponen visual untuk aplikasi SimpleTodo. Semua nilai warna, tipografi, spacing, border radius, dan shadow didefinisikan sebagai CSS variabel di <code class="badge badge-ghost">design-tokens.css</code>.</p>
+        </div>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 1: Color Palette                                     -->
+        <!-- ============================================================ -->
+        <section id="colors" class="section">
+          <h2 class="section-title">1. Color Palette</h2>
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+
+            <div class="color-swatch">
+              <div class="color-block" style="background: var(--bg);"></div>
+              <p class="font-semibold text-sm">Background</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">#ffffff</p>
+              <p class="label-muted text-center">Background halaman</p>
+            </div>
+
+            <div class="color-swatch">
+              <div class="color-block" style="background: var(--surface);"></div>
+              <p class="font-semibold text-sm">Surface</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">#f5f5f5</p>
+              <p class="label-muted text-center">Card &amp; container</p>
+            </div>
+
+            <div class="color-swatch">
+              <div class="color-block" style="background: var(--border);"></div>
+              <p class="font-semibold text-sm">Border</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">#e5e7eb</p>
+              <p class="label-muted text-center">Border &amp; divider</p>
+            </div>
+
+            <div class="color-swatch">
+              <div class="color-block" style="background: var(--text-primary);"></div>
+              <p class="font-semibold text-sm">Text Primary</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">#1f2937</p>
+              <p class="label-muted text-center">Heading &amp; body</p>
+            </div>
+
+            <div class="color-swatch">
+              <div class="color-block" style="background: var(--text-muted);"></div>
+              <p class="font-semibold text-sm">Text Muted</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted); background: white; border-color: var(--border);">#6b7280</p>
+              <p class="label-muted text-center">Secondary &amp; placeholder</p>
+            </div>
+
+            <div class="color-swatch">
+              <div class="color-block" style="background: var(--primary);"></div>
+              <p class="font-semibold text-sm">Brand</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">#6366f1</p>
+              <p class="label-muted text-center">Aksi utama &amp; brand</p>
+            </div>
+
+            <div class="color-swatch">
+              <div class="color-block" style="background: var(--primary-hover);"></div>
+              <p class="font-semibold text-sm">Brand Hover</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">#4f46e5</p>
+              <p class="label-muted text-center">Hover state brand</p>
+            </div>
+
+            <div class="color-swatch">
+              <div class="color-block" style="background: var(--error);"></div>
+              <p class="font-semibold text-sm">Destructive</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">#ef4444</p>
+              <p class="label-muted text-center">Hapus &amp; error</p>
+            </div>
+
+            <div class="color-swatch">
+              <div class="color-block" style="background: var(--success);"></div>
+              <p class="font-semibold text-sm">Success</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">#22c55e</p>
+              <p class="label-muted text-center">Task selesai</p>
+            </div>
+
+            <div class="color-swatch">
+              <div class="color-block" style="background: var(--warning);"></div>
+              <p class="font-semibold text-sm">Warning</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">#f59e0b</p>
+              <p class="label-muted text-center">Task terlambat</p>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 2: Typography                                        -->
+        <!-- ============================================================ -->
+        <section id="typography" class="section">
+          <h2 class="section-title">2. Typography</h2>
+
+          <p class="mb-4" style="color: var(--text-muted);">
+            Font family: <strong>Inter</strong>, sans-serif &mdash; Base size: 16px, Line height: 1.5
+          </p>
+
+          <div class="border rounded-lg overflow-hidden" style="border-color: var(--border);">
+            <div class="border-b px-6 py-5" style="border-color: var(--border);">
+              <p class="label-muted mb-1">H1 &mdash; 28px / Bold 700</p>
+              <p style="font-size: var(--font-size-h1); font-weight: var(--font-weight-h1); line-height: 1.25;">
+                Kelola task harianmu dengan mudah
+              </p>
+            </div>
+            <div class="border-b px-6 py-5" style="border-color: var(--border);">
+              <p class="label-muted mb-1">H2 &mdash; 22px / Semibold 600</p>
+              <p style="font-size: var(--font-size-h2); font-weight: var(--font-weight-h2); line-height: 1.3;">
+                Task untuk hari ini
+              </p>
+            </div>
+            <div class="border-b px-6 py-5" style="border-color: var(--border);">
+              <p class="label-muted mb-1">H3 &mdash; 18px / Semibold 600</p>
+              <p style="font-size: var(--font-size-h3); font-weight: var(--font-weight-h3); line-height: 1.4;">
+                Buat task baru
+              </p>
+            </div>
+            <div class="border-b px-6 py-5" style="border-color: var(--border);">
+              <p class="label-muted mb-1">Body &mdash; 16px / Regular 400</p>
+              <p style="font-size: var(--font-size-body); font-weight: var(--font-weight-body); line-height: 1.5;">
+                Selesaikan review desain mockup sebelum meeting dengan client sore ini. Jangan lupa untuk memeriksa feedback dari tim development terkait implementasi fitur group terbaru.
+              </p>
+            </div>
+            <div class="border-b px-6 py-5" style="border-color: var(--border);">
+              <p class="label-muted mb-1">Small &mdash; 14px / Regular 400</p>
+              <p style="font-size: var(--font-size-small); font-weight: var(--font-weight-small); line-height: 1.5;">
+                Deadline: 24 Juni 2026 &bull; Group: Pekerjaan &bull; Ditambahkan 2 jam yang lalu
+              </p>
+            </div>
+            <div class="px-6 py-5">
+              <p class="label-muted mb-1">Caption &mdash; 12px / Regular 400</p>
+              <p style="font-size: var(--font-size-caption); font-weight: var(--font-weight-caption); line-height: 1.5;">
+                Data tersimpan otomatis di server
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 3: Spacing                                           -->
+        <!-- ============================================================ -->
+        <section id="spacing" class="section">
+          <h2 class="section-title">3. Spacing</h2>
+
+          <div class="flex flex-col gap-4">
+            <div class="flex items-center gap-4">
+              <span class="w-24 text-right text-sm font-medium" style="color: var(--text-muted);">gap-sm</span>
+              <div class="h-6 rounded" style="width: var(--gap-sm); background: var(--primary); opacity: 0.6;"></div>
+              <span class="text-sm font-mono" style="color: var(--text-muted);">8px</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="w-24 text-right text-sm font-medium" style="color: var(--text-muted);">gap-md</span>
+              <div class="h-6 rounded" style="width: var(--gap-md); background: var(--primary); opacity: 0.6;"></div>
+              <span class="text-sm font-mono" style="color: var(--text-muted);">16px</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="w-24 text-right text-sm font-medium" style="color: var(--text-muted);">gap-lg</span>
+              <div class="h-6 rounded" style="width: var(--gap-lg); background: var(--primary); opacity: 0.6;"></div>
+              <span class="text-sm font-mono" style="color: var(--text-muted);">24px</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="w-24 text-right text-sm font-medium" style="color: var(--text-muted);">content-padding</span>
+              <div class="h-6 rounded" style="width: var(--content-padding); background: var(--primary); opacity: 0.6;"></div>
+              <span class="text-sm font-mono" style="color: var(--text-muted);">24px</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="w-24 text-right text-sm font-medium" style="color: var(--text-muted);">header-height</span>
+              <div class="h-6 rounded" style="width: var(--header-height); background: var(--primary); opacity: 0.6;"></div>
+              <span class="text-sm font-mono" style="color: var(--text-muted);">60px</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <span class="w-24 text-right text-sm font-medium" style="color: var(--text-muted);">sidebar-width</span>
+              <div class="h-6 rounded" style="width: var(--sidebar-width); background: var(--primary); opacity: 0.6;"></div>
+              <span class="text-sm font-mono" style="color: var(--text-muted);">240px</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 4: Border Radius                                     -->
+        <!-- ============================================================ -->
+        <section id="border-radius" class="section">
+          <h2 class="section-title">4. Border Radius</h2>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6">
+            <div class="flex flex-col items-center gap-3">
+              <div class="w-20 h-20 flex items-center justify-center" style="border-radius: var(--radius-button); background: color-mix(in srgb, var(--primary) 10%, transparent); border: 1px solid var(--primary);">
+                <span class="text-xs font-semibold" style="color: var(--primary);">Button</span>
+              </div>
+              <p class="text-sm font-medium">button</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">0.5rem</p>
+            </div>
+
+            <div class="flex flex-col items-center gap-3">
+              <div class="w-20 h-20 flex items-center justify-center" style="border-radius: var(--radius-input); background: color-mix(in srgb, var(--primary) 10%, transparent); border: 1px solid var(--primary);">
+                <span class="text-xs font-semibold" style="color: var(--primary);">Input</span>
+              </div>
+              <p class="text-sm font-medium">input</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">0.5rem</p>
+            </div>
+
+            <div class="flex flex-col items-center gap-3">
+              <div class="w-20 h-20 flex items-center justify-center" style="border-radius: var(--radius-card); background: color-mix(in srgb, var(--primary) 10%, transparent); border: 1px solid var(--primary);">
+                <span class="text-xs font-semibold" style="color: var(--primary);">Card</span>
+              </div>
+              <p class="text-sm font-medium">card</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">0.75rem</p>
+            </div>
+
+            <div class="flex flex-col items-center gap-3">
+              <div class="w-20 h-20 flex items-center justify-center" style="border-radius: var(--radius-modal); background: color-mix(in srgb, var(--primary) 10%, transparent); border: 1px solid var(--primary);">
+                <span class="text-xs font-semibold" style="color: var(--primary);">Modal</span>
+              </div>
+              <p class="text-sm font-medium">modal</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">1rem</p>
+            </div>
+
+            <div class="flex flex-col items-center gap-3">
+              <div class="w-20 h-20 flex items-center justify-center" style="border-radius: var(--radius-chip); background: color-mix(in srgb, var(--primary) 10%, transparent); border: 1px solid var(--primary);">
+                <span class="text-xs font-semibold" style="color: var(--primary);">Chip</span>
+              </div>
+              <p class="text-sm font-medium">chip</p>
+              <p class="text-xs font-mono" style="color: var(--text-muted);">0.25rem</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 5: Shadows                                           -->
+        <!-- ============================================================ -->
+        <section id="shadows" class="section">
+          <h2 class="section-title">5. Shadows</h2>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
+            <div class="flex flex-col items-center gap-3">
+              <div class="shadow-showcase" style="box-shadow: var(--shadow-card);">
+                <span class="text-sm font-medium" style="color: var(--text-muted);">Card</span>
+              </div>
+              <p class="text-sm font-medium">card</p>
+              <p class="text-xs font-mono text-center" style="color: var(--text-muted);">0 1px 3px rgba(0,0,0,0.1)</p>
+            </div>
+
+            <div class="flex flex-col items-center gap-3">
+              <div class="shadow-showcase" style="box-shadow: var(--shadow-dropdown);">
+                <span class="text-sm font-medium" style="color: var(--text-muted);">Dropdown</span>
+              </div>
+              <p class="text-sm font-medium">dropdown</p>
+              <p class="text-xs font-mono text-center" style="color: var(--text-muted);">0 4px 6px rgba(0,0,0,0.12)</p>
+            </div>
+
+            <div class="flex flex-col items-center gap-3">
+              <div class="shadow-showcase" style="box-shadow: var(--shadow-modal);">
+                <span class="text-sm font-medium" style="color: var(--text-muted);">Modal</span>
+              </div>
+              <p class="text-sm font-medium">modal</p>
+              <p class="text-xs font-mono text-center" style="color: var(--text-muted);">0 10px 25px rgba(0,0,0,0.2)</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 6: Icon Library                                      -->
+        <!-- ============================================================ -->
+        <section id="icons" class="section">
+          <h2 class="section-title">6. Icon Library</h2>
+          <div class="border rounded-lg p-6 max-w-md" style="border-color: var(--border); background: var(--surface);">
+            <div class="flex items-center gap-4 mb-4">
+              <div class="w-12 h-12 rounded-lg flex items-center justify-center" style="background: color-mix(in srgb, var(--primary) 15%, transparent);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="font-semibold text-lg">Lucide Icons</h3>
+                <p class="text-sm" style="color: var(--text-muted);">Library ikon open-source untuk SimpleTodo</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <p class="label-muted">Default Size</p>
+                <p class="font-semibold">16px</p>
+              </div>
+              <div>
+                <p class="label-muted">Stroke Width</p>
+                <p class="font-semibold">1.5</p>
+              </div>
+              <div>
+                <p class="label-muted">Style</p>
+                <p class="font-semibold">Outline</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 7: Buttons                                           -->
+        <!-- ============================================================ -->
+        <section id="buttons" class="section">
+          <h2 class="section-title">7. Buttons</h2>
+
+          <div class="space-y-6">
+            <div>
+              <p class="label-muted mb-3">Primary &amp; Secondary</p>
+              <div class="flex flex-wrap items-center gap-3">
+                <button class="btn btn-primary">Simpan Task</button>
+                <button class="btn btn-secondary">Batal</button>
+                <button class="btn btn-primary" disabled>Simpan Task</button>
+              </div>
+            </div>
+
+            <div>
+              <p class="label-muted mb-3">Outline &amp; Ghost</p>
+              <div class="flex flex-wrap items-center gap-3">
+                <button class="btn btn-outline">Edit Task</button>
+                <button class="btn btn-ghost">Lihat Detail</button>
+                <button class="btn btn-outline" disabled>Edit Task</button>
+              </div>
+            </div>
+
+            <div>
+              <p class="label-muted mb-3">Destructive</p>
+              <div class="flex flex-wrap items-center gap-3">
+                <button class="btn btn-error">Hapus Task</button>
+                <button class="btn btn-outline btn-error">Hapus Group</button>
+                <button class="btn btn-ghost btn-error">Hapus</button>
+              </div>
+            </div>
+
+            <div>
+              <p class="label-muted mb-3">Sizes: Small &amp; with Icon</p>
+              <div class="flex flex-wrap items-center gap-3">
+                <button class="btn btn-primary btn-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+                  Tambah
+                </button>
+                <button class="btn btn-outline btn-sm">Filter</button>
+                <button class="btn btn-ghost btn-sm btn-circle">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14m-7-7h14" /></svg>
+                </button>
+                <button class="btn btn-ghost btn-sm btn-circle">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 8: Inputs & Forms                                    -->
+        <!-- ============================================================ -->
+        <section id="inputs" class="section">
+          <h2 class="section-title">8. Inputs &amp; Forms</h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Input variants -->
+            <div class="space-y-4">
+              <h3 class="subsection-title">Input Fields</h3>
+              <div class="form-control w-full">
+                <label class="form-label">
+                  <span class="label-text font-medium">Judul Task</span>
+                </label>
+                <input type="text" class="input w-full" placeholder="Masukkan judul task..." />
+                <span class="label-label">
+                  <span class="label-text-alt">Maks. 100 karakter</span>
+                </span>
+              </div>
+
+              <div class="form-control w-full">
+                <label class="form-label">
+                  <span class="label-text font-medium">Deskripsi</span>
+                </label>
+                <textarea class="textarea w-full h-24" placeholder="Tambahkan deskripsi (opsional)..."></textarea>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div class="form-control w-full">
+                  <label class="form-label">
+                    <span class="label-text font-medium">Due Date</span>
+                  </label>
+                  <input type="date" class="input w-full" value="2026-06-25" />
+                </div>
+                <div class="form-control w-full">
+                  <label class="form-label">
+                    <span class="label-text font-medium">Group</span>
+                  </label>
+                  <select class="select w-full">
+                    <option disabled>Pilih group</option>
+                    <option selected>Pekerjaan</option>
+                    <option>Pribadi</option>
+                    <option>Belanja</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-control w-full">
+                <label class="form-label">
+                  <span class="label-text font-medium text-error">Judul Task</span>
+                  <span class="label-text-alt text-error">Wajib diisi</span>
+                </label>
+                <input type="text" class="input input-error w-full" value="Task " placeholder="Masukkan judul..." />
+                <span class="label-label">
+                  <span class="label-text-alt text-error">Judul tidak boleh kosong</span>
+                </span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <div class="form-control w-full">
+                    <label class="form-label">
+                      <span class="label-text font-medium">Disabled</span>
+                    </label>
+                    <input type="text" class="input w-full" value="Tidak bisa diedit" disabled />
+                  </div>
+                </div>
+                <div>
+                  <div class="form-control w-full">
+                    <label class="form-label">
+                      <span class="label-text font-medium">Readonly</span>
+                    </label>
+                    <input type="text" class="input w-full" value="Hanya baca" readonly />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Full form example -->
+            <div>
+              <h3 class="subsection-title">Form Task (Contoh Lengkap)</h3>
+              <div class="border rounded-lg p-6" style="border-color: var(--border); background: var(--surface);">
+                <h4 class="font-semibold mb-4">Buat Task Baru</h4>
+                <div class="form">
+                  <div class="form-control w-full">
+                    <label class="form-label">
+                      <span class="label-text font-medium">Judul <span class="text-error">*</span></span>
+                    </label>
+                    <input type="text" class="input w-full" placeholder="Misalnya: Review proposal design mockup" />
+                  </div>
+                  <div class="form-control w-full">
+                    <label class="form-label">
+                      <span class="label-text font-medium">Deskripsi</span>
+                    </label>
+                    <textarea class="textarea w-full h-24" placeholder="Detail tambahan untuk task ini..."></textarea>
+                  </div>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div class="form-control w-full">
+                      <label class="form-label">
+                        <span class="label-text font-medium">Due Date</span>
+                      </label>
+                      <input type="date" class="input w-full" />
+                    </div>
+                    <div class="form-control w-full">
+                      <label class="form-label">
+                        <span class="label-text font-medium">Group</span>
+                      </label>
+                      <select class="select w-full">
+                        <option disabled selected>Pilih group</option>
+                        <option>Pekerjaan</option>
+                        <option>Pribadi</option>
+                        <option>Belanja</option>
+                        <option>Kesehatan</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-actions">
+                    <button class="btn btn-ghost btn-sm">Batal</button>
+                    <button class="btn btn-primary btn-sm">Simpan Task</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 9: Badges                                            -->
+        <!-- ============================================================ -->
+        <section id="badges" class="section">
+          <h2 class="section-title">9. Badges</h2>
+
+          <div class="space-y-4">
+            <div>
+              <p class="label-muted mb-3">Status Badges</p>
+              <div class="flex flex-wrap items-center gap-3">
+                <span class="badge-status badge-pending">Pending</span>
+                <span class="badge-status badge-done">Selesai</span>
+                <span class="badge-status badge-overdue">Terlambat</span>
+                <span class="badge-status badge-group">Pekerjaan</span>
+              </div>
+            </div>
+
+            <div>
+              <p class="label-muted mb-3">DaisyUI Native Badges</p>
+              <div class="flex flex-wrap items-center gap-3">
+                <span class="badge badge-primary">Primary</span>
+                <span class="badge badge-secondary">Secondary</span>
+                <span class="badge badge-success">Success</span>
+                <span class="badge badge-warning">Warning</span>
+                <span class="badge badge-error">Error</span>
+                <span class="badge badge-info">Info</span>
+                <span class="badge badge-ghost">Ghost</span>
+                <span class="badge badge-outline">Outline</span>
+              </div>
+            </div>
+
+            <div>
+              <p class="label-muted mb-3">Badge Sizes</p>
+              <div class="flex flex-wrap items-center gap-3">
+                <span class="badge badge-primary badge-xs">Extra small</span>
+                <span class="badge badge-primary badge-sm">Small</span>
+                <span class="badge badge-primary">Default</span>
+                <span class="badge badge-primary badge-lg">Large</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 10: Cards                                            -->
+        <!-- ============================================================ -->
+        <section id="cards" class="section">
+          <h2 class="section-title">10. Cards</h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Standard Card -->
+            <div class="card w-full" style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); overflow: hidden;">
+              <div class="card-body" style="padding: var(--gap-lg);">
+                <h3 class="card-title mb-1" style="font-size: var(--font-size-h3);">Card dengan Header</h3>
+                <div class="divider my-2" style="border-color: var(--border);"></div>
+                <p class="card-text" style="color: var(--text-muted); font-size: var(--font-size-small);">
+                  Contoh card untuk menampilkan ringkasan task dalam sebuah group. Card ini memiliki border, shadow, dan border radius sesuai token.
+                </p>
+              </div>
+              <div class="card-actions justify-end p-4" style="border-top: 1px solid var(--border);">
+                <button class="btn btn-ghost btn-sm">Lihat Detail</button>
+                <button class="btn btn-primary btn-sm">Edit</button>
+              </div>
+            </div>
+
+            <!-- Stat Cards -->
+            <div class="space-y-4">
+              <div class="stat-card">
+                <p class="stat-label">Task Pending</p>
+                <p class="stat-value">12</p>
+                <p class="stat-delta up">&#9650; 3 dari kemarin</p>
+              </div>
+              <div class="stat-card">
+                <p class="stat-label">Task Selesai</p>
+                <p class="stat-value">8</p>
+                <p class="stat-delta up">&#9650; 5 dari kemarin</p>
+              </div>
+              <div class="stat-card">
+                <p class="stat-label">Task Terlambat</p>
+                <p class="stat-value" style="color: var(--error);">2</p>
+                <p class="stat-delta down">&#9660; Perlu perhatian</p>
+              </div>
+            </div>
+
+            <!-- Group Card -->
+            <div class="task-group-card p-4" style="background: var(--bg);">
+              <div class="flex items-center justify-between mb-3">
+                <h4 class="font-semibold">Pekerjaan</h4>
+                <span class="badge-status badge-primary">5 task</span>
+              </div>
+              <div class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <div class="w-3 h-3 rounded-full" style="background: var(--success);"></div>
+                  <span class="text-sm" style="font-size: var(--font-size-small);">Review design mockup</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="w-3 h-3 rounded-full" style="background: var(--warning);"></div>
+                  <span class="text-sm" style="font-size: var(--font-size-small);">Meeting dengan client</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="w-3 h-3 rounded-full" style="background: var(--border);"></div>
+                  <span class="text-sm" style="font-size: var(--font-size-small);">Deploy staging build</span>
+                </div>
+              </div>
+              <p class="text-xs mt-3" style="color: var(--text-muted);">2 selesai dari 5 task</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 11: Alerts                                           -->
+        <!-- ============================================================ -->
+        <section id="alerts" class="section">
+          <h2 class="section-title">11. Alerts</h2>
+
+          <div class="space-y-4 max-w-2xl">
+            <div class="alert" role="alert" style="background: color-mix(in srgb, var(--primary) 8%, transparent); border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent); border-radius: var(--radius-card);">
+              <svg xmlns="http://www.w3.org/2000/svg" class="stroke-info h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <div>
+                <h3 class="font-semibold">Info</h3>
+                <p class="text-sm">Kamu memiliki 3 task yang harus diselesaikan hari ini.</p>
+              </div>
+            </div>
+
+            <div class="alert" role="alert" style="background: color-mix(in srgb, var(--success) 8%, transparent); border: 1px solid color-mix(in srgb, var(--success) 30%, transparent); border-radius: var(--radius-card); color: #166534;">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="stroke: var(--success);">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <div>
+                <h3 class="font-semibold">Berhasil!</h3>
+                <p class="text-sm">Task "Review design mockup" telah selesai.</p>
+              </div>
+            </div>
+
+            <div class="alert" role="alert" style="background: color-mix(in srgb, var(--warning) 8%, transparent); border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent); border-radius: var(--radius-card); color: #92400e;">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="stroke: var(--warning);">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+              <div>
+                <h3 class="font-semibold">Perhatian!</h3>
+                <p class="text-sm">2 task kamu已过 deadline. Segera proses task yang terlambat.</p>
+              </div>
+            </div>
+
+            <div class="alert" role="alert" style="background: color-mix(in srgb, var(--error) 8%, transparent); border: 1px solid color-mix(in srgb, var(--error) 30%, transparent); border-radius: var(--radius-card); color: #dc2626;">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" style="stroke: var(--error);">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              <div>
+                <h3 class="font-semibold">Gagal memuat data.</h3>
+                <p class="text-sm">Terjadi kesalahan saat mengambil data task. Silakan coba lagi.</p>
+              </div>
+              <button class="btn btn-sm btn-error">Coba Lagi</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 12: Toasts                                           -->
+        <!-- ============================================================ -->
+        <section id="toasts" class="section">
+          <h2 class="section-title">12. Toasts</h2>
+          <p class="mb-4" style="color: var(--text-muted); font-size: var(--font-size-small);">
+            Toast muncul di pojok kanan atas, auto-dismiss 3 detik. Static preview berikut menunjukkan tampilan toastyang akan muncul saat digunakan.
+          </p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="p-6 rounded-lg" style="background: var(--surface); border: 1px solid var(--border);">
+              <p class="label-muted mb-4">Toast Success</p>
+              <div class="toast toast-start">
+                <div class="alert alert-success py-3 px-4" style="border-radius: var(--radius-card);">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span class="text-sm">Task disimpan!</span>
+                </div>
+              </div>
+            </div>
+            <div class="p-6 rounded-lg" style="background: var(--surface); border: 1px solid var(--border);">
+              <p class="label-muted mb-4">Toast Error</p>
+              <div class="toast toast-start">
+                <div class="alert alert-error py-3 px-4" style="border-radius: var(--radius-card);">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span class="text-sm">Gagal menyimpan task. Coba lagi.</span>
+                </div>
+              </div>
+            </div>
+            <div class="p-6 rounded-lg" style="background: var(--surface); border: 1px solid var(--border);">
+              <p class="label-muted mb-4">Toast Info</p>
+              <div class="toast toast-start">
+                <div class="alert alert-info py-3 px-4" style="border-radius: var(--radius-card);">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <span class="text-sm">Data berhasil dimuat.</span>
+                </div>
+              </div>
+            </div>
+            <div class="p-6 rounded-lg" style="background: var(--surface); border: 1px solid var(--border);">
+              <p class="label-muted mb-4">Toast Warning</p>
+              <div class="toast toast-start">
+                <div class="alert alert-warning py-3 px-4" style="border-radius: var(--radius-card);">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+                  <span class="text-sm">Task ini telah melewati deadline.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 13: Checkboxes                                       -->
+        <!-- ============================================================ -->
+        <section id="checkboxes" class="section">
+          <h2 class="section-title">13. Checkboxes</h2>
+
+          <div class="space-y-4">
+            <div>
+              <p class="label-muted mb-3">Default DaisyUI Checkboxes</p>
+              <div class="flex flex-wrap items-center gap-6">
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-primary" checked />
+                  <span class="text-sm line-through" style="color: var(--text-muted);">Review design mockup</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-primary" />
+                  <span class="text-sm">Meeting dengan client</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-primary" disabled checked />
+                  <span class="text-sm line-through" style="color: var(--text-muted);">Deploy to staging</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-primary" disabled />
+                  <span class="text-sm opacity-60">Task disabled</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p class="label-muted mb-3">Checkbox Sizes</p>
+              <div class="flex flex-wrap items-center gap-4">
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-primary checkbox-xs" checked />
+                  <span class="text-xs">Extra small</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-primary checkbox-sm" checked />
+                  <span class="text-sm">Small</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-primary" checked />
+                  <span class="text-sm">Default</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-primary checkbox-lg" checked />
+                  <span class="text-base">Large</span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p class="label-muted mb-3">Checkbox Color Variants</p>
+              <div class="flex flex-wrap items-center gap-4">
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-primary" checked />
+                  <span class="text-sm">Primary</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-success" style="accent-color: var(--success);" checked />
+                  <span class="text-sm">Success</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-warning" style="accent-color: var(--warning);" checked />
+                  <span class="text-sm">Warning</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-error" style="accent-color: var(--error);" checked />
+                  <span class="text-sm">Error</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 14: Modals                                           -->
+        <!-- ============================================================ -->
+        <section id="modals" class="section">
+          <h2 class="section-title">14. Modals</h2>
+
+          <div class="space-y-6">
+            <!-- Trigger buttons -->
+            <div class="flex flex-wrap gap-3">
+              <label for="demo-modal" class="btn btn-primary btn-sm">Buka Modal Task</label>
+              <label for="confirm-modal" class="btn btn-error btn-sm">Buka Modal Konfirmasi Hapus</label>
+              <button class="btn btn-outline btn-sm" onclick="document.getElementById('static-modal').showModal()">Tampilkan Modal Static</button>
+            </div>
+
+            <!-- Create/Edit Task Modal -->
+            <input type="checkbox" id="demo-modal" class="modal-toggle" />
+            <div class="modal">
+              <div class="modal-box" style="border-radius: var(--radius-modal);">
+                <h3 class="text-lg font-bold mb-4">Buat Task Baru</h3>
+                <div class="form">
+                  <div class="form-control w-full">
+                    <label class="form-label">
+                      <span class="label-text font-medium">Judul <span class="text-error">*</span></span>
+                    </label>
+                    <input type="text" class="input w-full" placeholder="Masukkan judul task..." />
+                  </div>
+                  <div class="form-control w-full">
+                    <label class="form-label">
+                      <span class="label-text font-medium">Deskripsi</span>
+                    </label>
+                    <textarea class="textarea w-full h-24" placeholder="Opsional"></textarea>
+                  </div>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div class="form-control w-full">
+                      <label class="form-label"><span class="label-text font-medium">Due Date</span></label>
+                      <input type="date" class="input w-full" />
+                    </div>
+                    <div class="form-control w-full">
+                      <label class="form-label"><span class="label-text font-medium">Group</span></label>
+                      <select class="select w-full">
+                        <option disabled selected>Pilih group</option>
+                        <option>Pekerjaan</option>
+                        <option>Pribadi</option>
+                        <option>Belanja</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div class="modal-action">
+                  <label for="demo-modal" class="btn btn-ghost btn-sm">Batal</label>
+                  <label for="demo-modal" class="btn btn-primary btn-sm">Simpan</label>
+                </div>
+              </div>
+              <label class="modal-backdrop" for="demo-modal">Close</label>
+            </div>
+
+            <!-- Confirm Delete Modal -->
+            <input type="checkbox" id="confirm-modal" class="modal-toggle" />
+            <div class="modal">
+              <div class="modal-box" style="border-radius: var(--radius-modal); max-width: 360px;">
+                <h3 class="text-lg font-bold mb-2 text-error">Hapus Task?</h3>
+                <p class="text-sm mb-4" style="color: var(--text-muted);">
+                  Task "Review design mockup" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+                </p>
+                <div class="modal-action">
+                  <label for="confirm-modal" class="btn btn-ghost btn-sm">Batal</label>
+                  <label for="confirm-modal" class="btn btn-error btn-sm">Hapus</label>
+                </div>
+              </div>
+              <label class="modal-backdrop" for="confirm-modal">Close</label>
+            </div>
+
+            <!-- Static Modal (for visual preview) -->
+            <dialog id="static-modal" class="modal" open>
+              <div class="modal-box" style="border-radius: var(--radius-modal); max-width: 440px;">
+                <form method="dialog">
+                  <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">X</button>
+                </form>
+                <h3 class="text-lg font-bold mb-2">Static Modal Preview</h3>
+                <p class="text-sm mb-4" style="color: var(--text-muted);">
+                  Modal ini ditampilkan secara statis untuk preview visual. Di implementasi nyata, modal akan muncul saat dipicu oleh interaksi user.
+                </p>
+                <div class="modal-action">
+                  <form method="dialog">
+                    <button class="btn btn-ghost btn-sm">Tutup</button>
+                  </form>
+                </div>
+              </div>
+            </dialog>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 15: Skeletons                                        -->
+        <!-- ============================================================ -->
+        <section id="skeletons" class="section">
+          <h2 class="section-title">15. Skeletons (Loading States)</h2>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Stat card skeletons -->
+            <div>
+              <p class="label-muted mb-3">Stat Card Loading</p>
+              <div class="grid grid-cols-3 gap-4">
+                <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-card); padding: var(--gap-md) var(--gap-lg);">
+                  <div class="skeleton h-4 w-16 mb-2"></div>
+                  <div class="skeleton h-7 w-10 mb-1"></div>
+                  <div class="skeleton h-3 w-20"></div>
+                </div>
+                <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-card); padding: var(--gap-md) var(--gap-lg);">
+                  <div class="skeleton h-4 w-16 mb-2"></div>
+                  <div class="skeleton h-7 w-10 mb-1"></div>
+                  <div class="skeleton h-3 w-20"></div>
+                </div>
+                <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-card); padding: var(--gap-md) var(--gap-lg);">
+                  <div class="skeleton h-4 w-16 mb-2"></div>
+                  <div class="skeleton h-7 w-10 mb-1"></div>
+                  <div class="skeleton h-3 w-20"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Task list skeletons -->
+            <div>
+              <p class="label-muted mb-3">Task List Loading</p>
+              <div class="space-y-3">
+                <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-card);" class="p-4 flex gap-4 items-start">
+                  <div class="skeleton w-5 h-5 rounded-sm shrink-0"></div>
+                  <div class="flex-1 space-y-2">
+                    <div class="skeleton h-4 w-3/4"></div>
+                    <div class="skeleton h-3 w-1/2"></div>
+                  </div>
+                  <div class="skeleton h-5 w-16 rounded"></div>
+                </div>
+                <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-card);" class="p-4 flex gap-4 items-start">
+                  <div class="skeleton w-5 h-5 rounded-sm shrink-0"></div>
+                  <div class="flex-1 space-y-2">
+                    <div class="skeleton h-4 w-2/3"></div>
+                    <div class="skeleton h-3 w-1/3"></div>
+                  </div>
+                  <div class="skeleton h-5 w-16 rounded"></div>
+                </div>
+                <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-card);" class="p-4 flex gap-4 items-start">
+                  <div class="skeleton w-5 h-5 rounded-sm shrink-0"></div>
+                  <div class="flex-1 space-y-2">
+                    <div class="skeleton h-4 w-1/2"></div>
+                    <div class="skeleton h-3 w-2/5"></div>
+                  </div>
+                  <div class="skeleton h-5 w-16 rounded"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 16: Empty State                                      -->
+        <!-- ============================================================ -->
+        <section id="empty-state" class="section">
+          <h2 class="section-title">16. Empty State</h2>
+
+          <div class="border rounded-lg overflow-hidden" style="border-color: var(--border);">
+            <div class="empty-state">
+              <div class="w-16 h-16 rounded-full flex items-center justify-center mb-2"
+                   style="background: color-mix(in srgb, var(--primary) 8%, transparent);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                     stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 11l3 3L22 4" />
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
+              </div>
+              <h3 class="empty-state-title">Tidak ada task hari ini</h3>
+              <p class="empty-state-desc">
+                Mulai buat task pertamamu untuk mengatur hari dengan lebih produktif. Task yang kamu buat akan tersimpan otomatis di server.
+              </p>
+              <button class="btn btn-primary btn-sm mt-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Buat Task Pertamamu
+              </button>
+            </div>
+          </div>
+
+          <!-- Empty Group State -->
+          <div class="border rounded-lg overflow-hidden mt-6" style="border-color: var(--border);">
+            <div class="empty-state">
+              <div class="w-16 h-16 rounded-full flex items-center justify-center mb-2"
+                   style="background: color-mix(in srgb, var(--primary) 8%, transparent);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+                     stroke="var(--primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <h3 class="empty-state-title">Group ini kosong</h3>
+              <p class="empty-state-desc">
+                Belum ada task dalam group "Pekerjaan". Tambahkan task baru ke group ini untuk mulai mengelola pekerjaanmu.
+              </p>
+              <button class="btn btn-primary btn-sm mt-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Tambah Task
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 17: Table                                            -->
+        <!-- ============================================================ -->
+        <section id="table" class="section">
+          <h2 class="section-title">17. Table</h2>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 36px;"></th>
+                  <th>Task</th>
+                  <th>Group</th>
+                  <th>Due Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox" class="checkbox checkbox-primary checkbox-sm" /></td>
+                  <td>Review design mockup dashboard v2</td>
+                  <td><span class="badge-status badge-group">Pekerjaan</span></td>
+                  <td class="text-sm">24 Jun 2026</td>
+                  <td><span class="badge-status badge-pending">Pending</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="checkbox checkbox-primary checkbox-sm" checked /></td>
+                  <td style="text-decoration: line-through; color: var(--text-muted);">Belanja bahan masakan</td>
+                  <td><span class="badge-status badge-group">Pribadi</span></td>
+                  <td class="text-sm">23 Jun 2026</td>
+                  <td><span class="badge-status badge-done">Selesai</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="checkbox checkbox-primary checkbox-sm" /></td>
+                  <td>Meeting client - presentasi progress</td>
+                  <td><span class="badge-status badge-group">Pekerjaan</span></td>
+                  <td class="text-sm" style="color: var(--error);">22 Jun 2026</td>
+                  <td><span class="badge-status badge-overdue">Terlambat</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="checkbox checkbox-primary checkbox-sm" /></td>
+                  <td>Deploy staging build</td>
+                  <td><span class="badge-status badge-group">Pekerjaan</span></td>
+                  <td class="text-sm">25 Jun 2026</td>
+                  <td><span class="badge-status badge-pending">Pending</span></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" class="checkbox checkbox-primary checkbox-sm" /></td>
+                  <td>Gigi check-up</td>
+                  <td><span class="badge-status badge-group">Kesehatan</span></td>
+                  <td class="text-sm">30 Jun 2026</td>
+                  <td><span class="badge-status badge-pending">Pending</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty Table -->
+          <p class="label-muted mt-6 mb-3">Empty Table</p>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 36px;"></th>
+                  <th>Task</th>
+                  <th>Group</th>
+                  <th>Due Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="table-empty">
+                  <td colspan="5" style="color: var(--text-muted);">Tidak ada task dalam group ini</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 18: Task Card (Composite)                            -->
+        <!-- ============================================================ -->
+        <section id="task-card" class="section">
+          <h2 class="section-title">18. Task Card (Composite Component)</h2>
+          <p class="mb-6" style="color: var(--text-muted); font-size: var(--font-size-small);">
+            Komponen utama SimpleTodo: setiap task dirender sebagai card dengan checkbox, judul, deskripsi, dan due date badge.
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+            <!-- Pending task -->
+            <div class="task-card p-4" style="background: var(--bg);">
+              <div class="flex gap-3 items-start">
+                <input type="checkbox" class="checkbox checkbox-primary mt-0.5" />
+                <div class="flex-1 min-w-0">
+                  <h4 class="font-semibold text-sm mb-1">Review design mockup dashboard v2</h4>
+                  <p class="text-sm truncate mb-2" style="color: var(--text-muted);">Periksa layout stat cards dan pastikan responsif di mobile.</p>
+                  <div class="flex gap-2 items-center">
+                    <span class="badge-status badge-pending">Pending</span>
+                    <span class="badge-status badge-group">Pekerjaan</span>
+                    <span class="text-xs" style="color: var(--text-muted);">24 Jun</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Done task -->
+            <div class="task-card task-card-done p-4" style="background: var(--bg);">
+              <div class="flex gap-3 items-start">
+                <input type="checkbox" class="checkbox checkbox-primary mt-0.5" checked />
+                <div class="flex-1 min-w-0">
+                  <h4 class="font-semibold text-sm mb-1 line-through" style="color: var(--text-muted);">Belanja bahan masakan untuk malam ini</h4>
+                  <p class="text-sm truncate mb-2 line-through" style="color: var(--text-muted); opacity: 0.7;">Beli ayam, wortel, bawang, minyak goreng.</p>
+                  <div class="flex gap-2 items-center">
+                    <span class="badge-status badge-done">Selesai</span>
+                    <span class="badge-status badge-group">Pribadi</span>
+                    <span class="text-xs" style="color: var(--text-muted);">23 Jun</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Overdue task -->
+            <div class="task-card p-4" style="background: var(--bg); border-color: var(--warning);">
+              <div class="flex gap-3 items-start">
+                <input type="checkbox" class="checkbox checkbox-primary mt-0.5" />
+                <div class="flex-1 min-w-0">
+                  <h4 class="font-semibold text-sm mb-1">Presentasi progress ke client</h4>
+                  <p class="text-sm truncate mb-2" style="color: var(--text-muted);">Siapkan slide dan demo fitur grup terbaru untuk meeting sore.</p>
+                  <div class="flex gap-2 items-center">
+                    <span class="badge-status badge-overdue">Terlambat</span>
+                    <span class="badge-status badge-group">Pekerjaan</span>
+                    <span class="text-xs" style="color: var(--error);">22 Jun</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Task with no group -->
+            <div class="task-card p-4" style="background: var(--bg);">
+              <div class="flex gap-3 items-start">
+                <input type="checkbox" class="checkbox checkbox-primary mt-0.5" />
+                <div class="flex-1 min-w-0">
+                  <h4 class="font-semibold text-sm mb-1">Deploy staging build</h4>
+                  <p class="text-sm truncate mb-2" style="color: var(--text-muted);">&nbsp;</p>
+                  <div class="flex gap-2 items-center">
+                    <span class="badge-status badge-pending">Pending</span>
+                    <span class="text-xs" style="color: var(--text-muted);">25 Jun</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- SECTION 19: App Layout (Shell)                               -->
+        <!-- ============================================================ -->
+        <section id="layout" class="section">
+          <h2 class="section-title">19. App Layout (Shell)</h2>
+          <p class="mb-6" style="color: var(--text-muted); font-size: var(--font-size-small);">
+            Shell layout SimpleTodo menggunakan sidebar kiri (fixed, 240px) yang berisi daftar group/navigation. Header atas (60px) menampilkan nama aplikasi dan breadcrumb/judul halaman. Area konten utama di sebelah kanan sidebar, di bawah header.
+          </p>
+
+          <!-- Shell Preview -->
+          <div class="border rounded-lg overflow-hidden" style="border-color: var(--border); box-shadow: var(--shadow-card);">
+            <div class="app-shell" style="height: 400px;">
+              <!-- Sidebar -->
+              <aside class="sidebar" style="background: var(--surface); border-right: 1px solid var(--border);">
+                <!-- Sidebar Header -->
+                <div class="flex h-header-height items-center px-6" style="border-bottom: 1px solid var(--border); min-height: var(--header-height);">
+                  <h2 class="text-lg font-bold">SimpleTodo</h2>
+                </div>
+                <!-- Navigation -->
+                <nav class="sidebar-nav">
+                  <a class="nav-item" href="#">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+                    </svg>
+                    Dashboard
+                  </a>
+                  <a class="nav-item" href="#">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    Semua Group
+                  </a>
+                </nav>
+                <!-- Group List -->
+                <div style="padding: 0 16px 16px;">
+                  <p class="text-xs font-semibold uppercase tracking-wider mb-2 px-4" style="color: var(--text-muted);">Group</p>
+                  <a class="nav-item" href="#">
+                    <div class="w-2 h-2 rounded-full" style="background: var(--primary);"></div>
+                    Pekerjaan <span class="ml-auto text-xs" style="color: var(--text-muted);">5</span>
+                  </a>
+                  <a class="nav-item" href="#">
+                    <div class="w-2 h-2 rounded-full" style="background: var(--success);"></div>
+                    Pribadi <span class="ml-auto text-xs" style="color: var(--text-muted);">3</span>
+                  </a>
+                  <a class="nav-item" href="#">
+                    <div class="w-2 h-2 rounded-full" style="background: var(--warning);"></div>
+                    Belanja <span class="ml-auto text-xs" style="color: var(--text-muted);">2</span>
+                  </a>
+                  <a class="nav-item" href="#">
+                    <div class="w-2 h-2 rounded-full" style="background: var(--error);"></div>
+                    Kesehatan <span class="ml-auto text-xs" style="color: var(--text-muted);">1</span>
+                  </a>
+                  <button class="btn btn-ghost btn-sm w-full justify-start mt-2" style="font-size: var(--font-size-small);">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Buat Group Baru
+                  </button>
+                </div>
+              </aside>
+
+              <!-- Main -->
+              <div class="main-content">
+                <!-- Topbar -->
+                <div class="topbar" style="border-bottom: 1px solid var(--border);">
+                  <button class="btn btn-ghost btn-sm sidebar-toggle lg:hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </button>
+                  <div class="topbar-breadcrumb">
+                    Dashboard / <span>Task Hari Ini</span>
+                  </div>
+                  <div class="topbar-end">
+                    <button class="btn btn-primary btn-sm">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                      Tambah Task
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Content Area -->
+                <div class="content-area">
+                  <div class="page-header">
+                    <h2 class="page-title">Task Hari Ini</h2>
+                    <div class="page-actions">
+                      <select class="select select-bordered select-sm">
+                        <option>Semua Group</option>
+                        <option>Pekerjaan</option>
+                        <option>Pribadi</option>
+                        <option>Belanja</option>
+                      </select>
+                      <select class="select select-bordered select-sm">
+                        <option>Semua Status</option>
+                        <option>Pending</option>
+                        <option>Selesai</option>
+                        <option>Terlambat</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Stat Cards -->
+                  <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="stat-card">
+                      <p class="stat-label">Pending</p>
+                      <p class="stat-value">12</p>
+                    </div>
+                    <div class="stat-card">
+                      <p class="stat-label">Selesai</p>
+                      <p class="stat-value" style="color: var(--success);">8</p>
+                    </div>
+                    <div class="stat-card">
+                      <p class="stat-label">Terlambat</p>
+                      <p class="stat-value" style="color: var(--error);">2</p>
+                    </div>
+                  </div>
+
+                  <!-- Task List Preview -->
+                  <div class="space-y-3">
+                    <div class="task-card p-3" style="background: var(--bg); display: flex; gap: 10px; align-items: center;">
+                      <input type="checkbox" class="checkbox checkbox-primary checkbox-sm" />
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold truncate">Review design mockup</p>
+                      </div>
+                      <span class="badge-status badge-pending text-xs">Pending</span>
+                    </div>
+                    <div class="task-card p-3" style="background: var(--bg); display: flex; gap: 10px; align-items: center;">
+                      <input type="checkbox" class="checkbox checkbox-primary checkbox-sm" checked />
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm line-through truncate" style="color: var(--text-muted);">Belanja bahan masakan</p>
+                      </div>
+                      <span class="badge-status badge-done text-xs">Selesai</span>
+                    </div>
+                    <div class="task-card p-3" style="background: var(--bg); display: flex; gap: 10px; align-items: center;">
+                      <input type="checkbox" class="checkbox checkbox-primary checkbox-sm" />
+                      <div class="flex-1 min-w-0">
+                        <p class="text-sm font-semibold truncate">Meeting client sore</p>
+                      </div>
+                      <span class="badge-status badge-overdue text-xs">Terlambat</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Layout specs -->
+          <div class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div style="background: var(--surface);" class="rounded p-4 text-center">
+              <p class="label-muted">Sidebar Width</p>
+              <p class="font-bold text-xl">240px</p>
+            </div>
+            <div style="background: var(--surface);" class="rounded p-4 text-center">
+              <p class="label-muted">Header Height</p>
+              <p class="font-bold text-xl">60px</p>
+            </div>
+            <div style="background: var(--surface);" class="rounded p-4 text-center">
+              <p class="label-muted">Content Padding</p>
+              <p class="font-bold text-xl">24px</p>
+            </div>
+            <div style="background: var(--surface);" class="rounded p-4 text-center">
+              <p class="label-muted">Strategy</p>
+              <p class="font-bold text-sm">Desktop-first</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- Footer                                                       -->
+        <!-- ============================================================ -->
+        <div class="border-t pt-8 pb-4 mt-12" style="border-color: var(--border);">
+          <p class="text-sm text-center" style="color: var(--text-muted);">
+            Design System Preview &mdash; SimpleTodo &mdash; 23 Juni 2026
+          </p>
+          <p class="text-xs text-center mt-1" style="color: var(--text-muted);">
+            Asset: design-tokens.css &bull; components.css &bull; shell.css &mdash; Framework: Tailwind CSS + DaisyUI
+          </p>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</body>
+</html>

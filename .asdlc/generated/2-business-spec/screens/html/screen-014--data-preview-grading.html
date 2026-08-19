@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Preview Grading | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only — no colour/radius/shadow literals, CSS variables only */
+    body {
+      background: var(--color-surface);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: var(--space-xl) var(--space-md);
+    }
+    .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); }
+
+    .mobile-shell { min-height: 780px; box-shadow: var(--shadow-dropdown); }
+
+    .mobile-header-title { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
+    .mobile-header-title h1 {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-lg);
+      color: var(--color-text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: var(--space-touch-target-min); height: var(--space-touch-target-min);
+      flex-shrink: 0; color: var(--color-text-primary); cursor: pointer;
+    }
+    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    .detail-section { display: flex; flex-direction: column; gap: var(--space-md); margin-bottom: var(--space-lg); }
+    .detail-section-title {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: var(--color-brand);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding-bottom: var(--space-xs);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .detail-field { display: flex; flex-direction: column; gap: var(--space-xs); }
+    .detail-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-sm); color: var(--color-text-muted); }
+    .detail-value { font-size: var(--font-size-base); color: var(--color-text-primary); padding: var(--space-sm) var(--space-md); background: var(--color-input-bg); border-radius: var(--radius-input); min-height: var(--space-touch-target-min); display: flex; align-items: center; }
+    .detail-value.empty { color: var(--color-text-muted); font-style: italic; }
+
+    .grading-total { display: flex; justify-content: space-between; padding: var(--space-sm) var(--space-md); font-weight: 600; font-size: var(--font-size-sm); background: var(--color-header-tint); border-radius: var(--radius-input); margin-top: var(--space-sm); }
+
+    .readonly-note {
+      display: flex; align-items: flex-start; gap: var(--space-sm);
+      background: var(--color-header-tint);
+      border-radius: var(--radius-input);
+      padding: var(--space-sm) var(--space-md);
+      font-size: var(--font-size-xs);
+      color: var(--color-text-primary);
+      margin-bottom: var(--space-lg);
+    }
+    .readonly-note svg { width: 16px; height: 16px; stroke: var(--color-brand); stroke-width: 1.5; fill: none; flex-shrink: 0; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div class="preview-wrap">
+    <div class="mobile-shell">
+      <!-- Header: back + breadcrumb + title -->
+      <div class="mobile-header">
+        <span class="icon-btn" title="Kembali">
+          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </span>
+        <div class="mobile-header-title">
+          <h1>Data Preview | Grading</h1>
+        </div>
+        <span class="badge badge-success" title="Status record">
+          <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="1.5" fill="none"><polyline points="20 6 9 17 4 12"/></svg>
+          Synced
+        </span>
+      </div>
+      <div class="mobile-breadcrumb">Production Process Activity &gt; Grading &gt; Data Preview</div>
+
+      <!-- Body: read-only detail sections -->
+      <div class="mobile-content">
+
+        <div class="readonly-note">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Layar ini hanya untuk melihat data. Untuk memperbaiki data, gunakan <strong>Form Grading</strong>.</span>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-section-title">Identitas Grading</div>
+
+          <div class="detail-field">
+            <span class="detail-label">Grading ID</span>
+            <span class="detail-value">GRD-2026-000112</span>
+          </div>
+
+          <div class="detail-field">
+            <span class="detail-label">Date</span>
+            <span class="detail-value">14 Agustus 2026</span>
+          </div>
+
+          <div class="detail-field">
+            <span class="detail-label">WB Card No</span>
+            <span class="detail-value">0048213</span>
+          </div>
+
+          <div class="detail-field">
+            <span class="detail-label">Estate/Supplier</span>
+            <span class="detail-value">Estate Sei Rokan</span>
+          </div>
+
+          <div class="detail-field">
+            <span class="detail-label">Vehicle No</span>
+            <span class="detail-value">TRK-014</span>
+          </div>
+
+          <div class="detail-field">
+            <span class="detail-label">License Plate No</span>
+            <span class="detail-value">BM 8231 XA</span>
+          </div>
+
+          <div class="detail-field">
+            <span class="detail-label">Grader</span>
+            <span class="detail-value">Rudi Hartono</span>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-section-title">Grading Detail</div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kriteria</th>
+                  <th>Jumlah Janjang</th>
+                  <th>Persentase</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Buah Matang</td>
+                  <td>850</td>
+                  <td>85.0%</td>
+                </tr>
+                <tr>
+                  <td>Buah Mentah</td>
+                  <td>90</td>
+                  <td>9.0%</td>
+                </tr>
+                <tr>
+                  <td>Buah Lewat Matang</td>
+                  <td>40</td>
+                  <td>4.0%</td>
+                </tr>
+                <tr>
+                  <td>Tandan Kosong</td>
+                  <td>20</td>
+                  <td>2.0%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="grading-total">
+            <span>Total Janjang</span>
+            <span>1.000</span>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-section-title">Verifikasi</div>
+
+          <div class="detail-field">
+            <span class="detail-label">Checked By</span>
+            <span class="detail-value">Siti Aminah (Supervisor)</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer: single Back action — layar ini murni read-only -->
+      <div class="mobile-actions">
+        <button type="button" class="btn btn-icon-muted btn-icon" title="Back" aria-label="Back">
+          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          <span class="sr-only">Back</span>
+        </button>
+      </div>
+    </div>
+
+    <p style="font-size:var(--font-size-xs);color:var(--color-text-muted);font-style:italic;margin-top:var(--space-lg)">
+      Actors: Station Operator &middot; Supervisor &nbsp;&middot;&nbsp;
+      Entry points: Tap Buka Data Preview dari Monitor Grading
+    </p>
+  </div>
+</body>
+</html>

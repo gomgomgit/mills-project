@@ -1,0 +1,421 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-17"
+  },
+  "id": "screen-017--data-browser-grading-web",
+  "name": "Data Browser Grading (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/grading",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-017--data-browser-grading-web",
+      "usecase_name": "Telusuri & Ekspor Data Grading",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/grading-records",
+          "description": "List/filter data record Grading (gabungan sync mobile & input web) dengan pagination",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "date_from",
+                "type": "date",
+                "required": false,
+                "default": "",
+                "description": "Filter tanggal awal"
+              },
+              {
+                "name": "date_to",
+                "type": "date",
+                "required": false,
+                "default": "",
+                "description": "Filter tanggal akhir"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter business unit"
+              },
+              {
+                "name": "page",
+                "type": "integer",
+                "required": false,
+                "default": "1",
+                "description": "Halaman"
+              },
+              {
+                "name": "per_page",
+                "type": "integer",
+                "required": false,
+                "default": "20",
+                "description": "Jumlah per halaman, max 100"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "grading_number": "string",
+                  "date": "date",
+                  "vehicle_number": "string",
+                  "driver_name": "string",
+                  "status": "string"
+                }
+              ],
+              "meta": {
+                "page": "integer",
+                "per_page": "integer",
+                "total": "integer",
+                "total_pages": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "INVALID_DATE_RANGE",
+                "condition": "date_from > date_to"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/grading-records/export",
+          "description": "Ekspor data Grading terfilter ke CSV/Excel",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "date_from",
+                "type": "date",
+                "required": false,
+                "default": "",
+                "description": "Filter tanggal awal"
+              },
+              {
+                "name": "date_to",
+                "type": "date",
+                "required": false,
+                "default": "",
+                "description": "Filter tanggal akhir"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter business unit"
+              },
+              {
+                "name": "format",
+                "type": "enum(csv, excel)",
+                "required": true,
+                "default": "csv",
+                "description": "Format file ekspor"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "content_type": "text/csv atau application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "note": "Response body adalah file stream/binary, bukan JSON"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "dataset terlalu besar atau error saat proses ekspor"
+              },
+              {
+                "http_code": 422,
+                "error_code": "INVALID_DATE_RANGE",
+                "condition": "date_from > date_to"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate query params (date_from/date_to) → if date_from > date_to: return 422 INVALID_DATE_RANGE, filter tidak diterapkan",
+        "2. Build query: grading-record WHERE business_unit_id matches (if provided) AND date BETWEEN date_from/date_to (if provided)",
+        "3. Paginate hasil sesuai shared-decisions.pagination (page/per_page)",
+        "4. Return list + pagination metadata",
+        "5. On export: re-run query filter yang sama tanpa pagination, generate file CSV/Excel → if dataset terlalu besar/error: return 422 EXPORT_FAILED",
+        "6. Return file stream untuk didownload user"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "SELECT records dengan filter tanggal/business_unit, dipaginasi"
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "SELECT records dengan filter yang sama, unpaginated, untuk keperluan ekspor"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Tidak ada data sesuai filter",
+          "handling": "Return 200 dengan data: [], FE tampilkan empty state dengan opsi reset filter"
+        },
+        {
+          "condition": "Rentang tanggal tidak valid (date_from > date_to)",
+          "handling": "Return 422 INVALID_DATE_RANGE, filter tidak diterapkan"
+        },
+        {
+          "condition": "Klik baris membuka detail",
+          "handling": "Navigasi client-side ke Detail Grading (Web), bukan panggilan API tambahan"
+        },
+        {
+          "condition": "Ekspor gagal (dataset besar/error)",
+          "handling": "Return 422 EXPORT_FAILED"
+        }
+      ],
+      "business_rules_applied": [
+        "Data mencakup hasil sync mobile & input web",
+        "Ekspor mengikuti filter aktif",
+        "Daftar termuat <=2 detik untuk dataset normal"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 422 INVALID_DATE_RANGE when date_from > date_to",
+          "given": "request query params contain date_from later than date_to (e.g. date_from=2026-08-15, date_to=2026-08-01)",
+          "expect": "throw/return 422 with error_code INVALID_DATE_RANGE; no filter is applied to the underlying query"
+        },
+        {
+          "description": "returns 422 EXPORT_FAILED when export dataset is too large or export processing errors",
+          "given": "gradingRecordRepo.findFilteredUnpaginated() resolves a dataset that exceeds export limits, or the CSV/Excel generation step throws",
+          "expect": "throw/return 422 with error_code EXPORT_FAILED; no file stream is returned"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "date_from <= date_to (or both omitted); gradingRecordRepo.findFiltered() returns valid paginated grading-record rows for the given business_unit_id/date range",
+          "expect": "return 200 with { data: [grading records], meta: { page, per_page, total, total_pages } } reflecting the applied filters"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-020--detail-grading-web",
+      "reason": "Klik baris membuka detail record"
+    },
+    {
+      "screen_id": "screen-023--form-grading-web",
+      "reason": "Aksi Tambah Data membuka form input web"
+    }
+  ],
+  "implementation_notes": [
+    "Ekspor sebaiknya dijalankan sebagai proses async/background job untuk dataset besar; NFR <=2 detik hanya berlaku untuk list, tidak eksplisit untuk export",
+    "Data source gabungan: record hasil sync manual dari mobile + record input langsung dari web (screen-023)"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Grading — success",
+      "usecase_id": "usecase-017--data-browser-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-records"
+          },
+          "request_example": {
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-15",
+            "business_unit_id": "{{businessUnitId}}",
+            "page": 1,
+            "per_page": 20
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-records/export"
+          },
+          "request_example": {
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-15",
+            "business_unit_id": "{{businessUnitId}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserGrading",
+        "action": "set date_from/date_to and business_unit filter inputs, apply filter, wait for table refresh, click Export and choose CSV format",
+        "assert": "table renders rows matching the active filter; export action fires with the same active filter params; success/download indicator shown"
+      },
+      "browser_test": {
+        "route": "/data/grading",
+        "action": "navigate to Data Browser Grading, fill date range and business unit filter, click Apply, then click Export and select CSV",
+        "assert": "table displays filtered grading records; browser triggers a file download whose content matches the active filter"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Grading — Tidak Ada Data Sesuai Filter",
+      "usecase_id": "usecase-017--data-browser-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-records"
+          },
+          "request_example": {
+            "date_from": "2020-01-01",
+            "date_to": "2020-01-02",
+            "business_unit_id": "{{businessUnitIdWithNoRecords}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserGrading",
+        "action": "apply a filter combination that matches no grading records",
+        "assert": "empty-state message is displayed with a 'reset filter' option; table shows zero rows"
+      },
+      "browser_test": {
+        "route": "/data/grading",
+        "action": "set filters that yield no matching records and apply",
+        "assert": "page shows a 'no data found' message and a visible reset-filter control"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Grading — Rentang Tanggal Tidak Valid",
+      "usecase_id": "usecase-017--data-browser-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-records"
+          },
+          "request_example": {
+            "date_from": "2026-08-15",
+            "date_to": "2026-08-01"
+          },
+          "expected_status": 422,
+          "expected_error_code": "INVALID_DATE_RANGE"
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserGrading",
+        "action": "set date_from to a value later than date_to and apply the filter",
+        "assert": "validation error message is shown; filter is not applied; table remains in its previous state"
+      },
+      "browser_test": {
+        "route": "/data/grading",
+        "action": "enter a start date after the end date in the filter fields and submit",
+        "assert": "browser displays a validation error message and the filtered results are not applied"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Grading — Klik Baris Membuka Detail",
+      "usecase_id": "usecase-017--data-browser-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-records"
+          },
+          "request_example": {
+            "date_from": "",
+            "date_to": "",
+            "page": 1,
+            "per_page": 20
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserGrading",
+        "action": "click a row in the grading records table",
+        "assert": "component triggers client-side navigation to the Detail Grading route with the selected record's id; no additional API call is fired on click"
+      },
+      "browser_test": {
+        "route": "/data/grading",
+        "action": "click a row in the grading data table",
+        "assert": "browser navigates to the Detail Grading (Web) page for the selected record without an extra network request beyond the navigation itself"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Grading — Ekspor Gagal",
+      "usecase_id": "usecase-017--data-browser-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-records/export"
+          },
+          "request_example": {
+            "date_from": "2026-01-01",
+            "date_to": "2026-12-31",
+            "format": "csv"
+          },
+          "expected_status": 422,
+          "expected_error_code": "EXPORT_FAILED"
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserGrading",
+        "action": "click Export with a filter that selects a very large dataset (or simulate an export-processing error)",
+        "assert": "an export-failure error message is displayed to the user"
+      },
+      "browser_test": {
+        "route": "/data/grading",
+        "action": "trigger export with a wide date range that causes a server-side export failure",
+        "assert": "browser shows an export-error toast/message and no file download occurs"
+      }
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-14"
+  },
+  "id": "usecase-001--login-web",
+  "name": "Login Web",
+  "description": "User (Admin/Supervisor/Mill Management) memasukkan kredensial dan memilih Business Area untuk masuk ke dashboard web sesuai role mereka.",
+  "actors": [
+    "actor-admin",
+    "actor-supervisor",
+    "actor-mill-management"
+  ],
+  "preconditions": [
+    "User memiliki akun terdaftar dan aktif di sistem",
+    "User mengetahui username/NIK dan password miliknya"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Membuka halaman Login Web"
+    },
+    {
+      "step": 2,
+      "actor": "actor-admin",
+      "description": "Memasukkan username/NIK dan password"
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Memilih Business Area/Company"
+    },
+    {
+      "step": 4,
+      "actor": "actor-admin",
+      "description": "Menekan tombol Login"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi kredensial dan business area"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Mengarahkan user ke dashboard sesuai role"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Kredensial Salah",
+      "trigger": "Validasi di step 5 gagal karena username/password tidak cocok",
+      "steps": [
+        "Sistem menampilkan pesan error \"kredensial salah\"",
+        "Field password dikosongkan",
+        "User dapat mencoba lagi"
+      ]
+    },
+    {
+      "name": "Akun Dinonaktifkan",
+      "trigger": "Validasi di step 5 menemukan akun berstatus nonaktif",
+      "steps": [
+        "Sistem menampilkan pesan \"akun tidak aktif, hubungi Admin\"",
+        "Login ditolak"
+      ]
+    },
+    {
+      "name": "Business Area Tidak Sesuai",
+      "trigger": "Validasi di step 5, business area tidak cocok dengan akses user",
+      "steps": [
+        "Sistem menampilkan pesan error",
+        "Login ditolak"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User berhasil masuk ke dashboard web sesuai role",
+    "Sesi aktif tercatat"
+  ],
+  "business_rules": [
+    "Password minimal 6 karakter, case-sensitive, alfanumerik+simbol",
+    "Redirect setelah login mengikuti role"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Login Web — berhasil",
+      "given": "User memiliki akun terdaftar dan aktif di sistem, serta mengetahui username/NIK dan password miliknya.",
+      "when": "User membuka halaman Login Web, memasukkan username/NIK dan password, memilih Business Area/Company, lalu menekan tombol Login.",
+      "then": "Sistem memvalidasi kredensial dan business area, kemudian mengarahkan user ke dashboard web sesuai role masing-masing (Admin, Supervisor, atau Mill Management), dan sesi aktif tercatat."
+    },
+    {
+      "scenario": "Login Web — Kredensial Salah",
+      "given": "User memiliki akun terdaftar dan aktif di sistem, serta mengetahui username/NIK dan password miliknya.",
+      "when": "User memasukkan username/NIK dan/atau password yang tidak cocok dengan data akun, lalu menekan tombol Login.",
+      "then": "Sistem menampilkan pesan error \"kredensial salah\", mengosongkan field password, dan mengizinkan user untuk mencoba login kembali."
+    },
+    {
+      "scenario": "Login Web — Akun Dinonaktifkan",
+      "given": "User memiliki akun terdaftar dan aktif di sistem, serta mengetahui username/NIK dan password miliknya.",
+      "when": "User dengan akun berstatus nonaktif memasukkan kredensial yang benar, memilih Business Area, dan menekan tombol Login.",
+      "then": "Sistem menampilkan pesan \"akun tidak aktif, hubungi Admin\" dan menolak login."
+    },
+    {
+      "scenario": "Login Web — Business Area Tidak Sesuai",
+      "given": "User memiliki akun terdaftar dan aktif di sistem, serta mengetahui username/NIK dan password miliknya.",
+      "when": "User memasukkan kredensial yang benar namun memilih Business Area/Company yang tidak sesuai dengan hak aksesnya, lalu menekan tombol Login.",
+      "then": "Sistem menampilkan pesan error terkait ketidaksesuaian business area dan menolak login."
+    },
+    {
+      "scenario": "Login Web — Format Password Tidak Valid",
+      "given": "User memiliki akun terdaftar dan aktif di sistem, serta mengetahui username/NIK dan password miliknya.",
+      "when": "User memasukkan password yang tidak memenuhi ketentuan minimal (kurang dari 6 karakter, atau tidak alfanumerik+simbol) saat mencoba Login.",
+      "then": "Sistem menolak proses login dan menampilkan pesan validasi bahwa password tidak memenuhi format yang ditentukan (minimal 6 karakter, case-sensitive, alfanumerik+simbol)."
+    }
+  ],
+  "related_screen_ids": [
+    "screen-001--login-web"
+  ]
+}

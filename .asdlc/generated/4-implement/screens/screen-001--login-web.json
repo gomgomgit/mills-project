@@ -1,0 +1,88 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-17"
+  },
+  "id": "screen-001--login-web",
+  "name": "Login Web",
+  "module_id": "module-auth",
+  "status": "partial",
+  "files_generated": [
+    "backend/app/Services/AuthService.php",
+    "backend/app/Http/Controllers/Api/AuthController.php",
+    "backend/app/Http/Controllers/Controller.php",
+    "backend/app/Exceptions/InvalidCredentialsException.php",
+    "backend/app/Exceptions/AccountInactiveException.php",
+    "backend/app/Exceptions/BusinessAreaMismatchException.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/factories/CorporateFactory.php",
+    "backend/database/factories/CompanyFactory.php",
+    "backend/database/factories/BusinessUnitFactory.php",
+    "backend/database/factories/UserFactory.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/AuthServiceTest.php",
+    "backend/tests/Feature/Api/LoginWebTest.php",
+    "backend/tests/Feature/Livewire/LoginFormTest.php",
+    "backend/tests/Browser/LoginWebTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Auth/LoginForm.php",
+    "backend/resources/views/livewire/auth/login-form.blade.php",
+    "backend/resources/views/auth/login.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "redirect_to per role: admin→/admin/dashboard, supervisor→/supervisor/dashboard, mill_management→/mill-management/dashboard, operator→/operator/dashboard, fallback /dashboard (AuthService::ROLE_REDIRECTS) — tidak didokumentasikan eksplisit di tech spec",
+    "Business-area access = exact match terhadap User.business_unit_id (tidak ada tabel M2M akses di entity-catalog)",
+    "3 exception domain baru dibuat (InvalidCredentialsException 401, AccountInactiveException/BusinessAreaMismatchException 403) karena ErrorCodes hanya punya kategori generik",
+    "login.blade.php diimplementasikan sebagai Livewire full-page layout (#[Layout('auth.login')])",
+    "Design token (brand #249360, destructive #DC2626, radius, font Inter) di-inline sebagai CSS biasa karena belum ada pipeline Vite/Tailwind di scaffold backend-only ini",
+    "AuthController dan LoginForm sama-sama memanggil AuthService::login() — ada seam komentar untuk cabang mobile/device_name di masa depan (usecase-002), belum diimplementasikan",
+    "Fix round 1: POST /api/login awalnya di grup middleware 'api' stateless; ditambahkan middleware('web') eksplisit karena business_logic step 6 mengharuskan Laravel session dibuat unconditional (bukan SPA cross-origin call)"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada ekstensi Xdebug/PCOV di environment ini, walau ke-7 unit_test_cases dari tech-spec semuanya ada dan lulus. Bukan indikasi coverage rendah, hanya keterbatasan tooling.",
+      "severity": "minor"
+    },
+    {
+      "description": "ApiExceptionHandler belum mengeluarkan field error_code yang machine-readable (hanya message/errors), sehingga integration test menguji HTTP status + teks pesan, bukan error_code spesifik (INVALID_CREDENTIALS dll dari tech-spec) — gap antara kontrak tech-spec dan implementasi error-handler bersama, perlu diperbaiki di shared-modules atau iterasi berikutnya.",
+      "severity": "major"
+    },
+    {
+      "description": "Browser test (tests/Browser/LoginWebTest.php) dibuat tapi TIDAK dijalankan — tidak ada dev server/browser di environment sandbox ini. File mengasumsikan seeded user (supervisor01/inactive01/otherarea01) yang perlu seeder nyata sebelum bisa dijalankan.",
+      "severity": "minor"
+    },
+    {
+      "description": "AuthServiceTest.php pakai RefreshDatabase + sqlite in-memory dengan factories, bukan true mock terhadap Eloquent — deviasi pragmatis dari test_strategy.unit_test.mock_policy ('Mock all I/O') karena AuthService memakai Eloquent langsung tanpa abstraksi repository.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-17T12:05:35Z",
+      "passed": 9,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-17T12:05:40Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-17T12:05:46Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

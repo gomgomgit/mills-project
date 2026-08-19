@@ -1,0 +1,161 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-012--form-cages-track",
+  "name": "Form Cages Track",
+  "module_id": "module-mobile-station-ops",
+  "description": "Form input/edit data log Cages Track yang mencatat data header (Tippler Start/Stop Time otomatis, Cages Out/Tipped manual, verifikasi Checked By/Acknowledged By) dan grid Cages Tipped Time (checklist cage per slot jam), dengan field dikelompokkan per section.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap 'New Data' dari Monitor Cages Track (draft baru)",
+    "Tap salah satu item draft/pause di list Monitor Cages Track (lanjutkan draft)"
+  ],
+  "information_displayed": [
+    "Cages Header: Tanggal (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit), Tippler Start Time (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit), Tippler Stop Time (otomatis terisi sekali saat Simpan ditekan, kosong sebelumnya, tidak dapat diedit manual), Cages Out (input manual), Cages Tipped (input manual, menentukan jumlah kolom checklist cage 1..N di grid Cages Tipped Time), Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (hanya bisa diisi Supervisor), Acknowledged By (hanya bisa diisi Mill Management), Note (input manual, opsional)",
+    "Cages Tipped Time: grid baris slot waktu - Time (dropdown jam 0-23, hanya menampilkan jam yang lebih besar dari jam baris terakhir ditambahkan dan belum dipakai baris lain), checklist Cage 1..N (N = nilai Cages Tipped header) yang dicentang pada jam tersebut, Total Cages (dihitung otomatis dari jumlah cage tercentang di baris itu), Number of Cages Remain (dihitung otomatis: Cages Tipped header dikurangi Total Cages baris itu) - baris bisa ditambah dan dihapus",
+    "Breadcrumb navigasi (Home > Production Process Activity > Cages Track > Form) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu",
+    "Field dikelompokkan per section: Identitas Cages Track, Tippler & Cages, Verifikasi, Cages Tipped Time (mengikuti pola pemisahan section Form Weighbridge/Grading)"
+  ],
+  "available_actions": [
+    {
+      "action": "Isi Cages Tipped",
+      "description": "Menentukan jumlah kolom checklist Cage 1..N pada grid Cages Tipped Time",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tambah baris Cages Tipped Time",
+      "description": "Menambah satu baris slot waktu baru ke grid",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus baris Cages Tipped Time",
+      "description": "Menghapus satu baris dari grid",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pilih Time per baris",
+      "description": "Memilih slot jam untuk baris tersebut dari jam yang tersedia (lebih besar dari jam baris terakhir ditambahkan, belum dipakai baris lain)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Centang Cage per baris",
+      "description": "Mencentang cage mana saja yang di-tipping pada jam tersebut; Total Cages dan Number of Cages Remain dihitung ulang otomatis",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi Checked By",
+      "description": "Mengisi field verifikasi Checked By",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi Acknowledged By",
+      "description": "Mengisi field verifikasi Acknowledged By",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record data Cages Track secara final",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progress saat ini sebagai draft yang bisa dilanjutkan nanti, kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus draft ini secara permanen (dengan konfirmasi), kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor tanpa menyimpan, dengan konfirmasi jika ada perubahan belum tersimpan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tanggal dan Tippler Start Time diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Tippler Stop Time diisi otomatis sekali tepat saat Simpan ditekan (bukan live-ticking), tidak dapat diedit manual",
+    "Inputted By otomatis diambil dari user yang login, tidak dapat diedit manual",
+    "Checked By hanya bisa diisi/diedit oleh Supervisor; Acknowledged By hanya bisa diisi/diedit oleh Mill Management",
+    "Cages Tipped (header) menentukan jumlah kolom checklist Cage 1..N di setiap baris Cages Tipped Time",
+    "Minimal satu baris Cages Tipped Time harus diisi sebelum Simpan",
+    "Time tiap baris wajib lebih besar dari Time baris yang terakhir ditambahkan pada record yang sama, dan tidak boleh duplikat dengan baris manapun (urutan menaik kronologis)",
+    "Total Cages dan Number of Cages Remain dihitung otomatis per baris, tidak dapat diedit manual",
+    "Record tersimpan langsung begitu Simpan ditekan (bukan approval workflow berjenjang)",
+    "Field wajib ditandai asterisk dengan validasi inline"
+  ],
+  "usecase_ids": [
+    "usecase-012--form-cages-track"
+  ],
+  "edge_cases": [
+    "Field wajib belum lengkap saat Simpan ditekan",
+    "Belum ada baris Cages Tipped Time sama sekali saat Simpan ditekan",
+    "Cages Tipped header belum diisi saat user mencoba menambah baris pertama — tombol Tambah Baris nonaktif sampai Cages Tipped terisi",
+    "User mencoba memilih Time yang sudah dipakai baris lain atau lebih awal dari baris terakhir — opsi tersebut tidak tersedia di dropdown",
+    "Operator mencoba mengisi/mengedit Checked By atau Acknowledged By",
+    "Draft yang di-Pause lalu dilanjutkan",
+    "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
+    "User menekan Clear (perlu konfirmasi sebelum hapus permanen)",
+    "User menghapus baris Cages Tipped Time yang sudah ada sebelumnya (bukan baru ditambah)"
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Apakah Cages Tipped (header) dikunci/disabled setelah minimal 1 baris Cages Tipped Time dibuat, untuk mencegah N berubah di tengah pengisian grid? - diasumsikan agent: YA dikunci setelah baris pertama dibuat, demi konsistensi jumlah kolom checklist; perlu dikonfirmasi user pada checkpoint pra-implementasi",
+    "Apakah 'Hapus baris' Cages Tipped Time mengikuti pola queue-for-deletion (baru dihapus permanen saat Simpan/Pause berikutnya) seperti Grading Detail, atau langsung dihapus? - diasumsikan agent: queue-for-deletion, konsisten dengan pola Grading, perlu dikonfirmasi user pada checkpoint pra-implementasi"
+  ]
+}

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>List | MySimpleTodo</title>
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link rel="stylesheet" href="assets/components.css">
+  <link rel="stylesheet" href="assets/shell.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <style>
+    /* Page-specific layout for List screen — data state */
+    .list-toolbar {
+      display: flex;
+      align-items: center;
+      gap: calc(var(--base-unit) * 2);
+      margin-bottom: calc(var(--base-unit) * 4);
+    }
+    .list-toolbar .input {
+      max-width: 28rem;
+      flex: 1;
+    }
+    .list-toolbar select.input {
+      max-width: 12rem;
+      flex: none;
+    }
+    .actions-cell {
+      display: flex;
+      align-items: center;
+      gap: var(--base-unit);
+    }
+    .actions-cell .btn-icon {
+      padding: calc(var(--base-unit));
+      min-width: 1.75rem;
+      height: 1.75rem;
+      justify-content: center;
+      display: inline-flex;
+      align-items: center;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: var(--text-muted);
+      border-radius: var(--radius-button);
+      transition: background 0.1s, color 0.1s;
+    }
+    .actions-cell .btn-icon:hover {
+      background: color-mix(in srgb, var(--brand) 8%, transparent);
+      color: var(--brand);
+    }
+    .actions-cell .btn-icon.delete:hover {
+      background: color-mix(in srgb, var(--destructive) 8%, transparent);
+      color: var(--destructive);
+    }
+    .overdue-row td {
+      background: color-mix(in srgb, var(--destructive) 4%, transparent);
+    }
+    .overdue-row:hover td {
+      background: color-mix(in srgb, var(--destructive) 7%, transparent);
+    }
+    .table-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: calc(var(--base-unit) * 3);
+      font-size: var(--font-size-small);
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">MySimpleTodo</div>
+      <nav class="sidebar-nav">
+        <a class="nav-item active" href="#">
+          <i data-lucide="list-checks" style="width:16px;height:16px;"></i>
+          All Tasks
+        </a>
+        <a class="nav-item" href="#">
+          <i data-lucide="plus-circle" style="width:16px;height:16px;"></i>
+          Add Task
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <div class="main-content">
+
+      <!-- Top bar -->
+      <header class="topbar">
+        <span style="font-weight: var(--font-weight-h2); font-size: var(--font-size-h3);">Task Management</span>
+        <div style="display:flex;align-items:center;gap:calc(var(--base-unit)*2);">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:var(--font-size-small);font-weight:600;">U</div>
+        </div>
+      </header>
+
+      <!-- Content area -->
+      <div class="content-area">
+
+        <!-- Page header -->
+        <div class="page-header">
+          <h1 class="page-title">All Tasks</h1>
+          <div class="page-actions">
+            <button class="btn btn-primary">
+              <i data-lucide="plus" style="width:14px;height:14px;"></i>
+              Add Task
+            </button>
+          </div>
+        </div>
+
+        <!-- Toolbar: search + filter -->
+        <div class="list-toolbar">
+          <input class="input" type="text" placeholder="Search tasks..." value="">
+          <select class="input">
+            <option>All statuses</option>
+            <option>Pending</option>
+            <option>Done</option>
+            <option>Overdue</option>
+          </select>
+          <select class="input">
+            <option>Due Soon</option>
+            <option>All tasks</option>
+            <option>Completed</option>
+          </select>
+        </div>
+
+        <!-- Task table -->
+        <div class="card">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Due Date</th>
+                  <th>Status</th>
+                  <th style="width:100px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+
+                <!-- Overdue task 1 -->
+                <tr class="overdue-row">
+                  <td>
+                    <div style="display:flex;align-items:center;gap:calc(var(--base-unit)*2);">
+                      <i data-lucide="circle" style="width:16px;height:16px;color:var(--border);cursor:pointer;"></i>
+                      <span>Prepare quarterly report</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="badge badge-destructive">Jun 25</span>
+                  </td>
+                  <td><span class="badge badge-destructive">Overdue</span></td>
+                  <td>
+                    <div class="actions-cell">
+                      <button class="btn-icon" title="Mark done">
+                        <i data-lucide="check-circle" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon" title="Edit">
+                        <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon delete" title="Delete">
+                        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Overdue task 2 -->
+                <tr class="overdue-row">
+                  <td>
+                    <div style="display:flex;align-items:center;gap:calc(var(--base-unit)*2);">
+                      <i data-lucide="circle" style="width:16px;height:16px;color:var(--border);cursor:pointer;"></i>
+                      <span>Review pull requests</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="badge badge-destructive">Jun 27</span>
+                  </td>
+                  <td><span class="badge badge-destructive">Overdue</span></td>
+                  <td>
+                    <div class="actions-cell">
+                      <button class="btn-icon" title="Mark done">
+                        <i data-lucide="check-circle" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon" title="Edit">
+                        <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon delete" title="Delete">
+                        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Due soon - Pending -->
+                <tr>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:calc(var(--base-unit)*2);">
+                      <i data-lucide="circle" style="width:16px;height:16px;color:var(--border);cursor:pointer;"></i>
+                      <span>Update project dependencies</span>
+                    </div>
+                  </td>
+                  <td>Jun 28</td>
+                  <td><span class="badge badge-warning">Pending</span></td>
+                  <td>
+                    <div class="actions-cell">
+                      <button class="btn-icon" title="Mark done">
+                        <i data-lucide="check-circle" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon" title="Edit">
+                        <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon delete" title="Delete">
+                        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Due soon - Pending -->
+                <tr>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:calc(var(--base-unit)*2);">
+                      <i data-lucide="circle" style="width:16px;height:16px;color:var(--border);cursor:pointer;"></i>
+                      <span>Write unit tests for auth module</span>
+                    </div>
+                  </td>
+                  <td>Jun 29</td>
+                  <td><span class="badge badge-warning">Pending</span></td>
+                  <td>
+                    <div class="actions-cell">
+                      <button class="btn-icon" title="Mark done">
+                        <i data-lucide="check-circle" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon" title="Edit">
+                        <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon delete" title="Delete">
+                        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Due soon - Pending -->
+                <tr>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:calc(var(--base-unit)*2);">
+                      <i data-lucide="circle" style="width:16px;height:16px;color:var(--border);cursor:pointer;"></i>
+                      <span>Deploy staging environment</span>
+                    </div>
+                  </td>
+                  <td>Jun 30</td>
+                  <td><span class="badge badge-warning">Pending</span></td>
+                  <td>
+                    <div class="actions-cell">
+                      <button class="btn-icon" title="Mark done">
+                        <i data-lucide="check-circle" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon" title="Edit">
+                        <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon delete" title="Delete">
+                        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Done task -->
+                <tr>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:calc(var(--base-unit)*2);">
+                      <i data-lucide="check" style="width:16px;height:16px;color:var(--success);cursor:pointer;"></i>
+                      <span style="text-decoration: line-through; color: var(--text-muted);">Set up SQLite database schema</span>
+                    </div>
+                  </td>
+                  <td>Jun 22</td>
+                  <td><span class="badge badge-success">Done</span></td>
+                  <td>
+                    <div class="actions-cell">
+                      <button class="btn-icon" title="Undo done">
+                        <i data-lucide="x-circle" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon" title="Edit">
+                        <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon delete" title="Delete">
+                        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Done task -->
+                <tr>
+                  <td>
+                    <div style="display:flex;align-items:center;gap:calc(var(--base-unit)*2);">
+                      <i data-lucide="check" style="width:16px;height:16px;color:var(--success);cursor:pointer;"></i>
+                      <span style="text-decoration: line-through; color: var(--text-muted);">Configure Vue.js project scaffold</span>
+                    </div>
+                  </td>
+                  <td>Jun 20</td>
+                  <td><span class="badge badge-success">Done</span></td>
+                  <td>
+                    <div class="actions-cell">
+                      <button class="btn-icon" title="Undo done">
+                        <i data-lucide="x-circle" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon" title="Edit">
+                        <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+                      </button>
+                      <button class="btn-icon delete" title="Delete">
+                        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Table footer -->
+        <div class="table-footer">
+          <span>Showing 7 of 7 tasks</span>
+          <span>Sorted by due date (ascending)</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

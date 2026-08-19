@@ -1,0 +1,67 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-06-30"
+  },
+  "id": "usecase-004--delete-task",
+  "name": "Delete Task",
+  "description": "The user permanently removes a task from the list by clicking the delete button on it. The deletion cannot be undone.",
+  "actors": [
+    "actor-user"
+  ],
+  "preconditions": [
+    "The Task List screen is visible",
+    "At least one task exists in the list"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-user",
+      "description": "Clicks the delete button on a task"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Permanently removes the task from the list"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Shows a success notification"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Delete fails",
+      "trigger": "At step 2, the deletion cannot be completed",
+      "steps": [
+        "System displays an error notification",
+        "Task remains in the list"
+      ]
+    }
+  ],
+  "postconditions": [
+    "The task is permanently removed from the list"
+  ],
+  "business_rules": [
+    "Deletion is permanent — there is no undo or recovery option"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Delete Task — success",
+      "given": "The user is on the Task List screen and at least one task exists",
+      "when": "The user clicks the delete button on a task",
+      "then": "The task is permanently removed from the list and a success notification is shown"
+    },
+    {
+      "scenario": "Delete Task — delete fails",
+      "given": "The user is on the Task List screen and at least one task exists",
+      "when": "The user clicks the delete button but the deletion cannot be completed",
+      "then": "An error notification is displayed and the task remains in the list"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-001--task-list"
+  ]
+}

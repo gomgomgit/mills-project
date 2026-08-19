@@ -1,0 +1,108 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-014--data-preview-grading",
+  "name": "Data Preview Grading",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar yang menampilkan daftar seluruh record Grading (tersimpan maupun masih draft/pause) dengan filter tanggal (default hari ini) dan pencarian, lalu menampilkan detail read-only lengkap dengan grid Grading Detail saat salah satu record tersimpan/tersinkron dipilih.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap 'Load Data' dari Monitor Grading"
+  ],
+  "information_displayed": [
+    "Mode LIST: daftar seluruh record Grading (draft/pause dan saved/synced) milik user, dengan filter tanggal (default terisi hari ini) & pencarian (Grading No/License Plate No), masing-masing item menampilkan label + indikator status ('Pause' untuk draft_ongoing/draft_paused, 'Tersimpan' untuk saved, 'Tersinkron' untuk synced)",
+    "Mode DETAIL: seluruh field header Grading (Grading No, Tanggal, WB Card No, License Plate No, Vehicle Code, Estate, Divisi, Netto (kg), Quantity (bunch), Note) dan grid Grading Detail (Quality Parameter, Qty, UOM, Percentage) secara read-only, beserta status badge record",
+    "Breadcrumb navigasi (Home > Production Process Activity > Grading > Load Data) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu"
+  ],
+  "available_actions": [
+    {
+      "action": "Tap item list berstatus Pause (draft)",
+      "description": "Membuka Form Grading untuk melanjutkan draft tersebut",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap item list berstatus Tersimpan/Tersinkron",
+      "description": "Berpindah ke mode detail, menampilkan record tersebut secara read-only",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Ubah filter tanggal",
+      "description": "Menyaring list sesuai tanggal yang dipilih (termasuk mengosongkannya)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Masukkan kata kunci pencarian",
+      "description": "Menyaring list berdasarkan kecocokan Grading No atau License Plate No",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back (mode list)",
+      "description": "Kembali ke Monitor Grading",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back (mode detail)",
+      "description": "Kembali ke mode list (bukan langsung ke Monitor Grading)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Detail record bersifat murni read-only; koreksi data dilakukan lewat Form Grading, bukan dari layar ini",
+    "List menampilkan seluruh record Grading milik user apapun statusnya",
+    "Filter tanggal & pencarian bekerja terhadap list yang sedang ditampilkan (client-side)",
+    "Filter tanggal default ke hari ini saat list pertama kali dibuka (mengacu ke field Tanggal Grading, bukan tanggal Weighbridge terkait)",
+    "Breadcrumb harus dapat dinavigasi",
+    "Checked By TIDAK ditampilkan pada detail (konsisten dengan Form Grading yang tidak mengeksposnya di UI)"
+  ],
+  "usecase_ids": [
+    "usecase-014--data-preview-grading"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan di mode detail (id tidak valid/tidak ada)",
+    "List kosong (belum ada record Grading sama sekali untuk user ini)",
+    "Filter tanggal/pencarian (termasuk default hari ini) tidak menghasilkan record yang cocok"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form Weighbridge | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only — no colour values, no radius/shadow, use CSS variables only */
+    body {
+      background: var(--color-surface);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: var(--space-xl) var(--space-md);
+    }
+
+    .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); }
+    .preview-label {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+
+    .mobile-shell { width: 390px; min-height: 780px; box-shadow: var(--shadow-dropdown); }
+
+    /* Breadcrumb — every segment navigable (business_rules: harus dapat dinavigasi) */
+    .breadcrumb-nav { display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap; }
+    .breadcrumb-link {
+      background: none; border: none; padding: 2px var(--space-xs); margin: -2px calc(var(--space-xs) * -1);
+      font-size: var(--font-size-xs); font-weight: 600; color: var(--color-brand); cursor: pointer;
+      text-decoration: underline; text-underline-offset: 2px;
+    }
+    .breadcrumb-current { font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-primary); }
+    .breadcrumb-sep { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+
+    .form-section { display: flex; flex-direction: column; gap: var(--space-md); margin-bottom: var(--space-lg); }
+    .form-section-title {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: var(--color-brand);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding-bottom: var(--space-xs);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .role-lock-label { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+    .role-lock-label svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; fill: none; flex-shrink: 0; }
+
+    .content-note {
+      display: flex; align-items: flex-start; gap: var(--space-sm);
+      background: var(--color-header-tint);
+      border-radius: var(--radius-input);
+      padding: var(--space-sm) var(--space-md);
+      font-size: var(--font-size-xs);
+      color: var(--color-text-primary);
+      margin-bottom: var(--space-lg);
+    }
+    .content-note svg { width: 16px; height: 16px; stroke: var(--color-brand); stroke-width: 1.5; fill: none; flex-shrink: 0; margin-top: 2px; }
+
+    /* Auto-filled / non-editable field label — Arrival (once, static) and Dispatch (live-ticking) */
+    .autofield-label { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); }
+    .autofield-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: var(--font-size-xs); font-weight: 500; color: var(--color-text-muted);
+    }
+    .autofield-tag svg { width: 12px; height: 12px; stroke: currentColor; stroke-width: 1.5; fill: none; }
+
+    /* Live-ticking dispatch indicator — pulsing dot to signal the value updates in real time until Simpan */
+    .live-dot-wrap { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-size-xs); font-weight: 600; color: var(--color-success); }
+    .live-dot { width: 6px; height: 6px; border-radius: var(--radius-chip); background: var(--color-success); animation: live-pulse 1.4s ease-in-out infinite; }
+    @keyframes live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+    /* Footer action row — Back (icon-only, muted/navigation) · Pause (warning/temporary-stop) ·
+       Clear (outline/de-emphasized destructive) · Simpan (brand/primary confirming action) */
+    .form-footer-actions { flex-wrap: wrap; }
+    .btn-icon-muted { background: transparent; color: var(--color-text-muted); border-color: var(--color-border); flex: 0 0 auto; }
+    .btn-warning { background: var(--color-warning); color: #fff; border-color: var(--color-warning); }
+    .btn-warning:hover { opacity: 0.9; }
+    .form-footer-actions .btn-warning,
+    .form-footer-actions .btn-outline,
+    .form-footer-actions .btn-primary { flex: 1 1 0; justify-content: center; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  </style>
+</head>
+<body>
+  <div class="preview-wrap">
+    <div class="preview-label">Form Weighbridge — default state (draft baru) · Mobile (Station Operator/Supervisor)</div>
+
+    <div class="mobile-shell">
+      <!-- Header: hamburger + brand (konsisten dengan Home/Station List/Monitor Weighbridge) -->
+      <div class="mobile-header">
+        <span class="hamburger" title="Menu" aria-label="Buka menu">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        </span>
+        <span class="brand">Mill Smart Log</span>
+      </div>
+
+      <!-- Breadcrumb — Home > Production Process Activity > Weighbridge > Form, setiap segmen dapat ditap -->
+      <div class="mobile-subheader">
+        <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+          <button type="button" class="breadcrumb-link" aria-label="Kembali ke Home">Home</button>
+          <span class="breadcrumb-sep">&rsaquo;</span>
+          <button type="button" class="breadcrumb-link" aria-label="Kembali ke Production Process Activity">Production Process Activity</button>
+          <span class="breadcrumb-sep">&rsaquo;</span>
+          <button type="button" class="breadcrumb-link" aria-label="Kembali ke Monitor Weighbridge">Weighbridge</button>
+          <span class="breadcrumb-sep">&rsaquo;</span>
+          <span class="breadcrumb-current">Form</span>
+        </nav>
+      </div>
+
+      <!-- Body: long scrolling form -->
+      <div class="mobile-content">
+
+        <div class="content-note">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Data tersimpan langsung saat <strong>Simpan</strong> ditekan &mdash; bukan approval berjenjang. Gunakan <strong>Pause</strong> untuk melanjutkan nanti.</span>
+        </div>
+
+        <form class="form">
+
+          <div class="form-section">
+            <div class="form-section-title">Identitas Weighbridge</div>
+
+            <div class="input-group">
+              <label class="input-label">WB Card Number/ID<span class="required">*</span></label>
+              <input class="input input-mobile" type="text" value="WB-2026-000512" placeholder="Masukkan nomor kartu timbang">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label autofield-label">
+                <span>Tanggal Arrival</span>
+                <span class="autofield-tag">
+                  <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Auto &middot; terkunci
+                </span>
+              </label>
+              <input class="input input-mobile" type="text" value="18 Agustus 2026" disabled>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label autofield-label">
+                <span>Waktu Arrival</span>
+                <span class="autofield-tag">
+                  <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Auto &middot; terkunci
+                </span>
+              </label>
+              <input class="input input-mobile" type="text" value="08:42" disabled>
+              <span class="input-hint">Terisi otomatis sekali saat form dibuka, tidak dapat diedit</span>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Kendaraan &amp; Supir</div>
+
+            <div class="input-group">
+              <label class="input-label">No. Kendaraan<span class="required">*</span></label>
+              <input class="input input-mobile" type="text" value="BM 8231 XA" placeholder="Contoh: BM 8231 XA">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Nama Supir<span class="required">*</span></label>
+              <input class="input input-mobile" type="text" value="Ahmad Fauzi" placeholder="Nama supir">
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Asal Muatan</div>
+
+            <div class="input-group">
+              <label class="input-label">Estate/Supplier Asal<span class="required">*</span></label>
+              <input class="input input-mobile" type="text" value="Estate Sei Rokan" placeholder="Nama estate/supplier">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Divisi</label>
+              <input class="input input-mobile" type="text" value="Divisi 3" placeholder="Opsional">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Blok</label>
+              <input class="input input-mobile" type="text" value="Blok C12" placeholder="Opsional">
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Data Timbangan</div>
+
+            <div class="input-group">
+              <label class="input-label">Berat Masuk (Gross)<span class="required">*</span></label>
+              <input class="input input-mobile" type="text" value="18.420 kg">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Berat Keluar (Tare)<span class="required">*</span></label>
+              <input class="input input-mobile" type="text" value="6.420 kg">
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Net Weight</label>
+              <input class="input input-mobile" type="text" value="12.000 kg" disabled>
+              <span class="input-hint">Otomatis terhitung: Gross &minus; Tare, tidak dapat diedit</span>
+            </div>
+
+            <div class="input-group">
+              <label class="input-label">Kuantitas<span class="required">*</span></label>
+              <input class="input input-mobile" type="text" value="1 truk">
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Dispatch</div>
+
+            <div class="input-group">
+              <label class="input-label autofield-label">
+                <span>Waktu Dispatch</span>
+                <span class="live-dot-wrap" title="Mengikuti waktu saat ini secara real-time">
+                  <span class="live-dot"></span>
+                  Live
+                </span>
+              </label>
+              <input class="input input-mobile" type="text" value="10:47" disabled>
+              <span class="input-hint">Mengikuti waktu saat ini secara real-time; berhenti &amp; menjadi nilai final tepat saat Simpan ditekan</span>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">Verifikasi</div>
+
+            <div class="input-group">
+              <label class="input-label role-lock-label">
+                <span>Checked By</span>
+                <span class="badge badge-neutral">
+                  <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Supervisor only
+                </span>
+              </label>
+              <input class="input input-mobile" type="text" value="" placeholder="Diisi oleh Supervisor" disabled>
+              <span class="input-hint">Hanya dapat diisi/diedit oleh role Supervisor &mdash; tidak terlihat/tidak aktif untuk role Operator</span>
+            </div>
+          </div>
+
+        </form>
+      </div>
+
+      <!-- Footer: action row, touch-target sized. Colour-coded by intent:
+           Back = muted outline (navigation, not a form action)
+           Pause = warning fill (distinct temporary-stop action, saves draft)
+           Clear = neutral outline (de-emphasized destructive/reset, requires confirmation)
+           Simpan = brand fill (primary/confirming action) -->
+      <div class="mobile-footer-actions form-footer-actions">
+        <button type="button" class="btn btn-icon-muted btn-icon" title="Back" aria-label="Kembali ke Monitor tanpa menyimpan">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.5" fill="none"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          <span class="sr-only">Back</span>
+        </button>
+        <button type="button" class="btn btn-warning" title="Simpan progress sebagai draft, kembali ke Monitor">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="#fff" stroke-width="1.5" fill="none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          Pause
+        </button>
+        <button type="button" class="btn btn-outline" title="Hapus draft ini secara permanen">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.5" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Clear
+        </button>
+        <button type="button" class="btn btn-primary" title="Simpan record secara final">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="#fff" stroke-width="1.5" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Simpan
+        </button>
+      </div>
+    </div>
+
+    <p style="font-size:var(--font-size-xs);color:var(--color-muted-foreground,#71717a);font-style:italic;margin-top:var(--space-lg);max-width:420px;text-align:center">
+      Actors: Station Operator &middot; Supervisor &nbsp;&middot;&nbsp;
+      Entry points: Tap 'New Data' dari Monitor Weighbridge (draft baru), Tap salah satu item draft/pause di list Monitor Weighbridge (lanjutkan draft)
+    </p>
+  </div>
+</body>
+</html>

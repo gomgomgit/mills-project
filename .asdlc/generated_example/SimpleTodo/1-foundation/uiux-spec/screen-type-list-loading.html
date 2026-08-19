@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>list — loading | MySimpleTodo</title>
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@latest/dist/full.min.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Page-specific layout only — all color/spacing values use CSS variables from design-tokens.css */
+    .content-wrapper {
+      max-width: var(--space-content-max-width);
+      margin: 0 auto;
+      padding: 0 var(--space-page-padding) var(--space-page-padding);
+    }
+    .task-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 14px 20px;
+    }
+  </style>
+</head>
+<body class="bg-base-100 min-h-screen">
+  <div class="content-wrapper">
+
+    <!-- ────────────────────────────────
+         Page Header
+         ──────────────────────────────── -->
+    <header class="flex items-center justify-between pt-8 pb-5 border-b border-base-200">
+      <h1 class="text-2xl font-bold tracking-tight text-base-content">MySimpleTodo</h1>
+      <button class="btn btn-primary btn-sm gap-1.5" disabled>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+             stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        Add Task
+      </button>
+    </header>
+
+    <!-- ────────────────────────────────
+         Filter & Sort Bar
+         ──────────────────────────────── -->
+    <div class="flex items-center gap-3 py-4">
+      <span class="text-sm font-medium text-base-content/60">Filter</span>
+      <select class="select select-bordered select-sm w-44 focus:outline-none" disabled>
+        <option value="all" selected>All Statuses</option>
+        <option value="todo">Todo</option>
+        <option value="in-progress">In Progress</option>
+        <option value="done">Done</option>
+      </select>
+      <div class="flex-1"></div>
+      <!-- Task count: indeterminate during load -->
+      <span class="text-sm text-base-content/30">Loading&hellip;</span>
+      <button class="btn btn-ghost btn-sm gap-1.5 border border-base-300 bg-base-200 font-normal text-base-content/40" disabled>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"
+             stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25"/>
+        </svg>
+        Due Date
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-primary/40" fill="none" viewBox="0 0 24 24"
+             stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- ────────────────────────────────
+         Task List — loading state
+         5 DaisyUI skeleton rows replacing task cards
+         during initial data fetch.
+         ──────────────────────────────── -->
+    <main class="space-y-2 pb-12" aria-busy="true" aria-label="Loading tasks">
+
+      <!-- Skeleton row 1 -->
+      <div class="rounded-lg border border-base-200 bg-base-100">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <div class="skeleton h-4 w-3/5 rounded"></div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <div class="skeleton h-5 w-16 rounded-full"></div>
+            <div class="skeleton h-5 w-20 rounded-full"></div>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <div class="skeleton h-7 w-7 rounded-lg"></div>
+            <div class="skeleton h-7 w-7 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skeleton row 2 — longer title placeholder -->
+      <div class="rounded-lg border border-base-200 bg-base-100">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <div class="skeleton h-4 w-4/5 rounded"></div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <div class="skeleton h-5 w-14 rounded-full"></div>
+            <div class="skeleton h-5 w-16 rounded-full"></div>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <div class="skeleton h-7 w-7 rounded-lg"></div>
+            <div class="skeleton h-7 w-7 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skeleton row 3 — shorter title placeholder -->
+      <div class="rounded-lg border border-base-200 bg-base-100">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <div class="skeleton h-4 w-2/5 rounded"></div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <div class="skeleton h-5 w-16 rounded-full"></div>
+            <div class="skeleton h-5 w-24 rounded-full"></div>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <div class="skeleton h-7 w-7 rounded-lg"></div>
+            <div class="skeleton h-7 w-7 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skeleton row 4 -->
+      <div class="rounded-lg border border-base-200 bg-base-100">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <div class="skeleton h-4 w-1/2 rounded"></div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <!-- No date badge placeholder (task with no due date) -->
+            <div class="skeleton h-5 w-14 rounded-full"></div>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <div class="skeleton h-7 w-7 rounded-lg"></div>
+            <div class="skeleton h-7 w-7 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skeleton row 5 — medium title placeholder -->
+      <div class="rounded-lg border border-base-200 bg-base-100">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <div class="skeleton h-4 w-2/3 rounded"></div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <div class="skeleton h-5 w-16 rounded-full"></div>
+            <div class="skeleton h-5 w-20 rounded-full"></div>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <div class="skeleton h-7 w-7 rounded-lg"></div>
+            <div class="skeleton h-7 w-7 rounded-lg"></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</body>
+</html>

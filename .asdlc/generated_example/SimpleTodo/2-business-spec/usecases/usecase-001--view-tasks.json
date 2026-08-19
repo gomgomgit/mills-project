@@ -1,0 +1,79 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-06-30"
+  },
+  "id": "usecase-001--view-tasks",
+  "name": "View Task List",
+  "description": "The user opens the app and sees all their tasks displayed in a list. This is the default state of the app — no action is required to trigger it. The user can see each task's title, due date, status, and an overdue indicator for past-due tasks.",
+  "actors": [
+    "actor-user"
+  ],
+  "preconditions": [
+    "The app is open in the browser"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Fetches all tasks from storage"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Displays tasks in a list, each with title, due date, status, and overdue indicator"
+    },
+    {
+      "step": 3,
+      "actor": "actor-user",
+      "description": "Views the task list"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "No tasks yet",
+      "trigger": "At step 2, no tasks exist in storage",
+      "steps": [
+        "System displays an empty state with the message 'No tasks yet.' and an Add Task prompt"
+      ]
+    },
+    {
+      "name": "Load fails",
+      "trigger": "At step 1, tasks cannot be fetched",
+      "steps": [
+        "System displays an error banner with a retry option"
+      ]
+    }
+  ],
+  "postconditions": [
+    "The user can see all their tasks on screen"
+  ],
+  "business_rules": [
+    "All tasks are shown by default with no filter applied",
+    "Tasks with a due date in the past are marked as overdue regardless of their status"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "View Task List — success",
+      "given": "The user has tasks saved in the app",
+      "when": "The user opens the app",
+      "then": "All tasks are displayed with their title, due date, status, and overdue indicator where applicable"
+    },
+    {
+      "scenario": "View Task List — no tasks",
+      "given": "The user has no tasks saved",
+      "when": "The user opens the app",
+      "then": "An empty state is shown with the message 'No tasks yet.' and an Add Task prompt"
+    },
+    {
+      "scenario": "View Task List — load fails",
+      "given": "The app cannot reach the data source",
+      "when": "The user opens the app",
+      "then": "An error banner is displayed with a retry option"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-001--task-list"
+  ]
+}

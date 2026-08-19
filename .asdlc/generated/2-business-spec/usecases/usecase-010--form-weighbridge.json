@@ -1,0 +1,170 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 3,
+  "id": "usecase-010--form-weighbridge",
+  "name": "Input Data Weighbridge",
+  "description": "User mengisi dan menyimpan data log Weighbridge (kendaraan, supir, asal muatan, berat timbang), dengan Tanggal/Waktu Arrival otomatis, Waktu Dispatch live-ticking otomatis, dan Net Weight terhitung otomatis.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login dan berada di Monitor Weighbridge"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Membuka Form Weighbridge (draft baru via New Data, atau lanjutkan draft via tap item di list Monitor)"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Auto-isi Tanggal & Waktu Arrival (sekali), mulai live-ticking Waktu Dispatch, render field per section, render breadcrumb dan header dengan hamburger"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Mengisi field header (WB ID, kendaraan, supir, estate, divisi, blok) dan data berat (Gross, Tare -- Net Weight otomatis terhitung, Kuantitas)"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Menekan tombol Simpan"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi field wajib, freeze Waktu Dispatch ke waktu saat ini"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menyimpan record (status=saved) dan mengarahkan ke Monitor Weighbridge"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field Wajib Belum Lengkap",
+      "trigger": "Step 5, ada field wajib kosong",
+      "steps": [
+        "System menampilkan pesan error di bawah field terkait",
+        "Record tidak tersimpan",
+        "User dapat melengkapi dan mencoba lagi"
+      ]
+    },
+    {
+      "name": "Lanjutkan Draft Paused",
+      "trigger": "Entry point via tap item list, bukan New Data",
+      "steps": [
+        "Field-field form terisi dari data draft tersimpan sebelumnya",
+        "Waktu Dispatch tetap live-ticking dari saat form dibuka (bukan dari nilai draft lama)"
+      ]
+    },
+    {
+      "name": "Back Dengan Perubahan Belum Tersimpan",
+      "trigger": "Actor menekan Back sebelum Simpan dan ada perubahan belum disimpan",
+      "steps": [
+        "System menampilkan dialog konfirmasi sebelum keluar"
+      ]
+    },
+    {
+      "name": "Pause Progress",
+      "trigger": "Actor menekan tombol Pause",
+      "steps": [
+        "Sistem menyimpan field form saat ini sebagai draft berstatus paused",
+        "Sistem mengarahkan kembali ke Monitor Weighbridge"
+      ]
+    },
+    {
+      "name": "Clear Draft",
+      "trigger": "Actor menekan tombol Clear",
+      "steps": [
+        "Sistem menampilkan dialog konfirmasi",
+        "Jika dikonfirmasi, draft dihapus permanen dan sistem mengarahkan ke Monitor Weighbridge",
+        "Jika dibatalkan, tidak ada perubahan"
+      ]
+    },
+    {
+      "name": "Tap Breadcrumb",
+      "trigger": "Kapan saja di layar ini, actor tap salah satu segmen breadcrumb",
+      "steps": [
+        "System menavigasi ke halaman terkait"
+      ]
+    },
+    {
+      "name": "Buka Menu Hamburger",
+      "trigger": "Kapan saja di layar ini, actor tap ikon hamburger",
+      "steps": [
+        "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Weighbridge tersimpan dengan status baru/updated (Simpan), ATAU disimpan sebagai draft paused (Pause), ATAU dihapus permanen (Clear dikonfirmasi)"
+  ],
+  "business_rules": [
+    "Data kendaraan/supir/estate/divisi/blok teks bebas",
+    "Record tersimpan langsung, bukan approval workflow",
+    "Field wajib bertanda asterisk dengan validasi inline",
+    "Tanggal & Waktu Arrival otomatis sekali saat form dibuka",
+    "Waktu Dispatch live-ticking otomatis sampai Simpan ditekan",
+    "Net Weight dihitung otomatis dari Gross - Tare"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data Weighbridge — success",
+      "given": "User sudah login dan berada di Monitor Weighbridge, membuka Form Weighbridge draft baru",
+      "when": "User mengisi field header (WB ID, tanggal, kendaraan, supir, estate, divisi, blok) dan data berat (Gross, Tare, Kuantitas), lalu menekan Simpan",
+      "then": "Record Weighbridge tersimpan dengan status baru, Net Weight terhitung otomatis, Waktu Dispatch dibekukan pada saat Simpan ditekan"
+    },
+    {
+      "scenario": "Input Data Weighbridge — Field Wajib Belum Lengkap",
+      "given": "User sudah login dan berada di Monitor Weighbridge, sedang mengisi Form Weighbridge",
+      "when": "User menekan tombol Simpan namun terdapat field wajib yang masih kosong",
+      "then": "System menampilkan pesan error di bawah field terkait, record tidak tersimpan, dan user dapat melengkapi data lalu mencoba lagi"
+    },
+    {
+      "scenario": "Input Data Weighbridge — Lanjutkan Draft Paused",
+      "given": "User sudah login dan berada di Monitor Weighbridge, terdapat draft Weighbridge yang tersimpan sebelumnya",
+      "when": "User memilih untuk melanjutkan draft yang ada, bukan membuat draft baru",
+      "then": "Field-field form terisi otomatis dari data draft yang tersimpan sebelumnya"
+    },
+    {
+      "scenario": "Input Data Weighbridge — Back Dengan Perubahan Belum Tersimpan",
+      "given": "User sudah login dan berada di Monitor Weighbridge, sedang mengisi Form Weighbridge dengan perubahan yang belum disimpan",
+      "when": "Actor menekan tombol Back sebelum menekan Simpan",
+      "then": "System menampilkan dialog konfirmasi sebelum keluar dari form"
+    },
+    {
+      "scenario": "Input Data Weighbridge — Pause Progress",
+      "given": "User sudah login dan berada di Monitor Weighbridge, sedang mengisi Form Weighbridge",
+      "when": "Actor menekan tombol Pause",
+      "then": "Sistem menyimpan field form saat ini sebagai draft berstatus paused dan mengarahkan kembali ke Monitor Weighbridge"
+    },
+    {
+      "scenario": "Input Data Weighbridge — Clear Draft",
+      "given": "User sudah login dan berada di Monitor Weighbridge, sedang mengisi Form Weighbridge",
+      "when": "Actor menekan tombol Clear dan mengonfirmasi pada dialog konfirmasi yang muncul",
+      "then": "Draft dihapus permanen dan sistem mengarahkan ke Monitor Weighbridge; jika actor membatalkan pada dialog konfirmasi, tidak ada perubahan pada draft"
+    },
+    {
+      "scenario": "Input Data Weighbridge — Tap Breadcrumb",
+      "given": "User sudah login dan berada di Form Weighbridge",
+      "when": "Actor menekan salah satu segmen breadcrumb kapan saja di layar ini",
+      "then": "System menavigasi ke halaman terkait sesuai segmen breadcrumb yang ditekan"
+    },
+    {
+      "scenario": "Input Data Weighbridge — Buka Menu Hamburger",
+      "given": "User sudah login dan berada di Form Weighbridge",
+      "when": "Actor menekan ikon hamburger kapan saja di layar ini",
+      "then": "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-010--form-weighbridge"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "SimpleTodo",
+    "updated_at": "2026-06-25"
+  },
+  "auth": {
+    "mechanism": "None (single-user, no auth)",
+    "session_strategy": "",
+    "notes": "App gives the user full access to all data without any authentication."
+  },
+  "error_format": {
+    "structure": "{ \"message\": \"Human-readable error\", \"code\": \"ERROR_CODE\" }",
+    "example": "{\"message\": \"Task title is required\", \"code\": \"VALIDATION_ERROR\"}",
+    "notes": "Errors are flashed to the session and displayed in Edge templates via flash messages. Form validation uses AdonisJS validator with field-level error messages."
+  },
+  "pagination": {
+    "strategy": "N/A (server-rendered monolith, personal-scale data)",
+    "defaults": "",
+    "notes": "As the app scales, pagination can be added via server-side route params (e.g., ?page=2)."
+  },
+  "naming_conventions": {
+    "api_endpoints": "N/A (server-rendered routes, not REST API)",
+    "db_tables": "snake_case plural: tasks, groups",
+    "db_columns": "snake_case: created_at, due_date, group_id",
+    "notes": "AdonisJS Lucid model names are PascalCase singular (Task, Group). Route paths use kebab-case (/task-list, /group-form)."
+  },
+  "integrations": [],
+  "other_decisions": [
+    "All timestamps stored as UTC via Lucid ORM auto-timestamps",
+    "Soft-delete via deleted_at column on Task and Group entities",
+    "SQLite database file stored at database/sqlite/db.sqlite"
+  ]
+}

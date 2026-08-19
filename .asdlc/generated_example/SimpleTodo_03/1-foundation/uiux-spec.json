@@ -1,0 +1,263 @@
+{
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-06-28"
+  },
+  "ver": 1,
+  "design_system": {
+    "color_palette": [
+      {
+        "token": "Background",
+        "ref": "--bg",
+        "value": "#f8fafc",
+        "description": "Page background color"
+      },
+      {
+        "token": "Surface",
+        "ref": "--surface",
+        "value": "#ffffff",
+        "description": "Card and container backgrounds"
+      },
+      {
+        "token": "Border",
+        "ref": "--border",
+        "value": "#e2e8f0",
+        "description": "Dividers and borders"
+      },
+      {
+        "token": "Text Primary",
+        "ref": "--text-primary",
+        "value": "#0f172a",
+        "description": "Primary text color"
+      },
+      {
+        "token": "Text Muted",
+        "ref": "--text-muted",
+        "value": "#64748b",
+        "description": "Secondary and helper text"
+      },
+      {
+        "token": "Brand",
+        "ref": "--brand",
+        "value": "#3b82f6",
+        "description": "Primary brand accent"
+      },
+      {
+        "token": "Brand Hover",
+        "ref": "--brand-hover",
+        "value": "#2563eb",
+        "description": "Brand accent on hover/active"
+      },
+      {
+        "token": "Destructive",
+        "ref": "--destructive",
+        "value": "#ef4444",
+        "description": "Delete, error states"
+      },
+      {
+        "token": "Success",
+        "ref": "--success",
+        "value": "#22c55e",
+        "description": "Success states, task completed"
+      }
+    ],
+    "typography": {
+      "font_family": "Inter",
+      "base_size": "16px",
+      "scale": [
+        {
+          "level": "h1",
+          "size": "24px",
+          "weight": "700"
+        },
+        {
+          "level": "h2",
+          "size": "20px",
+          "weight": "600"
+        },
+        {
+          "level": "h3",
+          "size": "16px",
+          "weight": "600"
+        },
+        {
+          "level": "body",
+          "size": "14px",
+          "weight": "400"
+        },
+        {
+          "level": "small",
+          "size": "12px",
+          "weight": "400"
+        }
+      ],
+      "line_height": "1.5",
+      "letter_spacing": "0.01em"
+    },
+    "spacing": [
+      {
+        "name": "base_unit",
+        "value": "4px"
+      },
+      {
+        "name": "sidebar_width",
+        "value": "240px"
+      },
+      {
+        "name": "header_height",
+        "value": "64px"
+      }
+    ],
+    "border_radius": [
+      {
+        "context": "input",
+        "value": "6px"
+      },
+      {
+        "context": "card",
+        "value": "6px"
+      },
+      {
+        "context": "button",
+        "value": "6px"
+      },
+      {
+        "context": "modal",
+        "value": "12px"
+      }
+    ],
+    "shadow": [
+      {
+        "level": "card",
+        "value": "0 1px 3px rgba(0,0,0,0.1)"
+      },
+      {
+        "level": "modal",
+        "value": "0 20px 60px rgba(0,0,0,0.15)"
+      }
+    ],
+    "icon_library": {
+      "library": "Lucide",
+      "size_default": "16px",
+      "stroke_width": "1.5"
+    }
+  },
+  "layout": {
+    "shell_description": "Left sidebar (240px, fixed, dark) with navigation links + MySimpleTodo branding on top. Main content area to the right. Top header (64px) with page title and contextual actions.",
+    "navigation_per_role": [
+      {
+        "menu_item": "All Tasks",
+        "target": "/tasks",
+        "roles": [
+          "Single User"
+        ]
+      },
+      {
+        "menu_item": "Add Task",
+        "target": "/tasks/new",
+        "roles": [
+          "Single User"
+        ]
+      }
+    ],
+    "adaptation": {
+      "strategy": "desktop-only",
+      "notes": "No mobile support needed, sidebar always visible, no responsive breakpoints required"
+    }
+  },
+  "screen_type_patterns": [
+    {
+      "type": "list",
+      "description": "Task list view with search and filter (all tasks, due soon, completed)",
+      "layout": "full-page",
+      "header_area": "Page title 'All Tasks' + 'Add Task' button (button-primary), search bar (DaisyUI input), filter dropdown (DaisyUI dropdown)",
+      "body_area": "DaisyUI table with columns — title, due date, status (DaisyUI badge), actions (edit, delete, mark done). Overdue tasks highlighted with warning badge. Sorted by due date ascending.",
+      "footer_area": "none",
+      "states": [
+        {
+          "state": "loading",
+          "display": "DaisyUI loading spinner centered in table area"
+        },
+        {
+          "state": "empty",
+          "display": "Friendly empty state message 'No tasks yet — click Add Task to get started' with primary 'Add Task' button below"
+        },
+        {
+          "state": "error",
+          "display": "DaisyUI alert (error) with message 'Failed to load tasks' and retry button"
+        },
+        {
+          "state": "data",
+          "display": "Table rows rendered. Status badges: done=badge-success, pending=badge-warning, overdue=badge-error"
+        }
+      ]
+    },
+    {
+      "type": "form",
+      "description": "Create or edit a task",
+      "layout": "full-page",
+      "header_area": "Form title ('Add Task' or 'Edit Task') with breadcrumb back link to task list",
+      "body_area": "DaisyUI form fields — title (input-bordered), due date (date input), status (checkbox with label 'Mark as done')",
+      "footer_area": "'Save' button (button-primary) + 'Cancel' button (button-ghost)",
+      "states": [
+        {
+          "state": "idle",
+          "display": "Form fields empty (create) or pre-filled (edit), save button disabled until title is entered"
+        },
+        {
+          "state": "submitting",
+          "display": "Save button shows loading spinner, form fields disabled"
+        },
+        {
+          "state": "error",
+          "display": "DaisyUI label-error under invalid fields, red border on input. Alert at top if server error."
+        },
+        {
+          "state": "success",
+          "display": "DaisyUI toast notification (success) appears top-right, auto-dismisses after 3s. Redirects to task list."
+        }
+      ]
+    }
+  ],
+  "component_patterns": [
+    {
+      "component": "task-list-table",
+      "notes": "DaisyUI table with hover rows. Columns: title (text), due date (formatted date), status (badge), actions (icon buttons — edit, delete). Default sort: due date ascending. Overdue tasks get badge-error on due date cell."
+    },
+    {
+      "component": "task-form",
+      "notes": "DaisyUI form-control layout with label-above-input. Uses input-bordered, form-control, label classes. Native date input styled with DaisyUI. Inline validation shows label-error below each invalid field."
+    },
+    {
+      "component": "toast-notification",
+      "notes": "DaisyUI alert rendered as toast, positioned top-right. Success=alert-success (green), Error=alert-error (red). Auto-dismiss after 3 seconds. Fade-out animation."
+    }
+  ],
+  "accessibility": {
+    "level": "None",
+    "color_contrast": {
+      "normal_text": "N/A",
+      "large_text": "N/A",
+      "ui_components": "N/A"
+    },
+    "input_navigation": {
+      "focus_indicator": "Browser default",
+      "tab_or_swipe_order": "N/A",
+      "dismiss": "N/A",
+      "activate": "N/A"
+    },
+    "structure_semantics": {
+      "heading_hierarchy": "N/A",
+      "landmark_or_regions": "N/A",
+      "labels": "N/A",
+      "error_association": "N/A",
+      "live_regions": "N/A"
+    },
+    "text_content": {
+      "min_font_size": "12px",
+      "icon_only_elements": "N/A",
+      "images_and_media": "N/A"
+    }
+  },
+  "design_notes": "DaisyUI theme used for consistent component styling across the app. Desktop-only layout keeps design simple — no responsive breakpoints needed."
+}

@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-06-28"
+  },
+  "ver": 2,
+  "id": "screen-001--task-list",
+  "name": "Task List",
+  "module_id": "module-task",
+  "status": "complete",
+  "files_generated": [
+    "src/routes/tasks.js",
+    "src/services/taskService.js"
+  ],
+  "test_files_generated": [
+    "tests/tasks.test.js"
+  ],
+  "fe_files_generated": [
+    "fe/src/views/TaskList.vue"
+  ],
+  "fe_test_files_generated": [
+    "fe/tests/TaskList.test.js"
+  ],
+  "implementation_notes": [
+    "Used vi.hoisted() in BE tests to resolve ESM vi.mock hoisting issues",
+    "BE tests avoid real DB connections by mocking src/models/db.js and src/models/task.js",
+    "Route handler tests extract Express router middleware via router.stack inspection",
+    "FE tests use @vue/test-utils mount in jsdom; api() is mocked via vi.mock",
+    "All 58 tests passing (47 BE + 11 FE)",
+    "Bug fix — 'Add Task' button always visible: moved from empty-state to controls row (brand-styled button)",
+    "Bug fix — delete without confirmation: renamed confirmDelete() to deleteTask(), removed confirm() guard",
+    "Test update — added tests for Add Task visibility (empty + data state) and delete without confirmation"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Vitest config uses jsdom as global environment for both BE and FE tests; ideal setup would separate node for BE and jsdom for FE",
+      "severity": "minor"
+    }
+  ]
+}

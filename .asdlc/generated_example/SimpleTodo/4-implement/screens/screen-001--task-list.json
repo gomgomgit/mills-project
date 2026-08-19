@@ -1,0 +1,79 @@
+{
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-02"
+  },
+  "id": "screen-001--task-list",
+  "name": "Task List",
+  "module_id": "module-tasks",
+  "ver": 1,
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-07-02T10:32:00Z",
+      "passed": 27,
+      "failed": 0,
+      "coverage": 98.3
+    },
+    "integration": {
+      "run_at": "2026-07-02T10:32:05Z",
+      "passed": 18,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-07-02T10:32:04Z",
+      "passed": 33,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-07-02T10:35:00Z",
+      "passed": 20,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/src/repositories/task-repository.js",
+    "backend/src/services/task-service.js",
+    "backend/src/routes/tasks-router.js",
+    "backend/src/index.js"
+  ],
+  "test_files_generated": [
+    "backend/tests/unit/task-service.test.js",
+    "backend/tests/integration/tasks.integration.test.js"
+  ],
+  "fe_files_generated": [
+    "frontend/src/views/TaskListView.vue",
+    "frontend/src/components/TaskCard.vue",
+    "frontend/src/components/TaskForm.vue",
+    "frontend/src/components/StatusBadge.vue",
+    "frontend/src/components/FilterControl.vue",
+    "frontend/src/components/SortControl.vue"
+  ],
+  "fe_test_files_generated": [
+    "frontend/tests/unit/TaskListView.spec.js",
+    "frontend/tests/unit/TaskCard.spec.js",
+    "frontend/tests/unit/TaskForm.spec.js",
+    "frontend/tests/unit/StatusBadge.spec.js",
+    "frontend/tests/unit/FilterControl.spec.js",
+    "frontend/tests/unit/SortControl.spec.js",
+    "frontend/tests/e2e/task-list.spec.js"
+  ],
+  "implementation_notes": [
+    "NULLS LAST sort (both asc/desc) implemented in task-service.js by partitioning rows with/without dueDate and appending undated rows last regardless of direction — avoids raw SQL workarounds.",
+    "id/timestamps generated via Prisma schema defaults (@default(uuid()), @default(now()), @updatedAt), not app code.",
+    "StatusBadge.vue implements the inline status-change control as click-to-cycle (todo -> in_progress -> done -> todo) on a badge-styled button, with optimistic update + revert-on-failure.",
+    "FE toast implemented inline in TaskListView.vue (small reactive state + timeout) rather than a separate composable, since toast ownership is scoped there per spec.",
+    "Error codes reuse the existing error-handler.js createError(status, code, message) helper; ad-hoc codes DELETE_FAILED, UPDATE_FAILED, INVALID_STATUS added alongside VALIDATION_ERROR/NOT_FOUND/INTERNAL_ERROR.",
+    "SortControl.vue's internal order ref starts at 'desc' so the first toggle (which flips before emitting) requests 'asc' — matching the spec's 'activate sort -> ascending first' requirement; this was a bug in the first generation pass, fixed before this write.",
+    "TaskListView.vue now shows a distinct 'No tasks match this filter.' message when a status filter yields zero results, separate from 'No tasks yet.' for a truly empty list — added header-add-task and empty-state-add-task data-testid attributes to disambiguate the two 'Add Task' buttons for testing.",
+    "Playwright browser test infra added from scratch for this screen: frontend/playwright.config.js (webServer runs `npm run dev`, chromium project) and @playwright/test devDependency + test:e2e script in frontend/package.json — no prior browser test setup existed in the project.",
+    "Two Playwright test-authoring bugs from the first generation pass were corrected before this write: a Jest-style expect.stringMatching() wrapper inside toHaveText() (replaced with a plain RegExp) and an ambiguous 'Add Task' role locator that matched two buttons (replaced with data-testid locators)."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Root package.json has \"scripts.install\": \"npm install\", which causes infinite recursion if a bare `npm install` is run at the repo root (must use `npm install --ignore-scripts` or fix the script). Pre-existing from project.4-implement.scaffold — out of scope for this screen.",
+      "severity": "minor"
+    }
+  ]
+}

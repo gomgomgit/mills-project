@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>List | Mill Smart Log</title>
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link rel="stylesheet" href="assets/components.css">
+  <link rel="stylesheet" href="assets/shell.css">
+  <style>
+    /* Page-specific layout only — no colour/radius/shadow literals, CSS variables only */
+    body {
+      background: var(--color-surface);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: var(--space-xl) var(--space-md);
+    }
+    .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); }
+    .preview-label {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+
+    .mobile-shell { min-height: 780px; box-shadow: var(--shadow-dropdown); }
+
+    .mobile-header-title { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
+    .mobile-header-title h1 {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-lg);
+      color: var(--color-text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: var(--space-touch-target-min); height: var(--space-touch-target-min);
+      flex-shrink: 0; color: var(--color-text-primary); cursor: pointer;
+    }
+    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    .section-label {
+      font-size: var(--font-size-xs);
+      font-weight: 700;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: var(--space-sm);
+    }
+
+    .station-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-wrap">
+    <div class="preview-label">List &mdash; data state (station selector, urutan tetap: 3 stasiun aktif MVP + 12 slot masa depan) &middot; Mobile (Operator/Supervisor)</div>
+
+    <div class="mobile-shell">
+      <!-- Header: back + breadcrumb + title -->
+      <div class="mobile-header">
+        <span class="icon-btn" title="Kembali">
+          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </span>
+        <div class="mobile-header-title">
+          <h1>Pilih Stasiun</h1>
+        </div>
+        <span class="icon-btn" title="Menu">
+          <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        </span>
+      </div>
+      <div class="mobile-breadcrumb">Production Process Activity</div>
+
+      <!-- Body: station selector grid, fixed order (not alphabetical) -->
+      <div class="mobile-content">
+
+        <div class="section-label">Stasiun Aktif (MVP)</div>
+        <div class="station-grid">
+
+          <!-- Weighbridge — active, Gauge icon -->
+          <button type="button" class="station-tile active" aria-label="Weighbridge">
+            <svg viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg>
+            <span class="station-tile-label">Weighbridge</span>
+          </button>
+
+          <!-- Grading — active, Layers icon -->
+          <button type="button" class="station-tile active" aria-label="Grading">
+            <svg viewBox="0 0 24 24"><path d="m12.83 2.18-8.58 3.9a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83l-8.58-3.9a2 2 0 0 0-1.66 0Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
+            <span class="station-tile-label">Grading</span>
+          </button>
+
+          <!-- Cages Track — active, Package icon -->
+          <button type="button" class="station-tile active" aria-label="Cages Track">
+            <svg viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73Z"/><path d="M12 22V12"/><path d="M3.29 7 12 12l8.71-5"/><path d="M7.5 4.27l9 5.15"/></svg>
+            <span class="station-tile-label">Cages Track</span>
+          </button>
+        </div>
+
+        <div class="section-label">Stasiun Lain (Belum Tersedia)</div>
+        <div class="station-grid">
+
+          <button type="button" class="station-tile placeholder" aria-disabled="true" aria-label="Sterilizer, belum tersedia">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span class="station-tile-label">Sterilizer</span>
+            <span class="station-tile-sub">Belum tersedia</span>
+          </button>
+
+          <button type="button" class="station-tile placeholder" aria-disabled="true" aria-label="Threshing, belum tersedia">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span class="station-tile-label">Threshing</span>
+            <span class="station-tile-sub">Belum tersedia</span>
+          </button>
+
+          <button type="button" class="station-tile placeholder" aria-disabled="true" aria-label="Digester and Press, belum tersedia">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span class="station-tile-label">Digester &amp; Press</span>
+            <span class="station-tile-sub">Belum tersedia</span>
+          </button>
+
+          <button type="button" class="station-tile placeholder" aria-disabled="true" aria-label="Clarification, belum tersedia">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span class="station-tile-label">Clarification</span>
+            <span class="station-tile-sub">Belum tersedia</span>
+          </button>
+
+          <button type="button" class="station-tile placeholder" aria-disabled="true" aria-label="Kernel Recovery, belum tersedia">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span class="station-tile-label">Kernel Recovery</span>
+            <span class="station-tile-sub">Belum tersedia</span>
+          </button>
+
+          <button type="button" class="station-tile placeholder" aria-disabled="true" aria-label="Boiler, belum tersedia">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span class="station-tile-label">Boiler</span>
+            <span class="station-tile-sub">Belum tersedia</span>
+          </button>
+
+          <button type="button" class="station-tile placeholder" aria-disabled="true" aria-label="Power House, belum tersedia">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span class="station-tile-label">Power House</span>
+            <span class="station-tile-sub">Belum tersedia</span>
+          </button>
+
+          <button type="button" class="station-tile placeholder" aria-disabled="true" aria-label="Water Treatment, belum tersedia">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span class="station-tile-label">Water Treatment</span>
+            <span class="station-tile-sub">Belum tersedia</span>
+          </button>
+
+          <button type="button" class="station-tile placeholder" aria-disabled="true" aria-label="Effluent Treatment POME, belum tersedia">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span class="station-tile-label">Effluent Treatment (POME)</span>
+            <span class="station-tile-sub">Belum tersedia</span>
+          </button>
+
+          <button type="button" class="station-tile placeholder" aria-disabled="true" aria-label="Loading Ramp, belum tersedia">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span class="station-tile-label">Loading Ramp</span>
+            <span class="station-tile-sub">Belum tersedia</span>
+          </button>
+
+          <button type="button" class="station-tile placeholder" aria-disabled="true" aria-label="Nut and Kernel Silo, belum tersedia">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span class="station-tile-label">Nut &amp; Kernel Silo</span>
+            <span class="station-tile-sub">Belum tersedia</span>
+          </button>
+
+          <button type="button" class="station-tile placeholder" aria-disabled="true" aria-label="Fibre and Shell Fuel, belum tersedia">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span class="station-tile-label">Fibre &amp; Shell Fuel</span>
+            <span class="station-tile-sub">Belum tersedia</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</body>
+</html>

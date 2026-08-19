@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Form | MySimpleTodo</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@latest/dist/full.min.css" rel="stylesheet" type="text/css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* page-specific structural layout only */
+    body {
+      min-height: 100vh;
+    }
+    .backdrop-page {
+      position: relative;
+      min-height: 100vh;
+    }
+    .backdrop-dim {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.4);
+    }
+    .modal-overlay-center {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-box-fixed {
+      width: 100%;
+      max-width: 28rem;
+    }
+    .form-actions-right {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="backdrop-page">
+    <!-- Top bar: single-page app, no persistent navigation per uiux-spec shell -->
+    <div class="navbar bg-base-100 border-b border-base-300">
+      <div class="flex-1">
+        <span class="text-xl font-bold px-2">MySimpleTodo</span>
+      </div>
+    </div>
+
+    <!-- Underlying Task List context (dimmed, non-interactive placeholder behind the modal) -->
+    <main class="max-w-3xl mx-auto p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h1 class="text-2xl font-bold">Tasks</h1>
+        <button class="btn btn-primary" disabled>Add Task</button>
+      </div>
+      <div class="flex flex-col gap-3">
+        <div class="card bg-base-100 shadow-sm border border-base-300">
+          <div class="card-body flex-row items-center justify-between py-3">
+            <span class="font-medium">Buy groceries for the week</span>
+            <span class="badge badge-warning">Due Jul 5</span>
+            <span class="badge badge-info">In Progress</span>
+          </div>
+        </div>
+        <div class="card bg-base-100 shadow-sm border border-base-300">
+          <div class="card-body flex-row items-center justify-between py-3">
+            <span class="font-medium">Renew driver's license</span>
+            <span class="badge badge-ghost">No due date</span>
+            <span class="badge badge-ghost">Todo</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Dimmed backdrop -->
+    <div class="backdrop-dim"></div>
+
+    <!-- Task Form Modal (screen-002--task-form), Edit Task mode -->
+    <div class="modal-overlay-center">
+      <div class="modal-box modal-box-fixed">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-lg">Edit Task</h3>
+          <button class="btn btn-sm btn-circle btn-ghost" title="Close" aria-label="Close">✕</button>
+        </div>
+
+        <form class="flex flex-col gap-4">
+          <div class="form-control w-full">
+            <label class="label" for="task-title">
+              <span class="label-text">Title</span>
+            </label>
+            <input
+              id="task-title"
+              type="text"
+              value="Buy groceries for the week"
+              class="input input-bordered w-full"
+              required
+            >
+          </div>
+
+          <div class="form-control w-full">
+            <label class="label" for="task-due-date">
+              <span class="label-text">Due Date</span>
+              <span class="label-text-alt">optional</span>
+            </label>
+            <input
+              id="task-due-date"
+              type="date"
+              value="2026-07-05"
+              class="input input-bordered w-full"
+            >
+          </div>
+
+          <div class="form-control w-full">
+            <label class="label" for="task-status">
+              <span class="label-text">Status</span>
+            </label>
+            <select id="task-status" class="select select-bordered w-full">
+              <option>Todo</option>
+              <option selected>In Progress</option>
+              <option>Done</option>
+            </select>
+          </div>
+        </form>
+
+        <div class="modal-action form-actions-right">
+          <button class="btn btn-ghost" title="Cancel">Cancel</button>
+          <button class="btn btn-primary" title="Save Task">Save Task</button>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:var(--font-size-xs, 0.75rem);color:var(--color-muted-foreground,#71717a);font-style:italic;margin-top:var(--space-lg, 1.5rem);padding:0 1.5rem 1.5rem;">
+      Actors: User &nbsp;·&nbsp;
+      Entry points: Clicking 'Add Task' on the Task List (opens in create mode, empty fields, status defaults to Todo), Clicking the edit button on a task in the Task List (opens in edit mode, pre-filled with that task's current values)
+    </p>
+  </div>
+</body>
+</html>

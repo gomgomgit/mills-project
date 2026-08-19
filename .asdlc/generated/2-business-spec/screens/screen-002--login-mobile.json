@@ -1,0 +1,63 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-14"
+  },
+  "id": "screen-002--login-mobile",
+  "name": "Login Mobile",
+  "module_id": "module-auth",
+  "description": "Operator/Supervisor masuk ke aplikasi mobile menggunakan kredensial (username/NIK + password) dan Business Area; login pertama kali memerlukan koneksi internet, sesi berikutnya dapat berjalan offline.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Membuka aplikasi mobile untuk pertama kali (belum login)",
+    "Redirect setelah logout",
+    "Redirect setelah sesi/token lokal kadaluarsa"
+  ],
+  "information_displayed": [
+    "Logo & nama produk (Mills System)",
+    "Form login: username/NIK, password",
+    "Pilihan Business Area/Company (predefined)",
+    "Link Lupa Password"
+  ],
+  "available_actions": [
+    {
+      "action": "Submit login form",
+      "description": "Memvalidasi kredensial dan business area (online) atau token lokal (offline), lalu mengarahkan user ke Home",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Klik Lupa Password",
+      "description": "Menuju alur reset password, membutuhkan koneksi internet",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Password minimal 6 karakter, case-sensitive, kombinasi alfanumerik+simbol",
+    "Login pertama kali memerlukan koneksi internet aktif; sesi berikutnya dapat berjalan offline berkat token tersimpan lokal",
+    "User harus memilih Business Area/Company yang sesuai dengan penugasannya"
+  ],
+  "usecase_ids": [
+    "usecase-002--login-mobile"
+  ],
+  "edge_cases": [
+    "Tidak ada koneksi internet saat login pertama kali (device belum pernah aktivasi)",
+    "Kredensial salah",
+    "Akun tidak aktif/dinonaktifkan",
+    "Token sesi lokal kadaluarsa saat offline dalam waktu lama"
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Berapa lama token sesi lokal tetap valid saat offline sebelum harus re-login online?",
+    "Apakah Lupa Password bisa diakses sama sekali dari mobile jika tidak ada koneksi?"
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 4,
+  "id": "screen-013--data-preview-weighbridge",
+  "name": "Data Preview Weighbridge",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/weighbridgeRecordRepo.ts",
+    "mobile/src/views/DataPreviewWeighbridgeView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/DataPreviewWeighbridgeView.spec.ts",
+    "mobile/tests/e2e/data-preview-weighbridge.spec.ts"
+  ],
+  "implementation_notes": [
+    "Filter tanggal (dateFilter) sekarang default ke tanggal lokal hari ini (YYYY-MM-DD) saat loadList() dipanggil, bukan string kosong — dibangun manual dari getFullYear()/getMonth()/getDate() (bukan toISOString(), yang UTC-based dan bisa off-by-one-day)",
+    "searchFilter tetap default kosong (tidak ada default untuk pencarian)",
+    "hasActiveFilter otomatis true secara default sekarang (karena dateFilter tidak lagi kosong) — tombol Reset Filter akan muncul kalau hari ini tidak ada data, sesuai edge_case_handling yang diminta",
+    "onResetFilter() sengaja TETAP reset ke string kosong (tampilkan semua), bukan balik ke hari ini — di luar scope perubahan ini, dicatat sebagai known_issue/opsi follow-up jika mau diubah",
+    "Regresi penuh diverifikasi independen: 226/226 vitest (20 file) + 67/67 Playwright e2e (12 file), backend dikonfirmasi hidup sebelum run"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tooling belum terpasang",
+      "severity": "minor"
+    },
+    {
+      "description": "onResetFilter() reset ke kosong (tampilkan semua), bukan balik ke default hari ini — perilaku ini disengaja/sesuai scope permintaan (Reset Filter = tampilkan semua data), bukan bug",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-18T21:48:59Z",
+      "passed": 23,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-08-18T21:52:00Z",
+      "passed": 10,
+      "failed": 0
+    }
+  }
+}

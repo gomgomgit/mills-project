@@ -1,0 +1,83 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "id": "screen-017--data-browser-grading-web",
+  "name": "Data Browser Grading (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/GradingRecordController.php",
+    "backend/app/Services/GradingRecordService.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/factories/GradingRecordFactory.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/GradingRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserGradingTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserGradingTest.php",
+    "backend/tests/Browser/DataBrowserGradingTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserGrading.php",
+    "backend/resources/views/livewire/data/data-browser-grading.blade.php",
+    "backend/resources/views/data/grading.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "GradingRecordService memfilter pada kolom date (whereDate()), bukan datetime seperti weighbridge",
+    "Menggunakan Pagination::format() versi terkoreksi (total_pages=1 untuk hasil kosong)",
+    "Export grading resolve checked_by/acknowledged_by ke nama user via eager load",
+    "InvalidDateRangeException/ExportFailedException reuse langsung dari screen-016, tidak diduplikasi",
+    "Full regression suite: 94/94 test backend lulus (semua 17 screen), tanpa spec_mismatch"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "resources/views/data/weighbridge.blade.php tidak punya link balik ke /data/grading di sidebar (hanya satu arah) — di luar scope karena tidak boleh mengubah file screen-016",
+      "severity": "minor"
+    },
+    {
+      "description": "format=excel mengembalikan konten CSV dengan mimetype/ekstensi .xlsx (fallback pragmatis, sama seperti screen-016)",
+      "severity": "minor"
+    },
+    {
+      "description": "Route data.grading.detail (screen-020) belum ada — baris tabel non-clickable, dijaga via Route::has()",
+      "severity": "minor"
+    },
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-18T12:00:00Z",
+      "passed": 7,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-18T12:00:05Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-18T12:00:05Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

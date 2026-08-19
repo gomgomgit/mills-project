@@ -1,0 +1,106 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-02"
+  },
+  "id": "usecase-002--add-task",
+  "name": "Add Task",
+  "description": "The user creates a new task by opening the Task Form from the Task List and providing a title, optional due date, and status. Once saved, the new task appears in the list.",
+  "actors": [
+    "actor-user"
+  ],
+  "preconditions": [
+    "The Task List screen is visible"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-user",
+      "description": "Clicks the 'Add Task' button"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Opens the Task Form modal in create mode with empty fields and default status 'Todo'"
+    },
+    {
+      "step": 3,
+      "actor": "actor-user",
+      "description": "Enters a task title and optionally a due date and status"
+    },
+    {
+      "step": 4,
+      "actor": "actor-user",
+      "description": "Clicks Save"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Saves the new task and adds it to the task list"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Closes the modal and shows a success notification"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Missing title",
+      "trigger": "At step 4, the user submits without a title, or with only whitespace",
+      "steps": [
+        "System displays a validation error under the Title field",
+        "Save is re-enabled",
+        "User must correct before proceeding"
+      ]
+    },
+    {
+      "name": "User cancels",
+      "trigger": "At step 3, the user clicks Cancel or closes the modal",
+      "steps": [
+        "Modal closes without saving",
+        "Task list is unchanged"
+      ]
+    }
+  ],
+  "postconditions": [
+    "The new task is saved and visible in the task list"
+  ],
+  "business_rules": [
+    "Task title is required",
+    "A title consisting only of whitespace is treated as missing",
+    "Due date is optional",
+    "Status defaults to 'Todo' for new tasks"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Add Task — success",
+      "given": "The user is on the Task List screen",
+      "when": "The user clicks Add Task, enters a title, and saves",
+      "then": "The new task appears in the task list and a success notification is shown"
+    },
+    {
+      "scenario": "Add Task — missing title",
+      "given": "The user has opened the Task Form in create mode",
+      "when": "The user tries to save without entering a title",
+      "then": "A validation error is shown under the Title field and the task is not saved"
+    },
+    {
+      "scenario": "Add Task — user cancels",
+      "given": "The user has opened the Task Form in create mode",
+      "when": "The user clicks Cancel or closes the modal",
+      "then": "The modal closes and no task is created"
+    },
+    {
+      "scenario": "Add Task — whitespace-only title treated as missing",
+      "given": "The Task List screen is visible",
+      "when": "The user enters a title consisting only of whitespace and attempts to save",
+      "then": "The system treats the title as missing, displays a validation error under the Title field, and the task is not saved"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-001--task-list",
+    "screen-002--task-form"
+  ]
+}

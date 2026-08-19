@@ -1,0 +1,2683 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for mobile/src/services/gradingRecordRepo.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../../prettify.css" />
+    <link rel="stylesheet" href="../../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../../index.html">All files</a> / <a href="index.html">mobile/src/services</a> gradingRecordRepo.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>0/866</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">0% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>0/866</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line low'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a>
+<a name='L54'></a><a href='#L54'>54</a>
+<a name='L55'></a><a href='#L55'>55</a>
+<a name='L56'></a><a href='#L56'>56</a>
+<a name='L57'></a><a href='#L57'>57</a>
+<a name='L58'></a><a href='#L58'>58</a>
+<a name='L59'></a><a href='#L59'>59</a>
+<a name='L60'></a><a href='#L60'>60</a>
+<a name='L61'></a><a href='#L61'>61</a>
+<a name='L62'></a><a href='#L62'>62</a>
+<a name='L63'></a><a href='#L63'>63</a>
+<a name='L64'></a><a href='#L64'>64</a>
+<a name='L65'></a><a href='#L65'>65</a>
+<a name='L66'></a><a href='#L66'>66</a>
+<a name='L67'></a><a href='#L67'>67</a>
+<a name='L68'></a><a href='#L68'>68</a>
+<a name='L69'></a><a href='#L69'>69</a>
+<a name='L70'></a><a href='#L70'>70</a>
+<a name='L71'></a><a href='#L71'>71</a>
+<a name='L72'></a><a href='#L72'>72</a>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a>
+<a name='L102'></a><a href='#L102'>102</a>
+<a name='L103'></a><a href='#L103'>103</a>
+<a name='L104'></a><a href='#L104'>104</a>
+<a name='L105'></a><a href='#L105'>105</a>
+<a name='L106'></a><a href='#L106'>106</a>
+<a name='L107'></a><a href='#L107'>107</a>
+<a name='L108'></a><a href='#L108'>108</a>
+<a name='L109'></a><a href='#L109'>109</a>
+<a name='L110'></a><a href='#L110'>110</a>
+<a name='L111'></a><a href='#L111'>111</a>
+<a name='L112'></a><a href='#L112'>112</a>
+<a name='L113'></a><a href='#L113'>113</a>
+<a name='L114'></a><a href='#L114'>114</a>
+<a name='L115'></a><a href='#L115'>115</a>
+<a name='L116'></a><a href='#L116'>116</a>
+<a name='L117'></a><a href='#L117'>117</a>
+<a name='L118'></a><a href='#L118'>118</a>
+<a name='L119'></a><a href='#L119'>119</a>
+<a name='L120'></a><a href='#L120'>120</a>
+<a name='L121'></a><a href='#L121'>121</a>
+<a name='L122'></a><a href='#L122'>122</a>
+<a name='L123'></a><a href='#L123'>123</a>
+<a name='L124'></a><a href='#L124'>124</a>
+<a name='L125'></a><a href='#L125'>125</a>
+<a name='L126'></a><a href='#L126'>126</a>
+<a name='L127'></a><a href='#L127'>127</a>
+<a name='L128'></a><a href='#L128'>128</a>
+<a name='L129'></a><a href='#L129'>129</a>
+<a name='L130'></a><a href='#L130'>130</a>
+<a name='L131'></a><a href='#L131'>131</a>
+<a name='L132'></a><a href='#L132'>132</a>
+<a name='L133'></a><a href='#L133'>133</a>
+<a name='L134'></a><a href='#L134'>134</a>
+<a name='L135'></a><a href='#L135'>135</a>
+<a name='L136'></a><a href='#L136'>136</a>
+<a name='L137'></a><a href='#L137'>137</a>
+<a name='L138'></a><a href='#L138'>138</a>
+<a name='L139'></a><a href='#L139'>139</a>
+<a name='L140'></a><a href='#L140'>140</a>
+<a name='L141'></a><a href='#L141'>141</a>
+<a name='L142'></a><a href='#L142'>142</a>
+<a name='L143'></a><a href='#L143'>143</a>
+<a name='L144'></a><a href='#L144'>144</a>
+<a name='L145'></a><a href='#L145'>145</a>
+<a name='L146'></a><a href='#L146'>146</a>
+<a name='L147'></a><a href='#L147'>147</a>
+<a name='L148'></a><a href='#L148'>148</a>
+<a name='L149'></a><a href='#L149'>149</a>
+<a name='L150'></a><a href='#L150'>150</a>
+<a name='L151'></a><a href='#L151'>151</a>
+<a name='L152'></a><a href='#L152'>152</a>
+<a name='L153'></a><a href='#L153'>153</a>
+<a name='L154'></a><a href='#L154'>154</a>
+<a name='L155'></a><a href='#L155'>155</a>
+<a name='L156'></a><a href='#L156'>156</a>
+<a name='L157'></a><a href='#L157'>157</a>
+<a name='L158'></a><a href='#L158'>158</a>
+<a name='L159'></a><a href='#L159'>159</a>
+<a name='L160'></a><a href='#L160'>160</a>
+<a name='L161'></a><a href='#L161'>161</a>
+<a name='L162'></a><a href='#L162'>162</a>
+<a name='L163'></a><a href='#L163'>163</a>
+<a name='L164'></a><a href='#L164'>164</a>
+<a name='L165'></a><a href='#L165'>165</a>
+<a name='L166'></a><a href='#L166'>166</a>
+<a name='L167'></a><a href='#L167'>167</a>
+<a name='L168'></a><a href='#L168'>168</a>
+<a name='L169'></a><a href='#L169'>169</a>
+<a name='L170'></a><a href='#L170'>170</a>
+<a name='L171'></a><a href='#L171'>171</a>
+<a name='L172'></a><a href='#L172'>172</a>
+<a name='L173'></a><a href='#L173'>173</a>
+<a name='L174'></a><a href='#L174'>174</a>
+<a name='L175'></a><a href='#L175'>175</a>
+<a name='L176'></a><a href='#L176'>176</a>
+<a name='L177'></a><a href='#L177'>177</a>
+<a name='L178'></a><a href='#L178'>178</a>
+<a name='L179'></a><a href='#L179'>179</a>
+<a name='L180'></a><a href='#L180'>180</a>
+<a name='L181'></a><a href='#L181'>181</a>
+<a name='L182'></a><a href='#L182'>182</a>
+<a name='L183'></a><a href='#L183'>183</a>
+<a name='L184'></a><a href='#L184'>184</a>
+<a name='L185'></a><a href='#L185'>185</a>
+<a name='L186'></a><a href='#L186'>186</a>
+<a name='L187'></a><a href='#L187'>187</a>
+<a name='L188'></a><a href='#L188'>188</a>
+<a name='L189'></a><a href='#L189'>189</a>
+<a name='L190'></a><a href='#L190'>190</a>
+<a name='L191'></a><a href='#L191'>191</a>
+<a name='L192'></a><a href='#L192'>192</a>
+<a name='L193'></a><a href='#L193'>193</a>
+<a name='L194'></a><a href='#L194'>194</a>
+<a name='L195'></a><a href='#L195'>195</a>
+<a name='L196'></a><a href='#L196'>196</a>
+<a name='L197'></a><a href='#L197'>197</a>
+<a name='L198'></a><a href='#L198'>198</a>
+<a name='L199'></a><a href='#L199'>199</a>
+<a name='L200'></a><a href='#L200'>200</a>
+<a name='L201'></a><a href='#L201'>201</a>
+<a name='L202'></a><a href='#L202'>202</a>
+<a name='L203'></a><a href='#L203'>203</a>
+<a name='L204'></a><a href='#L204'>204</a>
+<a name='L205'></a><a href='#L205'>205</a>
+<a name='L206'></a><a href='#L206'>206</a>
+<a name='L207'></a><a href='#L207'>207</a>
+<a name='L208'></a><a href='#L208'>208</a>
+<a name='L209'></a><a href='#L209'>209</a>
+<a name='L210'></a><a href='#L210'>210</a>
+<a name='L211'></a><a href='#L211'>211</a>
+<a name='L212'></a><a href='#L212'>212</a>
+<a name='L213'></a><a href='#L213'>213</a>
+<a name='L214'></a><a href='#L214'>214</a>
+<a name='L215'></a><a href='#L215'>215</a>
+<a name='L216'></a><a href='#L216'>216</a>
+<a name='L217'></a><a href='#L217'>217</a>
+<a name='L218'></a><a href='#L218'>218</a>
+<a name='L219'></a><a href='#L219'>219</a>
+<a name='L220'></a><a href='#L220'>220</a>
+<a name='L221'></a><a href='#L221'>221</a>
+<a name='L222'></a><a href='#L222'>222</a>
+<a name='L223'></a><a href='#L223'>223</a>
+<a name='L224'></a><a href='#L224'>224</a>
+<a name='L225'></a><a href='#L225'>225</a>
+<a name='L226'></a><a href='#L226'>226</a>
+<a name='L227'></a><a href='#L227'>227</a>
+<a name='L228'></a><a href='#L228'>228</a>
+<a name='L229'></a><a href='#L229'>229</a>
+<a name='L230'></a><a href='#L230'>230</a>
+<a name='L231'></a><a href='#L231'>231</a>
+<a name='L232'></a><a href='#L232'>232</a>
+<a name='L233'></a><a href='#L233'>233</a>
+<a name='L234'></a><a href='#L234'>234</a>
+<a name='L235'></a><a href='#L235'>235</a>
+<a name='L236'></a><a href='#L236'>236</a>
+<a name='L237'></a><a href='#L237'>237</a>
+<a name='L238'></a><a href='#L238'>238</a>
+<a name='L239'></a><a href='#L239'>239</a>
+<a name='L240'></a><a href='#L240'>240</a>
+<a name='L241'></a><a href='#L241'>241</a>
+<a name='L242'></a><a href='#L242'>242</a>
+<a name='L243'></a><a href='#L243'>243</a>
+<a name='L244'></a><a href='#L244'>244</a>
+<a name='L245'></a><a href='#L245'>245</a>
+<a name='L246'></a><a href='#L246'>246</a>
+<a name='L247'></a><a href='#L247'>247</a>
+<a name='L248'></a><a href='#L248'>248</a>
+<a name='L249'></a><a href='#L249'>249</a>
+<a name='L250'></a><a href='#L250'>250</a>
+<a name='L251'></a><a href='#L251'>251</a>
+<a name='L252'></a><a href='#L252'>252</a>
+<a name='L253'></a><a href='#L253'>253</a>
+<a name='L254'></a><a href='#L254'>254</a>
+<a name='L255'></a><a href='#L255'>255</a>
+<a name='L256'></a><a href='#L256'>256</a>
+<a name='L257'></a><a href='#L257'>257</a>
+<a name='L258'></a><a href='#L258'>258</a>
+<a name='L259'></a><a href='#L259'>259</a>
+<a name='L260'></a><a href='#L260'>260</a>
+<a name='L261'></a><a href='#L261'>261</a>
+<a name='L262'></a><a href='#L262'>262</a>
+<a name='L263'></a><a href='#L263'>263</a>
+<a name='L264'></a><a href='#L264'>264</a>
+<a name='L265'></a><a href='#L265'>265</a>
+<a name='L266'></a><a href='#L266'>266</a>
+<a name='L267'></a><a href='#L267'>267</a>
+<a name='L268'></a><a href='#L268'>268</a>
+<a name='L269'></a><a href='#L269'>269</a>
+<a name='L270'></a><a href='#L270'>270</a>
+<a name='L271'></a><a href='#L271'>271</a>
+<a name='L272'></a><a href='#L272'>272</a>
+<a name='L273'></a><a href='#L273'>273</a>
+<a name='L274'></a><a href='#L274'>274</a>
+<a name='L275'></a><a href='#L275'>275</a>
+<a name='L276'></a><a href='#L276'>276</a>
+<a name='L277'></a><a href='#L277'>277</a>
+<a name='L278'></a><a href='#L278'>278</a>
+<a name='L279'></a><a href='#L279'>279</a>
+<a name='L280'></a><a href='#L280'>280</a>
+<a name='L281'></a><a href='#L281'>281</a>
+<a name='L282'></a><a href='#L282'>282</a>
+<a name='L283'></a><a href='#L283'>283</a>
+<a name='L284'></a><a href='#L284'>284</a>
+<a name='L285'></a><a href='#L285'>285</a>
+<a name='L286'></a><a href='#L286'>286</a>
+<a name='L287'></a><a href='#L287'>287</a>
+<a name='L288'></a><a href='#L288'>288</a>
+<a name='L289'></a><a href='#L289'>289</a>
+<a name='L290'></a><a href='#L290'>290</a>
+<a name='L291'></a><a href='#L291'>291</a>
+<a name='L292'></a><a href='#L292'>292</a>
+<a name='L293'></a><a href='#L293'>293</a>
+<a name='L294'></a><a href='#L294'>294</a>
+<a name='L295'></a><a href='#L295'>295</a>
+<a name='L296'></a><a href='#L296'>296</a>
+<a name='L297'></a><a href='#L297'>297</a>
+<a name='L298'></a><a href='#L298'>298</a>
+<a name='L299'></a><a href='#L299'>299</a>
+<a name='L300'></a><a href='#L300'>300</a>
+<a name='L301'></a><a href='#L301'>301</a>
+<a name='L302'></a><a href='#L302'>302</a>
+<a name='L303'></a><a href='#L303'>303</a>
+<a name='L304'></a><a href='#L304'>304</a>
+<a name='L305'></a><a href='#L305'>305</a>
+<a name='L306'></a><a href='#L306'>306</a>
+<a name='L307'></a><a href='#L307'>307</a>
+<a name='L308'></a><a href='#L308'>308</a>
+<a name='L309'></a><a href='#L309'>309</a>
+<a name='L310'></a><a href='#L310'>310</a>
+<a name='L311'></a><a href='#L311'>311</a>
+<a name='L312'></a><a href='#L312'>312</a>
+<a name='L313'></a><a href='#L313'>313</a>
+<a name='L314'></a><a href='#L314'>314</a>
+<a name='L315'></a><a href='#L315'>315</a>
+<a name='L316'></a><a href='#L316'>316</a>
+<a name='L317'></a><a href='#L317'>317</a>
+<a name='L318'></a><a href='#L318'>318</a>
+<a name='L319'></a><a href='#L319'>319</a>
+<a name='L320'></a><a href='#L320'>320</a>
+<a name='L321'></a><a href='#L321'>321</a>
+<a name='L322'></a><a href='#L322'>322</a>
+<a name='L323'></a><a href='#L323'>323</a>
+<a name='L324'></a><a href='#L324'>324</a>
+<a name='L325'></a><a href='#L325'>325</a>
+<a name='L326'></a><a href='#L326'>326</a>
+<a name='L327'></a><a href='#L327'>327</a>
+<a name='L328'></a><a href='#L328'>328</a>
+<a name='L329'></a><a href='#L329'>329</a>
+<a name='L330'></a><a href='#L330'>330</a>
+<a name='L331'></a><a href='#L331'>331</a>
+<a name='L332'></a><a href='#L332'>332</a>
+<a name='L333'></a><a href='#L333'>333</a>
+<a name='L334'></a><a href='#L334'>334</a>
+<a name='L335'></a><a href='#L335'>335</a>
+<a name='L336'></a><a href='#L336'>336</a>
+<a name='L337'></a><a href='#L337'>337</a>
+<a name='L338'></a><a href='#L338'>338</a>
+<a name='L339'></a><a href='#L339'>339</a>
+<a name='L340'></a><a href='#L340'>340</a>
+<a name='L341'></a><a href='#L341'>341</a>
+<a name='L342'></a><a href='#L342'>342</a>
+<a name='L343'></a><a href='#L343'>343</a>
+<a name='L344'></a><a href='#L344'>344</a>
+<a name='L345'></a><a href='#L345'>345</a>
+<a name='L346'></a><a href='#L346'>346</a>
+<a name='L347'></a><a href='#L347'>347</a>
+<a name='L348'></a><a href='#L348'>348</a>
+<a name='L349'></a><a href='#L349'>349</a>
+<a name='L350'></a><a href='#L350'>350</a>
+<a name='L351'></a><a href='#L351'>351</a>
+<a name='L352'></a><a href='#L352'>352</a>
+<a name='L353'></a><a href='#L353'>353</a>
+<a name='L354'></a><a href='#L354'>354</a>
+<a name='L355'></a><a href='#L355'>355</a>
+<a name='L356'></a><a href='#L356'>356</a>
+<a name='L357'></a><a href='#L357'>357</a>
+<a name='L358'></a><a href='#L358'>358</a>
+<a name='L359'></a><a href='#L359'>359</a>
+<a name='L360'></a><a href='#L360'>360</a>
+<a name='L361'></a><a href='#L361'>361</a>
+<a name='L362'></a><a href='#L362'>362</a>
+<a name='L363'></a><a href='#L363'>363</a>
+<a name='L364'></a><a href='#L364'>364</a>
+<a name='L365'></a><a href='#L365'>365</a>
+<a name='L366'></a><a href='#L366'>366</a>
+<a name='L367'></a><a href='#L367'>367</a>
+<a name='L368'></a><a href='#L368'>368</a>
+<a name='L369'></a><a href='#L369'>369</a>
+<a name='L370'></a><a href='#L370'>370</a>
+<a name='L371'></a><a href='#L371'>371</a>
+<a name='L372'></a><a href='#L372'>372</a>
+<a name='L373'></a><a href='#L373'>373</a>
+<a name='L374'></a><a href='#L374'>374</a>
+<a name='L375'></a><a href='#L375'>375</a>
+<a name='L376'></a><a href='#L376'>376</a>
+<a name='L377'></a><a href='#L377'>377</a>
+<a name='L378'></a><a href='#L378'>378</a>
+<a name='L379'></a><a href='#L379'>379</a>
+<a name='L380'></a><a href='#L380'>380</a>
+<a name='L381'></a><a href='#L381'>381</a>
+<a name='L382'></a><a href='#L382'>382</a>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a>
+<a name='L397'></a><a href='#L397'>397</a>
+<a name='L398'></a><a href='#L398'>398</a>
+<a name='L399'></a><a href='#L399'>399</a>
+<a name='L400'></a><a href='#L400'>400</a>
+<a name='L401'></a><a href='#L401'>401</a>
+<a name='L402'></a><a href='#L402'>402</a>
+<a name='L403'></a><a href='#L403'>403</a>
+<a name='L404'></a><a href='#L404'>404</a>
+<a name='L405'></a><a href='#L405'>405</a>
+<a name='L406'></a><a href='#L406'>406</a>
+<a name='L407'></a><a href='#L407'>407</a>
+<a name='L408'></a><a href='#L408'>408</a>
+<a name='L409'></a><a href='#L409'>409</a>
+<a name='L410'></a><a href='#L410'>410</a>
+<a name='L411'></a><a href='#L411'>411</a>
+<a name='L412'></a><a href='#L412'>412</a>
+<a name='L413'></a><a href='#L413'>413</a>
+<a name='L414'></a><a href='#L414'>414</a>
+<a name='L415'></a><a href='#L415'>415</a>
+<a name='L416'></a><a href='#L416'>416</a>
+<a name='L417'></a><a href='#L417'>417</a>
+<a name='L418'></a><a href='#L418'>418</a>
+<a name='L419'></a><a href='#L419'>419</a>
+<a name='L420'></a><a href='#L420'>420</a>
+<a name='L421'></a><a href='#L421'>421</a>
+<a name='L422'></a><a href='#L422'>422</a>
+<a name='L423'></a><a href='#L423'>423</a>
+<a name='L424'></a><a href='#L424'>424</a>
+<a name='L425'></a><a href='#L425'>425</a>
+<a name='L426'></a><a href='#L426'>426</a>
+<a name='L427'></a><a href='#L427'>427</a>
+<a name='L428'></a><a href='#L428'>428</a>
+<a name='L429'></a><a href='#L429'>429</a>
+<a name='L430'></a><a href='#L430'>430</a>
+<a name='L431'></a><a href='#L431'>431</a>
+<a name='L432'></a><a href='#L432'>432</a>
+<a name='L433'></a><a href='#L433'>433</a>
+<a name='L434'></a><a href='#L434'>434</a>
+<a name='L435'></a><a href='#L435'>435</a>
+<a name='L436'></a><a href='#L436'>436</a>
+<a name='L437'></a><a href='#L437'>437</a>
+<a name='L438'></a><a href='#L438'>438</a>
+<a name='L439'></a><a href='#L439'>439</a>
+<a name='L440'></a><a href='#L440'>440</a>
+<a name='L441'></a><a href='#L441'>441</a>
+<a name='L442'></a><a href='#L442'>442</a>
+<a name='L443'></a><a href='#L443'>443</a>
+<a name='L444'></a><a href='#L444'>444</a>
+<a name='L445'></a><a href='#L445'>445</a>
+<a name='L446'></a><a href='#L446'>446</a>
+<a name='L447'></a><a href='#L447'>447</a>
+<a name='L448'></a><a href='#L448'>448</a>
+<a name='L449'></a><a href='#L449'>449</a>
+<a name='L450'></a><a href='#L450'>450</a>
+<a name='L451'></a><a href='#L451'>451</a>
+<a name='L452'></a><a href='#L452'>452</a>
+<a name='L453'></a><a href='#L453'>453</a>
+<a name='L454'></a><a href='#L454'>454</a>
+<a name='L455'></a><a href='#L455'>455</a>
+<a name='L456'></a><a href='#L456'>456</a>
+<a name='L457'></a><a href='#L457'>457</a>
+<a name='L458'></a><a href='#L458'>458</a>
+<a name='L459'></a><a href='#L459'>459</a>
+<a name='L460'></a><a href='#L460'>460</a>
+<a name='L461'></a><a href='#L461'>461</a>
+<a name='L462'></a><a href='#L462'>462</a>
+<a name='L463'></a><a href='#L463'>463</a>
+<a name='L464'></a><a href='#L464'>464</a>
+<a name='L465'></a><a href='#L465'>465</a>
+<a name='L466'></a><a href='#L466'>466</a>
+<a name='L467'></a><a href='#L467'>467</a>
+<a name='L468'></a><a href='#L468'>468</a>
+<a name='L469'></a><a href='#L469'>469</a>
+<a name='L470'></a><a href='#L470'>470</a>
+<a name='L471'></a><a href='#L471'>471</a>
+<a name='L472'></a><a href='#L472'>472</a>
+<a name='L473'></a><a href='#L473'>473</a>
+<a name='L474'></a><a href='#L474'>474</a>
+<a name='L475'></a><a href='#L475'>475</a>
+<a name='L476'></a><a href='#L476'>476</a>
+<a name='L477'></a><a href='#L477'>477</a>
+<a name='L478'></a><a href='#L478'>478</a>
+<a name='L479'></a><a href='#L479'>479</a>
+<a name='L480'></a><a href='#L480'>480</a>
+<a name='L481'></a><a href='#L481'>481</a>
+<a name='L482'></a><a href='#L482'>482</a>
+<a name='L483'></a><a href='#L483'>483</a>
+<a name='L484'></a><a href='#L484'>484</a>
+<a name='L485'></a><a href='#L485'>485</a>
+<a name='L486'></a><a href='#L486'>486</a>
+<a name='L487'></a><a href='#L487'>487</a>
+<a name='L488'></a><a href='#L488'>488</a>
+<a name='L489'></a><a href='#L489'>489</a>
+<a name='L490'></a><a href='#L490'>490</a>
+<a name='L491'></a><a href='#L491'>491</a>
+<a name='L492'></a><a href='#L492'>492</a>
+<a name='L493'></a><a href='#L493'>493</a>
+<a name='L494'></a><a href='#L494'>494</a>
+<a name='L495'></a><a href='#L495'>495</a>
+<a name='L496'></a><a href='#L496'>496</a>
+<a name='L497'></a><a href='#L497'>497</a>
+<a name='L498'></a><a href='#L498'>498</a>
+<a name='L499'></a><a href='#L499'>499</a>
+<a name='L500'></a><a href='#L500'>500</a>
+<a name='L501'></a><a href='#L501'>501</a>
+<a name='L502'></a><a href='#L502'>502</a>
+<a name='L503'></a><a href='#L503'>503</a>
+<a name='L504'></a><a href='#L504'>504</a>
+<a name='L505'></a><a href='#L505'>505</a>
+<a name='L506'></a><a href='#L506'>506</a>
+<a name='L507'></a><a href='#L507'>507</a>
+<a name='L508'></a><a href='#L508'>508</a>
+<a name='L509'></a><a href='#L509'>509</a>
+<a name='L510'></a><a href='#L510'>510</a>
+<a name='L511'></a><a href='#L511'>511</a>
+<a name='L512'></a><a href='#L512'>512</a>
+<a name='L513'></a><a href='#L513'>513</a>
+<a name='L514'></a><a href='#L514'>514</a>
+<a name='L515'></a><a href='#L515'>515</a>
+<a name='L516'></a><a href='#L516'>516</a>
+<a name='L517'></a><a href='#L517'>517</a>
+<a name='L518'></a><a href='#L518'>518</a>
+<a name='L519'></a><a href='#L519'>519</a>
+<a name='L520'></a><a href='#L520'>520</a>
+<a name='L521'></a><a href='#L521'>521</a>
+<a name='L522'></a><a href='#L522'>522</a>
+<a name='L523'></a><a href='#L523'>523</a>
+<a name='L524'></a><a href='#L524'>524</a>
+<a name='L525'></a><a href='#L525'>525</a>
+<a name='L526'></a><a href='#L526'>526</a>
+<a name='L527'></a><a href='#L527'>527</a>
+<a name='L528'></a><a href='#L528'>528</a>
+<a name='L529'></a><a href='#L529'>529</a>
+<a name='L530'></a><a href='#L530'>530</a>
+<a name='L531'></a><a href='#L531'>531</a>
+<a name='L532'></a><a href='#L532'>532</a>
+<a name='L533'></a><a href='#L533'>533</a>
+<a name='L534'></a><a href='#L534'>534</a>
+<a name='L535'></a><a href='#L535'>535</a>
+<a name='L536'></a><a href='#L536'>536</a>
+<a name='L537'></a><a href='#L537'>537</a>
+<a name='L538'></a><a href='#L538'>538</a>
+<a name='L539'></a><a href='#L539'>539</a>
+<a name='L540'></a><a href='#L540'>540</a>
+<a name='L541'></a><a href='#L541'>541</a>
+<a name='L542'></a><a href='#L542'>542</a>
+<a name='L543'></a><a href='#L543'>543</a>
+<a name='L544'></a><a href='#L544'>544</a>
+<a name='L545'></a><a href='#L545'>545</a>
+<a name='L546'></a><a href='#L546'>546</a>
+<a name='L547'></a><a href='#L547'>547</a>
+<a name='L548'></a><a href='#L548'>548</a>
+<a name='L549'></a><a href='#L549'>549</a>
+<a name='L550'></a><a href='#L550'>550</a>
+<a name='L551'></a><a href='#L551'>551</a>
+<a name='L552'></a><a href='#L552'>552</a>
+<a name='L553'></a><a href='#L553'>553</a>
+<a name='L554'></a><a href='#L554'>554</a>
+<a name='L555'></a><a href='#L555'>555</a>
+<a name='L556'></a><a href='#L556'>556</a>
+<a name='L557'></a><a href='#L557'>557</a>
+<a name='L558'></a><a href='#L558'>558</a>
+<a name='L559'></a><a href='#L559'>559</a>
+<a name='L560'></a><a href='#L560'>560</a>
+<a name='L561'></a><a href='#L561'>561</a>
+<a name='L562'></a><a href='#L562'>562</a>
+<a name='L563'></a><a href='#L563'>563</a>
+<a name='L564'></a><a href='#L564'>564</a>
+<a name='L565'></a><a href='#L565'>565</a>
+<a name='L566'></a><a href='#L566'>566</a>
+<a name='L567'></a><a href='#L567'>567</a>
+<a name='L568'></a><a href='#L568'>568</a>
+<a name='L569'></a><a href='#L569'>569</a>
+<a name='L570'></a><a href='#L570'>570</a>
+<a name='L571'></a><a href='#L571'>571</a>
+<a name='L572'></a><a href='#L572'>572</a>
+<a name='L573'></a><a href='#L573'>573</a>
+<a name='L574'></a><a href='#L574'>574</a>
+<a name='L575'></a><a href='#L575'>575</a>
+<a name='L576'></a><a href='#L576'>576</a>
+<a name='L577'></a><a href='#L577'>577</a>
+<a name='L578'></a><a href='#L578'>578</a>
+<a name='L579'></a><a href='#L579'>579</a>
+<a name='L580'></a><a href='#L580'>580</a>
+<a name='L581'></a><a href='#L581'>581</a>
+<a name='L582'></a><a href='#L582'>582</a>
+<a name='L583'></a><a href='#L583'>583</a>
+<a name='L584'></a><a href='#L584'>584</a>
+<a name='L585'></a><a href='#L585'>585</a>
+<a name='L586'></a><a href='#L586'>586</a>
+<a name='L587'></a><a href='#L587'>587</a>
+<a name='L588'></a><a href='#L588'>588</a>
+<a name='L589'></a><a href='#L589'>589</a>
+<a name='L590'></a><a href='#L590'>590</a>
+<a name='L591'></a><a href='#L591'>591</a>
+<a name='L592'></a><a href='#L592'>592</a>
+<a name='L593'></a><a href='#L593'>593</a>
+<a name='L594'></a><a href='#L594'>594</a>
+<a name='L595'></a><a href='#L595'>595</a>
+<a name='L596'></a><a href='#L596'>596</a>
+<a name='L597'></a><a href='#L597'>597</a>
+<a name='L598'></a><a href='#L598'>598</a>
+<a name='L599'></a><a href='#L599'>599</a>
+<a name='L600'></a><a href='#L600'>600</a>
+<a name='L601'></a><a href='#L601'>601</a>
+<a name='L602'></a><a href='#L602'>602</a>
+<a name='L603'></a><a href='#L603'>603</a>
+<a name='L604'></a><a href='#L604'>604</a>
+<a name='L605'></a><a href='#L605'>605</a>
+<a name='L606'></a><a href='#L606'>606</a>
+<a name='L607'></a><a href='#L607'>607</a>
+<a name='L608'></a><a href='#L608'>608</a>
+<a name='L609'></a><a href='#L609'>609</a>
+<a name='L610'></a><a href='#L610'>610</a>
+<a name='L611'></a><a href='#L611'>611</a>
+<a name='L612'></a><a href='#L612'>612</a>
+<a name='L613'></a><a href='#L613'>613</a>
+<a name='L614'></a><a href='#L614'>614</a>
+<a name='L615'></a><a href='#L615'>615</a>
+<a name='L616'></a><a href='#L616'>616</a>
+<a name='L617'></a><a href='#L617'>617</a>
+<a name='L618'></a><a href='#L618'>618</a>
+<a name='L619'></a><a href='#L619'>619</a>
+<a name='L620'></a><a href='#L620'>620</a>
+<a name='L621'></a><a href='#L621'>621</a>
+<a name='L622'></a><a href='#L622'>622</a>
+<a name='L623'></a><a href='#L623'>623</a>
+<a name='L624'></a><a href='#L624'>624</a>
+<a name='L625'></a><a href='#L625'>625</a>
+<a name='L626'></a><a href='#L626'>626</a>
+<a name='L627'></a><a href='#L627'>627</a>
+<a name='L628'></a><a href='#L628'>628</a>
+<a name='L629'></a><a href='#L629'>629</a>
+<a name='L630'></a><a href='#L630'>630</a>
+<a name='L631'></a><a href='#L631'>631</a>
+<a name='L632'></a><a href='#L632'>632</a>
+<a name='L633'></a><a href='#L633'>633</a>
+<a name='L634'></a><a href='#L634'>634</a>
+<a name='L635'></a><a href='#L635'>635</a>
+<a name='L636'></a><a href='#L636'>636</a>
+<a name='L637'></a><a href='#L637'>637</a>
+<a name='L638'></a><a href='#L638'>638</a>
+<a name='L639'></a><a href='#L639'>639</a>
+<a name='L640'></a><a href='#L640'>640</a>
+<a name='L641'></a><a href='#L641'>641</a>
+<a name='L642'></a><a href='#L642'>642</a>
+<a name='L643'></a><a href='#L643'>643</a>
+<a name='L644'></a><a href='#L644'>644</a>
+<a name='L645'></a><a href='#L645'>645</a>
+<a name='L646'></a><a href='#L646'>646</a>
+<a name='L647'></a><a href='#L647'>647</a>
+<a name='L648'></a><a href='#L648'>648</a>
+<a name='L649'></a><a href='#L649'>649</a>
+<a name='L650'></a><a href='#L650'>650</a>
+<a name='L651'></a><a href='#L651'>651</a>
+<a name='L652'></a><a href='#L652'>652</a>
+<a name='L653'></a><a href='#L653'>653</a>
+<a name='L654'></a><a href='#L654'>654</a>
+<a name='L655'></a><a href='#L655'>655</a>
+<a name='L656'></a><a href='#L656'>656</a>
+<a name='L657'></a><a href='#L657'>657</a>
+<a name='L658'></a><a href='#L658'>658</a>
+<a name='L659'></a><a href='#L659'>659</a>
+<a name='L660'></a><a href='#L660'>660</a>
+<a name='L661'></a><a href='#L661'>661</a>
+<a name='L662'></a><a href='#L662'>662</a>
+<a name='L663'></a><a href='#L663'>663</a>
+<a name='L664'></a><a href='#L664'>664</a>
+<a name='L665'></a><a href='#L665'>665</a>
+<a name='L666'></a><a href='#L666'>666</a>
+<a name='L667'></a><a href='#L667'>667</a>
+<a name='L668'></a><a href='#L668'>668</a>
+<a name='L669'></a><a href='#L669'>669</a>
+<a name='L670'></a><a href='#L670'>670</a>
+<a name='L671'></a><a href='#L671'>671</a>
+<a name='L672'></a><a href='#L672'>672</a>
+<a name='L673'></a><a href='#L673'>673</a>
+<a name='L674'></a><a href='#L674'>674</a>
+<a name='L675'></a><a href='#L675'>675</a>
+<a name='L676'></a><a href='#L676'>676</a>
+<a name='L677'></a><a href='#L677'>677</a>
+<a name='L678'></a><a href='#L678'>678</a>
+<a name='L679'></a><a href='#L679'>679</a>
+<a name='L680'></a><a href='#L680'>680</a>
+<a name='L681'></a><a href='#L681'>681</a>
+<a name='L682'></a><a href='#L682'>682</a>
+<a name='L683'></a><a href='#L683'>683</a>
+<a name='L684'></a><a href='#L684'>684</a>
+<a name='L685'></a><a href='#L685'>685</a>
+<a name='L686'></a><a href='#L686'>686</a>
+<a name='L687'></a><a href='#L687'>687</a>
+<a name='L688'></a><a href='#L688'>688</a>
+<a name='L689'></a><a href='#L689'>689</a>
+<a name='L690'></a><a href='#L690'>690</a>
+<a name='L691'></a><a href='#L691'>691</a>
+<a name='L692'></a><a href='#L692'>692</a>
+<a name='L693'></a><a href='#L693'>693</a>
+<a name='L694'></a><a href='#L694'>694</a>
+<a name='L695'></a><a href='#L695'>695</a>
+<a name='L696'></a><a href='#L696'>696</a>
+<a name='L697'></a><a href='#L697'>697</a>
+<a name='L698'></a><a href='#L698'>698</a>
+<a name='L699'></a><a href='#L699'>699</a>
+<a name='L700'></a><a href='#L700'>700</a>
+<a name='L701'></a><a href='#L701'>701</a>
+<a name='L702'></a><a href='#L702'>702</a>
+<a name='L703'></a><a href='#L703'>703</a>
+<a name='L704'></a><a href='#L704'>704</a>
+<a name='L705'></a><a href='#L705'>705</a>
+<a name='L706'></a><a href='#L706'>706</a>
+<a name='L707'></a><a href='#L707'>707</a>
+<a name='L708'></a><a href='#L708'>708</a>
+<a name='L709'></a><a href='#L709'>709</a>
+<a name='L710'></a><a href='#L710'>710</a>
+<a name='L711'></a><a href='#L711'>711</a>
+<a name='L712'></a><a href='#L712'>712</a>
+<a name='L713'></a><a href='#L713'>713</a>
+<a name='L714'></a><a href='#L714'>714</a>
+<a name='L715'></a><a href='#L715'>715</a>
+<a name='L716'></a><a href='#L716'>716</a>
+<a name='L717'></a><a href='#L717'>717</a>
+<a name='L718'></a><a href='#L718'>718</a>
+<a name='L719'></a><a href='#L719'>719</a>
+<a name='L720'></a><a href='#L720'>720</a>
+<a name='L721'></a><a href='#L721'>721</a>
+<a name='L722'></a><a href='#L722'>722</a>
+<a name='L723'></a><a href='#L723'>723</a>
+<a name='L724'></a><a href='#L724'>724</a>
+<a name='L725'></a><a href='#L725'>725</a>
+<a name='L726'></a><a href='#L726'>726</a>
+<a name='L727'></a><a href='#L727'>727</a>
+<a name='L728'></a><a href='#L728'>728</a>
+<a name='L729'></a><a href='#L729'>729</a>
+<a name='L730'></a><a href='#L730'>730</a>
+<a name='L731'></a><a href='#L731'>731</a>
+<a name='L732'></a><a href='#L732'>732</a>
+<a name='L733'></a><a href='#L733'>733</a>
+<a name='L734'></a><a href='#L734'>734</a>
+<a name='L735'></a><a href='#L735'>735</a>
+<a name='L736'></a><a href='#L736'>736</a>
+<a name='L737'></a><a href='#L737'>737</a>
+<a name='L738'></a><a href='#L738'>738</a>
+<a name='L739'></a><a href='#L739'>739</a>
+<a name='L740'></a><a href='#L740'>740</a>
+<a name='L741'></a><a href='#L741'>741</a>
+<a name='L742'></a><a href='#L742'>742</a>
+<a name='L743'></a><a href='#L743'>743</a>
+<a name='L744'></a><a href='#L744'>744</a>
+<a name='L745'></a><a href='#L745'>745</a>
+<a name='L746'></a><a href='#L746'>746</a>
+<a name='L747'></a><a href='#L747'>747</a>
+<a name='L748'></a><a href='#L748'>748</a>
+<a name='L749'></a><a href='#L749'>749</a>
+<a name='L750'></a><a href='#L750'>750</a>
+<a name='L751'></a><a href='#L751'>751</a>
+<a name='L752'></a><a href='#L752'>752</a>
+<a name='L753'></a><a href='#L753'>753</a>
+<a name='L754'></a><a href='#L754'>754</a>
+<a name='L755'></a><a href='#L755'>755</a>
+<a name='L756'></a><a href='#L756'>756</a>
+<a name='L757'></a><a href='#L757'>757</a>
+<a name='L758'></a><a href='#L758'>758</a>
+<a name='L759'></a><a href='#L759'>759</a>
+<a name='L760'></a><a href='#L760'>760</a>
+<a name='L761'></a><a href='#L761'>761</a>
+<a name='L762'></a><a href='#L762'>762</a>
+<a name='L763'></a><a href='#L763'>763</a>
+<a name='L764'></a><a href='#L764'>764</a>
+<a name='L765'></a><a href='#L765'>765</a>
+<a name='L766'></a><a href='#L766'>766</a>
+<a name='L767'></a><a href='#L767'>767</a>
+<a name='L768'></a><a href='#L768'>768</a>
+<a name='L769'></a><a href='#L769'>769</a>
+<a name='L770'></a><a href='#L770'>770</a>
+<a name='L771'></a><a href='#L771'>771</a>
+<a name='L772'></a><a href='#L772'>772</a>
+<a name='L773'></a><a href='#L773'>773</a>
+<a name='L774'></a><a href='#L774'>774</a>
+<a name='L775'></a><a href='#L775'>775</a>
+<a name='L776'></a><a href='#L776'>776</a>
+<a name='L777'></a><a href='#L777'>777</a>
+<a name='L778'></a><a href='#L778'>778</a>
+<a name='L779'></a><a href='#L779'>779</a>
+<a name='L780'></a><a href='#L780'>780</a>
+<a name='L781'></a><a href='#L781'>781</a>
+<a name='L782'></a><a href='#L782'>782</a>
+<a name='L783'></a><a href='#L783'>783</a>
+<a name='L784'></a><a href='#L784'>784</a>
+<a name='L785'></a><a href='#L785'>785</a>
+<a name='L786'></a><a href='#L786'>786</a>
+<a name='L787'></a><a href='#L787'>787</a>
+<a name='L788'></a><a href='#L788'>788</a>
+<a name='L789'></a><a href='#L789'>789</a>
+<a name='L790'></a><a href='#L790'>790</a>
+<a name='L791'></a><a href='#L791'>791</a>
+<a name='L792'></a><a href='#L792'>792</a>
+<a name='L793'></a><a href='#L793'>793</a>
+<a name='L794'></a><a href='#L794'>794</a>
+<a name='L795'></a><a href='#L795'>795</a>
+<a name='L796'></a><a href='#L796'>796</a>
+<a name='L797'></a><a href='#L797'>797</a>
+<a name='L798'></a><a href='#L798'>798</a>
+<a name='L799'></a><a href='#L799'>799</a>
+<a name='L800'></a><a href='#L800'>800</a>
+<a name='L801'></a><a href='#L801'>801</a>
+<a name='L802'></a><a href='#L802'>802</a>
+<a name='L803'></a><a href='#L803'>803</a>
+<a name='L804'></a><a href='#L804'>804</a>
+<a name='L805'></a><a href='#L805'>805</a>
+<a name='L806'></a><a href='#L806'>806</a>
+<a name='L807'></a><a href='#L807'>807</a>
+<a name='L808'></a><a href='#L808'>808</a>
+<a name='L809'></a><a href='#L809'>809</a>
+<a name='L810'></a><a href='#L810'>810</a>
+<a name='L811'></a><a href='#L811'>811</a>
+<a name='L812'></a><a href='#L812'>812</a>
+<a name='L813'></a><a href='#L813'>813</a>
+<a name='L814'></a><a href='#L814'>814</a>
+<a name='L815'></a><a href='#L815'>815</a>
+<a name='L816'></a><a href='#L816'>816</a>
+<a name='L817'></a><a href='#L817'>817</a>
+<a name='L818'></a><a href='#L818'>818</a>
+<a name='L819'></a><a href='#L819'>819</a>
+<a name='L820'></a><a href='#L820'>820</a>
+<a name='L821'></a><a href='#L821'>821</a>
+<a name='L822'></a><a href='#L822'>822</a>
+<a name='L823'></a><a href='#L823'>823</a>
+<a name='L824'></a><a href='#L824'>824</a>
+<a name='L825'></a><a href='#L825'>825</a>
+<a name='L826'></a><a href='#L826'>826</a>
+<a name='L827'></a><a href='#L827'>827</a>
+<a name='L828'></a><a href='#L828'>828</a>
+<a name='L829'></a><a href='#L829'>829</a>
+<a name='L830'></a><a href='#L830'>830</a>
+<a name='L831'></a><a href='#L831'>831</a>
+<a name='L832'></a><a href='#L832'>832</a>
+<a name='L833'></a><a href='#L833'>833</a>
+<a name='L834'></a><a href='#L834'>834</a>
+<a name='L835'></a><a href='#L835'>835</a>
+<a name='L836'></a><a href='#L836'>836</a>
+<a name='L837'></a><a href='#L837'>837</a>
+<a name='L838'></a><a href='#L838'>838</a>
+<a name='L839'></a><a href='#L839'>839</a>
+<a name='L840'></a><a href='#L840'>840</a>
+<a name='L841'></a><a href='#L841'>841</a>
+<a name='L842'></a><a href='#L842'>842</a>
+<a name='L843'></a><a href='#L843'>843</a>
+<a name='L844'></a><a href='#L844'>844</a>
+<a name='L845'></a><a href='#L845'>845</a>
+<a name='L846'></a><a href='#L846'>846</a>
+<a name='L847'></a><a href='#L847'>847</a>
+<a name='L848'></a><a href='#L848'>848</a>
+<a name='L849'></a><a href='#L849'>849</a>
+<a name='L850'></a><a href='#L850'>850</a>
+<a name='L851'></a><a href='#L851'>851</a>
+<a name='L852'></a><a href='#L852'>852</a>
+<a name='L853'></a><a href='#L853'>853</a>
+<a name='L854'></a><a href='#L854'>854</a>
+<a name='L855'></a><a href='#L855'>855</a>
+<a name='L856'></a><a href='#L856'>856</a>
+<a name='L857'></a><a href='#L857'>857</a>
+<a name='L858'></a><a href='#L858'>858</a>
+<a name='L859'></a><a href='#L859'>859</a>
+<a name='L860'></a><a href='#L860'>860</a>
+<a name='L861'></a><a href='#L861'>861</a>
+<a name='L862'></a><a href='#L862'>862</a>
+<a name='L863'></a><a href='#L863'>863</a>
+<a name='L864'></a><a href='#L864'>864</a>
+<a name='L865'></a><a href='#L865'>865</a>
+<a name='L866'></a><a href='#L866'>866</a>
+<a name='L867'></a><a href='#L867'>867</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { query, run } from '@/services/localDb'<span class="fstat-no" title="function not covered" ><span class="branch-0 cbranch-no" title="branch not covered" ></span></span></span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * gradingRecordRepo — screen-008--monitor-grading /</span>
+<span class="cstat-no" title="statement not covered" > * usecase-008--monitor-grading business_logic steps 1-5. Local (offline)</span>
+<span class="cstat-no" title="statement not covered" > * read/write access to the `grading_record` table (schema defined in</span>
+<span class="cstat-no" title="statement not covered" > * localSchema.ts) — mirrors weighbridgeRecordRepo.ts's repo style (plain</span>
+<span class="cstat-no" title="statement not covered" > * async functions over localDb.ts's `query`/`run` primitives) as closely</span>
+<span class="cstat-no" title="statement not covered" > * as sensible given grading's different business logic.</span>
+<span class="cstat-no" title="statement not covered" > *</span>
+<span class="cstat-no" title="statement not covered" > * Difference from weighbridgeRecordRepo.ts: Monitor Grading's progress</span>
+<span class="cstat-no" title="statement not covered" > * summary (business_logic step 1) is a single "jumlah record dinilai pada</span>
+<span class="cstat-no" title="statement not covered" > * sesi berjalan" count, not multiple numeric sums (weighbridge's</span>
+<span class="cstat-no" title="statement not covered" > * sumWbCard/sumNetWeight/sumQuantity) — grading_record has no</span>
+<span class="cstat-no" title="statement not covered" > * weight/quantity columns of its own (those live per-row on</span>
+<span class="cstat-no" title="statement not covered" > * `grading_detail`, owned by screen-011--form-grading, out of this</span>
+<span class="cstat-no" title="statement not covered" > * screen's scope). `deleteDraft()` also additionally cascades the delete</span>
+<span class="cstat-no" title="statement not covered" > * to `grading_detail` rows (weighbridge_record has no child table to</span>
+<span class="cstat-no" title="statement not covered" > * cascade).</span>
+<span class="cstat-no" title="statement not covered" > *</span>
+<span class="cstat-no" title="statement not covered" > * Update (screen-011--form-grading): adds `getDraftWithDetails()` (SELECT</span>
+<span class="cstat-no" title="statement not covered" > * the `grading_record` header row plus all of its `grading_detail` child</span>
+<span class="cstat-no" title="statement not covered" > * rows, for Form Grading to load a draft on mount — mirrors</span>
+<span class="cstat-no" title="statement not covered" > * weighbridgeRecordRepo.ts's `getDraftById()`, extended with the child</span>
+<span class="cstat-no" title="statement not covered" > * rows this screen also owns) and `saveDraft()` (business_logic steps 4-7</span>
+<span class="cstat-no" title="statement not covered" > * — validates at least one grading_detail row exists, UPDATEs the header</span>
+<span class="cstat-no" title="statement not covered" > * with status='saved', and upserts every detail row: rows with an</span>
+<span class="cstat-no" title="statement not covered" > * existing `id` are UPDATEd, rows without one are INSERTed with a freshly</span>
+<span class="cstat-no" title="statement not covered" > * generated id). `saveDraft()` is also where business_logic step 6's</span>
+<span class="cstat-no" title="statement not covered" > * role-based `checked_by` stripping is enforced — deliberately at this</span>
+<span class="cstat-no" title="statement not covered" > * repo level (not only in FormGradingView.vue's UI), same reasoning as</span>
+<span class="cstat-no" title="statement not covered" > * weighbridgeRecordRepo.ts's `saveDraft()`, so the rule holds even if a</span>
+<span class="cstat-no" title="statement not covered" > * caller bypasses the UI.</span>
+<span class="cstat-no" title="statement not covered" > *</span>
+<span class="cstat-no" title="statement not covered" > * Transaction handling: `localDb.ts` exposes only `query()`/`run()` — no</span>
+<span class="cstat-no" title="statement not covered" > * transaction primitive (see its header comment; still true as of this</span>
+<span class="cstat-no" title="statement not covered" > * screen). `saveDraft()` therefore performs the header UPDATE followed by</span>
+<span class="cstat-no" title="statement not covered" > * each detail row's UPDATE/INSERT as sequential `run()` calls (header</span>
+<span class="cstat-no" title="statement not covered" > * first, then details in array order) rather than a single atomic</span>
+<span class="cstat-no" title="statement not covered" > * transaction — same documented limitation as this file's own</span>
+<span class="cstat-no" title="statement not covered" > * `deleteDraft()` and weighbridgeRecordRepo.ts's `saveDraft()`. A</span>
+<span class="cstat-no" title="statement not covered" > * mid-sequence failure can leave the header saved with only a subset of</span>
+<span class="cstat-no" title="statement not covered" > * detail rows persisted. Acceptable for this stage (single-user local</span>
+<span class="cstat-no" title="statement not covered" > * device, no concurrent writers) but noted here for anyone adding a real</span>
+<span class="cstat-no" title="statement not covered" > * transaction primitive to localDb.ts later.</span>
+<span class="cstat-no" title="statement not covered" > *</span>
+<span class="cstat-no" title="statement not covered" > * Update (screen-008--monitor-grading, list-view + entity-catalog v2</span>
+<span class="cstat-no" title="statement not covered" > * rewrite): adds `getDrafts()` — business_logic step 2 of the rewritten</span>
+<span class="cstat-no" title="statement not covered" > * Monitor Grading screen, which now shows a full scrollable list of the</span>
+<span class="cstat-no" title="statement not covered" > * current user's ongoing/paused drafts (every row labeled uniformly</span>
+<span class="cstat-no" title="statement not covered" > * "Pause" in the UI, no ongoing-vs-paused distinction), mirroring</span>
+<span class="cstat-no" title="statement not covered" > * weighbridgeRecordRepo.ts's `getDrafts()` (screen-007's own equivalent</span>
+<span class="cstat-no" title="statement not covered" > * list-view rewrite). Also adds `getTodaySummary()` — the screen's new</span>
+<span class="cstat-no" title="statement not covered" > * "Hari Ini" 3-card counter section (business_logic step 1: COUNT + SUM</span>
+<span class="cstat-no" title="statement not covered" > * of `netto`/`quantity` scoped to today's local device date via</span>
+<span class="cstat-no" title="statement not covered" > * `date(date) = date('now','localtime')`), mirroring</span>
+<span class="cstat-no" title="statement not covered" > * weighbridgeRecordRepo.ts's own `getTodaySummary()` "today's counter"</span>
+<span class="cstat-no" title="statement not covered" > * addition, adapted to entity-catalog v2's `grading_record` columns</span>
+<span class="cstat-no" title="statement not covered" > * (`date`, `netto`, `quantity` — replacing the pre-v2 schema this file's</span>
+<span class="cstat-no" title="statement not covered" > * older `GradingRecord`/`saveDraft()`/`getDraftWithDetails()` block above</span>
+<span class="cstat-no" title="statement not covered" > * still assumes; that block belongs to screen-011--form-grading, not yet</span>
+<span class="cstat-no" title="statement not covered" > * revised for entity-catalog v2, and is deliberately left untouched here —</span>
+<span class="cstat-no" title="statement not covered" > * see this screen's implementation_notes). `getProgressSummary()` is left</span>
+<span class="cstat-no" title="statement not covered" > * in place unchanged (still used by StationListView.vue's</span>
+<span class="cstat-no" title="statement not covered" > * draft-status-by-type lookup); `resumeDraft()`/`pauseDraft()`/</span>
+<span class="cstat-no" title="statement not covered" > * `deleteDraft()` are no longer called by this screen going forward but</span>
+<span class="cstat-no" title="statement not covered" > * are kept for parity with weighbridgeRecordRepo.ts's own equivalents,</span>
+<span class="cstat-no" title="statement not covered" > * and in case another caller needs them later. Purely additive — every</span>
+<span class="cstat-no" title="statement not covered" > * other exported function/type in this file (including the entire</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading block below) is unchanged.</span>
+<span class="cstat-no" title="statement not covered" > *</span>
+<span class="cstat-no" title="statement not covered" > * Update (screen-011--form-grading, entity-catalog v2 rewrite,</span>
+<span class="cstat-no" title="statement not covered" > * 2026-08-19): the screen-011--form-grading block below (previously a</span>
+<span class="cstat-no" title="statement not covered" > * placeholder built against grading_record/grading_detail's PRE-v2</span>
+<span class="cstat-no" title="statement not covered" > * columns — vehicle_number/driver_name/block on the header, free-text</span>
+<span class="cstat-no" title="statement not covered" > * `category` on the detail row — that never actually matched</span>
+<span class="cstat-no" title="statement not covered" > * localSchema.ts's authoritative v2 shape) is now fully rewritten to</span>
+<span class="cstat-no" title="statement not covered" > * match localSchema.ts's CREATE_GRADING_RECORD / CREATE_GRADING_DETAIL /</span>
+<span class="cstat-no" title="statement not covered" > * CREATE_GRADING_PARAMETER column-for-column:</span>
+<span class="cstat-no" title="statement not covered" > *   - `GradingRecord` gains weighbridge_record_id/license_plate_no/</span>
+<span class="cstat-no" title="statement not covered" > *     vehicle_code/netto/quantity/note, loses vehicle_number/driver_name/</span>
+<span class="cstat-no" title="statement not covered" > *     block.</span>
+<span class="cstat-no" title="statement not covered" > *   - `GradingDetailRow` gains grading_parameter_id/uom/percentage, loses</span>
+<span class="cstat-no" title="statement not covered" > *     `category`.</span>
+<span class="cstat-no" title="statement not covered" > *   - New `getWeighbridgeRecordOptions()` (every local weighbridge_record</span>
+<span class="cstat-no" title="statement not covered" > *     row, any status, ordered by arrival_datetime DESC — deliberately</span>
+<span class="cstat-no" title="statement not covered" > *     NOT scoped to `created_by`, unlike every other reader in this file;</span>
+<span class="cstat-no" title="statement not covered" > *     this is the WB Card No dropdown's reference list, and a grading</span>
+<span class="cstat-no" title="statement not covered" > *     record may legitimately reference a weighbridge_record created by a</span>
+<span class="cstat-no" title="statement not covered" > *     different device user, per this screen's tech spec) and</span>
+<span class="cstat-no" title="statement not covered" > *     `getGradingParameterOptions()` (every grading_parameter row,</span>
+<span class="cstat-no" title="statement not covered" > *     ordered by sort_order — the master list is global/unscoped, same</span>
+<span class="cstat-no" title="statement not covered" > *     reasoning as localSchema.ts's own unconditional seed) are added for</span>
+<span class="cstat-no" title="statement not covered" > *     FormGradingView.vue's two reference dropdowns.</span>
+<span class="cstat-no" title="statement not covered" > *   - `saveDraft()`/new `pauseDraftWithFormData()` both take an explicit</span>
+<span class="cstat-no" title="statement not covered" > *     `detailIdsToDelete: string[]` param (rows the user removed via</span>
+<span class="cstat-no" title="statement not covered" > *     "Hapus baris" — FormGradingView.vue queues these rather than</span>
+<span class="cstat-no" title="statement not covered" > *     deleting immediately) in addition to the upserted `detailRows`</span>
+<span class="cstat-no" title="statement not covered" > *     array, and neither touches `checked_by`/`acknowledged_by` at all:</span>
+<span class="cstat-no" title="statement not covered" > *     per this rewrite's tech spec, Form Grading's field sections no</span>
+<span class="cstat-no" title="statement not covered" > *     longer include a Checked By/Acknowledged By section at all (mirrors</span>
+<span class="cstat-no" title="statement not covered" > *     FormWeighbridgeView.vue's 2026-08-18 "MAJOR REWRITE" removing</span>
+<span class="cstat-no" title="statement not covered" > *     Checked By from that screen entirely) — those two columns are</span>
+<span class="cstat-no" title="statement not covered" > *     simply left at whatever `createDraft()` (screen-008 block above)</span>
+<span class="cstat-no" title="statement not covered" > *     already set them to (NULL, since that INSERT never populates</span>
+<span class="cstat-no" title="statement not covered" > *     them), rather than being explicitly re-written to NULL on every</span>
+<span class="cstat-no" title="statement not covered" > *     save/pause. `GradingActorRole` is kept (exported, unused by</span>
+<span class="cstat-no" title="statement not covered" > *     `saveDraft()`/`pauseDraftWithFormData()` now that there is no</span>
+<span class="cstat-no" title="statement not covered" > *     role-gated field) purely for parity with</span>
+<span class="cstat-no" title="statement not covered" > *     weighbridgeRecordRepo.ts's `WeighbridgeActorRole` / possible future</span>
+<span class="cstat-no" title="statement not covered" > *     callers.</span>
+<span class="cstat-no" title="statement not covered" > *   - `saveDraft()`'s required-detail-row gate now counts a row as</span>
+<span class="cstat-no" title="statement not covered" > *     "valid" only when it has both `grading_parameter_id` AND a</span>
+<span class="cstat-no" title="statement not covered" > *     non-null/non-undefined `quantity` (mirrors this screen's tech</span>
+<span class="cstat-no" title="statement not covered" > *     spec's "Quality Parameter selected + Qty filled"); throws</span>
+<span class="cstat-no" title="statement not covered" > *     `GradingDetailRequiredError` (same class, same message) when zero</span>
+<span class="cstat-no" title="statement not covered" > *     rows qualify — before ANY write happens, same as before. Every row</span>
+<span class="cstat-no" title="statement not covered" > *     the caller passes (as long as it hasn't been queued for deletion)</span>
+<span class="cstat-no" title="statement not covered" > *     is still upserted as-is once that gate passes — this function does</span>
+<span class="cstat-no" title="statement not covered" > *     not itself decide which individual rows are "complete enough" to</span>
+<span class="cstat-no" title="statement not covered" > *     persist beyond that one gate; FormGradingView is not expected to</span>
+<span class="cstat-no" title="statement not covered" > *     send fully-blank rows in the first place (a freshly-added, still-</span>
+<span class="cstat-no" title="statement not covered" > *     untouched "Tambah baris" row has no id and no `grading_parameter_id`,</span>
+<span class="cstat-no" title="statement not covered" > *     so an INSERT for it is harmless — it simply never happens unless</span>
+<span class="cstat-no" title="statement not covered" > *     the user actually engages with that row before Simpan/Pause is</span>
+<span class="cstat-no" title="statement not covered" > *     pressed, which then makes it a legitimate row).</span>
+<span class="cstat-no" title="statement not covered" > *   - `pauseDraftWithFormData()` mirrors `saveDraft()`'s upsert/delete</span>
+<span class="cstat-no" title="statement not covered" > *     semantics for detail rows exactly, but has NO validation gate at</span>
+<span class="cstat-no" title="statement not covered" > *     all (status='draft_paused', a checkpoint save) — same</span>
+<span class="cstat-no" title="statement not covered" > *     validate-vs-no-validate split as weighbridgeRecordRepo.ts's</span>
+<span class="cstat-no" title="statement not covered" > *     `saveDraft()` vs `pauseDraftWithFormData()`.</span>
+<span class="cstat-no" title="statement not covered" > *   - Explicit "Clear" delete is NOT reimplemented here — the screen-008</span>
+<span class="cstat-no" title="statement not covered" > *     block's `deleteDraft()` above already does exactly what Clear needs</span>
+<span class="cstat-no" title="statement not covered" > *     (delete every `grading_detail` row for the record, then the</span>
+<span class="cstat-no" title="statement not covered" > *     `grading_record` row itself) and is left untouched/exported;</span>
+<span class="cstat-no" title="statement not covered" > *     FormGradingView.vue calls that shared function directly rather than</span>
+<span class="cstat-no" title="statement not covered" > *     this file gaining a second, duplicate `clearDraft()`.</span>
+<span class="cstat-no" title="statement not covered" > *   - Id generation for new detail rows: unchanged, still</span>
+<span class="cstat-no" title="statement not covered" > *     `generateDetailId()` (crypto.randomUUID() with a manual fallback),</span>
+<span class="cstat-no" title="statement not covered" > *     same approach as `generateId()` above / weighbridgeRecordRepo.ts's</span>
+<span class="cstat-no" title="statement not covered" > *     own `generateId()`.</span>
+<span class="cstat-no" title="statement not covered" > *   - Transaction handling: unchanged — see this file's own "Transaction</span>
+<span class="cstat-no" title="statement not covered" > *     handling" paragraph above; sequential `run()` calls, no single</span>
+<span class="cstat-no" title="statement not covered" > *     atomic transaction.</span>
+<span class="cstat-no" title="statement not covered" > *</span>
+<span class="cstat-no" title="statement not covered" > * Update (screen-014--data-preview-grading, list-view rewrite): adds</span>
+<span class="cstat-no" title="statement not covered" > * `getAllRecords()` — Data Preview Grading's new LIST mode</span>
+<span class="cstat-no" title="statement not covered" > * (business_logic step 1) needs every local `grading_record` row for the</span>
+<span class="cstat-no" title="statement not covered" > * current user across ALL statuses (draft_ongoing/draft_paused/saved/</span>
+<span class="cstat-no" title="statement not covered" > * synced), unlike `getDrafts()` above which intentionally filters to only</span>
+<span class="cstat-no" title="statement not covered" > * draft_ongoing/draft_paused for Monitor Grading's own list. Mirrors</span>
+<span class="cstat-no" title="statement not covered" > * weighbridgeRecordRepo.ts's own `getAllRecords()`</span>
+<span class="cstat-no" title="statement not covered" > * (screen-013--data-preview-weighbridge) column-for-column, adapted to</span>
+<span class="cstat-no" title="statement not covered" > * `grading_record`'s entity-catalog v2 shape (`GradingRecord`, the same</span>
+<span class="cstat-no" title="statement not covered" > * full-row type `getDraftWithDetails()` already uses). DETAIL mode</span>
+<span class="cstat-no" title="statement not covered" > * continues to reuse `getDraftWithDetails()` unchanged — this function is</span>
+<span class="cstat-no" title="statement not covered" > * for the LIST-mode summary array only, it does not touch</span>
+<span class="cstat-no" title="statement not covered" > * `grading_detail` at all. Purely additive — every other exported</span>
+<span class="cstat-no" title="statement not covered" > * function in this file (including the entire screen-011--form-grading</span>
+<span class="cstat-no" title="statement not covered" > * block above) is unchanged.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >export type GradingDraftStatus = 'draft_ongoing' | 'draft_paused'</span>
+<span class="cstat-no" title="statement not covered" >export type GradingRecordStatus = GradingDraftStatus | 'saved' | 'synced'</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >export interface CurrentDraft {</span>
+<span class="cstat-no" title="statement not covered" >  id: string</span>
+<span class="cstat-no" title="statement not covered" >  status: GradingDraftStatus</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-008--monitor-grading "today's counter" addition — one row of</span>
+<span class="cstat-no" title="statement not covered" > * `getTodaySummary()`'s SQL aggregate (see that function's doc comment).</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export interface GradingTodaySummary {</span>
+<span class="cstat-no" title="statement not covered" >  countGrading: number</span>
+<span class="cstat-no" title="statement not covered" >  sumNetto: number</span>
+<span class="cstat-no" title="statement not covered" >  sumQuantity: number</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >interface TodaySummaryAggregateRow {</span>
+<span class="cstat-no" title="statement not covered" >  count_grading: number</span>
+<span class="cstat-no" title="statement not covered" >  sum_netto: number | null</span>
+<span class="cstat-no" title="statement not covered" >  sum_quantity: number | null</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-008--monitor-grading (list-view rewrite) business_logic step 2 —</span>
+<span class="cstat-no" title="statement not covered" > * one row of the current user's ongoing/paused draft list.</span>
+<span class="cstat-no" title="statement not covered" > * `grading_number` is included (unlike `CurrentDraft`/`CurrentDraftRow`</span>
+<span class="cstat-no" title="statement not covered" > * below) so the list can render each draft's Grading Number, falling back</span>
+<span class="cstat-no" title="statement not covered" > * to a placeholder in the view when null/empty — mirrors</span>
+<span class="cstat-no" title="statement not covered" > * weighbridgeRecordRepo.ts's `WeighbridgeDraftListItem`/`wb_card_number`.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export interface GradingDraftListItem {</span>
+<span class="cstat-no" title="statement not covered" >  id: string</span>
+<span class="cstat-no" title="statement not covered" >  status: GradingDraftStatus</span>
+<span class="cstat-no" title="statement not covered" >  grading_number: string | null</span>
+<span class="cstat-no" title="statement not covered" >  updated_at: string</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >interface DraftListRow {</span>
+<span class="cstat-no" title="statement not covered" >  id: string</span>
+<span class="cstat-no" title="statement not covered" >  status: GradingDraftStatus</span>
+<span class="cstat-no" title="statement not covered" >  grading_number: string | null</span>
+<span class="cstat-no" title="statement not covered" >  updated_at: string</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading (entity-catalog v2) — full local</span>
+<span class="cstat-no" title="statement not covered" > * `grading_record` row shape (mirrors localSchema.ts's</span>
+<span class="cstat-no" title="statement not covered" > * CREATE_GRADING_RECORD column-for-column). `getDraftWithDetails()`/</span>
+<span class="cstat-no" title="statement not covered" > * `saveDraft()`/`pauseDraftWithFormData()` below operate on this shape.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export interface GradingRecord {</span>
+<span class="cstat-no" title="statement not covered" >  id: string</span>
+<span class="cstat-no" title="statement not covered" >  station_id: string | null</span>
+<span class="cstat-no" title="statement not covered" >  grading_number: string | null</span>
+<span class="cstat-no" title="statement not covered" >  date: string | null</span>
+<span class="cstat-no" title="statement not covered" >  weighbridge_record_id: string | null</span>
+<span class="cstat-no" title="statement not covered" >  license_plate_no: string | null</span>
+<span class="cstat-no" title="statement not covered" >  vehicle_code: string | null</span>
+<span class="cstat-no" title="statement not covered" >  estate_supplier: string | null</span>
+<span class="cstat-no" title="statement not covered" >  division: string | null</span>
+<span class="cstat-no" title="statement not covered" >  netto: number | null</span>
+<span class="cstat-no" title="statement not covered" >  quantity: number | null</span>
+<span class="cstat-no" title="statement not covered" >  note: string | null</span>
+<span class="cstat-no" title="statement not covered" >  checked_by: string | null</span>
+<span class="cstat-no" title="statement not covered" >  acknowledged_by: string | null</span>
+<span class="cstat-no" title="statement not covered" >  status: GradingRecordStatus</span>
+<span class="cstat-no" title="statement not covered" >  created_by: string</span>
+<span class="cstat-no" title="statement not covered" >  created_at: string</span>
+<span class="cstat-no" title="statement not covered" >  updated_at: string</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading (entity-catalog v2) — full local</span>
+<span class="cstat-no" title="statement not covered" > * `grading_detail` row shape (mirrors localSchema.ts's</span>
+<span class="cstat-no" title="statement not covered" > * CREATE_GRADING_DETAIL column-for-column). `uom` is a snapshot copied</span>
+<span class="cstat-no" title="statement not covered" > * from the selected `grading_parameter.uom` at selection time (not a live</span>
+<span class="cstat-no" title="statement not covered" > * join — see CREATE_GRADING_DETAIL's own comment in localSchema.ts).</span>
+<span class="cstat-no" title="statement not covered" > * `percentage` is computed client-side by FormGradingView.vue</span>
+<span class="cstat-no" title="statement not covered" > * (qty/header.netto*100 when uom='kg', qty/header.quantity*100 when</span>
+<span class="cstat-no" title="statement not covered" > * uom='bunch') and persisted as-is by `saveDraft()`/</span>
+<span class="cstat-no" title="statement not covered" > * `pauseDraftWithFormData()` — this repo never recomputes it.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export interface GradingDetailRow {</span>
+<span class="cstat-no" title="statement not covered" >  id: string</span>
+<span class="cstat-no" title="statement not covered" >  grading_record_id: string</span>
+<span class="cstat-no" title="statement not covered" >  grading_parameter_id: string | null</span>
+<span class="cstat-no" title="statement not covered" >  quantity: number | null</span>
+<span class="cstat-no" title="statement not covered" >  uom: string | null</span>
+<span class="cstat-no" title="statement not covered" >  percentage: number | null</span>
+<span class="cstat-no" title="statement not covered" >  created_at: string</span>
+<span class="cstat-no" title="statement not covered" >  updated_at: string</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading — read-only reference row for the "Quality</span>
+<span class="cstat-no" title="statement not covered" > * Parameter" dropdown (mirrors localSchema.ts's CREATE_GRADING_PARAMETER</span>
+<span class="cstat-no" title="statement not covered" > * column-for-column, minus the audit timestamps FormGradingView.vue never</span>
+<span class="cstat-no" title="statement not covered" > * needs). See `getGradingParameterOptions()` below.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export interface GradingParameterOption {</span>
+<span class="cstat-no" title="statement not covered" >  id: string</span>
+<span class="cstat-no" title="statement not covered" >  name: string</span>
+<span class="cstat-no" title="statement not covered" >  uom: string</span>
+<span class="cstat-no" title="statement not covered" >  sort_order: number</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading — read-only reference row for the "WB Card No"</span>
+<span class="cstat-no" title="statement not covered" > * dropdown (a subset of `weighbridge_record`'s columns — this screen only</span>
+<span class="cstat-no" title="statement not covered" > * ever reads/displays these five). See `getWeighbridgeRecordOptions()`</span>
+<span class="cstat-no" title="statement not covered" > * below.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export interface WeighbridgeRecordOption {</span>
+<span class="cstat-no" title="statement not covered" >  id: string</span>
+<span class="cstat-no" title="statement not covered" >  wb_card_number: string | null</span>
+<span class="cstat-no" title="statement not covered" >  arrival_datetime: string | null</span>
+<span class="cstat-no" title="statement not covered" >  vehicle_number: string | null</span>
+<span class="cstat-no" title="statement not covered" >  estate_supplier: string | null</span>
+<span class="cstat-no" title="statement not covered" >  division: string | null</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading business_logic step 1 — a `grading_record`</span>
+<span class="cstat-no" title="statement not covered" > * header row plus all of its `grading_detail` child rows, as loaded by</span>
+<span class="cstat-no" title="statement not covered" > * `getDraftWithDetails()` and rendered by FormGradingView.vue.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export interface GradingDraftWithDetails {</span>
+<span class="cstat-no" title="statement not covered" >  record: GradingRecord</span>
+<span class="cstat-no" title="statement not covered" >  details: GradingDetailRow[]</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading business_logic step 4 — the subset of</span>
+<span class="cstat-no" title="statement not covered" > * `GradingRecord` columns the Form Grading screen actually collects from</span>
+<span class="cstat-no" title="statement not covered" > * the user (excludes id/station_id/created_by/created_at/updated_at/</span>
+<span class="cstat-no" title="statement not covered" > * status/checked_by/acknowledged_by — the last two are managed by nothing</span>
+<span class="cstat-no" title="statement not covered" > * on this screen at all, see this file's "entity-catalog v2 rewrite"</span>
+<span class="cstat-no" title="statement not covered" > * update note above: Form Grading has no Checked By/Acknowledged By</span>
+<span class="cstat-no" title="statement not covered" > * section).</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export interface GradingHeaderFormData {</span>
+<span class="cstat-no" title="statement not covered" >  grading_number: string</span>
+<span class="cstat-no" title="statement not covered" >  date: string</span>
+<span class="cstat-no" title="statement not covered" >  weighbridge_record_id: string</span>
+<span class="cstat-no" title="statement not covered" >  license_plate_no: string</span>
+<span class="cstat-no" title="statement not covered" >  vehicle_code: string</span>
+<span class="cstat-no" title="statement not covered" >  estate_supplier: string</span>
+<span class="cstat-no" title="statement not covered" >  division: string</span>
+<span class="cstat-no" title="statement not covered" >  netto: number | null</span>
+<span class="cstat-no" title="statement not covered" >  quantity: number | null</span>
+<span class="cstat-no" title="statement not covered" >  note: string</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading business_logic step 3 — one editable</span>
+<span class="cstat-no" title="statement not covered" > * `grading_detail` row as held in FormGradingView.vue's form state before</span>
+<span class="cstat-no" title="statement not covered" > * saving. `id` is present for rows loaded from an existing draft (UPDATE</span>
+<span class="cstat-no" title="statement not covered" > * target) and absent for rows added in this editing session (INSERT</span>
+<span class="cstat-no" title="statement not covered" > * target) — `saveDraft()`/`pauseDraftWithFormData()` upsert on exactly</span>
+<span class="cstat-no" title="statement not covered" > * this distinction. `uom` is the snapshot copied at Quality Parameter</span>
+<span class="cstat-no" title="statement not covered" > * selection time (see `GradingDetailRow` above); `percentage` is</span>
+<span class="cstat-no" title="statement not covered" > * (re)computed by FormGradingView.vue immediately before every</span>
+<span class="cstat-no" title="statement not covered" > * save/pause call, not tracked live on this object between renders.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export interface GradingDetailFormRow {</span>
+<span class="cstat-no" title="statement not covered" >  id?: string</span>
+<span class="cstat-no" title="statement not covered" >  grading_parameter_id: string</span>
+<span class="cstat-no" title="statement not covered" >  quantity: number | null</span>
+<span class="cstat-no" title="statement not covered" >  uom: string</span>
+<span class="cstat-no" title="statement not covered" >  percentage: number | null</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * User roles a caller may pass around this repo — kept as a plain string</span>
+<span class="cstat-no" title="statement not covered" > * union (not imported from stores/auth.ts's `AuthUser['role']`), matching</span>
+<span class="cstat-no" title="statement not covered" > * weighbridgeRecordRepo.ts's `WeighbridgeActorRole` so this repo stays</span>
+<span class="cstat-no" title="statement not covered" > * decoupled from the auth store. Currently unused by `saveDraft()`/</span>
+<span class="cstat-no" title="statement not covered" > * `pauseDraftWithFormData()` below (Form Grading has no role-gated</span>
+<span class="cstat-no" title="statement not covered" > * field — see this file's "entity-catalog v2 rewrite" update note above)</span>
+<span class="cstat-no" title="statement not covered" > * — kept exported for parity/possible future callers.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export type GradingActorRole = 'operator' | 'supervisor' | 'mill_management' | 'admin'</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading business_logic step 5 — thrown by `saveDraft()`</span>
+<span class="cstat-no" title="statement not covered" > * when `detailRows` is empty, so callers (FormGradingView.vue) can</span>
+<span class="cstat-no" title="statement not covered" > * distinguish this from other save failures and show the "at least one</span>
+<span class="cstat-no" title="statement not covered" > * grading detail row is required" error message rather than the generic</span>
+<span class="cstat-no" title="statement not covered" > * save-error banner. Named/exported (rather than a plain `Error`) so a</span>
+<span class="cstat-no" title="statement not covered" > * catch site can reliably `instanceof`-check it regardless of the</span>
+<span class="cstat-no" title="statement not covered" > * message text.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export class GradingDetailRequiredError extends Error {</span>
+<span class="cstat-no" title="statement not covered" >  constructor() {</span>
+<span class="cstat-no" title="statement not covered" >    super('Minimal 1 baris grading detail harus diisi sebelum menyimpan.')</span>
+<span class="cstat-no" title="statement not covered" >    this.name = 'GradingDetailRequiredError'</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >interface CountRow {</span>
+<span class="cstat-no" title="statement not covered" >  record_count: number</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >interface CurrentDraftRow {</span>
+<span class="cstat-no" title="statement not covered" >  id: string</span>
+<span class="cstat-no" title="statement not covered" >  status: GradingDraftStatus</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >const DRAFT_STATUSES: GradingDraftStatus[] = ['draft_ongoing', 'draft_paused']</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >function nowIso(): string {</span>
+<span class="cstat-no" title="statement not covered" >  return new Date().toISOString()</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * Generates a local primary-key id for a new `grading_record` row. Same</span>
+<span class="cstat-no" title="statement not covered" > * approach/reasoning as weighbridgeRecordRepo.ts's `generateId()` —</span>
+<span class="cstat-no" title="statement not covered" > * `crypto.randomUUID()` where available (modern WebView / Node 19+,</span>
+<span class="cstat-no" title="statement not covered" > * matching this repo's Vitest/jsdom test environment), manual fallback for</span>
+<span class="cstat-no" title="statement not covered" > * older embedded WebViews.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >function generateId(): string {</span>
+<span class="cstat-no" title="statement not covered" >  if (typeof crypto !== 'undefined' &amp;&amp; typeof crypto.randomUUID === 'function') {</span>
+<span class="cstat-no" title="statement not covered" >    return crypto.randomUUID()</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  return `grd-${Date.now()}-${Math.random().toString(16).slice(2)}`</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * Generates a local primary-key id for a new `grading_detail` row. Same</span>
+<span class="cstat-no" title="statement not covered" > * approach/reasoning as `generateId()` above, distinct prefix so ids</span>
+<span class="cstat-no" title="statement not covered" > * remain visually distinguishable between the two tables in ad-hoc</span>
+<span class="cstat-no" title="statement not covered" > * debugging.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >function generateDetailId(): string {</span>
+<span class="cstat-no" title="statement not covered" >  if (typeof crypto !== 'undefined' &amp;&amp; typeof crypto.randomUUID === 'function') {</span>
+<span class="cstat-no" title="statement not covered" >    return crypto.randomUUID()</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  return `grd-detail-${Date.now()}-${Math.random().toString(16).slice(2)}`</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * business_logic step 1 — count of grading_record rows for the current</span>
+<span class="cstat-no" title="statement not covered" > * user (running tally across the session, same "count everything this</span>
+<span class="cstat-no" title="statement not covered" > * user owns locally regardless of status" semantics as</span>
+<span class="cstat-no" title="statement not covered" > * weighbridgeRecordRepo.ts's `sumWbCard`), plus their current draft</span>
+<span class="cstat-no" title="statement not covered" > * (ongoing or paused, if any) so the UI can render a status badge.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export interface GradingProgressSummary {</span>
+<span class="cstat-no" title="statement not covered" >  recordCount: number</span>
+<span class="cstat-no" title="statement not covered" >  currentDraft: CurrentDraft | null</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * business_logic step 1 — count of local grading_record rows for the</span>
+<span class="cstat-no" title="statement not covered" > * current user (regardless of status, same running-tally semantics as</span>
+<span class="cstat-no" title="statement not covered" > * weighbridgeRecordRepo.ts's `getSummary()`), plus the current</span>
+<span class="cstat-no" title="statement not covered" > * ongoing/paused draft (if any) for the status badge. Computed with a SQL</span>
+<span class="cstat-no" title="statement not covered" > * aggregate rather than in JS so it stays a single round trip per query,</span>
+<span class="cstat-no" title="statement not covered" > * matching the rest of this app's local-repo style.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function getProgressSummary(userId: string): Promise&lt;GradingProgressSummary&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const [countRows, draftRows] = await Promise.all([</span>
+<span class="cstat-no" title="statement not covered" >    query&lt;CountRow&gt;(`SELECT COUNT(*) AS record_count FROM grading_record WHERE created_by = ?`, [userId]),</span>
+<span class="cstat-no" title="statement not covered" >    query&lt;CurrentDraftRow&gt;(</span>
+<span class="cstat-no" title="statement not covered" >      `SELECT id, status</span>
+<span class="cstat-no" title="statement not covered" >       FROM grading_record</span>
+<span class="cstat-no" title="statement not covered" >       WHERE created_by = ? AND status IN ('draft_ongoing', 'draft_paused')</span>
+<span class="cstat-no" title="statement not covered" >       ORDER BY updated_at DESC</span>
+<span class="cstat-no" title="statement not covered" >       LIMIT 1`,</span>
+<span class="cstat-no" title="statement not covered" >      [userId],</span>
+<span class="cstat-no" title="statement not covered" >    ),</span>
+<span class="cstat-no" title="statement not covered" >  ])</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  const draftRow = draftRows[0]</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  return {</span>
+<span class="cstat-no" title="statement not covered" >    recordCount: countRows[0]?.record_count ?? 0,</span>
+<span class="cstat-no" title="statement not covered" >    currentDraft: draftRow ? { id: draftRow.id, status: draftRow.status } : null,</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-008--monitor-grading "today's counter" addition — count + sums</span>
+<span class="cstat-no" title="statement not covered" > * across every local grading_record for the current user whose `date`</span>
+<span class="cstat-no" title="statement not covered" > * column falls on today's local (device) date, regardless of status (no</span>
+<span class="cstat-no" title="statement not covered" > * status filter, same as `getProgressSummary()`). Computed with a single</span>
+<span class="cstat-no" title="statement not covered" > * SQL aggregate query, matching this repo's existing</span>
+<span class="cstat-no" title="statement not covered" > * `getProgressSummary()` style and weighbridgeRecordRepo.ts's</span>
+<span class="cstat-no" title="statement not covered" > * `getTodaySummary()`. `date('now', 'localtime')` (rather than plain</span>
+<span class="cstat-no" title="statement not covered" > * `date('now')`, which is UTC) is used deliberately so "today" matches the</span>
+<span class="cstat-no" title="statement not covered" > * device's local day boundary, not UTC's.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function getTodaySummary(userId: string): Promise&lt;GradingTodaySummary&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const rows = await query&lt;TodaySummaryAggregateRow&gt;(</span>
+<span class="cstat-no" title="statement not covered" >    `SELECT</span>
+<span class="cstat-no" title="statement not covered" >       COUNT(*) AS count_grading,</span>
+<span class="cstat-no" title="statement not covered" >       COALESCE(SUM(netto), 0) AS sum_netto,</span>
+<span class="cstat-no" title="statement not covered" >       COALESCE(SUM(quantity), 0) AS sum_quantity</span>
+<span class="cstat-no" title="statement not covered" >     FROM grading_record</span>
+<span class="cstat-no" title="statement not covered" >     WHERE created_by = ? AND date(date) = date('now', 'localtime')`,</span>
+<span class="cstat-no" title="statement not covered" >    [userId],</span>
+<span class="cstat-no" title="statement not covered" >  )</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  const aggregate = rows[0]</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  return {</span>
+<span class="cstat-no" title="statement not covered" >    countGrading: aggregate?.count_grading ?? 0,</span>
+<span class="cstat-no" title="statement not covered" >    sumNetto: aggregate?.sum_netto ?? 0,</span>
+<span class="cstat-no" title="statement not covered" >    sumQuantity: aggregate?.sum_quantity ?? 0,</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-008--monitor-grading (list-view rewrite) business_logic step 2 —</span>
+<span class="cstat-no" title="statement not covered" > * every local `grading_record` the current user has ongoing or paused,</span>
+<span class="cstat-no" title="statement not covered" > * most-recently-updated first. Every returned row is labeled uniformly</span>
+<span class="cstat-no" title="statement not covered" > * "Pause" by the caller (MonitorGradingView.vue) — the ongoing/paused</span>
+<span class="cstat-no" title="statement not covered" > * distinction is carried in `status` purely for completeness/future use,</span>
+<span class="cstat-no" title="statement not covered" > * not surfaced as separate UI labels. Mirrors</span>
+<span class="cstat-no" title="statement not covered" > * weighbridgeRecordRepo.ts's `getDrafts()`.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function getDrafts(userId: string): Promise&lt;GradingDraftListItem[]&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const rows = await query&lt;DraftListRow&gt;(</span>
+<span class="cstat-no" title="statement not covered" >    `SELECT id, status, grading_number, updated_at</span>
+<span class="cstat-no" title="statement not covered" >     FROM grading_record</span>
+<span class="cstat-no" title="statement not covered" >     WHERE created_by = ? AND status IN ('draft_ongoing', 'draft_paused')</span>
+<span class="cstat-no" title="statement not covered" >     ORDER BY updated_at DESC`,</span>
+<span class="cstat-no" title="statement not covered" >    [userId],</span>
+<span class="cstat-no" title="statement not covered" >  )</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  return rows.map((row) =&gt; ({</span>
+<span class="cstat-no" title="statement not covered" >    id: row.id,</span>
+<span class="cstat-no" title="statement not covered" >    status: row.status,</span>
+<span class="cstat-no" title="statement not covered" >    grading_number: row.grading_number,</span>
+<span class="cstat-no" title="statement not covered" >    updated_at: row.updated_at,</span>
+<span class="cstat-no" title="statement not covered" >  }))</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-014--data-preview-grading (list-view) business_logic step 1 —</span>
+<span class="cstat-no" title="statement not covered" > * every local `grading_record` row for the current user, regardless of</span>
+<span class="cstat-no" title="statement not covered" > * status, most-recently-updated first. Returns the full row shape</span>
+<span class="cstat-no" title="statement not covered" > * (`GradingRecord`, same as `getDraftWithDetails()`'s header row) since</span>
+<span class="cstat-no" title="statement not covered" > * this screen's LIST mode filters/renders directly off it (grading_number/</span>
+<span class="cstat-no" title="statement not covered" > * license_plate_no/date/status) and its DETAIL mode transition just passes</span>
+<span class="cstat-no" title="statement not covered" > * an id onward (reusing `getDraftWithDetails()` for the actual detail</span>
+<span class="cstat-no" title="statement not covered" > * load — this function never touches `grading_detail`). Date/search</span>
+<span class="cstat-no" title="statement not covered" > * filtering is done client-side by the caller (in-memory, on this</span>
+<span class="cstat-no" title="statement not covered" > * already-fetched array) — this function never re-queries per filter</span>
+<span class="cstat-no" title="statement not covered" > * change, same as weighbridgeRecordRepo.ts's `getAllRecords()`.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function getAllRecords(userId: string): Promise&lt;GradingRecord[]&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  return query&lt;GradingRecord&gt;(</span>
+<span class="cstat-no" title="statement not covered" >    `SELECT * FROM grading_record WHERE created_by = ? ORDER BY updated_at DESC`,</span>
+<span class="cstat-no" title="statement not covered" >    [userId],</span>
+<span class="cstat-no" title="statement not covered" >  )</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * business_logic step 2 — 'Mulai Input Baru'. INSERTs a new</span>
+<span class="cstat-no" title="statement not covered" > * grading_record row with status='draft_ongoing', created_by=current</span>
+<span class="cstat-no" title="statement not covered" > * user, a generated id, and audit timestamps. All other fields</span>
+<span class="cstat-no" title="statement not covered" > * (grading_number, vehicle_number, driver_name, etc.) are left null here —</span>
+<span class="cstat-no" title="statement not covered" > * they are captured later by Form Grading (screen-011). Returns the new</span>
+<span class="cstat-no" title="statement not covered" > * record's id so the caller can navigate to Form Grading with it.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function createDraft(userId: string): Promise&lt;string&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const id = generateId()</span>
+<span class="cstat-no" title="statement not covered" >  const timestamp = nowIso()</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  await run(</span>
+<span class="cstat-no" title="statement not covered" >    `INSERT INTO grading_record (id, status, created_by, created_at, updated_at)</span>
+<span class="cstat-no" title="statement not covered" >     VALUES (?, 'draft_ongoing', ?, ?, ?)`,</span>
+<span class="cstat-no" title="statement not covered" >    [id, userId, timestamp, timestamp],</span>
+<span class="cstat-no" title="statement not covered" >  )</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  return id</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * business_logic step 3 — 'Lanjutkan draft paused'. UPDATEs the given</span>
+<span class="cstat-no" title="statement not covered" > * record's status back to 'draft_ongoing' (and updated_at). Returns the</span>
+<span class="cstat-no" title="statement not covered" > * updated record's id/status so the caller can navigate to Form Grading</span>
+<span class="cstat-no" title="statement not covered" > * with it.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function resumeDraft(recordId: string): Promise&lt;CurrentDraft&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const timestamp = nowIso()</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  await run(`UPDATE grading_record SET status = 'draft_ongoing', updated_at = ? WHERE id = ?`, [</span>
+<span class="cstat-no" title="statement not covered" >    timestamp,</span>
+<span class="cstat-no" title="statement not covered" >    recordId,</span>
+<span class="cstat-no" title="statement not covered" >  ])</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  return { id: recordId, status: 'draft_ongoing' }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * business_logic step 4 — 'Pause'. UPDATEs the current ongoing record's</span>
+<span class="cstat-no" title="statement not covered" > * status to 'draft_paused' (and updated_at).</span>
+<span class="cstat-no" title="statement not covered" > *</span>
+<span class="cstat-no" title="statement not covered" > * Guard: when there is no ongoing draft to pause, this is a no-op — the</span>
+<span class="cstat-no" title="statement not covered" > * underlying `run()` write primitive must NOT be invoked at all (mirrors</span>
+<span class="cstat-no" title="statement not covered" > * weighbridgeRecordRepo.ts's `pauseDraft()` guard / the "Pause disabled</span>
+<span class="cstat-no" title="statement not covered" > * when no ongoing draft" business rule). The caller</span>
+<span class="cstat-no" title="statement not covered" > * (MonitorGradingView.vue) only ever has an id to pass when</span>
+<span class="cstat-no" title="statement not covered" > * `currentDraft.status === 'draft_ongoing'` (see the view's own disabled-</span>
+<span class="cstat-no" title="statement not covered" > * button guard), so `recordId` being falsy IS the "no ongoing draft"</span>
+<span class="cstat-no" title="statement not covered" > * signal here — checked and early-returned before any DB call.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function pauseDraft(recordId: string | null | undefined): Promise&lt;void&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  if (!recordId) {</span>
+<span class="cstat-no" title="statement not covered" >    return</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  const timestamp = nowIso()</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  await run(</span>
+<span class="cstat-no" title="statement not covered" >    `UPDATE grading_record SET status = 'draft_paused', updated_at = ? WHERE id = ? AND status = 'draft_ongoing'`,</span>
+<span class="cstat-no" title="statement not covered" >    [timestamp, recordId],</span>
+<span class="cstat-no" title="statement not covered" >  )</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * business_logic step 5 — 'Clear' (after UI-level confirm). Permanently</span>
+<span class="cstat-no" title="statement not covered" > * DELETEs the record, cascading the delete to its child `grading_detail`</span>
+<span class="cstat-no" title="statement not covered" > * rows first (application-level cascade — no DB-level `ON DELETE CASCADE`</span>
+<span class="cstat-no" title="statement not covered" > * is declared in localSchema.ts; see that file's header comment). Runs as</span>
+<span class="cstat-no" title="statement not covered" > * two sequential DELETE statements via localDb.ts's `run()` (no</span>
+<span class="cstat-no" title="statement not covered" > * transaction primitive is exposed there, same as</span>
+<span class="cstat-no" title="statement not covered" > * weighbridgeRecordRepo.ts). Confirmation itself is a UI concern</span>
+<span class="cstat-no" title="statement not covered" > * (ConfirmDialog.vue / MonitorGradingView.vue) — this function deletes</span>
+<span class="cstat-no" title="statement not covered" > * unconditionally once called; the cancel path simply never calls it.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function deleteDraft(recordId: string): Promise&lt;void&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  await run(`DELETE FROM grading_detail WHERE grading_record_id = ?`, [recordId])</span>
+<span class="cstat-no" title="statement not covered" >  await run(`DELETE FROM grading_record WHERE id = ?`, [recordId])</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading business_logic step 1 — Form Grading receives</span>
+<span class="cstat-no" title="statement not covered" > * a draft `id` via route param and loads that existing row (a draft</span>
+<span class="cstat-no" title="statement not covered" > * already INSERTed by Monitor Grading's 'Mulai Input Baru' / 'Lanjutkan',</span>
+<span class="cstat-no" title="statement not covered" > * screen-008) plus all of its `grading_detail` child rows. Returns `null`</span>
+<span class="cstat-no" title="statement not covered" > * when no header row matches (defensive — e.g. a stale/invalid route</span>
+<span class="cstat-no" title="statement not covered" > * param), letting the caller show a "not found" state instead of</span>
+<span class="cstat-no" title="statement not covered" > * throwing — same shape as weighbridgeRecordRepo.ts's `getDraftById()`,</span>
+<span class="cstat-no" title="statement not covered" > * extended with the child rows this screen also needs. Detail rows are</span>
+<span class="cstat-no" title="statement not covered" > * ordered by `created_at` so the grid renders them in the order they were</span>
+<span class="cstat-no" title="statement not covered" > * originally added.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function getDraftWithDetails(recordId: string): Promise&lt;GradingDraftWithDetails | null&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const recordRows = await query&lt;GradingRecord&gt;(`SELECT * FROM grading_record WHERE id = ?`, [recordId])</span>
+<span class="cstat-no" title="statement not covered" >  const record = recordRows[0]</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  if (!record) {</span>
+<span class="cstat-no" title="statement not covered" >    return null</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  const details = await query&lt;GradingDetailRow&gt;(</span>
+<span class="cstat-no" title="statement not covered" >    `SELECT * FROM grading_detail WHERE grading_record_id = ? ORDER BY created_at ASC`,</span>
+<span class="cstat-no" title="statement not covered" >    [recordId],</span>
+<span class="cstat-no" title="statement not covered" >  )</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  return { record, details }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading — every local `weighbridge_record` row, any</span>
+<span class="cstat-no" title="statement not covered" > * status, most-recently-arrived first, for FormGradingView.vue's "WB Card</span>
+<span class="cstat-no" title="statement not covered" > * No" dropdown. Deliberately NOT scoped to `created_by` — see this file's</span>
+<span class="cstat-no" title="statement not covered" > * "entity-catalog v2 rewrite" update note above.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function getWeighbridgeRecordOptions(): Promise&lt;WeighbridgeRecordOption[]&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  return query&lt;WeighbridgeRecordOption&gt;(</span>
+<span class="cstat-no" title="statement not covered" >    `SELECT id, wb_card_number, arrival_datetime, vehicle_number, estate_supplier, division</span>
+<span class="cstat-no" title="statement not covered" >     FROM weighbridge_record</span>
+<span class="cstat-no" title="statement not covered" >     ORDER BY arrival_datetime DESC`,</span>
+<span class="cstat-no" title="statement not covered" >  )</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading — every local `grading_parameter` row, ordered</span>
+<span class="cstat-no" title="statement not covered" > * by `sort_order`, for FormGradingView.vue's "Quality Parameter" dropdown</span>
+<span class="cstat-no" title="statement not covered" > * (one per `grading_detail` row).</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function getGradingParameterOptions(): Promise&lt;GradingParameterOption[]&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  return query&lt;GradingParameterOption&gt;(</span>
+<span class="cstat-no" title="statement not covered" >    `SELECT id, name, uom, sort_order FROM grading_parameter ORDER BY sort_order ASC`,</span>
+<span class="cstat-no" title="statement not covered" >  )</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading — upserts every row in `rows` against</span>
+<span class="cstat-no" title="statement not covered" > * `grading_detail` (rows with an existing `id` UPDATEd in place, rows</span>
+<span class="cstat-no" title="statement not covered" > * without one INSERTed with a freshly generated id via</span>
+<span class="cstat-no" title="statement not covered" > * `generateDetailId()`), then DELETEs every id in `idsToDelete` (rows the</span>
+<span class="cstat-no" title="statement not covered" > * user removed via "Hapus baris" on an already-loaded draft — see</span>
+<span class="cstat-no" title="statement not covered" > * FormGradingView.vue's pending-deletion tracking). Shared by</span>
+<span class="cstat-no" title="statement not covered" > * `saveDraft()` and `pauseDraftWithFormData()` below so both stay in</span>
+<span class="cstat-no" title="statement not covered" > * lock-step on this upsert/delete contract.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >async function applyDetailRowChanges(</span>
+<span class="cstat-no" title="statement not covered" >  recordId: string,</span>
+<span class="cstat-no" title="statement not covered" >  rows: GradingDetailFormRow[],</span>
+<span class="cstat-no" title="statement not covered" >  idsToDelete: string[],</span>
+<span class="cstat-no" title="statement not covered" >  timestamp: string,</span>
+<span class="cstat-no" title="statement not covered" >): Promise&lt;void&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  for (const row of rows) {</span>
+<span class="cstat-no" title="statement not covered" >    if (row.id) {</span>
+<span class="cstat-no" title="statement not covered" >      await run(</span>
+<span class="cstat-no" title="statement not covered" >        `UPDATE grading_detail</span>
+<span class="cstat-no" title="statement not covered" >         SET grading_parameter_id = ?, quantity = ?, uom = ?, percentage = ?, updated_at = ?</span>
+<span class="cstat-no" title="statement not covered" >         WHERE id = ?`,</span>
+<span class="cstat-no" title="statement not covered" >        [row.grading_parameter_id || null, row.quantity, row.uom || null, row.percentage, timestamp, row.id],</span>
+<span class="cstat-no" title="statement not covered" >      )</span>
+<span class="cstat-no" title="statement not covered" >      continue</span>
+<span class="cstat-no" title="statement not covered" >    }</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >    const detailId = generateDetailId()</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >    await run(</span>
+<span class="cstat-no" title="statement not covered" >      `INSERT INTO grading_detail</span>
+<span class="cstat-no" title="statement not covered" >         (id, grading_record_id, grading_parameter_id, quantity, uom, percentage, created_at, updated_at)</span>
+<span class="cstat-no" title="statement not covered" >       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,</span>
+<span class="cstat-no" title="statement not covered" >      [detailId, recordId, row.grading_parameter_id || null, row.quantity, row.uom || null, row.percentage, timestamp, timestamp],</span>
+<span class="cstat-no" title="statement not covered" >    )</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  for (const id of idsToDelete) {</span>
+<span class="cstat-no" title="statement not covered" >    await run(`DELETE FROM grading_detail WHERE id = ?`, [id])</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading business_logic — 'Simpan'.</span>
+<span class="cstat-no" title="statement not covered" > *</span>
+<span class="cstat-no" title="statement not covered" > * Throws `GradingDetailRequiredError` when zero rows in `detailRows`</span>
+<span class="cstat-no" title="statement not covered" > * qualify as "valid" (a `grading_parameter_id` selected AND a non-null/</span>
+<span class="cstat-no" title="statement not covered" > * non-undefined `quantity`) — enforced here (not only as a client-side</span>
+<span class="cstat-no" title="statement not covered" > * pre-check in FormGradingView.vue) so the rule holds even if a caller</span>
+<span class="cstat-no" title="statement not covered" > * bypasses the UI. No DB write happens at all in that case. Required-</span>
+<span class="cstat-no" title="statement not covered" > * header-field validation is the caller's (FormGradingView.vue's) job —</span>
+<span class="cstat-no" title="statement not covered" > * this function assumes the header has already been validated.</span>
+<span class="cstat-no" title="statement not covered" > *</span>
+<span class="cstat-no" title="statement not covered" > * On success: UPDATEs the header row (status='saved', updated_at=now,</span>
+<span class="cstat-no" title="statement not covered" > * `checked_by`/`acknowledged_by` untouched — see this file's</span>
+<span class="cstat-no" title="statement not covered" > * "entity-catalog v2 rewrite" update note above), then applies</span>
+<span class="cstat-no" title="statement not covered" > * `detailRows`'s upserts and `detailIdsToDelete`'s deletes via</span>
+<span class="cstat-no" title="statement not covered" > * `applyDetailRowChanges()`.</span>
+<span class="cstat-no" title="statement not covered" > *</span>
+<span class="cstat-no" title="statement not covered" > * Sequential `run()` calls, not a single transaction — see this file's</span>
+<span class="cstat-no" title="statement not covered" > * header comment ("Transaction handling").</span>
+<span class="cstat-no" title="statement not covered" > *</span>
+<span class="cstat-no" title="statement not covered" > * Returns the freshly saved draft (re-read via getDraftWithDetails()) so</span>
+<span class="cstat-no" title="statement not covered" > * the caller can rely on the persisted state rather than re-deriving it</span>
+<span class="cstat-no" title="statement not covered" > * locally.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function saveDraft(</span>
+<span class="cstat-no" title="statement not covered" >  recordId: string,</span>
+<span class="cstat-no" title="statement not covered" >  headerData: GradingHeaderFormData,</span>
+<span class="cstat-no" title="statement not covered" >  detailRows: GradingDetailFormRow[],</span>
+<span class="cstat-no" title="statement not covered" >  detailIdsToDelete: string[],</span>
+<span class="cstat-no" title="statement not covered" >): Promise&lt;GradingDraftWithDetails&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const validDetailRowCount = detailRows.filter(</span>
+<span class="cstat-no" title="statement not covered" >    (row) =&gt; Boolean(row.grading_parameter_id) &amp;&amp; row.quantity !== null &amp;&amp; row.quantity !== undefined,</span>
+<span class="cstat-no" title="statement not covered" >  ).length</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  if (validDetailRowCount === 0) {</span>
+<span class="cstat-no" title="statement not covered" >    throw new GradingDetailRequiredError()</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  const timestamp = nowIso()</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  await run(</span>
+<span class="cstat-no" title="statement not covered" >    `UPDATE grading_record</span>
+<span class="cstat-no" title="statement not covered" >     SET grading_number = ?,</span>
+<span class="cstat-no" title="statement not covered" >         date = ?,</span>
+<span class="cstat-no" title="statement not covered" >         weighbridge_record_id = ?,</span>
+<span class="cstat-no" title="statement not covered" >         license_plate_no = ?,</span>
+<span class="cstat-no" title="statement not covered" >         vehicle_code = ?,</span>
+<span class="cstat-no" title="statement not covered" >         estate_supplier = ?,</span>
+<span class="cstat-no" title="statement not covered" >         division = ?,</span>
+<span class="cstat-no" title="statement not covered" >         netto = ?,</span>
+<span class="cstat-no" title="statement not covered" >         quantity = ?,</span>
+<span class="cstat-no" title="statement not covered" >         note = ?,</span>
+<span class="cstat-no" title="statement not covered" >         status = 'saved',</span>
+<span class="cstat-no" title="statement not covered" >         updated_at = ?</span>
+<span class="cstat-no" title="statement not covered" >     WHERE id = ?`,</span>
+<span class="cstat-no" title="statement not covered" >    [</span>
+<span class="cstat-no" title="statement not covered" >      headerData.grading_number || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.date || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.weighbridge_record_id || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.license_plate_no || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.vehicle_code || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.estate_supplier || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.division || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.netto,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.quantity,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.note || null,</span>
+<span class="cstat-no" title="statement not covered" >      timestamp,</span>
+<span class="cstat-no" title="statement not covered" >      recordId,</span>
+<span class="cstat-no" title="statement not covered" >    ],</span>
+<span class="cstat-no" title="statement not covered" >  )</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  await applyDetailRowChanges(recordId, detailRows, detailIdsToDelete, timestamp)</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  const saved = await getDraftWithDetails(recordId)</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  if (!saved) {</span>
+<span class="cstat-no" title="statement not covered" >    throw new Error('Gagal memuat ulang data grading setelah disimpan.')</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  return saved</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >/**</span>
+<span class="cstat-no" title="statement not covered" > * screen-011--form-grading business_logic — 'Pause'. UPDATEs every header</span>
+<span class="cstat-no" title="statement not covered" > * field on the given record (same column set as `saveDraft()`, minus</span>
+<span class="cstat-no" title="statement not covered" > * `checked_by`/`acknowledged_by` — see this file's "entity-catalog v2</span>
+<span class="cstat-no" title="statement not covered" > * rewrite" update note above) as-is, then sets status='draft_paused'/</span>
+<span class="cstat-no" title="statement not covered" > * updated_at=now — NO required-field validation, a checkpoint save (same</span>
+<span class="cstat-no" title="statement not covered" > * split as weighbridgeRecordRepo.ts's `saveDraft()` vs</span>
+<span class="cstat-no" title="statement not covered" > * `pauseDraftWithFormData()`). Applies `detailRows`'s upserts and</span>
+<span class="cstat-no" title="statement not covered" > * `detailIdsToDelete`'s deletes via `applyDetailRowChanges()`, identical</span>
+<span class="cstat-no" title="statement not covered" > * semantics to `saveDraft()`, but with no gate before it runs.</span>
+<span class="cstat-no" title="statement not covered" > *</span>
+<span class="cstat-no" title="statement not covered" > * Returns the freshly paused draft (re-read via getDraftWithDetails()),</span>
+<span class="cstat-no" title="statement not covered" > * same pattern as `saveDraft()`.</span>
+<span class="cstat-no" title="statement not covered" > */</span>
+<span class="cstat-no" title="statement not covered" >export async function pauseDraftWithFormData(</span>
+<span class="cstat-no" title="statement not covered" >  recordId: string,</span>
+<span class="cstat-no" title="statement not covered" >  headerData: GradingHeaderFormData,</span>
+<span class="cstat-no" title="statement not covered" >  detailRows: GradingDetailFormRow[],</span>
+<span class="cstat-no" title="statement not covered" >  detailIdsToDelete: string[],</span>
+<span class="cstat-no" title="statement not covered" >): Promise&lt;GradingDraftWithDetails&gt; {</span>
+<span class="cstat-no" title="statement not covered" >  const timestamp = nowIso()</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  await run(</span>
+<span class="cstat-no" title="statement not covered" >    `UPDATE grading_record</span>
+<span class="cstat-no" title="statement not covered" >     SET grading_number = ?,</span>
+<span class="cstat-no" title="statement not covered" >         date = ?,</span>
+<span class="cstat-no" title="statement not covered" >         weighbridge_record_id = ?,</span>
+<span class="cstat-no" title="statement not covered" >         license_plate_no = ?,</span>
+<span class="cstat-no" title="statement not covered" >         vehicle_code = ?,</span>
+<span class="cstat-no" title="statement not covered" >         estate_supplier = ?,</span>
+<span class="cstat-no" title="statement not covered" >         division = ?,</span>
+<span class="cstat-no" title="statement not covered" >         netto = ?,</span>
+<span class="cstat-no" title="statement not covered" >         quantity = ?,</span>
+<span class="cstat-no" title="statement not covered" >         note = ?,</span>
+<span class="cstat-no" title="statement not covered" >         status = 'draft_paused',</span>
+<span class="cstat-no" title="statement not covered" >         updated_at = ?</span>
+<span class="cstat-no" title="statement not covered" >     WHERE id = ?`,</span>
+<span class="cstat-no" title="statement not covered" >    [</span>
+<span class="cstat-no" title="statement not covered" >      headerData.grading_number || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.date || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.weighbridge_record_id || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.license_plate_no || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.vehicle_code || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.estate_supplier || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.division || null,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.netto,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.quantity,</span>
+<span class="cstat-no" title="statement not covered" >      headerData.note || null,</span>
+<span class="cstat-no" title="statement not covered" >      timestamp,</span>
+<span class="cstat-no" title="statement not covered" >      recordId,</span>
+<span class="cstat-no" title="statement not covered" >    ],</span>
+<span class="cstat-no" title="statement not covered" >  )</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  await applyDetailRowChanges(recordId, detailRows, detailIdsToDelete, timestamp)</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  const saved = await getDraftWithDetails(recordId)</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  if (!saved) {</span>
+<span class="cstat-no" title="statement not covered" >    throw new Error('Gagal memuat ulang data grading setelah disimpan (Pause).')</span>
+<span class="cstat-no" title="statement not covered" >  }</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >  return saved</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >export const gradingRecordRepo = {</span>
+<span class="cstat-no" title="statement not covered" >  getProgressSummary,</span>
+<span class="cstat-no" title="statement not covered" >  getTodaySummary,</span>
+<span class="cstat-no" title="statement not covered" >  getDrafts,</span>
+<span class="cstat-no" title="statement not covered" >  getAllRecords,</span>
+<span class="cstat-no" title="statement not covered" >  createDraft,</span>
+<span class="cstat-no" title="statement not covered" >  resumeDraft,</span>
+<span class="cstat-no" title="statement not covered" >  pauseDraft,</span>
+<span class="cstat-no" title="statement not covered" >  deleteDraft,</span>
+<span class="cstat-no" title="statement not covered" >  getDraftWithDetails,</span>
+<span class="cstat-no" title="statement not covered" >  getWeighbridgeRecordOptions,</span>
+<span class="cstat-no" title="statement not covered" >  getGradingParameterOptions,</span>
+<span class="cstat-no" title="statement not covered" >  saveDraft,</span>
+<span class="cstat-no" title="statement not covered" >  pauseDraftWithFormData,</span>
+<span class="cstat-no" title="statement not covered" >}</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >export default gradingRecordRepo</span>
+<span class="cstat-no" title="statement not covered" ></span>
+<span class="cstat-no" title="statement not covered" >// Re-exported for readability at call sites that only need the status enum.</span>
+<span class="cstat-no" title="statement not covered" >export const GRADING_DRAFT_STATUSES = DRAFT_STATUSES</span>
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-08-19T01:24:28.697Z
+            </div>
+        <script src="../../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../../sorter.js"></script>
+        <script src="../../../block-navigation.js"></script>
+    </body>
+</html>
+    

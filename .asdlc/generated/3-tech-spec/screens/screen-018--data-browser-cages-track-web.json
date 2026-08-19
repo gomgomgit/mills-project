@@ -1,0 +1,413 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "id": "screen-018--data-browser-cages-track-web",
+  "name": "Data Browser Cages Track (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/cages-track",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-018--data-browser-cages-track-web",
+      "usecase_name": "Telusuri & Ekspor Data Cages Track",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/cages-track-records",
+          "description": "List/filter data record Cages Track (gabungan sync mobile & input web) dengan pagination",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "date_from",
+                "type": "date",
+                "required": false,
+                "default": "",
+                "description": "Filter tanggal awal"
+              },
+              {
+                "name": "date_to",
+                "type": "date",
+                "required": false,
+                "default": "",
+                "description": "Filter tanggal akhir"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter business unit"
+              },
+              {
+                "name": "page",
+                "type": "integer",
+                "required": false,
+                "default": "1",
+                "description": "Halaman"
+              },
+              {
+                "name": "per_page",
+                "type": "integer",
+                "required": false,
+                "default": "20",
+                "description": "Jumlah per halaman, max 100"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "cages_track_number": "string",
+                  "date": "date",
+                  "tipped_time_count": "integer",
+                  "status": "string"
+                }
+              ],
+              "meta": {
+                "page": "integer",
+                "per_page": "integer",
+                "total": "integer",
+                "total_pages": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "INVALID_DATE_RANGE",
+                "condition": "date_from > date_to"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cages-track-records/export",
+          "description": "Ekspor data Cages Track terfilter ke CSV/Excel",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "date_from",
+                "type": "date",
+                "required": false,
+                "default": "",
+                "description": "Filter tanggal awal"
+              },
+              {
+                "name": "date_to",
+                "type": "date",
+                "required": false,
+                "default": "",
+                "description": "Filter tanggal akhir"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter business unit"
+              },
+              {
+                "name": "format",
+                "type": "enum(csv, excel)",
+                "required": true,
+                "default": "csv",
+                "description": "Format file ekspor"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "content_type": "text/csv atau application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "note": "Response body adalah file stream/binary, bukan JSON"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "dataset terlalu besar atau error saat proses ekspor"
+              },
+              {
+                "http_code": 422,
+                "error_code": "INVALID_DATE_RANGE",
+                "condition": "date_from > date_to"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate query params (date_from/date_to) → if date_from > date_to: return 422 INVALID_DATE_RANGE, filter tidak diterapkan",
+        "2. Build query: cages-track-record WHERE business_unit_id matches (if provided) AND date BETWEEN date_from/date_to (if provided)",
+        "3. Paginate hasil sesuai shared-decisions.pagination (page/per_page)",
+        "4. Return list + pagination metadata",
+        "5. On export: re-run query filter yang sama tanpa pagination, generate file CSV/Excel → if dataset terlalu besar/error: return 422 EXPORT_FAILED",
+        "6. Return file stream untuk didownload user"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "cages-track-record",
+          "operation": "SELECT",
+          "description": "SELECT records dengan filter tanggal/business_unit, dipaginasi"
+        },
+        {
+          "entity_id": "cages-track-record",
+          "operation": "SELECT",
+          "description": "SELECT records dengan filter yang sama, unpaginated, untuk keperluan ekspor"
+        },
+        {
+          "entity_id": "cages-tipped-time",
+          "operation": "SELECT",
+          "description": "COUNT baris cages-tipped-time per record untuk kolom jumlah cage/lori tercatat"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Tidak ada data sesuai filter",
+          "handling": "Return 200 dengan data: [], FE tampilkan empty state dengan opsi reset filter"
+        },
+        {
+          "condition": "Rentang tanggal tidak valid (date_from > date_to)",
+          "handling": "Return 422 INVALID_DATE_RANGE, filter tidak diterapkan"
+        },
+        {
+          "condition": "Klik baris membuka detail",
+          "handling": "Navigasi client-side ke Detail Cages Track (Web), bukan panggilan API tambahan"
+        },
+        {
+          "condition": "Ekspor gagal (dataset besar/error)",
+          "handling": "Return 422 EXPORT_FAILED"
+        }
+      ],
+      "business_rules_applied": [
+        "Data mencakup hasil sync mobile & input web",
+        "Ekspor mengikuti filter aktif",
+        "Daftar termuat <=2 detik untuk dataset normal"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 422 INVALID_DATE_RANGE when date_from is greater than date_to",
+          "given": "request query params date_from='2026-08-20', date_to='2026-08-10' passed to CagesTrackRecordService.list()",
+          "expect": "throw ValidationException / return HTTP 422 with error_code INVALID_DATE_RANGE; filter is not applied to the query"
+        },
+        {
+          "description": "returns 422 EXPORT_FAILED when export dataset is too large or an error occurs during file generation",
+          "given": "CagesTrackRecordService.export() query returns a dataset exceeding the export size limit, or the CSV/Excel file writer throws an error",
+          "expect": "throw ExportException / return HTTP 422 with error_code EXPORT_FAILED"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "valid date_from <= date_to, valid business_unit_id, page/per_page provided; cagesTrackRecordRepo.findFiltered() returns paginated records with tipped_time_count computed",
+          "expect": "return { data: [...cages-track-record rows], meta: { page, per_page, total, total_pages } } with HTTP 200"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-021--detail-cages-track-web",
+      "reason": "Klik baris membuka detail record"
+    },
+    {
+      "screen_id": "screen-024--form-cages-track-web",
+      "reason": "Aksi Tambah Data membuka form input web"
+    }
+  ],
+  "implementation_notes": [
+    "Ekspor sebaiknya dijalankan sebagai proses async/background job untuk dataset besar; NFR <=2 detik hanya berlaku untuk list, tidak eksplisit untuk export",
+    "Data source gabungan: record hasil sync manual dari mobile + record input langsung dari web (screen-024)",
+    "Kolom 'jumlah cage/lori tercatat' (tipped_time_count) dihitung sebagai COUNT baris cages-tipped-time terkait, bukan field langsung di cages-track-record"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Cages Track — success",
+      "usecase_id": "usecase-018--data-browser-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-records"
+          },
+          "request_example": {
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-15",
+            "business_unit_id": "{{business_unit_uuid}}",
+            "page": 1,
+            "per_page": 20
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-records/export"
+          },
+          "request_example": {
+            "date_from": "2026-08-01",
+            "date_to": "2026-08-15",
+            "business_unit_id": "{{business_unit_uuid}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "CagesTrackDataBrowser",
+        "action": "open data browser table, set date range and business unit filter inputs, click export and select CSV/Excel format",
+        "assert": "filtered records rendered in table, export triggers file download matching active filters"
+      },
+      "browser_test": {
+        "route": "/data/cages-track",
+        "action": "navigate to /data/cages-track, apply date range and business unit filters, click export and choose format",
+        "assert": "table displays records matching applied filters, exported file download is initiated matching active filters"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Cages Track — Tidak Ada Data Sesuai Filter",
+      "usecase_id": "usecase-018--data-browser-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-records"
+          },
+          "request_example": {
+            "date_from": "2026-01-01",
+            "date_to": "2026-01-02",
+            "business_unit_id": "{{business_unit_uuid}}",
+            "page": 1,
+            "per_page": 20
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "CagesTrackDataBrowser",
+        "action": "set filters that match no existing records, view resulting table state",
+        "assert": "empty state message shown with a reset filter option"
+      },
+      "browser_test": {
+        "route": "/data/cages-track",
+        "action": "apply filters with no matching data",
+        "assert": "page shows 'tidak ada data ditemukan' message with visible reset filter button"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Cages Track — Rentang Tanggal Tidak Valid",
+      "usecase_id": "usecase-018--data-browser-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-records"
+          },
+          "request_example": {
+            "date_from": "2026-08-20",
+            "date_to": "2026-08-10"
+          },
+          "expected_status": 422,
+          "expected_error_code": "INVALID_DATE_RANGE"
+        }
+      ],
+      "component_test": {
+        "component": "CagesTrackDataBrowser",
+        "action": "set date_from later than date_to and submit the filter",
+        "assert": "validation error message shown, filter not applied, table content unchanged"
+      },
+      "browser_test": {
+        "route": "/data/cages-track",
+        "action": "enter a start date later than the end date in the filter form",
+        "assert": "validation message displayed, filter not applied to the displayed table"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Cages Track — Klik Baris Membuka Detail",
+      "usecase_id": "usecase-018--data-browser-cages-track-web",
+      "api_test": [],
+      "component_test": {
+        "component": "CagesTrackDataBrowser",
+        "action": "click on a table row representing a cages track record",
+        "assert": "client-side navigation is triggered to the Cages Track Detail view for the selected record, with no additional API call made"
+      },
+      "browser_test": {
+        "route": "/data/cages-track",
+        "action": "click a row in the data record table",
+        "assert": "browser navigates to the Cages Track Detail (Web) page for the selected record"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Cages Track — Ekspor Gagal",
+      "usecase_id": "usecase-018--data-browser-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-records/export"
+          },
+          "request_example": {
+            "date_from": "2026-01-01",
+            "date_to": "2026-12-31",
+            "business_unit_id": "{{business_unit_uuid}}",
+            "format": "excel"
+          },
+          "expected_status": 422,
+          "expected_error_code": "EXPORT_FAILED"
+        }
+      ],
+      "component_test": {
+        "component": "CagesTrackDataBrowser",
+        "action": "click export with a filter selection that triggers an export failure (large dataset/server error)",
+        "assert": "export error message displayed to the user"
+      },
+      "browser_test": {
+        "route": "/data/cages-track",
+        "action": "trigger export on a dataset that causes export failure",
+        "assert": "page shows an export error message"
+      }
+    }
+  ]
+}

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task List | SimpleTodo</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/daisyui.full.min.css">
+  <script src="../../../1-foundation/uiux-spec/assets/tailwindcdn.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'bg': 'var(--bg, #ffffff)',
+            'surface': 'var(--surface, #f5f5f5)',
+            'border': 'var(--border, #e5e7eb)',
+            'text-primary': 'var(--text-primary, #1f2937)',
+            'text-muted': 'var(--text-muted, #6b7280)',
+            'primary': 'var(--primary, #6366f1)',
+            'primary-hover': 'var(--primary-hover, #4f46e5)',
+            'error': 'var(--error, #ef4444)',
+            'success': 'var(--success, #22c55e)',
+            'warning': 'var(--warning, #f59e0b)',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    /* page-specific layout only */
+    .sidebar { width: 240px; min-height: calc(100vh - 60px); }
+    .main-content { margin-left: 240px; }
+    .task-title-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; }
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .main-content { margin-left: 0; }
+    }
+  </style>
+</head>
+<body class="bg-bg font-sans text-text-primary">
+
+  <!-- Header / Navbar -->
+  <div class="navbar bg-base-100 border-b border-border fixed top-0 left-0 right-0 z-10" style="height: 60px;">
+    <div class="flex-1">
+      <span class="text-xl font-bold text-primary">SimpleTodo</span>
+      <span class="ml-4 text-sm text-muted hidden sm:inline">/&nbsp;Pekerjaan</span>
+    </div>
+    <div class="flex-none">
+      <div class="dropdown dropdown-end">
+        <div tabindex="0" role="button" class="avatar placeholder cursor-pointer">
+          <div class="bg-primary text-white rounded-full w-8">U</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar fixed top-[60px] left-0 bg-base-100 border-r border-border p-4">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-sm font-semibold text-text-primary">Group</h2>
+      <button class="btn btn-xs btn-ghost text-primary gap-0.5">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Baru
+      </button>
+    </div>
+    <ul class="menu menu-sm w-full gap-0.5">
+      <li>
+        <a class="text-muted hover:bg-surface gap-2 py-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Pribadi
+          <span class="badge badge-ghost badge-xs">3</span>
+        </a>
+      </li>
+      <li>
+        <a class="active bg-primary text-white gap-2 py-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          Pekerjaan
+          <span class="badge badge-sm badge-ghost">6</span>
+        </a>
+      </li>
+      <li>
+        <a class="text-muted hover:bg-surface gap-2 py-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+          Belanja
+          <span class="badge badge-ghost badge-xs">5</span>
+        </a>
+      </li>
+      <li>
+        <a class="text-muted hover:bg-surface gap-2 py-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Kebiasaan Harian
+          <span class="badge badge-ghost badge-xs">2</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content" style="margin-top: 60px;">
+    <div class="p-6 max-w-3xl mx-auto">
+
+      <!-- Page Header -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 class="text-2xl font-bold">Pekerjaan</h1>
+          <p class="text-sm text-muted mt-1">6 task &middot; 4 belum selesai &middot; 2 selesai</p>
+        </div>
+        <button class="btn btn-primary btn-sm gap-1 self-start">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Tambah Task
+        </button>
+      </div>
+
+      <!-- Task List -->
+      <div class="space-y-3">
+
+        <!-- Overdue tasks (sorted by due date closest first) -->
+
+        <!-- Task: Selesaikan laporan keuangan Q2 (overdue) -->
+        <div class="card bg-base-100 border border-error/30 shadow-sm">
+          <div class="card-body py-3 px-4 gap-2">
+            <div class="flex items-start gap-3">
+              <input type="checkbox" class="checkbox checkbox-sm mt-0.5" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium text-task-title-truncate">Selesaikan laporan keuangan Q2</span>
+                  <span class="badge badge-error badge-xs gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    18 Jun
+                  </span>
+                </div>
+                <p class="text-xs text-muted mt-0.5 truncate">Ringkasan pendapatan dan pengeluaran kuartal kedua untuk tim akuntansi</p>
+              </div>
+              <div class="flex gap-1 shrink-0">
+                <button class="btn btn-ghost btn-xs btn-square" title="Edit Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-xs btn-square text-error hover:bg-error/10" title="Hapus Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task: Kirim presentasi ke klien (overdue) -->
+        <div class="card bg-base-100 border border-error/30 shadow-sm">
+          <div class="card-body py-3 px-4 gap-2">
+            <div class="flex items-start gap-3">
+              <input type="checkbox" class="checkbox checkbox-sm mt-0.5" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium text-task-title-truncate">Kirim presentasi ke klien</span>
+                  <span class="badge badge-error badge-xs gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    20 Jun
+                  </span>
+                </div>
+                <p class="text-xs text-muted mt-0.5 truncate">Presentasi proposal proyek redesign website PT Maju Bersama</p>
+              </div>
+              <div class="flex gap-1 shrink-0">
+                <button class="btn btn-ghost btn-xs btn-square" title="Edit Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-xs btn-square text-error hover:bg-error/10" title="Hapus Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pending tasks (sorted by due date) -->
+
+        <!-- Task: Meeting dengan tim marketing (2026-06-24 = tomorrow) -->
+        <div class="card bg-base-100 border border-border shadow-sm">
+          <div class="card-body py-3 px-4 gap-2">
+            <div class="flex items-start gap-3">
+              <input type="checkbox" class="checkbox checkbox-sm mt-0.5" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium text-task-title-truncate">Meeting dengan tim marketing</span>
+                  <span class="badge badge-warning badge-xs gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    24 Jun
+                  </span>
+                </div>
+                <p class="text-xs text-muted mt-0.5 truncate">Diskusi strategi kampanye produk terbaru di ruang meeting 3</p>
+              </div>
+              <div class="flex gap-1 shrink-0">
+                <button class="btn btn-ghost btn-xs btn-square" title="Edit Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-xs btn-square text-error hover:bg-error/10" title="Hapus Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task: Review dokumen kontrak vendor -->
+        <div class="card bg-base-100 border border-border shadow-sm">
+          <div class="card-body py-3 px-4 gap-2">
+            <div class="flex items-start gap-3">
+              <input type="checkbox" class="checkbox checkbox-sm mt-0.5" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium text-task-title-truncate">Review dokumen kontrak vendor</span>
+                  <span class="badge badge-info badge-xs">25 Jun</span>
+                </div>
+                <p class="text-xs text-muted mt-0.5 truncate">Periksa syarat dan ketentuan kontrak dengan PT Solusi Digital</p>
+              </div>
+              <div class="flex gap-1 shrink-0">
+                <button class="btn btn-ghost btn-xs btn-square" title="Edit Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-xs btn-square text-error hover:bg-error/10" title="Hapus Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task: Update database karyawan -->
+        <div class="card bg-base-100 border border-border shadow-sm">
+          <div class="card-body py-3 px-4 gap-2">
+            <div class="flex items-start gap-3">
+              <input type="checkbox" class="checkbox checkbox-sm mt-0.5" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium text-task-title-truncate">Update database karyawan</span>
+                  <span class="badge badge-info badge-xs">27 Jun</span>
+                </div>
+                <p class="text-xs text-muted mt-0.5 truncate">Sinkronkan data karyawan baru dengan sistem HRIS</p>
+              </div>
+              <div class="flex gap-1 shrink-0">
+                <button class="btn btn-ghost btn-xs btn-square" title="Edit Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-xs btn-square text-error hover:bg-error/10" title="Hapus Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task: Riset kompetitor (no due date) -->
+        <div class="card bg-base-100 border border-border shadow-sm">
+          <div class="card-body py-3 px-4 gap-2">
+            <div class="flex items-start gap-3">
+              <input type="checkbox" class="checkbox checkbox-sm mt-0.5" />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium text-task-title-truncate">Riset kompetitor</span>
+                  <span class="badge badge-ghost badge-xs">Tanpa tanggal</span>
+                </div>
+                <p class="text-xs text-muted mt-0.5 truncate">Kumpulkan data harga dan fitur dari 5 kompetitor utama di pasar</p>
+              </div>
+              <div class="flex gap-1 shrink-0">
+                <button class="btn btn-ghost btn-xs btn-square" title="Edit Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-xs btn-square text-error hover:bg-error/10" title="Hapus Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Done tasks (at the bottom) -->
+
+        <!-- Task: Siapkan materi presentasi (done) -->
+        <div class="card bg-base-100 border border-border shadow-sm opacity-60">
+          <div class="card-body py-3 px-4 gap-2">
+            <div class="flex items-start gap-3">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-success mt-0.5" checked />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium line-through text-muted text-task-title-truncate">Siapkan materi presentasi</span>
+                  <span class="badge badge-success badge-xs gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    15 Jun
+                  </span>
+                </div>
+                <p class="text-xs text-muted mt-0.5 truncate line-through">Buat slide presentasi untuk rapat evaluasi bulanan</p>
+              </div>
+              <div class="flex gap-1 shrink-0">
+                <button class="btn btn-ghost btn-xs btn-square" title="Edit Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-xs btn-square text-error hover:bg-error/10" title="Hapus Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task: Lengkapin form rekrutmen (done) -->
+        <div class="card bg-base-100 border border-border shadow-sm opacity-60">
+          <div class="card-body py-3 px-4 gap-2">
+            <div class="flex items-start gap-3">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-success mt-0.5" checked />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-medium line-through text-muted text-task-title-truncate">Lengkapin form rekrutmen</span>
+                  <span class="badge badge-success badge-xs gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    19 Jun
+                  </span>
+                </div>
+                <p class="text-xs text-muted mt-0.5 truncate line-through">Isi formulir rekrutmen untuk posisi junior developer</p>
+              </div>
+              <div class="flex gap-1 shrink-0">
+                <button class="btn btn-ghost btn-xs btn-square" title="Edit Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </button>
+                <button class="btn btn-ghost btn-xs btn-square text-error hover:bg-error/10" title="Hapus Task">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Actors / Entry Points note -->
+      <p class="text-xs text-muted italic mt-6">
+        Aktor: User &nbsp;&middot;&nbsp;
+        Entry point: Klik nama group di sidebar kiri, Dari Group List klik &bdquo;Buka&ldquo; pada salah satu group
+      </p>
+
+    </div>
+  </div>
+
+</body>
+</html>

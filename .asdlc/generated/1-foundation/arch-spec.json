@@ -1,0 +1,112 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-14"
+  },
+  "system_type": "Web app (Laravel monolith: REST API + Livewire UI untuk Admin/Supervisor/Mill Management) + Mobile app (Vue 3 + Capacitor untuk Operator/Supervisor, offline-first)",
+  "architecture_pattern": {
+    "name": "Layered Architecture (Laravel MVC + Service Layer)",
+    "description": "Backend Laravel menggunakan pola MVC standar dengan Service Layer eksplisit, sehingga logika bisnis per domain (Weighbridge, Grading, Cages Track, Master Data, Auth/RBAC) dipakai bersama oleh Livewire controller (web) dan REST API controller (mobile) tanpa duplikasi kode — cocok untuk skala kecil-menengah dengan tim tunggal.",
+    "components": [
+      {
+        "name": "Presentation (Web/Livewire)",
+        "role": "Blade + Livewire components untuk dashboard, form stasiun, master data — dipakai Admin/Supervisor/Mill Management"
+      },
+      {
+        "name": "Presentation (REST API)",
+        "role": "Endpoint stateless untuk mobile app (Operator/Supervisor), autentikasi via Sanctum"
+      },
+      {
+        "name": "Service Layer",
+        "role": "Logika bisnis per domain (Weighbridge, Grading, Cages Track, Master Data, Auth/RBAC, Sync) — titik temu antara Web dan API agar tidak duplikasi"
+      },
+      {
+        "name": "Domain/Eloquent Models",
+        "role": "Representasi entity & relasi (Corporate → Company → Business Unit → Station → Machinery, Weighbridge, Grading, Cages Track, dst)"
+      },
+      {
+        "name": "Data Access",
+        "role": "Eloquent ORM + Migrations"
+      },
+      {
+        "name": "Mobile Local Data Layer (client-side)",
+        "role": "SQLite via Capacitor, mengelola draft/pause/offline state sebelum sync manual"
+      }
+    ]
+  },
+  "tech_stack": [
+    {
+      "layer": "backend",
+      "choice": "Laravel (PHP)"
+    },
+    {
+      "layer": "web frontend (admin/supervisor/mill management)",
+      "choice": "Laravel Livewire + Blade"
+    },
+    {
+      "layer": "mobile",
+      "choice": "Vue 3 + Capacitor (Android & iOS)"
+    },
+    {
+      "layer": "mobile state management",
+      "choice": "Pinia"
+    },
+    {
+      "layer": "mobile local storage",
+      "choice": "SQLite via Capacitor Community SQLite plugin"
+    },
+    {
+      "layer": "database",
+      "choice": "MySQL"
+    },
+    {
+      "layer": "ORM / data access",
+      "choice": "Eloquent ORM (Laravel native)"
+    },
+    {
+      "layer": "migration",
+      "choice": "Laravel Migrations (Schema Builder)"
+    },
+    {
+      "layer": "test framework",
+      "choice": "PHPUnit / Pest (backend), Vitest (mobile Vue components)"
+    },
+    {
+      "layer": "authentication",
+      "choice": "Laravel Sanctum (API/mobile) + Laravel session auth (web)"
+    },
+    {
+      "layer": "file storage",
+      "choice": "Laravel Filesystem — local disk (on-premise server)"
+    }
+  ],
+  "deployment": {
+    "model": "On-premise / self-hosted",
+    "provider": "Server fisik/VM lokal di lingkungan mill, dikelola tim IT internal"
+  },
+  "integrations": [],
+  "nfr": [
+    {
+      "category": "performance",
+      "requirement": "Station list & saved records termuat ≤ 2 detik untuk dataset normal; query dioptimalkan dengan index pada kolom filter utama (date, business_unit_code, station_id)"
+    },
+    {
+      "category": "security",
+      "requirement": "RBAC (Operator/Supervisor/Mill Management/Admin) via Sanctum (mobile) & session (web); field Checked By/Acknowledged By divalidasi per-role di level aplikasi; password minimal 6 karakter, case-sensitive, alfanumerik+simbol"
+    },
+    {
+      "category": "scalability",
+      "requirement": "Skala kecil (puluhan pengguna concurrent, satu mill) — monolith Laravel on-premise cukup tanpa horizontal scaling di MVP"
+    },
+    {
+      "category": "availability",
+      "requirement": "Mobile app tetap berfungsi penuh untuk input data tanpa koneksi internet (offline-first); tidak ada requirement uptime khusus di luar jam operasional mill"
+    },
+    {
+      "category": "compliance",
+      "requirement": "Tidak ada requirement compliance formal di PRD untuk MVP; data sensitif dilindungi saat transit (HTTPS) dan at rest"
+    }
+  ],
+  "architecture_notes": "Backend Laravel berperan ganda sebagai REST API (dikonsumsi mobile) dan aplikasi web Livewire (Admin/Supervisor/Mill Management) dalam satu codebase monolith — trade-off: development lebih sederhana untuk tim kecil dan satu mill, namun web app dan API tidak dapat di-scale/deploy terpisah. Mobile menyimpan data lokal (SQLite) dan hanya kirim ke API saat sync manual dipicu operator, sehingga backend tidak perlu menangani real-time push dari mobile."
+}

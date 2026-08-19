@@ -1,0 +1,413 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-02"
+  },
+  "id": "screen-002--task-form",
+  "name": "Task Form",
+  "module_id": "module-tasks",
+  "route": "/",
+  "auth_requirement": "public",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-user",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-002--add-task",
+      "usecase_name": "Add Task",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/tasks",
+          "description": "Create a new task",
+          "auth_required": false,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "title": "string (required, non-empty after trim)",
+              "dueDate": "string|null (optional, ISO date)",
+              "status": "todo|in_progress|done (optional, default 'todo')"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "title": "string",
+              "dueDate": "string|null",
+              "status": "todo|in_progress|done",
+              "createdAt": "string (ISO 8601)",
+              "updatedAt": "string (ISO 8601)"
+            },
+            "error_codes": [
+              {
+                "http_code": 400,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Title is missing, empty, or whitespace-only after trim"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate request → trim title; if empty after trim: return 400 VALIDATION_ERROR",
+        "2. Default status to 'todo' if not provided",
+        "3. INSERT new task row with generated id, provided/default fields, created_at=now, updated_at=now",
+        "4. Return 201 with created task"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "task",
+          "operation": "INSERT",
+          "description": "INSERT new task with title, due_date, status (default 'todo'), created_at, updated_at"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Missing or whitespace-only title",
+          "handling": "Return 400 VALIDATION_ERROR with message 'Title is required'"
+        },
+        {
+          "condition": "User cancels (Cancel button, X icon, Escape key, or click-outside)",
+          "handling": "Frontend-only — no API call made; modal closes without saving"
+        },
+        {
+          "condition": "Double-click Save (duplicate submit attempt)",
+          "handling": "Frontend-only — Save button disabled while request is in flight; only one POST call is sent per submit"
+        }
+      ],
+      "business_rules_applied": [
+        "Task title is required",
+        "A title consisting only of whitespace is treated as missing",
+        "Due date is optional",
+        "Status defaults to 'Todo' for new tasks"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 400 VALIDATION_ERROR when title is missing or whitespace-only after trim",
+          "given": "request body title is '' or '   ' (whitespace-only) — trim(title) === ''",
+          "expect": "throw ValidationException with code VALIDATION_ERROR, message 'Title is required'"
+        },
+        {
+          "description": "defaults status to 'todo' when status is not provided",
+          "given": "request body has valid title 'Buy milk' and no status field",
+          "expect": "created task object has status === 'todo'"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "request body has valid title 'Buy milk', optional dueDate and status; taskRepo.insert() returns the newly created row",
+          "expect": "return 201 with created task { id, title, dueDate, status, createdAt, updatedAt }"
+        }
+      ]
+    },
+    {
+      "usecase_id": "usecase-003--edit-task",
+      "usecase_name": "Edit Task",
+      "endpoints": [
+        {
+          "method": "PATCH",
+          "path": "/api/tasks/:id",
+          "description": "Update an existing task's title, due date, and/or status",
+          "auth_required": false,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "Task ID to update"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "title": "string (optional, non-empty after trim if present)",
+              "dueDate": "string|null (optional)",
+              "status": "todo|in_progress|done (optional)"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "title": "string",
+              "dueDate": "string|null",
+              "status": "todo|in_progress|done",
+              "createdAt": "string (ISO 8601)",
+              "updatedAt": "string (ISO 8601)"
+            },
+            "error_codes": [
+              {
+                "http_code": 400,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "title is present in body but empty or whitespace-only after trim"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Task with given id does not exist"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Check task exists → if not found: return 404 NOT_FOUND",
+        "2. If title is present in body: trim; if empty after trim: return 400 VALIDATION_ERROR",
+        "3. UPDATE provided fields on the task, set updated_at=now",
+        "4. Return 200 with updated task"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "task",
+          "operation": "SELECT",
+          "description": "SELECT task by id (existence check)"
+        },
+        {
+          "entity_id": "task",
+          "operation": "UPDATE",
+          "description": "UPDATE task SET title/due_date/status (only provided fields) WHERE id=?"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Title cleared or whitespace-only on edit",
+          "handling": "Return 400 VALIDATION_ERROR with message 'Title is required'; task remains unchanged"
+        },
+        {
+          "condition": "User cancels (Cancel button, X icon, Escape key, or click-outside)",
+          "handling": "Frontend-only — no API call made; task remains unchanged"
+        },
+        {
+          "condition": "Double-click Save (duplicate submit attempt)",
+          "handling": "Frontend-only — Save button disabled while request is in flight; only one PATCH call is sent per submit"
+        }
+      ],
+      "business_rules_applied": [
+        "Task title is required and cannot be cleared on edit",
+        "A title consisting only of whitespace is treated as missing",
+        "Due date and status can be changed freely"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 NOT_FOUND when task does not exist",
+          "given": "taskRepo.findById(id) returns null",
+          "expect": "throw NotFoundException with code NOT_FOUND"
+        },
+        {
+          "description": "returns 400 VALIDATION_ERROR when title is present but empty or whitespace-only after trim",
+          "given": "taskRepo.findById(id) returns an existing task; request body title is '   '",
+          "expect": "throw ValidationException with code VALIDATION_ERROR, message 'Title is required'; task remains unchanged"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "taskRepo.findById(id) returns an existing task; request body has one or more valid fields; taskRepo.update() returns the updated row",
+          "expect": "return 200 with updated task { id, title, dueDate, status, createdAt, updatedAt } and updatedAt refreshed"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "task",
+      "operations": [
+        "INSERT",
+        "UPDATE"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-001--task-list",
+      "reason": "Task Form is opened from and returns to the Task List on save/cancel"
+    }
+  ],
+  "implementation_notes": [
+    "Title validation must trim whitespace before checking emptiness (applies to both create and edit)",
+    "Save button disabled while a request is in flight, to prevent duplicate submissions on double-click",
+    "Modal dismissal via X icon, Escape key, or click-outside all route to the same cancel handler — no API call in any case",
+    "These two endpoints are the same ones already defined on the Task List screen's tech spec — kept consistent here from the Task Form's perspective"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Add Task — success",
+      "usecase_id": "usecase-002--add-task",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/tasks"
+          },
+          "request_example": {
+            "title": "Buy groceries"
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "fill the Title field with a valid title and click Save",
+        "assert": "Save request submitted successfully, form closes, success notification shown"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "click Add Task, type a valid title into the Title field, click Save",
+        "assert": "modal closes, new task appears in the task list, success notification is shown"
+      }
+    },
+    {
+      "scenario_ref": "Add Task — missing title",
+      "usecase_id": "usecase-002--add-task",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/tasks"
+          },
+          "request_example": {
+            "title": ""
+          },
+          "expected_status": 400,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "leave the Title field empty and click Save",
+        "assert": "validation error shown under the Title field, form remains open, no save request completes"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "open Add Task modal, leave the Title field empty, click Save",
+        "assert": "validation error shown under Title field, modal remains open, no task added to the list"
+      }
+    },
+    {
+      "scenario_ref": "Add Task — user cancels",
+      "usecase_id": "usecase-002--add-task",
+      "api_test": [],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "click Cancel button (or close icon)",
+        "assert": "no save request is triggered, form/modal closes"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "open Add Task modal, click Cancel (or X icon, press Escape, or click outside)",
+        "assert": "modal closes, no new task appears in the task list"
+      }
+    },
+    {
+      "scenario_ref": "Add Task — whitespace-only title treated as missing",
+      "usecase_id": "usecase-002--add-task",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/tasks"
+          },
+          "request_example": {
+            "title": "   "
+          },
+          "expected_status": 400,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "type only spaces into the Title field and click Save",
+        "assert": "whitespace-only title treated as missing, validation error shown under Title field, form remains open"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "open Add Task modal, enter only spaces into the Title field, click Save",
+        "assert": "validation error shown under Title field, modal remains open, no task added to the list"
+      }
+    },
+    {
+      "scenario_ref": "Edit Task — success",
+      "usecase_id": "usecase-003--edit-task",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/tasks/:id"
+          },
+          "request_example": {
+            "title": "Buy groceries (updated)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "update a field value (e.g. Title) and click Save",
+        "assert": "Save request submitted successfully, form closes, success notification shown"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "click the edit button on a task, update a field, click Save",
+        "assert": "modal closes, task's updated values shown in the list, success notification displayed"
+      }
+    },
+    {
+      "scenario_ref": "Edit Task — title cleared",
+      "usecase_id": "usecase-003--edit-task",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/tasks/:id"
+          },
+          "request_example": {
+            "title": ""
+          },
+          "expected_status": 400,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "clear the Title field and click Save",
+        "assert": "validation error shown under the Title field, changes are not saved"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "open edit modal for a task, clear the Title field, click Save",
+        "assert": "validation error shown under Title field, modal remains open, task unchanged in the list"
+      }
+    },
+    {
+      "scenario_ref": "Edit Task — user cancels",
+      "usecase_id": "usecase-003--edit-task",
+      "api_test": [],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "click Cancel button (or close icon) while editing",
+        "assert": "no save request is triggered, form/modal closes, task remains unchanged"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "open edit modal for a task, click Cancel (or X icon, press Escape, or click outside)",
+        "assert": "modal closes, task remains unchanged in the list"
+      }
+    }
+  ]
+}

@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design System | MySimpleTodo</title>
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link rel="stylesheet" href="assets/components.css">
+  <link rel="stylesheet" href="assets/shell.css">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg: 'var(--bg)',
+            surface: 'var(--surface)',
+            border: 'var(--border)',
+            'text-primary': 'var(--text-primary)',
+            'text-muted': 'var(--text-muted)',
+            brand: 'var(--brand)',
+            'brand-hover': 'var(--brand-hover)',
+            destructive: 'var(--destructive)',
+            success: 'var(--success)',
+          },
+          fontFamily: {
+            sans: ['var(--font-family)', 'Inter', 'system-ui', 'sans-serif'],
+          },
+          borderRadius: {
+            'input': 'var(--radius-input)',
+            'card': 'var(--radius-card)',
+            'button': 'var(--radius-button)',
+            'modal': 'var(--radius-modal)',
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Page-specific structural styles only */
+    body { background: var(--bg); color: var(--text-primary); }
+
+    .ds-sidebar {
+      position: sticky;
+      top: 0;
+      width: 220px;
+      min-height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      flex-shrink: 0;
+    }
+    .ds-sidebar nav a {
+      display: block;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.25rem;
+      border-radius: 6px;
+      font-size: 14px;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: background 0.1s, color 0.1s;
+    }
+    .ds-sidebar nav a:hover {
+      background: color-mix(in srgb, var(--brand) 8%, transparent);
+      color: var(--text-primary);
+    }
+    .ds-main {
+      flex: 1;
+      padding: 2.5rem 3rem;
+      max-width: 960px;
+    }
+    .ds-section {
+      margin-bottom: 3.5rem;
+      padding-top: 1rem;
+    }
+    .ds-section-title {
+      font-size: var(--font-size-h1);
+      font-weight: var(--font-weight-h1);
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--border);
+    }
+    .ds-subtitle {
+      font-size: var(--font-size-h3);
+      font-weight: var(--font-weight-h3);
+      margin-bottom: 1rem;
+      color: var(--text-muted);
+    }
+    .ds-label {
+      font-size: var(--font-size-small);
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    /* Color swatch */
+    .color-swatch {
+      display: inline-block;
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-card);
+      border: 1px solid var(--border);
+      vertical-align: middle;
+      margin-right: 0.75rem;
+      flex-shrink: 0;
+    }
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+    }
+    .color-info { flex: 1; }
+    .color-name { font-weight: 600; font-size: 14px; }
+    .color-ref { font-size: 12px; color: var(--text-muted); font-family: monospace; }
+    .color-value { font-family: monospace; font-size: 14px; }
+    .color-desc { font-size: 12px; color: var(--text-muted); }
+
+    /* Spacing visual */
+    .spacing-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.4rem 0;
+    }
+    .spacing-bar {
+      height: 16px;
+      background: var(--brand);
+      border-radius: 3px;
+      opacity: 0.6;
+    }
+
+    /* Radius visual */
+    .radius-demo-box {
+      width: 80px;
+      height: 80px;
+      background: color-mix(in srgb, var(--brand) 15%, transparent);
+      border: 2px solid var(--brand);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--brand);
+    }
+
+    /* Shadow visual */
+    .shadow-demo-box {
+      width: 140px;
+      height: 100px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Component showcase cards */
+    .comp-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .comp-card h4 {
+      font-size: var(--font-size-h3);
+      font-weight: var(--font-weight-h3);
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+
+    html { scroll-behavior: smooth; }
+  </style>
+</head>
+<body class="flex" style="font-family: var(--font-family);">
+
+  <!-- Sidebar Navigation -->
+  <aside class="ds-sidebar">
+    <h2 style="font-size: var(--font-size-h2); font-weight: 700; margin-bottom: 1.5rem;">MySimpleTodo<br><span style="font-size:12px;font-weight:400;color:var(--text-muted);">Design System</span></h2>
+    <nav>
+      <a href="#colors">Color Palette</a>
+      <a href="#typography">Typography</a>
+      <a href="#spacing">Spacing</a>
+      <a href="#border-radius">Border Radius</a>
+      <a href="#shadows">Shadows</a>
+      <a href="#icons">Icon Library</a>
+      <a href="#buttons">Buttons</a>
+      <a href="#inputs">Inputs</a>
+      <a href="#table">Table</a>
+      <a href="#badges">Badges</a>
+      <a href="#checkboxes">Checkboxes</a>
+      <a href="#alerts">Alerts</a>
+      <a href="#toasts">Toasts</a>
+      <a href="#cards">Cards</a>
+      <a href="#empty-state">Empty State</a>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="ds-main">
+
+    <!-- ============================================================ -->
+    <!-- Section 1: Color Palette -->
+    <!-- ============================================================ -->
+    <section id="colors" class="ds-section">
+      <h2 class="ds-section-title">Color Palette</h2>
+      <p class="ds-subtitle">Design token colors used across MySimpleTodo</p>
+
+      <div class="color-row">
+        <div class="color-swatch" style="background:#f8fafc;"></div>
+        <div class="color-info">
+          <div class="color-name">Background</div>
+          <div class="color-ref">--bg</div>
+        </div>
+        <div class="color-value">#f8fafc</div>
+        <div class="color-desc">Page background color</div>
+      </div>
+
+      <div class="color-row">
+        <div class="color-swatch" style="background:#ffffff;"></div>
+        <div class="color-info">
+          <div class="color-name">Surface</div>
+          <div class="color-ref">--surface</div>
+        </div>
+        <div class="color-value">#ffffff</div>
+        <div class="color-desc">Card and container backgrounds</div>
+      </div>
+
+      <div class="color-row">
+        <div class="color-swatch" style="background:#e2e8f0;"></div>
+        <div class="color-info">
+          <div class="color-name">Border</div>
+          <div class="color-ref">--border</div>
+        </div>
+        <div class="color-value">#e2e8f0</div>
+        <div class="color-desc">Dividers and borders</div>
+      </div>
+
+      <div class="color-row">
+        <div class="color-swatch" style="background:#0f172a;"></div>
+        <div class="color-info">
+          <div class="color-name">Text Primary</div>
+          <div class="color-ref">--text-primary</div>
+        </div>
+        <div class="color-value">#0f172a</div>
+        <div class="color-desc">Primary text color</div>
+      </div>
+
+      <div class="color-row">
+        <div class="color-swatch" style="background:#64748b;"></div>
+        <div class="color-info">
+          <div class="color-name">Text Muted</div>
+          <div class="color-ref">--text-muted</div>
+        </div>
+        <div class="color-value">#64748b</div>
+        <div class="color-desc">Secondary and helper text</div>
+      </div>
+
+      <div class="color-row">
+        <div class="color-swatch" style="background:#3b82f6;"></div>
+        <div class="color-info">
+          <div class="color-name">Brand</div>
+          <div class="color-ref">--brand</div>
+        </div>
+        <div class="color-value">#3b82f6</div>
+        <div class="color-desc">Primary brand accent</div>
+      </div>
+
+      <div class="color-row">
+        <div class="color-swatch" style="background:#2563eb;"></div>
+        <div class="color-info">
+          <div class="color-name">Brand Hover</div>
+          <div class="color-ref">--brand-hover</div>
+        </div>
+        <div class="color-value">#2563eb</div>
+        <div class="color-desc">Brand accent on hover/active</div>
+      </div>
+
+      <div class="color-row">
+        <div class="color-swatch" style="background:#ef4444;"></div>
+        <div class="color-info">
+          <div class="color-name">Destructive</div>
+          <div class="color-ref">--destructive</div>
+        </div>
+        <div class="color-value">#ef4444</div>
+        <div class="color-desc">Delete, error states</div>
+      </div>
+
+      <div class="color-row">
+        <div class="color-swatch" style="background:#22c55e;"></div>
+        <div class="color-info">
+          <div class="color-name">Success</div>
+          <div class="color-ref">--success</div>
+        </div>
+        <div class="color-value">#22c55e</div>
+        <div class="color-desc">Success states, task completed</div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 2: Typography -->
+    <!-- ============================================================ -->
+    <section id="typography" class="ds-section">
+      <h2 class="ds-section-title">Typography</h2>
+      <p class="ds-subtitle">Inter &mdash; Base 16px, Line Height 1.5, Letter Spacing 0.01em</p>
+
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:0.25rem;">h1 &mdash; 24px / 700</div>
+        <div style="font-size:var(--font-size-h1);font-weight:var(--font-weight-h1);">Add a New Task to MySimpleTodo</div>
+      </div>
+
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:0.25rem;">h2 &mdash; 20px / 600</div>
+        <div style="font-size:var(--font-size-h2);font-weight:var(--font-weight-h2);">All Tasks &mdash; Today's List</div>
+      </div>
+
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:0.25rem;">h3 &mdash; 16px / 600</div>
+        <div style="font-size:var(--font-size-h3);font-weight:var(--font-weight-h3);">Edit Task Details</div>
+      </div>
+
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:0.25rem;">body &mdash; 14px / 400</div>
+        <div style="font-size:var(--font-size-body);font-weight:var(--font-weight-body);">Finish the shopping list by 5 PM. This is a daily task that needs to be completed before the end of the day.</div>
+      </div>
+
+      <div style="margin-bottom:1.5rem;">
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:0.25rem;">small &mdash; 12px / 400</div>
+        <div style="font-size:var(--font-size-small);font-weight:var(--font-weight-small);">Created on June 28, 2026 &bull; Due June 28, 2026</div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 3: Spacing -->
+    <!-- ============================================================ -->
+    <section id="spacing" class="ds-section">
+      <h2 class="ds-section-title">Spacing System</h2>
+      <p class="ds-subtitle">Base unit: 4px</p>
+
+      <div class="spacing-row">
+        <div class="spacing-bar" style="width:4px;"></div>
+        <span style="font-size:14px;">base_unit &mdash; 4px</span>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-bar" style="width:8px;"></div>
+        <span style="font-size:14px;">2&#215; base &mdash; 8px</span>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-bar" style="width:16px;"></div>
+        <span style="font-size:14px;">4&#215; base &mdash; 16px</span>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-bar" style="width:24px;"></div>
+        <span style="font-size:14px;">6&#215; base &mdash; 24px</span>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-bar" style="width:32px;"></div>
+        <span style="font-size:14px;">8&#215; base &mdash; 32px</span>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-bar" style="width:64px;"></div>
+        <span style="font-size:14px;">header_height &mdash; 64px</span>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-bar" style="width:240px;"></div>
+        <span style="font-size:14px;">sidebar_width &mdash; 240px</span>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 4: Border Radius -->
+    <!-- ============================================================ -->
+    <section id="border-radius" class="ds-section">
+      <h2 class="ds-section-title">Border Radius</h2>
+      <p class="ds-subtitle">Consistent corner rounding across UI elements</p>
+
+      <div style="display:flex;gap:2rem;flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <div class="radius-demo-box" style="border-radius:var(--radius-input);">6px</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:0.5rem;">input</div>
+        </div>
+        <div style="text-align:center;">
+          <div class="radius-demo-box" style="border-radius:var(--radius-card);">6px</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:0.5rem;">card</div>
+        </div>
+        <div style="text-align:center;">
+          <div class="radius-demo-box" style="border-radius:var(--radius-button);">6px</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:0.5rem;">button</div>
+        </div>
+        <div style="text-align:center;">
+          <div class="radius-demo-box" style="border-radius:var(--radius-modal);">12px</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:0.5rem;">modal</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 5: Shadows -->
+    <!-- ============================================================ -->
+    <section id="shadows" class="ds-section">
+      <h2 class="ds-section-title">Shadows</h2>
+      <p class="ds-subtitle">Elevation levels for depth cues</p>
+
+      <div style="display:flex;gap:2rem;flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <div class="shadow-demo-box" style="border-radius:var(--radius-card);box-shadow:var(--shadow-card);">Card</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:0.5rem;">0 1px 3px rgba(0,0,0,0.1)</div>
+        </div>
+        <div style="text-align:center;">
+          <div class="shadow-demo-box" style="border-radius:var(--radius-modal);box-shadow:var(--shadow-modal);">Modal</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:0.5rem;">0 20px 60px rgba(0,0,0,0.15)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 6: Icon Library -->
+    <!-- ============================================================ -->
+    <section id="icons" class="ds-section">
+      <h2 class="ds-section-title">Icon Library</h2>
+      <p class="ds-subtitle">Lucide Icons</p>
+
+      <div class="comp-card" style="display:flex;gap:2rem;align-items:center;">
+        <div>
+          <div style="font-size:14px;font-weight:600;">Library:</div>
+          <div style="font-size:14px;font-weight:600;margin-top:0.5rem;">Default Size:</div>
+          <div style="font-size:14px;font-weight:600;margin-top:0.5rem;">Stroke Width:</div>
+        </div>
+        <div>
+          <div style="font-size:14px;">Lucide</div>
+          <div style="font-size:14px;">16px</div>
+          <div style="font-size:14px;">1.5</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:1rem;flex-wrap:wrap;">
+          <!-- Example Lucide icons (SVG inline) -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12c0 1.2-4.03 6-9 6s-9-4.8-9-6a9 9 0 0 1 18 0z"/><path d="M9 12a3 3 0 0 0 6 0"/></svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 7: Buttons (DaisyUI) -->
+    <!-- ============================================================ -->
+    <section id="buttons" class="ds-section">
+      <h2 class="ds-section-title">Buttons</h2>
+      <p class="ds-subtitle">DaisyUI button variants</p>
+
+      <div class="comp-card">
+        <h4>Primary Actions</h4>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-primary">Add Task</button>
+          <button class="btn btn-primary" disabled>Add Task</button>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <h4>Secondary Actions</h4>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-secondary">Cancel</button>
+          <button class="btn btn-outline">Save</button>
+          <button class="btn btn-ghost">Back</button>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <h4>Destructive & Success</h4>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-destructive">Delete</button>
+          <button class="btn btn-success">Mark Done</button>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <h4>Small & Icon</h4>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-primary btn-sm">Save</button>
+          <button class="btn btn-outline btn-sm">Edit</button>
+          <button class="btn btn-ghost btn-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit
+          </button>
+          <button class="btn btn-ghost btn-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 8: Inputs (DaisyUI) -->
+    <!-- ============================================================ -->
+    <section id="inputs" class="ds-section">
+      <h2 class="ds-section-title">Inputs</h2>
+      <p class="ds-subtitle">DaisyUI form input styles</p>
+
+      <div class="comp-card">
+        <h4>Text Input</h4>
+        <div style="max-width:400px;">
+          <div class="form-control w-full">
+            <label class="form-label">
+              <span class="label-text-alt" style="font-size:var(--font-size-body);color:var(--text-primary);">Task Title</span>
+            </label>
+            <input type="text" placeholder="Enter task title..." class="input input-bordered w-full" style="border-radius:var(--radius-input);"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <h4>With Hint & Error</h4>
+        <div style="max-width:400px;">
+          <div class="form-control w-full mb-4">
+            <label class="form-label">
+              <span class="label-text-alt" style="font-size:var(--font-size-body);color:var(--text-primary);">Due Date</span>
+            </label>
+            <input type="date" class="input input-bordered w-full" style="border-radius:var(--radius-input);"/>
+            <label class="form-label">
+              <span class="label-text-alt" style="font-size:var(--font-size-small);color:var(--text-muted);">Leave empty for no due date</span>
+            </label>
+          </div>
+          <div class="form-control w-full">
+            <label class="form-label">
+              <span class="label-text-alt" style="font-size:var(--font-size-body);color:var(--text-primary);">Task Title</span>
+            </label>
+            <input type="text" value=" " class="input input-error w-full" style="border-radius:var(--radius-input);"/>
+            <label class="form-label">
+              <span class="label-text-alt" style="font-size:var(--font-size-small);color:var(--destructive);">Task title is required</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <h4>Search Input</h4>
+        <div style="max-width:400px;">
+          <div class="form-control w-full">
+            <input type="text" placeholder="Search tasks..." class="input input-bordered input-primary w-full" style="border-radius:var(--radius-input);"/>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 9: Table (DaisyUI) -->
+    <!-- ============================================================ -->
+    <section id="table" class="ds-section">
+      <h2 class="ds-section-title">Table</h2>
+      <p class="ds-subtitle">DaisyUI table with hover rows &mdash; Task list view</p>
+
+      <div class="comp-card" style="padding:0;overflow:hidden;">
+        <div class="overflow-x-auto">
+          <table class="table table-zebra">
+            <thead>
+              <tr>
+                <th style="font-size:var(--font-size-small);color:var(--text-muted);">Title</th>
+                <th style="font-size:var(--font-size-small);color:var(--text-muted);">Due Date</th>
+                <th style="font-size:var(--font-size-small);color:var(--text-muted);">Status</th>
+                <th style="font-size:var(--font-size-small);color:var(--text-muted);">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-size:var(--font-size-body);">Buy groceries</td>
+                <td style="font-size:var(--font-size-body);">Jun 28, 2026</td>
+                <td><span class="badge badge-success gap-1" style="border-radius:9999px;">Done</span></td>
+                <td>
+                  <div style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-ghost btn-xs">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      Edit
+                    </button>
+                    <button class="btn btn-ghost btn-xs text-error">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-size:var(--font-size-body);">Finish project report</td>
+                <td style="font-size:var(--font-size-body);">Jun 29, 2026</td>
+                <td><span class="badge" style="border-radius:9999px;background:color-mix(in srgb, #f59e0b 15%, transparent);color:#f59e0b;">Pending</span></td>
+                <td>
+                  <div style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-ghost btn-xs">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      Edit
+                    </button>
+                    <button class="btn btn-ghost btn-xs text-error">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-size:var(--font-size-body);">Book dentist appointment</td>
+                <td style="font-size:var(--font-size-body);color:var(--destructive);">Jun 25, 2026</td>
+                <td><span class="badge badge-error" style="border-radius:9999px;">Overdue</span></td>
+                <td>
+                  <div style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-ghost btn-xs">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      Edit
+                    </button>
+                    <button class="btn btn-ghost btn-xs text-error">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-size:var(--font-size-body);">Walk the dog</td>
+                <td style="font-size:var(--font-size-body);">Jun 28, 2026</td>
+                <td><span class="badge badge-success" style="border-radius:9999px;">Done</span></td>
+                <td>
+                  <div style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-ghost btn-xs">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      Edit
+                    </button>
+                    <button class="btn btn-ghost btn-xs text-error">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 10: Badges (DaisyUI) -->
+    <!-- ============================================================ -->
+    <section id="badges" class="ds-section">
+      <h2 class="ds-section-title">Badges</h2>
+      <p class="ds-subtitle">DaisyUI badge variants for task status indicators</p>
+
+      <div class="comp-card">
+        <h4>Status Badges</h4>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+          <span class="badge badge-success" style="border-radius:9999px;">Done</span>
+          <span class="badge" style="border-radius:9999px;background:color-mix(in srgb, #f59e0b 15%, transparent);color:#f59e0b;">Pending</span>
+          <span class="badge badge-error" style="border-radius:9999px;">Overdue</span>
+          <span class="badge" style="border-radius:9999px;background:color-mix(in srgb, var(--brand) 15%, transparent);color:var(--brand);">Today</span>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <h4>Outline Badges</h4>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center;">
+          <span class="badge badge-success badge-outline" style="border-radius:9999px;">Done</span>
+          <span class="badge badge-outline" style="border-radius:9999px;border-color:#f59e0b;color:#f59e0b;">Pending</span>
+          <span class="badge badge-error badge-outline" style="border-radius:9999px;">Overdue</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 11: Checkboxes (DaisyUI) -->
+    <!-- ============================================================ -->
+    <section id="checkboxes" class="ds-section">
+      <h2 class="ds-section-title">Checkboxes</h4>
+      <p class="ds-subtitle">DaisyUI checkbox for mark-done functionality</p>
+
+      <div class="comp-card">
+        <h4>Task Completion Toggle</h4>
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" class="checkbox checkbox-primary" checked style="--tw-checked-bg:var(--brand);" />
+            <span style="font-size:var(--font-size-body);text-decoration:line-through;color:var(--text-muted);">Buy groceries</span>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" class="checkbox checkbox-primary" />
+            <span style="font-size:var(--font-size-body);">Finish project report</span>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" class="checkbox checkbox-primary" />
+            <span style="font-size:var(--font-size-body);">Book dentist appointment</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <h4>Form Checkbox</h4>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" class="checkbox checkbox-primary" />
+          <span style="font-size:var(--font-size-body);">Mark as done</span>
+        </label>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 12: Alerts (DaisyUI) -->
+    <!-- ============================================================ -->
+    <section id="alerts" class="ds-section">
+      <h2 class="ds-section-title">Alerts</h2>
+      <p class="ds-subtitle">DaisyUI alert variants for feedback messages</p>
+
+      <div class="comp-card" style="padding:0;overflow:hidden;">
+        <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+          <div class="alert alert-info" style="border-radius:var(--radius-card);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="stroke-current"><path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+            <span style="font-size:var(--font-size-body);">Task \"Buy groceries\" has been updated.</span>
+          </div>
+
+          <div class="alert alert-success" style="border-radius:var(--radius-card);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="stroke-current"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span style="font-size:var(--font-size-body);">Task \"Walk the dog\" marked as done.</span>
+          </div>
+
+          <div class="alert alert-warning" style="border-radius:var(--radius-card);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="stroke-current"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+            <span style="font-size:var(--font-size-body);">You have 2 overdue tasks. Book dentist appointment and Review budget.</span>
+          </div>
+
+          <div class="alert alert-error" style="border-radius:var(--radius-card);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="stroke-current"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+            <div>
+              <div style="font-weight:600;font-size:var(--font-size-body);">Failed to load tasks</div>
+              <div style="font-size:var(--font-size-small);opacity:0.8;">Could not connect to the database. Please check the connection and try again.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 13: Toasts (DaisyUI) -->
+    <!-- ============================================================ -->
+    <section id="toasts" class="ds-section">
+      <h2 class="ds-section-title">Toasts</h2>
+      <p class="ds-subtitle">DaisyUI toast notification previews (positioned top-right in the actual app)</p>
+
+      <div class="comp-card">
+        <h4>Success Toast</h4>
+        <div style="max-width:360px;">
+          <div class="alert alert-success" style="border-radius:var(--radius-card);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="stroke-current"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span style="font-size:var(--font-size-body);">Task saved successfully.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="comp-card">
+        <h4>Error Toast</h4>
+        <div style="max-width:360px;">
+          <div class="alert alert-error" style="border-radius:var(--radius-card);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="stroke-current"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+            <span style="font-size:var(--font-size-body);">Failed to delete task. Please try again.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 14: Cards (DaisyUI) -->
+    <!-- ============================================================ -->
+    <section id="cards" class="ds-section">
+      <h2 class="ds-section-title">Cards</h2>
+      <p class="ds-subtitle">DaisyUI card layout for task detail views</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+        <div class="card bg-base-100 shadow-sm" style="border:1px solid var(--border);border-radius:var(--radius-card);">
+          <div class="card-body" style="padding:1.5rem;">
+            <h3 class="card-title" style="font-size:var(--font-size-h2);">Buy groceries</h3>
+            <div style="font-size:var(--font-size-small);color:var(--text-muted);">Due: Jun 28, 2026</div>
+            <div class="card-actions" style="margin-top:1rem;">
+              <span class="badge badge-success" style="border-radius:9999px;">Done</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card bg-base-100 shadow-sm" style="border:1px solid var(--border);border-radius:var(--radius-card);">
+          <div class="card-body" style="padding:1.5rem;">
+            <h3 class="card-title" style="font-size:var(--font-size-h2);">Finish project report</h3>
+            <div style="font-size:var(--font-size-small);color:var(--text-muted);">Due: Jun 29, 2026</div>
+            <div class="card-actions" style="margin-top:1rem;">
+              <span class="badge" style="border-radius:9999px;background:color-mix(in srgb, #f59e0b 15%, transparent);color:#f59e0b;">Pending</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- Section 15: Empty State -->
+    <!-- ============================================================ -->
+    <section id="empty-state" class="ds-section">
+      <h2 class="ds-section-title">Empty State</h2>
+      <p class="ds-subtitle">Shown when the task list has no entries</p>
+
+      <div class="comp-card" style="padding:0;overflow:hidden;">
+        <div class="empty-state">
+          <svg class="empty-state-icon" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+          <div class="empty-state-title">No tasks yet</div>
+          <div class="empty-state-desc">Click \"Add Task\" to get started with your first task.</div>
+          <button class="btn btn-primary">Add Task</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+</body>
+</html>

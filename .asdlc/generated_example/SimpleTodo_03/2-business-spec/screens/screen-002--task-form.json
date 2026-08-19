@@ -1,0 +1,66 @@
+{
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-06-28"
+  },
+  "ver": 1,
+  "id": "screen-002--task-form",
+  "name": "Add/Edit Task",
+  "module_id": "module-task",
+  "description": "A form screen used to create a new task or edit an existing one. The user fills in the task title, optionally sets a due date, and marks whether it's completed. After saving, they're redirected back to the Task List.",
+  "actors": [
+    "actor-single-user"
+  ],
+  "entry_points": [
+    "Clicking 'Add Task' button from the Task List",
+    "Clicking 'Add Task' in the sidebar navigation",
+    "Clicking 'Edit' on a specific task from the Task List"
+  ],
+  "information_displayed": [
+    "Form title ('Add Task' for new, 'Edit Task' for existing)",
+    "Breadcrumb link back to Task List",
+    "Title input field",
+    "Due date input field (date picker)",
+    "'Mark as done' checkbox",
+    "Save button",
+    "Cancel button"
+  ],
+  "available_actions": [
+    {
+      "action": "Save task",
+      "description": "Create the task (new) or update the task (existing), then redirect to Task List",
+      "actor_ids": [
+        "actor-single-user"
+      ]
+    },
+    {
+      "action": "Cancel",
+      "description": "Discard changes and return to Task List",
+      "actor_ids": [
+        "actor-single-user"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Title is required — cannot save without a title",
+    "Due date is optional — a task can exist without a deadline",
+    "When editing, 'Mark as done' reflects the current status",
+    "When creating a new task, 'Mark as done' defaults to unchecked",
+    "After saving, the user is redirected to the Task List",
+    "Editing a task that was done clears its done status"
+  ],
+  "usecase_ids": [
+    "usecase-004--create-task",
+    "usecase-005--edit-task"
+  ],
+  "edge_cases": [
+    "User cancels after typing data — discard silently (no confirmation)",
+    "User tries to save with empty title — show validation error",
+    "User selects a past date for due date — allowed (becomes overdue immediately)",
+    "User navigates away (browser back) while on form — same as cancel"
+  ],
+  "open_questions": [
+    "Should setting a past due date be allowed without warning?",
+    "Should the form preserve last input for quick repeated entry?"
+  ]
+}

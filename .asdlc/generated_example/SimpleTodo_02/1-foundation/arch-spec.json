@@ -1,0 +1,76 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "SimpleTodo",
+    "updated_at": "2026-06-23"
+  },
+  "system_type": "Web app — Server-rendered monolith (AdonisJS + Edge templates)",
+  "architecture_pattern": {
+    "name": "MVC (Model-View-Controller)",
+    "description": "AdonisJS adalah framework MVC out-of-the-box, sangat pas untuk aplikasi skala kecil ini. Tidak perlu arsitektur yang lebih kompleks.",
+    "components": [
+      {
+        "name": "Controller",
+        "role": "Menangani HTTP request/response, memanggil service, merender Edge template"
+      },
+      {
+        "name": "Service",
+        "role": "Logika bisnis untuk CRUD task dan group"
+      },
+      {
+        "name": "Model",
+        "role": "Representasi database (Task, Group) via Lucid ORM bawaan AdonisJS"
+      },
+      {
+        "name": "View",
+        "role": "Edge templates untuk rendering halaman HTML"
+      },
+      {
+        "name": "Route",
+        "role": "Definisi endpoint REST"
+      }
+    ]
+  },
+  "tech_stack": [
+    {
+      "layer": "framework",
+      "choice": "AdonisJS (Node.js)"
+    },
+    {
+      "layer": "templating",
+      "choice": "Edge"
+    },
+    {
+      "layer": "css",
+      "choice": "TailwindCSS + DaisyUI"
+    },
+    {
+      "layer": "database",
+      "choice": "SQLite"
+    },
+    {
+      "layer": "orm",
+      "choice": "Adonis Lucid"
+    }
+  ],
+  "deployment": {
+    "model": "On-premise / Self-hosted",
+    "provider": "localhost"
+  },
+  "integrations": [],
+  "nfr": [
+    {
+      "category": "performance",
+      "requirement": "Halaman harus load dalam < 2 detik"
+    },
+    {
+      "category": "security",
+      "requirement": "Validasi input di semua form, proteksi SQL injection (via Lucid ORM)"
+    },
+    {
+      "category": "scalability",
+      "requirement": "Arsitektur sederhana dan mudah di-maintain untuk skala personal"
+    }
+  ],
+  "architecture_notes": "Keputusan untuk menggunakan server-rendered monolith (AdonisJS + Edge) alih-alih SPA + API mengurangi kompleksitas secara signifikan — tanpa perlu build step frontend, CORS, atau API authentication. SQLite dipilih karena skalanya personal use, tidak butuh database server terpisah."
+}

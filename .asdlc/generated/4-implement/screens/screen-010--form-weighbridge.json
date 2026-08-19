@@ -1,0 +1,63 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 4,
+  "id": "screen-010--form-weighbridge",
+  "name": "Form Weighbridge",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/weighbridgeRecordRepo.ts",
+    "mobile/src/views/FormWeighbridgeView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/weighbridgeRecordRepo.spec.ts",
+    "mobile/tests/FormWeighbridgeView.spec.ts",
+    "mobile/tests/e2e/form-weighbridge.spec.ts"
+  ],
+  "implementation_notes": [
+    "Tambah '(kg)' pada label Berat Masuk (Gross), Berat Keluar (Tare), Net Weight (Kuantitas tidak diberi kg)",
+    "Tambah field 'Tanggal Dispatch' (disabled, computed dispatchDateDisplay = formatDateID(form.dispatch_datetime)) sebelum 'Waktu Dispatch' — reuse fungsi format tanggal yang sama dengan Arrival, ikut live-ticking otomatis karena computed atas field reaktif yang sama",
+    "REQUIRED_FIELD_LABELS.gross_weight (teks pesan error validasi) sengaja TIDAK diberi '(kg)' karena bukan label field yang terlihat",
+    "FormField.vue slugify label jadi id — perubahan label mengubah 3 element id, disesuaikan di test",
+    "Regresi penuh diverifikasi independen: 223/223 vitest (20 file) + 66/66 Playwright e2e (12 file), backend (php artisan serve) dikonfirmasi hidup sebelum run"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Coverage unit test tidak terukur — @vitest/coverage-v8 belum terinstal",
+      "severity": "minor"
+    },
+    {
+      "description": "checked_by/acknowledged_by selalu dikirim string kosong dari screen ini (kolom masih ada di skema, dibaca layar lain) — konsekuensi disengaja dari penghapusan Checked By, bukan bug",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-18T21:27:11Z",
+      "passed": 21,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-08-18T21:30:00Z",
+      "passed": 9,
+      "failed": 0
+    }
+  }
+}

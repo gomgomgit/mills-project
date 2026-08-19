@@ -1,0 +1,261 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 2,
+  "id": "screen-006--station-list",
+  "name": "Station List",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-006--station-list",
+      "usecase_name": "Pilih Stasiun",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load cached station list from local storage (synced from server station master data)",
+        "2. Query local draft records (weighbridge-record/grading-record/cages-track-record) WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), grouped by station type → determine hasDraft boolean per active station type",
+        "3. Render grid: is_active=true → tappable with color = merah if hasDraft else hitam/netral; is_active=false → disabled/info only",
+        "4. Render breadcrumb (Home > Production Process Activity) as tappable segments",
+        "5. Render header dengan 'Mill Smart Log' + hamburger menu (konsisten dengan Home)",
+        "6. On tap active station → navigate to Monitor screen for that station type",
+        "7. On tap disabled station → show 'belum tersedia' info, no navigation",
+        "8. On tap breadcrumb segment → navigate to corresponding route (e.g. Home)",
+        "9. On tap hamburger → open nav menu (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "SELECT cached local station list (business_unit scoped)"
+        },
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "SELECT",
+          "description": "SELECT local records WHERE created_by = current user AND status IN (draft_ongoing, draft_paused)"
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "SELECT local records WHERE created_by = current user AND status IN (draft_ongoing, draft_paused)"
+        },
+        {
+          "entity_id": "cages-track-record",
+          "operation": "SELECT",
+          "description": "SELECT local records WHERE created_by = current user AND status IN (draft_ongoing, draft_paused)"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Tap Stasiun Disabled",
+          "handling": "Tampilkan info singkat 'belum tersedia' tanpa navigasi"
+        },
+        {
+          "condition": "Stasiun aktif punya draft ongoing DAN paused sekaligus",
+          "handling": "Warna tetap merah, tidak dibedakan lebih lanjut di level warna"
+        },
+        {
+          "condition": "Tidak ada draft sama sekali di stasiun aktif",
+          "handling": "Warna hitam/netral"
+        }
+      ],
+      "business_rules_applied": [
+        "Hanya 3 stasiun MVP yang aktif secara fungsional",
+        "Warna tombol mencerminkan status draft: merah=ada draft, hitam/netral=tidak ada",
+        "Breadcrumb harus dapat dinavigasi"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns hasDraft=true for station type when a local draft record (ongoing) belongs to current user",
+          "given": "weighbridgeRecordRepo.findByUser() returns a record with status=draft_ongoing for current user",
+          "expect": "station.hasDraft = true for Weighbridge"
+        },
+        {
+          "description": "returns hasDraft=true for station type when a local draft record (paused) belongs to current user",
+          "given": "gradingRecordRepo.findByUser() returns a record with status=draft_paused for current user",
+          "expect": "station.hasDraft = true for Grading"
+        },
+        {
+          "description": "returns hasDraft=false for station type when no local draft record belongs to current user",
+          "given": "all record repos return empty array for current user filtered by status IN (draft_ongoing, draft_paused)",
+          "expect": "station.hasDraft = false for that station type"
+        },
+        {
+          "description": "keeps color red (does not differentiate further) when station has both ongoing and paused drafts simultaneously",
+          "given": "cagesTrackRecordRepo.findByUser() returns two records for current user: one draft_ongoing and one draft_paused",
+          "expect": "station.hasDraft = true, station.color = 'merah' (not further distinguished)"
+        },
+        {
+          "description": "computes color=merah for active station with hasDraft=true",
+          "given": "station.is_active = true and station.hasDraft = true",
+          "expect": "station.color = 'merah'"
+        },
+        {
+          "description": "computes color=hitam/netral for active station with hasDraft=false",
+          "given": "station.is_active = true and station.hasDraft = false",
+          "expect": "station.color = 'hitam/netral'"
+        },
+        {
+          "description": "marks disabled station as non-tappable/info-only regardless of draft state",
+          "given": "station.is_active = false",
+          "expect": "station.tappable = false; rendered as disabled/info only, no color/hasDraft evaluation applied"
+        },
+        {
+          "description": "navigates to Monitor screen when tapping an active station",
+          "given": "user taps station tile with is_active = true, stationType = 'weighbridge'",
+          "expect": "router.push called with Monitor route for stationType='weighbridge'"
+        },
+        {
+          "description": "shows 'belum tersedia' info and does not navigate when tapping a disabled station",
+          "given": "user taps station tile with is_active = false",
+          "expect": "info message 'belum tersedia' shown, router.push NOT called"
+        },
+        {
+          "description": "navigates to corresponding route when tapping a breadcrumb segment",
+          "given": "user taps breadcrumb segment 'Home'",
+          "expect": "router.push called with the Home route"
+        },
+        {
+          "description": "opens navigation menu when tapping hamburger icon",
+          "given": "user taps hamburger icon in header",
+          "expect": "nav menu drawer/modal opens showing 'Ganti Password' and 'Logout' options"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "station repo returns cached list of 15 stations (3 active, 12 disabled); draft record repos return valid ongoing/paused data for some active stations and empty for others",
+          "expect": "returns view model list with correct is_active, tappable, color, and hasDraft computed per station"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-005--home",
+      "reason": "Asal navigasi ke Station List, dan tujuan breadcrumb/kembali"
+    },
+    {
+      "screen_id": "screen-007--monitor-weighbridge",
+      "reason": "Navigasi saat stasiun Weighbridge dipilih"
+    },
+    {
+      "screen_id": "screen-008--monitor-grading",
+      "reason": "Navigasi saat stasiun Grading dipilih"
+    },
+    {
+      "screen_id": "screen-009--monitor-cages-track",
+      "reason": "Navigasi saat stasiun Cages Track dipilih"
+    }
+  ],
+  "implementation_notes": [
+    "Data station dibaca dari cache lokal (disinkron dari server), bukan panggilan API langsung setiap kali screen dibuka",
+    "Query draft records lokal (weighbridge-record/grading-record/cages-track-record) sekarang dilakukan di screen ini untuk indikator warna — mengambil alih peran yang dulu ada di Home v1 (sudah dihapus total dari Home v2/v3)",
+    "Breadcrumb & hamburger mengikuti pola header yang sama dengan Home v3 (konsistensi lintas layar)"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Pilih Stasiun — success",
+      "usecase_id": "usecase-006--station-list",
+      "api_test": [],
+      "component_test": {
+        "component": "StationGrid",
+        "action": "render grid with 3 active stations (Weighbridge, Grading, Cages Track), tap an active station tile",
+        "assert": "navigate event/emit fired with correct station type; tile renders as enabled and clickable"
+      },
+      "browser_test": {
+        "route": "/stations",
+        "action": "login, navigate to Station List, tap an active station tile (e.g. Weighbridge)",
+        "assert": "browser navigates to the Monitor screen route for the selected station type"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun — Tap Stasiun Disabled",
+      "usecase_id": "usecase-006--station-list",
+      "api_test": [],
+      "component_test": {
+        "component": "StationGrid",
+        "action": "render grid with a disabled station tile (is_active=false), tap the disabled tile",
+        "assert": "info message 'belum tersedia' shown; no navigation event emitted"
+      },
+      "browser_test": {
+        "route": "/stations",
+        "action": "navigate to Station List, tap a disabled station tile",
+        "assert": "info toast/snackbar 'belum tersedia' is displayed; URL remains on /stations (no navigation occurs)"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun — Tap Breadcrumb",
+      "usecase_id": "usecase-006--station-list",
+      "api_test": [],
+      "component_test": {
+        "component": "StationListView",
+        "action": "render breadcrumb 'Home > Production Process Activity', click the 'Home' breadcrumb segment",
+        "assert": "navigation event/emit fired targeting the Home route"
+      },
+      "browser_test": {
+        "route": "/stations",
+        "action": "navigate to Station List, tap the 'Home' breadcrumb segment",
+        "assert": "browser navigates to the Home route"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun — Buka Menu Hamburger",
+      "usecase_id": "usecase-006--station-list",
+      "api_test": [],
+      "component_test": {
+        "component": "StationListView",
+        "action": "click hamburger icon in header",
+        "assert": "nav menu component becomes visible showing 'Ganti Password' and 'Logout' options"
+      },
+      "browser_test": {
+        "route": "/stations",
+        "action": "navigate to Station List, tap hamburger icon in header",
+        "assert": "navigation menu drawer opens displaying 'Ganti Password' and 'Logout' options"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun — Indikator Warna: Ada Draft",
+      "usecase_id": "usecase-006--station-list",
+      "api_test": [],
+      "component_test": {
+        "component": "StationGrid",
+        "action": "mock local draft record store returning an ongoing/paused record for current user for the Weighbridge station, render grid",
+        "assert": "Weighbridge station tile rendered with red (merah) color/class"
+      },
+      "browser_test": {
+        "route": "/stations",
+        "action": "seed local SQLite with a draft_ongoing Weighbridge record for the logged-in user, navigate to Station List",
+        "assert": "Weighbridge station tile is displayed with the red color indicator"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun — Indikator Warna: Tidak Ada Draft",
+      "usecase_id": "usecase-006--station-list",
+      "api_test": [],
+      "component_test": {
+        "component": "StationGrid",
+        "action": "mock local draft record store returning no draft records for current user, render grid",
+        "assert": "active station tiles rendered with black/neutral color/class"
+      },
+      "browser_test": {
+        "route": "/stations",
+        "action": "ensure no draft records exist for the logged-in user in local SQLite, navigate to Station List",
+        "assert": "active station tiles are displayed with the black/neutral color indicator"
+      }
+    }
+  ]
+}

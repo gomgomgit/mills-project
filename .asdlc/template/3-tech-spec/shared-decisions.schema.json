@@ -1,0 +1,32 @@
+{
+  "_tracked": [
+    "auth", "error_format", "pagination",
+    "naming_conventions", "integrations", "other_decisions"
+  ],
+  "_display_order": [
+    "auth", "error_format", "pagination",
+    "naming_conventions", "integrations", "other_decisions", "meta"
+  ],
+  "ver":        "Artifact-level version counter. Incremented on every write.",
+  "meta.title": "Application name, copied from PRD meta.title.",
+  "meta.updated_at": "ISO date (YYYY-MM-DD) of the last write.",
+  "auth.mechanism": "Authentication mechanism used across the project — e.g. 'JWT (Bearer token)', 'Session cookie', 'API key', 'OAuth 2.0'. Derive from arch-spec nfr/tech_stack.",
+  "auth.session_strategy": "How sessions are managed — e.g. 'Access token 15min + refresh token 7 days', 'Server-side session with Redis', 'Stateless JWT'. Empty string if not applicable.",
+  "auth.notes": "Any additional auth notes — e.g. 'Multi-tenant: token includes tenant_id claim', 'Logout invalidates refresh token server-side'. Empty string if none.",
+  "error_format.structure": "Shape of all error responses. Describe the JSON structure — e.g. '{ \"error\": \"message\", \"code\": \"ERROR_CODE\" }' or '{ \"errors\": [{\"field\": \"name\", \"message\": \"required\"}] }'.",
+  "error_format.example": "A concrete example of the error response JSON as a string.",
+  "error_format.notes": "Any additional notes — e.g. 'Validation errors use 422 with field-level errors array'. Empty string if none.",
+  "pagination.strategy": "Pagination approach for list endpoints — e.g. 'Offset-based (page + per_page)', 'Cursor-based (cursor + limit)', 'None (all results returned)'.",
+  "pagination.defaults": "Default values — e.g. 'page=1, per_page=20, max per_page=100' or 'limit=20, max=200'.",
+  "pagination.notes": "Any additional notes — e.g. 'All list endpoints return pagination metadata in response'. Empty string if none.",
+  "naming_conventions.api_endpoints": "Naming style for API paths — e.g. 'snake_case: /api/product_orders', 'kebab-case: /api/product-orders', 'camelCase: /api/productOrders'.",
+  "naming_conventions.db_tables": "Naming style for database table names — e.g. 'snake_case plural: orders, product_variants'.",
+  "naming_conventions.db_columns": "Naming style for database column names — e.g. 'snake_case: created_at, user_id'.",
+  "naming_conventions.notes": "Any additional naming notes — e.g. 'JSON response fields use camelCase', 'Enum values stored as UPPER_SNAKE_CASE'. Empty string if none.",
+  "integrations": "Technical details for each external integration listed in arch-spec. One entry per integration. Empty array if no integrations.",
+  "integrations[].name": "Integration name — must match the name in arch-spec.integrations.",
+  "integrations[].auth_method": "How this integration authenticates — e.g. 'API key (header: X-API-Key)', 'OAuth 2.0 client credentials', 'Basic auth'.",
+  "integrations[].key_config": "Where credentials are configured — e.g. 'env var: STRIPE_SECRET_KEY', 'env vars: SENDGRID_API_KEY'. Follow the naming convention from arch-spec.",
+  "integrations[].notes": "Any integration-specific technical notes — e.g. 'Use webhook signature verification for events', 'Idempotency key required on all charge requests'. Empty string if none.",
+  "other_decisions": "Any other project-wide technical decisions not covered above. Each entry is a free-form string — e.g. 'All timestamps stored as UTC in ISO 8601 format', 'Soft-delete via deleted_at column on all core entities', 'File uploads stored in S3 bucket via pre-signed URLs'. Empty array if none."
+}

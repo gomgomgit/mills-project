@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>List — loading | MySimpleTodo</title>
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link rel="stylesheet" href="assets/components.css">
+  <link rel="stylesheet" href="assets/shell.css">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <style>
+    /* Page-specific layout for List screen — loading state */
+    .list-toolbar {
+      display: flex;
+      align-items: center;
+      gap: calc(var(--base-unit) * 2);
+      margin-bottom: calc(var(--base-unit) * 4);
+    }
+    .list-toolbar .input {
+      max-width: 28rem;
+      flex: 1;
+    }
+    .list-toolbar select.input {
+      max-width: 12rem;
+      flex: none;
+    }
+    .loading-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 24rem;
+    }
+    .spinner {
+      width: 2rem;
+      height: 2rem;
+      border: 3px solid var(--border);
+      border-top-color: var(--brand);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .toolbar-skeleton {
+      display: flex;
+      align-items: center;
+      gap: calc(var(--base-unit) * 2);
+      margin-bottom: calc(var(--base-unit) * 4);
+    }
+    .toolbar-skeleton .skeleton {
+      height: 2rem;
+    }
+    .toolbar-skeleton .skeleton:first-child {
+      flex: 1;
+      max-width: 28rem;
+    }
+    .toolbar-skeleton .skeleton:nth-child(2),
+    .toolbar-skeleton .skeleton:nth-child(3) {
+      width: 12rem;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">MySimpleTodo</div>
+      <nav class="sidebar-nav">
+        <a class="nav-item active" href="#">
+          <i data-lucide="list-checks" style="width:16px;height:16px;"></i>
+          All Tasks
+        </a>
+        <a class="nav-item" href="#">
+          <i data-lucide="plus-circle" style="width:16px;height:16px;"></i>
+          Add Task
+        </a>
+      </nav>
+    </aside>
+
+    <!-- Main content -->
+    <div class="main-content">
+
+      <!-- Top bar -->
+      <header class="topbar">
+        <span style="font-weight: var(--font-weight-h2); font-size: var(--font-size-h3);">Task Management</span>
+        <div style="display:flex;align-items:center;gap:calc(var(--base-unit)*2);">
+          <div style="width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-size:var(--font-size-small);font-weight:600;">U</div>
+        </div>
+      </header>
+
+      <!-- Content area -->
+      <div class="content-area">
+
+        <!-- Page header -->
+        <div class="page-header">
+          <h1 class="page-title">All Tasks</h1>
+          <div class="page-actions">
+            <button class="btn btn-primary" disabled>
+              <i data-lucide="plus" style="width:14px;height:14px;"></i>
+              Add Task
+            </button>
+          </div>
+        </div>
+
+        <!-- Skeleton toolbar -->
+        <div class="toolbar-skeleton">
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-text"></div>
+        </div>
+
+        <!-- Table card with skeleton rows -->
+        <div class="card">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Due Date</th>
+                  <th>Status</th>
+                  <th style="width:100px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Skeleton row 1 -->
+                <tr>
+                  <td><div class="skeleton skeleton-text" style="width:60%;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:3rem;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:4rem;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:4rem;"></div></td>
+                </tr>
+                <!-- Skeleton row 2 -->
+                <tr>
+                  <td><div class="skeleton skeleton-text" style="width:45%;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:3rem;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:4rem;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:4rem;"></div></td>
+                </tr>
+                <!-- Skeleton row 3 -->
+                <tr>
+                  <td><div class="skeleton skeleton-text" style="width:55%;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:3rem;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:4rem;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:4rem;"></div></td>
+                </tr>
+                <!-- Skeleton row 4 -->
+                <tr>
+                  <td><div class="skeleton skeleton-text" style="width:50%;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:3rem;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:4rem;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:4rem;"></div></td>
+                </tr>
+                <!-- Skeleton row 5 -->
+                <tr>
+                  <td><div class="skeleton skeleton-text" style="width:65%;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:3rem;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:4rem;"></div></td>
+                  <td><div class="skeleton skeleton-text" style="width:4rem;"></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    lucide.createIcons();
+  </script>
+</body>
+</html>

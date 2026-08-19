@@ -1,0 +1,139 @@
+{
+  "ver": 3,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-011--form-grading",
+  "name": "Form Grading",
+  "module_id": "module-mobile-station-ops",
+  "description": "Form input/edit data log Grading yang mencatat data header (termasuk referensi ke Weighbridge via WB Card No dengan auto-fill) dan grid Grading Detail (penilaian kualitas per parameter dengan UOM dan Percentage otomatis, setiap Quality Parameter hanya dapat dipakai di satu baris), dengan field dikelompokkan per section, Tanggal otomatis, dan Netto/Quantity manual.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap 'New Data' dari Monitor Grading (draft baru)",
+    "Tap salah satu item draft/pause di list Monitor Grading (lanjutkan draft)"
+  ],
+  "information_displayed": [
+    "Grading Header: Grading No, Tanggal (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit), WB Card No (dropdown dari data Weighbridge lokal), License Plate No (auto-terisi dari Weighbridge saat WB Card No dipilih, tetap dapat diedit manual), Vehicle Code (input manual), Estate (auto-terisi dari Weighbridge, dapat diedit), Divisi (auto-terisi dari Weighbridge, dapat diedit), Netto (kg) (input manual), Quantity (bunch) (input manual), Note (input manual, opsional)",
+    "Grading Detail: grid baris penilaian - Quality Parameter (dropdown dari master data Grading Parameter, hanya menampilkan parameter yang belum dipakai di baris lain), Qty (input manual), UOM (otomatis mengikuti Quality Parameter yang dipilih, tidak dapat diedit), Percentage (dihitung otomatis: Qty/Netto*100 jika UOM=kg, Qty/Quantity*100 jika UOM=bunch) - baris bisa ditambah dan dihapus",
+    "Breadcrumb navigasi (Home > Production Process Activity > Grading > Form) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu",
+    "Field dikelompokkan per section: Identitas Grading, Referensi Weighbridge & Kendaraan, Asal Muatan, Data Berat & Kuantitas, Grading Detail (mengikuti pola pemisahan section Form Weighbridge)"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih WB Card No",
+      "description": "Memilih record Weighbridge lokal dari dropdown; License Plate No, Estate, dan Divisi otomatis terisi dari record tersebut (tetap dapat diedit setelahnya)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tambah baris Grading Detail",
+      "description": "Menambah satu baris penilaian kosong ke grid Grading Detail",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus baris Grading Detail",
+      "description": "Menghapus satu baris penilaian dari grid; Quality Parameter yang dipakai baris tersebut kembali tersedia untuk baris lain",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pilih Quality Parameter per baris",
+      "description": "Memilih parameter grading untuk baris tersebut dari daftar parameter yang belum dipakai di baris lain; UOM otomatis terisi mengikuti parameter, Percentage dihitung ulang. Parameter yang baru dipilih tidak lagi muncul di dropdown baris lain",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record data Grading secara final",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progress saat ini sebagai draft yang bisa dilanjutkan nanti, kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus draft ini secara permanen (dengan konfirmasi), kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor tanpa menyimpan, dengan konfirmasi jika ada perubahan belum tersimpan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "WB Card No wajib dipilih dari dropdown data Weighbridge lokal (bukan teks bebas)",
+    "License Plate No, Estate, dan Divisi auto-terisi dari Weighbridge Record yang dipilih saat WB Card No dipilih, namun tetap dapat diedit manual setelahnya",
+    "Vehicle Code, Netto, Quantity, dan Note input manual, tidak ada auto-fill",
+    "Minimal satu baris Grading Detail harus diisi sebelum Simpan",
+    "Setiap Quality Parameter hanya dapat dipakai di SATU baris Grading Detail — parameter yang sudah dipilih di suatu baris tidak muncul lagi sebagai opsi di dropdown baris lain, dan kembali tersedia jika baris tersebut dihapus atau parameternya diganti",
+    "UOM pada tiap baris Grading Detail otomatis mengikuti Quality Parameter yang dipilih (disalin/snapshot saat dipilih), tidak dapat diedit manual",
+    "Percentage dihitung otomatis: Qty/Netto*100 jika UOM=kg, Qty/Quantity*100 jika UOM=bunch, dihitung ulang setiap kali Qty baris atau Netto/Quantity header berubah",
+    "Tanggal diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Record tersimpan langsung begitu Simpan ditekan (bukan approval workflow berjenjang)",
+    "Field wajib ditandai asterisk dengan validasi inline",
+    "Checked By TIDAK ditampilkan pada form ini (mengikuti mock referensi persis, yang tidak mencantumkan field ini pada Grading Header) - kolom checked_by tetap ada di skema data untuk kebutuhan masa depan, hanya tidak diekspos di layar ini"
+  ],
+  "usecase_ids": [
+    "usecase-011--form-grading"
+  ],
+  "edge_cases": [
+    "Field wajib belum lengkap saat Simpan ditekan",
+    "Belum ada baris Grading Detail sama sekali saat Simpan ditekan",
+    "Belum ada data Weighbridge lokal sama sekali (dropdown WB Card No kosong)",
+    "User mengedit License Plate No/Estate/Divisi secara manual setelah auto-fill dari Weighbridge (perubahan manual tetap tersimpan, tidak ditimpa ulang)",
+    "User membuka dropdown Quality Parameter pada suatu baris — parameter yang sudah dipilih di baris lain (selain baris itu sendiri) tidak ditampilkan sebagai opsi",
+    "Draft yang di-Pause lalu dilanjutkan - data harus terisi kembali sesuai draft tersimpan, termasuk daftar parameter yang sudah terpakai",
+    "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
+    "User menekan Clear (perlu konfirmasi sebelum hapus permanen)",
+    "User menghapus baris Grading Detail yang sudah ada sebelumnya (bukan baru ditambah) - Quality Parameter baris tersebut kembali tersedia di baris lain"
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Cakupan sumber data dropdown WB Card No (semua record Weighbridge lokal apa pun statusnya, atau dibatasi tanggal/status tertentu?) - diasumsikan agent: SEMUA record Weighbridge lokal (status apapun), diurutkan terbaru dulu; perlu dikonfirmasi user pada checkpoint pra-implementasi"
+  ]
+}

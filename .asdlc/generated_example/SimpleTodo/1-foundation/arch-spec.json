@@ -1,0 +1,84 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-06-30"
+  },
+  "system_type": "Web app (SPA + REST API)",
+  "architecture_pattern": {
+    "name": "MVC / Layered Architecture",
+    "description": "A simple layered pattern where the frontend SPA talks to an Express REST API, which separates routing, business logic, and data access into distinct layers. Appropriate for a single-user CRUD app with no complex domain logic.",
+    "components": [
+      {
+        "name": "Frontend (Vue 3 SPA)",
+        "role": "Renders task list, handles user interactions, communicates with the REST API"
+      },
+      {
+        "name": "API Controller (Express routes)",
+        "role": "Receives HTTP requests, delegates to service layer, returns responses"
+      },
+      {
+        "name": "Service Layer",
+        "role": "Business logic for task CRUD, filtering by status, and sorting by due date"
+      },
+      {
+        "name": "Repository / Data Access",
+        "role": "Database queries via Prisma ORM"
+      },
+      {
+        "name": "Database (SQLite)",
+        "role": "Persistent storage for tasks"
+      }
+    ]
+  },
+  "tech_stack": [
+    {
+      "layer": "frontend",
+      "choice": "Vue 3 + DaisyUI (Tailwind-based component library)"
+    },
+    {
+      "layer": "backend",
+      "choice": "Node.js + Express"
+    },
+    {
+      "layer": "database",
+      "choice": "SQLite"
+    },
+    {
+      "layer": "ORM / data access",
+      "choice": "Prisma"
+    },
+    {
+      "layer": "migration",
+      "choice": "Prisma Migrate"
+    },
+    {
+      "layer": "test framework",
+      "choice": "Jest + Supertest"
+    }
+  ],
+  "deployment": {
+    "model": "On-premise / self-hosted",
+    "provider": "Self-hosted"
+  },
+  "integrations": [],
+  "nfr": [
+    {
+      "category": "performance",
+      "requirement": "API responses and page loads under 1 second for all task operations"
+    },
+    {
+      "category": "security",
+      "requirement": "No authentication required; API should only be accessible from localhost or trusted local network"
+    },
+    {
+      "category": "scalability",
+      "requirement": "Single-user — no scalability requirements for this version"
+    },
+    {
+      "category": "availability",
+      "requirement": "Best-effort; no formal uptime SLA for personal use"
+    }
+  ],
+  "architecture_notes": "SQLite is chosen over PostgreSQL/MySQL to eliminate the need for a separate database server process on self-hosted deployment — appropriate given single-user scale. Prisma is chosen as the ORM for its type-safe query API and built-in migration tooling (Prisma Migrate), reducing setup friction. Jest + Supertest covers both unit and HTTP integration tests for the Express API."
+}

@@ -1,0 +1,74 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-01"
+  },
+  "id": "usecase-005--change-task-status",
+  "name": "Change Task Status",
+  "description": "The user updates a task's status (Todo, In Progress, Done) directly from the task list without opening the Task Form.",
+  "actors": [
+    "actor-user"
+  ],
+  "preconditions": [
+    "The Task List screen is visible",
+    "At least one task exists in the list"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-user",
+      "description": "Changes the status of a task directly in the list"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Saves the updated status"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Updates the status badge for that task in the list"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Status update fails",
+      "trigger": "At step 2, the status cannot be saved",
+      "steps": [
+        "System displays an error notification",
+        "Task status reverts to its previous value"
+      ]
+    }
+  ],
+  "postconditions": [
+    "The task's status is updated and reflected in the list"
+  ],
+  "business_rules": [
+    "Status can be changed directly from the list without opening the edit form",
+    "Valid statuses are: Todo, In Progress, Done"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Change Task Status — success",
+      "given": "The user is on the Task List screen and at least one task exists",
+      "when": "The user changes the status of a task directly in the list",
+      "then": "The task's status badge updates to reflect the new status"
+    },
+    {
+      "scenario": "Change Task Status — update fails",
+      "given": "The user is on the Task List screen and at least one task exists",
+      "when": "The user changes the status of a task but the update cannot be saved",
+      "then": "An error notification is displayed and the task status reverts to its previous value"
+    },
+    {
+      "scenario": "Change Task Status — invalid status value",
+      "given": "The user is on the Task List screen and at least one task exists",
+      "when": "The user attempts to change a task's status to a value outside Todo, In Progress, or Done",
+      "then": "The system rejects the change and the task status remains unchanged"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-001--task-list"
+  ]
+}

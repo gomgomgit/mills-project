@@ -1,0 +1,168 @@
+/* SimpleTodo — Shell Layout
+ * Sidebar layout: fixed sidebar (left, 240px) + top header (60px) + main content area.
+ * On mobile (<768px): sidebar collapses, accessible via hamburger menu as overlay.
+ * All values reference CSS variables from design-tokens.css.
+ */
+
+/* Hide body scroll when mobile sidebar is open */
+body:has(.sidebar-overlay.visible) {
+  overflow: hidden;
+}
+
+/* ─── App Shell ─── */
+.app-shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ─── Sidebar ─── */
+.sidebar {
+  width: var(--sidebar-width);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  position: relative;
+  z-index: 30;
+}
+
+.sidebar-header {
+  padding: var(--gap-md) var(--gap-lg);
+  font-weight: 700;
+  font-size: var(--font-size-h3);
+  line-height: 1;
+}
+
+.sidebar-nav {
+  padding: var(--gap-sm) 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+  padding: 10px var(--gap-lg);
+  font-size: var(--font-size-small);
+  color: var(--text-muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.1s, color 0.1s;
+}
+
+.nav-item:hover {
+  background-color: color-mix(in srgb, var(--primary) 6%, transparent);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background-color: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+  font-weight: 500;
+  border-right: 3px solid var(--primary);
+}
+
+/* ─── Topbar ─── */
+.topbar {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  gap: var(--gap-md);
+  padding: 0 var(--gap-lg);
+  flex-shrink: 0;
+  background: var(--bg);
+  min-height: var(--header-height);
+}
+
+.topbar-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-sm);
+}
+
+.topbar-breadcrumb {
+  font-size: var(--font-size-small);
+  color: var(--text-muted);
+}
+
+.topbar-breadcrumb span {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* ─── Content Area ─── */
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--content-padding);
+}
+
+/* ─── Mobile: Hamburger Toggle ─── */
+.sidebar-toggle {
+  display: flex;
+}
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 19;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.sidebar-overlay.visible {
+  display: block;
+  opacity: 1;
+}
+
+/* ─── Modal Overrides ─── */
+.modal-box-custom {
+  border-radius: var(--radius-modal);
+  box-shadow: var(--shadow-modal);
+}
+
+/* ─── Mobile (<768px) ─── */
+@media (max-width: 768px) {
+  .sidebar-toggle {
+    display: flex;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease-in-out;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+}
+
+/* ─── Desktop (>=768px) ─── */
+@media (min-width: 768px) {
+  .sidebar-toggle {
+    display: none;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+  }
+}

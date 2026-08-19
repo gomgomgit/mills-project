@@ -1,0 +1,98 @@
+{
+  "ver": 3,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-01"
+  },
+  "id": "screen-001--task-list",
+  "name": "Task List",
+  "module_id": "module-tasks",
+  "description": "The Task List is the central screen of MySimpleTodo — the first thing the user sees when opening the app. It shows all tasks at a glance, lets the user stay on top of their workload by filtering to a particular status or sorting by deadline, and provides direct actions on each task. It also serves as the launch point for creating new tasks.",
+  "actors": [
+    "actor-user"
+  ],
+  "entry_points": [
+    "Opening the app in the browser (the default and only screen)",
+    "Returning here after saving or cancelling the Task Form"
+  ],
+  "information_displayed": [
+    "App title",
+    "List of all tasks, each showing: title, due date, status badge, and overdue indicator when the due date has passed and the task status is not Done",
+    "Status filter control",
+    "Sort-by-due-date control",
+    "Empty state ('No tasks yet.') when no tasks exist or none match the active filter",
+    "Loading state while tasks are being fetched from the backend",
+    "Error state if tasks fail to load"
+  ],
+  "available_actions": [
+    {
+      "action": "Add Task",
+      "description": "Opens the Task Form in create mode to capture details for a new task.",
+      "actor_ids": [
+        "actor-user"
+      ]
+    },
+    {
+      "action": "Edit Task",
+      "description": "Opens the Task Form pre-filled with the task's current values so the user can update them.",
+      "actor_ids": [
+        "actor-user"
+      ]
+    },
+    {
+      "action": "Delete Task",
+      "description": "Shows a confirmation prompt; if the user confirms, permanently removes the task. Cannot be undone.",
+      "actor_ids": [
+        "actor-user"
+      ]
+    },
+    {
+      "action": "Change Task Status",
+      "description": "Updates a task's status inline (Todo / In Progress / Done) without opening the Task Form.",
+      "actor_ids": [
+        "actor-user"
+      ]
+    },
+    {
+      "action": "Filter Tasks by Status",
+      "description": "Narrows the visible task list to only tasks matching the selected status.",
+      "actor_ids": [
+        "actor-user"
+      ]
+    },
+    {
+      "action": "Sort Tasks by Due Date",
+      "description": "Sorts the task list ascending by due date (earliest first). Tasks without a due date appear last.",
+      "actor_ids": [
+        "actor-user"
+      ]
+    }
+  ],
+  "business_rules": [
+    "All tasks are shown by default with no filter applied",
+    "When a filter is active, only tasks matching that status are shown",
+    "Tasks with a past due date are marked overdue only if their status is not Done; Done tasks never show the overdue indicator",
+    "When sorting by due date, tasks without a due date appear after those that have one",
+    "Deleting a task is permanent — no undo",
+    "Before a task is deleted, a confirmation prompt must be shown; the deletion only proceeds if the user confirms",
+    "Tasks are always sorted ascending by due date (earliest first) when sort is applied",
+    "Status can be changed directly from the list without opening the edit form"
+  ],
+  "usecase_ids": [
+    "usecase-001--view-tasks",
+    "usecase-002--add-task",
+    "usecase-003--edit-task",
+    "usecase-004--delete-task",
+    "usecase-005--change-task-status",
+    "usecase-006--filter-tasks",
+    "usecase-007--sort-tasks"
+  ],
+  "edge_cases": [
+    "No tasks exist → empty state with an 'Add Task' prompt",
+    "Filter active but no tasks match → 'no results' message (not an error)",
+    "Backend fetch fails → error banner with a retry button",
+    "A 'Done' task with a past due date shows no overdue indicator"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

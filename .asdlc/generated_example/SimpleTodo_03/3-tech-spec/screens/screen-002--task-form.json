@@ -1,0 +1,191 @@
+{
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-06-28"
+  },
+  "ver": 1,
+  "id": "screen-002--task-form",
+  "name": "Add/Edit Task",
+  "module_id": "module-task",
+  "route": "/tasks/new",
+  "auth_requirement": "public",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-single-user",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-004--create-task",
+      "usecase_name": "Create Task",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/tasks",
+          "description": "Create a new task with title, optional due date, and done status",
+          "auth_required": false,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "title": "string",
+              "dueDate": "string|null",
+              "isDone": "boolean"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "integer",
+              "title": "string",
+              "dueDate": "string|null",
+              "isDone": "boolean",
+              "createdAt": "string",
+              "updatedAt": "string"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Title is empty or not provided"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "none",
+            "rate_limit": "none"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate request body -> if title is empty or missing: return 422 VALIDATION_ERROR",
+        "2. Insert task with defaults: isDone=false (unless explicitly set), dueDate=null (unless provided), createdAt=NOW, updatedAt=NOW",
+        "3. Return 201 with created task object"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "task",
+          "operation": "INSERT",
+          "description": "INSERT new task with title, dueDate (nullable), isDone (default false), timestamps"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Title is empty or whitespace only",
+          "handling": "Return 422 VALIDATION_ERROR with field details"
+        },
+        {
+          "condition": "User selects a past date for due date",
+          "handling": "Allowed — task becomes overdue immediately on list view"
+        }
+      ],
+      "business_rules_applied": [
+        "Title is required — cannot save without a title",
+        "When creating a new task, isDone defaults to false"
+      ]
+    },
+    {
+      "usecase_id": "usecase-005--edit-task",
+      "usecase_name": "Edit Task",
+      "endpoints": [
+        {
+          "method": "PUT",
+          "path": "/api/tasks/:id",
+          "description": "Update an existing task's title, due date, and done status",
+          "auth_required": false,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "integer",
+                "description": "Task ID"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "title": "string",
+              "dueDate": "string|null",
+              "isDone": "boolean"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "integer",
+              "title": "string",
+              "dueDate": "string|null",
+              "isDone": "boolean",
+              "createdAt": "string",
+              "updatedAt": "string"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "TASK_NOT_FOUND",
+                "condition": "Task with given ID does not exist"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Title is empty or not provided"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "none",
+            "rate_limit": "none"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate task exists -> if not: return 404 TASK_NOT_FOUND",
+        "2. Validate title is non-empty -> if empty: return 422 VALIDATION_ERROR",
+        "3. Update task title, dueDate, isDone, set updatedAt=NOW",
+        "4. Return 200 with updated task object"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "task",
+          "operation": "SELECT",
+          "description": "SELECT task by ID to validate existence"
+        },
+        {
+          "entity_id": "task",
+          "operation": "UPDATE",
+          "description": "UPDATE title, dueDate, isDone, updatedAt"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Task not found",
+          "handling": "Return 404 TASK_NOT_FOUND"
+        },
+        {
+          "condition": "Editing a task that was done clears its done status",
+          "handling": "Set isDone=false on edit by default unless user re-checks it"
+        }
+      ],
+      "business_rules_applied": [
+        "Title is required — cannot save without a title",
+        "Editing a task that was done clears its done status"
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "task",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-001--task-list",
+      "reason": "Redirect to Task List after successful save"
+    }
+  ],
+  "implementation_notes": []
+}

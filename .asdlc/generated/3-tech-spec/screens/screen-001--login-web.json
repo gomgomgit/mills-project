@@ -1,0 +1,328 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-17"
+  },
+  "id": "screen-001--login-web",
+  "name": "Login Web",
+  "module_id": "module-auth",
+  "route": "/login",
+  "auth_requirement": "public",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-001--login-web",
+      "usecase_name": "Login Web",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/login",
+          "description": "Autentikasi user (Admin/Supervisor/Mill Management) dengan kredensial dan business area, membuat session web",
+          "auth_required": false,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "username": "string",
+              "password": "string",
+              "business_unit_id": "string"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "user": {
+                "id": "uuid",
+                "username": "string",
+                "name": "string",
+                "role": "enum(operator,supervisor,mill_management,admin)"
+              },
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "redirect_to": "string"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "INVALID_CREDENTIALS",
+                "condition": "username/password tidak cocok"
+              },
+              {
+                "http_code": 403,
+                "error_code": "ACCOUNT_INACTIVE",
+                "condition": "akun user berstatus nonaktif"
+              },
+              {
+                "http_code": 403,
+                "error_code": "BUSINESS_AREA_MISMATCH",
+                "condition": "business area yang dipilih tidak sesuai dengan akses user"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "password tidak memenuhi format minimal 6 karakter alfanumerik+simbol, atau field wajib kosong"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate request body (username, password, business_unit_id wajib) → if invalid: return 422 VALIDATION_ERROR",
+        "2. Validate format password (min 6 karakter, alfanumerik+simbol) → if invalid: return 422 VALIDATION_ERROR",
+        "3. Lookup user by username → if not found/password mismatch: return 401 INVALID_CREDENTIALS",
+        "4. Check user.is_active → if false: return 403 ACCOUNT_INACTIVE",
+        "5. Check business_unit_id cocok dengan akses user → if mismatch: return 403 BUSINESS_AREA_MISMATCH",
+        "6. Buat Laravel session untuk user, set session cookie",
+        "7. Return 200 dengan user info + redirect_to sesuai role"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "SELECT user by username WHERE username = input"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Kredensial salah (username/NIK atau password tidak cocok)",
+          "handling": "Return 401 INVALID_CREDENTIALS, field password dikosongkan di FE"
+        },
+        {
+          "condition": "Akun tidak aktif/dinonaktifkan Admin",
+          "handling": "Return 403 ACCOUNT_INACTIVE dengan pesan 'akun tidak aktif, hubungi Admin'"
+        },
+        {
+          "condition": "Business Area tidak sesuai dengan akses user",
+          "handling": "Return 403 BUSINESS_AREA_MISMATCH"
+        },
+        {
+          "condition": "Format Password Tidak Valid",
+          "handling": "Return 422 VALIDATION_ERROR"
+        }
+      ],
+      "business_rules_applied": [
+        "Password minimal 6 karakter, case-sensitive, kombinasi alfanumerik+simbol",
+        "User harus memilih Business Area/Company yang sesuai dengan aksesnya",
+        "Redirect setelah login mengikuti role masing-masing"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 422 VALIDATION_ERROR when a required field is missing",
+          "given": "request body has username, password, or business_unit_id empty/missing",
+          "expect": "throw ValidationException with error_code VALIDATION_ERROR (http 422)"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when password format is invalid",
+          "given": "request body password is less than 6 characters, or does not combine alfanumeric+symbol characters",
+          "expect": "throw ValidationException with error_code VALIDATION_ERROR (http 422)"
+        },
+        {
+          "description": "returns 401 INVALID_CREDENTIALS when username not found",
+          "given": "userRepo.findByUsername() returns null",
+          "expect": "throw UnauthorizedException with error_code INVALID_CREDENTIALS (http 401)"
+        },
+        {
+          "description": "returns 401 INVALID_CREDENTIALS when password does not match",
+          "given": "userRepo.findByUsername() returns a valid user, but password hash comparison against the supplied password fails",
+          "expect": "throw UnauthorizedException with error_code INVALID_CREDENTIALS (http 401)"
+        },
+        {
+          "description": "returns 403 ACCOUNT_INACTIVE when user account is inactive",
+          "given": "userRepo.findByUsername() returns a user with is_active = false, and the password matches",
+          "expect": "throw ForbiddenException with error_code ACCOUNT_INACTIVE (http 403)"
+        },
+        {
+          "description": "returns 403 BUSINESS_AREA_MISMATCH when business_unit_id does not match user's access",
+          "given": "user found, is_active = true, password matches, but requested business_unit_id is not among the business units the user has access to",
+          "expect": "throw ForbiddenException with error_code BUSINESS_AREA_MISMATCH (http 403)"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "userRepo.findByUsername() returns an active user whose password matches and whose access includes the requested business_unit_id; session creation succeeds",
+          "expect": "return 200 with user {id, username, name, role}, business_unit {id, name}, and redirect_to matching the user's role; Laravel session cookie is set"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [],
+  "implementation_notes": [
+    "Rate limiting/lockout setelah percobaan gagal belum diputuskan (open question di business spec)",
+    "Sesi login ganda per user/device belum dibatasi di MVP (open question)",
+    "Fitur Lupa Password (available_action terpisah) belum punya usecase — di luar scope tech spec ini, menunggu keputusan scope"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Login Web — berhasil",
+      "usecase_id": "usecase-001--login-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/login"
+          },
+          "request_example": {
+            "username": "supervisor01",
+            "password": "Passw0rd!",
+            "business_unit_id": "bu-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "fill valid username/NIK and password, select a valid Business Area/Company, click the Login button",
+        "assert": "loading state is shown during submit, then component triggers redirect to the role-based dashboard, no error message is displayed"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "user opens /login, enters valid username/NIK and password, selects a valid Business Area, clicks Login",
+        "assert": "browser is redirected to the role-based dashboard (redirect_to from response), session cookie is set, no error message is shown"
+      }
+    },
+    {
+      "scenario_ref": "Login Web — Kredensial Salah",
+      "usecase_id": "usecase-001--login-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/login"
+          },
+          "request_example": {
+            "username": "supervisor01",
+            "password": "wrongpass",
+            "business_unit_id": "bu-001"
+          },
+          "expected_status": 401,
+          "expected_error_code": "INVALID_CREDENTIALS"
+        }
+      ],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "fill username/NIK and a password that does not match the account, click the Login button",
+        "assert": "error message 'kredensial salah' is displayed, password field is cleared, form remains editable for retry"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "user enters mismatched username/NIK and/or password, clicks Login",
+        "assert": "page displays 'kredensial salah' error message, password input is empty, user remains on /login and can retry"
+      }
+    },
+    {
+      "scenario_ref": "Login Web — Akun Dinonaktifkan",
+      "usecase_id": "usecase-001--login-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/login"
+          },
+          "request_example": {
+            "username": "inactiveuser",
+            "password": "Passw0rd!",
+            "business_unit_id": "bu-001"
+          },
+          "expected_status": 403,
+          "expected_error_code": "ACCOUNT_INACTIVE"
+        }
+      ],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "fill correct credentials belonging to a deactivated account, select Business Area, click Login",
+        "assert": "error message 'akun tidak aktif, hubungi Admin' is displayed, login is rejected"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "user with an inactive account enters correct credentials, selects Business Area, clicks Login",
+        "assert": "browser displays 'akun tidak aktif, hubungi Admin' message, user stays on /login, login is rejected"
+      }
+    },
+    {
+      "scenario_ref": "Login Web — Business Area Tidak Sesuai",
+      "usecase_id": "usecase-001--login-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/login"
+          },
+          "request_example": {
+            "username": "supervisor01",
+            "password": "Passw0rd!",
+            "business_unit_id": "bu-999"
+          },
+          "expected_status": 403,
+          "expected_error_code": "BUSINESS_AREA_MISMATCH"
+        }
+      ],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "fill correct credentials, select a Business Area/Company not matching the user's access, click Login",
+        "assert": "error message indicating business area mismatch is displayed, login is rejected"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "user enters correct credentials but selects a Business Area outside their access, clicks Login",
+        "assert": "browser shows the business area mismatch error message, login is rejected, user stays on /login"
+      }
+    },
+    {
+      "scenario_ref": "Login Web — Format Password Tidak Valid",
+      "usecase_id": "usecase-001--login-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/login"
+          },
+          "request_example": {
+            "username": "supervisor01",
+            "password": "abc",
+            "business_unit_id": "bu-001"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "fill username/NIK and a password shorter than 6 characters (or without a symbol), select Business Area, click Login",
+        "assert": "validation error message is displayed stating password must be min 6 characters, alfanumeric+symbol; submission is blocked"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "user enters a password not meeting the minimum format requirement (e.g. 'abc'), clicks Login",
+        "assert": "browser displays a validation message about the password format requirement, login is rejected, user remains on /login"
+      }
+    }
+  ]
+}

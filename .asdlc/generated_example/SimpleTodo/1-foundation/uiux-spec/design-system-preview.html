@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design System — MySimpleTodo</title>
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4/dist/full.min.css" rel="stylesheet" type="text/css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Page-specific structural layout only — no colour values, no radius/shadow hard-coded; CSS variables only */
+    .preview-layout {
+      display: flex;
+      min-height: 100vh;
+    }
+    .preview-sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--color-surface);
+      border-right: 1px solid var(--color-border);
+      padding: 1.5rem 1rem;
+    }
+    .sidebar-brand-sub {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 4px;
+    }
+    .sidebar-brand-name {
+      font-size: var(--font-size-small);
+      font-weight: 700;
+      color: var(--color-brand);
+      margin-bottom: 1.25rem;
+    }
+    .preview-main {
+      flex: 1;
+      padding: 2.5rem 2rem;
+      max-width: calc(100% - 220px);
+      overflow-x: hidden;
+    }
+    .page-intro {
+      margin-bottom: 2.5rem;
+    }
+    .page-intro h1 {
+      font-size: var(--font-size-h1);
+      font-weight: var(--font-weight-h1);
+      line-height: var(--line-height-h1);
+      color: var(--color-text-primary);
+      margin-bottom: 0.375rem;
+    }
+    .page-intro p {
+      font-size: var(--font-size-small);
+      color: var(--color-text-muted);
+    }
+    .preview-section {
+      margin-bottom: 3.5rem;
+      scroll-margin-top: 1.5rem;
+    }
+    .section-title {
+      font-size: var(--font-size-h2);
+      font-weight: var(--font-weight-h2);
+      line-height: var(--line-height-h2);
+      color: var(--color-text-primary);
+      padding-bottom: 0.625rem;
+      border-bottom: 2px solid var(--color-border);
+      margin-bottom: 1.5rem;
+    }
+    .subsection-label {
+      font-size: var(--font-size-caption);
+      font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-top: 1.75rem;
+      margin-bottom: 0.875rem;
+    }
+    .subsection-label:first-of-type {
+      margin-top: 0;
+    }
+
+    /* Color swatches */
+    .swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+      gap: var(--space-item-gap);
+    }
+    .swatch-color {
+      height: 68px;
+      border-radius: var(--radius-card) var(--radius-card) 0 0;
+    }
+    .swatch-info {
+      padding: 0.625rem 0.75rem;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-top: none;
+      border-radius: 0 0 var(--radius-card) var(--radius-card);
+    }
+    .swatch-name  { font-size: 0.7rem; font-weight: 600; color: var(--color-text-primary); }
+    .swatch-token { font-size: 0.6rem; font-family: monospace; color: var(--color-text-muted); margin-top: 1px; }
+    .swatch-ref   { font-size: 0.6rem; font-family: monospace; color: var(--color-text-muted); }
+    .swatch-value { font-size: 0.6rem; font-family: monospace; color: var(--color-text-muted); }
+    .swatch-desc  { font-size: 0.575rem; color: var(--color-text-muted); margin-top: 3px; }
+
+    /* Typography */
+    .type-row {
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .type-row:last-child { border-bottom: none; }
+    .type-meta {
+      font-size: 0.65rem;
+      font-family: monospace;
+      color: var(--color-text-muted);
+      margin-bottom: 0.375rem;
+    }
+
+    /* Spacing */
+    .spacing-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.625rem;
+    }
+    .spacing-label {
+      width: 200px;
+      flex-shrink: 0;
+      font-size: var(--font-size-caption);
+      font-family: monospace;
+      color: var(--color-text-muted);
+    }
+    .spacing-bar {
+      height: 16px;
+      background: var(--color-brand);
+      opacity: 0.55;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+    .spacing-value {
+      font-size: var(--font-size-caption);
+      font-family: monospace;
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+
+    /* Radius & Shadow */
+    .radius-grid, .shadow-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      align-items: flex-end;
+    }
+    .radius-item, .shadow-item {
+      text-align: center;
+    }
+    .radius-box {
+      width: 72px;
+      height: 72px;
+      border: 2px solid var(--color-brand);
+      opacity: 0.8;
+      margin: 0 auto 0.5rem;
+    }
+    .radius-badge-box {
+      width: 108px;
+      height: 34px;
+      border: 2px solid var(--color-brand);
+      opacity: 0.8;
+      margin: 0 auto 0.5rem;
+      border-radius: var(--radius-badge);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .shadow-box {
+      width: 116px;
+      height: 68px;
+      background: var(--color-background);
+      border-radius: var(--radius-card);
+      margin: 0 auto 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .token-mono {
+      font-size: 0.6rem;
+      font-family: monospace;
+      color: var(--color-text-muted);
+    }
+
+    /* Task list item component */
+    .task-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-item-gap);
+      padding: 0.75rem var(--space-card-padding);
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      margin-bottom: 0.5rem;
+    }
+    .task-title {
+      flex: 1;
+      font-size: var(--font-size-body);
+      font-weight: 500;
+      color: var(--color-text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Modal preview */
+    .modal-preview {
+      background: var(--color-background);
+      border-radius: var(--radius-modal);
+      box-shadow: var(--shadow-modal);
+      border: 1px solid var(--color-border);
+      max-width: 440px;
+      overflow: hidden;
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .modal-header-title {
+      font-size: var(--font-size-h3);
+      font-weight: var(--font-weight-h3);
+      color: var(--color-text-primary);
+    }
+    .modal-body {
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-item-gap);
+    }
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--color-border);
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-item-gap);
+      padding: 3rem var(--space-page-padding);
+      text-align: center;
+      background: var(--color-surface);
+      border: 1px dashed var(--color-border);
+      border-radius: var(--radius-card);
+      max-width: 480px;
+    }
+    .empty-icon {
+      width: 3rem;
+      height: 3rem;
+      color: var(--color-brand);
+      opacity: 0.35;
+    }
+    .empty-title {
+      font-size: var(--font-size-h3);
+      font-weight: var(--font-weight-h3);
+      color: var(--color-text-primary);
+    }
+    .empty-desc {
+      font-size: var(--font-size-small);
+      color: var(--color-text-muted);
+      max-width: 26rem;
+    }
+
+    /* Component rows */
+    .comp-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.625rem;
+      margin-bottom: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+<div class="preview-layout">
+
+  <!-- ── Sidebar ─────────────────────────────────────────── -->
+  <aside class="preview-sidebar">
+    <div class="sidebar-brand-sub">Design System</div>
+    <div class="sidebar-brand-name">MySimpleTodo</div>
+    <ul class="menu menu-sm p-0 gap-0.5 w-full">
+      <li><a href="#colors"     class="rounded">Color Palette</a></li>
+      <li><a href="#typography" class="rounded">Typography</a></li>
+      <li><a href="#spacing"    class="rounded">Spacing</a></li>
+      <li><a href="#radius"     class="rounded">Radius &amp; Shadow</a></li>
+      <li><a href="#icons"      class="rounded">Icon Library</a></li>
+      <li><a href="#components" class="rounded">Components</a></li>
+    </ul>
+  </aside>
+
+  <!-- ── Main Content ───────────────────────────────────── -->
+  <main class="preview-main">
+
+    <!-- Page intro -->
+    <div class="page-intro">
+      <h1>Design System</h1>
+      <p>Visual reference for MySimpleTodo &nbsp;·&nbsp; Font: Inter &nbsp;·&nbsp; Framework: DaisyUI (Tailwind) &nbsp;·&nbsp; Desktop-only</p>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         1. COLOR PALETTE
+    ══════════════════════════════════════════════════════ -->
+    <section id="colors" class="preview-section">
+      <h2 class="section-title">Color Palette</h2>
+      <div class="swatch-grid">
+
+        <div>
+          <div class="swatch-color" style="background:var(--color-background); border:1px solid var(--color-border); border-radius:var(--radius-card) var(--radius-card) 0 0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">Background</div>
+            <div class="swatch-token">--color-background</div>
+            <div class="swatch-ref">ref: --b1</div>
+            <div class="swatch-value">#ffffff</div>
+            <div class="swatch-desc">Page and app background</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="swatch-color" style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:var(--radius-card) var(--radius-card) 0 0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">Surface</div>
+            <div class="swatch-token">--color-surface</div>
+            <div class="swatch-ref">ref: --b2</div>
+            <div class="swatch-value">#f2f2f2</div>
+            <div class="swatch-desc">Card and panel backgrounds</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="swatch-color" style="background:var(--color-border); border:1px solid var(--color-border); border-radius:var(--radius-card) var(--radius-card) 0 0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">Border</div>
+            <div class="swatch-token">--color-border</div>
+            <div class="swatch-ref">ref: --b3</div>
+            <div class="swatch-value">#d9d9d9</div>
+            <div class="swatch-desc">Dividers and input borders</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="swatch-color" style="background:var(--color-text-primary); border-radius:var(--radius-card) var(--radius-card) 0 0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">Text Primary</div>
+            <div class="swatch-token">--color-text-primary</div>
+            <div class="swatch-ref">ref: --bc</div>
+            <div class="swatch-value">#1f2937</div>
+            <div class="swatch-desc">Main content text</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="swatch-color" style="background:var(--color-text-muted); border-radius:var(--radius-card) var(--radius-card) 0 0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">Text Muted</div>
+            <div class="swatch-token">--color-text-muted</div>
+            <div class="swatch-ref">ref: --bc/60</div>
+            <div class="swatch-value">#6b7280</div>
+            <div class="swatch-desc">Secondary and placeholder text</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="swatch-color" style="background:var(--color-brand); border-radius:var(--radius-card) var(--radius-card) 0 0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">Brand</div>
+            <div class="swatch-token">--color-brand</div>
+            <div class="swatch-ref">ref: --p</div>
+            <div class="swatch-value">#570df8</div>
+            <div class="swatch-desc">Primary actions and interactive elements</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="swatch-color" style="background:var(--color-brand-hover); border-radius:var(--radius-card) var(--radius-card) 0 0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">Brand Hover</div>
+            <div class="swatch-token">--color-brand-hover</div>
+            <div class="swatch-ref">ref: --pf</div>
+            <div class="swatch-value">#4506c8</div>
+            <div class="swatch-desc">Hovered or focused brand elements</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="swatch-color" style="background:var(--color-destructive); border-radius:var(--radius-card) var(--radius-card) 0 0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">Destructive</div>
+            <div class="swatch-token">--color-destructive</div>
+            <div class="swatch-ref">ref: --er</div>
+            <div class="swatch-value">#ff5861</div>
+            <div class="swatch-desc">Delete actions and error states</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="swatch-color" style="background:var(--color-success); border-radius:var(--radius-card) var(--radius-card) 0 0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">Success</div>
+            <div class="swatch-token">--color-success</div>
+            <div class="swatch-ref">ref: --su</div>
+            <div class="swatch-value">#00a96e</div>
+            <div class="swatch-desc">Done status and success feedback</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="swatch-color" style="background:var(--color-warning); border-radius:var(--radius-card) var(--radius-card) 0 0;"></div>
+          <div class="swatch-info">
+            <div class="swatch-name">Warning</div>
+            <div class="swatch-token">--color-warning</div>
+            <div class="swatch-ref">ref: --wa</div>
+            <div class="swatch-value">#ffbe00</div>
+            <div class="swatch-desc">Overdue indicators and warnings</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         2. TYPOGRAPHY
+    ══════════════════════════════════════════════════════ -->
+    <section id="typography" class="preview-section">
+      <h2 class="section-title">Typography</h2>
+      <p style="font-size:var(--font-size-small);color:var(--color-text-muted);margin-bottom:1.25rem;">
+        Family: <code class="font-mono" style="color:var(--color-brand);">Inter</code>
+        &nbsp;·&nbsp; Base: <code class="font-mono" style="color:var(--color-brand);">16px</code>
+        &nbsp;·&nbsp; Line height: <code class="font-mono" style="color:var(--color-brand);">1.5</code>
+        &nbsp;·&nbsp; Letter spacing: <code class="font-mono" style="color:var(--color-brand);">0</code>
+      </p>
+
+      <div class="type-row">
+        <div class="type-meta">h1 &nbsp;·&nbsp; 2rem &nbsp;·&nbsp; weight 700 &nbsp;·&nbsp; var(--font-size-h1) / var(--font-weight-h1)</div>
+        <div style="font-size:var(--font-size-h1);font-weight:var(--font-weight-h1);line-height:var(--line-height-h1);color:var(--color-text-primary);">MySimpleTodo</div>
+      </div>
+
+      <div class="type-row">
+        <div class="type-meta">h2 &nbsp;·&nbsp; 1.5rem &nbsp;·&nbsp; weight 600 &nbsp;·&nbsp; var(--font-size-h2) / var(--font-weight-h2)</div>
+        <div style="font-size:var(--font-size-h2);font-weight:var(--font-weight-h2);line-height:var(--line-height-h2);color:var(--color-text-primary);">Your Tasks for Today</div>
+      </div>
+
+      <div class="type-row">
+        <div class="type-meta">h3 &nbsp;·&nbsp; 1.25rem &nbsp;·&nbsp; weight 600 &nbsp;·&nbsp; var(--font-size-h3) / var(--font-weight-h3)</div>
+        <div style="font-size:var(--font-size-h3);font-weight:var(--font-weight-h3);line-height:var(--line-height-h3);color:var(--color-text-primary);">Filter by Status</div>
+      </div>
+
+      <div class="type-row">
+        <div class="type-meta">body &nbsp;·&nbsp; 1rem &nbsp;·&nbsp; weight 400 &nbsp;·&nbsp; var(--font-size-body) / var(--font-weight-body)</div>
+        <div style="font-size:var(--font-size-body);font-weight:var(--font-weight-body);line-height:var(--line-height-body);color:var(--color-text-primary);">Track your daily tasks — create, update, and mark them done as you work through your list. Filter by status or sort by due date to stay on top of what matters.</div>
+      </div>
+
+      <div class="type-row">
+        <div class="type-meta">small &nbsp;·&nbsp; 0.875rem &nbsp;·&nbsp; weight 400 &nbsp;·&nbsp; var(--font-size-small) / var(--font-weight-small)</div>
+        <div style="font-size:var(--font-size-small);font-weight:var(--font-weight-small);line-height:var(--line-height-small);color:var(--color-text-primary);">5 tasks &nbsp;·&nbsp; 2 due today &nbsp;·&nbsp; 1 overdue</div>
+      </div>
+
+      <div class="type-row">
+        <div class="type-meta">caption &nbsp;·&nbsp; 0.75rem &nbsp;·&nbsp; weight 400 &nbsp;·&nbsp; var(--font-size-caption) / var(--font-weight-caption)</div>
+        <div style="font-size:var(--font-size-caption);font-weight:var(--font-weight-caption);line-height:var(--line-height-caption);color:var(--color-text-muted);">Created just now &nbsp;·&nbsp; Last updated 5 minutes ago</div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         3. SPACING
+    ══════════════════════════════════════════════════════ -->
+    <section id="spacing" class="preview-section">
+      <h2 class="section-title">Spacing</h2>
+
+      <div class="spacing-row">
+        <div class="spacing-label">--space-item-gap</div>
+        <div class="spacing-bar" style="width:12px;"></div>
+        <div class="spacing-value">12px &nbsp;·&nbsp; item_gap</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-label">--space-card-padding</div>
+        <div class="spacing-bar" style="width:16px;"></div>
+        <div class="spacing-value">16px &nbsp;·&nbsp; card_padding</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-label">--space-page-padding</div>
+        <div class="spacing-bar" style="width:24px;"></div>
+        <div class="spacing-value">24px &nbsp;·&nbsp; page_padding</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-label">--space-section-gap</div>
+        <div class="spacing-bar" style="width:24px;"></div>
+        <div class="spacing-value">24px &nbsp;·&nbsp; section_gap</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-label">--space-content-max-width</div>
+        <div style="height:16px;width:140px;border:1px dashed var(--color-border);border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span style="font-size:0.55rem;color:var(--color-text-muted);">layout constraint</span>
+        </div>
+        <div class="spacing-value">960px &nbsp;·&nbsp; content_max_width</div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         4. BORDER RADIUS & SHADOW
+    ══════════════════════════════════════════════════════ -->
+    <section id="radius" class="preview-section">
+      <h2 class="section-title">Border Radius &amp; Shadow</h2>
+
+      <div class="subsection-label">Border Radius</div>
+      <div class="radius-grid" style="margin-bottom:2rem;">
+        <div class="radius-item">
+          <div class="radius-box" style="border-radius:var(--radius-input);"></div>
+          <div class="token-mono">--radius-input</div>
+          <div class="token-mono font-semibold">6px</div>
+          <div class="token-mono">input / button</div>
+        </div>
+        <div class="radius-item">
+          <div class="radius-box" style="border-radius:var(--radius-card);"></div>
+          <div class="token-mono">--radius-card</div>
+          <div class="token-mono font-semibold">8px</div>
+          <div class="token-mono">card</div>
+        </div>
+        <div class="radius-item">
+          <div class="radius-box" style="border-radius:var(--radius-modal);"></div>
+          <div class="token-mono">--radius-modal</div>
+          <div class="token-mono font-semibold">12px</div>
+          <div class="token-mono">modal</div>
+        </div>
+        <div class="radius-item">
+          <div class="radius-badge-box"></div>
+          <div class="token-mono">--radius-badge</div>
+          <div class="token-mono font-semibold">9999px</div>
+          <div class="token-mono">badge / pill</div>
+        </div>
+      </div>
+
+      <div class="subsection-label">Shadow</div>
+      <div class="shadow-grid">
+        <div class="shadow-item">
+          <div class="shadow-box" style="box-shadow:var(--shadow-card);">
+            <span class="token-mono">card</span>
+          </div>
+          <div class="token-mono">--shadow-card</div>
+          <div class="token-mono" style="max-width:120px;white-space:normal;line-height:1.4;margin-top:2px;">0 1px 3px rgba(0,0,0,.08)</div>
+        </div>
+        <div class="shadow-item">
+          <div class="shadow-box" style="box-shadow:var(--shadow-dropdown);">
+            <span class="token-mono">dropdown</span>
+          </div>
+          <div class="token-mono">--shadow-dropdown</div>
+          <div class="token-mono" style="max-width:120px;white-space:normal;line-height:1.4;margin-top:2px;">0 4px 12px rgba(0,0,0,.12)</div>
+        </div>
+        <div class="shadow-item">
+          <div class="shadow-box" style="box-shadow:var(--shadow-modal);">
+            <span class="token-mono">modal</span>
+          </div>
+          <div class="token-mono">--shadow-modal</div>
+          <div class="token-mono" style="max-width:120px;white-space:normal;line-height:1.4;margin-top:2px;">0 8px 24px rgba(0,0,0,.16)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         5. ICON LIBRARY
+    ══════════════════════════════════════════════════════ -->
+    <section id="icons" class="preview-section">
+      <h2 class="section-title">Icon Library</h2>
+
+      <!-- Icon specimens using inline Heroicons SVG at 20px / stroke 1.5 -->
+      <div style="display:flex;align-items:center;gap:1.25rem;margin-bottom:1rem;padding:1rem;background:var(--color-surface);border-radius:var(--radius-card);width:fit-content;">
+        <!-- Pencil (edit) -->
+        <div title="pencil — edit task" style="color:var(--color-brand);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/>
+          </svg>
+        </div>
+        <!-- Trash (delete) -->
+        <div title="trash — delete task" style="color:var(--color-destructive);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/>
+          </svg>
+        </div>
+        <!-- X (close modal) -->
+        <div title="x-mark — close modal" style="color:var(--color-text-muted);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/>
+          </svg>
+        </div>
+        <!-- Check (done) -->
+        <div title="check — task done" style="color:var(--color-success);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/>
+          </svg>
+        </div>
+        <!-- Clock (due date) -->
+        <div title="clock — due date" style="color:var(--color-warning);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+          </svg>
+        </div>
+        <!-- Plus (add task) -->
+        <div title="plus — add task" style="color:var(--color-brand);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+          </svg>
+        </div>
+        <!-- Funnel (filter) -->
+        <div title="funnel — filter tasks" style="color:var(--color-text-muted);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z"/>
+          </svg>
+        </div>
+        <!-- Arrows up-down (sort) -->
+        <div title="arrows up-down — sort" style="color:var(--color-text-muted);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 3L16.5 21m0 0L12 16.5m4.5 4.5V7.5"/>
+          </svg>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:0.25rem 1.25rem;font-size:var(--font-size-small);width:fit-content;">
+        <span style="color:var(--color-text-muted);">Library</span>     <span style="font-weight:600;">Heroicons</span>
+        <span style="color:var(--color-text-muted);">Default size</span><span style="font-family:monospace;font-weight:600;">20px</span>
+        <span style="color:var(--color-text-muted);">Stroke width</span><span style="font-family:monospace;font-weight:600;">1.5</span>
+        <span style="color:var(--color-text-muted);">CDN / install</span><span><code style="font-size:0.7rem;background:var(--color-surface);padding:2px 6px;border-radius:var(--radius-input);font-family:monospace;">heroicons.com</code></span>
+      </div>
+      <p style="font-size:var(--font-size-caption);color:var(--color-text-muted);margin-top:0.75rem;">Specimens (left to right): pencil (edit), trash (delete), X (close), check (done), clock (due date), plus (add task), funnel (filter), arrows-up-down (sort).</p>
+    </section>
+
+    <!-- ══════════════════════════════════════════════════════
+         6. VISUAL COMPONENTS
+    ══════════════════════════════════════════════════════ -->
+    <section id="components" class="preview-section">
+      <h2 class="section-title">Visual Components</h2>
+
+      <!-- ── Buttons ── -->
+      <div class="subsection-label">Buttons</div>
+      <div class="comp-row">
+        <button class="btn btn-primary">Add Task</button>
+        <button class="btn btn-outline">Cancel</button>
+        <button class="btn btn-ghost">Filters</button>
+        <button class="btn btn-error btn-sm">Delete</button>
+        <button class="btn btn-outline btn-sm">Edit</button>
+        <button class="btn btn-primary btn-sm">Save</button>
+      </div>
+      <div class="comp-row">
+        <!-- Icon buttons -->
+        <button class="btn btn-primary btn-circle btn-sm" title="Add task">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-circle btn-sm" title="Edit task">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-circle btn-sm text-error" title="Delete task">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+        </button>
+        <!-- Submitting (disabled + spinner) -->
+        <button class="btn btn-primary" disabled>
+          <span class="loading loading-spinner loading-sm"></span>
+          Saving…
+        </button>
+        <!-- Disabled state -->
+        <button class="btn btn-primary" disabled>Add Task (disabled)</button>
+      </div>
+
+      <!-- ── Form Inputs ── -->
+      <div class="subsection-label">Form Inputs</div>
+      <div style="max-width:420px;display:flex;flex-direction:column;gap:var(--space-item-gap);">
+        <div>
+          <label class="label pb-1">
+            <span class="label-text font-medium">Task Title</span>
+            <span class="label-text-alt text-error">Required</span>
+          </label>
+          <input type="text" class="input input-bordered w-full" placeholder="e.g. Submit expense report">
+        </div>
+        <div>
+          <label class="label pb-1">
+            <span class="label-text font-medium">Due Date</span>
+            <span class="label-text-alt" style="color:var(--color-text-muted);">Optional</span>
+          </label>
+          <input type="date" class="input input-bordered w-full" value="2026-07-10">
+        </div>
+        <div>
+          <label class="label pb-1">
+            <span class="label-text font-medium">Status</span>
+          </label>
+          <select class="select select-bordered w-full">
+            <option selected>Todo</option>
+            <option>In Progress</option>
+            <option>Done</option>
+          </select>
+        </div>
+        <div>
+          <label class="label pb-1">
+            <span class="label-text font-medium">Task Title (error state)</span>
+          </label>
+          <input type="text" class="input input-bordered input-error w-full" value="Do">
+          <div class="label pt-1">
+            <span class="label-text-alt text-error">Title must be at least 3 characters</span>
+          </div>
+        </div>
+        <div>
+          <label class="label pb-1">
+            <span class="label-text font-medium">Task Title (disabled)</span>
+          </label>
+          <input type="text" class="input input-bordered w-full" placeholder="Disabled input" disabled>
+        </div>
+      </div>
+
+      <!-- ── Badges ── -->
+      <div class="subsection-label">Badges — Status &amp; Due Date</div>
+      <div class="comp-row">
+        <span class="badge badge-ghost">Todo</span>
+        <span class="badge badge-info">In Progress</span>
+        <span class="badge badge-success">Done</span>
+        <span class="badge badge-warning">Overdue</span>
+        <span class="badge badge-outline">Due Jul 10</span>
+      </div>
+      <p style="font-size:var(--font-size-caption);color:var(--color-text-muted);margin-top:0.25rem;">Status badges always include a text label — colour is never the sole indicator.</p>
+
+      <!-- ── Task List Items ── -->
+      <div class="subsection-label">Task List Items (task-list-item component)</div>
+
+      <div class="task-row">
+        <span class="task-title">Review project proposal for Q3 planning</span>
+        <span class="badge badge-warning badge-sm">Due Today</span>
+        <span class="badge badge-info">In Progress</span>
+        <div style="display:flex;gap:0.25rem;flex-shrink:0;">
+          <button class="btn btn-ghost btn-circle btn-xs" title="Edit task">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-circle btn-xs text-error" title="Delete task">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="task-row">
+        <span class="task-title">Call dentist to reschedule appointment</span>
+        <span class="badge badge-warning badge-sm">Jun 28 — Overdue</span>
+        <span class="badge badge-ghost">Todo</span>
+        <div style="display:flex;gap:0.25rem;flex-shrink:0;">
+          <button class="btn btn-ghost btn-circle btn-xs" title="Edit task">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-circle btn-xs text-error" title="Delete task">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="task-row" style="opacity:0.6;">
+        <span class="task-title" style="text-decoration:line-through;">Submit expense report for May</span>
+        <span class="badge badge-outline badge-sm">Jul 1</span>
+        <span class="badge badge-success">Done</span>
+        <div style="display:flex;gap:0.25rem;flex-shrink:0;">
+          <button class="btn btn-ghost btn-circle btn-xs" title="Edit task">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-circle btn-xs text-error" title="Delete task">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Card ── -->
+      <div class="subsection-label">Card</div>
+      <div class="card bg-base-100 w-72 shadow-sm" style="border:1px solid var(--color-border);border-radius:var(--radius-card);">
+        <div class="card-body p-4">
+          <div class="flex items-start justify-between">
+            <div>
+              <h3 class="card-title text-base">Buy groceries</h3>
+              <p style="font-size:var(--font-size-small);color:var(--color-text-muted);margin-top:3px;">Due: Jul 3, 2026</p>
+            </div>
+            <span class="badge badge-ghost">Todo</span>
+          </div>
+          <div class="card-actions justify-end mt-2">
+            <button class="btn btn-ghost btn-sm">Edit</button>
+            <button class="btn btn-error btn-sm btn-outline">Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Modal Form ── -->
+      <div class="subsection-label">Modal — Task Form (task-form-modal component)</div>
+      <div class="modal-preview">
+        <div class="modal-header">
+          <span class="modal-header-title">New Task</span>
+          <button class="btn btn-ghost btn-circle btn-sm" title="Close">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div>
+            <label class="label pb-1">
+              <span class="label-text font-medium">Title <span class="text-error">*</span></span>
+            </label>
+            <input type="text" class="input input-bordered w-full" placeholder="What needs to be done?">
+          </div>
+          <div>
+            <label class="label pb-1">
+              <span class="label-text font-medium">Due Date</span>
+            </label>
+            <input type="date" class="input input-bordered w-full">
+          </div>
+          <div>
+            <label class="label pb-1">
+              <span class="label-text font-medium">Status</span>
+            </label>
+            <select class="select select-bordered w-full">
+              <option selected>Todo</option>
+              <option>In Progress</option>
+              <option>Done</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-primary">Save</button>
+        </div>
+      </div>
+
+      <!-- ── Alerts ── -->
+      <div class="subsection-label">Alerts</div>
+      <div style="max-width:560px;display:flex;flex-direction:column;gap:0.625rem;">
+        <div role="alert" class="alert alert-success">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+          <span>Task saved successfully.</span>
+        </div>
+        <div role="alert" class="alert alert-error">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
+          <div>
+            <div class="font-semibold">Failed to load tasks</div>
+            <div class="text-xs">Unable to reach the server. Check your connection and try again.</div>
+          </div>
+          <button class="btn btn-sm btn-outline">Retry</button>
+        </div>
+        <div role="alert" class="alert alert-warning">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+          <span>2 tasks are overdue. Review and update their status.</span>
+        </div>
+        <div role="alert" class="alert alert-info">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></svg>
+          <span>Tip: Tasks are sorted by due date by default. Click the sort toggle to reverse the order.</span>
+        </div>
+      </div>
+
+      <!-- ── Toast Notifications ── -->
+      <div class="subsection-label">Toast Notifications (toast-notification component)</div>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+        <div role="alert" class="alert alert-success w-auto" style="box-shadow:var(--shadow-dropdown);">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+          <span style="font-size:var(--font-size-small);">Task deleted.</span>
+        </div>
+        <div role="alert" class="alert alert-success w-auto" style="box-shadow:var(--shadow-dropdown);">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5"/></svg>
+          <span style="font-size:var(--font-size-small);">"Buy groceries" saved.</span>
+        </div>
+        <div role="alert" class="alert alert-error w-auto" style="box-shadow:var(--shadow-dropdown);">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+          <span style="font-size:var(--font-size-small);">Save failed. Please retry.</span>
+        </div>
+      </div>
+
+      <!-- ── Table ── -->
+      <div class="subsection-label">Table — Task List View</div>
+      <div class="overflow-x-auto" style="max-width:640px;border:1px solid var(--color-border);border-radius:var(--radius-card);">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Due Date</th>
+              <th>Status</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="font-medium">Review project proposal</td>
+              <td><span class="badge badge-warning badge-sm">Today</span></td>
+              <td><span class="badge badge-info">In Progress</span></td>
+              <td>
+                <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
+                  <button class="btn btn-ghost btn-xs" title="Edit">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg>
+                  </button>
+                  <button class="btn btn-ghost btn-xs text-error" title="Delete">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="font-medium">Call dentist</td>
+              <td><span class="badge badge-warning badge-sm">Jun 28</span></td>
+              <td><span class="badge badge-ghost">Todo</span></td>
+              <td>
+                <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
+                  <button class="btn btn-ghost btn-xs" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg></button>
+                  <button class="btn btn-ghost btn-xs text-error" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+                </div>
+              </td>
+            </tr>
+            <tr class="opacity-60">
+              <td class="font-medium line-through">Submit expense report</td>
+              <td>Jul 1</td>
+              <td><span class="badge badge-success">Done</span></td>
+              <td>
+                <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
+                  <button class="btn btn-ghost btn-xs" title="Edit"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z"/></svg></button>
+                  <button class="btn btn-ghost btn-xs text-error" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg></button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ── Filter & Sort Controls ── -->
+      <div class="subsection-label">Filter &amp; Sort Controls</div>
+      <div style="display:flex;align-items:center;gap:var(--space-item-gap);flex-wrap:wrap;">
+        <select class="select select-bordered select-sm">
+          <option selected>All statuses</option>
+          <option>Todo</option>
+          <option>In Progress</option>
+          <option>Done</option>
+        </select>
+        <button class="btn btn-sm btn-outline gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 3L16.5 21m0 0L12 16.5m4.5 4.5V7.5"/></svg>
+          Due Date ↑
+        </button>
+        <button class="btn btn-sm btn-ghost gap-1" style="color:var(--color-text-muted);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 3L16.5 21m0 0L12 16.5m4.5 4.5V7.5"/></svg>
+          Due Date ↓
+        </button>
+      </div>
+
+      <!-- ── Stats (Task Overview) ── -->
+      <div class="subsection-label">Stats — Task Overview</div>
+      <div class="stats shadow" style="border:1px solid var(--color-border);">
+        <div class="stat">
+          <div class="stat-title">Total Tasks</div>
+          <div class="stat-value">12</div>
+          <div class="stat-desc">3 added this week</div>
+        </div>
+        <div class="stat">
+          <div class="stat-title">In Progress</div>
+          <div class="stat-value text-info">4</div>
+          <div class="stat-desc">2 due today</div>
+        </div>
+        <div class="stat">
+          <div class="stat-title">Completed</div>
+          <div class="stat-value text-success">7</div>
+          <div class="stat-desc">58% completion rate</div>
+        </div>
+        <div class="stat">
+          <div class="stat-title">Overdue</div>
+          <div class="stat-value text-error">1</div>
+          <div class="stat-desc">Due 2 days ago</div>
+        </div>
+      </div>
+
+      <!-- ── Skeleton Loading ── -->
+      <div class="subsection-label">Skeleton — Loading State (loading-state component)</div>
+      <div style="max-width:640px;display:flex;flex-direction:column;gap:var(--space-item-gap);">
+        <!-- 5 skeleton rows mimicking task-list-item height -->
+        <div style="display:flex;align-items:center;gap:var(--space-item-gap);padding:0.75rem var(--space-card-padding);border:1px solid var(--color-border);border-radius:var(--radius-card);">
+          <div class="skeleton h-4 rounded" style="width:13rem;"></div>
+          <div class="skeleton h-5 rounded-full" style="width:4.5rem;margin-left:auto;"></div>
+          <div class="skeleton h-5 rounded-full" style="width:5.5rem;"></div>
+          <div class="skeleton h-6 w-6 rounded"></div>
+          <div class="skeleton h-6 w-6 rounded"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--space-item-gap);padding:0.75rem var(--space-card-padding);border:1px solid var(--color-border);border-radius:var(--radius-card);">
+          <div class="skeleton h-4 rounded" style="width:10rem;"></div>
+          <div class="skeleton h-5 rounded-full" style="width:4.5rem;margin-left:auto;"></div>
+          <div class="skeleton h-5 rounded-full" style="width:5.5rem;"></div>
+          <div class="skeleton h-6 w-6 rounded"></div>
+          <div class="skeleton h-6 w-6 rounded"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--space-item-gap);padding:0.75rem var(--space-card-padding);border:1px solid var(--color-border);border-radius:var(--radius-card);">
+          <div class="skeleton h-4 rounded" style="width:16rem;"></div>
+          <div class="skeleton h-5 rounded-full" style="width:4.5rem;margin-left:auto;"></div>
+          <div class="skeleton h-5 rounded-full" style="width:5.5rem;"></div>
+          <div class="skeleton h-6 w-6 rounded"></div>
+          <div class="skeleton h-6 w-6 rounded"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--space-item-gap);padding:0.75rem var(--space-card-padding);border:1px solid var(--color-border);border-radius:var(--radius-card);">
+          <div class="skeleton h-4 rounded" style="width:9rem;"></div>
+          <div class="skeleton h-5 rounded-full" style="width:4.5rem;margin-left:auto;"></div>
+          <div class="skeleton h-5 rounded-full" style="width:5.5rem;"></div>
+          <div class="skeleton h-6 w-6 rounded"></div>
+          <div class="skeleton h-6 w-6 rounded"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:var(--space-item-gap);padding:0.75rem var(--space-card-padding);border:1px solid var(--color-border);border-radius:var(--radius-card);">
+          <div class="skeleton h-4 rounded" style="width:12rem;"></div>
+          <div class="skeleton h-5 rounded-full" style="width:4.5rem;margin-left:auto;"></div>
+          <div class="skeleton h-5 rounded-full" style="width:5.5rem;"></div>
+          <div class="skeleton h-6 w-6 rounded"></div>
+          <div class="skeleton h-6 w-6 rounded"></div>
+        </div>
+      </div>
+
+      <!-- ── Empty State ── -->
+      <div class="subsection-label">Empty State</div>
+      <div class="empty-state">
+        <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z"/>
+        </svg>
+        <div class="empty-title">No tasks yet.</div>
+        <div class="empty-desc">You haven't added any tasks. Click "Add Task" to create your first one and start tracking what needs to get done.</div>
+        <button class="btn btn-primary btn-sm mt-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          Add Task
+        </button>
+      </div>
+
+    </section>
+  </main>
+</div>
+</body>
+</html>

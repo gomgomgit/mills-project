@@ -1,0 +1,60 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "SimpleTodo",
+    "updated_at": "2026-06-25"
+  },
+  "id": "screen-002--task-list",
+  "name": "Task List",
+  "module_id": "module-task-management",
+  "route": "/groups/:group_id",
+  "auth_requirement": "public",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-user",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [],
+  "shared_entities": [
+    {
+      "entity_id": "task",
+      "operations": [
+        "SELECT",
+        "UPDATE",
+        "INSERT"
+      ]
+    },
+    {
+      "entity_id": "group",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-003--task-form",
+      "reason": "Edit Task action redirects to the Task Form screen for editing task details"
+    },
+    {
+      "screen_id": "screen-004--group-list",
+      "reason": "Buka Group Lain action navigates via sidebar, relies on group list data"
+    }
+  ],
+  "implementation_notes": [
+    "SERVER-RENDERED ROUTES: (1) GET /groups/:group_id -> TaskController#index, (2) POST /tasks/:task_id/toggle -> TaskController#toggle, (3) POST /groups/:group_id/tasks -> TaskController#store, (4) DELETE /tasks/:task_id -> TaskController#destroy",
+    "UC003 View Task List: Logic=(1)Validate group_id->400 if missing,(2)SELECT group by ID WHERE deleted_at IS NULL->404 GROUP_NOT_FOUND,(3)SELECT tasks WHERE group_id=X AND deleted_at IS NULL,(4)ORDER BY done ASC, due_date ASC NULLS LAST, title ASC,(5)Compute is_overdue:!done && due_date<today && due_date IS NOT NULL,(6)Calculate total task count,(7)Render Edge template. DataOps=group:SELECT,task:SELECT. EdgeCases=empty group->message, long title->CSS truncate, overdue->badge class. Rules=sort by due_date then title,done below pending,no due_date still shown,overdue visually distinct.",
+    "UC004 Toggle Task: Logic=(1)Validate task_id,(2)SELECT task WHERE deleted_at IS NULL->404 if missing,(3)Toggle done=!done,(4)UPDATE task SET done,(5)Redirect to /groups/{group_id}. DataOps=task:SELECT,task:UPDATE.",
+    "UC005 Create Task: Logic=(1)Validate title non-empty->422 VALIDATION_ERROR,(2)SELECT group by id WHERE deleted_at IS NULL->404,(3)INSERT task with title,description,due_date,group_id,done=false,(4)Redirect to /groups/:group_id. DataOps=group:SELECT,task:INSERT. EdgeCases=title too long->validation error. Rules=task must have title,task belongs to one group.",
+    "UC006 Delete Task: Logic=(1)Client confirm dialog,(2)SELECT task WHERE deleted_at IS NULL->404,(3)UPDATE task SET deleted_at=NOW(),(4)Redirect to /groups/{group_id}. DataOps=task:SELECT,task:UPDATE(soft-delete). EdgeCases=already deleted->404. Rules=delete requires confirmation.",
+    "Use AdonisJS Lucid softDelete trait on Task and Group models",
+    "Toggle uses POST for browser form compatibility",
+    "Delete uses client-side confirm() dialog before form submit",
+    "Flash messages via session.flash() for success/error feedback on redirects",
+    "Overdue computed in controller, passed to Edge template as boolean flag",
+    "Edge template: done tasks get strikethrough+green checkbox, overdue gets colored badge",
+    "Title truncation via Tailwind 'truncate' CSS class"
+  ]
+}

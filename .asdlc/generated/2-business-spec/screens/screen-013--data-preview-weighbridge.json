@@ -1,0 +1,101 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 3,
+  "id": "screen-013--data-preview-weighbridge",
+  "name": "Data Preview Weighbridge",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar yang menampilkan daftar seluruh record Weighbridge (tersimpan maupun masih draft/pause) dengan filter tanggal (default hari ini) dan pencarian; memilih satu record menampilkan detail read-only jika sudah tersimpan, atau membuka Form Weighbridge untuk melanjutkan jika masih draft.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap 'Load Data' dari Monitor Weighbridge (mode list, tanpa record spesifik)"
+  ],
+  "information_displayed": [
+    "List seluruh record Weighbridge (status apapun: draft ongoing/paused/saved/synced) milik user, dengan filter tanggal (default hari ini saat list dibuka) dan pencarian",
+    "Untuk setiap item di list: identitas ringkas (WB Card Number atau fallback) + status (Pause untuk draft, atau status tersimpan/tersinkron)",
+    "Detail read-only seluruh field record Weighbridge tersimpan (saat memilih record berstatus saved/synced)",
+    "Breadcrumb navigasi (Home > Production Process Activity > Weighbridge > Load Data) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu"
+  ],
+  "available_actions": [
+    {
+      "action": "Filter berdasarkan tanggal",
+      "description": "Menyaring list record berdasarkan tanggal tertentu; default terisi tanggal hari ini saat list dibuka, dapat diubah/dikosongkan user",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Cari (search)",
+      "description": "Menyaring list record berdasarkan kata kunci (mis. WB Card Number, nama supir)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap item list berstatus draft/pause",
+      "description": "Membuka Form Weighbridge untuk melanjutkan draft tersebut",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap item list berstatus tersimpan/tersinkron",
+      "description": "Menampilkan detail read-only record tersebut",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor Weighbridge (dari mode list), atau kembali ke mode list (dari mode detail)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Detail record bersifat murni read-only; koreksi data dilakukan lewat Form Weighbridge",
+    "List menampilkan seluruh record apapun statusnya (draft/pause maupun tersimpan/tersinkron), tidak hanya yang sudah tersimpan",
+    "Filter tanggal & pencarian bekerja terhadap list yang sedang ditampilkan",
+    "Breadcrumb harus dapat dinavigasi",
+    "Filter tanggal otomatis terisi tanggal hari ini saat list pertama kali dibuka (bukan kosong); user tetap bisa mengubah atau mengosongkannya"
+  ],
+  "usecase_ids": [
+    "usecase-013--data-preview-weighbridge"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan saat mode detail dibuka dengan id yang tidak valid",
+    "List kosong (belum ada record sama sekali)",
+    "Filter tidak menghasilkan record apapun — tampilkan pesan tidak ditemukan dengan opsi reset filter",
+    "Tidak ada data hari ini saat list pertama dibuka (filter default = hari ini) — tampilkan pesan tidak ditemukan dengan opsi reset filter, bukan dianggap error"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

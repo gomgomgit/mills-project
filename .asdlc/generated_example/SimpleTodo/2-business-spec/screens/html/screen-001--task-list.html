@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task List | MySimpleTodo</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@latest/dist/full.min.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .content-area {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .task-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+    }
+    .task-title {
+      flex: 1 1 auto;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  </style>
+</head>
+<body class="bg-base-100">
+  <main class="content-area">
+    <!-- Page header -->
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-3xl font-bold">MySimpleTodo</h1>
+      <button class="btn btn-primary" title="Add Task">
+        + Add Task
+      </button>
+    </div>
+
+    <!-- Filter and sort controls -->
+    <div class="flex items-center justify-between mb-4 gap-4 flex-wrap">
+      <div class="form-control">
+        <label class="label pb-1" for="status-filter">
+          <span class="label-text">Filter by status</span>
+        </label>
+        <select id="status-filter" class="select select-bordered select-sm">
+          <option selected>All</option>
+          <option>Todo</option>
+          <option>In Progress</option>
+          <option>Done</option>
+        </select>
+      </div>
+      <button class="btn btn-ghost btn-sm mt-6" title="Sort Tasks by Due Date">
+        Sort by Due Date ▲
+      </button>
+    </div>
+
+    <!-- Task list -->
+    <div class="flex flex-col gap-3">
+
+      <!-- Task 1: overdue, Todo -->
+      <div class="card bg-base-200 shadow-sm">
+        <div class="task-card">
+          <span class="task-title font-medium">Finish quarterly report</span>
+          <span class="badge badge-warning" title="Overdue">Overdue · Jun 25, 2026</span>
+          <select class="select select-bordered select-sm" title="Change Task Status">
+            <option selected>Todo</option>
+            <option>In Progress</option>
+            <option>Done</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" title="Edit Task">✏️ Edit</button>
+          <button class="btn btn-ghost btn-sm btn-error" title="Delete Task">🗑️ Delete</button>
+        </div>
+      </div>
+
+      <!-- Task 2: not overdue, In Progress -->
+      <div class="card bg-base-200 shadow-sm">
+        <div class="task-card">
+          <span class="task-title font-medium">Book dentist appointment</span>
+          <span class="badge badge-ghost">Jul 5, 2026</span>
+          <select class="select select-bordered select-sm" title="Change Task Status">
+            <option>Todo</option>
+            <option selected>In Progress</option>
+            <option>Done</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" title="Edit Task">✏️ Edit</button>
+          <button class="btn btn-ghost btn-sm btn-error" title="Delete Task">🗑️ Delete</button>
+        </div>
+      </div>
+
+      <!-- Task 3: past due but Done -> no overdue indicator -->
+      <div class="card bg-base-200 shadow-sm">
+        <div class="task-card">
+          <span class="task-title font-medium">Renew car insurance</span>
+          <span class="badge badge-ghost">Jun 20, 2026</span>
+          <select class="select select-bordered select-sm" title="Change Task Status">
+            <option>Todo</option>
+            <option>In Progress</option>
+            <option selected>Done</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" title="Edit Task">✏️ Edit</button>
+          <button class="btn btn-ghost btn-sm btn-error" title="Delete Task">🗑️ Delete</button>
+        </div>
+      </div>
+
+    </div>
+
+    <p style="font-size:0.75rem;color:var(--color-muted-foreground,#71717a);font-style:italic;margin-top:24px">
+      Actors: User &nbsp;·&nbsp;
+      Entry points: Opening the app in the browser (the default and only screen), Returning here after saving or cancelling the Task Form
+    </p>
+  </main>
+</body>
+</html>

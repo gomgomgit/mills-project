@@ -1,0 +1,75 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 2,
+  "id": "screen-006--station-list",
+  "name": "Station List",
+  "module_id": "module-mobile-station-ops",
+  "description": "Grid pemilihan stasiun yang menampilkan 3 stasiun MVP aktif (Weighbridge, Grading, Cages Track) dan 12 slot stasiun lain sebagai placeholder nonaktif untuk skema masa depan, dengan indikator warna yang menunjukkan apakah stasiun tersebut punya draft/record yang sedang berjalan atau di-pause, serta breadcrumb navigasi dan akses kembali ke Home.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Navigasi dari Home (Production Process Activity)"
+  ],
+  "information_displayed": [
+    "Grid tombol stasiun (3 aktif: Weighbridge, Grading, Cages Track; 12 disabled/placeholder)",
+    "Indikator warna per tombol stasiun aktif: merah jika ada draft/record berstatus ongoing atau paused pada stasiun tersebut (milik user yang login), hitam/netral jika tidak ada draft sama sekali",
+    "Breadcrumb navigasi (mis. 'Home > Production Process Activity') yang dapat ditap untuk berpindah halaman",
+    "Nama sistem 'Mill Smart Log' pada header, dengan ikon hamburger menu (konsisten dengan Home)"
+  ],
+  "available_actions": [
+    {
+      "action": "Tap stasiun aktif",
+      "description": "Navigasi ke layar Monitor stasiun tersebut",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap stasiun disabled",
+      "description": "Tidak melakukan aksi / menampilkan info belum tersedia",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb (mis. kembali ke Home)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Hanya 3 stasiun MVP yang aktif secara fungsional; 12 lainnya adalah placeholder skema data untuk fase mendatang",
+    "Warna tombol stasiun aktif mencerminkan status draft: merah = ada draft/record berstatus ongoing atau paused pada stasiun itu (milik user yang login), hitam/netral = tidak ada draft sama sekali",
+    "Breadcrumb harus dapat dinavigasi (tap salah satu segmennya berpindah ke halaman terkait), bukan sekadar label statis"
+  ],
+  "usecase_ids": [
+    "usecase-006--station-list"
+  ],
+  "edge_cases": [
+    "User tap stasiun yang disabled",
+    "Stasiun aktif punya draft ongoing DAN paused sekaligus (multi-draft) — warna tetap merah, tidak perlu dibedakan lebih lanjut di level warna",
+    "Belum ada draft sama sekali di semua stasiun aktif — semua tombol tampil warna hitam/netral"
+  ],
+  "test_priority": "medium",
+  "open_questions": [
+    "Apakah semua Operator/Supervisor bisa mengakses ketiga stasiun MVP, atau ada penugasan stasiun spesifik per user?"
+  ]
+}

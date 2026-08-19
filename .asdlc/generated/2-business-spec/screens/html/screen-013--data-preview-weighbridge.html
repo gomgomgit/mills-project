@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Preview Weighbridge | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only — no colour values, no radius/shadow, use CSS variables only */
+    body {
+      background: var(--color-surface);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: var(--space-xl) var(--space-md);
+    }
+    .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); }
+    .preview-label {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+
+    .mobile-shell { width: 390px; min-height: 780px; box-shadow: var(--shadow-dropdown); }
+
+    .brand-block { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: var(--space-touch-target-min); height: var(--space-touch-target-min);
+      flex-shrink: 0; color: var(--color-text-primary); cursor: pointer; border: none; background: transparent;
+    }
+    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Breadcrumb — every segment navigable (business_rules: harus dapat dinavigasi) */
+    .breadcrumb-nav { display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap; }
+    .breadcrumb-link {
+      background: none; border: none; padding: 2px var(--space-xs); margin: -2px calc(var(--space-xs) * -1);
+      font-size: var(--font-size-xs); font-weight: 600; color: var(--color-brand); cursor: pointer;
+      text-decoration: underline; text-underline-offset: 2px;
+    }
+    .breadcrumb-current { font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-primary); }
+    .breadcrumb-sep { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+
+    .section { display: flex; flex-direction: column; gap: var(--space-md); margin-bottom: var(--space-lg); }
+    .section-title {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: var(--color-text-muted);
+      margin-bottom: var(--space-xs);
+    }
+
+    /* Filter bar — date filter + search, applied to list below (business_rules) */
+    .filter-row { display: flex; gap: var(--space-sm); }
+    .filter-row .input-group { flex: 1; min-width: 0; }
+
+    /* Record list — mixed status (draft ongoing/paused, saved offline, synced) */
+    .record-list { display: flex; flex-direction: column; gap: var(--space-sm); }
+    .record-item {
+      display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+      padding: var(--space-sm) var(--space-md);
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+    }
+    .record-item:active { background: var(--color-surface); }
+    .record-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .record-item-info .record-id { font-size: var(--font-size-sm); font-weight: 600; color: var(--color-text-primary); }
+    .record-item-info .record-meta { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+    .record-item-end { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
+    .record-item-chevron { color: var(--color-text-muted); display: flex; }
+    .record-item-chevron svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5; fill: none; }
+
+    .status-badge svg { flex-shrink: 0; }
+  </style>
+</head>
+<body>
+  <div class="preview-wrap">
+    <div class="preview-label">Data Preview Weighbridge — mode list (default) · Mobile (Station Operator/Supervisor)</div>
+
+    <div class="mobile-shell">
+      <!-- Header: hamburger + brand (konsisten dengan Home/Station List/Monitor Weighbridge) -->
+      <div class="mobile-header">
+        <button type="button" class="icon-btn" title="Menu" aria-label="Buka menu">
+          <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        </button>
+        <div class="brand-block">
+          <span class="brand">Mill Smart Log</span>
+        </div>
+      </div>
+
+      <!-- Breadcrumb — Home > Production Process Activity > Weighbridge > Load Data, setiap segmen dapat ditap -->
+      <div class="mobile-subheader">
+        <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+          <button type="button" class="breadcrumb-link" aria-label="Kembali ke Home">Home</button>
+          <span class="breadcrumb-sep">&rsaquo;</span>
+          <button type="button" class="breadcrumb-link" aria-label="Kembali ke Production Process Activity">Production Process Activity</button>
+          <span class="breadcrumb-sep">&rsaquo;</span>
+          <button type="button" class="breadcrumb-link" aria-label="Kembali ke Weighbridge">Weighbridge</button>
+          <span class="breadcrumb-sep">&rsaquo;</span>
+          <span class="breadcrumb-current">Load Data</span>
+        </nav>
+      </div>
+
+      <!-- Body -->
+      <div class="mobile-content">
+
+        <!-- Filter tanggal + pencarian — bekerja terhadap list yang sedang ditampilkan -->
+        <div class="section">
+          <div class="filter-row">
+            <div class="input-group">
+              <label class="input-label" for="filter-date">Tanggal</label>
+              <input type="date" id="filter-date" class="input input-mobile" value="2026-08-18">
+            </div>
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="search-input">Cari</label>
+            <input type="text" id="search-input" class="input input-mobile" placeholder="No. WB Card atau nama supir" value="">
+          </div>
+        </div>
+
+        <!-- List seluruh record Weighbridge milik user, status apapun -->
+        <div class="section">
+          <div class="section-title">Seluruh Record Weighbridge (4)</div>
+          <div class="record-list">
+
+            <!-- Draft ongoing -->
+            <button type="button" class="record-item" title="Lanjutkan draft ini di Form Weighbridge">
+              <div class="record-item-info">
+                <span class="record-id">WB-2026-000144</span>
+                <span class="record-meta">18 Agustus 2026 &middot; belum ada No. WB Card</span>
+              </div>
+              <div class="record-item-end">
+                <span class="status-badge status-badge-ongoing">
+                  <svg viewBox="0 0 24 24" width="11" height="11"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+                  Ongoing
+                </span>
+                <span class="record-item-chevron">
+                  <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                </span>
+              </div>
+            </button>
+
+            <!-- Draft paused -->
+            <button type="button" class="record-item" title="Lanjutkan draft ini di Form Weighbridge">
+              <div class="record-item-info">
+                <span class="record-id">WB-2026-000142</span>
+                <span class="record-meta">18 Agustus 2026 &middot; terakhir diubah 10:32</span>
+              </div>
+              <div class="record-item-end">
+                <span class="status-badge status-badge-paused">
+                  <svg viewBox="0 0 24 24" width="11" height="11"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  Pause
+                </span>
+                <span class="record-item-chevron">
+                  <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                </span>
+              </div>
+            </button>
+
+            <!-- Saved locally, belum sync ke server -->
+            <button type="button" class="record-item" title="Lihat detail record ini">
+              <div class="record-item-info">
+                <span class="record-id">WB-000139</span>
+                <span class="record-meta">17 Agustus 2026 &middot; Ahmad Fauzi &middot; BM 8821 XA</span>
+              </div>
+              <div class="record-item-end">
+                <span class="badge badge-warning">
+                  <svg viewBox="0 0 24 24" width="11" height="11"><path d="M12 2L2 21h20L12 2z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  Belum Sync
+                </span>
+                <span class="record-item-chevron">
+                  <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                </span>
+              </div>
+            </button>
+
+            <!-- Tersimpan & tersinkron ke server -->
+            <button type="button" class="record-item" title="Lihat detail record ini">
+              <div class="record-item-info">
+                <span class="record-id">WB-000135</span>
+                <span class="record-meta">17 Agustus 2026 &middot; Ridwan Saputra &middot; BM 9012 KL</span>
+              </div>
+              <div class="record-item-end">
+                <span class="badge badge-success">
+                  <svg viewBox="0 0 24 24" width="11" height="11"><path d="M20 6L9 17l-5-5"/></svg>
+                  Tersinkron
+                </span>
+                <span class="record-item-chevron">
+                  <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                </span>
+              </div>
+            </button>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer: Back ke Monitor Weighbridge -->
+      <div class="mobile-footer-actions">
+        <button type="button" class="btn btn-ghost" title="Kembali ke Monitor Weighbridge">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke-width="1.5" fill="none"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back
+        </button>
+      </div>
+    </div>
+
+    <p style="font-size:var(--font-size-xs);color:var(--color-muted-foreground,#71717a);font-style:italic;margin-top:var(--space-lg);max-width:420px;text-align:center">
+      Actors: Station Operator &middot; Supervisor &nbsp;&middot;&nbsp;
+      Entry points: Tap 'Load Data' dari Monitor Weighbridge (mode list, tanpa record spesifik)
+    </p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,1031 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "ver": 3,
+  "entities": [
+    {
+      "id": "corporate",
+      "name": "Corporate",
+      "description": "Level teratas hierarki organisasi mill.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Nama Corporate."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "company",
+          "type": "one-to-many",
+          "description": "Satu Corporate dapat memiliki banyak Company."
+        }
+      ],
+      "constraints": [
+        "name harus unik"
+      ],
+      "test_fixture": {
+        "id": "corp-001",
+        "name": "PT Sawit Nusantara",
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "company",
+      "name": "Company",
+      "description": "Entitas perusahaan di bawah Corporate.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "corporate_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Corporate induk."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Nama Company."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "business-unit",
+          "type": "one-to-many",
+          "description": "Satu Company dapat memiliki banyak Business Unit."
+        }
+      ],
+      "constraints": [
+        "name unik dalam satu corporate"
+      ],
+      "test_fixture": {
+        "id": "comp-001",
+        "corporate_id": "corp-001",
+        "name": "PT Sawit Nusantara Mill 1",
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "business-unit",
+      "name": "Business Unit",
+      "description": "Mill/unit operasional di bawah Company.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "company_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Company induk."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Nama Business Unit."
+        },
+        {
+          "name": "code",
+          "type": "string",
+          "required": true,
+          "description": "Kode singkat Business Unit."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "station",
+          "type": "one-to-many",
+          "description": "Satu Business Unit dapat memiliki banyak Station."
+        },
+        {
+          "entity_id": "user",
+          "type": "one-to-many",
+          "description": "Satu Business Unit dapat memiliki banyak User yang ditugaskan padanya."
+        }
+      ],
+      "constraints": [
+        "code harus unik"
+      ],
+      "test_fixture": {
+        "id": "bu-001",
+        "company_id": "comp-001",
+        "name": "Business Unit A",
+        "code": "BU-A",
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "station",
+      "name": "Station",
+      "description": "Stasiun produksi mill — 3 aktif di MVP (Weighbridge, Grading, Cages Track), 12 lainnya placeholder skema masa depan.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "business_unit_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Business Unit induk."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Nama Station."
+        },
+        {
+          "name": "type",
+          "type": "enum(weighbridge, grading, cages-track, other)",
+          "required": true,
+          "description": "Tipe stasiun; 'other' menampung 12 placeholder stasiun masa depan."
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "required": true,
+          "description": "true untuk 3 stasiun MVP yang fungsional; false untuk placeholder skema masa depan."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "machinery",
+          "type": "one-to-many",
+          "description": "Satu Station dapat memiliki banyak Machinery."
+        }
+      ],
+      "constraints": [
+        "Hanya station bertipe weighbridge/grading/cages-track yang is_active=true di MVP; tipe lain adalah placeholder skema masa depan dengan is_active=false"
+      ],
+      "test_fixture": {
+        "id": "stn-001",
+        "business_unit_id": "bu-001",
+        "name": "Weighbridge 1",
+        "type": "weighbridge",
+        "is_active": true,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "machinery",
+      "name": "Machinery",
+      "description": "Mesin/peralatan yang terpasang pada sebuah Station.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station induk."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Nama mesin."
+        },
+        {
+          "name": "picture",
+          "type": "string",
+          "required": false,
+          "description": "Path/URL file gambar mesin, disimpan di Laravel Filesystem local disk."
+        },
+        {
+          "name": "notes",
+          "type": "string",
+          "required": false,
+          "description": "Catatan tambahan tentang mesin."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [],
+      "test_fixture": {
+        "id": "mch-001",
+        "station_id": "stn-001",
+        "name": "Timbangan Digital A",
+        "picture": "storage/machinery/mch-001.jpg",
+        "notes": "Kalibrasi terakhir Januari 2024",
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "user",
+      "name": "User",
+      "description": "Pengguna sistem — Operator, Supervisor, Mill Management, atau Admin.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "username",
+          "type": "string",
+          "required": true,
+          "description": "Username/NIK untuk login."
+        },
+        {
+          "name": "password_hash",
+          "type": "string",
+          "required": true,
+          "description": "Hash password, minimal 6 karakter, case-sensitive, alfanumerik+simbol sebelum di-hash."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Nama lengkap user."
+        },
+        {
+          "name": "role",
+          "type": "enum(operator, supervisor, mill_management, admin)",
+          "required": true,
+          "description": "Role yang menentukan hak akses dan field mana yang bisa diisi."
+        },
+        {
+          "name": "business_unit_id",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke Business Unit tempat user ditugaskan/memiliki akses."
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "required": true,
+          "description": "Status aktif/nonaktif akun."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "username harus unik",
+        "role menentukan hak akses fitur dan field mana yang bisa diisi (mis. Checked By hanya role supervisor, Acknowledged By hanya role mill_management)"
+      ],
+      "test_fixture": {
+        "id": "usr-001",
+        "username": "operator01",
+        "password_hash": "$2b$10$placeholderhashvalue",
+        "name": "Budi Santoso",
+        "role": "operator",
+        "business_unit_id": "bu-001",
+        "is_active": true,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "weighbridge-record",
+      "name": "Weighbridge Record",
+      "description": "Record log data stasiun Weighbridge (arrival/dispatch, berat kendaraan).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe weighbridge)."
+        },
+        {
+          "name": "wb_card_number",
+          "type": "string",
+          "required": true,
+          "description": "Nomor WB Card."
+        },
+        {
+          "name": "arrival_datetime",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu kedatangan kendaraan."
+        },
+        {
+          "name": "dispatch_datetime",
+          "type": "timestamp",
+          "required": false,
+          "description": "Waktu keberangkatan kendaraan."
+        },
+        {
+          "name": "vehicle_number",
+          "type": "string",
+          "required": true,
+          "description": "Nomor kendaraan, input teks bebas."
+        },
+        {
+          "name": "driver_name",
+          "type": "string",
+          "required": true,
+          "description": "Nama supir, input teks bebas."
+        },
+        {
+          "name": "estate_supplier",
+          "type": "string",
+          "required": true,
+          "description": "Asal estate/supplier, input teks bebas."
+        },
+        {
+          "name": "division",
+          "type": "string",
+          "required": false,
+          "description": "Divisi asal muatan, input teks bebas."
+        },
+        {
+          "name": "block",
+          "type": "string",
+          "required": false,
+          "description": "Blok asal muatan, input teks bebas."
+        },
+        {
+          "name": "gross_weight",
+          "type": "float",
+          "required": true,
+          "description": "Berat masuk (gross)."
+        },
+        {
+          "name": "tare_weight",
+          "type": "float",
+          "required": false,
+          "description": "Berat keluar (tare)."
+        },
+        {
+          "name": "net_weight",
+          "type": "float",
+          "required": false,
+          "description": "Berat bersih, dihitung sebagai gross_weight - tare_weight."
+        },
+        {
+          "name": "quantity",
+          "type": "float",
+          "required": false,
+          "description": "Kuantitas muatan."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record: draft berjalan, draft di-pause, tersimpan lokal, atau sudah tersinkron ke server pusat."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "grading-record",
+          "type": "one-to-many",
+          "description": "Satu Weighbridge Record dapat direferensikan banyak Grading Record via WB Card No."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "net_weight = gross_weight - tare_weight jika keduanya terisi"
+      ],
+      "test_fixture": {
+        "id": "wbr-001",
+        "station_id": "stn-001",
+        "wb_card_number": "WB-2024-0001",
+        "arrival_datetime": "2024-01-15T08:30:00Z",
+        "dispatch_datetime": "2024-01-15T09:00:00Z",
+        "vehicle_number": "B 1234 XYZ",
+        "driver_name": "Ahmad",
+        "estate_supplier": "Estate Sukamaju",
+        "division": "Divisi 2",
+        "block": "Blok C12",
+        "gross_weight": 15200.5,
+        "tare_weight": 6200,
+        "net_weight": 9000.5,
+        "quantity": 9000.5,
+        "checked_by": "usr-001",
+        "acknowledged_by": null,
+        "status": "saved",
+        "created_by": "usr-001",
+        "created_at": "2024-01-15T08:30:00Z",
+        "updated_at": "2024-01-15T09:00:00Z"
+      }
+    },
+    {
+      "id": "grading-parameter",
+      "name": "Grading Parameter",
+      "description": "Master data kategori kualitas grading (mis. Mentah, Masak, Brondolan) yang dipilih per baris Grading Detail.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Nama kategori/parameter kualitas grading."
+        },
+        {
+          "name": "uom",
+          "type": "enum(kg, bunch)",
+          "required": true,
+          "description": "Satuan ukur parameter ini — menentukan basis perhitungan percentage pada Grading Detail (kg terhadap Netto header, bunch terhadap Quantity header)."
+        },
+        {
+          "name": "sort_order",
+          "type": "integer",
+          "required": true,
+          "description": "Urutan tampil di dropdown, mengikuti urutan daftar kanonis (1-16)."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "grading-detail",
+          "type": "one-to-many",
+          "description": "Satu Grading Parameter dapat dipakai di banyak baris Grading Detail."
+        }
+      ],
+      "constraints": [
+        "name harus unik",
+        "16 baris kanonis harus di-seed: 13 ber-uom bunch (Mentah, Mengkal/Kurang Masak, Masak, Over ripe R-1, Over ripe R-2, Over ripe R->2, Janjang Kosong, Parthenocarpic/Abnormal, Buah Sakit, Hard bunch, Buah Masak Tangkai Panjang, Buah kecil/<3.5kg, Dimakan Hama/Tikus/Lainnya), 3 ber-uom kg (Brondolan Segar, Brondolan Busuk, Brondolan Sampah)"
+      ],
+      "test_fixture": {
+        "id": "gp-003",
+        "name": "Masak",
+        "uom": "bunch",
+        "sort_order": 3,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "grading-record",
+      "name": "Grading Record",
+      "description": "Record header log data stasiun Grading, direferensikan ke satu Weighbridge Record via WB Card No.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe grading)."
+        },
+        {
+          "name": "grading_number",
+          "type": "string",
+          "required": true,
+          "description": "Nomor identifikasi Grading."
+        },
+        {
+          "name": "date",
+          "type": "timestamp",
+          "required": true,
+          "description": "Tanggal grading, otomatis terisi sekali saat draft baru dibuat (mengikuti pola Arrival Weighbridge)."
+        },
+        {
+          "name": "weighbridge_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Weighbridge Record — dipilih via dropdown WB Card No; sumber auto-fill License Plate No/Estate/Division."
+        },
+        {
+          "name": "license_plate_no",
+          "type": "string",
+          "required": true,
+          "description": "Nomor polisi kendaraan — auto-terisi dari weighbridge_record.vehicle_number saat WB Card No dipilih, tetap dapat diedit."
+        },
+        {
+          "name": "vehicle_code",
+          "type": "string",
+          "required": true,
+          "description": "Kode kendaraan internal, input manual (tidak ada di Weighbridge)."
+        },
+        {
+          "name": "estate_supplier",
+          "type": "string",
+          "required": true,
+          "description": "Asal estate/supplier — auto-terisi dari weighbridge_record.estate_supplier saat WB Card No dipilih, tetap dapat diedit."
+        },
+        {
+          "name": "division",
+          "type": "string",
+          "required": false,
+          "description": "Divisi asal muatan — auto-terisi dari weighbridge_record.division saat WB Card No dipilih, tetap dapat diedit."
+        },
+        {
+          "name": "netto",
+          "type": "float",
+          "required": true,
+          "description": "Berat netto (kg), input manual."
+        },
+        {
+          "name": "quantity",
+          "type": "float",
+          "required": true,
+          "description": "Jumlah janjang (bunch), input manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "grading-detail",
+          "type": "one-to-many",
+          "description": "Satu Grading Record memiliki banyak Grading Detail (baris penilaian)."
+        },
+        {
+          "entity_id": "weighbridge-record",
+          "type": "many-to-one",
+          "description": "Setiap Grading Record merujuk satu Weighbridge Record via weighbridge_record_id."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu Grading Detail harus ada sebelum status=saved"
+      ],
+      "test_fixture": {
+        "id": "grd-001",
+        "station_id": "stn-001",
+        "grading_number": "GR-2024-0001",
+        "date": "2024-01-15T08:00:00Z",
+        "weighbridge_record_id": "wbr-001",
+        "license_plate_no": "B 1234 XYZ",
+        "vehicle_code": "TR-12",
+        "estate_supplier": "Estate Sukamaju",
+        "division": "Divisi 2",
+        "netto": 9000.5,
+        "quantity": 120,
+        "note": "",
+        "checked_by": "usr-001",
+        "acknowledged_by": null,
+        "status": "saved",
+        "created_by": "usr-001",
+        "created_at": "2024-01-15T10:00:00Z",
+        "updated_at": "2024-01-15T10:30:00Z"
+      }
+    },
+    {
+      "id": "grading-detail",
+      "name": "Grading Detail",
+      "description": "Baris penilaian grading dalam satu Grading Record, merujuk ke satu Grading Parameter.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "grading_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Grading Record induk."
+        },
+        {
+          "name": "grading_parameter_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Grading Parameter — dipilih via dropdown."
+        },
+        {
+          "name": "quantity",
+          "type": "float",
+          "required": true,
+          "description": "Jumlah/persentase pada kategori ini, input manual."
+        },
+        {
+          "name": "uom",
+          "type": "enum(kg, bunch)",
+          "required": true,
+          "description": "Satuan ukur, disalin (snapshot) dari grading_parameter.uom saat parameter dipilih — tidak live-join, agar record historis stabil jika parameter master berubah nanti."
+        },
+        {
+          "name": "percentage",
+          "type": "float",
+          "required": true,
+          "description": "Dihitung otomatis: quantity/header.netto*100 jika uom=kg, quantity/header.quantity*100 jika uom=bunch."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "grading-parameter",
+          "type": "many-to-one",
+          "description": "Setiap Grading Detail merujuk satu Grading Parameter."
+        }
+      ],
+      "constraints": [
+        "percentage dihitung ulang setiap kali quantity baris ini atau netto/quantity header berubah"
+      ],
+      "test_fixture": {
+        "id": "gdt-001",
+        "grading_record_id": "grd-001",
+        "grading_parameter_id": "gp-003",
+        "quantity": 102,
+        "uom": "bunch",
+        "percentage": 85,
+        "created_at": "2024-01-15T10:15:00Z",
+        "updated_at": "2024-01-15T10:15:00Z"
+      }
+    },
+    {
+      "id": "cages-track-record",
+      "name": "Cages Track Record",
+      "description": "Record header log data stasiun Cages Track — mencatat proses tipping cage/lori dalam satu sesi (Tippler Start s.d. Stop).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe cages-track)."
+        },
+        {
+          "name": "cages_track_number",
+          "type": "string",
+          "required": true,
+          "description": "Nomor identifikasi Cages Track."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat."
+        },
+        {
+          "name": "tippler_start_time",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu mulai tippler — otomatis terisi sekali saat draft baru dibuat (mengikuti pola Arrival Weighbridge), tidak dapat diedit manual."
+        },
+        {
+          "name": "tippler_stop_time",
+          "type": "timestamp",
+          "required": false,
+          "description": "Waktu selesai tippler — otomatis terisi sekali tepat saat Simpan ditekan (bukan live-ticking), kosong selama draft masih berjalan/di-pause."
+        },
+        {
+          "name": "cages_out",
+          "type": "integer",
+          "required": true,
+          "description": "Jumlah cage/lori yang keluar, input manual. Field informasional, tidak terkait jumlah kolom checklist di grid Cages Tipped Time."
+        },
+        {
+          "name": "cages_tipped",
+          "type": "integer",
+          "required": true,
+          "description": "Jumlah cage/lori yang akan di-tipping pada sesi ini, input manual SEKALI di header — menentukan jumlah kolom checklist (Cages 1..N) yang muncul di setiap baris grid Cages Tipped Time."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "cages-tipped-time",
+          "type": "one-to-many",
+          "description": "Satu Cages Track Record memiliki banyak Cages Tipped Time (baris slot waktu tipping)."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu Cages Tipped Time harus ada sebelum status=saved",
+        "tippler_start_time diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "tippler_stop_time diisi otomatis sekali tepat saat Simpan ditekan, tidak dapat diedit manual",
+        "cages_tipped menentukan jumlah kolom checklist cage (1..cages_tipped) di setiap baris Cages Tipped Time"
+      ],
+      "test_fixture": {
+        "id": "ctr-001",
+        "station_id": "stn-001",
+        "cages_track_number": "CT-2024-0001",
+        "date": "2024-01-15",
+        "tippler_start_time": "2024-01-15T11:00:00Z",
+        "tippler_stop_time": "2024-01-15T11:20:00Z",
+        "cages_out": 12,
+        "cages_tipped": 10,
+        "note": "",
+        "checked_by": "usr-001",
+        "acknowledged_by": null,
+        "status": "saved",
+        "created_by": "usr-001",
+        "created_at": "2024-01-15T11:00:00Z",
+        "updated_at": "2024-01-15T11:20:00Z"
+      }
+    },
+    {
+      "id": "cages-tipped-time",
+      "name": "Cages Tipped Time",
+      "description": "Baris slot waktu (per jam) dalam satu Cages Track Record, berisi checklist cage/lori mana saja (dari 1..cages_tipped header) yang di-tipping pada jam tersebut.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "cages_track_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Cages Track Record induk."
+        },
+        {
+          "name": "tipped_hour",
+          "type": "integer",
+          "required": true,
+          "description": "Slot jam tipping (0-23, granularitas jam bulat saja). Harus unik per cages_track_record_id, dan harus lebih besar dari tipped_hour baris yang terakhir ditambahkan (urutan menaik kronologis, tidak bisa duplikat/mundur)."
+        },
+        {
+          "name": "checked_cage_numbers",
+          "type": "string",
+          "required": true,
+          "description": "Daftar nomor cage yang dicentang pada baris/jam ini, disimpan sebagai string CSV angka 1..cages_tipped (header), mis. '1,3,5,7'."
+        },
+        {
+          "name": "total_cages",
+          "type": "integer",
+          "required": true,
+          "description": "Dihitung otomatis = jumlah angka pada checked_cage_numbers (jumlah cage yang dicentang di baris ini)."
+        },
+        {
+          "name": "cages_remain",
+          "type": "integer",
+          "required": true,
+          "description": "Dihitung otomatis = cages_tipped (header) - total_cages (baris ini). Per baris, bukan akumulasi lintas baris."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "tipped_hour unik per cages_track_record_id",
+        "tipped_hour baris baru harus > tipped_hour baris terakhir yang ditambahkan pada record yang sama",
+        "total_cages dan cages_remain dihitung ulang setiap kali checked_cage_numbers baris ini berubah"
+      ],
+      "test_fixture": {
+        "id": "ctt-001",
+        "cages_track_record_id": "ctr-001",
+        "tipped_hour": 7,
+        "checked_cage_numbers": "1,2,3,4,5,6,7,8,9,10",
+        "total_cages": 10,
+        "cages_remain": 0,
+        "created_at": "2024-01-15T11:05:00Z",
+        "updated_at": "2024-01-15T11:05:00Z"
+      }
+    }
+  ]
+}

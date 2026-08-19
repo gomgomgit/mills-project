@@ -1,0 +1,86 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 6,
+  "id": "screen-006--station-list",
+  "name": "Station List",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/stationRepo.ts",
+    "mobile/src/components/StationGrid.vue",
+    "mobile/src/views/StationListView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/services/localSchema.ts",
+    "mobile/src/stores/auth.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/stationRepo.spec.ts",
+    "mobile/tests/StationGrid.spec.ts",
+    "mobile/tests/StationListView.spec.ts",
+    "mobile/tests/e2e/station-list.spec.ts",
+    "mobile/tests/localSchema.spec.ts"
+  ],
+  "implementation_notes": [
+    "stationRepo.ts mengasumsikan 15 baris station (3 aktif + 12 placeholder) sudah ada di tabel lokal via sync sebelumnya",
+    "StationGrid.vue pakai aria-disabled + styling (bukan atribut disabled native) agar tap tetap memunculkan pesan 'belum tersedia'",
+    "Router pakai konvensi meta: { public: false } mengikuti guard yang sudah ada",
+    "Regresi: seluruh 8 file/44 test mobile dijalankan ulang, semua hijau",
+    "Retrofit browser test (2026-08-18): infrastruktur jeep-sqlite/playwright/helpers.ts, lihat screen-005 untuk detail",
+    "BUG NYATA ditemukan & diperbaiki via browser test: business_unit_id tidak pernah disertakan di payload login (AuthService.php) — diperbaiki, regresi backend 96/96 tetap hijau",
+    "Revisi desain #1 & #2 (2026-08-18): ikon per-tipe stasiun, shadow, urutan tetap, lalu dicocokkan persis dengan mock Phase 2 (2 seksi: 'Stasiun MVP Aktif' / 'Skema Mendatang')",
+    "Fix gap sync data stasiun (2026-08-18): default seed lokal 15 stasiun MVP via seedDefaultStationsIfNeeded(), dipanggil dari login()",
+    "Revisi #3 (2026-08-18, respons ke feedback user: breadcrumb navigable, padding tile lebih besar, kembali ke Home, hamburger, indikator warna draft): StationListView.vue — header brand+hamburger disalin persis dari pola HomeView.vue (isNavMenuOpen/toggleNavMenu/goToChangePassword/onLogout); breadcrumb 'Home' jadi tombol tappable (router.push name='home'), 'Production Process Activity' tetap teks non-interaktif (aria-current='page'); loadDraftStatusByType() di-onMounted memanggil weighbridgeRecordRepo.getSummary(userId), gradingRecordRepo.getProgressSummary(userId), cagesTrackRecordRepo.getProgressSummary(userId) secara paralel (masing-masing .catch(()=>null) independen) — REUSE repo yang sudah ada, tidak membuat service query draft baru (draftRecordsRepo.ts sudah dihapus saat revisi Home, sengaja tidak dihidupkan lagi). StationGrid.vue — prop baru draftStatusByType (default {}); background tile aktif jadi conditional inline style: #d20000 (merah) jika hasDraft true, #1f2937 (hitam/netral) jika false; padding tile dinaikkan dari 10px 6px menjadi 22px 6px.",
+    "Regresi penuh diverifikasi independen (bukan hanya laporan agent): 175/175 vitest (20 file) + 54/54 Playwright e2e (12 file, termasuk home.spec.ts & HomeView.spec.ts yang berbagi pola header/hamburger yang sama) + vue-tsc --noEmit bersih tanpa error"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "router.push ke route names monitor-weighbridge/monitor-grading/monitor-cages-track menargetkan route yang belum terdaftar (screen 007/008/009 sudah dibangun tapi perlu diverifikasi ulang route registration) — sequencing lama, belum dikonfirmasi ulang di revisi ini",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit coverage tidak dapat diukur — coverage tooling belum terpasang di package mobile",
+      "severity": "minor"
+    },
+    {
+      "description": "15 ikon SVG (3 aktif + 12 placeholder) di StationGrid.vue ditulis tangan meniru path mock/Lucide, belum di-pixel-diff terhadap sumber asli",
+      "severity": "minor"
+    },
+    {
+      "description": "Header hamburger kini sudah ada di Home (screen-005) dan Station List (screen-006) — 2 dari 12 screen mobile. 10 screen mobile lain (Monitor/Form/Data Preview) masih belum punya header+hamburger yang sama; jika user ingin konsistensi penuh lintas semua screen, ini perlu direvisi satu per satu atau dijadikan keputusan uiux-spec project-wide",
+      "severity": "minor"
+    },
+    {
+      "description": "Default seed station bersifat lokal-per-business-unit dan statis (bukan sinkron dari data master Station sungguhan di backend) — known_issue lama, tidak berubah oleh revisi ini",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-18T15:56:29Z",
+      "passed": 24,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-08-18T15:58:00Z",
+      "passed": 5,
+      "failed": 0
+    }
+  }
+}

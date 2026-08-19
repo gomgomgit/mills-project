@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Browser Cages Track (Web) | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: var(--space-md, 12px);
+      padding: var(--space-md, 12px);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+      margin-bottom: var(--space-lg, 16px);
+    }
+    .filter-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 160px;
+    }
+    .filter-field label {
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+    .filter-actions {
+      display: flex;
+      gap: var(--space-sm, 8px);
+      margin-left: auto;
+    }
+    .row-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .table-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-md, 12px) 0;
+    }
+    .pagination {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-logo">Mill Smart Log</div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item">Dashboard</a>
+        <a href="#" class="nav-item active">Data Stasiun</a>
+        <a href="#" class="nav-item">Master Data</a>
+        <a href="#" class="nav-item">User &amp; Role Management</a>
+        <a href="#" class="nav-item">Laporan Manajemen</a>
+        <a href="#" class="nav-item">Pengaturan Akun</a>
+      </nav>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-title">Data Stasiun &gt; Cages Track</div>
+        <div class="topbar-user">Supervisor</div>
+      </header>
+
+      <div class="content-area">
+        <div class="page-header">
+          <h1 class="page-title">Data Browser Cages Track (Web)</h1>
+          <div class="page-actions">
+            <button class="btn btn-ghost" type="button">Ekspor CSV</button>
+            <button class="btn btn-ghost" type="button">Ekspor Excel</button>
+            <button class="btn btn-primary" type="button">+ Tambah Data</button>
+          </div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-field">
+            <label for="filter-start">Tanggal Mulai</label>
+            <input id="filter-start" class="input" type="date" value="2026-08-11">
+          </div>
+          <div class="filter-field">
+            <label for="filter-end">Tanggal Akhir</label>
+            <input id="filter-end" class="input" type="date" value="2026-08-18">
+          </div>
+          <div class="filter-field">
+            <label for="filter-bu">Business Unit</label>
+            <select id="filter-bu" class="input">
+              <option>Semua Business Unit</option>
+              <option selected>BU Sungai Rangit</option>
+              <option>BU Tanjung Aru</option>
+              <option>BU Sei Kupang</option>
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-ghost" type="button">Reset</button>
+            <button class="btn btn-primary" type="button">Terapkan Filter</button>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Cages Track ID</th>
+                <th>Tanggal</th>
+                <th>Jumlah Cage/Lori Tercatat</th>
+                <th>Status Sinkron</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>CGT-2026-0815-001</td>
+                <td>15 Agu 2026</td>
+                <td>42</td>
+                <td><span class="badge badge-success">Synced</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn btn-ghost btn-sm" type="button">Lihat</button>
+                    <button class="btn btn-ghost btn-sm" type="button">Edit</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>CGT-2026-0814-007</td>
+                <td>14 Agu 2026</td>
+                <td>38</td>
+                <td><span class="badge badge-success">Synced</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn btn-ghost btn-sm" type="button">Lihat</button>
+                    <button class="btn btn-ghost btn-sm" type="button">Edit</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>CGT-2026-0813-003</td>
+                <td>13 Agu 2026</td>
+                <td>45</td>
+                <td><span class="badge badge-warning">Pending Sync</span></td>
+                <td>
+                  <div class="row-actions">
+                    <button class="btn btn-ghost btn-sm" type="button">Lihat</button>
+                    <button class="btn btn-ghost btn-sm" type="button">Edit</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="table-footer">
+            <span style="font-size: var(--font-size-xs, 12px); color: var(--color-text-muted);">Menampilkan 1-3 dari 27 data</span>
+            <div class="pagination">
+              <button class="btn btn-ghost btn-sm" type="button" disabled>&laquo; Sebelumnya</button>
+              <button class="btn btn-primary btn-sm" type="button">1</button>
+              <button class="btn btn-ghost btn-sm" type="button">2</button>
+              <button class="btn btn-ghost btn-sm" type="button">3</button>
+              <button class="btn btn-ghost btn-sm" type="button">Berikutnya &raquo;</button>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size: var(--font-size-xs, 12px); color: var(--color-text-muted); font-style: italic; margin-top: var(--space-lg, 16px);">
+          Actors: Supervisor &middot; Mill Management &middot; Admin &nbsp;&middot;&nbsp;
+          Entry points: Menu Data Stasiun di sidebar, pilih Cages Track
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

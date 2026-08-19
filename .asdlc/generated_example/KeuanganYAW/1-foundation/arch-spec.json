@@ -1,0 +1,84 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "KeuanganYAW",
+    "updated_at": "2026-06-21"
+  },
+  "system_type": "Web app (Server-rendered MVC dengan AdonisJS + Edge Templates)",
+  "architecture_pattern": {
+    "name": "MVC (Model-View-Controller)",
+    "description": "Pola MVC dipilih karena cocok untuk aplikasi server-rendered dengan AdonisJS + Edge, skala kecil, dan tim tunggal. Tidak memerlukan kompleksitas arsitektur berlapis.",
+    "components": [
+      {
+        "name": "Controller",
+        "role": "Menangani HTTP request, validasi input, memanggil layanan bisnis, merender Edge template"
+      },
+      {
+        "name": "Service",
+        "role": "Logika bisnis akuntansi (jurnal otomatis, double-entry bookkeeping, cost center allocation, generate laporan)"
+      },
+      {
+        "name": "Model",
+        "role": "Schema database, relasi entitas (Ledger, Transaction, CostCenter, Receipt, User, dll)"
+      },
+      {
+        "name": "View (Edge Templates)",
+        "role": "Tampilan UI server-rendered, form input transaksi, dashboard, tabel laporan"
+      },
+      {
+        "name": "Middleware",
+        "role": "Auth, role-based access (Pencatat vs Pengelola), error handling"
+      }
+    ]
+  },
+  "tech_stack": [
+    {
+      "layer": "backend",
+      "choice": "AdonisJS (TypeScript)"
+    },
+    {
+      "layer": "template",
+      "choice": "Edge (built-in)"
+    },
+    {
+      "layer": "css",
+      "choice": "DaisyUI (Tailwind plugin) + Alpine.js"
+    },
+    {
+      "layer": "database",
+      "choice": "SQLite (migration-ready ke PostgreSQL)"
+    },
+    {
+      "layer": "pdf",
+      "choice": "@adonisjs/pdf (server-side PDF generation)"
+    }
+  ],
+  "deployment": {
+    "model": "On-premise / self-hosted",
+    "provider": "Local server di yayasan"
+  },
+  "integrations": [],
+  "nfr": [
+    {
+      "category": "performance",
+      "requirement": "Transaksi bisa dicatat dalam <=30 detik; halaman dashboard load <2 detik"
+    },
+    {
+      "category": "security",
+      "requirement": "Kontrol akses berbasis role (Pencatat vs Pengelola), password di-hash dengan bcrypt"
+    },
+    {
+      "category": "scalability",
+      "requirement": "Dirancang untuk beberapa pengguna bersamaan; database dapat di-migrate ke PostgreSQL jika scale meningkat"
+    },
+    {
+      "category": "availability",
+      "requirement": "Tidak diperlukan SLA tinggi; downtime maintenance diperbolehkan"
+    },
+    {
+      "category": "compliance",
+      "requirement": "Data keuangan disimpan secara aman; audit trail untuk setiap transaksi"
+    }
+  ],
+  "architecture_notes": "SQLite dipilih untuk kemudahan deployment local dan maintenance minimal. Arsitektur MVC server-rendered meminimalkan kompleksitas build dan deployment. Layer Service memisahkan logika akuntansi dari controller agar dapat di-reuse dan di-test secara independen. DaisyUI + Alpine.js dipilih untuk tampilan modern dan interaktivitas ringan di sisi client tanpa SPA framework."
+}

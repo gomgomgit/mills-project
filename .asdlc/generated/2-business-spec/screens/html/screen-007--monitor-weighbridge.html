@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitor Weighbridge | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only — no colour values, no radius/shadow, use CSS variables only */
+    body {
+      background: var(--color-surface);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: var(--space-xl) var(--space-md);
+    }
+    .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); }
+    .preview-label {
+      font-size: var(--font-size-xs);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 600;
+    }
+
+    .mobile-shell { width: 390px; min-height: 780px; box-shadow: var(--shadow-dropdown); }
+
+    .brand-block { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: var(--space-touch-target-min); height: var(--space-touch-target-min);
+      flex-shrink: 0; color: var(--color-text-primary); cursor: pointer; border: none; background: transparent;
+    }
+    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Breadcrumb — every segment navigable (business_rules: bukan sekadar label statis) */
+    .breadcrumb-nav { display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap; }
+    .breadcrumb-link {
+      background: none; border: none; padding: 2px var(--space-xs); margin: -2px calc(var(--space-xs) * -1);
+      font-size: var(--font-size-xs); font-weight: 600; color: var(--color-brand); cursor: pointer;
+      text-decoration: underline; text-underline-offset: 2px;
+    }
+    .breadcrumb-current { font-size: var(--font-size-xs); font-weight: 600; color: var(--color-text-primary); }
+    .breadcrumb-sep { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+
+    .section { display: flex; flex-direction: column; gap: var(--space-md); margin-bottom: var(--space-lg); }
+    .section-title {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: var(--color-text-muted);
+      margin-bottom: var(--space-xs);
+    }
+
+    /* Counter hari ini — 3 card sebaris (Jumlah WB, Jumlah Net Weight, Jumlah Quantity), di atas list draft/pause */
+    .counter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-sm); }
+    .counter-card { padding: var(--space-sm); text-align: center; display: flex; flex-direction: column; gap: 2px; }
+    .counter-card .stat-label { font-size: var(--font-size-xs); line-height: 1.2; margin-bottom: 0; }
+    .counter-card .stat-value { font-size: var(--font-size-lg); line-height: 1.2; }
+
+    .metric-list { display: flex; flex-direction: column; gap: var(--space-sm); }
+    .metric-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+      padding: var(--space-sm) var(--space-md);
+    }
+    .metric-row .metric-label { font-size: var(--font-size-sm); color: var(--color-text-muted); }
+    .metric-row .metric-value { font-size: var(--font-size-lg); font-weight: 700; color: var(--color-text-primary); }
+
+    /* Draft/pause list — user bisa punya beberapa draft berjalan bersamaan; list bisa panjang, perlu scroll */
+    .draft-list { display: flex; flex-direction: column; gap: var(--space-sm); max-height: 260px; overflow-y: auto; padding-right: 2px; }
+    .draft-item {
+      display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+      padding: var(--space-sm) var(--space-md);
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+    }
+    .draft-item:active { background: var(--color-surface); }
+    .draft-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .draft-item-info .draft-id { font-size: var(--font-size-sm); font-weight: 600; color: var(--color-text-primary); }
+    .draft-item-info .draft-meta { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+    .draft-item-end { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
+    .draft-item-chevron { color: var(--color-text-muted); display: flex; }
+    .draft-item-chevron svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5; fill: none; }
+
+    .cta-row { display: flex; flex-direction: column; gap: var(--space-sm); padding: 0 var(--space-md) var(--space-md); }
+    .cta-row .btn { width: 100%; justify-content: center; }
+  </style>
+</head>
+<body>
+  <div class="preview-wrap">
+    <div class="preview-label">Monitor Weighbridge — default state · Mobile (Station Operator/Supervisor)</div>
+
+    <div class="mobile-shell">
+      <!-- Header: hamburger + brand (konsisten dengan Home/Station List) -->
+      <div class="mobile-header">
+        <button type="button" class="icon-btn" title="Menu" aria-label="Buka menu">
+          <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        </button>
+        <div class="brand-block">
+          <span class="brand">Mill Smart Log</span>
+        </div>
+      </div>
+
+      <!-- Breadcrumb — Home > Production Process Activity > Weighbridge, setiap segmen dapat ditap -->
+      <div class="mobile-subheader">
+        <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+          <button type="button" class="breadcrumb-link" aria-label="Kembali ke Home">Home</button>
+          <span class="breadcrumb-sep">&rsaquo;</span>
+          <button type="button" class="breadcrumb-link" aria-label="Kembali ke Production Process Activity">Production Process Activity</button>
+          <span class="breadcrumb-sep">&rsaquo;</span>
+          <span class="breadcrumb-current">Weighbridge</span>
+        </nav>
+      </div>
+
+      <!-- Body -->
+      <div class="mobile-content">
+
+        <!-- Counter hari ini — 3 card sebaris, seluruh record milik user dengan tanggal Arrival = hari ini, status apapun -->
+        <div class="section">
+          <div class="section-title">Hari Ini</div>
+          <div class="counter-grid">
+            <div class="stat-card counter-card">
+              <span class="stat-label">Jumlah WB</span>
+              <span class="stat-value">6</span>
+            </div>
+            <div class="stat-card counter-card">
+              <span class="stat-label">Jumlah Net Weight (kg)</span>
+              <span class="stat-value">78.420</span>
+            </div>
+            <div class="stat-card counter-card">
+              <span class="stat-label">Jumlah Quantity (kg)</span>
+              <span class="stat-value">82.150</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Draft/pause milik user — bisa lebih dari satu berjalan bersamaan, semua berlabel 'Pause' -->
+        <div class="section">
+          <div class="section-title">Draft &amp; Pause Anda</div>
+          <div class="draft-list">
+            <button type="button" class="draft-item" title="Lanjutkan draft ini di Form Weighbridge">
+              <div class="draft-item-info">
+                <span class="draft-id">WB-2026-000142</span>
+                <span class="draft-meta">Terakhir diubah 10:32</span>
+              </div>
+              <div class="draft-item-end">
+                <span class="status-badge status-badge-paused">
+                  <svg viewBox="0 0 24 24" width="11" height="11"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  Pause
+                </span>
+                <span class="draft-item-chevron">
+                  <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                </span>
+              </div>
+            </button>
+            <button type="button" class="draft-item" title="Lanjutkan draft ini di Form Weighbridge">
+              <div class="draft-item-info">
+                <span class="draft-id">WB-2026-000139</span>
+                <span class="draft-meta">Terakhir diubah 09:47</span>
+              </div>
+              <div class="draft-item-end">
+                <span class="status-badge status-badge-paused">
+                  <svg viewBox="0 0 24 24" width="11" height="11"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  Pause
+                </span>
+                <span class="draft-item-chevron">
+                  <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                </span>
+              </div>
+            </button>
+            <button type="button" class="draft-item" title="Lanjutkan draft ini di Form Weighbridge">
+              <div class="draft-item-info">
+                <span class="draft-id">WB-2026-000135</span>
+                <span class="draft-meta">Terakhir diubah kemarin, 16:05</span>
+              </div>
+              <div class="draft-item-end">
+                <span class="status-badge status-badge-paused">
+                  <svg viewBox="0 0 24 24" width="11" height="11"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  Pause
+                </span>
+                <span class="draft-item-chevron">
+                  <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                </span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer actions: New Data, Load Data, Back — Pause & Clear kini dilakukan di Form Weighbridge -->
+      <div class="cta-row">
+        <button type="button" class="btn btn-primary">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="#fff" stroke-width="1.5" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Data
+        </button>
+        <button type="button" class="btn btn-outline">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke-width="1.5" fill="none"><path d="M3 3v18h18"/><path d="M7 15l4-6 4 3 5-8"/></svg>
+          Load Data
+        </button>
+      </div>
+      <div class="mobile-footer-actions">
+        <button type="button" class="btn btn-ghost" title="Kembali ke Station List">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke-width="1.5" fill="none"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back
+        </button>
+      </div>
+    </div>
+
+    <p style="font-size:var(--font-size-xs);color:var(--color-muted-foreground,#71717a);font-style:italic;margin-top:var(--space-lg);max-width:420px;text-align:center">
+      Actors: Station Operator &middot; Supervisor &nbsp;&middot;&nbsp;
+      Entry points: Tap Weighbridge di Station List
+    </p>
+  </div>
+</body>
+</html>

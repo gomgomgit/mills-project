@@ -1,0 +1,96 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "id": "screen-002--login-mobile",
+  "name": "Login Mobile",
+  "module_id": "module-auth",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/AuthService.php",
+    "backend/app/Http/Controllers/Api/AuthController.php",
+    "backend/routes/api.php",
+    "backend/bootstrap/app.php",
+    "backend/database/migrations/2025_01_15_000012_create_personal_access_tokens_table.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/AuthServiceMobileLoginTest.php",
+    "backend/tests/Unit/Services/AuthServiceTest.php",
+    "backend/tests/Feature/Api/LoginMobileTest.php",
+    "backend/tests/Feature/Api/LoginWebTest.php",
+    "backend/tests/Feature/Livewire/LoginFormTest.php",
+    "backend/tests/Browser/LoginMobileTest.php"
+  ],
+  "fe_files_generated": [
+    "mobile/src/views/LoginView.vue",
+    "mobile/src/components/LoginForm.vue",
+    "mobile/src/composables/useConnectivityGuard.ts",
+    "mobile/src/stores/auth.ts",
+    "mobile/src/services/tokenStorage.ts",
+    "mobile/package.json",
+    "mobile/vite.config.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/LoginForm.spec.ts",
+    "mobile/tests/auth.store.spec.ts"
+  ],
+  "implementation_notes": [
+    "Web-session dan mobile-token path digabung dalam satu AuthService::login() via parameter opsional $deviceName, branch web (tanpa device_name) tidak berubah sama sekali",
+    "web middleware tetap dipertahankan di POST /api/login untuk kebutuhan session screen-001; CSRF dikecualikan khusus path ini karena request pertama mobile belum punya CSRF token",
+    "Round-1 fix: LoginForm.spec.ts gagal load (missing @vue/test-utils + no jsdom env) — diperbaiki dengan menambah dependency dan test.environment='jsdom' di vite.config.ts, retest semua lulus",
+    "Fix gap sync data stasiun (2026-08-18, respons ke pertanyaan user 'kenapa halaman daftar stasiun kosong'): stores/auth.ts's login() sekarang memanggil localSchema.ts's seedDefaultStationsIfNeeded(businessUnit.id) tepat setelah businessUnit diketahui — men-seed 15 stasiun MVP default (3 aktif + 12 placeholder) ke tabel lokal station secara idempotent (INSERT OR IGNORE). Ini menggantikan 'sync flow terpisah' yang diasumsikan setiap screen mobile tapi tidak pernah dibangun di manapun dalam scope 32-screen project ini. Best-effort/non-blocking: dibungkus try/catch, kegagalan seed lokal tidak menggagalkan login yang sudah berhasil. LoginForm.spec.ts diperbarui: menambah vi.mock('@/services/localSchema') karena login() sungguhan (tidak di-mock di test ini) sekarang memanggil fungsi yang membuka koneksi SQLite nyata — tanpa mock ini test akan hang selamanya di customElements.whenDefined('jeep-sqlite') dalam environment jsdom. Diverifikasi end-to-end nyata: login segar tanpa seeding manual apa pun langsung menampilkan 15 stasiun di screen-006, sesuai urutan mock referensi.",
+    "Regresi penuh setelah fix ini: 166/166 vitest (naik dari 161, +5 test baru localSchema.spec.ts) + 50/50 Playwright e2e, semua tetap hijau."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "GET /api/business-units tidak ada di api-index/tech-spec manapun — dropdown Business Area di LoginForm mobile akan kosong di runtime nyata sampai endpoint ini ditambahkan (test menggunakan data mock, tidak memblokir hasil test tapi memblokir usability nyata). CATATAN: endpoint ini SUDAH ditambahkan di luar alur ASDLC formal (backend/app/Http/Controllers/Api/BusinessUnitController.php, 2026-08-18, retrofit browser test screen-006) — deskripsi known_issue ini belum direkonsiliasi dengan tech-spec/api-index secara formal, tapi endpointnya sudah nyata berjalan",
+      "severity": "minor"
+    },
+    {
+      "description": "Migration personal_access_tokens belum dijalankan terhadap database dev nyata (tidak ada driver pdo_mysql di sandbox ini) — perlu php artisan migrate sebelum live; test suite pakai test DB terpisah yang sudah otomatis menjalankannya",
+      "severity": "minor"
+    },
+    {
+      "description": "tests/Browser/LoginMobileTest.php (Playwright lawas) dibuat tapi tidak pernah dijalankan ulang — retrofit browser test 2026-08-18 membangun infrastruktur Playwright baru (tests/e2e/) untuk screen 005-015, tests/Browser/LoginMobileTest.php lama ini di luar scope retrofit itu (screen-001/002 tidak termasuk)",
+      "severity": "minor"
+    },
+    {
+      "description": "Device name detection pakai navigator.userAgent sniffing + random suffix cache (belum ada @capacitor/device terpasang) — placeholder",
+      "severity": "minor"
+    },
+    {
+      "description": "Offline session-expiry pakai heuristik grace period 7 hari placeholder — tech spec eksplisit menyebut durasi validitas token offline sebagai open question produk",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada ekstensi Xdebug/PCOV di environment ini",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-18T13:35:42Z",
+      "passed": 18,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-17T13:40:05Z",
+      "passed": 15,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-18T13:35:42Z",
+      "passed": 6,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

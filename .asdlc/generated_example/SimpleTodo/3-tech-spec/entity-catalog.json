@@ -1,0 +1,65 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-01"
+  },
+  "entities": [
+    {
+      "id": "task",
+      "name": "Task",
+      "description": "A single unit of work the user tracks, with a title, due date, and status.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Unique identifier for the task"
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true,
+          "description": "Short description of what needs to be done"
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "required": false,
+          "description": "Date by which the task should be completed; tasks without one sort last when sorting by due date"
+        },
+        {
+          "name": "status",
+          "type": "enum(todo, in_progress, done)",
+          "required": true,
+          "description": "Current progress state of the task"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "When the task was created"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "When the task was last modified"
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "title must not be empty",
+        "status must be one of: todo, in_progress, done"
+      ],
+      "test_fixture": {
+        "id": "task-001",
+        "title": "Buy groceries",
+        "due_date": "2026-07-05",
+        "status": "todo",
+        "created_at": "2026-07-01T00:00:00Z",
+        "updated_at": "2026-07-01T00:00:00Z"
+      }
+    }
+  ]
+}

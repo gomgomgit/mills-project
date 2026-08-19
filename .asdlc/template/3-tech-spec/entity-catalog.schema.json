@@ -1,0 +1,27 @@
+{
+  "_tracked": [
+    "entities"
+  ],
+  "_display_order": [
+    "entities",
+    "meta"
+  ],
+  "ver": "Artifact-level version counter. Incremented on every write.",
+  "meta.title": "Application name, copied from PRD meta.title.",
+  "meta.updated_at": "ISO date (YYYY-MM-DD) of the last write.",
+  "entities": "List of all domain entities in the project. Each entity represents a core data concept. Do not include infrastructure or join-table concepts unless they have independent business meaning.",
+  "entities[].id": "Kebab-case identifier for this entity, e.g. 'user', 'order', 'product-variant'. Stable across rewrites \u2014 used as a reference key in per-screen tech specs.",
+  "entities[].name": "Human-readable name, e.g. 'User', 'Order', 'Product Variant'.",
+  "entities[].description": "One sentence describing what this entity represents in the business domain.",
+  "entities[].fields": "List of fields on this entity. Use types appropriate for the project's tech stack (from arch-spec). Common types: string, integer, float, boolean, uuid, timestamp, date, enum([values]), json.",
+  "entities[].fields[].name": "Field name \u2014 use the naming convention from shared-decisions (e.g. snake_case).",
+  "entities[].fields[].type": "Data type. Match the tech stack's type system. For enums, list values: e.g. 'enum(pending, active, cancelled)'.",
+  "entities[].fields[].required": "true if this field must always have a value; false if nullable/optional.",
+  "entities[].fields[].description": "What this field stores and any business meaning. Include format notes if non-obvious.",
+  "entities[].relationships": "Relationships to other entities. Empty array if none.",
+  "entities[].relationships[].entity_id": "ID of the related entity (must match another entity's id in this catalog).",
+  "entities[].relationships[].type": "Cardinality: 'one-to-many', 'many-to-many', or 'one-to-one'.",
+  "entities[].relationships[].description": "What the relationship means in business terms, e.g. 'An order belongs to one user; a user can have many orders'.",
+  "entities[].constraints": "Business or data integrity constraints not captured in fields or relationships. E.g. 'email must be unique', 'quantity must be >= 0', 'a published product must have at least one image'. Empty array if none.",
+  "entities[].test_fixture": "A concrete example data object for this entity, used to seed the test database in Phase 4. Include all required fields with realistic values. For generated fields (password hashes, tokens, auto-increment IDs), use a realistic placeholder. Example: { \"id\": \"usr-001\", \"email\": \"test@example.com\", \"role\": \"customer\" }."
+}

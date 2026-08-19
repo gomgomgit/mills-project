@@ -1,0 +1,102 @@
+{
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-06-28"
+  },
+  "ver": 2,
+  "id": "screen-001--task-list",
+  "name": "Task List",
+  "module_id": "module-task",
+  "description": "The main screen where the user sees all tasks in a table, searches, filters by status, and performs quick actions like marking done, editing, or deleting tasks.",
+  "actors": [
+    "actor-single-user"
+  ],
+  "entry_points": [
+    "Opening the app (default landing screen)",
+    "Clicking 'All Tasks' in the sidebar",
+    "Redirect after creating a new task",
+    "Redirect after editing a task"
+  ],
+  "information_displayed": [
+    "Task title",
+    "Task due date (formatted as readable date)",
+    "Task status indicator (Done/Pending, visually distinct)",
+    "Action buttons per row (Edit, Delete, Mark Done/Undo Done)",
+    "Search bar at the top",
+    "Status filter dropdown (All/Pending/Done)",
+    "Task count summary (total, done, pending)"
+  ],
+  "available_actions": [
+    {
+      "action": "Add task",
+      "description": "Navigate to the Add/Edit Task form to create a new task",
+      "actor_ids": [
+        "actor-single-user"
+      ]
+    },
+    {
+      "action": "Search tasks",
+      "description": "Filter tasks by typing in the search bar",
+      "actor_ids": [
+        "actor-single-user"
+      ]
+    },
+    {
+      "action": "Filter by status",
+      "description": "Show only Pending, Done, or All tasks",
+      "actor_ids": [
+        "actor-single-user"
+      ]
+    },
+    {
+      "action": "Mark task done",
+      "description": "Check off a task as completed",
+      "actor_ids": [
+        "actor-single-user"
+      ]
+    },
+    {
+      "action": "Undo task completion",
+      "description": "Mark a completed task back as pending",
+      "actor_ids": [
+        "actor-single-user"
+      ]
+    },
+    {
+      "action": "Edit task",
+      "description": "Navigate to the Add/Edit Task form",
+      "actor_ids": [
+        "actor-single-user"
+      ]
+    },
+    {
+      "action": "Delete task",
+      "description": "Remove a task permanently",
+      "actor_ids": [
+        "actor-single-user"
+      ]
+    }
+  ],
+  "business_rules": [
+    "'Add Task' button must always be visible regardless of whether tasks exist",
+    "Tasks sorted by due date ascending by default (most urgent first)",
+    "Overdue tasks (past due date and not done) should be visually highlighted",
+    "Completed tasks should have distinct styling (e.g., strikethrough on title)",
+    "Deleting a task is immediate — no confirmation dialog needed"
+  ],
+  "usecase_ids": [
+    "usecase-001--view-task-list",
+    "usecase-002--search-filter-tasks",
+    "usecase-003--mark-task-status"
+  ],
+  "edge_cases": [
+    "No tasks yet — show friendly empty state message with 'Add Task' button",
+    "All tasks completed — show encouraging message",
+    "Search/filter returns zero results — show 'No matching tasks' message",
+    "Task with no due date — shown after dated tasks"
+  ],
+  "open_questions": [
+    "Should 'Mark task done' be a checkbox on the list, or only via edit form?",
+    "Maximum expected task count — affects pagination needs"
+  ]
+}

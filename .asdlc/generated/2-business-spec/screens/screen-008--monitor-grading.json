@@ -1,0 +1,91 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "id": "screen-008--monitor-grading",
+  "name": "Monitor Grading",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar yang menampilkan counter ringkasan data hari ini (Jumlah Grading, Jumlah Netto (kg), Jumlah Quantity (bunch)), list draft/pause milik user (bisa lebih dari satu berjalan bersamaan), serta akses ke pembuatan data baru dan penelusuran data tersimpan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap Grading di Station List"
+  ],
+  "information_displayed": [
+    "Counter data hari ini: 3 card sebaris (Jumlah Grading, Jumlah Netto (kg), Jumlah Quantity (bunch)), di atas list draft/pause",
+    "List draft/pause Grading milik user (bisa lebih dari satu), masing-masing berlabel 'Pause' (ongoing dan paused tidak dibedakan lagi secara tampilan)",
+    "Breadcrumb navigasi (Home > Production Process Activity > Grading) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu (konsisten dengan Home/Station List/Monitor Weighbridge)"
+  ],
+  "available_actions": [
+    {
+      "action": "Tap item draft di list",
+      "description": "Masuk ke Form Grading dengan data draft/pause tersebut untuk dilanjutkan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "New Data",
+      "description": "Membuat draft baru dan masuk ke Form Grading kosong",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Load Data",
+      "description": "Membuka daftar seluruh record Grading (tersimpan maupun masih draft/pause) dengan filter tanggal dan pencarian",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Station List",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Status draft ongoing dan paused digabung secara tampilan sebagai satu istilah: 'Pause' — tidak dibedakan lagi di UI",
+    "User bisa punya beberapa draft/pause berjalan bersamaan per stasiun, semua tampil di list",
+    "Pause dan Clear kini dilakukan dari Form Grading, bukan lagi tombol terpisah di Monitor",
+    "Breadcrumb harus dapat dinavigasi, bukan sekadar label statis",
+    "Counter 'hari ini' (Jumlah Grading, Netto, Quantity) dihitung dari seluruh record milik user dengan tanggal Date = hari ini, status apapun"
+  ],
+  "usecase_ids": [
+    "usecase-008--monitor-grading"
+  ],
+  "edge_cases": [
+    "Belum ada draft/pause sama sekali — list kosong, tampilkan pesan/empty state, tombol New Data tetap aktif",
+    "Banyak draft/pause menumpuk — list perlu scroll agar semua tetap dapat diakses",
+    "Belum ada data hari ini — ketiga card counter menampilkan 0"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

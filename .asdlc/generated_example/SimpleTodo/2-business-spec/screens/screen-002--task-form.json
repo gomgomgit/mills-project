@@ -1,0 +1,60 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-02"
+  },
+  "id": "screen-002--task-form",
+  "name": "Task Form",
+  "module_id": "module-tasks",
+  "description": "A modal overlay used to create a new task or edit an existing one — the single point of data entry for task title, due date, and status.",
+  "actors": [
+    "actor-user"
+  ],
+  "entry_points": [
+    "Clicking 'Add Task' on the Task List (opens in create mode, empty fields, status defaults to Todo)",
+    "Clicking the edit button on a task in the Task List (opens in edit mode, pre-filled with that task's current values)"
+  ],
+  "information_displayed": [
+    "Modal title ('New Task' or 'Edit Task' depending on mode)",
+    "Title field (text)",
+    "Due Date field (optional)",
+    "Status field (Todo / In Progress / Done)",
+    "Inline validation errors, if any"
+  ],
+  "available_actions": [
+    {
+      "action": "Save Task",
+      "description": "Validates and saves the title, due date, and status; on success closes the modal and returns to the Task List.",
+      "actor_ids": [
+        "actor-user"
+      ]
+    },
+    {
+      "action": "Cancel",
+      "description": "Closes the modal without saving, discarding any entered changes.",
+      "actor_ids": [
+        "actor-user"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Title is required — cannot save without one",
+    "A title consisting only of whitespace is treated as missing",
+    "Due date is optional",
+    "Status defaults to 'Todo' when creating a new task",
+    "Title cannot be cleared to empty when editing an existing task",
+    "Status can be freely changed when editing"
+  ],
+  "usecase_ids": [
+    "usecase-002--add-task",
+    "usecase-003--edit-task"
+  ],
+  "edge_cases": [
+    "User closes the modal via the X icon, Escape key, or clicking outside — treated the same as Cancel",
+    "User submits with only whitespace in the title — treated as missing title",
+    "User tries to save while a save is already in progress (double-click Save) — should not trigger a duplicate save"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

@@ -1,0 +1,283 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "id": "screen-008--monitor-grading",
+  "name": "Monitor Grading",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/grading/monitor",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-008--monitor-grading",
+      "usecase_name": "Monitor Grading",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load counter hari ini: agregasi (COUNT, SUM netto, SUM quantity) dari seluruh local grading_record milik user WHERE date(date) = hari ini, status apapun",
+        "2. Load list of local grading_record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC → each item labeled uniformly 'Pause'",
+        "3. Render 3 card counter sebaris (Jumlah Grading, Jumlah Netto (kg), Jumlah Quantity (bunch)) di atas list draft/pause",
+        "4. Render breadcrumb (Home > Production Process Activity > Grading, tappable) dan header dengan 'Mill Smart Log' + hamburger",
+        "5. On 'New Data' → INSERT new local grading_record dengan status=draft_ongoing, created_by=current user; navigasi ke Form Grading dengan id draft baru",
+        "6. On tap item list → navigasi ke Form Grading dengan id draft tersebut (tanpa transisi status)",
+        "7. On 'Load Data' → navigasi ke Data Preview Grading mode list (tanpa id param)",
+        "8. On tap breadcrumb segment → navigasi ke route terkait",
+        "9. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "SELECT agregat (COUNT, SUM netto, SUM quantity) WHERE created_by = current user AND date(date) = hari ini, status apapun"
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "SELECT list local record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC"
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "INSERT",
+          "description": "INSERT new local draft record on New Data, status=draft_ongoing"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Belum ada draft/pause sama sekali",
+          "handling": "List kosong/empty state ditampilkan, tombol New Data tetap aktif"
+        },
+        {
+          "condition": "Banyak draft/pause menumpuk",
+          "handling": "List perlu scroll agar semua tetap dapat diakses"
+        },
+        {
+          "condition": "Belum ada data (status apapun) dengan date = hari ini",
+          "handling": "Ketiga card counter menampilkan 0"
+        }
+      ],
+      "business_rules_applied": [
+        "User bisa punya beberapa draft/pause berjalan bersamaan, semua tampil di list",
+        "Ongoing dan paused digabung sebagai satu istilah Pause secara tampilan",
+        "Counter hari ini dihitung dari seluruh record (status apapun) dengan tanggal Date = hari ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads screen data successfully with populated list when local records exist",
+          "given": "gradingRepo.findByUserAndStatus() returns non-empty draft/pause records",
+          "expect": "return screen state { list: [...], isEmpty: false }"
+        },
+        {
+          "description": "returns empty-state list when no draft/pause records exist for current user",
+          "given": "gradingRepo.findByUserAndStatus(userId, [draft_ongoing, draft_paused]) returns []",
+          "expect": "return screen state { list: [], isEmpty: true }, New Data action remains enabled"
+        },
+        {
+          "description": "returns draft/pause list with uniform 'Pause' label ordered by updated_at DESC regardless of underlying status",
+          "given": "gradingRepo.findByUserAndStatus() returns mixed records with status draft_ongoing and draft_paused at different updated_at timestamps",
+          "expect": "return list mapped with label='Pause' for every item, sorted by updated_at descending"
+        },
+        {
+          "description": "creates new draft record and navigates to Form Grading when New Data is pressed",
+          "given": "gradingRepo.insert() succeeds and returns a new record with status=draft_ongoing and generated id",
+          "expect": "call navigate(FormGrading, { id: newRecord.id }) and gradingRepo.insert() called with { status: 'draft_ongoing', created_by: currentUser }"
+        },
+        {
+          "description": "navigates to Form Grading with selected draft id and does not change its status when a list item is tapped",
+          "given": "an existing draft/pause record with status=draft_paused is present in the loaded list",
+          "expect": "call navigate(FormGrading, { id: tappedRecord.id }); gradingRepo.update() is NOT called"
+        },
+        {
+          "description": "navigates to Data Preview Grading in list mode with no id param when Load Data is pressed",
+          "given": "user triggers the Load Data action",
+          "expect": "call navigate(DataPreviewGrading, { mode: 'list', id: null })"
+        },
+        {
+          "description": "navigates to the route corresponding to the tapped breadcrumb segment",
+          "given": "breadcrumb segment 'Production Process Activity' is tapped",
+          "expect": "call navigate(route mapped to 'Production Process Activity')"
+        },
+        {
+          "description": "opens navigation menu with Ganti Password and Logout options when hamburger is tapped",
+          "given": "header hamburger icon is tapped",
+          "expect": "return/emit navMenu open state with items containing 'Ganti Password' and 'Logout'"
+        },
+        {
+          "description": "navigates to Station List when Back is pressed",
+          "given": "user triggers the Back action",
+          "expect": "call navigate(StationList)"
+        },
+        {
+          "description": "computes today's counter (count, sum netto, sum quantity) from records with date = today, any status",
+          "given": "gradingRepo returns 3 records dated today with netto/quantity values, mixed statuses (draft_ongoing, saved)",
+          "expect": "counter = { countGrading: 3, sumNetto: <correct sum>, sumQuantity: <correct sum> }"
+        },
+        {
+          "description": "excludes records with date not equal to today from the counter",
+          "given": "gradingRepo returns records dated yesterday and today",
+          "expect": "counter only reflects today's records, yesterday's excluded"
+        },
+        {
+          "description": "returns zero counter values when no records match today's date",
+          "given": "gradingRepo returns no records dated today",
+          "expect": "counter = { countGrading: 0, sumNetto: 0, sumQuantity: 0 }"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Asal navigasi ke Monitor Grading, dan tujuan breadcrumb/back"
+    },
+    {
+      "screen_id": "screen-011--form-grading",
+      "reason": "New Data / tap list item membuka Form Grading"
+    },
+    {
+      "screen_id": "screen-014--data-preview-grading",
+      "reason": "Load Data membuka Data Preview Grading mode list"
+    }
+  ],
+  "implementation_notes": [
+    "Semua operasi dilakukan lokal di SQLite, tidak ada panggilan API",
+    "Query counter hari ini dan list draft butuh fungsi repo BARU di gradingRecordRepo.ts (mis. getTodaySummary(userId), getDrafts(userId)) — mirip pola weighbridgeRecordRepo.ts",
+    "Tap list item TIDAK memanggil status-update lagi",
+    "Breadcrumb & hamburger mengikuti pola yang sama dengan Monitor Weighbridge v4"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Monitor Grading — success",
+      "usecase_id": "usecase-008--monitor-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorGradingView",
+        "action": "render screen with draft/pause list, tap the 'New Data' button",
+        "assert": "createNewDraft handler invoked; router push to Form Grading route called with the newly created draft id"
+      },
+      "browser_test": {
+        "route": "/stations/grading/monitor",
+        "action": "login, navigate to Grading from Station List, on Monitor Grading tap 'New Data' button",
+        "assert": "browser navigates to Form Grading URL for the newly created draft record"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Grading — Lanjutkan Draft/Pause",
+      "usecase_id": "usecase-008--monitor-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorGradingView",
+        "action": "render screen with a draft/pause list containing at least one item, tap the first list item",
+        "assert": "router push to Form Grading route called with the tapped item's draft id; no status-update handler invoked"
+      },
+      "browser_test": {
+        "route": "/stations/grading/monitor",
+        "action": "with an existing draft/pause present in the list, tap the draft/pause list item",
+        "assert": "browser navigates to Form Grading URL pre-filled with the selected draft's data"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Grading — Load Data",
+      "usecase_id": "usecase-008--monitor-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorGradingView",
+        "action": "tap the 'Load Data' button",
+        "assert": "router push to Data Preview Grading route called in list mode with no id param"
+      },
+      "browser_test": {
+        "route": "/stations/grading/monitor",
+        "action": "tap the 'Load Data' button on Monitor Grading screen",
+        "assert": "browser navigates to Data Preview Grading screen, showing all records (saved and draft) with date and search filters visible"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Grading — Tap Breadcrumb",
+      "usecase_id": "usecase-008--monitor-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorGradingView",
+        "action": "tap a breadcrumb segment (e.g. 'Production Process Activity')",
+        "assert": "router push called with the route corresponding to the tapped breadcrumb segment"
+      },
+      "browser_test": {
+        "route": "/stations/grading/monitor",
+        "action": "tap the 'Production Process Activity' breadcrumb segment",
+        "assert": "browser navigates to the Production Process Activity page"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Grading — Buka Menu Hamburger",
+      "usecase_id": "usecase-008--monitor-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorGradingView",
+        "action": "tap the header hamburger icon",
+        "assert": "nav menu open state emitted/rendered with 'Ganti Password' and 'Logout' options visible"
+      },
+      "browser_test": {
+        "route": "/stations/grading/monitor",
+        "action": "tap the hamburger icon in the header",
+        "assert": "navigation menu is displayed showing 'Ganti Password' and 'Logout' options"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Grading — Belum Ada Draft",
+      "usecase_id": "usecase-008--monitor-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorGradingView",
+        "action": "render screen when the draft/pause list is empty",
+        "assert": "empty-state message shown in list area; 'New Data' button remains enabled/interactive"
+      },
+      "browser_test": {
+        "route": "/stations/grading/monitor",
+        "action": "open Monitor Grading screen with no existing draft/pause records",
+        "assert": "list area shows empty state; 'New Data' button is visible and enabled"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Grading — Counter Hari Ini Menampilkan Data",
+      "usecase_id": "usecase-008--monitor-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorGradingView",
+        "action": "render screen with today's counter data (countGrading=3, sumNetto=X, sumQuantity=Y)",
+        "assert": "3 counter cards render the correct values"
+      },
+      "browser_test": {
+        "route": "/stations/grading/monitor",
+        "action": "seed 2-3 grading_record rows with date = today for the logged-in user, navigate to Monitor Grading",
+        "assert": "the 3 counter cards show the correct totals matching the seeded data"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Grading — Belum Ada Data Hari Ini",
+      "usecase_id": "usecase-008--monitor-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorGradingView",
+        "action": "render screen with today's counter data all zero",
+        "assert": "3 counter cards render 0"
+      },
+      "browser_test": {
+        "route": "/stations/grading/monitor",
+        "action": "ensure no grading_record rows dated today exist for the logged-in user, navigate to Monitor Grading",
+        "assert": "the 3 counter cards show 0"
+      }
+    }
+  ]
+}

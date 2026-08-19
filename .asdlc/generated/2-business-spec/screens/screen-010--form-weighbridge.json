@@ -1,0 +1,101 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 4,
+  "id": "screen-010--form-weighbridge",
+  "name": "Form Weighbridge",
+  "module_id": "module-mobile-station-ops",
+  "description": "Form input/edit data log Weighbridge yang mencatat data kendaraan, supir, asal muatan, dan berat timbang, dengan field dikelompokkan per section, waktu Arrival & Dispatch otomatis (termasuk tanggal), dan Net Weight terhitung otomatis.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap 'New Data' dari Monitor Weighbridge (draft baru)",
+    "Tap salah satu item draft/pause di list Monitor Weighbridge (lanjutkan draft)"
+  ],
+  "information_displayed": [
+    "WB Card Number/ID",
+    "Tanggal & Waktu Arrival — otomatis terisi sekali saat form dibuka, tidak dapat diedit",
+    "Data kendaraan (No. Kendaraan, Nama Supir) - input teks bebas",
+    "Estate/Supplier asal, Divisi, Blok - input teks bebas",
+    "Berat masuk (Gross) (kg) dan berat keluar (Tare) (kg) - input manual; Net Weight (kg) dihitung otomatis (Gross - Tare), tidak dapat diedit; Kuantitas",
+    "Tanggal & Waktu Dispatch — otomatis mengikuti tanggal dan waktu saat ini secara real-time, tidak dapat diedit, berhenti mengikuti waktu saat Simpan ditekan",
+    "Breadcrumb navigasi (Home > Production Process Activity > Weighbridge > Form) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu",
+    "Field dikelompokkan per section: Identitas Weighbridge, Kendaraan & Supir, Asal Muatan, Data Timbangan, Dispatch"
+  ],
+  "available_actions": [
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record data Weighbridge secara final",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progress saat ini sebagai draft yang bisa dilanjutkan nanti, kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus draft ini secara permanen (dengan konfirmasi), kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor tanpa menyimpan, dengan konfirmasi jika ada perubahan belum tersimpan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Data kendaraan, supir, estate/supplier, divisi, blok tetap input teks bebas (bukan dropdown master data) di MVP",
+    "Record tersimpan langsung begitu Simpan ditekan (bukan approval workflow berjenjang)",
+    "Field wajib ditandai asterisk merah dengan validasi inline",
+    "Tanggal & Waktu Arrival diisi otomatis sekali saat form dibuka, tidak dapat diedit manual",
+    "Tanggal & Waktu Dispatch diisi otomatis mengikuti tanggal & waktu saat ini secara real-time sampai Simpan ditekan; nilai final adalah tanggal & waktu tepat saat Simpan ditekan",
+    "Net Weight dihitung otomatis dari Gross Weight dikurangi Tare Weight, tidak dapat diedit manual",
+    "Breadcrumb harus dapat dinavigasi",
+    "Label field berat (Gross, Tare, Net Weight) menampilkan satuan (kg) untuk kejelasan"
+  ],
+  "usecase_ids": [
+    "usecase-010--form-weighbridge"
+  ],
+  "edge_cases": [
+    "Field wajib belum lengkap saat Simpan ditekan",
+    "Draft yang di-Pause lalu dilanjutkan - data harus terisi kembali sesuai draft tersimpan",
+    "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
+    "User menekan Clear (perlu konfirmasi sebelum hapus permanen)"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

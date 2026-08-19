@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>list | MySimpleTodo</title>
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@latest/dist/full.min.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Page-specific layout only — all color/spacing values use CSS variables from design-tokens.css */
+    .content-wrapper {
+      max-width: var(--space-content-max-width);
+      margin: 0 auto;
+      padding: 0 var(--space-page-padding) var(--space-page-padding);
+    }
+    .task-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 14px 20px;
+    }
+  </style>
+</head>
+<body class="bg-base-100 min-h-screen">
+  <div class="content-wrapper">
+
+    <!-- ────────────────────────────────
+         Page Header
+         ──────────────────────────────── -->
+    <header class="flex items-center justify-between pt-8 pb-5 border-b border-base-200">
+      <h1 class="text-2xl font-bold tracking-tight text-base-content">MySimpleTodo</h1>
+      <button class="btn btn-primary btn-sm gap-1.5">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+             stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+        </svg>
+        Add Task
+      </button>
+    </header>
+
+    <!-- ────────────────────────────────
+         Filter & Sort Bar
+         ──────────────────────────────── -->
+    <div class="flex items-center gap-3 py-4">
+      <span class="text-sm font-medium text-base-content/60">Filter</span>
+      <select class="select select-bordered select-sm w-44 focus:outline-none">
+        <option value="all" selected>All Statuses</option>
+        <option value="todo">Todo</option>
+        <option value="in-progress">In Progress</option>
+        <option value="done">Done</option>
+      </select>
+      <div class="flex-1"></div>
+      <span class="text-sm text-base-content/40">8 tasks</span>
+      <!-- Sort toggle — active state shows ascending (earliest first) -->
+      <button class="btn btn-ghost btn-sm gap-1.5 border border-base-300 bg-base-200 font-normal text-base-content/70">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"
+             stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25"/>
+        </svg>
+        Due Date
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24"
+             stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- ────────────────────────────────
+         Task List — data state
+         Sorted by due date ascending (earliest first).
+         Tasks without a due date appear at the bottom.
+         ──────────────────────────────── -->
+    <main class="space-y-2 pb-12">
+
+      <!-- ── Task 1: Renew car insurance — Jun 25 — Done ────────────── -->
+      <!-- Done task: muted text, strikethrough, no overdue indicator   -->
+      <div class="rounded-lg border border-base-200 bg-base-100 transition-shadow hover:shadow-sm">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-base-content/40 truncate line-through">Renew car insurance</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="badge badge-ghost badge-sm gap-1 font-normal text-base-content/35">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121
+                         7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5m18 7.5v-7.5"/>
+              </svg>
+              Jun 25
+            </span>
+            <span class="badge badge-success badge-sm">Done</span>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <button class="btn btn-ghost btn-xs btn-square" title="Edit task" aria-label="Edit task">
+              <svg class="w-4 h-4 text-base-content/30" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897
+                         1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+              </svg>
+            </button>
+            <button class="btn btn-ghost btn-xs btn-square" title="Delete task" aria-label="Delete task">
+              <svg class="w-4 h-4 text-error/40" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107
+                         1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0
+                         01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12
+                         .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5
+                         0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32
+                         0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Task 2: Buy groceries — Jun 28 — Todo (OVERDUE) ─────────── -->
+      <!-- badge-warning on date, subtle warning tint on card border     -->
+      <div class="rounded-lg border border-warning/40 bg-warning/5 transition-shadow hover:shadow-sm hover:border-warning/70">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-base-content truncate">Buy groceries</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="badge badge-warning badge-sm gap-1 font-normal">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121
+                         7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5m18 7.5v-7.5"/>
+              </svg>
+              Jun 28 · Overdue
+            </span>
+            <span class="badge badge-ghost badge-sm">Todo</span>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <button class="btn btn-ghost btn-xs btn-square" title="Edit task" aria-label="Edit task">
+              <svg class="w-4 h-4 text-base-content/50" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897
+                         1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+              </svg>
+            </button>
+            <button class="btn btn-ghost btn-xs btn-square" title="Delete task" aria-label="Delete task">
+              <svg class="w-4 h-4 text-error" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107
+                         1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0
+                         01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12
+                         .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5
+                         0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32
+                         0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Task 3: Finish project report — Jun 30 — In Progress ────── -->
+      <div class="rounded-lg border border-base-200 bg-base-100 transition-shadow hover:shadow-sm hover:border-base-300">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-base-content truncate">Finish project report</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="badge badge-ghost badge-sm gap-1 font-normal">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121
+                         7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5m18 7.5v-7.5"/>
+              </svg>
+              Jun 30
+            </span>
+            <span class="badge badge-info badge-sm">In Progress</span>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <button class="btn btn-ghost btn-xs btn-square" title="Edit task" aria-label="Edit task">
+              <svg class="w-4 h-4 text-base-content/50" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897
+                         1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+              </svg>
+            </button>
+            <button class="btn btn-ghost btn-xs btn-square" title="Delete task" aria-label="Delete task">
+              <svg class="w-4 h-4 text-error" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107
+                         1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0
+                         01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12
+                         .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5
+                         0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32
+                         0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Task 4: Review team presentations — Jul 1 — In Progress ─── -->
+      <div class="rounded-lg border border-base-200 bg-base-100 transition-shadow hover:shadow-sm hover:border-base-300">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-base-content truncate">Review team presentations</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="badge badge-ghost badge-sm gap-1 font-normal">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121
+                         7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5m18 7.5v-7.5"/>
+              </svg>
+              Jul 1
+            </span>
+            <span class="badge badge-info badge-sm">In Progress</span>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <button class="btn btn-ghost btn-xs btn-square" title="Edit task" aria-label="Edit task">
+              <svg class="w-4 h-4 text-base-content/50" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897
+                         1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+              </svg>
+            </button>
+            <button class="btn btn-ghost btn-xs btn-square" title="Delete task" aria-label="Delete task">
+              <svg class="w-4 h-4 text-error" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107
+                         1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0
+                         01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12
+                         .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5
+                         0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32
+                         0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Task 5: Call dentist for appointment — Jul 5 — Todo ─────── -->
+      <div class="rounded-lg border border-base-200 bg-base-100 transition-shadow hover:shadow-sm hover:border-base-300">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-base-content truncate">Call dentist for appointment</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="badge badge-ghost badge-sm gap-1 font-normal">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121
+                         7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5m18 7.5v-7.5"/>
+              </svg>
+              Jul 5
+            </span>
+            <span class="badge badge-ghost badge-sm">Todo</span>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <button class="btn btn-ghost btn-xs btn-square" title="Edit task" aria-label="Edit task">
+              <svg class="w-4 h-4 text-base-content/50" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897
+                         1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+              </svg>
+            </button>
+            <button class="btn btn-ghost btn-xs btn-square" title="Delete task" aria-label="Delete task">
+              <svg class="w-4 h-4 text-error" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107
+                         1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0
+                         01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12
+                         .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5
+                         0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32
+                         0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Task 6: Update resume — Jul 8 — Todo ───────────────────── -->
+      <div class="rounded-lg border border-base-200 bg-base-100 transition-shadow hover:shadow-sm hover:border-base-300">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-base-content truncate">Update resume</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="badge badge-ghost badge-sm gap-1 font-normal">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121
+                         7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5m18 7.5v-7.5"/>
+              </svg>
+              Jul 8
+            </span>
+            <span class="badge badge-ghost badge-sm">Todo</span>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <button class="btn btn-ghost btn-xs btn-square" title="Edit task" aria-label="Edit task">
+              <svg class="w-4 h-4 text-base-content/50" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897
+                         1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+              </svg>
+            </button>
+            <button class="btn btn-ghost btn-xs btn-square" title="Delete task" aria-label="Delete task">
+              <svg class="w-4 h-4 text-error" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107
+                         1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0
+                         01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12
+                         .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5
+                         0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32
+                         0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Task 7: Read 'Atomic Habits' — Jul 15 — Todo ──────────── -->
+      <div class="rounded-lg border border-base-200 bg-base-100 transition-shadow hover:shadow-sm hover:border-base-300">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-base-content truncate">Read &lsquo;Atomic Habits&rsquo;</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="badge badge-ghost badge-sm gap-1 font-normal">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121
+                         7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5m18 7.5v-7.5"/>
+              </svg>
+              Jul 15
+            </span>
+            <span class="badge badge-ghost badge-sm">Todo</span>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <button class="btn btn-ghost btn-xs btn-square" title="Edit task" aria-label="Edit task">
+              <svg class="w-4 h-4 text-base-content/50" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897
+                         1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+              </svg>
+            </button>
+            <button class="btn btn-ghost btn-xs btn-square" title="Delete task" aria-label="Delete task">
+              <svg class="w-4 h-4 text-error" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107
+                         1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0
+                         01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12
+                         .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5
+                         0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32
+                         0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Task 8: Plan weekend trip — no due date — Todo ─────────── -->
+      <!-- No date badge; placeholder dash maintains visual alignment    -->
+      <div class="rounded-lg border border-base-200 bg-base-100 transition-shadow hover:shadow-sm hover:border-base-300">
+        <div class="task-row">
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-base-content truncate">Plan weekend trip</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-sm text-base-content/25 select-none">—</span>
+            <span class="badge badge-ghost badge-sm">Todo</span>
+          </div>
+          <div class="flex items-center gap-0.5 shrink-0">
+            <button class="btn btn-ghost btn-xs btn-square" title="Edit task" aria-label="Edit task">
+              <svg class="w-4 h-4 text-base-content/50" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897
+                         1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+              </svg>
+            </button>
+            <button class="btn btn-ghost btn-xs btn-square" title="Delete task" aria-label="Delete task">
+              <svg class="w-4 h-4 text-error" fill="none" stroke="currentColor"
+                   viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                      d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107
+                         1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0
+                         01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12
+                         .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5
+                         0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32
+                         0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</body>
+</html>

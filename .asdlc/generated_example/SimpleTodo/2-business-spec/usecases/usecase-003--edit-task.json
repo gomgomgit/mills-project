@@ -1,0 +1,100 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-02"
+  },
+  "id": "usecase-003--edit-task",
+  "name": "Edit Task",
+  "description": "The user selects an existing task to update its title, due date, or status by opening the Task Form pre-filled with the task's current values. Once saved, the changes are reflected in the list.",
+  "actors": [
+    "actor-user"
+  ],
+  "preconditions": [
+    "The Task List screen is visible",
+    "At least one task exists in the list"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-user",
+      "description": "Clicks the edit button on a task in the list"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Opens the Task Form modal pre-filled with the task's current title, due date, and status"
+    },
+    {
+      "step": 3,
+      "actor": "actor-user",
+      "description": "Updates one or more fields"
+    },
+    {
+      "step": 4,
+      "actor": "actor-user",
+      "description": "Clicks Save"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Saves the changes and updates the task in the list"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Closes the modal and shows a success notification"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Title cleared",
+      "trigger": "At step 4, the user has removed the title, or left only whitespace, and submits",
+      "steps": [
+        "System displays a validation error under the Title field",
+        "Save is re-enabled",
+        "User must correct before proceeding"
+      ]
+    },
+    {
+      "name": "User cancels",
+      "trigger": "At step 3, the user clicks Cancel or closes the modal",
+      "steps": [
+        "Modal closes without saving",
+        "Task remains unchanged"
+      ]
+    }
+  ],
+  "postconditions": [
+    "The task's updated values are saved and visible in the task list"
+  ],
+  "business_rules": [
+    "Task title is required and cannot be cleared on edit",
+    "A title consisting only of whitespace is treated as missing",
+    "Due date and status can be changed freely"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Edit Task — success",
+      "given": "The user is on the Task List screen and at least one task exists",
+      "when": "The user clicks the edit button on a task, updates a field, and saves",
+      "then": "The task's updated values are shown in the list and a success notification is displayed"
+    },
+    {
+      "scenario": "Edit Task — title cleared",
+      "given": "The user has opened the Task Form in edit mode",
+      "when": "The user removes the title and tries to save",
+      "then": "A validation error is shown under the Title field and the changes are not saved"
+    },
+    {
+      "scenario": "Edit Task — user cancels",
+      "given": "The user has opened the Task Form in edit mode",
+      "when": "The user clicks Cancel or closes the modal",
+      "then": "The modal closes and the task remains unchanged"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-001--task-list",
+    "screen-002--task-form"
+  ]
+}

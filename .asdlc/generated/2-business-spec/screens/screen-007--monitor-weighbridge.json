@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 4,
+  "id": "screen-007--monitor-weighbridge",
+  "name": "Monitor Weighbridge",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar yang menampilkan counter ringkasan data hari ini (jumlah WB, Net Weight, Quantity), list draft/pause milik user (bisa lebih dari satu berjalan bersamaan), serta akses ke pembuatan data baru dan penelusuran data tersimpan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap Weighbridge di Station List"
+  ],
+  "information_displayed": [
+    "Counter data hari ini: 3 card sebaris (Jumlah WB, Jumlah Net Weight (kg), Jumlah Quantity (kg)), di atas list draft/pause",
+    "List draft/pause Weighbridge milik user (bisa lebih dari satu), masing-masing berlabel 'Pause' (ongoing dan paused tidak dibedakan lagi secara tampilan)",
+    "Breadcrumb navigasi (Home > Production Process Activity > Weighbridge) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu (konsisten dengan Home/Station List)"
+  ],
+  "available_actions": [
+    {
+      "action": "Tap item draft di list",
+      "description": "Masuk ke Form Weighbridge dengan data draft/pause tersebut untuk dilanjutkan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "New Data",
+      "description": "Membuat draft baru dan masuk ke Form Weighbridge kosong",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Load Data",
+      "description": "Membuka daftar seluruh record Weighbridge (tersimpan maupun masih draft/pause) dengan filter tanggal dan pencarian",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Station List",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Status draft ongoing dan paused digabung secara tampilan sebagai satu istilah: 'Pause' — tidak dibedakan lagi di UI",
+    "User bisa punya beberapa draft/pause berjalan bersamaan per stasiun, semua tampil di list",
+    "Pause dan Clear kini dilakukan dari Form Weighbridge, bukan lagi tombol terpisah di Monitor",
+    "Breadcrumb harus dapat dinavigasi, bukan sekadar label statis",
+    "Counter 'hari ini' (Jumlah WB, Net Weight, Quantity) dihitung dari seluruh record milik user dengan tanggal Arrival = hari ini, status apapun (draft maupun tersimpan)"
+  ],
+  "usecase_ids": [
+    "usecase-007--monitor-weighbridge"
+  ],
+  "edge_cases": [
+    "Belum ada draft/pause sama sekali — list kosong, tampilkan pesan/empty state, tombol New Data tetap aktif",
+    "Banyak draft/pause menumpuk — list perlu scroll agar semua tetap dapat diakses",
+    "Belum ada data hari ini — ketiga card counter menampilkan 0"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

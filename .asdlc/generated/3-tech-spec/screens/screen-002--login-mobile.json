@@ -1,0 +1,363 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-17"
+  },
+  "id": "screen-002--login-mobile",
+  "name": "Login Mobile",
+  "module_id": "module-auth",
+  "route": "/login",
+  "auth_requirement": "public",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-002--login-mobile",
+      "usecase_name": "Login Mobile",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/login",
+          "description": "Autentikasi Operator/Supervisor via mobile, mengembalikan Sanctum personal access token untuk disimpan lokal (mendukung sesi offline berikutnya)",
+          "auth_required": false,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "username": "string",
+              "password": "string",
+              "business_unit_id": "string",
+              "device_name": "string"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "user": {
+                "id": "uuid",
+                "username": "string",
+                "name": "string",
+                "role": "enum(operator,supervisor,mill_management,admin)"
+              },
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "token": "string"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "INVALID_CREDENTIALS",
+                "condition": "username/password tidak cocok"
+              },
+              {
+                "http_code": 403,
+                "error_code": "ACCOUNT_INACTIVE",
+                "condition": "akun user berstatus nonaktif"
+              },
+              {
+                "http_code": 403,
+                "error_code": "BUSINESS_AREA_MISMATCH",
+                "condition": "business area tidak sesuai penugasan user"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "password tidak memenuhi format minimal 6 karakter alfanumerik+simbol, atau field wajib kosong"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate request body → if invalid: return 422 VALIDATION_ERROR",
+        "2. Validate format password → if invalid: return 422 VALIDATION_ERROR",
+        "3. Lookup user by username → if not found/password mismatch: return 401 INVALID_CREDENTIALS",
+        "4. Check user.is_active → if false: return 403 ACCOUNT_INACTIVE",
+        "5. Check business_unit_id cocok dengan penugasan user → if mismatch: return 403 BUSINESS_AREA_MISMATCH",
+        "6. Buat Sanctum personal access token (nama = device_name)",
+        "7. Return 200 dengan user info + token"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "SELECT user by username WHERE username = input"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Tidak ada koneksi saat login pertama kali (device belum pernah aktivasi)",
+          "handling": "Client-side check: jika device belum pernah punya token tersimpan dan tidak ada koneksi, blokir submit dan tampilkan pesan 'koneksi internet diperlukan untuk login pertama kali' — tidak memanggil API"
+        },
+        {
+          "condition": "Kredensial salah",
+          "handling": "Return 401 INVALID_CREDENTIALS, field password dikosongkan"
+        },
+        {
+          "condition": "Akun tidak aktif/dinonaktifkan",
+          "handling": "Return 403 ACCOUNT_INACTIVE"
+        },
+        {
+          "condition": "Token sesi lokal kadaluarsa saat offline dalam waktu lama",
+          "handling": "Client-side: deteksi token lokal invalid/expired, arahkan user ke layar login dan minta re-login online"
+        },
+        {
+          "condition": "Business area tidak sesuai penugasan",
+          "handling": "Return 403 BUSINESS_AREA_MISMATCH"
+        },
+        {
+          "condition": "Format password tidak valid",
+          "handling": "Return 422 VALIDATION_ERROR"
+        }
+      ],
+      "business_rules_applied": [
+        "Password minimal 6 karakter, case-sensitive, kombinasi alfanumerik+simbol",
+        "Login pertama kali memerlukan koneksi internet aktif",
+        "Business area harus sesuai penugasan"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 422 VALIDATION_ERROR when request body is invalid (missing/empty required fields)",
+          "given": "request body missing or empty required field(s) e.g. username, password, business_unit_id, or device_name",
+          "expect": "return 422 with error_code VALIDATION_ERROR, no user lookup performed"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when password format is invalid",
+          "given": "password provided but length < 6 characters or does not match required alphanumeric+symbol format",
+          "expect": "return 422 with error_code VALIDATION_ERROR before credential lookup"
+        },
+        {
+          "description": "returns 401 INVALID_CREDENTIALS when user not found or password mismatch",
+          "given": "userRepo.findByUsername() returns null, OR returns a user but password hash check fails",
+          "expect": "throw/return 401 with error_code INVALID_CREDENTIALS"
+        },
+        {
+          "description": "returns 403 ACCOUNT_INACTIVE when user.is_active is false",
+          "given": "userRepo.findByUsername() returns a user with is_active = false and matching password",
+          "expect": "return 403 with error_code ACCOUNT_INACTIVE"
+        },
+        {
+          "description": "returns 403 BUSINESS_AREA_MISMATCH when business_unit_id does not match user's assignment",
+          "given": "user is active, password matches, but request.business_unit_id is not among user's assigned business units",
+          "expect": "return 403 with error_code BUSINESS_AREA_MISMATCH"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "request body valid, password format valid, userRepo.findByUsername() returns an active user with matching password and matching business_unit_id",
+          "expect": "create Sanctum personal access token named device_name; return 200 with { user, business_unit, token }"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [],
+  "implementation_notes": [
+    "Token Sanctum disimpan lokal di device (secure storage) untuk mendukung sesi offline berikutnya, sesuai shared-decisions.auth.session_strategy",
+    "Verifikasi token lokal saat offline sepenuhnya di sisi client, tidak ada panggilan API — durasi validitas token offline belum ditentukan (open question di business spec)",
+    "Deteksi 'tidak ada koneksi saat login pertama kali' dilakukan client-side (device belum pernah punya token tersimpan) — submit diblokir sebelum memanggil API",
+    "Lupa Password membutuhkan koneksi internet, di luar scope tech spec ini (belum ada usecase terpisah)"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Login Mobile — berhasil",
+      "usecase_id": "usecase-002--login-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/login"
+          },
+          "request_example": {
+            "username": "operator01",
+            "password": "Passw0rd!",
+            "business_unit_id": "bu-001",
+            "device_name": "Samsung A54 - Operator"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "fill valid username/NIK and password, select matching Business Area, click Login button",
+        "assert": "loading state shown during submit; on success navigates to Home; session token persisted to local storage for offline use"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "open mobile login screen, enter valid username and password, select Business Area, tap Login",
+        "assert": "user is redirected to Home screen; session stored locally for subsequent offline use"
+      }
+    },
+    {
+      "scenario_ref": "Login Mobile — Tidak Ada Koneksi Saat Login Pertama",
+      "usecase_id": "usecase-002--login-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "simulate a device with no previously stored token (first-time activation) and no internet connectivity, then click Login button",
+        "assert": "submit is blocked client-side (no API call made); error message 'koneksi internet diperlukan untuk login pertama kali' is displayed"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "on a fresh device with no network connection, attempt to submit the login form",
+        "assert": "login is blocked before any network request is sent; message about needing internet connection for first login is shown"
+      }
+    },
+    {
+      "scenario_ref": "Login Mobile — Kredensial Salah",
+      "usecase_id": "usecase-002--login-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/login"
+          },
+          "request_example": {
+            "username": "operator01",
+            "password": "wrongpass",
+            "business_unit_id": "bu-001",
+            "device_name": "Samsung A54 - Operator"
+          },
+          "expected_status": 401,
+          "expected_error_code": "INVALID_CREDENTIALS"
+        }
+      ],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "fill username and/or password with incorrect values, click Login button",
+        "assert": "error message displayed; password field is cleared; user can retry login"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "enter wrong username or password, tap Login",
+        "assert": "error message shown; password field cleared; login form remains editable for retry"
+      }
+    },
+    {
+      "scenario_ref": "Login Mobile — Akun Dinonaktifkan",
+      "usecase_id": "usecase-002--login-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/login"
+          },
+          "request_example": {
+            "username": "inactiveuser",
+            "password": "Passw0rd!",
+            "business_unit_id": "bu-001",
+            "device_name": "Samsung A54 - Operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "ACCOUNT_INACTIVE"
+        }
+      ],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "fill credentials belonging to a deactivated account, click Login button",
+        "assert": "error message indicating account is inactive is shown; login rejected"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "attempt login using a deactivated account's credentials",
+        "assert": "message displayed stating the account is inactive; user is not navigated to Home"
+      }
+    },
+    {
+      "scenario_ref": "Login Mobile — Token Sesi Lokal Kadaluarsa",
+      "usecase_id": "usecase-002--login-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "simulate an offline login attempt where the locally stored session token is expired",
+        "assert": "user is redirected/prompted to the login screen requesting online re-authentication; no stale session is used"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "attempt offline login with an expired locally-stored session token",
+        "assert": "app prompts user to re-login online and blocks access with the expired token"
+      }
+    },
+    {
+      "scenario_ref": "Login Mobile — Password Tidak Memenuhi Format Minimum",
+      "usecase_id": "usecase-002--login-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/login"
+          },
+          "request_example": {
+            "username": "operator01",
+            "password": "abc",
+            "business_unit_id": "bu-001",
+            "device_name": "Samsung A54 - Operator"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "fill a password shorter than 6 characters or not matching the required alphanumeric+symbol format, click Login button",
+        "assert": "validation error message shown stating password format requirement not met; login rejected"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "enter a password that does not meet the minimum format requirement, tap Login",
+        "assert": "error message shown indicating the password format requirement is not met"
+      }
+    },
+    {
+      "scenario_ref": "Login Mobile — Business Area Tidak Sesuai Penugasan",
+      "usecase_id": "usecase-002--login-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/login"
+          },
+          "request_example": {
+            "username": "operator01",
+            "password": "Passw0rd!",
+            "business_unit_id": "bu-999-wrong",
+            "device_name": "Samsung A54 - Operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "BUSINESS_AREA_MISMATCH"
+        }
+      ],
+      "component_test": {
+        "component": "LoginForm",
+        "action": "select a Business Area not matching the user's assignment, fill valid credentials, click Login button",
+        "assert": "error message shown that the selected Business Area does not match the user's assignment; login rejected"
+      },
+      "browser_test": {
+        "route": "/login",
+        "action": "select a mismatched Business Area/Company and submit otherwise valid credentials",
+        "assert": "login rejected with a message about the Business Area mismatch; user remains on login screen"
+      }
+    }
+  ]
+}

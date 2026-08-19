@@ -1,0 +1,369 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "screen-014--data-preview-grading",
+  "name": "Data Preview Grading",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/grading/preview/:id?",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-014--data-preview-grading",
+      "usecase_name": "Lihat Data Grading Tersimpan",
+      "endpoints": [],
+      "business_logic": [
+        "1. List mode (tanpa id param): load SEMUA local grading_record milik current user (status apapun), set dateFilter default ke tanggal hari ini (format YYYY-MM-DD lokal, terhadap field date), opsional difilter lebih lanjut oleh kata kunci pencarian (grading_number/license_plate_no)",
+        "2. Render list: setiap item tampilkan label (grading_number atau fallback) + indikator status ('Pause' untuk draft_ongoing/draft_paused, 'Tersimpan' untuk saved, 'Tersinkron' untuk synced)",
+        "3. Render breadcrumb (Home > Production Process Activity > Grading > Load Data, tappable) dan header dengan hamburger",
+        "4. On tap item list berstatus draft_ongoing/draft_paused → navigasi ke Form Grading dengan id item tersebut",
+        "5. On tap item list berstatus saved/synced → pindah ke mode DETAIL (route dapat id param) menampilkan record tersebut read-only beserta grid Grading Detail",
+        "6. On filter tanggal diubah (termasuk dikosongkan) → saring list sesuai nilai filter yang baru",
+        "7. On kata kunci pencarian dimasukkan → saring list berdasarkan kecocokan substring case-insensitive (grading_number atau license_plate_no)",
+        "8. Mode DETAIL: load grading_record by id (route param) beserta seluruh grading_detail turunannya (join nama Quality Parameter dari grading_parameter_id) → jika ditemukan, render semua field header + grid detail read-only (Checked By TIDAK ditampilkan); jika tidak ditemukan, tampilkan error 'record tidak ditemukan' dengan Back",
+        "9. On Back di mode LIST → navigasi ke Monitor Grading",
+        "10. On Back di mode DETAIL → navigasi kembali ke mode LIST (id param dihapus dari route)",
+        "11. On tap breadcrumb segment → navigasi ke route terkait",
+        "12. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "SELECT semua local record milik current user, status apapun, opsional difilter tanggal/search (mode list)"
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "SELECT record by id untuk detail read-only (mode detail)"
+        },
+        {
+          "entity_id": "grading-detail",
+          "operation": "SELECT",
+          "description": "SELECT semua baris by grading_record_id untuk mode detail"
+        },
+        {
+          "entity_id": "grading-parameter",
+          "operation": "SELECT",
+          "description": "SELECT untuk resolve nama Quality Parameter tiap baris grading_detail di mode detail (join by grading_parameter_id)"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Record tidak ditemukan di mode detail (id tidak valid)",
+          "handling": "Tampilkan pesan error 'record tidak ditemukan' dengan tombol Back (kembali ke list, bukan Monitor)"
+        },
+        {
+          "condition": "List kosong (belum ada record sama sekali)",
+          "handling": "Tampilkan empty state"
+        },
+        {
+          "condition": "Filter tanggal/search tidak menghasilkan apapun (termasuk saat filter default hari ini tidak ada datanya)",
+          "handling": "Tampilkan pesan tidak ditemukan dengan opsi reset filter"
+        }
+      ],
+      "business_rules_applied": [
+        "Detail record bersifat murni read-only",
+        "List menampilkan seluruh record apapun statusnya",
+        "Filter tanggal & pencarian bekerja terhadap list yang sedang ditampilkan",
+        "Breadcrumb harus dapat dinavigasi",
+        "Filter tanggal default ke hari ini saat list pertama kali dibuka",
+        "Checked By tidak ditampilkan di detail"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns empty array when user has no local grading_record rows",
+          "given": "gradingRepo.getAllRecords(userId) returns []",
+          "expect": "loadRecords resolves to [] (triggers list empty state upstream)"
+        },
+        {
+          "description": "initializes dateFilter to today's date (YYYY-MM-DD, local) when list mode mounts",
+          "given": "component mounts in list mode",
+          "expect": "dateFilter.value equals today's local date string"
+        },
+        {
+          "description": "filters records by dateFilter's default (today) value on initial render",
+          "given": "getAllRecords returns records dated today and yesterday; dateFilter defaults to today",
+          "expect": "filteredRecords initially contains only today's record"
+        },
+        {
+          "description": "allows user to change or clear the date filter after the default is applied",
+          "given": "dateFilter initialized to today, user changes it to another date or clears it",
+          "expect": "filteredRecords recomputes based on the new filter value, not locked to today"
+        },
+        {
+          "description": "filters records by exact date match when date filter applied",
+          "given": "getAllRecords returns records dated 2026-08-10 and 2026-08-15; filters = { date: '2026-08-15' }",
+          "expect": "loadRecords returns only the record dated 2026-08-15"
+        },
+        {
+          "description": "filters records by case-insensitive substring on grading_number or license_plate_no when search keyword applied",
+          "given": "getAllRecords returns records with grading_number 'GR-001' and license_plate_no 'B 1234 XYZ'; filters = { search: 'b 1234' }",
+          "expect": "loadRecords returns only the record with license_plate_no 'B 1234 XYZ'"
+        },
+        {
+          "description": "returns empty array when combined date and search filter match no record",
+          "given": "getAllRecords returns records none of which match; filters = { date: '2026-08-15', search: 'xyz' }",
+          "expect": "loadRecords returns []"
+        },
+        {
+          "description": "maps status draft_ongoing to 'Pause' label",
+          "given": "record.status = 'draft_ongoing'",
+          "expect": "getStatusLabel(record) returns 'Pause'"
+        },
+        {
+          "description": "maps status draft_paused to 'Pause' label",
+          "given": "record.status = 'draft_paused'",
+          "expect": "getStatusLabel(record) returns 'Pause'"
+        },
+        {
+          "description": "maps status saved to 'Tersimpan' label",
+          "given": "record.status = 'saved'",
+          "expect": "getStatusLabel(record) returns 'Tersimpan'"
+        },
+        {
+          "description": "maps status synced to 'Tersinkron' label",
+          "given": "record.status = 'synced'",
+          "expect": "getStatusLabel(record) returns 'Tersinkron'"
+        },
+        {
+          "description": "navigates to Form Grading when tapped item status is draft_ongoing or draft_paused",
+          "given": "tapped item.status = 'draft_ongoing'",
+          "expect": "router navigation called toward Form Grading route with item.id, mode does NOT switch to detail"
+        },
+        {
+          "description": "switches to detail mode when tapped item status is saved or synced",
+          "given": "tapped item.status = 'saved'",
+          "expect": "router navigation called toward preview route with id param (detail mode), Form Grading NOT opened"
+        },
+        {
+          "description": "renders record read-only with resolved detail rows when record found by id in detail mode",
+          "given": "gradingRepo.getDraftWithDetails(id) returns a valid record with 2 grading_detail rows",
+          "expect": "detail state populated with all header fields + 2 detail rows (with resolved Quality Parameter name), readOnly flag true, no error shown"
+        },
+        {
+          "description": "shows 'record tidak ditemukan' error when record not found by id in detail mode",
+          "given": "gradingRepo.getDraftWithDetails(id) returns null",
+          "expect": "error state set to 'record tidak ditemukan' message, detail record remains null, Back action available"
+        },
+        {
+          "description": "resolves each detail row's Quality Parameter display name from grading_parameter_id",
+          "given": "detail row with grading_parameter_id matching a loaded grading_parameter named 'Masak'",
+          "expect": "row's displayed parameter name = 'Masak'"
+        },
+        {
+          "description": "does not render a Checked By field in detail mode",
+          "given": "detail mode rendered for a record with checked_by set in the database",
+          "expect": "no Checked By field/value present in rendered detail output"
+        },
+        {
+          "description": "navigates to Monitor Grading when Back pressed in list mode",
+          "given": "current mode = 'list' (no id route param)",
+          "expect": "router navigation called toward Monitor Grading route"
+        },
+        {
+          "description": "navigates to list mode (id param removed) when Back pressed in detail mode",
+          "given": "current mode = 'detail' (id route param present)",
+          "expect": "router navigation called toward preview route WITHOUT id param; Monitor Grading route is NOT targeted"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "gradingRepo.getAllRecords(userId) returns valid records for the current user, no filter/lookup errors occur",
+          "expect": "list mode renders the full/filtered record list successfully with correct status labels and default today filter, no exception thrown"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "grading-parameter",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-008--monitor-grading",
+      "reason": "Asal navigasi (Load Data) & tujuan Back dari mode list"
+    },
+    {
+      "screen_id": "screen-011--form-grading",
+      "reason": "Tap item draft/pause membuka Form Grading"
+    }
+  ],
+  "implementation_notes": [
+    "Layar ini murni membaca data lokal SQLite, tidak ada panggilan API",
+    "Mode list dan detail berbagi 1 komponen/route yang sama (bedanya cuma ada/tidaknya :id param), mirror pola screen-013",
+    "Filter tanggal & search dilakukan client-side terhadap hasil query getAllRecords",
+    "Default dateFilter = tanggal lokal hari ini (format YYYY-MM-DD via todayLocalDateString()-style, BUKAN toISOString() yang UTC-based), diisi SEKALI saat komponen mount di mode list — Back dari detail TIDAK mereset filter yang sudah diubah user",
+    "GradingDetailGrid.vue (component lama) TIDAK dipakai untuk render grid detail read-only di sini — bentuknya berbasis field category lama; grid detail read-only diimplementasikan inline atau via komponen baru, mengikuti kolom v2 (grading_parameter_id/uom/percentage) sama seperti FormGradingView.vue's inline grid",
+    "gradingRecordRepo.ts butuh fungsi baru getAllRecords(userId) (mirror weighbridgeRecordRepo.ts's getAllRecords()) dan reuse getDraftWithDetails() yang sudah ditulis ulang di screen-011 untuk mode detail"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Data Grading Tersimpan — Record Tidak Ditemukan",
+      "usecase_id": "usecase-014--data-preview-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewGradingView",
+        "action": "mount in detail mode with an id param that does not match any local grading_record",
+        "assert": "renders 'record tidak ditemukan' error message with a visible Back button"
+      },
+      "browser_test": {
+        "route": "/stations/grading/preview/:id?",
+        "action": "navigate to the detail route using a non-existent record id",
+        "assert": "page shows 'record tidak ditemukan' error text and a Back button is visible"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Grading Tersimpan — success",
+      "usecase_id": "usecase-014--data-preview-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewGradingView",
+        "action": "mount in list mode (date filter defaults to today), tap a list item with status saved or synced",
+        "assert": "component switches to detail mode and renders all header fields plus Grading Detail grid rows read-only"
+      },
+      "browser_test": {
+        "route": "/stations/grading/preview/:id?",
+        "action": "from Monitor Grading, tap 'Load Data', confirm date filter shows today by default, then tap a list item labeled 'Tersimpan' or 'Tersinkron'",
+        "assert": "detail screen displays the full record including Grading Detail rows with resolved Quality Parameter names, all read-only"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Grading Tersimpan — Tap Item Draft/Pause",
+      "usecase_id": "usecase-014--data-preview-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewGradingView",
+        "action": "tap a list item with status draft_ongoing or draft_paused",
+        "assert": "triggers navigation event toward Form Grading route carrying that item's id"
+      },
+      "browser_test": {
+        "route": "/stations/grading/preview/:id?",
+        "action": "tap a list item labeled 'Pause'",
+        "assert": "browser navigates to the Form Grading screen for that draft record"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Grading Tersimpan — Filter Tanggal Default Hari Ini",
+      "usecase_id": "usecase-014--data-preview-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewGradingView",
+        "action": "mount in list mode with mixed today/non-today records, without changing the filter",
+        "assert": "date filter input shows today's date on mount; list initially shows only today's records"
+      },
+      "browser_test": {
+        "route": "/stations/grading/preview/:id?",
+        "action": "seed a record dated today and one dated yesterday, open Load Data",
+        "assert": "date filter field shows today's date; only today's record appears in the list initially"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Grading Tersimpan — Filter Tanggal/Pencarian Diterapkan",
+      "usecase_id": "usecase-014--data-preview-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewGradingView",
+        "action": "set a date filter value different from today and/or type a search keyword in the list filter inputs",
+        "assert": "rendered list updates to show only records matching the applied date and/or keyword"
+      },
+      "browser_test": {
+        "route": "/stations/grading/preview/:id?",
+        "action": "in list mode, change the date filter away from today and/or type a search keyword",
+        "assert": "visible list items filter accordingly; non-matching records disappear from the page"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Grading Tersimpan — Filter Tidak Menghasilkan Apapun",
+      "usecase_id": "usecase-014--data-preview-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewGradingView",
+        "action": "apply date/search filter values that match no local record",
+        "assert": "renders 'tidak ditemukan' message with a reset-filter control, list item area empty"
+      },
+      "browser_test": {
+        "route": "/stations/grading/preview/:id?",
+        "action": "apply a date/search filter combination that has no matching record",
+        "assert": "page shows a not-found message with a visible reset filter button"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Grading Tersimpan — List Kosong",
+      "usecase_id": "usecase-014--data-preview-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewGradingView",
+        "action": "mount in list mode for a user with zero local grading_record rows",
+        "assert": "renders empty-state placeholder instead of list items"
+      },
+      "browser_test": {
+        "route": "/stations/grading/preview/:id?",
+        "action": "navigate to list mode as a user with no saved grading records",
+        "assert": "page displays empty-state message, no list items rendered"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Grading Tersimpan — Tap Breadcrumb",
+      "usecase_id": "usecase-014--data-preview-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewGradingView",
+        "action": "tap a breadcrumb segment (e.g. 'Grading')",
+        "assert": "triggers navigation to the corresponding route"
+      },
+      "browser_test": {
+        "route": "/stations/grading/preview/:id?",
+        "action": "tap a breadcrumb segment such as 'Production Process Activity'",
+        "assert": "browser navigates to the corresponding page URL"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Grading Tersimpan — Buka Menu Hamburger",
+      "usecase_id": "usecase-014--data-preview-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewGradingView",
+        "action": "tap the hamburger icon",
+        "assert": "renders nav menu showing 'Ganti Password' and 'Logout' options"
+      },
+      "browser_test": {
+        "route": "/stations/grading/preview/:id?",
+        "action": "tap the hamburger icon in the header",
+        "assert": "nav menu opens with 'Ganti Password' and 'Logout' visible"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Grading Tersimpan — Back dari Mode Detail",
+      "usecase_id": "usecase-014--data-preview-grading",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewGradingView",
+        "action": "while in detail mode (id param present, one record already tapped), trigger the Back action",
+        "assert": "component transitions back to list mode rendering (id param removed), list items visible again — no navigation to Monitor Grading"
+      },
+      "browser_test": {
+        "route": "/stations/grading/preview/:id?",
+        "action": "from detail mode, press the Back button",
+        "assert": "browser URL changes from /stations/grading/preview/:id to /stations/grading/preview (list mode); Monitor Grading screen is NOT shown"
+      }
+    }
+  ]
+}

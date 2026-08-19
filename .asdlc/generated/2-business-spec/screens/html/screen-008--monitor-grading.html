@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitor Grading | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only — no colour values, no radius/shadow, use CSS variables only */
+    body {
+      background: var(--color-surface);
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: var(--space-xl) var(--space-md);
+    }
+
+    .mobile-shell { min-height: 780px; box-shadow: var(--shadow-dropdown); }
+
+    .icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: var(--space-touch-target-min); height: var(--space-touch-target-min);
+      flex-shrink: 0; color: var(--color-text-primary); cursor: pointer;
+    }
+    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    .mobile-header-title { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
+    .mobile-header-title h1 {
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-lg);
+      color: var(--color-brand);
+    }
+
+    .section { display: flex; flex-direction: column; gap: var(--space-md); margin-bottom: var(--space-lg); }
+    .section-title {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: var(--color-brand);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding-bottom: var(--space-xs);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .draft-status-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+      padding: var(--space-sm) var(--space-md);
+    }
+    .draft-status-row .draft-status-label { font-size: var(--font-size-sm); font-weight: 600; color: var(--color-text-primary); }
+
+    .metric-list { display: flex; flex-direction: column; gap: var(--space-sm); }
+    .metric-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+      padding: var(--space-sm) var(--space-md);
+    }
+    .metric-row .metric-label { font-size: var(--font-size-sm); color: var(--color-text-muted); }
+    .metric-row .metric-value { font-size: var(--font-size-md, 15px); font-weight: 700; color: var(--color-text-primary); }
+
+    .draft-item {
+      display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+      padding: var(--space-sm) var(--space-md);
+      cursor: pointer;
+    }
+    .draft-item:active { background: var(--color-surface); }
+    .draft-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .draft-item-info .draft-station { font-size: var(--font-size-sm); font-weight: 600; color: var(--color-text-primary); }
+    .draft-item-info .draft-meta { font-size: var(--font-size-xs); color: var(--color-text-muted); }
+    .draft-item-chevron { color: var(--color-text-muted); flex-shrink: 0; }
+    .draft-item-chevron svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5; fill: none; }
+
+    .cta-row { padding: 0 var(--space-md) var(--space-md); }
+    .cta-row .btn { width: 100%; justify-content: center; }
+  </style>
+</head>
+<body>
+  <div class="mobile-shell">
+    <!-- Header: hamburger menu + title + profile -->
+    <div class="mobile-header">
+      <span class="icon-btn" title="Menu" aria-label="Buka menu">
+        <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+      </span>
+      <div class="mobile-header-title">
+        <h1>Grading</h1>
+      </div>
+      <span class="icon-btn" title="Profil" aria-label="Profil pengguna">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </span>
+    </div>
+
+    <!-- Breadcrumb -->
+    <div class="mobile-breadcrumb">Production Process Activity &rsaquo; Grading</div>
+
+    <!-- Body -->
+    <div class="mobile-content">
+
+      <!-- Status draft saat ini -->
+      <div class="section">
+        <div class="section-title">Status Draft Saat Ini</div>
+        <div class="draft-status-row">
+          <span class="draft-status-label">GR-2026-000087</span>
+          <span class="status-badge status-paused">
+            <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+            Paused
+          </span>
+        </div>
+      </div>
+
+      <!-- Lanjutkan draft paused -->
+      <div class="section">
+        <div class="section-title">Lanjutkan Draft</div>
+        <div class="draft-item" title="Lanjutkan draft ini">
+          <div class="draft-item-info">
+            <span class="draft-station">GR-2026-000087 &middot; Penilaian Grading</span>
+            <span class="draft-meta">Dijeda pukul 09:47</span>
+          </div>
+          <span class="draft-item-chevron">
+            <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </span>
+        </div>
+      </div>
+
+      <!-- Ringkasan progress Grading -->
+      <div class="section">
+        <div class="section-title">Ringkasan Sesi Grading</div>
+        <div class="metric-list">
+          <div class="metric-row">
+            <span class="metric-label">Record Dinilai (sesi ini)</span>
+            <span class="metric-value">23</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CTA: Mulai Input Baru -->
+    <div class="cta-row">
+      <button type="button" class="btn btn-primary">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="#fff" stroke-width="1.5" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Mulai Input Baru
+      </button>
+    </div>
+
+    <!-- Footer action row: Clear, Pause (disabled — tidak ada draft ongoing), Data Preview, Back -->
+    <div class="mobile-actions">
+      <button type="button" class="btn btn-outline" title="Menghapus draft yang sedang berjalan tanpa menyimpan">
+        Clear
+      </button>
+      <button type="button" class="btn btn-warning" disabled title="Tidak ada draft ongoing untuk di-pause">
+        Pause
+      </button>
+      <button type="button" class="btn btn-secondary" title="Melihat record tersimpan">
+        Data Preview
+      </button>
+      <button type="button" class="btn btn-icon-muted btn-icon" title="Kembali ke Station List" aria-label="Kembali ke Station List">
+        <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <p style="font-size:var(--font-size-xs);color:var(--color-muted-foreground,#71717a);font-style:italic;margin-top:var(--space-lg);max-width:420px;text-align:center">
+    Actors: Station Operator &middot; Supervisor &nbsp;·&nbsp;
+    Entry points: Tap Grading di Station List, Tap draft Grading yang di-pause dari Home
+  </p>
+</body>
+</html>

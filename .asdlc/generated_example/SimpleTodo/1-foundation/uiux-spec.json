@@ -1,0 +1,291 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-06-30"
+  },
+  "design_system": {
+    "color_palette": [
+      {
+        "token": "Background",
+        "ref": "--b1",
+        "value": "#ffffff",
+        "description": "Page and app background"
+      },
+      {
+        "token": "Surface",
+        "ref": "--b2",
+        "value": "#f2f2f2",
+        "description": "Card and panel backgrounds"
+      },
+      {
+        "token": "Border",
+        "ref": "--b3",
+        "value": "#d9d9d9",
+        "description": "Dividers and input borders"
+      },
+      {
+        "token": "Text Primary",
+        "ref": "--bc",
+        "value": "#1f2937",
+        "description": "Main content text"
+      },
+      {
+        "token": "Text Muted",
+        "ref": "--bc/60",
+        "value": "#6b7280",
+        "description": "Secondary and placeholder text"
+      },
+      {
+        "token": "Brand",
+        "ref": "--p",
+        "value": "#570df8",
+        "description": "Primary actions and interactive elements"
+      },
+      {
+        "token": "Brand Hover",
+        "ref": "--pf",
+        "value": "#4506c8",
+        "description": "Hovered or focused brand elements"
+      },
+      {
+        "token": "Destructive",
+        "ref": "--er",
+        "value": "#ff5861",
+        "description": "Delete actions and error states"
+      },
+      {
+        "token": "Success",
+        "ref": "--su",
+        "value": "#00a96e",
+        "description": "Done status and success feedback"
+      },
+      {
+        "token": "Warning",
+        "ref": "--wa",
+        "value": "#ffbe00",
+        "description": "Overdue indicators and warnings"
+      }
+    ],
+    "typography": {
+      "font_family": "Inter",
+      "base_size": "16px",
+      "scale": [
+        {
+          "level": "h1",
+          "size": "2rem",
+          "weight": "700"
+        },
+        {
+          "level": "h2",
+          "size": "1.5rem",
+          "weight": "600"
+        },
+        {
+          "level": "h3",
+          "size": "1.25rem",
+          "weight": "600"
+        },
+        {
+          "level": "body",
+          "size": "1rem",
+          "weight": "400"
+        },
+        {
+          "level": "small",
+          "size": "0.875rem",
+          "weight": "400"
+        },
+        {
+          "level": "caption",
+          "size": "0.75rem",
+          "weight": "400"
+        }
+      ],
+      "line_height": "1.5",
+      "letter_spacing": "0"
+    },
+    "spacing": [
+      {
+        "name": "page_padding",
+        "value": "24px"
+      },
+      {
+        "name": "content_max_width",
+        "value": "960px"
+      },
+      {
+        "name": "card_padding",
+        "value": "16px"
+      },
+      {
+        "name": "section_gap",
+        "value": "24px"
+      },
+      {
+        "name": "item_gap",
+        "value": "12px"
+      }
+    ],
+    "border_radius": [
+      {
+        "context": "input",
+        "value": "6px"
+      },
+      {
+        "context": "button",
+        "value": "6px"
+      },
+      {
+        "context": "card",
+        "value": "8px"
+      },
+      {
+        "context": "modal",
+        "value": "12px"
+      },
+      {
+        "context": "badge",
+        "value": "9999px"
+      }
+    ],
+    "shadow": [
+      {
+        "level": "card",
+        "value": "0 1px 3px rgba(0,0,0,0.08)"
+      },
+      {
+        "level": "dropdown",
+        "value": "0 4px 12px rgba(0,0,0,0.12)"
+      },
+      {
+        "level": "modal",
+        "value": "0 8px 24px rgba(0,0,0,0.16)"
+      }
+    ],
+    "icon_library": {
+      "library": "Heroicons",
+      "size_default": "20px",
+      "stroke_width": "1.5"
+    }
+  },
+  "layout": {
+    "shell_description": "No persistent navigation. Single-page app with a centered content area (max-width 960px, padded 24px). Page header contains app title on the left and an 'Add Task' button on the right. Below the header: filter controls (status dropdown) and sort toggle (by due date). The task list fills the remaining viewport height. No sidebar, no tabs, no bottom bar.",
+    "navigation_per_role": [
+      {
+        "menu_item": "Tasks",
+        "target": "/tasks",
+        "roles": [
+          "User"
+        ]
+      }
+    ],
+    "adaptation": {
+      "strategy": "desktop-only",
+      "notes": "No responsive breakpoints or mobile adaptations in v1. The app is designed exclusively for desktop browser use."
+    }
+  },
+  "screen_type_patterns": [
+    {
+      "type": "list",
+      "description": "The main task list screen — the only full-page screen in the app",
+      "layout": "full-page",
+      "header_area": "App title ('MySimpleTodo') on the left; 'Add Task' button (btn-primary) on the right; below: status filter dropdown and due-date sort toggle",
+      "body_area": "Scrollable list of task-list-item cards. Each card shows title, due-date badge, status badge, and edit/delete action buttons. Filter and sort are applied client-side.",
+      "footer_area": "none",
+      "states": [
+        {
+          "state": "loading",
+          "display": "DaisyUI skeleton rows replacing task cards during initial data fetch"
+        },
+        {
+          "state": "empty",
+          "display": "Centered empty-state with message 'No tasks yet.' and 'Add Task' button"
+        },
+        {
+          "state": "error",
+          "display": "DaisyUI alert-error banner at top of list with retry button"
+        },
+        {
+          "state": "data",
+          "display": "Full task list rendered with filter and sort applied"
+        }
+      ]
+    },
+    {
+      "type": "form",
+      "description": "Create or edit a task — displayed as a modal overlay on top of the list screen",
+      "layout": "centered-modal",
+      "header_area": "Modal title ('New Task' or 'Edit Task') on the left; close (X) icon button on the right",
+      "body_area": "Three fields stacked vertically: Title (text input, required), Due Date (date input, optional), Status (select — Todo / In Progress / Done)",
+      "footer_area": "'Cancel' button (btn-ghost) and 'Save' button (btn-primary), right-aligned",
+      "states": [
+        {
+          "state": "idle",
+          "display": "Fields empty for create, or pre-filled with existing task values for edit"
+        },
+        {
+          "state": "submitting",
+          "display": "Save button shows loading spinner, all fields and buttons disabled"
+        },
+        {
+          "state": "error",
+          "display": "Inline DaisyUI alert-error below each invalid field; Save button re-enabled"
+        },
+        {
+          "state": "success",
+          "display": "Modal closes automatically; task list refreshes; success toast displayed"
+        }
+      ]
+    }
+  ],
+  "component_patterns": [
+    {
+      "component": "task-list-item",
+      "notes": "DaisyUI card row. Left: task title (font-medium, truncated to 1 line). Center: due-date badge (badge-warning if overdue, badge-ghost otherwise). Right of center: status badge (badge-ghost for Todo, badge-info for In Progress, badge-success for Done). Far right: edit icon button (pencil, btn-ghost btn-sm) and delete icon button (trash, btn-ghost btn-sm btn-error). Clicking the edit button opens the Form modal pre-filled with the task data."
+    },
+    {
+      "component": "task-form-modal",
+      "notes": "DaisyUI modal (dialog element). Title input is full-width with label above. Date input is full-width with label above. Status select is full-width with label above. Validation errors appear as text-error text below the relevant field. Footer uses flex justify-end gap-2."
+    },
+    {
+      "component": "status-badge",
+      "notes": "DaisyUI badge component. Todo → badge-ghost (neutral). In Progress → badge-info (blue). Done → badge-success (green). Always includes text label — color is never the sole indicator."
+    },
+    {
+      "component": "loading-state",
+      "notes": "DaisyUI skeleton component. Renders 5 skeleton rows at task-list-item height during initial fetch. Replaces the task list in loading state."
+    },
+    {
+      "component": "toast-notification",
+      "notes": "DaisyUI toast positioned bottom-right. Uses alert-success for save/delete success and alert-error for failures. Auto-dismisses after 3 seconds. One toast shown at a time."
+    }
+  ],
+  "accessibility": {
+    "level": "None",
+    "color_contrast": {
+      "normal_text": "no formal requirement",
+      "large_text": "no formal requirement",
+      "ui_components": "no formal requirement"
+    },
+    "input_navigation": {
+      "focus_indicator": "browser default",
+      "tab_or_swipe_order": "natural DOM order",
+      "dismiss": "Escape key or click outside modal",
+      "activate": "Enter or Space for buttons"
+    },
+    "structure_semantics": {
+      "heading_hierarchy": "Single h1 for app title; section headings as h2 where applicable",
+      "landmark_or_regions": "Basic semantic HTML — header, main",
+      "labels": "Form inputs have associated label elements",
+      "error_association": "Error text placed immediately below the relevant input",
+      "live_regions": "none required"
+    },
+    "text_content": {
+      "min_font_size": "14px",
+      "icon_only_elements": "Action icon buttons (edit, delete, close) include title or aria-label attributes",
+      "images_and_media": "No images or media in v1"
+    }
+  },
+  "design_notes": "DaisyUI light theme used as-is — all color tokens map directly to DaisyUI CSS variables (--b1, --b2, --p, --er, --su, --wa). No custom theme override required. Status badges always include a text label alongside color to avoid color-only distinction. No dark mode in v1. Desktop-only — no responsive breakpoints."
+}

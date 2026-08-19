@@ -1,0 +1,260 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "usecase-012--form-cages-track",
+  "name": "Input Data Cages Track",
+  "description": "User mengisi dan menyimpan data log Cages Track (header dengan Tippler Start/Stop Time otomatis, Cages Out/Tipped manual, verifikasi Checked By/Acknowledged By, dan grid Cages Tipped Time dengan checklist cage per slot jam).",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login dan berada di Monitor Cages Track"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Membuka Form Cages Track (draft baru via New Data, atau lanjutkan draft via tap item di list Monitor)"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Auto-isi Tanggal dan Tippler Start Time (sekali), render field per section, render breadcrumb dan header dengan hamburger"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Mengisi Cages Out dan Cages Tipped (Cages Tipped menentukan jumlah kolom checklist Cage 1..N di grid)"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Menambah satu atau lebih baris Cages Tipped Time — tiap baris: pilih Time (jam, harus lebih besar dari jam baris terakhir), centang cage mana saja yang di-tipping (Total Cages dan Cages Remain otomatis terhitung)"
+    },
+    {
+      "step": 5,
+      "actor": "actor-station-operator",
+      "description": "Menekan tombol Simpan"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Memvalidasi field wajib dan minimal satu baris Cages Tipped Time, membekukan Tippler Stop Time ke waktu saat ini"
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Menyimpan record (status=saved) dan mengarahkan ke Monitor Cages Track"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field Wajib Belum Lengkap",
+      "trigger": "Step 6, field wajib kosong",
+      "steps": [
+        "System menampilkan pesan error inline per field",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum Ada Baris Cages Tipped Time",
+      "trigger": "Step 6, tidak ada baris sama sekali",
+      "steps": [
+        "System menampilkan pesan error khusus",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Cages Tipped Belum Diisi",
+      "trigger": "Step 4, Cages Tipped header masih kosong",
+      "steps": [
+        "Tombol Tambah Baris nonaktif sampai Cages Tipped diisi"
+      ]
+    },
+    {
+      "name": "Time Tidak Bisa Duplikat Atau Mundur",
+      "trigger": "Step 4, actor membuka dropdown Time pada baris baru",
+      "steps": [
+        "Hanya jam yang lebih besar dari jam baris terakhir ditambahkan dan belum dipakai baris manapun yang ditampilkan sebagai opsi"
+      ]
+    },
+    {
+      "name": "Checked By Khusus Supervisor",
+      "trigger": "Step 3-4",
+      "steps": [
+        "Field Checked By hanya bisa diisi/diedit oleh Supervisor"
+      ]
+    },
+    {
+      "name": "Acknowledged By Khusus Mill Management",
+      "trigger": "Step 3-4",
+      "steps": [
+        "Field Acknowledged By hanya bisa diisi/diedit oleh Mill Management"
+      ]
+    },
+    {
+      "name": "Hapus Baris Cages Tipped Time",
+      "trigger": "Step 4, actor menghapus salah satu baris yang sudah ada",
+      "steps": [
+        "Baris tersebut hilang dari grid",
+        "Total Cages dan Cages Remain terhitung ulang",
+        "Jam yang dipakai baris tersebut kembali tersedia di baris lain"
+      ]
+    },
+    {
+      "name": "Lanjutkan Draft Paused",
+      "trigger": "Entry point via tap item list, bukan New Data",
+      "steps": [
+        "Field-field form terisi dari data draft tersimpan sebelumnya"
+      ]
+    },
+    {
+      "name": "Back Dengan Perubahan Belum Tersimpan",
+      "trigger": "Actor menekan Back sebelum Simpan dan ada perubahan belum disimpan",
+      "steps": [
+        "System menampilkan dialog konfirmasi sebelum keluar"
+      ]
+    },
+    {
+      "name": "Pause Progress",
+      "trigger": "Actor menekan tombol Pause",
+      "steps": [
+        "Sistem menyimpan field form saat ini sebagai draft berstatus paused",
+        "Sistem mengarahkan kembali ke Monitor Cages Track"
+      ]
+    },
+    {
+      "name": "Clear Draft",
+      "trigger": "Actor menekan tombol Clear",
+      "steps": [
+        "Sistem menampilkan dialog konfirmasi",
+        "Jika dikonfirmasi, draft dihapus permanen dan sistem mengarahkan ke Monitor Cages Track",
+        "Jika dibatalkan, tidak ada perubahan"
+      ]
+    },
+    {
+      "name": "Tap Breadcrumb",
+      "trigger": "Kapan saja di layar ini, actor tap salah satu segmen breadcrumb",
+      "steps": [
+        "System menavigasi ke halaman terkait"
+      ]
+    },
+    {
+      "name": "Buka Menu Hamburger",
+      "trigger": "Kapan saja di layar ini, actor tap ikon hamburger",
+      "steps": [
+        "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Cages Track tersimpan dengan status baru/updated (Simpan), ATAU disimpan sebagai draft paused (Pause), ATAU dihapus permanen (Clear dikonfirmasi)"
+  ],
+  "business_rules": [
+    "Tanggal dan Tippler Start Time otomatis sekali saat draft baru dibuat",
+    "Tippler Stop Time otomatis sekali tepat saat Simpan ditekan",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Cages Tipped menentukan jumlah kolom checklist di grid Cages Tipped Time",
+    "Minimal satu baris Cages Tipped Time sebelum Simpan",
+    "Time tiap baris harus lebih besar dari Time baris terakhir ditambahkan, tidak boleh duplikat"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data Cages Track — success as Station Operator",
+      "given": "Station Operator sudah login dan berada di Monitor Cages Track",
+      "when": "Station Operator membuka Form Cages Track baru, mengisi Cages Out dan Cages Tipped, menambah satu baris Cages Tipped Time (memilih Time dan mencentang minimal satu cage), lalu menekan Simpan",
+      "then": "System memvalidasi field wajib dan minimal satu baris Cages Tipped Time valid, membekukan Tippler Stop Time, lalu menyimpan record dengan status baru/updated tanpa field Checked By maupun Acknowledged By (keduanya tetap kosong/disabled untuk Operator), dan mengarahkan ke Monitor Cages Track"
+    },
+    {
+      "scenario": "Input Data Cages Track — success as Supervisor",
+      "given": "Supervisor sudah login dan berada di Monitor Cages Track",
+      "when": "Supervisor membuka Form Cages Track baru, mengisi Cages Out dan Cages Tipped, mengisi Checked By, menambah satu baris Cages Tipped Time valid, lalu menekan Simpan",
+      "then": "System memvalidasi field wajib dan minimal satu baris Cages Tipped Time valid, membekukan Tippler Stop Time, lalu menyimpan record beserta Checked By (Acknowledged By tetap kosong/disabled karena bukan role Mill Management), dan mengarahkan ke Monitor Cages Track"
+    },
+    {
+      "scenario": "Input Data Cages Track — Field Wajib Belum Lengkap",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track",
+      "when": "Actor menekan tombol Simpan pada saat salah satu field wajib pada header form Cages Track masih kosong",
+      "then": "System menampilkan pesan error dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Cages Track — Belum Ada Baris Cages Tipped Time",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track",
+      "when": "Actor menekan tombol Simpan tanpa menambahkan satu pun baris Cages Tipped Time",
+      "then": "System menampilkan pesan error khusus dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Cages Track — Checked By Khusus Supervisor",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track",
+      "when": "Actor mengisi field header dan baris Cages Tipped Time pada form Cages Track",
+      "then": "Field Checked By hanya muncul dan aktif untuk actor dengan role Supervisor; field tersebut tidak muncul/aktif bagi Station Operator"
+    },
+    {
+      "scenario": "Input Data Cages Track — Acknowledged By Khusus Mill Management",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track",
+      "when": "Actor mengisi field header dan baris Cages Tipped Time pada form Cages Track",
+      "then": "Field Acknowledged By hanya muncul dan aktif untuk actor dengan role Mill Management; field tersebut tidak muncul/aktif bagi Station Operator maupun Supervisor"
+    },
+    {
+      "scenario": "Input Data Cages Track — Cages Tipped Belum Diisi",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track",
+      "when": "Actor mencoba menekan tombol Tambah Baris pada grid Cages Tipped Time sebelum mengisi field Cages Tipped pada header",
+      "then": "Tombol Tambah Baris tetap nonaktif sampai field Cages Tipped diisi"
+    },
+    {
+      "scenario": "Input Data Cages Track — Time Tidak Bisa Duplikat Atau Mundur",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track",
+      "when": "Actor membuka dropdown pilihan Time pada baris Cages Tipped Time yang baru ditambahkan",
+      "then": "System hanya menampilkan opsi jam yang lebih besar dari jam baris terakhir yang ditambahkan dan belum dipakai oleh baris manapun, sehingga Time tidak dapat duplikat atau mundur"
+    },
+    {
+      "scenario": "Input Data Cages Track — Hapus Baris Cages Tipped Time",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track",
+      "when": "Actor menghapus salah satu baris Cages Tipped Time yang sudah ada pada grid",
+      "then": "Baris tersebut hilang dari grid dan jam yang dipakainya kembali tersedia di baris lain"
+    },
+    {
+      "scenario": "Input Data Cages Track — Lanjutkan Draft Paused",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track, dengan draft Cages Track yang sebelumnya di-pause",
+      "when": "Actor masuk ke form Cages Track melalui opsi lanjutkan draft yang di-pause",
+      "then": "Field-field form terisi otomatis sesuai data draft yang tersimpan sebelumnya"
+    },
+    {
+      "scenario": "Input Data Cages Track — Back Dengan Perubahan Belum Tersimpan",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track serta sedang mengisi form Cages Track dengan perubahan yang belum disimpan",
+      "when": "Actor menekan tombol Back sebelum menekan tombol Simpan",
+      "then": "System menampilkan dialog konfirmasi sebelum actor keluar dari form"
+    },
+    {
+      "scenario": "Input Data Cages Track — Pause Progress",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track",
+      "when": "Actor menekan tombol Pause saat mengisi form Cages Track",
+      "then": "System menyimpan field-field form saat ini sebagai draft berstatus paused dan mengarahkan actor kembali ke Monitor Cages Track"
+    },
+    {
+      "scenario": "Input Data Cages Track — Clear Draft",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track",
+      "when": "Actor menekan tombol Clear pada form Cages Track",
+      "then": "System menampilkan dialog konfirmasi; jika dikonfirmasi draft dihapus permanen dan actor diarahkan ke Monitor Cages Track, jika dibatalkan tidak ada perubahan"
+    },
+    {
+      "scenario": "Input Data Cages Track — Tap Breadcrumb",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track",
+      "when": "Actor tap salah satu segmen breadcrumb kapan saja di layar form Cages Track",
+      "then": "System menavigasi actor ke halaman terkait segmen breadcrumb tersebut"
+    },
+    {
+      "scenario": "Input Data Cages Track — Buka Menu Hamburger",
+      "given": "User sudah login dan berada di halaman Monitor Cages Track",
+      "when": "Actor tap ikon hamburger kapan saja di layar form Cages Track",
+      "then": "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-012--form-cages-track"
+  ]
+}

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Design System Preview | Mill Smart Log</title>
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link rel="stylesheet" href="assets/components.css">
+  <link rel="stylesheet" href="assets/shell.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* page-specific layout only — uses tokens from design-tokens.css */
+    .ds-shell { display: flex; min-height: 100vh; }
+    .ds-nav { width: 220px; flex-shrink: 0; position: sticky; top: 0; align-self: flex-start; height: 100vh; overflow-y: auto; background: var(--color-surface); border-right: 1px solid var(--color-border); padding: var(--space-lg) var(--space-md); }
+    .ds-nav-title { font-size: var(--font-size-lg); font-weight: var(--font-weight-lg); color: var(--color-brand); margin-bottom: var(--space-xs); }
+    .ds-nav-subtitle { font-size: var(--font-size-xs); color: var(--color-text-muted); margin-bottom: var(--space-lg); }
+    .ds-nav a { display: block; padding: var(--space-sm) var(--space-md); border-radius: var(--radius-button); font-size: var(--font-size-sm); color: var(--color-text-muted); text-decoration: none; margin-bottom: 2px; }
+    .ds-nav a:hover { background: color-mix(in srgb, var(--color-brand) 8%, transparent); color: var(--color-foreground); }
+    .ds-main { flex: 1; padding: var(--space-xl) var(--space-2xl); max-width: 1200px; }
+    .ds-section { margin-bottom: var(--space-2xl); scroll-margin-top: var(--space-lg); }
+    .ds-section-title { font-size: var(--font-size-h2); font-weight: var(--font-weight-h2); margin-bottom: var(--space-xs); }
+    .ds-section-desc { font-size: var(--font-size-sm); color: var(--color-text-muted); margin-bottom: var(--space-lg); }
+
+    .swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-md); }
+    .swatch-card { border: 1px solid var(--color-border); border-radius: var(--radius-card); overflow: hidden; }
+    .swatch-color { height: 72px; }
+    .swatch-body { padding: var(--space-md); }
+    .swatch-token { font-weight: 600; font-size: var(--font-size-sm); }
+    .swatch-ref { font-family: monospace; font-size: var(--font-size-xs); color: var(--color-brand); margin: 2px 0; }
+    .swatch-value { font-family: monospace; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+    .swatch-desc { font-size: var(--font-size-xs); color: var(--color-text-muted); margin-top: var(--space-xs); }
+
+    .type-row { display: flex; align-items: baseline; gap: var(--space-lg); padding: var(--space-md) 0; border-bottom: 1px solid var(--color-border); }
+    .type-row:last-child { border-bottom: none; }
+    .type-meta { width: 160px; flex-shrink: 0; font-family: monospace; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+    .type-sample { color: var(--color-foreground); }
+
+    .space-row { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-sm); }
+    .space-label { width: 220px; flex-shrink: 0; font-family: monospace; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+    .space-bar { height: 18px; background: var(--color-brand); border-radius: 3px; }
+
+    .rs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--space-lg); }
+    .rs-box { padding: var(--space-lg); background: var(--color-background); border: 1px solid var(--color-border); text-align: center; font-family: monospace; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+    .rs-shadow { padding: var(--space-lg); border-radius: var(--radius-card); background: var(--color-background); text-align: center; font-family: monospace; font-size: var(--font-size-xs); color: var(--color-text-muted); }
+
+    .icon-info-card { display: flex; gap: var(--space-xl); align-items: center; padding: var(--space-lg); border: 1px solid var(--color-border); border-radius: var(--radius-card); }
+    .icon-sample-row { display: flex; gap: var(--space-lg); }
+    .icon-sample { display: flex; flex-direction: column; align-items: center; gap: var(--space-xs); font-size: var(--font-size-xs); color: var(--color-text-muted); }
+    .icon-sample svg, .icon-sample i { color: var(--color-brand); }
+
+    .comp-block { margin-bottom: var(--space-xl); }
+    .comp-block-title { font-size: var(--font-size-sm); font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: var(--space-md); }
+    .comp-row { display: flex; flex-wrap: wrap; gap: var(--space-md); align-items: center; margin-bottom: var(--space-md); }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); }
+  </style>
+</head>
+<body>
+  <div class="ds-shell">
+    <nav class="ds-nav">
+      <div class="ds-nav-title">Mill Smart Log</div>
+      <div class="ds-nav-subtitle">Design System Preview</div>
+      <a href="#colors">1. Color Palette</a>
+      <a href="#typography">2. Typography</a>
+      <a href="#spacing">3. Spacing</a>
+      <a href="#radius-shadow">4. Radius &amp; Shadow</a>
+      <a href="#icons">5. Icon Library</a>
+      <a href="#components">6. Visual Components</a>
+    </nav>
+
+    <main class="ds-main">
+      <header style="margin-bottom: var(--space-2xl);">
+        <div style="font-size: var(--font-size-h1); font-weight: var(--font-weight-h1);">Mill Smart Log — Design System</div>
+        <p style="color: var(--color-text-muted); margin-top: var(--space-xs); max-width: 640px;">
+          Sistem manajemen operasional pabrik CPO (mill) yang mendigitalisasi log sheet stasiun produksi
+          (Weighbridge, Grading, Cages &amp; Track) — Operator menginput data via mobile offline-first,
+          sementara Supervisor, Mill Management, dan Admin mengelola dan memonitor melalui web.
+          Referensi visual berikut dipakai konsisten di seluruh layar web dan mobile.
+        </p>
+      </header>
+
+      <!-- ============================================================ -->
+      <!-- 1. Color Palette -->
+      <!-- ============================================================ -->
+      <section id="colors" class="ds-section">
+        <div class="ds-section-title">1. Color Palette</div>
+        <div class="ds-section-desc">Token warna dipakai konsisten di web (Admin/Supervisor/Mill Management) dan mobile (Operator/Supervisor).</div>
+        <div class="swatch-grid">
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-background); border-bottom: 1px solid var(--color-border);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Background</div>
+              <div class="swatch-ref">--color-background</div>
+              <div class="swatch-value">#FFFFFF</div>
+              <div class="swatch-desc">Latar halaman utama, web &amp; mobile</div>
+            </div>
+          </div>
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-surface);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Surface</div>
+              <div class="swatch-ref">--color-surface</div>
+              <div class="swatch-value">#F7F7F7</div>
+              <div class="swatch-desc">Card, panel, container elevated dari background</div>
+            </div>
+          </div>
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-border);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Border</div>
+              <div class="swatch-ref">--color-border</div>
+              <div class="swatch-value">#E3E3E3</div>
+              <div class="swatch-desc">Garis pembatas input, card, divider</div>
+            </div>
+          </div>
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-text-primary);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Text Primary</div>
+              <div class="swatch-ref">--color-text-primary</div>
+              <div class="swatch-value">#1F2937</div>
+              <div class="swatch-desc">Teks utama, heading, body</div>
+            </div>
+          </div>
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-text-muted);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Text Muted</div>
+              <div class="swatch-ref">--color-text-muted</div>
+              <div class="swatch-value">#6B7280</div>
+              <div class="swatch-desc">Teks sekunder, label, caption</div>
+            </div>
+          </div>
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-brand);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Brand</div>
+              <div class="swatch-ref">--color-brand</div>
+              <div class="swatch-value">#249360</div>
+              <div class="swatch-desc">Warna utama brand — tombol primer, header aktif, ikon aktif</div>
+            </div>
+          </div>
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-brand-hover);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Brand Hover</div>
+              <div class="swatch-ref">--color-brand-hover</div>
+              <div class="swatch-value">#1D7A4E</div>
+              <div class="swatch-desc">State hover/active untuk elemen brand</div>
+            </div>
+          </div>
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-destructive);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Destructive</div>
+              <div class="swatch-ref">--color-destructive</div>
+              <div class="swatch-value">#DC2626</div>
+              <div class="swatch-desc">Aksi hapus/delete, error state</div>
+            </div>
+          </div>
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-success);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Success</div>
+              <div class="swatch-ref">--color-success</div>
+              <div class="swatch-value">#16A34A</div>
+              <div class="swatch-desc">Konfirmasi berhasil, status tersimpan/synced</div>
+            </div>
+          </div>
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-warning);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Warning</div>
+              <div class="swatch-ref">--color-warning</div>
+              <div class="swatch-value">#D97706</div>
+              <div class="swatch-desc">Peringatan non-kritis, status pending sync</div>
+            </div>
+          </div>
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-station-red);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Station / Status Red</div>
+              <div class="swatch-ref">--color-station-red</div>
+              <div class="swatch-value">#D20000</div>
+              <div class="swatch-desc">Tombol grid stasiun default &amp; indikator status ongoing/paused (dibedakan via ikon)</div>
+            </div>
+          </div>
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-header-tint);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Header Tint</div>
+              <div class="swatch-ref">--color-header-tint</div>
+              <div class="swatch-value">#D6F6E5</div>
+              <div class="swatch-desc">Latar header/breadcrumb pada layar mobile inner screens</div>
+            </div>
+          </div>
+          <div class="swatch-card">
+            <div class="swatch-color" style="background: var(--color-input-bg);"></div>
+            <div class="swatch-body">
+              <div class="swatch-token">Input Background</div>
+              <div class="swatch-ref">--color-input-bg</div>
+              <div class="swatch-value">#EDEBEB</div>
+              <div class="swatch-desc">Latar field input pada form mobile</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 2. Typography -->
+      <!-- ============================================================ -->
+      <section id="typography" class="ds-section">
+        <div class="ds-section-title">2. Typography</div>
+        <div class="ds-section-desc">Font: Inter, sans-serif · base 16px · line-height 1.5 · letter-spacing normal.</div>
+        <div>
+          <div class="type-row">
+            <div class="type-meta">h1 / 28px / 700</div>
+            <div class="type-sample" style="font-size: var(--font-size-h1); font-weight: var(--font-weight-h1);">Data Preview Weighbridge WB-00231</div>
+          </div>
+          <div class="type-row">
+            <div class="type-meta">h2 / 22px / 600</div>
+            <div class="type-sample" style="font-size: var(--font-size-h2); font-weight: var(--font-weight-h2);">Ringkasan Stasiun Grading</div>
+          </div>
+          <div class="type-row">
+            <div class="type-meta">h3 / 18px / 600</div>
+            <div class="type-sample" style="font-size: var(--font-size-h3); font-weight: var(--font-weight-h3);">Cages Tipped Time — Detail</div>
+          </div>
+          <div class="type-row">
+            <div class="type-meta">body / 16px / 400</div>
+            <div class="type-sample" style="font-size: var(--font-size-body); font-weight: var(--font-weight-body);">Operator menginput data stasiun Weighbridge secara offline sebelum sinkronisasi manual ke server pusat.</div>
+          </div>
+          <div class="type-row">
+            <div class="type-meta">small / 14px / 400</div>
+            <div class="type-sample" style="font-size: var(--font-size-small); font-weight: var(--font-weight-small);">Business Unit: Mill A — Terakhir diperbarui 2 menit lalu</div>
+          </div>
+          <div class="type-row">
+            <div class="type-meta">caption / 12px / 400</div>
+            <div class="type-sample" style="font-size: var(--font-size-caption); font-weight: var(--font-weight-caption);">Status sinkronisasi: tersimpan lokal, menunggu sync</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 3. Spacing -->
+      <!-- ============================================================ -->
+      <section id="spacing" class="ds-section">
+        <div class="ds-section-title">3. Spacing</div>
+        <div class="ds-section-desc">Base unit 4px; dimensi layout utama shell web &amp; mobile.</div>
+        <div>
+          <div class="space-row"><div class="space-label">base_unit — 4px</div><div class="space-bar" style="width: 4px;"></div></div>
+          <div class="space-row"><div class="space-label">touch_target_min — 44px</div><div class="space-bar" style="width: 44px;"></div></div>
+          <div class="space-row"><div class="space-label">top_header_height — 56px</div><div class="space-bar" style="width: 56px;"></div></div>
+          <div class="space-row"><div class="space-label">mobile_header_height — 64px</div><div class="space-bar" style="width: 64px;"></div></div>
+          <div class="space-row"><div class="space-label">sidebar_collapsed_width — 64px</div><div class="space-bar" style="width: 64px;"></div></div>
+          <div class="space-row"><div class="space-label">sidebar_width — 240px</div><div class="space-bar" style="width: 240px;"></div></div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 4. Border Radius & Shadow -->
+      <!-- ============================================================ -->
+      <section id="radius-shadow" class="ds-section">
+        <div class="ds-section-title">4. Border Radius &amp; Shadow</div>
+        <div class="ds-section-desc">Radius diterapkan per konteks komponen; shadow untuk elevasi card, dropdown, dan modal.</div>
+        <div class="rs-grid" style="margin-bottom: var(--space-lg);">
+          <div class="rs-box" style="border-radius: var(--radius-input);">input — 6px</div>
+          <div class="rs-box" style="border-radius: var(--radius-button);">button — 8px</div>
+          <div class="rs-box" style="border-radius: var(--radius-card);">card — 12px</div>
+          <div class="rs-box" style="border-radius: var(--radius-modal);">modal — 16px</div>
+          <div class="rs-box" style="border-radius: var(--radius-chip);">chip — 999px</div>
+        </div>
+        <div class="rs-grid">
+          <div class="rs-shadow" style="box-shadow: var(--shadow-card);">shadow: card</div>
+          <div class="rs-shadow" style="box-shadow: var(--shadow-dropdown);">shadow: dropdown</div>
+          <div class="rs-shadow" style="box-shadow: var(--shadow-modal);">shadow: modal</div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 5. Icon Library -->
+      <!-- ============================================================ -->
+      <section id="icons" class="ds-section">
+        <div class="ds-section-title">5. Icon Library</div>
+        <div class="icon-info-card">
+          <div>
+            <div style="font-weight: 700; font-size: var(--font-size-h3);">Lucide</div>
+            <div style="color: var(--color-text-muted); font-size: var(--font-size-sm); margin-top: var(--space-xs);">size_default: 20px &middot; stroke_width: 1.5</div>
+          </div>
+          <div class="icon-sample-row">
+            <div class="icon-sample"><i data-lucide="gauge" style="width:20px;height:20px;" stroke-width="1.5"></i>Weighbridge</div>
+            <div class="icon-sample"><i data-lucide="layers" style="width:20px;height:20px;" stroke-width="1.5"></i>Grading</div>
+            <div class="icon-sample"><i data-lucide="package" style="width:20px;height:20px;" stroke-width="1.5"></i>Cages Track</div>
+            <div class="icon-sample"><i data-lucide="pause-circle" style="width:20px;height:20px;" stroke-width="1.5"></i>Paused</div>
+            <div class="icon-sample"><i data-lucide="clock" style="width:20px;height:20px;" stroke-width="1.5"></i>Ongoing</div>
+            <div class="icon-sample"><i data-lucide="menu" style="width:20px;height:20px;" stroke-width="1.5"></i>Hamburger</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 6. Visual Components -->
+      <!-- ============================================================ -->
+      <section id="components" class="ds-section">
+        <div class="ds-section-title">6. Visual Components</div>
+        <div class="ds-section-desc">Komponen UI standar, konten kontekstual domain Mill Smart Log.</div>
+
+        <div class="comp-block">
+          <div class="comp-block-title">Buttons</div>
+          <div class="comp-row">
+            <button class="btn btn-primary">Simpan Data WB</button>
+            <button class="btn btn-secondary">Clear</button>
+            <button class="btn btn-outline">Pause</button>
+            <button class="btn btn-ghost">Batal</button>
+            <button class="btn btn-destructive">Hapus Record</button>
+            <button class="btn btn-primary" disabled>Menyimpan…</button>
+            <button class="btn btn-sm btn-outline">Export CSV</button>
+            <button class="btn btn-icon btn-outline"><i data-lucide="chevron-left" style="width:16px;height:16px;"></i></button>
+          </div>
+        </div>
+
+        <div class="comp-block">
+          <div class="comp-block-title">Inputs</div>
+          <div class="comp-row" style="max-width: 420px; flex-direction: column; align-items: stretch;">
+            <div class="input-group">
+              <label class="input-label">WB Card No. <span class="required">*</span></label>
+              <input class="input" type="text" value="WB-00231" placeholder="Masukkan nomor WB Card">
+              <div class="input-hint">Diisi otomatis oleh sistem, dapat diedit</div>
+            </div>
+            <div class="input-group">
+              <label class="input-label">Net Weight (kg)</label>
+              <input class="input error" type="text" value="abc">
+              <div class="input-error">Net Weight harus berupa angka</div>
+            </div>
+            <div class="input-group">
+              <label class="input-label">Checked By (Supervisor)</label>
+              <input class="input" type="text" disabled placeholder="Hanya untuk role Supervisor">
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-block">
+          <div class="comp-block-title">Badges &amp; Status</div>
+          <div class="comp-row">
+            <span class="badge badge-brand">Weighbridge</span>
+            <span class="badge badge-neutral">Belum tersedia</span>
+            <span class="badge badge-success">Synced</span>
+            <span class="badge badge-warning">Pending Sync</span>
+            <span class="badge badge-destructive">Gagal</span>
+            <span class="status-badge status-badge-none"><i data-lucide="minus" style="width:12px;height:12px;"></i>Tidak ada input</span>
+            <span class="status-badge status-badge-ongoing"><i data-lucide="clock" style="width:12px;height:12px;"></i>Sedang berlangsung</span>
+            <span class="status-badge status-badge-paused"><i data-lucide="pause" style="width:12px;height:12px;"></i>Paused</span>
+          </div>
+        </div>
+
+        <div class="comp-block">
+          <div class="comp-block-title">Card</div>
+          <div class="card" style="max-width: 420px;">
+            <div class="card-header">Grading — GR-00118</div>
+            <div class="card-body">
+              <p style="font-size: var(--font-size-sm); color: var(--color-text-muted);">Business Unit: Mill A &middot; Tanggal: 18 Agu 2026</p>
+              <p style="margin-top: var(--space-sm);">Total sample: 12 &middot; Rata-rata grading: B</p>
+            </div>
+            <div class="card-footer">
+              <button class="btn btn-outline btn-sm">Back</button>
+              <button class="btn btn-primary btn-sm">Detail</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-block">
+          <div class="comp-block-title">Alerts</div>
+          <div class="alert alert-info"><i data-lucide="info" style="width:18px;height:18px;"></i><div><div class="alert-title">Info</div>Data akan disinkronkan saat Anda menekan tombol Sync.</div></div>
+          <div class="alert alert-success"><i data-lucide="check-circle" style="width:18px;height:18px;"></i><div><div class="alert-title">Berhasil</div>Data Weighbridge WB-00231 berhasil disimpan.</div></div>
+          <div class="alert alert-warning"><i data-lucide="alert-triangle" style="width:18px;height:18px;"></i><div><div class="alert-title">Peringatan</div>3 record berstatus paused, belum selesai diinput.</div></div>
+          <div class="alert alert-error"><i data-lucide="alert-circle" style="width:18px;height:18px;"></i><div><div class="alert-title">Error</div>Gagal memuat data stasiun Cages Track. Coba lagi.</div></div>
+        </div>
+
+        <div class="comp-block">
+          <div class="comp-block-title">Table (Data Stasiun)</div>
+          <div class="card">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr><th>WB Card</th><th>Stasiun</th><th>Tanggal</th><th>Net Weight</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>WB-00231</td><td>Weighbridge</td><td>18 Agu 2026</td><td>4,820 kg</td><td><span class="badge badge-success">Synced</span></td></tr>
+                  <tr><td>GR-00118</td><td>Grading</td><td>18 Agu 2026</td><td>—</td><td><span class="status-badge status-badge-ongoing"><i data-lucide="clock" style="width:12px;height:12px;"></i>Ongoing</span></td></tr>
+                  <tr><td>CT-00087</td><td>Cages Track</td><td>17 Agu 2026</td><td>1,240 kg</td><td><span class="status-badge status-badge-paused"><i data-lucide="pause" style="width:12px;height:12px;"></i>Paused</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-block">
+          <div class="comp-block-title">Form</div>
+          <div class="card" style="max-width: 560px;">
+            <div class="card-header">WB New | WB Load Data</div>
+            <div class="card-body">
+              <div class="form">
+                <div class="form-row">
+                  <div class="input-group"><label class="input-label">WB ID</label><input class="input" value="WB-00232"></div>
+                  <div class="input-group"><label class="input-label">Date</label><input class="input" value="18/08/2026"></div>
+                </div>
+                <div class="input-group"><label class="input-label">Vehicle No.</label><input class="input" placeholder="Contoh: BK 1234 CD"></div>
+                <div class="form-actions">
+                  <button class="btn btn-outline">Pause</button>
+                  <button class="btn btn-secondary">Clear</button>
+                  <button class="btn btn-primary">Save</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-block">
+          <div class="comp-block-title">Stat Cards (Dashboard)</div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="stat-label">Total Record Weighbridge</div>
+              <div class="stat-value">128</div>
+              <div class="stat-delta up">+12 hari ini</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Total Net Weight</div>
+              <div class="stat-value">54.2 ton</div>
+              <div class="stat-delta up">+3.1 ton</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Record Belum Sync</div>
+              <div class="stat-value">4</div>
+              <div class="stat-delta down">Perlu ditindaklanjuti</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-block">
+          <div class="comp-block-title">Skeleton (Loading)</div>
+          <div class="card-body" style="border: 1px solid var(--color-border); border-radius: var(--radius-card); max-width: 420px;">
+            <div class="skeleton skeleton-title"></div>
+            <div class="skeleton skeleton-text"></div>
+            <div class="skeleton skeleton-text" style="width: 80%;"></div>
+            <div class="skeleton skeleton-row"></div>
+          </div>
+        </div>
+
+        <div class="comp-block">
+          <div class="comp-block-title">Empty State</div>
+          <div class="card">
+            <div class="empty-state">
+              <i data-lucide="inbox" class="empty-state-icon"></i>
+              <div class="empty-state-title">Belum ada data Cages Track</div>
+              <div class="empty-state-desc">Data akan muncul di sini setelah Operator menyimpan input dari mobile app dan melakukan sinkronisasi manual.</div>
+              <button class="btn btn-primary">Reset Filter</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-block">
+          <div class="comp-block-title">Station Tile (Mobile Station Selector)</div>
+          <div class="station-grid" style="max-width: 420px;">
+            <div class="station-tile active"><i data-lucide="gauge" style="width:20px;height:20px;"></i><span class="station-tile-label">Weighbridge</span></div>
+            <div class="station-tile active"><i data-lucide="layers" style="width:20px;height:20px;"></i><span class="station-tile-label">Grading</span></div>
+            <div class="station-tile active"><i data-lucide="package" style="width:20px;height:20px;"></i><span class="station-tile-label">Cages Track</span></div>
+            <div class="station-tile disabled"><i data-lucide="circle-off" style="width:20px;height:20px;"></i><span class="station-tile-label">Sterilizer</span><span class="station-tile-sublabel">Belum tersedia</span></div>
+            <div class="station-tile disabled"><i data-lucide="circle-off" style="width:20px;height:20px;"></i><span class="station-tile-label">Press</span><span class="station-tile-sublabel">Belum tersedia</span></div>
+            <div class="station-tile disabled"><i data-lucide="circle-off" style="width:20px;height:20px;"></i><span class="station-tile-label">Boiler</span><span class="station-tile-sublabel">Belum tersedia</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    if (window.lucide) { lucide.createIcons(); }
+  </script>
+</body>
+</html>

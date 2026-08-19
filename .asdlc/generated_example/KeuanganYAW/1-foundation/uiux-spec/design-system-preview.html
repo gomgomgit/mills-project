@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System Preview | KeuanganYAW</title>
+<style>
+@import url('https://fonts.bunny.net/css?family=Inter:300,400,500,600,700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #FAFDF7;
+  --surface: #F5F5F4;
+  --text-primary: #1C1917;
+  --text-muted: #78716C;
+  --border: #E7E5E4;
+  --brand: #86BF9A;
+  --brand-hover: #6FA882;
+  --accent-warm: #F5C5A3;
+  --accent-cool: #C4B5D6;
+  --destructive: #ef4444;
+  --destructive-bg: #FEF2F2;
+  --success: #86BF9A;
+  --success-bg: #F0F9F3;
+  --warning: #F5C5A3;
+  --warning-bg: #FFF8F0;
+  --info: #C4B5D6;
+  --info-bg: #F3F0F8;
+
+  --radius-card: 0.75rem;
+  --radius-button: 0.5rem;
+  --radius-input: 0.5rem;
+  --radius-badge: 0.375rem;
+  --radius-modal: 1rem;
+
+  --shadow-card: 0 2px 5px rgba(0,0,0,0.08);
+  --shadow-dropdown: 0 4px 12px rgba(0,0,0,0.12);
+  --shadow-modal: 0 8px 30px rgba(0,0,0,0.15);
+
+  --card-padding: 32px;
+  --header-height: 64px;
+  --item-spacing: 24px;
+  --sidebar-width: 260px;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  letter-spacing: 0;
+  color: var(--text-primary);
+  background: var(--bg);
+}
+
+/* ---- Layout ---- */
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 20px;
+  flex-shrink: 0;
+}
+
+.sidebar h2 {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.sidebar nav a {
+  display: block;
+  padding: 6px 0;
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 400;
+  border-left: 2px solid transparent;
+  padding-left: 12px;
+  margin-left: -12px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.sidebar nav a:hover { color: var(--brand); border-left-color: var(--brand); }
+
+.main {
+  flex: 1;
+  padding: 40px 48px;
+  max-width: 1100px;
+}
+
+/* ---- Typography ---- */
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.page-subtitle {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin-bottom: 40px;
+}
+
+.section {
+  margin-bottom: 56px;
+  scroll-margin-top: 24px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--brand);
+}
+
+/* ---- Cards ---- */
+.card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--card-padding);
+  margin-bottom: var(--item-spacing);
+}
+
+/* ---- Color palette ---- */
+.color-group-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 24px 0 12px 0;
+}
+
+.color-group-label:first-child { margin-top: 0; }
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--item-spacing);
+}
+
+.color-swatch {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.color-swatch-fill {
+  height: 64px;
+  width: 100%;
+}
+
+.color-swatch-info {
+  padding: 12px 14px;
+}
+
+.color-swatch-token {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.color-swatch-ref {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.color-swatch-value {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-family: monospace;
+  margin-top: 2px;
+}
+
+.color-swatch-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* ---- Typography scale ---- */
+.type-row {
+  display: flex;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 24px;
+}
+
+.type-row:last-child { border-bottom: none; }
+
+.type-sample {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.type-meta {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: monospace;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.type-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.type-summary-item {
+  background: var(--surface);
+  border-radius: var(--radius-input);
+  padding: 12px 16px;
+}
+
+.type-summary-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.type-summary-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 2px;
+  font-family: monospace;
+}
+
+/* ---- Spacing ---- */
+.spacing-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+}
+
+.spacing-row:last-child { border-bottom: none; }
+
+.spacing-bar {
+  height: 12px;
+  background: var(--brand);
+  border-radius: 3px;
+  flex-shrink: 0;
+  min-width: 4px;
+}
+
+.spacing-name {
+  font-size: 14px;
+  font-weight: 500;
+  font-family: monospace;
+  color: var(--text-primary);
+  min-width: 140px;
+}
+
+.spacing-value {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+/* ---- Radius & Shadow ---- */
+.radius-grid, .shadow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--item-spacing);
+}
+
+.radius-item, .shadow-item {
+  background: #fff;
+  border: 1px solid var(--border);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.radius-visual {
+  width: 80px;
+  height: 60px;
+  background: var(--brand);
+  opacity: 0.35;
+}
+
+.shadow-visual {
+  width: 120px;
+  height: 70px;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.radius-label, .shadow-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.radius-value, .shadow-value {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: monospace;
+  text-align: center;
+}
+
+/* ---- Icon info card ---- */
+.icon-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.icon-card-item {
+  flex: 1;
+  min-width: 120px;
+}
+
+.icon-card-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.icon-card-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+/* ---- Visual Components ---- */
+.component-block {
+  margin-bottom: 40px;
+}
+
+.component-block-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.component-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.component-state-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  border: none;
+  border-radius: var(--radius-button);
+  cursor: default;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.btn-primary { background: var(--brand); color: #fff; }
+.btn-secondary { background: var(--surface); color: var(--text-primary); border: 1px solid var(--border); }
+.btn-outline { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
+.btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid transparent; }
+.btn-destructive { background: var(--destructive); color: #fff; }
+
+.btn-disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+.btn-loading::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.btn-secondary.btn-loading::after,
+.btn-outline.btn-loading::after,
+.btn-ghost.btn-loading::after {
+  border-color: rgba(0,0,0,0.1);
+  border-top-color: var(--text-muted);
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Inputs */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.input-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.input-field {
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  background: #fff;
+  color: var(--text-primary);
+  outline: none;
+  line-height: 1.5;
+}
+
+.input-focus {
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 2px rgba(134, 191, 154, 0.2) !important;
+}
+
+.input-error {
+  border-color: var(--destructive) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15) !important;
+}
+
+.input-disabled {
+  background: var(--surface) !important;
+  color: var(--text-muted) !important;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.input-error-message {
+  font-size: 12px;
+  color: var(--destructive);
+  margin-top: 2px;
+}
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-badge);
+  line-height: 1.4;
+}
+
+.badge-neutral { background: var(--surface); color: var(--text-muted); }
+.badge-brand { background: rgba(134,191,154,0.15); color: #3d7a52; }
+.badge-success { background: var(--success-bg); color: #3d7a52; }
+.badge-warning { background: var(--warning-bg); color: #92400e; }
+.badge-destructive { background: var(--destructive-bg); color: #b91c1c; }
+
+/* Card component */
+.comp-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  max-width: 440px;
+}
+
+.comp-card-header {
+  padding: 20px var(--card-padding) 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.comp-card-body {
+  padding: 12px var(--card-padding);
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.comp-card-footer {
+  padding: 12px var(--card-padding) 20px;
+  display: flex;
+  gap: 8px;
+}
+
+/* Alerts */
+.alert {
+  padding: 14px 18px;
+  border-radius: var(--radius-input);
+  border-left: 4px solid;
+  font-size: 14px;
+  margin-bottom: 12px;
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+.alert-info { background: var(--info-bg); border-color: var(--info); color: #4a3666; }
+.alert-success { background: var(--success-bg); border-color: var(--success); color: #3d7a52; }
+.alert-warning { background: var(--warning-bg); border-color: var(--warning); color: #92400e; }
+.alert-error { background: var(--destructive-bg); border-color: var(--destructive); color: #b91c1c; }
+
+/* Toast */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  box-shadow: var(--shadow-dropdown);
+  padding: 14px 18px;
+  max-width: 400px;
+  font-size: 14px;
+}
+
+.toast-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.toast-icon-success { background: var(--success); }
+.toast-icon-error { background: var(--destructive); }
+
+.toast-message { flex: 1; color: var(--text-primary); }
+
+.toast-dismiss {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: default;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+/* Table */
+.comp-table-wrapper {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: #fff;
+}
+
+.comp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.comp-table thead th {
+  background: var(--surface);
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--border);
+}
+
+.comp-table tbody td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.comp-table tbody tr:hover td {
+  background: rgba(134, 191, 154, 0.06);
+}
+
+.comp-table tbody tr.striped td {
+  background: var(--surface);
+}
+
+.comp-table tbody tr.striped:hover td {
+  background: rgba(134, 191, 154, 0.08);
+}
+
+.comp-table .amount {
+  text-align: right;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.comp-table .empty-state td {
+  text-align: center;
+  padding: 40px 16px;
+  color: var(--text-muted);
+}
+
+.empty-state-icon {
+  display: block;
+  font-size: 28px;
+  margin: 0 auto 8px;
+  opacity: 0.4;
+}
+
+.empty-state-text {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.comp-table .empty-state-footer td {
+  text-align: center;
+  padding: 20px 16px;
+}
+
+/* Pattern note cards */
+.pattern-notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--item-spacing);
+}
+
+.pattern-note-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: var(--card-padding);
+}
+
+.pattern-note-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--brand);
+  margin-bottom: 8px;
+  font-family: monospace;
+}
+
+.pattern-note-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h2>Design System</h2>
+    <nav>
+      <a href="#color-palette">Color Palette</a>
+      <a href="#typography">Typography</a>
+      <a href="#spacing">Spacing</a>
+      <a href="#border-radius">Border Radius</a>
+      <a href="#shadow">Shadow</a>
+      <a href="#icon-library">Icon Library</a>
+      <a href="#visual-components">Visual Components</a>
+      <a href="#buttons">  Buttons</a>
+      <a href="#inputs">  Inputs / Text Fields</a>
+      <a href="#badges">  Badges / Chips</a>
+      <a href="#card-component">  Card</a>
+      <a href="#alerts">  Alerts / Inline Messages</a>
+      <a href="#toast">  Toast / Notification</a>
+      <a href="#table">  Table / List</a>
+      <a href="#pattern-notes">Component Pattern Notes</a>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
+    <h1 class="page-title">KeuanganYAW &mdash; Design System</h1>
+    <p class="page-subtitle">Sistem desain untuk pencatatan keuangan yayasan non-profit &mdash; Panti Asuhan 1, Panti Asuhan 2, Panti Jompo</p>
+
+    <!-- ==================== 1. Color Palette ==================== -->
+    <section class="section" id="color-palette">
+      <h2 class="section-title">Color Palette</h2>
+
+      <p class="color-group-label">Base</p>
+      <div class="color-grid">
+        <div class="color-swatch">
+          <div class="color-swatch-fill" style="background:#FAFDF7;"></div>
+          <div class="color-swatch-info">
+            <div class="color-swatch-token">Background</div>
+            <div class="color-swatch-ref">--bg</div>
+            <div class="color-swatch-value">#FAFDF7</div>
+            <div class="color-swatch-desc">Background utama halaman &mdash; hijau sangat terang (hint hijau sangat tipis, hampir putih)</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-fill" style="background:#F5F5F4;"></div>
+          <div class="color-swatch-info">
+            <div class="color-swatch-token">Surface</div>
+            <div class="color-swatch-ref">--surface</div>
+            <div class="color-swatch-value">#F5F5F4</div>
+            <div class="color-swatch-desc">Background card dan panel</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-fill" style="background:#1C1917;"></div>
+          <div class="color-swatch-info">
+            <div class="color-swatch-token">Text Primary</div>
+            <div class="color-swatch-ref">--text-primary</div>
+            <div class="color-swatch-value">#1C1917</div>
+            <div class="color-swatch-desc">Teks utama (heading, paragraph)</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-fill" style="background:#78716C;"></div>
+          <div class="color-swatch-info">
+            <div class="color-swatch-token">Text Muted</div>
+            <div class="color-swatch-ref">--text-muted</div>
+            <div class="color-swatch-value">#78716C</div>
+            <div class="color-swatch-desc">Placeholder, caption, secondary text</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-fill" style="background:#E7E5E4;"></div>
+          <div class="color-swatch-info">
+            <div class="color-swatch-token">Border</div>
+            <div class="color-swatch-ref">--border</div>
+            <div class="color-swatch-value">#E7E5E4</div>
+            <div class="color-swatch-desc">Separator, border input, border card</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="color-group-label">Brand</p>
+      <div class="color-grid">
+        <div class="color-swatch">
+          <div class="color-swatch-fill" style="background:#86BF9A;"></div>
+          <div class="color-swatch-info">
+            <div class="color-swatch-token">Brand</div>
+            <div class="color-swatch-ref">--brand</div>
+            <div class="color-swatch-value">#86BF9A</div>
+            <div class="color-swatch-desc">Warna utama &mdash; pastel hijau (brand yayasan)</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-fill" style="background:#6FA882;"></div>
+          <div class="color-swatch-info">
+            <div class="color-swatch-token">Brand Hover</div>
+            <div class="color-swatch-ref">--brand-hover</div>
+            <div class="color-swatch-value">#6FA882</div>
+            <div class="color-swatch-desc">Hover/active state tombol dan link</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="color-group-label">Accent (Cost Center)</p>
+      <div class="color-grid">
+        <div class="color-swatch">
+          <div class="color-swatch-fill" style="background:#F5C5A3;"></div>
+          <div class="color-swatch-info">
+            <div class="color-swatch-token">Accent Warm</div>
+            <div class="color-swatch-ref">--accent-warm</div>
+            <div class="color-swatch-value">#F5C5A3</div>
+            <div class="color-swatch-desc">Pastel peach &mdash; aksen cost center Panti Asuhan 2</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-fill" style="background:#C4B5D6;"></div>
+          <div class="color-swatch-info">
+            <div class="color-swatch-token">Accent Cool</div>
+            <div class="color-swatch-ref">--accent-cool</div>
+            <div class="color-swatch-value">#C4B5D6</div>
+            <div class="color-swatch-desc">Pastel lavender &mdash; aksen cost center Panti Jompo</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="color-group-label">Semantic</p>
+      <div class="color-grid">
+        <div class="color-swatch">
+          <div class="color-swatch-fill" style="background:#ef4444;"></div>
+          <div class="color-swatch-info">
+            <div class="color-swatch-token">Destructive</div>
+            <div class="color-swatch-ref">--destructive</div>
+            <div class="color-swatch-value">#ef4444</div>
+            <div class="color-swatch-desc">Error, hapus data, penolakan transaksi</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-fill" style="background:#86BF9A;"></div>
+          <div class="color-swatch-info">
+            <div class="color-swatch-token">Success</div>
+            <div class="color-swatch-ref">--success</div>
+            <div class="color-swatch-value">#86BF9A</div>
+            <div class="color-swatch-desc">Transaksi berhasil disimpan, konfirmasi sukses</div>
+          </div>
+        </div>
+        <div class="color-swatch">
+          <div class="color-swatch-fill" style="background:#F5C5A3;"></div>
+          <div class="color-swatch-info">
+            <div class="color-swatch-token">Warning</div>
+            <div class="color-swatch-ref">--warning</div>
+            <div class="color-swatch-value">#F5C5A3</div>
+            <div class="color-swatch-desc">Peringatan saldo rendah, konfirmasi ulang penghapusan</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 2. Typography ==================== -->
+    <section class="section" id="typography">
+      <h2 class="section-title">Typography</h2>
+
+      <div class="type-row">
+        <div class="type-sample" style="font-size:24px;font-weight:600;">Dashboard Keuangan Yayasan Asih &amp; Wangi</div>
+        <div class="type-meta">24px / 600 / h1</div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font-size:20px;font-weight:600;">Daftar Transaksi Panti Asuhan</div>
+        <div class="type-meta">20px / 600 / h2</div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font-size:17px;font-weight:600;">Kelola Cost Center &amp; Akun</div>
+        <div class="type-meta">17px / 600 / h3</div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font-size:16px;font-weight:400;">Catat transaksi pemasukan dan pengeluaran yayasan dengan mudah, tanpa istilah akuntansi yang membingungkan.</div>
+        <div class="type-meta">16px / 400 / body</div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font-size:14px;font-weight:400;">Periode: Januari 2026 &middot; Panti Asuhan 1</div>
+        <div class="type-meta">14px / 400 / small</div>
+      </div>
+      <div class="type-row">
+        <div class="type-sample" style="font-size:12px;font-weight:400;">Data diperbarui pada 21 Juni 2026</div>
+        <div class="type-meta">12px / 400 / caption</div>
+      </div>
+
+      <div class="type-summary">
+        <div class="type-summary-item">
+          <div class="type-summary-label">Font Family</div>
+          <div class="type-summary-value">Inter</div>
+        </div>
+        <div class="type-summary-item">
+          <div class="type-summary-label">Base Size</div>
+          <div class="type-summary-value">16px</div>
+        </div>
+        <div class="type-summary-item">
+          <div class="type-summary-label">Line Height</div>
+          <div class="type-summary-value">1.6</div>
+        </div>
+        <div class="type-summary-item">
+          <div class="type-summary-label">Letter Spacing</div>
+          <div class="type-summary-value">0</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 3. Spacing ==================== -->
+    <section class="section" id="spacing">
+      <h2 class="section-title">Spacing</h2>
+
+      <div class="spacing-row">
+        <div class="spacing-bar" style="width:64px;"></div>
+        <div class="spacing-name">card_padding</div>
+        <div class="spacing-value">32px</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-bar" style="width:32px;"></div>
+        <div class="spacing-name">header_height</div>
+        <div class="spacing-value">64px</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-bar" style="width:48px;"></div>
+        <div class="spacing-name">item_spacing</div>
+        <div class="spacing-value">24px</div>
+      </div>
+      <div class="spacing-row">
+        <div class="spacing-bar" style="width:130px;"></div>
+        <div class="spacing-name">sidebar_width</div>
+        <div class="spacing-value">260px</div>
+      </div>
+    </section>
+
+    <!-- ==================== 4a. Border Radius ==================== -->
+    <section class="section" id="border-radius">
+      <h2 class="section-title">Border Radius</h2>
+
+      <div class="radius-grid">
+        <div class="radius-item">
+          <div class="radius-visual" style="border-radius:0.75rem;"></div>
+          <div class="radius-label">Card</div>
+          <div class="radius-value">0.75rem</div>
+        </div>
+        <div class="radius-item">
+          <div class="radius-visual" style="border-radius:0.5rem;"></div>
+          <div class="radius-label">Button</div>
+          <div class="radius-value">0.5rem</div>
+        </div>
+        <div class="radius-item">
+          <div class="radius-visual" style="border-radius:0.5rem;"></div>
+          <div class="radius-label">Input</div>
+          <div class="radius-value">0.5rem</div>
+        </div>
+        <div class="radius-item">
+          <div class="radius-visual" style="border-radius:0.375rem;"></div>
+          <div class="radius-label">Badge</div>
+          <div class="radius-value">0.375rem</div>
+        </div>
+        <div class="radius-item">
+          <div class="radius-visual" style="border-radius:1rem;"></div>
+          <div class="radius-label">Modal</div>
+          <div class="radius-value">1rem</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 4b. Shadow ==================== -->
+    <section class="section" id="shadow">
+      <h2 class="section-title">Shadow</h2>
+
+      <div class="shadow-grid">
+        <div class="shadow-item">
+          <div class="shadow-visual" style="box-shadow:0 2px 5px rgba(0,0,0,0.08);"></div>
+          <div class="shadow-label">Card</div>
+          <div class="shadow-value">0 2px 5px rgba(0,0,0,0.08)</div>
+        </div>
+        <div class="shadow-item">
+          <div class="shadow-visual" style="box-shadow:0 4px 12px rgba(0,0,0,0.12);"></div>
+          <div class="shadow-label">Dropdown</div>
+          <div class="shadow-value">0 4px 12px rgba(0,0,0,0.12)</div>
+        </div>
+        <div class="shadow-item">
+          <div class="shadow-visual" style="box-shadow:0 8px 30px rgba(0,0,0,0.15);"></div>
+          <div class="shadow-label">Modal</div>
+          <div class="shadow-value">0 8px 30px rgba(0,0,0,0.15)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 5. Icon Library ==================== -->
+    <section class="section" id="icon-library">
+      <h2 class="section-title">Icon Library</h2>
+
+      <div class="card">
+        <div class="icon-card">
+          <div class="icon-card-item">
+            <div class="icon-card-label">Library</div>
+            <div class="icon-card-value">Lucide</div>
+          </div>
+          <div class="icon-card-item">
+            <div class="icon-card-label">Default Size</div>
+            <div class="icon-card-value">18px</div>
+          </div>
+          <div class="icon-card-item">
+            <div class="icon-card-label">Stroke Width</div>
+            <div class="icon-card-value">2</div>
+          </div>
+        </div>
+        <p style="font-size:13px;color:var(--text-muted);margin-top:16px;">
+          Note: Actual icons are not rendered in this preview. This is a reference card only. Icons will be used throughout the application via the Lucide icon library.
+        </p>
+      </div>
+    </section>
+
+    <!-- ==================== 6. Visual Components ==================== -->
+    <section class="section" id="visual-components">
+      <h2 class="section-title">Visual Components</h2>
+
+      <!-- 6a — Buttons -->
+      <div class="component-block" id="buttons">
+        <h3 class="component-block-title">Buttons</h3>
+
+        <p class="component-state-label">Variants</p>
+        <div class="component-row">
+          <button class="btn btn-primary">Simpan Transaksi</button>
+          <button class="btn btn-secondary">Batal</button>
+          <button class="btn btn-outline">Lihat Detail</button>
+          <button class="btn btn-ghost">Kembali</button>
+          <button class="btn btn-destructive">Hapus</button>
+        </div>
+
+        <p class="component-state-label">Disabled</p>
+        <div class="component-row">
+          <button class="btn btn-primary btn-disabled">Simpan Transaksi</button>
+          <button class="btn btn-secondary btn-disabled">Batal</button>
+          <button class="btn btn-outline btn-disabled">Lihat Detail</button>
+          <button class="btn btn-ghost btn-disabled">Kembali</button>
+          <button class="btn btn-destructive btn-disabled">Hapus</button>
+        </div>
+
+        <p class="component-state-label">Loading</p>
+        <div class="component-row">
+          <button class="btn btn-primary btn-loading">Simpan Transaksi</button>
+          <button class="btn btn-secondary btn-loading">Batal</button>
+          <button class="btn btn-outline btn-loading">Lihat Detail</button>
+          <button class="btn btn-ghost btn-loading">Kembali</button>
+        </div>
+      </div>
+
+      <!-- 6a — Inputs / Text Fields -->
+      <div class="component-block" id="inputs">
+        <h3 class="component-block-title">Inputs / Text Fields</h3>
+
+        <div class="component-row">
+          <div class="input-group">
+            <label class="input-label">Deskripsi Transaksi</label>
+            <div class="input-field" style="height:42px;">Sumbangan dari PT Maju Bersama</div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Jumlah (Rp)</label>
+            <div class="input-field input-focus" style="height:42px;">5.000.000</div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Nomor Bukti</label>
+            <div class="input-field input-error" style="height:42px;">BT-</div>
+            <div class="input-error-message">Nomor bukti tidak valid. Harus diawali "BT-" diikuti 6 digit angka.</div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Catatan</label>
+            <div class="input-field input-disabled" style="height:42px;">Field ini tidak dapat diedit</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6a — Badges / Chips -->
+      <div class="component-block" id="badges">
+        <h3 class="component-block-title">Badges / Chips / Tags</h3>
+
+        <div class="component-row">
+          <span class="badge badge-neutral">Semua Transaksi</span>
+          <span class="badge badge-brand">Panti Asuhan 1</span>
+          <span class="badge badge-success">Pemasukan</span>
+          <span class="badge badge-warning">Menunggu Verifikasi</span>
+          <span class="badge badge-destructive">Ditolak</span>
+        </div>
+      </div>
+
+      <!-- 6a — Card -->
+      <div class="component-block" id="card-component">
+        <h3 class="component-block-title">Card</h3>
+
+        <div class="comp-card">
+          <div class="comp-card-header">Ringkasan Panti Asuhan 1</div>
+          <div class="comp-card-body">
+            Total pemasukan bulan Juni 2026 sebesar Rp 18.500.000 dari 12 transaksi pemasukan dan 8 pengeluaran. Saldo saat ini Rp 45.230.000.
+          </div>
+          <div class="comp-card-footer">
+            <button class="btn btn-primary" style="padding:8px 16px;font-size:13px;">Laporan Lengkap</button>
+            <button class="btn btn-ghost" style="padding:8px 16px;font-size:13px;">Detail</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6a — Alerts / Inline Messages -->
+      <div class="component-block" id="alerts">
+        <h3 class="component-block-title">Alerts / Inline Messages</h3>
+
+        <div class="alert alert-info">Periode laporan: 1 Januari &ndash; 31 Juni 2026. Cost center: Semua layanan.</div>
+        <div class="alert alert-success">Transaksi berhasil disimpan. Nomor bukti: BT-20260621-003.</div>
+        <div class="alert alert-warning">Saldo Panti Jompo mendekati batas minimum. Segera lakukan penyesuaian anggaran.</div>
+        <div class="alert alert-error">Gagal menyimpan transaksi: Jumlah tidak boleh kosong. Periksa kembali data yang diinput.</div>
+      </div>
+
+      <!-- 6a — Toast / Snackbar / Notification -->
+      <div class="component-block" id="toast">
+        <h3 class="component-block-title">Toast / Notification</h3>
+
+        <div class="toast">
+          <div class="toast-icon toast-icon-success">&#10003;</div>
+          <div class="toast-message">Transaksi pemasukan Panti Asuhan 1 berhasil disimpan.</div>
+          <button class="toast-dismiss">&times;</button>
+        </div>
+      </div>
+
+      <!-- 6a — Table / List -->
+      <div class="component-block" id="table">
+        <h3 class="component-block-title">Table / List</h3>
+
+        <div class="comp-table-wrapper">
+          <table class="comp-table">
+            <thead>
+              <tr>
+                <th>No. Bukti</th>
+                <th>Tanggal</th>
+                <th>Deskripsi</th>
+                <th>Jenis</th>
+                <th>Cost Center</th>
+                <th style="text-align:right;">Jumlah</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>BT-20260621-001</td>
+                <td>21 Jun 2026</td>
+                <td>Sumbangan PT Maju Bersama</td>
+                <td><span class="badge badge-success">Masuk</span></td>
+                <td>Panti Asuhan 1</td>
+                <td class="amount">Rp 5.000.000</td>
+                <td>Terverifikasi</td>
+              </tr>
+              <tr class="striped">
+                <td>BT-20260620-002</td>
+                <td>20 Jun 2026</td>
+                <td>Pembelian bahan makanan</td>
+                <td><span class="badge badge-warning">Keluar</span></td>
+                <td>Panti Jompo</td>
+                <td class="amount">Rp 1.250.000</td>
+                <td>Terverifikasi</td>
+              </tr>
+              <tr>
+                <td>BT-20260619-003</td>
+                <td>19 Jun 2026</td>
+                <td>Donasi dari Ibu Ratna Sari</td>
+                <td><span class="badge badge-success">Masuk</span></td>
+                <td>Panti Asuhan 2</td>
+                <td class="amount">Rp 2.000.000</td>
+                <td>Menunggu</td>
+              </tr>
+              <tr class="striped" style="background:rgba(134,191,154,0.06) !important;">
+                <td>BT-20260618-004</td>
+                <td>18 Jun 2026</td>
+                <td>Pembayaran listrik dan air</td>
+                <td><span class="badge badge-warning">Keluar</span></td>
+                <td>Panti Asuhan 1</td>
+                <td class="amount">Rp 875.000</td>
+                <td>Terverifikasi</td>
+              </tr>
+              <tr class="empty-state">
+                <td colspan="7">
+                  <span class="empty-state-icon">&#9776;</span>
+                  <span class="empty-state-text">Belum ada transaksi untuk filter ini</span>
+                </td>
+              </tr>
+              <tr class="empty-state-footer">
+                <td colspan="7" style="font-size:13px;color:var(--text-muted);">
+                  Menampilkan 4 dari 128 transaksi &middot; Halaman 1 dari 32 &middot; 10 per halaman
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 6b — Component Pattern Notes -->
+      <div class="component-block" id="pattern-notes">
+        <h3 class="component-block-title">Component Pattern Notes</h3>
+
+        <div class="pattern-notes-grid">
+          <div class="pattern-note-card">
+            <div class="pattern-note-title">data-table</div>
+            <div class="pattern-note-text">
+              Sortable columns (klik header), fixed header saat scroll, row hover highlight pastel soft, pagination 10/25/50 di kanan bawah, filter collapsible menggunakan Alpine.js transition, striped rows alternasi halus (white/surface) untuk readability.
+            </div>
+          </div>
+          <div class="pattern-note-card">
+            <div class="pattern-note-title">form</div>
+            <div class="pattern-note-text">
+              Field error: border merah + pesan error inline di bawah input + icon warning. Validasi real-time via Alpine.js (cek saat blur). Tombol submit di kanan bawah. Toast notification: hijau (success), merah (error), auto-dismiss 4 detik. Field label selalu terlihat, tidak floating.
+            </div>
+          </div>
+          <div class="pattern-note-card">
+            <div class="pattern-note-title">toast</div>
+            <div class="pattern-note-text">
+              Slide-in dari kanan atas. Warna: hijau (#86BF9A background) untuk success, merah (#ef4444) untuk error, kuning (#F5C5A3) untuk warning, auto-dismiss 4 detik. Icon Lucide sesuai tipe (check, alert-triangle, x).
+            </div>
+          </div>
+          <div class="pattern-note-card">
+            <div class="pattern-note-title">loading</div>
+            <div class="pattern-note-text">
+              Skeleton shimmer untuk halaman (card, rows, chart) dengan warna abu-abu pastel (#E7E5E4 shimmer). Button loading: spinner dalam tombol (disabled, opacity 70%). Loading di dalam card gunakan mini spinner.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+  </main>
+</div>
+
+</body>
+</html>

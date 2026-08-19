@@ -1,0 +1,61 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-06-30"
+  },
+  "unit_test": {
+    "coverage_threshold": 70,
+    "scope": "All layers — controllers/routes, service layer, business logic, utility functions",
+    "mock_policy": "Mock only external services; database calls use in-memory SQLite",
+    "run_command": "pytest tests/unit"
+  },
+  "integration_test": {
+    "style": "BDD",
+    "format": "Gherkin",
+    "scope": "All API endpoints",
+    "environment": {
+      "database": "real_test_db",
+      "external_services": "mock"
+    },
+    "seed_strategy": "factories",
+    "seed_command": "",
+    "run_command": "pytest tests/integration"
+  },
+  "component_test": {
+    "framework": "Vue Test Utils + Jest",
+    "scope": "All interactive components (forms, modals, dropdowns)",
+    "mock_api": true,
+    "run_command": "jest --testPathPattern=component"
+  },
+  "browser_test": {
+    "tool": "Playwright",
+    "scope": "single-screen",
+    "environment": "Local dev server with test database",
+    "headless": true,
+    "start_command": "",
+    "base_url": "",
+    "run_command": "playwright test"
+  },
+  "auto_fix": {
+    "enabled": true,
+    "max_retries": 10,
+    "on_environment_error": "stop",
+    "on_spec_mismatch": "pause",
+    "on_implementation_error": "auto_fix"
+  },
+  "done_definition": {
+    "screen_done_when": [
+      "All unit tests pass",
+      "Unit test coverage >= 70%",
+      "All API integration tests (BDD/Gherkin) pass",
+      "All component tests pass",
+      "All single-screen browser tests pass"
+    ],
+    "cannot_mark_done_if": [
+      "Any test is failing",
+      "Coverage is below threshold",
+      "Any test is skipped without a documented reason"
+    ]
+  }
+}

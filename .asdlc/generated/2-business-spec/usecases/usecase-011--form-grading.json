@@ -1,0 +1,262 @@
+{
+  "ver": 3,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-19"
+  },
+  "id": "usecase-011--form-grading",
+  "name": "Input Data Grading",
+  "description": "User mengisi dan menyimpan data log Grading (header termasuk referensi Weighbridge via WB Card No, dan grid Grading Detail dengan Quality Parameter/UOM/Percentage, setiap Quality Parameter hanya dapat dipakai di satu baris), dengan Tanggal otomatis dan Percentage terhitung otomatis.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login dan berada di Monitor Grading"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Membuka Form Grading (draft baru via New Data, atau lanjutkan draft via tap item di list Monitor)"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Auto-isi Tanggal (sekali), render field per section, render breadcrumb dan header dengan hamburger"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Memilih WB Card No dari dropdown data Weighbridge lokal — License Plate No, Estate, Divisi otomatis terisi dari record tersebut (tetap dapat diedit manual)"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Mengisi field header lain (Vehicle Code, Netto, Quantity, Note) dan menambah satu atau lebih baris Grading Detail — tiap baris: pilih Quality Parameter dari daftar yang belum dipakai baris lain (UOM otomatis terisi dari parameter), isi Qty (Percentage otomatis terhitung)"
+    },
+    {
+      "step": 5,
+      "actor": "actor-station-operator",
+      "description": "Menekan tombol Simpan"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Memvalidasi field wajib dan minimal satu baris Grading Detail"
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Menyimpan record (status=saved) dan mengarahkan ke Monitor Grading"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field Wajib Belum Lengkap",
+      "trigger": "Step 6, field wajib kosong",
+      "steps": [
+        "System menampilkan pesan error inline per field",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum Ada Baris Grading Detail",
+      "trigger": "Step 6, tidak ada baris grading detail sama sekali",
+      "steps": [
+        "System menampilkan pesan error khusus",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum Ada Data Weighbridge Lokal",
+      "trigger": "Step 3, tidak ada record Weighbridge lokal sama sekali",
+      "steps": [
+        "Dropdown WB Card No kosong/tidak ada opsi"
+      ]
+    },
+    {
+      "name": "Edit Manual Setelah Auto-fill",
+      "trigger": "Step 3, setelah auto-fill dari Weighbridge",
+      "steps": [
+        "User mengedit License Plate No/Estate/Divisi secara manual",
+        "Perubahan manual tetap tersimpan, tidak ditimpa ulang oleh sistem"
+      ]
+    },
+    {
+      "name": "Quality Parameter Tidak Bisa Duplikat",
+      "trigger": "Step 4, actor membuka dropdown Quality Parameter pada suatu baris ketika parameter tertentu sudah dipilih di baris lain",
+      "steps": [
+        "Parameter yang sudah dipakai di baris lain tidak ditampilkan sebagai opsi pada dropdown baris tersebut"
+      ]
+    },
+    {
+      "name": "Hapus Baris Grading Detail",
+      "trigger": "Step 4, actor menghapus salah satu baris Grading Detail yang sudah ada",
+      "steps": [
+        "Baris tersebut hilang dari grid",
+        "Percentage baris lain tidak terpengaruh",
+        "Quality Parameter yang dipakai baris tersebut kembali tersedia sebagai opsi di baris lain"
+      ]
+    },
+    {
+      "name": "Lanjutkan Draft Paused",
+      "trigger": "Entry point via tap item list, bukan New Data",
+      "steps": [
+        "Field-field form terisi dari data draft tersimpan sebelumnya"
+      ]
+    },
+    {
+      "name": "Back Dengan Perubahan Belum Tersimpan",
+      "trigger": "Actor menekan Back sebelum Simpan dan ada perubahan belum disimpan",
+      "steps": [
+        "System menampilkan dialog konfirmasi sebelum keluar"
+      ]
+    },
+    {
+      "name": "Pause Progress",
+      "trigger": "Actor menekan tombol Pause",
+      "steps": [
+        "Sistem menyimpan field form saat ini sebagai draft berstatus paused",
+        "Sistem mengarahkan kembali ke Monitor Grading"
+      ]
+    },
+    {
+      "name": "Clear Draft",
+      "trigger": "Actor menekan tombol Clear",
+      "steps": [
+        "Sistem menampilkan dialog konfirmasi",
+        "Jika dikonfirmasi, draft dihapus permanen dan sistem mengarahkan ke Monitor Grading",
+        "Jika dibatalkan, tidak ada perubahan"
+      ]
+    },
+    {
+      "name": "Tap Breadcrumb",
+      "trigger": "Kapan saja di layar ini, actor tap salah satu segmen breadcrumb",
+      "steps": [
+        "System menavigasi ke halaman terkait"
+      ]
+    },
+    {
+      "name": "Buka Menu Hamburger",
+      "trigger": "Kapan saja di layar ini, actor tap ikon hamburger",
+      "steps": [
+        "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Grading tersimpan dengan status baru/updated (Simpan), ATAU disimpan sebagai draft paused (Pause), ATAU dihapus permanen (Clear dikonfirmasi)"
+  ],
+  "business_rules": [
+    "WB Card No wajib dipilih dari dropdown data Weighbridge lokal, bukan teks bebas",
+    "License Plate No/Estate/Divisi auto-terisi dari Weighbridge saat WB Card No dipilih, tetap dapat diedit manual",
+    "Minimal satu baris Grading Detail harus diisi sebelum Simpan",
+    "Setiap Quality Parameter hanya dapat dipakai di satu baris Grading Detail; tidak muncul lagi di dropdown baris lain setelah dipilih, kembali tersedia jika baris dihapus/parameternya diganti",
+    "UOM tiap baris otomatis mengikuti Quality Parameter yang dipilih (snapshot, tidak live-join)",
+    "Percentage dihitung otomatis: Qty/Netto*100 jika UOM=kg, Qty/Quantity*100 jika UOM=bunch",
+    "Tanggal otomatis sekali saat draft baru dibuat",
+    "Checked By TIDAK ditampilkan pada form ini (dihapus dari UI, kolom skema tetap ada untuk kebutuhan masa depan)"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data Grading — success",
+      "given": "User sudah login dan berada di Monitor Grading",
+      "when": "User membuka Form Grading, memilih WB Card No dari dropdown Weighbridge lokal (License Plate No/Estate/Divisi otomatis terisi), mengisi field header lain dan menambah satu atau lebih baris Grading Detail (Quality Parameter dengan UOM dan Percentage otomatis terhitung), lalu menekan tombol Simpan",
+      "then": "System memvalidasi field wajib dan minimal satu baris Grading Detail, lalu record Grading tersimpan dengan status baru/updated dan mengarahkan ke Monitor Grading"
+    },
+    {
+      "scenario": "Input Data Grading — Field Wajib Belum Lengkap",
+      "given": "User sudah login dan berada di Monitor Grading, sedang mengisi Form Grading",
+      "when": "User menekan tombol Simpan padahal ada field wajib yang masih kosong",
+      "then": "System menampilkan pesan error dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Grading — Belum Ada Baris Grading Detail",
+      "given": "User sudah login dan berada di Monitor Grading, sedang mengisi Form Grading",
+      "when": "User menekan tombol Simpan tanpa menambahkan satu pun baris Grading Detail",
+      "then": "System menampilkan pesan error khusus dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Grading — Belum Ada Data Weighbridge Lokal",
+      "given": "User sudah login dan berada di Monitor Grading",
+      "when": "User membuka dropdown WB Card No namun tidak ada record Weighbridge lokal sama sekali",
+      "then": "Dropdown WB Card No kosong/tidak ada opsi yang dapat dipilih"
+    },
+    {
+      "scenario": "Input Data Grading — Edit Manual Setelah Auto-fill",
+      "given": "User sudah login dan berada di Monitor Grading",
+      "when": "Setelah memilih WB Card No dan field License Plate No/Estate/Divisi otomatis terisi, User mengedit field tersebut secara manual",
+      "then": "Perubahan manual tetap tersimpan dan tidak ditimpa ulang oleh sistem"
+    },
+    {
+      "scenario": "Input Data Grading — Quality Parameter Tidak Bisa Duplikat",
+      "given": "User sudah login dan berada di Monitor Grading, sedang mengisi Form Grading dengan lebih dari satu baris Grading Detail",
+      "when": "User sudah memilih suatu Quality Parameter di satu baris, lalu membuka dropdown Quality Parameter di baris lain",
+      "then": "Parameter yang sudah dipakai di baris pertama tidak muncul sebagai opsi di dropdown baris lain"
+    },
+    {
+      "scenario": "Input Data Grading — Quality Parameter Tersedia Lagi Setelah Baris Dihapus",
+      "given": "User sudah login dan berada di Monitor Grading, sedang mengisi Form Grading dengan lebih dari satu baris Grading Detail, salah satu Quality Parameter sudah dipakai di satu baris",
+      "when": "User menghapus baris yang memakai Quality Parameter tersebut",
+      "then": "Quality Parameter tersebut kembali tersedia sebagai opsi di dropdown baris-baris lain"
+    },
+    {
+      "scenario": "Input Data Grading — Hapus Baris Grading Detail",
+      "given": "User sudah login dan berada di Monitor Grading",
+      "when": "User menghapus salah satu baris Grading Detail yang sudah ada di grid",
+      "then": "Baris tersebut hilang dari grid dan Percentage baris lain tidak terpengaruh"
+    },
+    {
+      "scenario": "Input Data Grading — Lanjutkan Draft Paused",
+      "given": "User sudah login, berada di Monitor Grading, dan terdapat draft Grading tersimpan sebelumnya",
+      "when": "User memasuki Form Grading melalui opsi lanjutkan draft",
+      "then": "Field-field form terisi otomatis dari data draft tersimpan"
+    },
+    {
+      "scenario": "Input Data Grading — Back Dengan Perubahan Belum Tersimpan",
+      "given": "User sudah login dan berada di Monitor Grading, sedang mengisi Form Grading dengan perubahan yang belum disimpan",
+      "when": "User menekan tombol Back sebelum menekan Simpan",
+      "then": "System menampilkan dialog konfirmasi"
+    },
+    {
+      "scenario": "Input Data Grading — Pause Progress",
+      "given": "User sudah login dan berada di Monitor Grading, sedang mengisi Form Grading",
+      "when": "User menekan tombol Pause",
+      "then": "Sistem menyimpan field form saat ini sebagai draft berstatus paused dan mengarahkan kembali ke Monitor Grading"
+    },
+    {
+      "scenario": "Input Data Grading — Clear Draft",
+      "given": "User sudah login dan berada di Monitor Grading, sedang mengisi Form Grading",
+      "when": "User menekan tombol Clear",
+      "then": "Sistem menampilkan dialog konfirmasi; jika dikonfirmasi draft dihapus permanen dan mengarahkan ke Monitor Grading, jika dibatalkan tidak ada perubahan"
+    },
+    {
+      "scenario": "Input Data Grading — Tap Breadcrumb",
+      "given": "User sudah login dan berada di Form Grading (kapan saja di layar ini)",
+      "when": "User tap salah satu segmen breadcrumb",
+      "then": "System menavigasi ke halaman terkait"
+    },
+    {
+      "scenario": "Input Data Grading — Buka Menu Hamburger",
+      "given": "User sudah login dan berada di Form Grading (kapan saja di layar ini)",
+      "when": "User tap ikon hamburger",
+      "then": "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+    },
+    {
+      "scenario": "Input Data Grading — WB Card No Harus Dipilih Dari Dropdown",
+      "given": "User sudah login dan berada di Monitor Grading",
+      "when": "User mencoba mengisi WB Card No sebagai teks bebas alih-alih memilih dari dropdown data Weighbridge lokal",
+      "then": "System tidak mengizinkan input teks bebas; WB Card No hanya dapat diisi melalui pemilihan dari dropdown"
+    },
+    {
+      "scenario": "Input Data Grading — Checked By Tidak Ditampilkan",
+      "given": "User sudah login dan berada di Monitor Grading",
+      "when": "User (baik Station Operator maupun Supervisor) membuka Form Grading",
+      "then": "Field Checked By tidak ditampilkan pada UI untuk kedua actor; kolom skema tetap ada namun tidak dirender di form"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-011--form-grading"
+  ]
+}

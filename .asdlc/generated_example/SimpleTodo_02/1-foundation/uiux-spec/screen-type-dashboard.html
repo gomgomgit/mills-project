@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard | SimpleTodo</title>
+  <link rel="stylesheet" href="assets/design-tokens.css">
+  <link rel="stylesheet" href="assets/components.css">
+  <link rel="stylesheet" href="assets/shell.css">
+  <link rel="stylesheet" href="assets/daisyui.full.min.css">
+  <script src="assets/tailwindcdn.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: 'var(--primary)',
+            'primary-hover': 'var(--primary-hover)',
+            'primary-content': '#ffffff',
+            secondary: 'var(--surface)',
+            error: 'var(--error)',
+            success: 'var(--success)',
+            warning: 'var(--warning)',
+            'body-bg': 'var(--bg)',
+            'body-text': 'var(--text-primary)',
+            neutral: 'var(--text-muted)',
+          },
+          borderRadius: {
+            button: 'var(--radius-button)',
+            input: 'var(--radius-input)',
+            card: 'var(--radius-card)',
+            modal: 'var(--radius-modal)',
+            chip: 'var(--radius-chip)',
+          },
+          spacing: {
+            'sidebar-width': 'var(--sidebar-width)',
+            'header-height': 'var(--header-height)',
+            'content-padding': 'var(--content-padding)',
+            'gap-sm': 'var(--gap-sm)',
+            'gap-md': 'var(--gap-md)',
+            'gap-lg': 'var(--gap-lg)',
+          }
+        }
+      },
+      important: true
+    }
+  </script>
+  <style>
+    /* Page-specific layout only — structural CSS, no colour/radius/shadow values */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: var(--gap-md);
+      margin-bottom: var(--gap-lg);
+    }
+
+    .task-section-title {
+      font-size: var(--font-size-h3);
+      font-weight: var(--font-weight-h3);
+      margin-bottom: var(--gap-md);
+    }
+
+    .stat-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .stat-card.pending .stat-icon { background: color-mix(in srgb, var(--primary) 12%, transparent); color: var(--primary); }
+    .stat-card.done .stat-icon { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
+    .stat-card.overdue .stat-icon { background: color-mix(in srgb, var(--warning) 12%, transparent); color: var(--warning); }
+
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--gap-sm);
+    }
+
+    .task-list-item {
+      display: flex;
+      align-items: center;
+      gap: var(--gap-sm);
+      padding: var(--gap-sm) var(--gap-md);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      background: var(--bg);
+      transition: box-shadow 0.15s, background-color 0.15s;
+    }
+
+    .task-list-item:hover {
+      box-shadow: var(--shadow-card);
+    }
+
+    .task-list-item.done-item {
+      opacity: 0.6;
+      background: var(--surface);
+    }
+
+    .task-list-item .task-title {
+      flex: 1;
+      font-size: var(--font-size-body);
+    }
+
+    .task-list-item.done-item .task-title {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    .task-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--gap-sm);
+      font-size: var(--font-size-caption);
+    }
+
+    .date-label {
+      font-size: var(--font-size-caption);
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- ==================== Sidebar ==================== -->
+    <aside class="sidebar" style="background: var(--surface); border-right: 1px solid var(--border);">
+      <div class="sidebar-header" style="color: var(--primary); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;">
+        <!-- Check icon -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><path d="M12 2H3a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V12"/><path d="M12 2v7h7"/></svg>
+        SimpleTodo
+      </div>
+
+      <nav class="sidebar-nav">
+        <a class="nav-item active">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+          Dashboard
+        </a>
+        <a class="nav-item">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5c5 0 9 1.6 9 4v10c0 2.4-4 4-9 4s-9-1.6-9-4V9c0-2.4 4-4 9-4Z"/><path d="M12 5V9"/><circle cx="12" cy="14" r="1.5"/><circle cx="6" cy="14" r="1.5"/><circle cx="18" cy="14" r="1.5"/></svg>
+          Groups
+        </a>
+
+        <div style="margin-top: auto; padding: var(--gap-sm) 0;">
+          <p style="padding: 0 var(--gap-lg); font-size: var(--font-size-caption); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;" color="var(--text-muted);">Grup Task</p>
+
+          <a class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14"/><path d="M5 12h14"/><path d="M5 19h14"/></svg>
+            Pekerjaan
+          </a>
+          <a class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14"/><path d="M5 12h14"/><path d="M5 19h14"/></svg>
+            Pribadi
+          </a>
+          <a class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14"/><path d="M5 12h14"/><path d="M5 19h14"/></svg>
+            Belanja
+          </a>
+          <a class="nav-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14"/><path d="M5 12h14"/><path d="M5 19h14"/></svg>
+            Kesehatan
+          </a>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- ==================== Main Content ==================== -->
+    <div class="main-content">
+
+      <!-- Topbar -->
+      <div class="topbar" style="border-bottom: 1px solid var(--border);">
+        <!-- Mobile hamburger toggle -->
+        <button class="btn btn-ghost btn-sm sidebar-toggle lg:hidden"
+                onclick="document.getElementById('mobileSidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('visible');">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+
+        <div class="topbar-breadcrumb">
+          <span>Dashboard</span>
+        </div>
+
+        <div class="topbar-end">
+          <span class="text-sm date-label">Sabtu, 23 Juni 2026</span>
+        </div>
+      </div>
+
+      <!-- Mobile sidebar overlay -->
+      <div id="sidebarOverlay" class="sidebar-overlay" onclick="document.getElementById('mobileSidebar').classList.remove('open'); this.classList.remove('visible');"></div>
+
+      <!-- Content Area -->
+      <div class="content-area">
+
+        <!-- Page Header -->
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="text-sm" style="color: var(--text-muted);">Ringkasan task hari ini</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn btn-primary btn-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+              Tambah Task
+            </button>
+          </div>
+        </div>
+
+        <!-- Stat Cards -->
+        <div class="dashboard-grid">
+          <!-- Pending -->
+          <div class="stat-card pending">
+            <div style="display: flex; align-items: center; gap: var(--gap-md);">
+              <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <div>
+                <p class="stat-label">Menunggu</p>
+                <p class="stat-value">5</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Done -->
+          <div class="stat-card done">
+            <div style="display: flex; align-items: center; gap: var(--gap-md);">
+              <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+              <div>
+                <p class="stat-label">Selesai</p>
+                <p class="stat-value">3</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Overdue -->
+          <div class="stat-card overdue">
+            <div style="display: flex; align-items: center; gap: var(--gap-md);">
+              <div class="stat-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+              </div>
+              <div>
+                <p class="stat-label">Telat</p>
+                <p class="stat-value">2</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Task Hari Ini Section -->
+        <div>
+          <h2 class="task-section-title">Task Hari Ini</h2>
+
+          <div class="task-list">
+
+            <!-- Task 1 — pending, today -->
+            <div class="task-list-item">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" disabled>
+              <span class="task-title font-medium">Selesaikan laporan mingguan</span>
+              <div class="task-meta">
+                <span class="badge-group badge-status badge-sm">Pekerjaan</span>
+                <span class="badge-pending badge-status badge-sm">Hari ini</span>
+              </div>
+            </div>
+
+            <!-- Task 2 — pending, today -->
+            <div class="task-list-item">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" disabled>
+              <span class="task-title font-medium">Beli bahan makanan untuk minggu ini</span>
+              <div class="task-meta">
+                <span class="badge-group badge-status badge-sm">Belanja</span>
+                <span class="badge-pending badge-status badge-sm">Hari ini</span>
+              </div>
+            </div>
+
+            <!-- Task 3 — done -->
+            <div class="task-list-item done-item">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" checked disabled>
+              <span class="task-title">Balas email dari klien tentang proyek website</span>
+              <div class="task-meta">
+                <span class="badge-group badge-status badge-sm">Pekerjaan</span>
+                <span class="badge-done badge-status badge-sm">Selesai</span>
+              </div>
+            </div>
+
+            <!-- Task 4 — overdue -->
+            <div class="task-list-item">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" disabled>
+              <span class="task-title font-medium">Kirim invoice ke perusahaan ABC</span>
+              <div class="task-meta">
+                <span class="badge-group badge-status badge-sm">Pekerjaan</span>
+                <span class="badge-overdue badge-status badge-sm">Telat 2 hari</span>
+              </div>
+            </div>
+
+            <!-- Task 5 — pending, today -->
+            <div class="task-list-item">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" disabled>
+              <span class="task-title font-medium">Olahraga 30 menit di taman</span>
+              <div class="task-meta">
+                <span class="badge-group badge-status badge-sm">Kesehatan</span>
+                <span class="badge-pending badge-status badge-sm">Hari ini</span>
+              </div>
+            </div>
+
+            <!-- Task 6 — done -->
+            <div class="task-list-item done-item">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" checked disabled>
+              <span class="task-title">Baca 10 halaman buku</span>
+              <div class="task-meta">
+                <span class="badge-group badge-status badge-sm">Pribadi</span>
+                <span class="badge-done badge-status badge-sm">Selesai</span>
+              </div>
+            </div>
+
+            <!-- Task 7 — pending, today -->
+            <div class="task-list-item">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" disabled>
+              <span class="task-title font-medium">Jadwalkan janji dokter gigi</span>
+              <div class="task-meta">
+                <span class="badge-group badge-status badge-sm">Kesehatan</span>
+                <span class="badge-pending badge-status badge-sm">Hari ini</span>
+              </div>
+            </div>
+
+            <!-- Task 8 — overdue -->
+            <div class="task-list-item">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" disabled>
+              <span class="task-title font-medium">Bayar tagihan listrik</span>
+              <div class="task-meta">
+                <span class="badge-group badge-status badge-sm">Pribadi</span>
+                <span class="badge-overdue badge-status badge-sm">Telat 1 hari</span>
+              </div>
+            </div>
+
+            <!-- Task 9 — done -->
+            <div class="task-list-item done-item">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" checked disabled>
+              <span class="task-title">Siapkan presentasi untuk rapat besok</span>
+              <div class="task-meta">
+                <span class="badge-group badge-status badge-sm">Pekerjaan</span>
+                <span class="badge-done badge-status badge-sm">Selesai</span>
+              </div>
+            </div>
+
+            <!-- Task 10 — pending, today -->
+            <div class="task-list-item">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" disabled>
+              <span class="task-title font-medium">Belanja online: cat tembuk dan kuas</span>
+              <div class="task-meta">
+                <span class="badge-group badge-status badge-sm">Belanja</span>
+                <span class="badge-pending badge-status badge-sm">Hari ini</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

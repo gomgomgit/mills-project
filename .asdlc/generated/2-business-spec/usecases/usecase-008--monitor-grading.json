@@ -1,0 +1,138 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "id": "usecase-008--monitor-grading",
+  "name": "Monitor Grading",
+  "description": "User meninjau counter data hari ini dan list draft/pause miliknya, dan memilih untuk membuat data baru, melanjutkan salah satu draft, atau menelusuri data tersimpan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login dan memilih Grading dari Station List"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Tap Grading di Station List"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan counter hari ini (Jumlah Grading, Netto, Quantity) dalam 3 card sebaris, list draft/pause milik user, breadcrumb navigasi, dan header dengan hamburger"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Tap 'New Data'"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Membuat draft baru dan mengarahkan ke Form Grading"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Lanjutkan Draft/Pause",
+      "trigger": "Step 3, actor tap salah satu item draft di list",
+      "steps": [
+        "System mengarahkan ke Form Grading dengan data draft yang dipilih"
+      ]
+    },
+    {
+      "name": "Load Data",
+      "trigger": "Step 3, actor tap 'Load Data'",
+      "steps": [
+        "System mengarahkan ke Data Preview Grading (list semua record, tersimpan maupun draft, dengan filter tanggal dan pencarian)"
+      ]
+    },
+    {
+      "name": "Tap Breadcrumb",
+      "trigger": "Kapan saja di layar ini, actor tap salah satu segmen breadcrumb",
+      "steps": [
+        "System menavigasi ke halaman terkait"
+      ]
+    },
+    {
+      "name": "Buka Menu Hamburger",
+      "trigger": "Kapan saja di layar ini, actor tap ikon hamburger",
+      "steps": [
+        "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+      ]
+    },
+    {
+      "name": "Belum Ada Draft",
+      "trigger": "Step 2, tidak ada draft/pause sama sekali",
+      "steps": [
+        "System menampilkan list kosong/empty state, tombol New Data tetap aktif"
+      ]
+    },
+    {
+      "name": "Belum Ada Data Hari Ini",
+      "trigger": "Step 2, tidak ada record (status apapun) dengan tanggal Date = hari ini",
+      "steps": [
+        "Ketiga card counter menampilkan angka 0"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User berada di Form Grading (draft baru atau draft yang dipilih dari list), ATAU di Data Preview Grading (jika memilih Load Data)"
+  ],
+  "business_rules": [
+    "User bisa punya beberapa draft/pause berjalan bersamaan, semua tampil di list",
+    "Ongoing dan paused digabung sebagai satu istilah 'Pause' secara tampilan",
+    "Counter hari ini dihitung dari seluruh record (status apapun) dengan tanggal Date = hari ini"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Monitor Grading — success",
+      "given": "User sudah login dan berada di halaman Station List dengan Grading dipilih",
+      "when": "User meninjau ringkasan progress Grading dan menekan \"Mulai Input Baru\"",
+      "then": "User diarahkan ke Form Grading dengan draft baru"
+    },
+    {
+      "scenario": "Monitor Grading — Lanjutkan Draft Paused",
+      "given": "User sudah login dan berada di halaman Station List dengan Grading dipilih",
+      "when": "User memilih untuk melanjutkan draft Grading yang sudah berstatus paused",
+      "then": "User diarahkan ke Form Grading dengan data draft tersimpan"
+    },
+    {
+      "scenario": "Monitor Grading — Load Data",
+      "given": "User sudah login dan memilih Grading dari Station List",
+      "when": "User menekan tombol Load Data pada halaman Monitor Grading",
+      "then": "User diarahkan ke Data Preview Grading yang menampilkan seluruh record (tersimpan maupun draft) dengan filter tanggal dan pencarian"
+    },
+    {
+      "scenario": "Monitor Grading — Tap Breadcrumb",
+      "given": "User sudah login dan memilih Grading dari Station List",
+      "when": "User menekan salah satu segmen breadcrumb pada halaman Monitor Grading",
+      "then": "User dinavigasikan ke halaman terkait sesuai segmen breadcrumb yang ditekan"
+    },
+    {
+      "scenario": "Monitor Grading — Buka Menu Hamburger",
+      "given": "User sudah login dan memilih Grading dari Station List",
+      "when": "User menekan ikon hamburger pada halaman Monitor Grading",
+      "then": "System menampilkan menu navigasi (Ganti Password, Logout, dll)"
+    },
+    {
+      "scenario": "Monitor Grading — Belum Ada Draft",
+      "given": "User sudah login dan memilih Grading dari Station List, dan user belum memiliki draft/pause apapun",
+      "when": "User membuka halaman Monitor Grading",
+      "then": "System menampilkan list draft/pause dalam keadaan kosong (empty state), namun tombol New Data tetap aktif"
+    },
+    {
+      "scenario": "Monitor Grading — Belum Ada Data Hari Ini",
+      "given": "User sudah login dan memilih Grading dari Station List, dan tidak ada record Grading (status apapun) dengan tanggal hari ini",
+      "when": "User membuka halaman Monitor Grading",
+      "then": "Ketiga card counter (Jumlah Grading, Netto, Quantity) menampilkan angka 0"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-008--monitor-grading"
+  ]
+}

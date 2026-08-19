@@ -1,0 +1,19 @@
+{
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-02"
+  },
+  "ver": 1,
+  "entities_implemented": [
+    "task"
+  ],
+  "files_generated": [
+    "backend/prisma/schema.prisma"
+  ],
+  "setup_notes": [
+    "SQLite/Prisma has no native enum support — the status field is a String (default 'todo') with allowed values todo, in_progress, done documented in a comment; enforcement happens at the application layer",
+    "title non-empty constraint is not enforceable at the Prisma/SQLite schema level — must be validated at the application layer",
+    "Table maps to 'tasks'; due_date, created_at, updated_at columns use snake_case via @map, while Prisma client fields remain camelCase, per shared-decisions naming convention",
+    "Run 'npx prisma migrate dev' (or 'prisma db push' for SQLite dev) from backend/ after this change to apply the schema and regenerate the Prisma client"
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-16"
+  },
+  "id": "usecase-016--data-browser-weighbridge-web",
+  "name": "Telusuri & Ekspor Data Weighbridge",
+  "description": "User menelusuri data record Weighbridge dengan filter, membuka detail, dan mengekspor hasil filter ke CSV/Excel.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web app"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Membuka Data Browser Weighbridge dari menu Data Stasiun"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan tabel data record terbaru"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Menyesuaikan filter (tanggal, business unit)"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Menampilkan hasil sesuai filter"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Mengekspor data ke CSV/Excel"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menghasilkan file ekspor sesuai filter aktif"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tidak Ada Data Sesuai Filter",
+      "trigger": "Step 4",
+      "steps": [
+        "System menampilkan pesan tidak ada data ditemukan dengan opsi reset filter"
+      ]
+    },
+    {
+      "name": "Rentang Tanggal Tidak Valid",
+      "trigger": "Step 3, tanggal awal > tanggal akhir",
+      "steps": [
+        "System menampilkan pesan validasi, filter tidak diterapkan"
+      ]
+    },
+    {
+      "name": "Klik Baris Membuka Detail",
+      "trigger": "Step 2/4, actor klik salah satu baris",
+      "steps": [
+        "System membuka Detail Weighbridge (Web) untuk record tersebut"
+      ]
+    },
+    {
+      "name": "Ekspor Gagal",
+      "trigger": "Step 6, dataset terlalu besar/error",
+      "steps": [
+        "System menampilkan pesan error ekspor"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat data sesuai filter",
+    "File ekspor dihasilkan jika diminta"
+  ],
+  "business_rules": [
+    "Data mencakup hasil sync mobile & input web",
+    "Ekspor mengikuti filter aktif",
+    "Daftar termuat <=2 detik untuk dataset normal"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Telusuri & Ekspor Data Weighbridge — berhasil",
+      "given": "User (Supervisor/Mill Management/Admin) sudah login ke web app",
+      "when": "User membuka Data Browser Weighbridge, menyesuaikan filter tanggal dan business unit, lalu mengekspor hasil filter ke CSV/Excel",
+      "then": "User melihat data record sesuai filter yang diterapkan dan file ekspor dihasilkan sesuai filter aktif"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Weighbridge — Tidak Ada Data Sesuai Filter",
+      "given": "User (Supervisor/Mill Management/Admin) sudah login ke web app",
+      "when": "User menerapkan filter yang tidak menghasilkan data yang cocok",
+      "then": "System menampilkan pesan tidak ada data ditemukan beserta opsi untuk reset filter"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Weighbridge — Rentang Tanggal Tidak Valid",
+      "given": "User (Supervisor/Mill Management/Admin) sudah login ke web app",
+      "when": "User mengatur filter dengan tanggal awal lebih besar dari tanggal akhir",
+      "then": "System menampilkan pesan validasi dan filter tidak diterapkan"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Weighbridge — Klik Baris Membuka Detail",
+      "given": "User (Supervisor/Mill Management/Admin) sudah login ke web app",
+      "when": "User mengklik salah satu baris pada tabel data record (terbaru atau hasil filter)",
+      "then": "System membuka halaman Detail Weighbridge (Web) untuk record yang dipilih"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Weighbridge — Ekspor Gagal",
+      "given": "User (Supervisor/Mill Management/Admin) sudah login ke web app",
+      "when": "User melakukan ekspor data namun dataset terlalu besar atau terjadi error saat proses ekspor",
+      "then": "System menampilkan pesan error ekspor"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-016--data-browser-weighbridge-web"
+  ]
+}

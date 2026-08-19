@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-18"
+  },
+  "ver": 3,
+  "id": "screen-005--home",
+  "name": "Home",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/HomeView.vue",
+    "mobile/src/assets/home-hero-mill.jpg",
+    "mobile/playwright.config.ts",
+    "mobile/tests/e2e/helpers.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/HomeView.spec.ts",
+    "mobile/tests/e2e/home.spec.ts"
+  ],
+  "implementation_notes": [
+    "Home ditulis ulang total (2026-08-18): dari layar status-draft menjadi navigation launcher murni (header + hero image + sambutan + 3 menu card) — tidak ada SQLite lokal maupun API sama sekali",
+    "Header: 'Mill Smart Log' branding + inline-SVG placeholder brand mark + hamburger membuka nav menu lokal (Ganti Password, Logout) — tidak ada komponen nav-menu bersama di codebase, jadi dibuat state lokal khusus layar ini",
+    "Hero image: aset statis mobile/src/assets/home-hero-mill.jpg (didownload dari Unsplash, diverifikasi HTTP 200 sebelum dipakai), diimport sebagai Vite asset — tidak fetch runtime, menjaga prinsip offline-first",
+    "'Segera Hadir' info message: pattern transient-message lokal (auto-dismiss 3 detik), meniru pola infoMessage di StationGrid.vue — tidak ada toast/snackbar bersama di codebase",
+    "Dead-code cleanup: mobile/src/components/PausedDraftsList.vue, mobile/src/composables/useHomeSummary.ts, mobile/src/services/draftRecordsRepo.ts, dan mobile/tests/useHomeSummary.spec.ts dihapus — diverifikasi via grep tidak ada consumer lain selain HomeView versi lama sebelum dihapus",
+    "tests/e2e/station-list.spec.ts diperbaiki: selector navigasi dari Home diubah dari getByRole('button', {name:'Daftar Stasiun'}) (sudah tidak ada) menjadi getByTestId('menu-card-production-process-activity') — ditemukan & diperbaiki saat verifikasi independen setelah screen-impl-agent selesai"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Tidak ada coverage tooling terkonfigurasi di mobile/vite.config.ts — unit coverage % tidak dapat diukur",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-18T08:08:54Z",
+      "passed": 10,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-08-18T08:15:00Z",
+      "passed": 4,
+      "failed": 0
+    }
+  }
+}

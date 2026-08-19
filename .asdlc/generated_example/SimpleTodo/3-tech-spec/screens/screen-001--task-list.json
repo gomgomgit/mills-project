@@ -1,0 +1,1288 @@
+{
+  "meta": {
+    "title": "MySimpleTodo",
+    "updated_at": "2026-07-02"
+  },
+  "id": "screen-001--task-list",
+  "name": "Task List",
+  "module_id": "module-tasks",
+  "ver": 1,
+  "route": "/",
+  "auth_requirement": "public",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-user",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-001--view-tasks",
+      "usecase_name": "View Task List",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/tasks",
+          "description": "Fetch all tasks, optionally filtered by status and sorted by due date",
+          "auth_required": false,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "status",
+                "type": "string",
+                "required": false,
+                "default": "all",
+                "description": "Filter by status: todo, in_progress, done, or all"
+              },
+              {
+                "name": "sortBy",
+                "type": "string",
+                "required": false,
+                "default": "none",
+                "description": "Field to sort by; only 'dueDate' is currently supported"
+              },
+              {
+                "name": "order",
+                "type": "string",
+                "required": false,
+                "default": "asc",
+                "description": "Sort direction when sortBy=dueDate: asc or desc"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "type": "array",
+              "items": {
+                "id": "uuid",
+                "title": "string",
+                "dueDate": "string|null (ISO date)",
+                "status": "todo|in_progress|done",
+                "createdAt": "string (ISO 8601)",
+                "updatedAt": "string (ISO 8601)"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 400,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "status query param is not one of todo, in_progress, done, all"
+              },
+              {
+                "http_code": 500,
+                "error_code": "INTERNAL_ERROR",
+                "condition": "Tasks fail to load due to a database error"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Parse query params (status, sortBy, order) with defaults → if status is not one of todo/in_progress/done/all: return 400 VALIDATION_ERROR",
+        "2. Query all tasks from DB, filtering by status if status != 'all'",
+        "3. If sortBy=dueDate: sort results ascending/descending by due_date per order param, with null due_date tasks last → else: order by created_at descending (default)",
+        "4. Return 200 with task array (empty array if none match)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "task",
+          "operation": "SELECT",
+          "description": "SELECT tasks WHERE status = ? (if filter active) ORDER BY due_date [order] NULLS LAST or created_at DESC (default)"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "No tasks exist",
+          "handling": "Return 200 with empty array; frontend displays empty state 'No tasks yet.' with an Add Task prompt"
+        },
+        {
+          "condition": "Tasks fail to load (DB error)",
+          "handling": "Return 500 INTERNAL_ERROR; frontend displays error banner with a retry button"
+        }
+      ],
+      "business_rules_applied": [
+        "All tasks are shown by default with no filter applied",
+        "Tasks with a past due date are marked overdue only if their status is not Done (computed client-side)"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 400 VALIDATION_ERROR when status query param is invalid",
+          "given": "req.query.status = 'bogus' (not in todo|in_progress|done|all)",
+          "expect": "throw/return 400 with { code: 'VALIDATION_ERROR' }"
+        },
+        {
+          "description": "filters tasks by status when status != 'all'",
+          "given": "taskRepo.findAll() returns tasks with mixed statuses; req.query.status = 'done'",
+          "expect": "return 200 with array containing only tasks whose status === 'done'"
+        },
+        {
+          "description": "sorts tasks by dueDate with nulls last when sortBy=dueDate",
+          "given": "taskRepo.findAll() returns tasks with mixed and null due dates; req.query.sortBy='dueDate', order='asc'",
+          "expect": "return 200 with array sorted ascending by dueDate, null-dueDate tasks placed last"
+        },
+        {
+          "description": "orders tasks by createdAt desc by default when sortBy is not 'dueDate'",
+          "given": "taskRepo.findAll() returns tasks with varying createdAt; req.query has no sortBy",
+          "expect": "return 200 with array ordered by createdAt descending"
+        },
+        {
+          "description": "returns 200 with empty array when no tasks exist",
+          "given": "taskRepo.findAll() returns []",
+          "expect": "return 200 with body []"
+        },
+        {
+          "description": "returns 500 INTERNAL_ERROR when task query fails",
+          "given": "taskRepo.findAll() throws a DB error",
+          "expect": "return 500 with { code: 'INTERNAL_ERROR' }"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "valid query params; taskRepo.findAll() returns a valid array of tasks",
+          "expect": "return 200 with the task array as returned by the repository, each item { id, title, dueDate, status, createdAt, updatedAt }"
+        }
+      ]
+    },
+    {
+      "usecase_id": "usecase-002--add-task",
+      "usecase_name": "Add Task",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/tasks",
+          "description": "Create a new task",
+          "auth_required": false,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "title": "string (required, non-empty)",
+              "dueDate": "string|null (optional, ISO date)",
+              "status": "todo|in_progress|done (optional, default 'todo')"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "title": "string",
+              "dueDate": "string|null",
+              "status": "todo|in_progress|done",
+              "createdAt": "string (ISO 8601)",
+              "updatedAt": "string (ISO 8601)"
+            },
+            "error_codes": [
+              {
+                "http_code": 400,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Title is missing or empty"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate request body → if title missing or empty: return 400 VALIDATION_ERROR",
+        "2. Default status to 'todo' if not provided",
+        "3. INSERT new task row with generated id, provided/default fields, created_at=now, updated_at=now",
+        "4. Return 201 with created task"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "task",
+          "operation": "INSERT",
+          "description": "INSERT new task with title, due_date, status (default 'todo'), created_at, updated_at"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Missing title",
+          "handling": "Return 400 VALIDATION_ERROR with message 'Title is required'"
+        },
+        {
+          "condition": "User cancels",
+          "handling": "Frontend-only — no API call made; modal closes without saving"
+        }
+      ],
+      "business_rules_applied": [
+        "Task title is required",
+        "Due date is optional",
+        "Status defaults to 'Todo' for new tasks"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 400 VALIDATION_ERROR when title is missing",
+          "given": "req.body.title is undefined",
+          "expect": "throw/return 400 with { code: 'VALIDATION_ERROR', error: 'Title is required' }"
+        },
+        {
+          "description": "returns 400 VALIDATION_ERROR when title is an empty string",
+          "given": "req.body.title = ''",
+          "expect": "throw/return 400 with { code: 'VALIDATION_ERROR', error: 'Title is required' }"
+        },
+        {
+          "description": "defaults status to 'todo' when status is not provided",
+          "given": "req.body = { title: 'Buy milk' } (no status); taskRepo.insert() persists and returns the row",
+          "expect": "taskRepo.insert() called with status: 'todo'; return 201 with created task.status === 'todo'"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "req.body = { title: 'Buy milk', dueDate: '2026-08-01', status: 'todo' }; taskRepo.insert() returns the created row",
+          "expect": "return 201 with created task { id, title, dueDate, status, createdAt, updatedAt }"
+        }
+      ]
+    },
+    {
+      "usecase_id": "usecase-003--edit-task",
+      "usecase_name": "Edit Task",
+      "endpoints": [
+        {
+          "method": "PATCH",
+          "path": "/api/tasks/:id",
+          "description": "Update an existing task's title, due date, and/or status",
+          "auth_required": false,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "Task ID to update"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "title": "string (optional)",
+              "dueDate": "string|null (optional)",
+              "status": "todo|in_progress|done (optional)"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "title": "string",
+              "dueDate": "string|null",
+              "status": "todo|in_progress|done",
+              "createdAt": "string (ISO 8601)",
+              "updatedAt": "string (ISO 8601)"
+            },
+            "error_codes": [
+              {
+                "http_code": 400,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "title is present in body but empty"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Task with given id does not exist"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Check task exists → if not found: return 404 NOT_FOUND",
+        "2. If title is present in body and empty: return 400 VALIDATION_ERROR",
+        "3. UPDATE provided fields on the task, set updated_at=now",
+        "4. Return 200 with updated task"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "task",
+          "operation": "SELECT",
+          "description": "SELECT task by id (existence check)"
+        },
+        {
+          "entity_id": "task",
+          "operation": "UPDATE",
+          "description": "UPDATE task SET title/due_date/status (only provided fields) WHERE id=?"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Title cleared on edit",
+          "handling": "Return 400 VALIDATION_ERROR with message 'Title is required'; task remains unchanged"
+        },
+        {
+          "condition": "User cancels",
+          "handling": "Frontend-only — no API call made; task remains unchanged"
+        }
+      ],
+      "business_rules_applied": [
+        "Task title is required and cannot be cleared on edit",
+        "Due date and status can be changed freely"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 NOT_FOUND when task does not exist",
+          "given": "taskRepo.findById(id) returns null",
+          "expect": "throw/return 404 with { code: 'NOT_FOUND' }"
+        },
+        {
+          "description": "returns 400 VALIDATION_ERROR when title is cleared to empty string",
+          "given": "taskRepo.findById(id) returns an existing task; req.body.title = ''",
+          "expect": "throw/return 400 with { code: 'VALIDATION_ERROR', error: 'Title is required' }; taskRepo.update() not called"
+        },
+        {
+          "description": "updates only the provided fields and sets updatedAt",
+          "given": "taskRepo.findById(id) returns an existing task; req.body = { dueDate: '2026-08-10' }",
+          "expect": "taskRepo.update() called with dueDate: '2026-08-10' and updatedAt = now; title/status unchanged"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "task exists; req.body = { title: 'Updated title' }; taskRepo.update() returns the updated row",
+          "expect": "return 200 with updated task object"
+        }
+      ]
+    },
+    {
+      "usecase_id": "usecase-004--delete-task",
+      "usecase_name": "Delete Task",
+      "endpoints": [
+        {
+          "method": "DELETE",
+          "path": "/api/tasks/:id",
+          "description": "Permanently delete a task",
+          "auth_required": false,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "Task ID to delete"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {},
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Task with given id does not exist"
+              },
+              {
+                "http_code": 500,
+                "error_code": "DELETE_FAILED",
+                "condition": "Deletion cannot be completed due to a database error"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Check task exists → if not found: return 404 NOT_FOUND",
+        "2. DELETE task row WHERE id=?",
+        "3. Return 204 No Content"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "task",
+          "operation": "SELECT",
+          "description": "SELECT task by id (existence check)"
+        },
+        {
+          "entity_id": "task",
+          "operation": "DELETE",
+          "description": "DELETE task WHERE id=?"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Deletion cannot be completed (DB error)",
+          "handling": "Return 500 DELETE_FAILED; frontend shows error notification, task remains in the list"
+        }
+      ],
+      "business_rules_applied": [
+        "Deletion is permanent — there is no undo or recovery option"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 NOT_FOUND when task does not exist",
+          "given": "taskRepo.findById(id) returns null",
+          "expect": "throw/return 404 with { code: 'NOT_FOUND' }"
+        },
+        {
+          "description": "returns 500 DELETE_FAILED when deletion cannot be completed",
+          "given": "taskRepo.findById(id) returns an existing task; taskRepo.delete(id) throws a DB error",
+          "expect": "throw/return 500 with { code: 'DELETE_FAILED' }"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "task exists; taskRepo.delete(id) resolves successfully",
+          "expect": "return 204 No Content"
+        }
+      ]
+    },
+    {
+      "usecase_id": "usecase-005--change-task-status",
+      "usecase_name": "Change Task Status",
+      "endpoints": [
+        {
+          "method": "PATCH",
+          "path": "/api/tasks/:id/status",
+          "description": "Update a task's status inline, without opening the full edit form",
+          "auth_required": false,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "Task ID to update"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "status": "todo|in_progress|done (required)"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "status": "todo|in_progress|done",
+              "updatedAt": "string (ISO 8601)"
+            },
+            "error_codes": [
+              {
+                "http_code": 400,
+                "error_code": "INVALID_STATUS",
+                "condition": "status value is not one of todo, in_progress, done"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "Task with given id does not exist"
+              },
+              {
+                "http_code": 500,
+                "error_code": "UPDATE_FAILED",
+                "condition": "Status update cannot be completed due to a database error"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Check task exists → if not found: return 404 NOT_FOUND",
+        "2. Validate status is one of todo/in_progress/done → if invalid: return 400 INVALID_STATUS",
+        "3. UPDATE task SET status=?, updated_at=now WHERE id=?",
+        "4. Return 200 with updated task (id, status, updatedAt)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "task",
+          "operation": "SELECT",
+          "description": "SELECT task by id (existence check)"
+        },
+        {
+          "entity_id": "task",
+          "operation": "UPDATE",
+          "description": "UPDATE task SET status, updated_at WHERE id=?"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Status update fails (DB error)",
+          "handling": "Return 500 UPDATE_FAILED; frontend reverts status to its previous value and shows an error notification"
+        },
+        {
+          "condition": "Invalid status value",
+          "handling": "Return 400 INVALID_STATUS; task status remains unchanged"
+        }
+      ],
+      "business_rules_applied": [
+        "Status can be changed directly from the list without opening the edit form",
+        "Valid statuses are: Todo, In Progress, Done"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 NOT_FOUND when task does not exist",
+          "given": "taskRepo.findById(id) returns null",
+          "expect": "throw/return 404 with { code: 'NOT_FOUND' }"
+        },
+        {
+          "description": "returns 400 INVALID_STATUS when status value is invalid",
+          "given": "task exists; req.body.status = 'archived' (not in todo|in_progress|done)",
+          "expect": "throw/return 400 with { code: 'INVALID_STATUS' }; taskRepo.updateStatus() not called"
+        },
+        {
+          "description": "returns 500 UPDATE_FAILED when status update fails",
+          "given": "task exists; req.body.status = 'done' (valid); taskRepo.updateStatus() throws a DB error",
+          "expect": "throw/return 500 with { code: 'UPDATE_FAILED' }"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "task exists; req.body.status = 'in_progress' (valid); taskRepo.updateStatus() returns the updated row",
+          "expect": "return 200 with updated task { id, status: 'in_progress', updatedAt }"
+        }
+      ]
+    },
+    {
+      "usecase_id": "usecase-006--filter-tasks",
+      "usecase_name": "Filter Tasks by Status",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/tasks",
+          "description": "Fetch tasks filtered by status",
+          "auth_required": false,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "status",
+                "type": "string",
+                "required": false,
+                "default": "all",
+                "description": "Filter by status: todo, in_progress, done, or all"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "type": "array",
+              "items": {
+                "id": "uuid",
+                "title": "string",
+                "dueDate": "string|null",
+                "status": "todo|in_progress|done",
+                "createdAt": "string (ISO 8601)",
+                "updatedAt": "string (ISO 8601)"
+              }
+            },
+            "error_codes": []
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Parse status query param → if 'all' or absent: no filter applied",
+        "2. Query tasks WHERE status = ? if filter is active",
+        "3. Return 200 with filtered task array (empty array if no matches)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "task",
+          "operation": "SELECT",
+          "description": "SELECT tasks WHERE status = ? (if filter active)"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "No tasks match selected status",
+          "handling": "Return 200 with empty array; frontend displays 'no results' message (not an error)"
+        },
+        {
+          "condition": "Filter cleared (status=all)",
+          "handling": "Return 200 with the full unfiltered task list"
+        }
+      ],
+      "business_rules_applied": [
+        "Filter options are Todo, In Progress, Done, plus an 'All' option to clear the filter",
+        "Filtering is applied immediately — no submit action required",
+        "When no tasks match the filter, a 'no results' message is shown (not an error state)"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "applies no filter when status is 'all' or absent",
+          "given": "req.query.status = 'all' (or undefined); taskRepo.findAll() returns the full unfiltered set",
+          "expect": "return 200 with the full, unfiltered task array"
+        },
+        {
+          "description": "filters tasks by status when a specific status is provided",
+          "given": "req.query.status = 'in_progress'; taskRepo.findByStatus('in_progress') returns only matching tasks",
+          "expect": "return 200 with array containing only tasks whose status === 'in_progress'"
+        },
+        {
+          "description": "returns 200 with empty array when no tasks match the filter",
+          "given": "req.query.status = 'done'; taskRepo.findByStatus('done') returns []",
+          "expect": "return 200 with body [] (not an error)"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "req.query.status = 'todo'; taskRepo.findByStatus('todo') returns a valid matching array",
+          "expect": "return 200 with the filtered task array"
+        }
+      ]
+    },
+    {
+      "usecase_id": "usecase-007--sort-tasks",
+      "usecase_name": "Sort Tasks by Due Date",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/tasks",
+          "description": "Fetch tasks sorted by due date",
+          "auth_required": false,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "sortBy",
+                "type": "string",
+                "required": false,
+                "default": "none",
+                "description": "Field to sort by; only 'dueDate' is currently supported"
+              },
+              {
+                "name": "order",
+                "type": "string",
+                "required": false,
+                "default": "asc",
+                "description": "Sort direction: asc or desc"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "type": "array",
+              "items": {
+                "id": "uuid",
+                "title": "string",
+                "dueDate": "string|null",
+                "status": "todo|in_progress|done",
+                "createdAt": "string (ISO 8601)",
+                "updatedAt": "string (ISO 8601)"
+              }
+            },
+            "error_codes": []
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Parse sortBy and order query params → default sortBy=none, order=asc",
+        "2. If sortBy=dueDate: query tasks ordered by due_date [order], with null due_date tasks last",
+        "3. Apply sort on top of the currently active status filter, if any",
+        "4. Return 200 with sorted task array"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "task",
+          "operation": "SELECT",
+          "description": "SELECT tasks (WHERE status = ? if filter active) ORDER BY due_date [order] NULLS LAST"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Toggle sort direction",
+          "handling": "Second click on the sort control flips the order param between asc/desc and re-fetches"
+        }
+      ],
+      "business_rules_applied": [
+        "Tasks without a due date always appear after those that have one, regardless of sort direction",
+        "Sort is applied to the currently filtered list if a filter is active"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "sorts tasks by due date ascending with nulls last when sortBy=dueDate&order=asc",
+          "given": "taskRepo.findAll() returns tasks with mixed and null due dates; req.query = { sortBy: 'dueDate', order: 'asc' }",
+          "expect": "return 200 with array sorted by dueDate ascending, null-dueDate tasks placed last"
+        },
+        {
+          "description": "sorts tasks by due date descending with nulls last when sortBy=dueDate&order=desc",
+          "given": "taskRepo.findAll() returns tasks with mixed and null due dates; req.query = { sortBy: 'dueDate', order: 'desc' }",
+          "expect": "return 200 with array sorted by dueDate descending, null-dueDate tasks placed last"
+        },
+        {
+          "description": "applies sort on top of an active status filter when both are present",
+          "given": "req.query = { status: 'todo', sortBy: 'dueDate', order: 'asc' }; taskRepo.findByStatus('todo') returns matching tasks with mixed due dates",
+          "expect": "return 200 with array containing only status='todo' tasks, sorted by dueDate ascending, nulls last"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "req.query = { sortBy: 'dueDate', order: 'asc' }; taskRepo returns a valid task array",
+          "expect": "return 200 with the sorted task array"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "task",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-002--task-form",
+      "reason": "Add Task and Edit Task actions open the Task Form modal to capture/edit task fields"
+    }
+  ],
+  "implementation_notes": [
+    "Overdue indicator is computed client-side (dueDate < today && status !== 'done') — not returned as a backend field",
+    "SQLite has no native NULLS LAST; sorting by due date needs a CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date [order] workaround",
+    "No pagination — full result set is returned on every call, per shared-decisions",
+    "API should be bound to localhost only per NFR — no auth enforced at the application layer"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "View Task List — success",
+      "usecase_id": "usecase-001--view-tasks",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/tasks"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "TaskList",
+        "action": "render TaskList with tasks loaded from the API",
+        "assert": "task cards are displayed with title, due date, status badge, and overdue indicator where applicable"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "open the app with saved tasks present",
+        "assert": "all tasks are visible in the list with title, due date, status, and overdue indicator"
+      }
+    },
+    {
+      "scenario_ref": "View Task List — no tasks",
+      "usecase_id": "usecase-001--view-tasks",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/tasks"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "TaskList",
+        "action": "render TaskList when the API returns an empty array",
+        "assert": "empty state message 'No tasks yet.' and an Add Task prompt are shown"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "open the app with no tasks saved",
+        "assert": "empty state 'No tasks yet.' with Add Task prompt is displayed"
+      }
+    },
+    {
+      "scenario_ref": "View Task List — load fails",
+      "usecase_id": "usecase-001--view-tasks",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/tasks"
+          },
+          "request_example": {},
+          "expected_status": 500,
+          "expected_error_code": "INTERNAL_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "TaskList",
+        "action": "render TaskList when the API call fails",
+        "assert": "error banner is displayed with a retry option"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "open the app when the data source is unreachable",
+        "assert": "an error banner with a retry option is displayed"
+      }
+    },
+    {
+      "scenario_ref": "Add Task — success",
+      "usecase_id": "usecase-002--add-task",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/tasks"
+          },
+          "request_example": {
+            "title": "Buy groceries",
+            "dueDate": null,
+            "status": "todo"
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "fill the title field and click Save in create mode",
+        "assert": "new task appears in TaskList and a success notification is shown"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "click Add Task, enter a title, and click Save",
+        "assert": "the new task appears in the list and a success notification is shown"
+      }
+    },
+    {
+      "scenario_ref": "Add Task — missing title",
+      "usecase_id": "usecase-002--add-task",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/tasks"
+          },
+          "request_example": {
+            "title": "",
+            "dueDate": null,
+            "status": "todo"
+          },
+          "expected_status": 400,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "click Save without entering a title",
+        "assert": "validation error is shown under the Title field and the task is not saved"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "open Add Task form and click Save without entering a title",
+        "assert": "a validation error is shown under the Title field and no task is created"
+      }
+    },
+    {
+      "scenario_ref": "Add Task — user cancels",
+      "usecase_id": "usecase-002--add-task",
+      "api_test": [],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "click Cancel or close the modal in create mode",
+        "assert": "modal closes without saving, task list is unchanged"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "open Add Task form and click Cancel",
+        "assert": "the modal closes and no new task appears in the list"
+      }
+    },
+    {
+      "scenario_ref": "Edit Task — success",
+      "usecase_id": "usecase-003--edit-task",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/tasks/:id"
+          },
+          "request_example": {
+            "title": "Buy groceries and cook dinner"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "open edit mode, update a field, and click Save",
+        "assert": "task's updated values are shown in TaskList and a success notification is displayed"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "click edit on a task, update a field, and click Save",
+        "assert": "the task's updated values are shown in the list and a success notification is displayed"
+      }
+    },
+    {
+      "scenario_ref": "Edit Task — title cleared",
+      "usecase_id": "usecase-003--edit-task",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/tasks/:id"
+          },
+          "request_example": {
+            "title": ""
+          },
+          "expected_status": 400,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "clear the title field in edit mode and click Save",
+        "assert": "validation error is shown under the Title field, changes are not saved"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "open edit form, remove the title, and click Save",
+        "assert": "a validation error is shown under the Title field and the task remains unchanged"
+      }
+    },
+    {
+      "scenario_ref": "Edit Task — user cancels",
+      "usecase_id": "usecase-003--edit-task",
+      "api_test": [],
+      "component_test": {
+        "component": "TaskForm",
+        "action": "click Cancel or close the modal in edit mode",
+        "assert": "modal closes, task remains unchanged"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "open edit form and click Cancel",
+        "assert": "the modal closes and the task remains unchanged in the list"
+      }
+    },
+    {
+      "scenario_ref": "Delete Task — success",
+      "usecase_id": "usecase-004--delete-task",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/tasks/:id"
+          },
+          "request_example": {},
+          "expected_status": 204,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "TaskCard",
+        "action": "click the delete button on a task",
+        "assert": "task is removed from TaskList and a success notification is shown"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "click the delete button on a task",
+        "assert": "the task is permanently removed from the list and a success notification is shown"
+      }
+    },
+    {
+      "scenario_ref": "Delete Task — delete fails",
+      "usecase_id": "usecase-004--delete-task",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/tasks/:id"
+          },
+          "request_example": {},
+          "expected_status": 500,
+          "expected_error_code": "DELETE_FAILED"
+        }
+      ],
+      "component_test": {
+        "component": "TaskCard",
+        "action": "click delete when the deletion API call fails",
+        "assert": "error notification is displayed, task remains in TaskList"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "click the delete button on a task when the deletion cannot be completed",
+        "assert": "an error notification is displayed and the task remains in the list"
+      }
+    },
+    {
+      "scenario_ref": "Change Task Status — success",
+      "usecase_id": "usecase-005--change-task-status",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/tasks/:id/status"
+          },
+          "request_example": {
+            "status": "in_progress"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "StatusBadge",
+        "action": "select a new status from the inline status control on a task",
+        "assert": "status badge updates to reflect the new status"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "change the status of a task directly in the list",
+        "assert": "the task's status badge updates to reflect the new status"
+      }
+    },
+    {
+      "scenario_ref": "Change Task Status — update fails",
+      "usecase_id": "usecase-005--change-task-status",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/tasks/:id/status"
+          },
+          "request_example": {
+            "status": "done"
+          },
+          "expected_status": 500,
+          "expected_error_code": "UPDATE_FAILED"
+        }
+      ],
+      "component_test": {
+        "component": "StatusBadge",
+        "action": "change status when the update API call fails",
+        "assert": "error notification is displayed, status reverts to its previous value"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "change the status of a task when the update cannot be saved",
+        "assert": "an error notification is displayed and the task status reverts to its previous value"
+      }
+    },
+    {
+      "scenario_ref": "Change Task Status — invalid status value",
+      "usecase_id": "usecase-005--change-task-status",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/tasks/:id/status"
+          },
+          "request_example": {
+            "status": "archived"
+          },
+          "expected_status": 400,
+          "expected_error_code": "INVALID_STATUS"
+        }
+      ],
+      "component_test": {
+        "component": "StatusBadge",
+        "action": "attempt to set a task's status to a value outside Todo, In Progress, or Done",
+        "assert": "the change is rejected and the status remains unchanged"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "attempt to change a task's status to an invalid value",
+        "assert": "the change is rejected and the task status remains unchanged"
+      }
+    },
+    {
+      "scenario_ref": "Filter Tasks by Status — success",
+      "usecase_id": "usecase-006--filter-tasks",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/tasks"
+          },
+          "request_example": {
+            "status": "in_progress"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FilterControl",
+        "action": "select a status from the filter control",
+        "assert": "TaskList shows only tasks matching the selected status"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "select a status from the filter control",
+        "assert": "only tasks matching the selected status are displayed"
+      }
+    },
+    {
+      "scenario_ref": "Filter Tasks by Status — no results",
+      "usecase_id": "usecase-006--filter-tasks",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/tasks"
+          },
+          "request_example": {
+            "status": "done"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FilterControl",
+        "action": "select a filter status that matches no tasks",
+        "assert": "'no results' message is shown, no task cards displayed"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "select a status filter with no matching tasks",
+        "assert": "a 'no results' message is shown and no task cards are displayed"
+      }
+    },
+    {
+      "scenario_ref": "Filter Tasks by Status — filter cleared",
+      "usecase_id": "usecase-006--filter-tasks",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/tasks"
+          },
+          "request_example": {
+            "status": "all"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FilterControl",
+        "action": "select 'All' to clear the active filter",
+        "assert": "TaskList shows all tasks again"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "select 'All' to clear the active status filter",
+        "assert": "all tasks are shown again"
+      }
+    },
+    {
+      "scenario_ref": "Sort Tasks by Due Date — ascending",
+      "usecase_id": "usecase-007--sort-tasks",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/tasks"
+          },
+          "request_example": {
+            "sortBy": "dueDate",
+            "order": "asc"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "SortControl",
+        "action": "activate the sort-by-due-date control",
+        "assert": "tasks reordered with earliest due dates first, undated tasks at the end"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "click the sort-by-due-date control",
+        "assert": "tasks are reordered with the earliest due dates first; tasks without a due date appear at the end"
+      }
+    },
+    {
+      "scenario_ref": "Sort Tasks by Due Date — descending",
+      "usecase_id": "usecase-007--sort-tasks",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/tasks"
+          },
+          "request_example": {
+            "sortBy": "dueDate",
+            "order": "desc"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "SortControl",
+        "action": "click the sort control again to toggle direction",
+        "assert": "tasks reordered with latest due dates first, undated tasks at the end"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "click the sort control again to toggle direction",
+        "assert": "tasks are reordered with the latest due dates first; tasks without a due date appear at the end"
+      }
+    },
+    {
+      "scenario_ref": "Sort Tasks by Due Date — sort applied to filtered list",
+      "usecase_id": "usecase-007--sort-tasks",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/tasks"
+          },
+          "request_example": {
+            "status": "todo",
+            "sortBy": "dueDate",
+            "order": "asc"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "SortControl",
+        "action": "sort by due date while a status filter is active",
+        "assert": "sort order is applied only to the filtered subset of tasks"
+      },
+      "browser_test": {
+        "route": "/",
+        "action": "sort tasks by due date while a filter is active",
+        "assert": "the sort order is applied only to the currently filtered subset of tasks, not the full unfiltered list"
+      }
+    }
+  ]
+}

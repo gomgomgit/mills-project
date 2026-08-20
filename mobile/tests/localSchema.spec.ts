@@ -377,6 +377,41 @@ describe('localSchema — initLocalSchema() station.production_line_id v9 migrat
 })
 
 /**
+ * initLocalSchema() — one-time station-doubling cleanup (2026-08-20). See
+ * dedupeStationRows()'s own doc comment in localSchema.ts for the full
+ * root-cause writeup (legacy synthetic seed + real Production Line sync
+ * coexisting for the same (business_unit_id, type) rendered as doubled
+ * tiles).
+ */
+describe('localSchema — initLocalSchema() station doubling cleanup (dedupeStationRows)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(run).mockResolvedValue({ changes: 1 })
+    vi.mocked(query).mockResolvedValue([
+      { name: 'id' },
+      { name: 'business_unit_id' },
+      { name: 'production_line_id' },
+      { name: 'name' },
+      { name: 'type' },
+      { name: 'is_active' },
+      { name: 'icon' },
+    ] as never)
+  })
+
+  it('runs a DELETE that only removes legacy synthetic rows (production_line_id IS NULL) coexisting with a real row of the same type', async () => {
+    await initLocalSchema()
+
+    const deleteCalls = vi.mocked(run).mock.calls.filter((call) =>
+      typeof call[0] === 'string' && call[0].includes('DELETE FROM station') && call[0].includes('production_line_id IS NULL'),
+    )
+
+    expect(deleteCalls).toHaveLength(1)
+    const [sql] = deleteCalls[0]
+    expect(sql).toContain('production_line_id IS NOT NULL')
+  })
+})
+
+/**
  * fetchAndCacheMillSetting() — Mills Setting feature. Unlike the seed/
  * migration functions above, this makes a real GET /api/mill-settings/current
  * call (mill-setting is server-authored, not fixed local domain data) and

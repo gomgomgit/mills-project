@@ -87,6 +87,20 @@ vi.mock('@/services/productionLineRepo', () => ({
   },
 }))
 
+// Legacy fallback seed (2026-08-20 doubling-bug fix) — now called from
+// loadProductionLinesAndStations()'s `lines.length === 0` branch instead of
+// unconditionally at login (see stores/auth.ts's updated comment). Mocked
+// here so every pre-existing test in this file (which defaults to "no
+// production lines known" and therefore hits this branch) never touches
+// the real localSchema.ts -> localDb.ts -> SQLite chain.
+const { seedDefaultStationsIfNeededMock } = vi.hoisted(() => ({
+  seedDefaultStationsIfNeededMock: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('@/services/localSchema', () => ({
+  seedDefaultStationsIfNeeded: seedDefaultStationsIfNeededMock,
+}))
+
 // 2026-08-18 update — draft-status-by-type detection (business_logic
 // step 2) calls these three record repos' summary functions in parallel
 // on mount. Mocked at module level, same pattern as stationRepo above,

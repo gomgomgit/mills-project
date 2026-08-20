@@ -74,7 +74,13 @@ describe('productionLineRepo — fetchAndCacheStationsForProductionLine()', () =
     expect(apiClient.get).toHaveBeenCalledWith('/api/production-lines/current/stations', {
       params: { production_line_id: 'pl-1' },
     })
-    expect(run).toHaveBeenCalledTimes(2)
+    // 1 DELETE (clears legacy synthetic rows for this business unit) + 2 upserts.
+    expect(run).toHaveBeenCalledTimes(3)
+    expect(run).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('DELETE FROM station WHERE business_unit_id = ? AND production_line_id IS NULL'),
+      ['bu-1'],
+    )
     expect(run).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO station'),
       expect.arrayContaining(['station-real-1', 'bu-1', 'pl-1', 'Weighbridge', 'weighbridge', 1, null]),
@@ -85,12 +91,16 @@ describe('productionLineRepo — fetchAndCacheStationsForProductionLine()', () =
     )
   })
 
-  it('does nothing when the response has no stations', async () => {
+  it('still clears legacy synthetic rows even when the response has no stations to upsert', async () => {
     vi.mocked(apiClient.get).mockResolvedValue({ data: {} })
 
     await productionLineRepo.fetchAndCacheStationsForProductionLine('pl-1', 'bu-1')
 
-    expect(run).not.toHaveBeenCalled()
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(run).toHaveBeenCalledWith(
+      expect.stringContaining('DELETE FROM station WHERE business_unit_id = ? AND production_line_id IS NULL'),
+      ['bu-1'],
+    )
   })
 
   it('propagates a rejection (offline) to the caller', async () => {

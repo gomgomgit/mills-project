@@ -1,0 +1,442 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-026--laporan-manajemen",
+  "name": "Laporan Manajemen",
+  "module_id": "module-dashboard",
+  "route": "/reports/management",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": false,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": false,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-026--laporan-manajemen",
+      "usecase_name": "Lihat Laporan Manajemen",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/reports/management-summary",
+          "description": "Breakdown harian + baris Total Weighbridge/Grading/Cages Track untuk mill milik acting user, dalam rentang tanggal terfilter",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "date_from",
+                "type": "date",
+                "required": false,
+                "default": "awal bulan berjalan",
+                "description": "Filter tanggal awal; default awal bulan berjalan jika tidak diisi"
+              },
+              {
+                "name": "date_to",
+                "type": "date",
+                "required": false,
+                "default": "hari ini",
+                "description": "Filter tanggal akhir; default hari ini jika tidak diisi"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "rows": [
+                {
+                  "date": "date",
+                  "weighbridge": {
+                    "count": "integer",
+                    "total_net_weight": "float"
+                  },
+                  "grading": {
+                    "count": "integer",
+                    "total_netto": "float",
+                    "total_quantity": "float"
+                  },
+                  "cages_track": {
+                    "count": "integer",
+                    "total_cages_tipped": "integer"
+                  }
+                }
+              ],
+              "total": {
+                "weighbridge": {
+                  "count": "integer",
+                  "total_net_weight": "float"
+                },
+                "grading": {
+                  "count": "integer",
+                  "total_netto": "float",
+                  "total_quantity": "float"
+                },
+                "cages_track": {
+                  "count": "integer",
+                  "total_cages_tipped": "integer"
+                }
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "INVALID_DATE_RANGE",
+                "condition": "date_from > date_to"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/reports/management-summary/export",
+          "description": "Ekspor breakdown harian + baris Total ke CSV/Excel, mengikuti filter rentang tanggal yang sama",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "date_from",
+                "type": "date",
+                "required": false,
+                "default": "awal bulan berjalan",
+                "description": "sama seperti endpoint summary"
+              },
+              {
+                "name": "date_to",
+                "type": "date",
+                "required": false,
+                "default": "hari ini",
+                "description": "sama seperti endpoint summary"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "csv atau excel"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "file": "binary stream (CSV/XLSX)"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "INVALID_DATE_RANGE",
+                "condition": "date_from > date_to"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "gagal membuat berkas"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Resolve business_unit_id dari acting user (Mill Management selalu punya business_unit_id)",
+        "2. Validasi date_from/date_to: jika date_from > date_to, return 422 INVALID_DATE_RANGE",
+        "3. Default date_from ke awal bulan berjalan, date_to ke hari ini, jika tidak diisi",
+        "4. Untuk setiap tanggal dalam rentang (inklusif), agregasi weighbridge-record/grading-record/cages-track-record (+cages-tipped-time) yang di-scope ke business_unit_id user, sama seperti DashboardService tapi per-hari",
+        "5. Susun array rows (satu per tanggal) + hitung baris total (penjumlahan seluruh rows)",
+        "6. Return {rows, total}"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "SELECT",
+          "description": "Aggregate count + SUM(net_weight) per hari, scoped ke business_unit_id user"
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "Aggregate count + SUM(netto) + SUM(quantity) per hari, scoped yang sama"
+        },
+        {
+          "entity_id": "cages-track-record",
+          "operation": "SELECT",
+          "description": "Aggregate count per hari, scoped yang sama"
+        },
+        {
+          "entity_id": "cages-tipped-time",
+          "operation": "SELECT",
+          "description": "JOIN ke cages-track-record dalam filter, SUM(total_cages) per hari"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Tidak ada data pada satu atau lebih hari dalam rentang",
+          "handling": "Baris hari tersebut tetap muncul di rows dengan count/sum = 0"
+        },
+        {
+          "condition": "date_from > date_to",
+          "handling": "Return 422 INVALID_DATE_RANGE, query tidak dijalankan"
+        },
+        {
+          "condition": "Tidak ada data sama sekali di seluruh rentang",
+          "handling": "rows berisi baris 0 untuk setiap tanggal, total = 0; export tetap menghasilkan file"
+        }
+      ],
+      "business_rules_applied": [
+        "Laporan otomatis dibatasi ke business unit milik Mill Management yang login",
+        "Filter tanggal default awal bulan berjalan sampai hari ini",
+        "Breakdown harian dari data gabungan sync mobile + input web",
+        "Baris Total menjumlahkan seluruh hari dalam rentang",
+        "Ekspor mengikuti filter rentang tanggal aktif",
+        "Laporan termuat <=2 detik untuk dataset normal"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 422 INVALID_DATE_RANGE when date_from > date_to",
+          "given": "query params date_from=2026-03-10, date_to=2026-03-01",
+          "expect": "return 422 INVALID_DATE_RANGE, no query executed"
+        },
+        {
+          "description": "defaults date_from to start of current month and date_to to today when not provided",
+          "given": "no date_from/date_to query params",
+          "expect": "aggregation runs with date range = start-of-month..today"
+        },
+        {
+          "description": "returns one row per date in the range with correct aggregates",
+          "given": "valid date range spanning 3 days, records exist on each day",
+          "expect": "rows array has 3 entries, each with correct count/sums for that date"
+        },
+        {
+          "description": "includes a zero-value row for a date with no matching records",
+          "given": "date range spanning 2 days, only 1 day has records",
+          "expect": "the day without records appears in rows with count=0 and sums=0, not omitted"
+        },
+        {
+          "description": "computes total as the sum of all daily rows",
+          "given": "multiple rows with known values",
+          "expect": "total.weighbridge.count = sum of rows[].weighbridge.count (and same pattern for other fields)"
+        },
+        {
+          "description": "scopes aggregation to the acting user's own business_unit_id only",
+          "given": "records exist for the user's business unit and for a different business unit",
+          "expect": "rows/total only reflect the user's own business unit, other business unit's data excluded"
+        },
+        {
+          "description": "aggregates cages_track total_cages_tipped across cages-tipped-time rows per day, not cages_out/cages_tipped",
+          "given": "cages-track-record rows on a given day, each with multiple cages-tipped-time rows",
+          "expect": "that day's total_cages_tipped = SUM(total_cages) across all cages-tipped-time rows for that day's headers"
+        },
+        {
+          "description": "export() returns 422 INVALID_DATE_RANGE when date_from > date_to",
+          "given": "export called with date_from > date_to",
+          "expect": "throws InvalidDateRangeException, no file generated"
+        },
+        {
+          "description": "export() generates a CSV with one row per date plus a Total row",
+          "given": "valid date range with data",
+          "expect": "streamed CSV body contains a header row, one row per date, and a final Total row"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "weighbridge-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "grading-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "cages-track-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "cages-tipped-time",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [],
+  "implementation_notes": [
+    "Endpoint terpisah dari GET /api/dashboard/summary (screen-025) karena bentuk data berbeda: breakdown per-hari + Total, bukan satu snapshot rentang gabungan, dan scope business_unit_id otomatis dari acting user (bukan query param opsional)",
+    "ManagementReportService baru (bukan reuse DashboardService) agar per-entity aggregation query tidak perlu diubah jadi date-range-only vs per-day -- pola sama seperti WeighbridgeRecordService/GradingRecordService/CagesTrackRecordService yang masing-masing punya service sendiri",
+    "Export mengikuti pola WeighbridgeRecordService::export() -- CSV native, format=excel fallback ke CSV dengan xlsx mimetype/filename",
+    "route /reports/management dipilih agar tidak bentrok dengan /dashboard (screen-025) dan konsisten dengan namespace 'reports' untuk kemungkinan laporan lain di masa depan"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Manajemen -- berhasil",
+      "usecase_id": "usecase-026--laporan-manajemen",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/reports/management-summary"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "ManagementReport",
+        "action": "mount component with default filter (start of month..today)",
+        "assert": "rows table renders one row per date with correct aggregates, plus a Total row"
+      },
+      "browser_test": {
+        "route": "/reports/management",
+        "action": "navigate to /reports/management after login as Mill Management",
+        "assert": "page shows daily breakdown table and Total row for the current month"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Manajemen -- Filter Diterapkan",
+      "usecase_id": "usecase-026--laporan-manajemen",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/reports/management-summary"
+          },
+          "request_example": {
+            "date_from": "2026-02-01",
+            "date_to": "2026-02-10"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "ManagementReport",
+        "action": "change date range filter and apply",
+        "assert": "rows/total update to match the filtered range"
+      },
+      "browser_test": {
+        "route": "/reports/management",
+        "action": "fill date range filter and click Apply",
+        "assert": "report updates to show only the filtered range"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Manajemen -- Tidak Ada Data Sesuai Filter",
+      "usecase_id": "usecase-026--laporan-manajemen",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/reports/management-summary"
+          },
+          "request_example": {
+            "date_from": "2020-01-01",
+            "date_to": "2020-01-02"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "ManagementReport",
+        "action": "apply a filter combination with no matching records",
+        "assert": "rows show 0 for each date, 'belum ada data' message shown, total = 0"
+      },
+      "browser_test": {
+        "route": "/reports/management",
+        "action": "apply a filter combination that yields zero records",
+        "assert": "page shows 0-value rows and a 'belum ada data' message, not an error"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Manajemen -- Rentang Tanggal Tidak Valid",
+      "usecase_id": "usecase-026--laporan-manajemen",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/reports/management-summary"
+          },
+          "request_example": {
+            "date_from": "2026-02-10",
+            "date_to": "2026-02-01"
+          },
+          "expected_status": 422,
+          "expected_error_code": "INVALID_DATE_RANGE"
+        }
+      ],
+      "component_test": {
+        "component": "ManagementReport",
+        "action": "set date_from later than date_to and apply",
+        "assert": "validation error message shown, table keeps previous values"
+      },
+      "browser_test": {
+        "route": "/reports/management",
+        "action": "enter a start date later than the end date and apply",
+        "assert": "browser shows a validation error, filter is not applied"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Manajemen -- Ekspor Laporan",
+      "usecase_id": "usecase-026--laporan-manajemen",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/reports/management-summary/export"
+          },
+          "request_example": {
+            "date_from": "2026-02-01",
+            "date_to": "2026-02-10",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "ManagementReport",
+        "action": "click Ekspor button",
+        "assert": "component triggers a download request to the export endpoint with the active filter"
+      },
+      "browser_test": {
+        "route": "/reports/management",
+        "action": "click the Ekspor button",
+        "assert": "browser downloads a CSV file containing the daily breakdown and Total row"
+      }
+    }
+  ]
+}

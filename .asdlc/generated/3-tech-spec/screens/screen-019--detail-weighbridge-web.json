@@ -1,0 +1,267 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-019--detail-weighbridge-web",
+  "name": "Detail Weighbridge (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/weighbridge/{id}",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-019--detail-weighbridge-web",
+      "usecase_name": "Lihat Detail Weighbridge (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/weighbridge-records/{id}",
+          "description": "Ambil 1 record Weighbridge lengkap beserta nama station dan nama user (checked_by/acknowledged_by)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "required": true,
+                "description": "ID record Weighbridge"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "wb_card_number": "string",
+              "weighbridge_type": "enum(receive, dispatch)",
+              "record_datetime": "timestamp",
+              "vehicle_number": "string",
+              "driver_name": "string",
+              "estate_supplier": "string",
+              "destination": "string|null",
+              "division": "string|null",
+              "block": "string|null",
+              "gross_weight": "float",
+              "tare_weight": "float|null",
+              "net_weight": "float|null",
+              "quantity": "float|null",
+              "checked_by_name": "string|null",
+              "acknowledged_by_name": "string|null",
+              "status": "string",
+              "created_at": "timestamp",
+              "updated_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate id ada di weighbridge-record -> 404 RECORD_NOT_FOUND jika tidak ditemukan",
+        "2. SELECT weighbridge-record by id, JOIN station untuk station_name, JOIN user untuk checked_by_name/acknowledged_by_name (null jika belum diisi)",
+        "3. Return full record dengan nama-nama terselesaikan",
+        "4. FE render field per section (Identitas, Kendaraan & Supir, Asal Muatan, Data Timbangan, Verifikasi) read-only",
+        "5. FE: label field tanggal & tampilan Tujuan Muatan menyesuaikan weighbridge_type (client-side, sama seperti screen-013 mobile)",
+        "6. FE: render tombol Edit (navigasi ke screen-022 mode ubah) dan Back",
+        "7. On klik Edit: navigasi client-side ke /data/weighbridge/{id}/edit, tanpa panggilan API tambahan",
+        "8. On klik Back: navigasi client-side ke /data/weighbridge, tanpa panggilan API tambahan"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "SELECT",
+          "description": "SELECT 1 record by id"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve station_name"
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve checked_by_name/acknowledged_by_name"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "id tidak ditemukan",
+          "handling": "Return 404 RECORD_NOT_FOUND, FE tampilkan pesan error + tombol Back"
+        },
+        {
+          "condition": "checked_by/acknowledged_by belum diisi",
+          "handling": "checked_by_name/acknowledged_by_name null, FE tampilkan '-'"
+        },
+        {
+          "condition": "weighbridge_type=receive",
+          "handling": "FE sembunyikan field Tujuan Muatan sepenuhnya, label tanggal 'Tanggal & Waktu Arrival'"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh field read-only",
+        "Tanggal & Waktu 1 field, label sesuai tipe",
+        "Tujuan Muatan hanya untuk tipe Dispatch",
+        "Label satuan (kg) dan (tandan)"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 RECORD_NOT_FOUND when id does not exist",
+          "given": "id tidak ada di weighbridge-record",
+          "expect": "return 404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "returns full record with resolved station_name when id exists",
+          "given": "valid id, station terkait ada",
+          "expect": "return 200 dengan station_name terisi"
+        },
+        {
+          "description": "returns destination populated when weighbridge_type=dispatch",
+          "given": "record dengan weighbridge_type=dispatch dan destination terisi",
+          "expect": "response.destination berisi nilai yang sama"
+        },
+        {
+          "description": "returns null checked_by_name/acknowledged_by_name when not set",
+          "given": "record dengan checked_by dan acknowledged_by null",
+          "expect": "response.checked_by_name dan acknowledged_by_name adalah null"
+        },
+        {
+          "description": "resolves checked_by_name/acknowledged_by_name to user names when present",
+          "given": "record dengan checked_by dan acknowledged_by terisi uuid user valid",
+          "expect": "response berisi nama user yang sesuai, bukan uuid"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-016--data-browser-weighbridge-web",
+      "reason": "Entry point - klik baris membuka detail ini"
+    },
+    {
+      "screen_id": "screen-022--form-weighbridge-web",
+      "reason": "Tombol Edit membuka form ini dalam mode ubah"
+    }
+  ],
+  "implementation_notes": [
+    "Response resolve checked_by/acknowledged_by ke nama user via join, untuk keterbacaan pada layar detail (list di screen-016 tidak butuh ini)",
+    "Label field tanggal & visibilitas Tujuan Muatan diatur client-side berdasarkan weighbridge_type, konsisten dengan pola Data Preview Weighbridge mobile (screen-013)",
+    "Tombol Edit ditambahkan ver 2 bersamaan dengan implementasi screen-022 - navigasi client-side murni, tidak ada perubahan API"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Detail Weighbridge - berhasil",
+      "usecase_id": "usecase-019--detail-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-records/{id}"
+          },
+          "request_example": {
+            "id": "{{weighbridge_record_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailWeighbridge",
+        "action": "render dengan data record lengkap dari API",
+        "assert": "seluruh field tampil read-only, dikelompokkan per section, label tanggal & Tujuan Muatan sesuai tipe, tombol Edit tampil"
+      },
+      "browser_test": {
+        "route": "/data/weighbridge/{id}",
+        "action": "klik baris di Data Browser Weighbridge, tunggu halaman detail termuat",
+        "assert": "halaman detail menampilkan seluruh field record yang diklik"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Weighbridge - Record Tidak Ditemukan",
+      "usecase_id": "usecase-019--detail-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000"
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DetailWeighbridge",
+        "action": "render dengan API mengembalikan 404",
+        "assert": "pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back, tombol Edit tidak tampil"
+      },
+      "browser_test": {
+        "route": "/data/weighbridge/00000000-0000-0000-0000-000000000000",
+        "action": "navigasi langsung ke id yang tidak valid",
+        "assert": "halaman menampilkan pesan error dan tombol Back yang berfungsi"
+      }
+    },
+    {
+      "scenario_ref": "Klik Edit Membuka Form Weighbridge Mode Ubah",
+      "usecase_id": "usecase-019--detail-weighbridge-web",
+      "api_test": [],
+      "component_test": {
+        "component": "DetailWeighbridge",
+        "action": "klik tombol Edit",
+        "assert": "navigasi ke route Form Weighbridge mode edit untuk id record ini"
+      },
+      "browser_test": {
+        "route": "/data/weighbridge/{id}",
+        "action": "klik tombol Edit pada halaman Detail Weighbridge",
+        "assert": "browser berpindah ke /data/weighbridge/{id}/edit dengan form terisi data record"
+      }
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-019--detail-weighbridge-web",
+  "name": "Detail Weighbridge (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman detail read-only untuk melihat 1 record Weighbridge tersimpan secara lengkap, diakses dari klik baris di Data Browser Weighbridge (Web). Tombol Edit tersedia untuk masuk ke Form Weighbridge (Web) mode ubah.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Klik baris di Data Browser Weighbridge (Web)"
+  ],
+  "information_displayed": [
+    "Identitas Weighbridge: WB Card Number, Tipe (Receive/Dispatch), Tanggal & Waktu (record_datetime, berlabel 'Tanggal & Waktu Arrival' untuk Receive atau 'Tanggal & Waktu Dispatch' untuk Dispatch — hanya 1 field), Tujuan Muatan (hanya ditampilkan jika tipe Dispatch)",
+    "Kendaraan & Supir: No. Kendaraan, Nama Supir",
+    "Asal Muatan: Estate/Supplier, Divisi, Blok",
+    "Data Timbangan: Gross Weight (kg), Tare Weight (kg), Net Weight (kg), Kuantitas (tandan)",
+    "Verifikasi: Checked By, Acknowledged By (nama user, atau '-' jika belum diisi)",
+    "Status record (saved/synced)",
+    "Tombol Edit dan Back"
+  ],
+  "available_actions": [
+    {
+      "action": "Edit",
+      "description": "Membuka Form Weighbridge (Web) dalam mode ubah untuk record ini",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Data Browser Weighbridge (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Seluruh field ditampilkan read-only di layar ini sendiri — koreksi data dilakukan lewat tombol Edit yang membuka Form Weighbridge Web",
+    "Tanggal & Waktu berlabel sesuai tipe (Arrival untuk Receive, Dispatch untuk Dispatch) — hanya 1 field ditampilkan, konsisten dengan Data Preview Weighbridge mobile",
+    "Tujuan Muatan hanya ditampilkan jika tipe Dispatch; disembunyikan untuk tipe Receive",
+    "Label Kuantitas menampilkan satuan (tandan)",
+    "Label field berat (Gross, Tare, Net Weight) menampilkan satuan (kg)",
+    "Field dikelompokkan sesuai struktur Form Weighbridge (Identitas, Kendaraan & Supir, Asal Muatan, Data Timbangan)"
+  ],
+  "usecase_ids": [
+    "usecase-019--detail-weighbridge-web"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
+    "Checked By/Acknowledged By belum diisi — tampilkan '-'",
+    "Tujuan Muatan kosong untuk tipe Receive — field tidak ditampilkan sama sekali"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

@@ -1,0 +1,373 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-025--dashboard-web",
+  "name": "Dashboard Web",
+  "module_id": "module-dashboard",
+  "route": "/dashboard",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-025--dashboard-web",
+      "usecase_name": "Lihat Dashboard Web",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/dashboard/summary",
+          "description": "Ringkasan KPI agregat Weighbridge/Grading/Cages Track untuk rentang tanggal & business unit terfilter",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "date_from",
+                "type": "date",
+                "required": false,
+                "default": "today",
+                "description": "Filter tanggal awal; default hari ini jika tidak diisi"
+              },
+              {
+                "name": "date_to",
+                "type": "date",
+                "required": false,
+                "default": "today",
+                "description": "Filter tanggal akhir; default hari ini jika tidak diisi"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter business unit/mill; kosong berarti seluruh business unit"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "weighbridge": {
+                "count": "integer",
+                "total_net_weight": "float"
+              },
+              "grading": {
+                "count": "integer",
+                "total_netto": "float",
+                "total_quantity": "float"
+              },
+              "cages_track": {
+                "count": "integer",
+                "total_cages_tipped": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "INVALID_DATE_RANGE",
+                "condition": "date_from > date_to"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate query params: jika date_from > date_to, return 422 INVALID_DATE_RANGE",
+        "2. Default date_from/date_to ke hari ini jika tidak diisi",
+        "3. Query weighbridge-record WHERE business_unit_id matches (jika ada) AND record_datetime BETWEEN date_from/date_to -> hitung count dan SUM(net_weight)",
+        "4. Query grading-record dengan filter yang sama -> hitung count, SUM(netto), SUM(quantity)",
+        "5. Query cages-track-record dengan filter yang sama, JOIN cages-tipped-time -> hitung count cages-track-record dan SUM(total_cages) dari seluruh baris cages-tipped-time terkait",
+        "6. Return objek gabungan {weighbridge, grading, cages_track}"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "SELECT",
+          "description": "Aggregate count + SUM(net_weight) dengan filter tanggal/business_unit"
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "Aggregate count + SUM(netto) + SUM(quantity) dengan filter yang sama"
+        },
+        {
+          "entity_id": "cages-track-record",
+          "operation": "SELECT",
+          "description": "Aggregate count dengan filter yang sama"
+        },
+        {
+          "entity_id": "cages-tipped-time",
+          "operation": "SELECT",
+          "description": "JOIN ke cages-track-record dalam filter, SUM(total_cages) untuk total_cages_tipped"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Tidak ada data sesuai filter",
+          "handling": "Return 200 dengan count/sum = 0, bukan error"
+        },
+        {
+          "condition": "date_from > date_to",
+          "handling": "Return 422 INVALID_DATE_RANGE, query tidak dijalankan"
+        },
+        {
+          "condition": "business_unit_id tidak diisi",
+          "handling": "Agregasi mencakup seluruh business unit"
+        }
+      ],
+      "business_rules_applied": [
+        "Filter tanggal default hari ini saat dashboard pertama dibuka",
+        "KPI dihitung dari data gabungan sync mobile + input web",
+        "Filter business unit opsional",
+        "Dashboard termuat <=2 detik untuk dataset normal"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 422 INVALID_DATE_RANGE when date_from > date_to",
+          "given": "query params date_from=2026-02-10, date_to=2026-02-01",
+          "expect": "return 422 INVALID_DATE_RANGE, no query executed"
+        },
+        {
+          "description": "defaults date_from/date_to to today when not provided",
+          "given": "no date_from/date_to query params",
+          "expect": "aggregation query runs with date range = today"
+        },
+        {
+          "description": "returns success result with correct counts and sums when all conditions pass",
+          "given": "valid date range and business_unit_id; matching records exist",
+          "expect": "return 200 with correct count/total_net_weight/total_netto/total_quantity/total_cages_tipped"
+        },
+        {
+          "description": "filters by business_unit_id when provided",
+          "given": "business_unit_id query param set",
+          "expect": "aggregation queries scoped to WHERE business_unit_id = given value"
+        },
+        {
+          "description": "returns zero counts/sums when no matching records exist",
+          "given": "no records match the given filter",
+          "expect": "return 200 with count=0 and all sums=0, not an error"
+        },
+        {
+          "description": "aggregates cages_track total_cages_tipped across cages-tipped-time rows correctly",
+          "given": "multiple cages-track-record rows in range, each with multiple cages-tipped-time rows",
+          "expect": "total_cages_tipped = SUM(total_cages) across all cages-tipped-time rows belonging to in-range headers"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "weighbridge-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "grading-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "cages-track-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "cages-tipped-time",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-016--data-browser-weighbridge-web",
+      "reason": "Klik card Weighbridge navigasi ke Data Browser Weighbridge dengan filter diteruskan"
+    },
+    {
+      "screen_id": "screen-017--data-browser-grading-web",
+      "reason": "Klik card Grading navigasi ke Data Browser Grading dengan filter diteruskan"
+    },
+    {
+      "screen_id": "screen-018--data-browser-cages-track-web",
+      "reason": "Klik card Cages Track navigasi ke Data Browser Cages Track dengan filter diteruskan"
+    }
+  ],
+  "implementation_notes": [
+    "Endpoint tunggal mengembalikan agregat ketiga stasiun sekaligus agar dashboard termuat <=2 detik",
+    "Menggantikan App\\Livewire\\Dashboard\\DashboardHome placeholder stub yang sudah ada (route /dashboard sudah terdaftar, name 'dashboard', role admin,supervisor,mill_management) -- component & view diganti total",
+    "total_cages_tipped dihitung dari SUM(cages-tipped-time.total_cages), bukan dari cages_out/cages_tipped header"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Dashboard Web -- berhasil",
+      "usecase_id": "usecase-025--dashboard-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/dashboard/summary"
+          },
+          "request_example": {
+            "date_from": "2026-02-01",
+            "date_to": "2026-02-01"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DashboardHome",
+        "action": "mount component with default filter (today)",
+        "assert": "KPI cards render with count and aggregate values for Weighbridge/Grading/Cages Track"
+      },
+      "browser_test": {
+        "route": "/dashboard",
+        "action": "navigate to /dashboard after login",
+        "assert": "page shows KPI cards and summary table for today's data"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Dashboard Web -- Filter Diterapkan",
+      "usecase_id": "usecase-025--dashboard-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/dashboard/summary"
+          },
+          "request_example": {
+            "date_from": "2026-02-01",
+            "date_to": "2026-02-10",
+            "business_unit_id": "{{business_unit_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DashboardHome",
+        "action": "set date range and business unit filter, apply",
+        "assert": "KPI cards and summary table update to match the filtered range/business unit"
+      },
+      "browser_test": {
+        "route": "/dashboard",
+        "action": "fill date range filter and select business unit, click Apply",
+        "assert": "dashboard updates to show only the filtered data"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Dashboard Web -- Tidak Ada Data Sesuai Filter",
+      "usecase_id": "usecase-025--dashboard-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/dashboard/summary"
+          },
+          "request_example": {
+            "date_from": "2020-01-01",
+            "date_to": "2020-01-02"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DashboardHome",
+        "action": "apply a filter combination with no matching records",
+        "assert": "KPI cards show 0 for all stations, no error message"
+      },
+      "browser_test": {
+        "route": "/dashboard",
+        "action": "apply a filter combination that yields zero records",
+        "assert": "dashboard shows 0 values on all cards, not an error state"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Dashboard Web -- Filter Tanggal Tidak Valid",
+      "usecase_id": "usecase-025--dashboard-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/dashboard/summary"
+          },
+          "request_example": {
+            "date_from": "2026-02-10",
+            "date_to": "2026-02-01"
+          },
+          "expected_status": 422,
+          "expected_error_code": "INVALID_DATE_RANGE"
+        }
+      ],
+      "component_test": {
+        "component": "DashboardHome",
+        "action": "set date_from later than date_to and apply",
+        "assert": "validation error message shown, KPI cards keep previous values"
+      },
+      "browser_test": {
+        "route": "/dashboard",
+        "action": "enter a start date later than the end date and apply",
+        "assert": "browser shows a validation error, filter is not applied"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Dashboard Web -- Klik Card Stasiun",
+      "usecase_id": "usecase-025--dashboard-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/dashboard/summary"
+          },
+          "request_example": {
+            "date_from": "2026-02-01",
+            "date_to": "2026-02-01"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DashboardHome",
+        "action": "click the Weighbridge KPI card/row",
+        "assert": "component dispatches navigation to Data Browser Weighbridge route, with date range & business unit filter passed as query params"
+      },
+      "browser_test": {
+        "route": "/dashboard",
+        "action": "click the Weighbridge card",
+        "assert": "browser navigates to /data/weighbridge with the same date range & business unit filter applied"
+      }
+    }
+  ]
+}

@@ -40,6 +40,27 @@ class StationFactory extends Factory
         return $this->state(fn () => ['type' => StationType::Weighbridge]);
     }
 
+    /**
+     * `type = grading` — added additively for screen-023--form-grading-web's
+     * test suite (GradingRecordServiceTest / FormGradingTest), mirroring
+     * `weighbridge()` above exactly.
+     */
+    public function grading(): self
+    {
+        return $this->state(fn () => ['type' => StationType::Grading]);
+    }
+
+    /**
+     * `type = cages-track` — added additively for
+     * screen-024--form-cages-track-web's test suite
+     * (CagesTrackRecordServiceTest / FormCagesTrackTest), mirroring
+     * `weighbridge()`/`grading()` above exactly.
+     */
+    public function cagesTrack(): self
+    {
+        return $this->state(fn () => ['type' => StationType::CagesTrack]);
+    }
+
     public function forBusinessUnit(BusinessUnit|string $businessUnit): self
     {
         return $this->state(fn () => [

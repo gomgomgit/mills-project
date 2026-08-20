@@ -1,0 +1,70 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-032--kelola-user-role",
+  "name": "Kelola User & Role",
+  "module_id": "module-user-management",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Exceptions/CannotDeactivateSelfException.php",
+    "backend/app/Services/UserService.php",
+    "backend/app/Http/Controllers/Api/UserController.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/UserServiceTest.php",
+    "backend/tests/Feature/Api/KelolaUserRoleTest.php",
+    "backend/tests/Feature/Livewire/KelolaUserRoleTest.php",
+    "backend/tests/Browser/KelolaUserRoleTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/UserManagement/KelolaUserRole.php",
+    "backend/resources/views/livewire/user-management/kelola-user-role.blade.php",
+    "backend/resources/views/user-management/users.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "First-time implementation (never built before this round) — no new migration needed, the `users` table already had every field this screen manages (username, password_hash, name, role, business_unit_id, is_active) from project bootstrap",
+    "No delete()/DELETE endpoint at all — users are only ever deactivated (is_active=false), never removed, to preserve referential integrity on created_by/checked_by/acknowledged_by across every other entity in the system",
+    "PATCH /api/users/:id/status is a separate endpoint from PATCH /api/users/:id specifically so the list's one-click Aktifkan/Nonaktifkan toggle can never accidentally change name/role/business_unit_id, and so the 409 CANNOT_DEACTIVATE_SELF guard has a single, obvious place to live",
+    "update() never accepts or touches password_hash — password changes are the existing self-service Ganti Password screens' (screen-003/004) domain, not this screen's; UserService::validate() only requires/validates username+password on create(), not update(), to avoid incorrectly demanding a username on an update payload that never carries one",
+    "business_unit_id requirement is conditional on role via Rule::requiredIf() — required for operator/supervisor/mill_management, optional for admin, both server-side (UserService) and client-side (KelolaUserRole::rules(), re-evaluated live via wire:model.live on the role field so the Business Unit field appears/disappears immediately)",
+    "Sidebar 'Kelola User & Role' link added to all 19 other shell-sidebar views in this codebase (consistent with the Mills Setting/Laporan Manajemen sidebar passes earlier this session), positioned after 'Mills Setting' and before 'Data Browser Weighbridge'",
+    "kc-* CSS class set reused verbatim from kelola-business-unit.blade.php per this codebase's established convention (copy, not duplicate-and-rename); one addition specific to this screen: kc-badge__active/inactive for the status pill, which has no equivalent in the master-data screens",
+    "Independently verified: full backend regression `php artisan test` — 877/877 passed (28 new for this screen, 849 pre-existing unaffected)"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test written but not run — no Playwright/Node infra in this sandbox, consistent with every other web screen implemented this session",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-20T00:30:00Z",
+      "passed": 13,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-20T00:30:00Z",
+      "passed": 8,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-20T00:30:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

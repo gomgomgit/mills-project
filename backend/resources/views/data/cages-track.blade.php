@@ -115,6 +115,12 @@
         <p class="shell-sidebar__brand">Mills Smart Log</p>
         <ul class="shell-sidebar__nav">
             <li><a href="{{ url('/dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ route('reports.management') }}">Laporan Manajemen</a></li>
+            <li><a href="{{ route('master-data.stations') }}">Kelola Station</a></li>
+            <li><a href="{{ route('master-data.machinery-groups') }}">Kelola Machinery Group</a></li>
+            <li><a href="{{ route('master-data.machinery') }}">Kelola Machinery</a></li>
+            <li><a href="{{ route('mill-settings') }}">Mills Setting</a></li>
+            <li><a href="{{ route('users.index') }}">Kelola User & Role</a></li>
             <li><a href="{{ route('data.weighbridge') }}">Data Browser Weighbridge</a></li>
             <li><a href="{{ route('data.grading') }}">Data Browser Grading</a></li>
             <li><a href="{{ route('data.cages-track') }}" class="active">Data Browser Cages Track</a></li>

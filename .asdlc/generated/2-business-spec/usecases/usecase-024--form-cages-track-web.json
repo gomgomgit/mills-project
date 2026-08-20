@@ -1,0 +1,185 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "usecase-024--form-cages-track-web",
+  "name": "Input Data Cages Track (Web)",
+  "description": "User (Supervisor/Mill Management/Admin) membuat record Cages Track baru atau mengubah record tersimpan lewat web, memilih Business Unit (mode buat), mengisi data header dan minimal satu baris Cages Tipped Time dengan jumlah kolom checklist mengacu ke Jumlah Cages Mills Setting mill terkait, lalu menyimpan.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web app",
+    "Untuk mode edit: record Cages Track dengan id terkait sudah ada"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Membuka Form Cages Track (mode buat via tombol 'Tambah Data' di Data Browser Cages Track, atau mode edit via tombol 'Edit' di Detail Cages Track)"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Render form: mode buat menampilkan dropdown Business Unit kosong dan Tanggal/Tippler Start Time/Tippler Stop Time default waktu saat ini; mode edit memuat data record tersimpan, Business Unit ditampilkan read-only"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "(mode buat) Memilih Business Unit; System resolve N (Jumlah Cages) dari Mills Setting mill tersebut"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Mengisi Cages Track Number, Cages Out, Cages Tipped, Note"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Menambah minimal satu baris Cages Tipped Time, memilih Time dan mencentang cage yang di-tipping pada baris tersebut"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Menekan tombol Simpan"
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Memvalidasi field wajib dan minimal satu baris Cages Tipped Time valid; jika mode buat, resolve station Cages Track dari Business Unit"
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Menyimpan record (status=saved) beserta seluruh baris Cages Tipped Time, dan mengarahkan ke Detail Cages Track (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field Wajib Belum Lengkap",
+      "trigger": "Step 7, ada field wajib kosong",
+      "steps": [
+        "System menampilkan pesan error inline di bawah field terkait",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum Ada Baris Cages Tipped Time Valid",
+      "trigger": "Step 7, tidak ada baris dengan Time + minimal 1 cage tercentang",
+      "steps": [
+        "System menampilkan pesan error khusus Cages Tipped Time",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Business Unit Tanpa Station Cages Track Aktif",
+      "trigger": "Step 7 (mode buat), Business Unit terpilih tidak memiliki station bertipe cages-track yang aktif",
+      "steps": [
+        "System menampilkan pesan error",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Time Duplikat Atau Mundur Antar Baris",
+      "trigger": "Step 5-6, baris memilih Time yang sudah dipakai baris lain atau <= Time baris terakhir ditambahkan",
+      "steps": [
+        "Dropdown Time baris tersebut tidak menampilkan jam yang sudah dipakai/mundur, mencegah dari UI",
+        "Jika tetap terkirim (mis. race condition), System menolak dengan error validasi"
+      ]
+    },
+    {
+      "name": "Record Tidak Ditemukan (mode edit)",
+      "trigger": "Mode edit dibuka dengan id tidak valid",
+      "steps": [
+        "System menampilkan pesan error 'record tidak ditemukan'",
+        "User dapat menekan Batal untuk kembali"
+      ]
+    },
+    {
+      "name": "Batal Dengan Perubahan Belum Tersimpan",
+      "trigger": "Step 1-6, user menekan Batal sebelum Simpan dan ada perubahan belum tersimpan",
+      "steps": [
+        "System menampilkan dialog konfirmasi sebelum keluar"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Cages Track tersimpan (baru atau diperbarui) dengan status 'saved', beserta seluruh baris Cages Tipped Time-nya, ATAU tidak ada perubahan jika Batal/validasi gagal"
+  ],
+  "business_rules": [
+    "Jumlah kolom checklist grid Cages Tipped Time mengacu ke Jumlah Cages Mills Setting Business Unit terpilih, bukan field Cages Tipped header",
+    "Total Cages dan Cages Remain tiap baris adalah computed, tidak dapat diedit manual",
+    "Business Unit tidak dapat diubah setelah record dibuat",
+    "Checked By hanya dapat diisi oleh role Supervisor, Acknowledged By hanya oleh role Mill Management",
+    "Tidak ada draft/pause di web — Simpan langsung menghasilkan status saved"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Buat Record Cages Track Baru — berhasil",
+      "given": "User berada di Data Browser Cages Track dan klik Tambah Data",
+      "when": "User memilih Business Unit, mengisi field wajib, menambah satu baris Cages Tipped Time lengkap, dan klik Simpan",
+      "then": "Record baru tersimpan dengan status 'saved' dan user diarahkan ke Detail Cages Track record tersebut"
+    },
+    {
+      "scenario": "Edit Record Cages Track — berhasil",
+      "given": "User membuka Detail Cages Track lalu klik Edit",
+      "when": "User mengubah salah satu field dan klik Simpan",
+      "then": "Record diperbarui dan perubahan terlihat di Detail Cages Track"
+    },
+    {
+      "scenario": "Tanggal dan Tippler Time Dapat Diedit Manual",
+      "given": "Form Cages Track Web terbuka dengan Tanggal/Tippler Start/Stop Time terisi default waktu saat ini",
+      "when": "User mengubah nilai-nilai tersebut secara manual",
+      "then": "Nilai yang diinput user tersimpan, bukan default waktu saat ini"
+    },
+    {
+      "scenario": "Jumlah Kolom Grid Mengikuti Mills Setting, Bukan Cages Tipped Header",
+      "given": "Business Unit terpilih punya Jumlah Cages=8 di Mills Setting, header Cages Tipped diisi 15",
+      "when": "User menambah satu baris Cages Tipped Time",
+      "then": "Baris tersebut menampilkan 8 kolom checklist sesuai Mills Setting, bukan 15"
+    },
+    {
+      "scenario": "Field Wajib Belum Lengkap",
+      "given": "Ada field wajib kosong",
+      "when": "User klik Simpan",
+      "then": "Pesan error inline muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Belum Ada Baris Cages Tipped Time Valid",
+      "given": "Seluruh field header wajib terisi tapi belum ada baris Cages Tipped Time valid",
+      "when": "User klik Simpan",
+      "then": "Pesan error khusus Cages Tipped Time muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Business Unit Tanpa Station Cages Track Aktif",
+      "given": "Business Unit terpilih tidak punya station Cages Track aktif",
+      "when": "User klik Simpan",
+      "then": "Pesan error ditampilkan, record tidak tersimpan"
+    },
+    {
+      "scenario": "Time Tidak Bisa Duplikat Atau Mundur",
+      "given": "Time sudah dipilih di baris pertama",
+      "when": "User membuka dropdown Time di baris kedua",
+      "then": "Jam yang sudah dipakai/mundur dari baris pertama tidak muncul sebagai opsi"
+    },
+    {
+      "scenario": "Record Tidak Ditemukan (mode edit)",
+      "given": "id record pada URL tidak valid",
+      "when": "Halaman Form Cages Track (edit) dimuat",
+      "then": "Pesan error 'record tidak ditemukan' ditampilkan"
+    },
+    {
+      "scenario": "Batal Dengan Perubahan Belum Tersimpan",
+      "given": "User sudah mengubah salah satu field",
+      "when": "User klik Batal sebelum Simpan",
+      "then": "Dialog konfirmasi keluar ditampilkan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-024--form-cages-track-web"
+  ]
+}

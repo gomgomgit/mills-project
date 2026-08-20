@@ -43,6 +43,54 @@ class CagesTrackRecordController extends Controller
     }
 
     /**
+     * show() — GET /api/cages-track-records/{id}. screen-021--detail-cages-track-web
+     * business_logic steps 1-4: findOrFail (404 auto-handled by
+     * ApiExceptionHandler when not found) → resolve display names/grid via
+     * CagesTrackRecordService::getDetail().
+     */
+    public function show(string $id): JsonResponse
+    {
+        return response()->json($this->service->getDetail($id));
+    }
+
+    /**
+     * store() — POST /api/cages-track-records. screen-024--form-cages-track-web
+     * business_logic steps 1-6: create a new record + cages_tipped_time
+     * rows, resolving station_id from the given business_unit_id and N
+     * (jumlah_cages) from mill-setting.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->only([
+            'business_unit_id', 'cages_track_number', 'date', 'tippler_start_time',
+            'tippler_stop_time', 'cages_out', 'cages_tipped', 'note',
+            'checked', 'acknowledged', 'details',
+        ]);
+
+        $record = $this->service->create($data, $request->user());
+
+        return response()->json($record, 201);
+    }
+
+    /**
+     * update() — PATCH /api/cages-track-records/{id}. screen-024--form-cages-track-web
+     * business_logic steps 7-9: update an existing record and upsert its
+     * cages_tipped_time rows; business_unit_id/station_id are never
+     * accepted here.
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $data = $request->only([
+            'cages_track_number', 'date', 'tippler_start_time', 'tippler_stop_time',
+            'cages_out', 'cages_tipped', 'note', 'checked', 'acknowledged', 'details',
+        ]);
+
+        $record = $this->service->update($id, $data, $request->user());
+
+        return response()->json($record);
+    }
+
+    /**
      * export() — GET /api/cages-track-records/export. business_logic
      * steps 1-2 (same filters, no pagination) + 5-6: generate a file
      * stream (CSV, or CSV-as-xlsx fallback for format=excel — see

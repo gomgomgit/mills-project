@@ -1,0 +1,256 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-021--detail-cages-track-web",
+  "name": "Detail Cages Track (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/cages-track/{id}",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-021--detail-cages-track-web",
+      "usecase_name": "Lihat Detail Cages Track (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/cages-track-records/{id}",
+          "description": "Ambil 1 record Cages Track lengkap beserta grid Cages Tipped Time, station_name, dan nama user (Inputted By/Checked By/Acknowledged By)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "required": true,
+                "description": "ID record Cages Track"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "cages_track_number": "string",
+              "date": "date",
+              "tippler_start_time": "timestamp",
+              "tippler_stop_time": "timestamp|null",
+              "cages_out": "integer",
+              "cages_tipped": "integer",
+              "note": "string|null",
+              "created_by_name": "string",
+              "checked_by_name": "string|null",
+              "acknowledged_by_name": "string|null",
+              "status": "string",
+              "created_at": "timestamp",
+              "updated_at": "timestamp",
+              "tipped_times": [
+                {
+                  "id": "uuid",
+                  "tipped_hour": "integer",
+                  "checked_cage_numbers": "string",
+                  "total_cages": "integer",
+                  "cages_remain": "integer"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate id ada di cages-track-record -> 404 RECORD_NOT_FOUND jika tidak ditemukan",
+        "2. SELECT cages-track-record by id, JOIN station untuk station_name, JOIN user untuk created_by_name/checked_by_name/acknowledged_by_name (null jika belum diisi, kecuali created_by_name yang selalu ada)",
+        "3. SELECT semua cages-tipped-time by cages_track_record_id, ordered by tipped_hour, langsung dari kolom tersimpan tanpa hitung ulang",
+        "4. Return full record + tipped_times array",
+        "5. FE render field per section (Identitas, Data Sesi, Grid Cages Tipped Time, Verifikasi) read-only",
+        "6. On klik Back: navigasi client-side ke /data/cages-track, tanpa panggilan API tambahan"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "cages-track-record",
+          "operation": "SELECT",
+          "description": "SELECT 1 record by id"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve station_name"
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve created_by_name/checked_by_name/acknowledged_by_name"
+        },
+        {
+          "entity_id": "cages-tipped-time",
+          "operation": "SELECT",
+          "description": "SELECT semua baris by cages_track_record_id, ordered by tipped_hour"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "id tidak ditemukan",
+          "handling": "Return 404 RECORD_NOT_FOUND, FE tampilkan pesan error + tombol Back"
+        },
+        {
+          "condition": "checked_by/acknowledged_by belum diisi",
+          "handling": "checked_by_name/acknowledged_by_name null, FE tampilkan '-'"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh field read-only",
+        "Checked By dan Acknowledged By keduanya ditampilkan",
+        "Grid Cages Tipped Time ditampilkan langsung dari data tersimpan"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 RECORD_NOT_FOUND when id does not exist",
+          "given": "id tidak ada di cages-track-record",
+          "expect": "return 404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "returns full record with resolved station_name when id exists",
+          "given": "valid id, station terkait ada",
+          "expect": "return 200 dengan station_name terisi"
+        },
+        {
+          "description": "returns tipped_times array ordered by tipped_hour",
+          "given": "record dengan 3 cages-tipped-time rows, tipped_hour tidak berurutan saat disimpan",
+          "expect": "response.tipped_times terurut naik berdasarkan tipped_hour"
+        },
+        {
+          "description": "returns null checked_by_name and acknowledged_by_name when not set",
+          "given": "record dengan checked_by dan acknowledged_by null",
+          "expect": "response.checked_by_name dan response.acknowledged_by_name adalah null"
+        },
+        {
+          "description": "resolves created_by_name, checked_by_name, acknowledged_by_name to user names when present",
+          "given": "record dengan created_by/checked_by/acknowledged_by terisi uuid user valid",
+          "expect": "response berisi nama user yang sesuai untuk ketiganya, bukan uuid"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-018--data-browser-cages-track-web",
+      "reason": "Entry point - klik baris membuka detail ini"
+    },
+    {
+      "screen_id": "screen-024--form-cages-track-web",
+      "reason": "Koreksi data dilakukan lewat form ini, bukan dari layar detail"
+    }
+  ],
+  "implementation_notes": [
+    "Response resolve created_by/checked_by/acknowledged_by ke nama user via join, mengikuti pola screen-019/020 persis",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-019/020",
+    "Field grouping & urutan field di blade view MENIRU PERSIS mobile/src/views/DataPreviewCagesTrackView.vue mode detail (Cages Track Number, Tanggal, Tippler Start/Stop Time, Cages Out, Cages Tipped, Inputted By, Checked By, Acknowledged By, Note, grid Cages Tipped Time) per arahan eksplisit: web station screens mengikuti flow/UX mobile",
+    "Route /cages-track-records/{id} didaftarkan SETELAH /cages-track-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}",
+    "Route /data/cages-track/{id} mengaktifkan affordance clickable-row yang sudah dibangun di screen-018's Blade view"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Detail Cages Track - berhasil",
+      "usecase_id": "usecase-021--detail-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-records/{id}"
+          },
+          "request_example": {
+            "id": "{{cages_track_record_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailCagesTrack",
+        "action": "render dengan data record lengkap dari API termasuk grid tipped_times",
+        "assert": "seluruh field header tampil read-only per section, grid Cages Tipped Time menampilkan seluruh baris"
+      },
+      "browser_test": {
+        "route": "/data/cages-track/{id}",
+        "action": "klik baris di Data Browser Cages Track, tunggu halaman detail termuat",
+        "assert": "halaman detail menampilkan seluruh field record beserta grid Cages Tipped Time"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Cages Track - Record Tidak Ditemukan",
+      "usecase_id": "usecase-021--detail-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000"
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DetailCagesTrack",
+        "action": "render dengan API mengembalikan 404",
+        "assert": "pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back"
+      },
+      "browser_test": {
+        "route": "/data/cages-track/00000000-0000-0000-0000-000000000000",
+        "action": "navigasi langsung ke id yang tidak valid",
+        "assert": "halaman menampilkan pesan error dan tombol Back yang berfungsi"
+      }
+    }
+  ]
+}

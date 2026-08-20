@@ -1,0 +1,278 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-020--detail-grading-web",
+  "name": "Detail Grading (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/grading/{id}",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-020--detail-grading-web",
+      "usecase_name": "Lihat Detail Grading (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/grading-records/{id}",
+          "description": "Ambil 1 record Grading lengkap beserta grid Grading Detail (nama Quality Parameter ter-resolve), WB Card Number, dan station_name",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "required": true,
+                "description": "ID record Grading"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "grading_number": "string",
+              "date": "timestamp",
+              "weighbridge_record_id": "uuid",
+              "wb_card_number": "string",
+              "license_plate_no": "string",
+              "vehicle_code": "string",
+              "estate_supplier": "string",
+              "division": "string|null",
+              "netto": "float",
+              "quantity": "float",
+              "note": "string|null",
+              "acknowledged_by_name": "string|null",
+              "status": "string",
+              "created_at": "timestamp",
+              "updated_at": "timestamp",
+              "details": [
+                {
+                  "id": "uuid",
+                  "grading_parameter_id": "uuid",
+                  "grading_parameter_name": "string",
+                  "quantity": "float",
+                  "uom": "enum(kg, bunch)",
+                  "percentage": "float"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate id ada di grading-record -> 404 RECORD_NOT_FOUND jika tidak ditemukan",
+        "2. SELECT grading-record by id, JOIN station untuk station_name, JOIN weighbridge-record untuk wb_card_number, JOIN user untuk acknowledged_by_name (null jika belum diisi)",
+        "3. SELECT semua grading-detail by grading_record_id, JOIN grading-parameter untuk resolve nama tiap baris",
+        "4. Return full record + details array",
+        "5. FE render field per section (Identitas, Kendaraan, Asal Muatan, Data Grading, Grid Detail) read-only",
+        "6. On klik Back: navigasi client-side ke /data/grading, tanpa panggilan API tambahan"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "SELECT 1 record by id"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve station_name"
+        },
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve wb_card_number"
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve acknowledged_by_name"
+        },
+        {
+          "entity_id": "grading-detail",
+          "operation": "SELECT",
+          "description": "SELECT semua baris by grading_record_id"
+        },
+        {
+          "entity_id": "grading-parameter",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve nama Quality Parameter tiap baris grading-detail"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "id tidak ditemukan",
+          "handling": "Return 404 RECORD_NOT_FOUND, FE tampilkan pesan error + tombol Back"
+        },
+        {
+          "condition": "acknowledged_by belum diisi",
+          "handling": "acknowledged_by_name null, FE tampilkan '-'"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh field read-only",
+        "Checked By tidak ditampilkan",
+        "Grid Grading Detail menampilkan nama Quality Parameter ter-resolve"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 RECORD_NOT_FOUND when id does not exist",
+          "given": "id tidak ada di grading-record",
+          "expect": "return 404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "returns full record with resolved station_name and wb_card_number when id exists",
+          "given": "valid id, station dan weighbridge-record terkait ada",
+          "expect": "return 200 dengan station_name dan wb_card_number terisi"
+        },
+        {
+          "description": "returns details array with resolved grading_parameter_name per row",
+          "given": "record dengan 2 grading-detail rows, masing-masing grading_parameter_id valid",
+          "expect": "response.details berisi 2 baris, masing-masing dengan grading_parameter_name terisi"
+        },
+        {
+          "description": "returns null acknowledged_by_name when not set",
+          "given": "record dengan acknowledged_by null",
+          "expect": "response.acknowledged_by_name adalah null"
+        },
+        {
+          "description": "resolves acknowledged_by_name to user name when present",
+          "given": "record dengan acknowledged_by terisi uuid user valid",
+          "expect": "response berisi nama user yang sesuai, bukan uuid"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "weighbridge-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "grading-parameter",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-017--data-browser-grading-web",
+      "reason": "Entry point - klik baris membuka detail ini"
+    },
+    {
+      "screen_id": "screen-023--form-grading-web",
+      "reason": "Koreksi data dilakukan lewat form ini, bukan dari layar detail"
+    }
+  ],
+  "implementation_notes": [
+    "Response resolve acknowledged_by ke nama user via join; Checked By TIDAK di-resolve/tidak diexpose sama sekali, konsisten dengan Data Preview Grading mobile (screen-014)",
+    "Grid Grading Detail nama Quality Parameter di-resolve via join grading_parameter_id, sama seperti pola mobile screen-014"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Detail Grading - berhasil",
+      "usecase_id": "usecase-020--detail-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-records/{id}"
+          },
+          "request_example": {
+            "id": "{{grading_record_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailGrading",
+        "action": "render dengan data record lengkap dari API termasuk grid detail",
+        "assert": "seluruh field header tampil read-only per section, grid Grading Detail menampilkan nama Quality Parameter ter-resolve"
+      },
+      "browser_test": {
+        "route": "/data/grading/{id}",
+        "action": "klik baris di Data Browser Grading, tunggu halaman detail termuat",
+        "assert": "halaman detail menampilkan seluruh field record beserta grid Grading Detail"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Grading - Record Tidak Ditemukan",
+      "usecase_id": "usecase-020--detail-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/grading-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000"
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DetailGrading",
+        "action": "render dengan API mengembalikan 404",
+        "assert": "pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back"
+      },
+      "browser_test": {
+        "route": "/data/grading/00000000-0000-0000-0000-000000000000",
+        "action": "navigasi langsung ke id yang tidak valid",
+        "assert": "halaman menampilkan pesan error dan tombol Back yang berfungsi"
+      }
+    }
+  ]
+}

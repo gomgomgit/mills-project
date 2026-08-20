@@ -120,7 +120,7 @@ it('returns success payload and establishes a session when all conditions pass',
             'id' => $this->businessUnit->id,
             'name' => $this->businessUnit->name,
         ],
-        'redirect_to' => '/supervisor/dashboard',
+        'redirect_to' => '/dashboard',
     ]);
 
     expect(Auth::check())->toBeTrue();

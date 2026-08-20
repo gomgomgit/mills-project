@@ -1,0 +1,78 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-019--detail-weighbridge-web",
+  "name": "Detail Weighbridge (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/WeighbridgeRecordController.php",
+    "backend/app/Services/WeighbridgeRecordService.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/WeighbridgeRecordServiceTest.php",
+    "backend/tests/Feature/Api/DetailWeighbridgeTest.php",
+    "backend/tests/Feature/Livewire/DetailWeighbridgeTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserWeighbridgeTest.php",
+    "backend/tests/Browser/DetailWeighbridgeTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DetailWeighbridge.php",
+    "backend/resources/views/livewire/data/detail-weighbridge.blade.php",
+    "backend/resources/views/data/weighbridge-detail.blade.php",
+    "backend/routes/web.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "Dual entry point: GET /api/weighbridge-records/{id} (WeighbridgeRecordController::show()) dan Livewire DetailWeighbridge keduanya panggil WeighbridgeRecordService::getDetail() yang sama, mengikuti pola screen-016 (list) persis",
+    "getDetail() eager-load station/checkedBy/acknowledgedBy dan resolve ke station_name/checked_by_name/acknowledged_by_name",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail)",
+    "Field grouping & urutan field di blade view MENIRU PERSIS mobile/src/views/DataPreviewWeighbridgeView.vue",
+    "Route /weighbridge-records/{id} didaftarkan SETELAH /weighbridge-records/export agar segmen literal 'export' tidak ketangkap sebagai {id}",
+    "Route /data/weighbridge/{id} mengaktifkan kembali affordance clickable-row di screen-016's Blade view",
+    "Layout Blade terpisah (weighbridge-detail.blade.php) dari screen-016 karena Blade #[Layout(...)] tidak menerima parameter judul header",
+    "VER 2 (bersamaan dengan implementasi screen-022): tombol Edit ditambahkan, navigasi client-side ke route('data.weighbridge.edit', id) - tidak ada perubahan API"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan - tidak ada browser di sandbox",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur - tidak ada Xdebug/PCOV",
+      "severity": "minor"
+    },
+    {
+      "description": "Response error tidak punya field error_code mesin-terbaca, hanya message",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 5,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 6,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 4,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

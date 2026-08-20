@@ -1,0 +1,146 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "usecase-022--form-weighbridge-web",
+  "name": "Input & Edit Data Weighbridge (Web)",
+  "description": "User membuat record Weighbridge baru dari Data Browser, atau mengubah record tersimpan lewat tombol Edit di Detail Weighbridge.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login dan memiliki akses ke modul Data Stasiun"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Klik 'Tambah Data' dari Data Browser Weighbridge (mode buat) atau 'Edit' dari Detail Weighbridge (mode ubah)"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Mode buat: render form kosong dengan pilihan Business Unit dan tipe default Receive. Mode edit: load record by id, isi seluruh field form termasuk tipe dan tanggal tersimpan, tampilkan Business Unit sebagai teks read-only"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Pilih tipe Weighbridge (Receive/Dispatch) via tombol tab"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Sesuaikan label & isi field tanggal (default waktu saat ini, tetap dapat diedit) dan visibilitas Tujuan Muatan sesuai tipe"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Isi/ubah field lain (WB Card Number, kendaraan, supir, asal muatan, berat) dan klik Simpan"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Validasi field wajib (termasuk Tujuan Muatan jika Dispatch) → resolve station Weighbridge dari Business Unit (mode buat) → simpan/perbarui record dengan status 'saved' → navigasi ke Detail Weighbridge record tersebut"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field Wajib Belum Lengkap",
+      "trigger": "Step 6, ada field wajib kosong",
+      "steps": [
+        "System menampilkan pesan error di bawah field terkait",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Ganti Tipe Setelah Field Terisi",
+      "trigger": "Step 3-5, user mengganti tab tipe setelah tanggal/tujuan muatan terisi",
+      "steps": [
+        "System membuang nilai tanggal & tujuan muatan lama",
+        "System mengisi ulang field sesuai tipe baru (default waktu saat ini)"
+      ]
+    },
+    {
+      "name": "Business Unit Belum Punya Station Weighbridge",
+      "trigger": "Step 6 mode buat, Business Unit terpilih tidak memiliki station bertipe Weighbridge aktif",
+      "steps": [
+        "System menampilkan pesan error, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Record Tidak Ditemukan (mode edit)",
+      "trigger": "id record pada URL tidak valid",
+      "steps": [
+        "System menampilkan pesan error 'record tidak ditemukan' dengan tombol kembali"
+      ]
+    },
+    {
+      "name": "Batal",
+      "trigger": "User klik Batal",
+      "steps": [
+        "System kembali ke Data Browser (mode buat) atau Detail (mode edit) tanpa menyimpan perubahan"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Weighbridge baru tersimpan dengan status 'saved', ATAU record tersimpan diperbarui"
+  ],
+  "business_rules": [
+    "Tidak ada draft/pause di web",
+    "Tanggal & waktu default waktu saat ini, tetap dapat diedit manual",
+    "Net Weight otomatis dihitung, tidak dapat diedit (invariant data)",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Business Unit tidak dapat diubah setelah record dibuat"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Buat Record Weighbridge Baru — berhasil",
+      "given": "User berada di Data Browser Weighbridge dan klik Tambah Data",
+      "when": "User memilih Business Unit, mengisi seluruh field wajib, dan klik Simpan",
+      "then": "Record baru tersimpan dengan status 'saved' dan user diarahkan ke Detail Weighbridge record tersebut"
+    },
+    {
+      "scenario": "Edit Record Weighbridge — berhasil",
+      "given": "User membuka Detail Weighbridge lalu klik Edit",
+      "when": "User mengubah salah satu field dan klik Simpan",
+      "then": "Record diperbarui dan perubahan terlihat di Detail Weighbridge"
+    },
+    {
+      "scenario": "Tanggal & Waktu Dapat Diedit Manual",
+      "given": "Form Weighbridge Web terbuka dengan field tanggal & waktu terisi default waktu saat ini",
+      "when": "User mengubah nilai tanggal & waktu secara manual",
+      "then": "Nilai yang diinput user tersimpan, bukan waktu default"
+    },
+    {
+      "scenario": "Ganti Tipe Setelah Field Terisi",
+      "given": "Field tanggal/tujuan muatan sudah terisi di bawah tipe saat ini",
+      "when": "User klik tab tipe yang lain",
+      "then": "Nilai lama dibuang, field diisi ulang sesuai tipe baru"
+    },
+    {
+      "scenario": "Field Wajib Belum Lengkap",
+      "given": "Ada field wajib kosong (atau Tujuan Muatan kosong saat tipe Dispatch)",
+      "when": "User klik Simpan",
+      "then": "Pesan error inline muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Business Unit Tanpa Station Weighbridge Aktif",
+      "given": "Business Unit terpilih tidak punya station Weighbridge aktif",
+      "when": "User klik Simpan",
+      "then": "Pesan error ditampilkan, record tidak tersimpan"
+    },
+    {
+      "scenario": "Record Tidak Ditemukan (mode edit)",
+      "given": "id record pada URL tidak valid",
+      "when": "Halaman Form Weighbridge (edit) dimuat",
+      "then": "Pesan error 'record tidak ditemukan' ditampilkan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-022--form-weighbridge-web"
+  ]
+}

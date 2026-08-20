@@ -1,0 +1,109 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-022--form-weighbridge-web",
+  "name": "Form Weighbridge (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Form web untuk input record Weighbridge baru dan mengubah record tersimpan, mengikuti flow yang sama dengan Form Weighbridge mobile — tipe Receive/Dispatch via tombol tab, field tanggal & waktu (record_datetime) menyesuaikan tipe, Tujuan Muatan untuk tipe Dispatch, Net Weight otomatis terhitung. Berbeda dari mobile: tanggal & waktu berdefault waktu saat ini namun tetap dapat diedit user, dan record yang sudah tersimpan dapat diubah kapan saja lewat mode edit (bukan input sekali terkunci seperti draft mobile).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Tombol 'Tambah Data' dari Data Browser Weighbridge (Web) — mode buat baru",
+    "Tombol 'Edit' dari Detail Weighbridge (Web) — mode ubah record"
+  ],
+  "information_displayed": [
+    "Business Unit (dropdown) — hanya pada mode buat baru, menentukan mill tujuan record; station Weighbridge otomatis di-resolve dari Business Unit terpilih (1 station Weighbridge aktif per mill)",
+    "WB Card Number",
+    "Tipe Weighbridge: Receive atau Dispatch — dipilih via 2 tombol tab bersebelahan, default Receive untuk record baru, mengikuti pola Form Weighbridge mobile",
+    "Tanggal & Waktu — label mengikuti tipe ('Tanggal & Waktu Arrival' untuk Receive, 'Tanggal & Waktu Dispatch' untuk Dispatch); default waktu saat ini, DAPAT diedit manual oleh user (berbeda dari mobile yang mengunci field ini)",
+    "Tujuan Muatan — hanya muncul & wajib diisi saat tipe Dispatch",
+    "Data kendaraan (No. Kendaraan, Nama Supir) - input teks bebas",
+    "Estate/Supplier asal, Divisi, Blok - input teks bebas",
+    "Berat masuk (Gross) (kg) dan berat keluar (Tare) (kg) - input manual; Net Weight (kg) dihitung otomatis (Gross - Tare); Kuantitas (tandan)",
+    "Checked By — checkbox 'Tandai sudah diperiksa', hanya tampil & aktif untuk role Supervisor",
+    "Acknowledged By — checkbox 'Tandai sudah dikonfirmasi', hanya tampil & aktif untuk role Mill Management",
+    "Field dikelompokkan per section: Identitas Weighbridge, Kendaraan & Supir, Asal Muatan, Data Timbangan, Verifikasi"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Business Unit",
+      "description": "Menentukan mill tujuan record baru (hanya mode buat baru)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Tipe (Receive/Dispatch)",
+      "description": "Menentukan tipe transaksi Weighbridge via tombol tab; mengubah label field tanggal & waktu dan memunculkan/menyembunyikan field Tujuan Muatan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record baru (mode buat) atau memperbarui record tersimpan (mode edit), status langsung 'saved' — tidak ada draft/pause seperti mobile",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Batal",
+      "description": "Kembali ke Data Browser Weighbridge (mode buat) atau Detail Weighbridge (mode edit) tanpa menyimpan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tandai Checked",
+      "description": "Menandai record sudah diperiksa, mengisi Checked By dengan user yang login",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tandai Acknowledged",
+      "description": "Menandai record sudah dikonfirmasi, mengisi Acknowledged By dengan user yang login",
+      "actor_ids": [
+        "actor-mill-management"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tidak ada konsep draft/pause di web — Simpan langsung membuat/memperbarui record dengan status 'saved'",
+    "Field wajib ditandai asterisk merah dengan validasi inline",
+    "Tipe Weighbridge default Receive untuk record baru, dapat diganti kapan saja sebelum Simpan",
+    "Tanggal & Waktu default waktu saat ini saat tipe dipilih/form dibuka, TETAP DAPAT diedit manual oleh user melalui input tanggal+waktu",
+    "Ganti tipe Weighbridge membuang nilai tanggal & tujuan muatan yang sudah diisi, field baru diisi ulang dengan default waktu saat ini",
+    "Tujuan Muatan wajib diisi hanya saat tipe Dispatch",
+    "Net Weight dihitung otomatis dari Gross Weight dikurangi Tare Weight dan tidak dapat diedit manual — nilai ini merupakan invariant data yang ditegakkan di level model untuk semua entry point (mobile, sync, web), bukan sekadar kenyamanan tampilan, sehingga dikecualikan dari konvensi 'input web tidak boleh disabled'",
+    "Checked By hanya dapat diisi (via checkbox) oleh user dengan role Supervisor; Acknowledged By hanya oleh Mill Management — field disembunyikan untuk role lain, sesuai component_patterns 'form'",
+    "Business Unit (dan station Weighbridge terkait) tidak dapat diubah setelah record dibuat — pada mode edit, mill asal ditampilkan sebagai teks read-only",
+    "Label field berat (Gross, Tare, Net Weight) menampilkan satuan (kg); label Kuantitas menampilkan satuan (tandan)"
+  ],
+  "usecase_ids": [
+    "usecase-022--form-weighbridge-web"
+  ],
+  "edge_cases": [
+    "Field wajib belum lengkap saat Simpan (termasuk Tujuan Muatan jika tipe Dispatch)",
+    "Ganti tipe Weighbridge setelah field tanggal/tujuan muatan terisi — nilai lama dibuang, field menyesuaikan tipe baru",
+    "Business Unit terpilih belum memiliki station Weighbridge aktif (mode buat baru) — Simpan ditolak dengan pesan error",
+    "Record tidak ditemukan saat mode edit dibuka dengan id tidak valid",
+    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola mobile)"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

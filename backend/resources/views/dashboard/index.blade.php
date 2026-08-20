@@ -9,12 +9,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     @livewireStyles
     <style>
-        /* Placeholder shell for screen-025--dashboard-web — see
-           App\Livewire\Dashboard\DashboardHome's docblock. Styles copied
-           verbatim from resources/views/master-data/corporates.blade.php
-           (this codebase's shared shell pattern; no extracted layout
-           component exists yet). Replace wholesale once screen-025's real
-           implementation lands. */
+        /* Shell for screen-025--dashboard-web. Styles copied verbatim from
+           resources/views/master-data/corporates.blade.php (this
+           codebase's shared shell pattern; no extracted layout component
+           exists yet). */
         :root {
             --color-brand: #249360;
             --color-brand-hover: #1d7a4e;
@@ -113,9 +111,15 @@
         <p class="shell-sidebar__brand">Mills Smart Log</p>
         <ul class="shell-sidebar__nav">
             <li><a href="{{ url('/dashboard') }}" class="active">Dashboard</a></li>
+            <li><a href="{{ route('reports.management') }}">Laporan Manajemen</a></li>
             <li><a href="{{ route('master-data.corporates') }}">Kelola Corporate</a></li>
             <li><a href="{{ route('master-data.companies') }}">Kelola Company</a></li>
             <li><a href="{{ route('master-data.business-units') }}">Kelola Business Unit</a></li>
+            <li><a href="{{ route('master-data.stations') }}">Kelola Station</a></li>
+            <li><a href="{{ route('master-data.machinery-groups') }}">Kelola Machinery Group</a></li>
+            <li><a href="{{ route('master-data.machinery') }}">Kelola Machinery</a></li>
+            <li><a href="{{ route('mill-settings') }}">Mills Setting</a></li>
+            <li><a href="{{ route('users.index') }}">Kelola User & Role</a></li>
             <li><a href="{{ route('data.weighbridge') }}">Data Browser Weighbridge</a></li>
             <li><a href="{{ route('settings.password') }}">Ganti Password</a></li>
         </ul>

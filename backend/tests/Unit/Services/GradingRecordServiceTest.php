@@ -34,6 +34,8 @@ use App\Enums\RecordStatus;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
 use App\Models\BusinessUnit;
+use App\Models\GradingDetail;
+use App\Models\GradingParameter;
 use App\Models\GradingRecord;
 use App\Models\Station;
 use App\Models\User;
@@ -51,6 +53,11 @@ beforeEach(function () {
     $this->service = new GradingRecordService();
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
+    // Additive for screen-023--form-grading-web's create()/update() tests
+    // below — a station specifically typed 'grading' (the existing
+    // $this->station above defaults to 'weighbridge' and is unrelated to
+    // create()/update(), which resolve station via type=grading).
+    $this->gradingStation = Station::factory()->forBusinessUnit($this->businessUnit)->grading()->create();
     $this->creator = User::factory()->create();
 });
 
@@ -215,3 +222,285 @@ it('returns a StreamedResponse with the correct content-type for csv and excel f
     'csv' => ['csv', 'text/csv'],
     'excel' => ['excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
 ]);
+
+/**
+ * getDetail() — screen-020--detail-grading-web unit test cases.
+ */
+it('throws ModelNotFoundException when the id does not exist', function () {
+    $this->service->getDetail((string) Str::uuid());
+})->throws(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+
+it('returns the full record with resolved station_name and wb_card_number when id exists', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create(['wb_card_number' => 'WB-0099']);
+    $record = GradingRecord::factory()
+        ->forStation($this->station)
+        ->create(['weighbridge_record_id' => $weighbridgeRecord->id]);
+
+    $result = $this->service->getDetail($record->id);
+
+    expect($result['id'])->toBe($record->id);
+    expect($result['station_name'])->toBe($this->station->name);
+    expect($result['wb_card_number'])->toBe('WB-0099');
+});
+
+it('returns details array with resolved grading_parameter_name per row', function () {
+    $record = GradingRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create(['name' => 'Masak']);
+    GradingDetail::factory()
+        ->forGradingRecord($record)
+        ->forGradingParameter($parameter)
+        ->create(['quantity' => 12.5, 'percentage' => 80]);
+
+    $result = $this->service->getDetail($record->id);
+
+    expect($result['details'])->toHaveCount(1);
+    expect($result['details'][0]['grading_parameter_name'])->toBe('Masak');
+    expect($result['details'][0]['quantity'])->toBe(12.5);
+});
+
+it('returns null acknowledged_by_name when not set', function () {
+    $record = GradingRecord::factory()->forStation($this->station)->create(['acknowledged_by' => null]);
+
+    $result = $this->service->getDetail($record->id);
+
+    expect($result['acknowledged_by_name'])->toBeNull();
+});
+
+it('resolves acknowledged_by_name to user name when present', function () {
+    $acknowledger = User::factory()->create(['name' => 'Siti Manager']);
+    $record = GradingRecord::factory()->forStation($this->station)->create(['acknowledged_by' => $acknowledger->id]);
+
+    $result = $this->service->getDetail($record->id);
+
+    expect($result['acknowledged_by_name'])->toBe('Siti Manager');
+});
+
+/**
+ * create()/update() tests below — screen-023--form-grading-web,
+ * usecase-023--form-grading-web. Mirrors WeighbridgeRecordServiceTest.php's
+ * create()/update() section (screen-022) exactly in structure.
+ */
+function gradingFormPayload(array $overrides = []): array
+{
+    return array_merge([
+        'grading_number' => 'GR-TEST-001',
+        'date' => '2026-08-20',
+        'license_plate_no' => 'B 1234 XY',
+        'estate_supplier' => 'Estate A',
+        'netto' => 1000,
+        'quantity' => 120,
+    ], $overrides);
+}
+
+it('creates record with resolved station_id and inserted details when valid', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+
+    $result = $this->service->create(
+        gradingFormPayload([
+            'business_unit_id' => $this->businessUnit->id,
+            'weighbridge_record_id' => $weighbridgeRecord->id,
+            'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 250]],
+        ]),
+        $this->creator
+    );
+
+    expect($result['station_id'])->toBe($this->gradingStation->id);
+    expect($result['status'])->toBe('saved');
+    expect($result['details'])->toHaveCount(1);
+});
+
+it('computes detail percentage using netto when uom is kg', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+
+    $result = $this->service->create(
+        gradingFormPayload([
+            'business_unit_id' => $this->businessUnit->id,
+            'weighbridge_record_id' => $weighbridgeRecord->id,
+            'netto' => 1000,
+            'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 250]],
+        ]),
+        $this->creator
+    );
+
+    expect($result['details'][0]['percentage'])->toBe(25.0);
+});
+
+it('computes detail percentage using quantity when uom is bunch', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Bunch]);
+
+    $result = $this->service->create(
+        gradingFormPayload([
+            'business_unit_id' => $this->businessUnit->id,
+            'weighbridge_record_id' => $weighbridgeRecord->id,
+            'quantity' => 120,
+            'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 30]],
+        ]),
+        $this->creator
+    );
+
+    expect($result['details'][0]['percentage'])->toBe(25.0);
+});
+
+it('throws ValidationException when a required field is empty', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create();
+
+    expect(fn () => $this->service->create(
+        gradingFormPayload([
+            'business_unit_id' => $this->businessUnit->id,
+            'weighbridge_record_id' => $weighbridgeRecord->id,
+            'grading_number' => '',
+            'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
+        ]),
+        $this->creator
+    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+});
+
+it('throws ValidationException when details array is empty', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+
+    expect(fn () => $this->service->create(
+        gradingFormPayload([
+            'business_unit_id' => $this->businessUnit->id,
+            'weighbridge_record_id' => $weighbridgeRecord->id,
+            'details' => [],
+        ]),
+        $this->creator
+    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+});
+
+it('throws ValidationException when two detail rows share the same grading_parameter_id', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create();
+
+    expect(fn () => $this->service->create(
+        gradingFormPayload([
+            'business_unit_id' => $this->businessUnit->id,
+            'weighbridge_record_id' => $weighbridgeRecord->id,
+            'details' => [
+                ['grading_parameter_id' => $parameter->id, 'quantity' => 5],
+                ['grading_parameter_id' => $parameter->id, 'quantity' => 3],
+            ],
+        ]),
+        $this->creator
+    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+});
+
+it('throws NoActiveGradingStationException when business_unit_id has no active grading station', function () {
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create();
+
+    expect(fn () => $this->service->create(
+        gradingFormPayload([
+            'business_unit_id' => $otherBusinessUnit->id,
+            'weighbridge_record_id' => $weighbridgeRecord->id,
+            'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
+        ]),
+        $this->creator
+    ))->toThrow(\App\Exceptions\NoActiveGradingStationException::class);
+});
+
+it('sets acknowledged_by to requester id when acknowledged=true and requester role=mill_management', function () {
+    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->create();
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create();
+
+    $result = $this->service->create(
+        gradingFormPayload([
+            'business_unit_id' => $this->businessUnit->id,
+            'weighbridge_record_id' => $weighbridgeRecord->id,
+            'acknowledged' => true,
+            'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
+        ]),
+        $millManagement
+    );
+
+    expect($result['acknowledged_by_name'])->toBe($millManagement->name);
+});
+
+it('ignores acknowledged=true when requester role is not mill_management', function () {
+    $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->create();
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create();
+
+    $result = $this->service->create(
+        gradingFormPayload([
+            'business_unit_id' => $this->businessUnit->id,
+            'weighbridge_record_id' => $weighbridgeRecord->id,
+            'acknowledged' => true,
+            'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
+        ]),
+        $supervisor
+    );
+
+    expect($result['acknowledged_by_name'])->toBeNull();
+});
+
+it('updates record and upserts details: inserts new row, updates existing row, deletes removed row', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $record = GradingRecord::factory()->forStation($this->gradingStation)->create();
+    $keptParameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $removedParameter = GradingParameter::factory()->create();
+    $newParameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+
+    $keptDetail = GradingDetail::factory()->forGradingRecord($record)->forGradingParameter($keptParameter)->create(['quantity' => 10]);
+    GradingDetail::factory()->forGradingRecord($record)->forGradingParameter($removedParameter)->create();
+
+    $result = $this->service->update(
+        $record->id,
+        gradingFormPayload([
+            'weighbridge_record_id' => $weighbridgeRecord->id,
+            'netto' => 1000,
+            'details' => [
+                ['id' => $keptDetail->id, 'grading_parameter_id' => $keptParameter->id, 'quantity' => 20],
+                ['grading_parameter_id' => $newParameter->id, 'quantity' => 30],
+            ],
+        ]),
+        $this->creator
+    );
+
+    expect($result['details'])->toHaveCount(2);
+    expect(GradingDetail::where('grading_record_id', $record->id)->count())->toBe(2);
+    expect(GradingDetail::find($keptDetail->id)->quantity)->toBe(20.0);
+    expect(GradingDetail::where('grading_parameter_id', $removedParameter->id)->exists())->toBeFalse();
+});
+
+it('updates record without accepting a business_unit_id change', function () {
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $record = GradingRecord::factory()->forStation($this->gradingStation)->create();
+    $parameter = GradingParameter::factory()->create();
+    GradingDetail::factory()->forGradingRecord($record)->forGradingParameter($parameter)->create();
+
+    $result = $this->service->update(
+        $record->id,
+        gradingFormPayload([
+            'business_unit_id' => $otherBusinessUnit->id,
+            'weighbridge_record_id' => $weighbridgeRecord->id,
+            'grading_number' => 'GR-EDITED',
+            'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
+        ]),
+        $this->creator
+    );
+
+    expect($result['station_id'])->toBe($this->gradingStation->id);
+    expect($result['grading_number'])->toBe('GR-EDITED');
+});
+
+it('throws ModelNotFoundException when updating a non-existent id', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create();
+
+    expect(fn () => $this->service->update(
+        (string) Str::uuid(),
+        gradingFormPayload([
+            'weighbridge_record_id' => $weighbridgeRecord->id,
+            'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
+        ]),
+        $this->creator
+    ))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+});

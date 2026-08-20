@@ -38,15 +38,21 @@ class AuthService
     /**
      * Redirect path per role after a successful login (business_logic step 7).
      * Exact dashboard routes are not specified elsewhere in the tech-spec —
-     * this mapping is a documented implementation decision (see
-     * implementation_notes in the screen-impl report) and can be revised
-     * once the dashboard screens exist.
+     * this mapping is a documented implementation decision. Originally
+     * pointed at per-role placeholder routes (/admin/dashboard, etc.) that
+     * were never registered, since the dashboard screens didn't exist yet —
+     * now that screen-025--dashboard-web is implemented as the single
+     * '/dashboard' route (role:admin,supervisor,mill_management), every web
+     * login role redirects there. 'operator' is kept for completeness even
+     * though screen-001 (web login) only accepts admin/supervisor/
+     * mill_management — operator logs in via screen-002 (mobile), which
+     * never reads redirect_to.
      */
     protected const ROLE_REDIRECTS = [
-        'admin' => '/admin/dashboard',
-        'supervisor' => '/supervisor/dashboard',
-        'mill_management' => '/mill-management/dashboard',
-        'operator' => '/operator/dashboard',
+        'admin' => '/dashboard',
+        'supervisor' => '/dashboard',
+        'mill_management' => '/dashboard',
+        'operator' => '/dashboard',
     ];
 
     /**

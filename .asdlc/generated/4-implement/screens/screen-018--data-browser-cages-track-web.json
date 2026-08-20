@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
-    "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
   },
   "id": "screen-018--data-browser-cages-track-web",
   "name": "Data Browser Cages Track (Web)",
@@ -34,10 +34,10 @@
     "CagesTrackRecord::cagesTippedTimes() hasMany relationship sudah ada di model; tipped_time_count dihitung via withCount('cagesTippedTimes') di list maupun export",
     "Factory default status = RecordStatus::Synced (bukan Saved) — model saving guard mensyaratkan minimal 1 CagesTippedTime tersimpan sebelum status bisa Saved",
     "CagesTippedTimeFactory baru dibuat (belum ada sebelumnya) oleh test-writer-agent untuk seed fixture tipped_time_count non-zero",
-    "Tidak ada tombol 'Tambah Data' (konsisten dengan precedent screen-016/017 — route create/detail target belum diimplementasikan); hanya stub navigasi row-click -> detail yang dijaga Route::has()",
+    "screen-021 (Detail Cages Track, Web) kini terimplementasi — affordance clickable-row (guarded via Route::has('data.cages-track.detail')) aktif, DataBrowserCagesTrackTest.php (Feature/Livewire) dan Browser test 'Klik Baris' diupdate untuk menguji navigasi nyata, bukan lagi guarded-rendering fallback",
     "Export CSV menyertakan kolom tipped_time_count terhitung, melebihi apa yang didokumentasikan literal di tech-spec response.success_schema export, karena itu adalah field utama layar ini (mirror endpoint list)",
-    "2 skenario browser test (Klik Baris Membuka Detail, Ekspor Gagal) di-test.skip() — bergantung pada screen-021 (belum dibangun) dan environment seed dataset besar; keduanya sudah dicover di layer HTTP/component",
-    "Regresi backend penuh: 116/116 test lulus (naik dari baseline 96/96, +20 test baru, 0 regresi di screen-016/017/001-004/BusinessUnit) — diverifikasi ulang langsung oleh command (bukan hanya laporan agent), retry_count: 0"
+    "1 skenario browser test (Ekspor Gagal) masih test.skip() — memerlukan dataset > EXPORT_ROW_LIMIT, sudah dicover di layer HTTP oleh Feature/Api test",
+    "Regresi backend penuh: 698/698 test lulus setelah screen-021 landed"
   ],
   "deferred_items": [],
   "known_issues": [
@@ -50,7 +50,7 @@
       "severity": "minor"
     },
     {
-      "description": "Browser test file dibuat tapi tidak dapat dijalankan di sandbox ini (tidak ada infra Playwright/dev-server untuk browser test Livewire backend) — gap yang sama seperti screen-016/017",
+      "description": "Browser test file dibuat tapi tidak dapat dijalankan di sandbox ini (tidak ada infra Playwright/dev-server) — gap yang sama seperti screen-016/017",
       "severity": "minor"
     },
     {
@@ -64,18 +64,18 @@
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-08-18T14:20:00Z",
-      "passed": 8,
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 13,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-18T14:20:00Z",
+      "run_at": "2026-08-20T00:00:00Z",
       "passed": 7,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-18T14:20:00Z",
+      "run_at": "2026-08-20T00:00:00Z",
       "passed": 5,
       "failed": 0
     },

@@ -2,11 +2,21 @@
 
 namespace App\Services;
 
+use App\Enums\Uom;
+use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
+use App\Exceptions\NoActiveGradingStationException;
+use App\Models\GradingDetail;
+use App\Models\GradingParameter;
 use App\Models\GradingRecord;
+use App\Models\Station;
+use App\Models\User;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
 
@@ -34,6 +44,243 @@ class GradingRecordService
      * (see that class's implementation_notes).
      */
     public const EXPORT_ROW_LIMIT = 50000;
+
+    /**
+     * Header fields accepted from the create()/update() form payload —
+     * screen-023--form-grading-web. Mirrors WeighbridgeRecordService::
+     * FORM_FIELDS's role (normalizeFormFields() below reads only these
+     * keys from the raw $data array).
+     */
+    protected const FORM_FIELDS = [
+        'grading_number', 'date', 'weighbridge_record_id', 'license_plate_no',
+        'vehicle_code', 'estate_supplier', 'division', 'netto', 'quantity', 'note',
+    ];
+
+    /**
+     * create() — screen-023--form-grading-web business_logic steps 1-5:
+     * validate header + details, resolve station from business_unit_id,
+     * compute each detail row's uom/percentage, then INSERT the record and
+     * its details inside a DB transaction.
+     */
+    public function create(array $data, User $actor): array
+    {
+        $attributes = $this->normalizeFormFields($data);
+        $details = $this->normalizeDetails($data['details'] ?? []);
+
+        $this->validateForm($attributes);
+        $this->validateDetails($details);
+
+        $station = Station::query()
+            ->where('business_unit_id', $data['business_unit_id'] ?? null)
+            ->where('type', 'grading')
+            ->where('is_active', true)
+            ->first();
+
+        if ($station === null) {
+            throw new NoActiveGradingStationException();
+        }
+
+        $attributes['station_id'] = $station->id;
+        $attributes['created_by'] = $actor->id;
+        $this->applyVerification($attributes, $data, $actor);
+
+        $record = DB::transaction(function () use ($attributes, $details) {
+            // GradingRecord::booted()'s `saving` guard rejects status=saved
+            // on a brand-new record with zero GradingDetail rows — and at
+            // this point in create() none exist yet (they're inserted by
+            // upsertDetails() right after). Create as Synced (same
+            // guard-satisfying placeholder GradingRecordFactory's own
+            // definition() uses, see its docblock), insert the details,
+            // THEN flip status to saved — by then gradingDetails()->count()
+            // is > 0 so the guard passes.
+            $attributes['status'] = \App\Enums\RecordStatus::Synced;
+            $record = GradingRecord::create($attributes);
+            $this->upsertDetails($record, $details, netto: $attributes['netto'], quantity: $attributes['quantity']);
+            $record->update(['status' => 'saved']);
+
+            return $record;
+        });
+
+        $record->load(['station', 'weighbridgeRecord', 'acknowledgedBy', 'gradingDetails.gradingParameter']);
+
+        return $this->toDetailRow($record);
+    }
+
+    /**
+     * update() — screen-023--form-grading-web business_logic steps 6-8:
+     * validate header + details (business_unit_id/station_id never
+     * accepted), UPDATE the record, then upsert its details (insert rows
+     * without an id, update rows with an id still present, delete rows
+     * previously in the DB but no longer in the array) inside a DB
+     * transaction.
+     */
+    public function update(string $id, array $data, User $actor): array
+    {
+        $record = GradingRecord::findOrFail($id);
+
+        $attributes = $this->normalizeFormFields($data);
+        $details = $this->normalizeDetails($data['details'] ?? []);
+
+        $this->validateForm($attributes);
+        $this->validateDetails($details);
+
+        $this->applyVerification($attributes, $data, $actor);
+
+        DB::transaction(function () use ($record, $attributes, $details) {
+            $record->update($attributes);
+            $this->upsertDetails($record, $details, netto: $attributes['netto'], quantity: $attributes['quantity']);
+        });
+
+        $record->load(['station', 'weighbridgeRecord', 'acknowledgedBy', 'gradingDetails.gradingParameter']);
+
+        return $this->toDetailRow($record);
+    }
+
+    protected function normalizeFormFields(array $data): array
+    {
+        $attributes = [];
+
+        foreach (self::FORM_FIELDS as $field) {
+            $attributes[$field] = $data[$field] ?? null;
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * @return array<int, array{id: ?string, grading_parameter_id: ?string, quantity: mixed}>
+     */
+    protected function normalizeDetails(array $rawDetails): array
+    {
+        return collect($rawDetails)
+            ->map(fn ($row) => [
+                'id' => $row['id'] ?? null,
+                'grading_parameter_id' => $row['grading_parameter_id'] ?? null,
+                'quantity' => $row['quantity'] ?? null,
+            ])
+            ->values()
+            ->all();
+    }
+
+    protected function validateForm(array $attributes): void
+    {
+        Validator::make($attributes, [
+            'grading_number' => ['required', 'string'],
+            'date' => ['required', 'date'],
+            'weighbridge_record_id' => ['required', 'uuid', 'exists:weighbridge_records,id'],
+            'license_plate_no' => ['required', 'string'],
+            'vehicle_code' => ['nullable', 'string'],
+            'estate_supplier' => ['required', 'string'],
+            'division' => ['nullable', 'string'],
+            'netto' => ['required', 'numeric'],
+            'quantity' => ['required', 'numeric'],
+            'note' => ['nullable', 'string'],
+        ], [
+            'grading_number.required' => 'Grading Number wajib diisi.',
+            'date.required' => 'Tanggal wajib diisi.',
+            'weighbridge_record_id.required' => 'WB Card No wajib dipilih.',
+            'weighbridge_record_id.exists' => 'WB Card No yang dipilih tidak valid.',
+            'license_plate_no.required' => 'License Plate No wajib diisi.',
+            'estate_supplier.required' => 'Estate/Supplier wajib diisi.',
+            'netto.required' => 'Netto wajib diisi.',
+            'quantity.required' => 'Quantity wajib diisi.',
+        ])->validate();
+    }
+
+    /**
+     * validateDetails() — business_logic step 1: at least one valid detail
+     * row (grading_parameter_id + quantity both present) must exist, and
+     * no grading_parameter_id may repeat across rows (entity-catalog:
+     * "setiap Quality Parameter hanya dapat dipakai di satu baris").
+     */
+    protected function validateDetails(array $details): void
+    {
+        $validRows = collect($details)->filter(
+            fn ($row) => filled($row['grading_parameter_id']) && $row['quantity'] !== null && $row['quantity'] !== ''
+        );
+
+        if ($validRows->isEmpty()) {
+            throw ValidationException::withMessages([
+                'details' => 'Minimal satu baris Grading Detail (Quality Parameter + Qty) harus diisi.',
+            ]);
+        }
+
+        $duplicateParameterIds = $validRows->pluck('grading_parameter_id')->duplicates();
+
+        if ($duplicateParameterIds->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'details' => 'Setiap Quality Parameter hanya dapat dipakai di satu baris Grading Detail.',
+            ]);
+        }
+
+        foreach ($validRows as $row) {
+            if (! GradingParameter::whereKey($row['grading_parameter_id'])->exists()) {
+                throw ValidationException::withMessages([
+                    'details' => 'Quality Parameter yang dipilih tidak valid.',
+                ]);
+            }
+        }
+    }
+
+    /**
+     * upsertDetails() — business_logic step 3 + 8: for each valid detail
+     * row, snapshot uom from the selected GradingParameter and compute
+     * percentage (netto-based for uom=kg, quantity-based for uom=bunch),
+     * then insert rows without an id, update rows whose id still appears
+     * in $details, and delete any existing row whose id is no longer
+     * present.
+     */
+    protected function upsertDetails(GradingRecord $record, array $details, float $netto, float $quantity): void
+    {
+        $validRows = collect($details)->filter(
+            fn ($row) => filled($row['grading_parameter_id']) && $row['quantity'] !== null && $row['quantity'] !== ''
+        );
+
+        $keptIds = [];
+
+        foreach ($validRows as $row) {
+            $parameter = GradingParameter::findOrFail($row['grading_parameter_id']);
+            $rowQuantity = (float) $row['quantity'];
+
+            $percentage = match ($parameter->uom) {
+                Uom::Kg => $netto > 0 ? ($rowQuantity / $netto) * 100 : 0,
+                Uom::Bunch => $quantity > 0 ? ($rowQuantity / $quantity) * 100 : 0,
+            };
+
+            $detailAttributes = [
+                'grading_record_id' => $record->id,
+                'grading_parameter_id' => $parameter->id,
+                'quantity' => $rowQuantity,
+                'uom' => $parameter->uom,
+                'percentage' => round($percentage, 2),
+            ];
+
+            if (! empty($row['id']) && GradingDetail::where('id', $row['id'])->where('grading_record_id', $record->id)->exists()) {
+                GradingDetail::where('id', $row['id'])->update($detailAttributes);
+                $keptIds[] = $row['id'];
+            } else {
+                $detail = GradingDetail::create($detailAttributes);
+                $keptIds[] = $detail->id;
+            }
+        }
+
+        GradingDetail::where('grading_record_id', $record->id)
+            ->whereNotIn('id', $keptIds)
+            ->delete();
+    }
+
+    /**
+     * applyVerification() — only Acknowledged By is implemented on this
+     * screen (self-attestation checkbox, Mill Management only) — Checked
+     * By is never shown/collected here, consistent with Form Grading
+     * mobile (screen-011) and Detail Grading Web (screen-020).
+     */
+    protected function applyVerification(array &$attributes, array $data, User $actor): void
+    {
+        if ($actor->role === UserRole::MillManagement) {
+            $attributes['acknowledged_by'] = ! empty($data['acknowledged']) ? $actor->id : null;
+        }
+    }
 
     /**
      * listRecords() — business_logic steps 1-4: validate the date range,
@@ -214,6 +461,67 @@ class GradingRecordService
             'vehicle_number' => $record->vehicle_number,
             'driver_name' => $record->driver_name,
             'status' => $record->status?->value,
+        ];
+    }
+
+    /**
+     * getDetail() — screen-020--detail-grading-web business_logic
+     * steps 1-4: findOrFail (404 via ModelNotFoundException, handled
+     * globally by ApiExceptionHandler) then resolve station/weighbridge
+     * record/acknowledged_by to display names/values and the
+     * grading-detail grid (with each row's Quality Parameter name
+     * resolved), mirroring DataPreviewGradingView.vue (mobile)'s detail
+     * mode field set/order — Checked By intentionally NOT resolved/exposed
+     * here, consistent with that mobile screen.
+     */
+    public function getDetail(string $id): array
+    {
+        $record = GradingRecord::with([
+            'station',
+            'weighbridgeRecord',
+            'acknowledgedBy',
+            'gradingDetails.gradingParameter',
+        ])->findOrFail($id);
+
+        return $this->toDetailRow($record);
+    }
+
+    /**
+     * Maps a GradingRecord to the detail endpoint's success_schema —
+     * every header field plus station_name/wb_card_number/
+     * acknowledged_by_name resolved via the relations eager-loaded in
+     * getDetail(), plus the `details` array (each grading-detail row with
+     * its Quality Parameter name resolved instead of a raw uuid).
+     */
+    protected function toDetailRow(GradingRecord $record): array
+    {
+        return [
+            'id' => $record->id,
+            'station_id' => $record->station_id,
+            'station_name' => $record->station?->name,
+            'grading_number' => $record->grading_number,
+            'date' => optional($record->date)->toIso8601String(),
+            'weighbridge_record_id' => $record->weighbridge_record_id,
+            'wb_card_number' => $record->weighbridgeRecord?->wb_card_number,
+            'license_plate_no' => $record->license_plate_no,
+            'vehicle_code' => $record->vehicle_code,
+            'estate_supplier' => $record->estate_supplier,
+            'division' => $record->division,
+            'netto' => $record->netto,
+            'quantity' => $record->quantity,
+            'note' => $record->note,
+            'acknowledged_by_name' => $record->acknowledgedBy?->name,
+            'status' => $record->status?->value,
+            'created_at' => optional($record->created_at)->toIso8601String(),
+            'updated_at' => optional($record->updated_at)->toIso8601String(),
+            'details' => $record->gradingDetails->map(fn ($detail) => [
+                'id' => $detail->id,
+                'grading_parameter_id' => $detail->grading_parameter_id,
+                'grading_parameter_name' => $detail->gradingParameter?->name,
+                'quantity' => $detail->quantity,
+                'uom' => $detail->uom?->value,
+                'percentage' => $detail->percentage,
+            ])->all(),
         ];
     }
 }

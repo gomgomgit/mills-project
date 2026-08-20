@@ -1,0 +1,635 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-032--kelola-user-role",
+  "name": "Kelola User & Role",
+  "module_id": "module-user-management",
+  "route": "/users",
+  "auth_requirement": "role: admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": false,
+      "conditions": "Kelola user & role terbatas untuk role Admin"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": false,
+      "conditions": "Kelola user & role terbatas untuk role Admin"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Kelola user & role terbatas untuk role Admin"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-032--kelola-user-role",
+      "usecase_name": "Kelola User & Role",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/users",
+          "description": "List user dipaginasi dengan nama Business Unit terkait, opsional filter role/business_unit_id",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "role",
+                "type": "string",
+                "required": false,
+                "default": "",
+                "description": "Filter by role"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter by Business Unit terkait"
+              },
+              {
+                "name": "page",
+                "type": "integer",
+                "required": false,
+                "default": "1",
+                "description": "Halaman"
+              },
+              {
+                "name": "per_page",
+                "type": "integer",
+                "required": false,
+                "default": "20",
+                "description": "Jumlah per halaman, max 100"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "username": "string",
+                  "name": "string",
+                  "role": "string",
+                  "business_unit_id": "uuid|null",
+                  "business_unit_name": "string|null",
+                  "is_active": "boolean",
+                  "created_at": "timestamp"
+                }
+              ],
+              "meta": {
+                "page": "integer",
+                "per_page": "integer",
+                "total": "integer",
+                "total_pages": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/users",
+          "description": "Membuat user baru dengan role dan Business Unit terkait",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "username": "string, required, unik",
+              "name": "string, required",
+              "role": "string, required, enum(operator,supervisor,mill_management,admin)",
+              "business_unit_id": "uuid, required jika role != admin, harus Business Unit yang ada",
+              "password": "string, required, minimal 6 karakter"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "username": "string",
+              "name": "string",
+              "role": "string",
+              "business_unit_id": "uuid|null",
+              "business_unit_name": "string|null",
+              "is_active": true,
+              "created_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "username kosong/sudah dipakai, name kosong, role tidak valid, business_unit_id kosong padahal role!=admin atau tidak valid, atau password terlalu pendek"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/users/:id",
+          "description": "Mengubah nama, role, dan Business Unit user (tidak termasuk password)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID User"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "name": "string, required",
+              "role": "string, required, enum(operator,supervisor,mill_management,admin)",
+              "business_unit_id": "uuid, required jika role != admin, harus Business Unit yang ada"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "username": "string",
+              "name": "string",
+              "role": "string",
+              "business_unit_id": "uuid|null",
+              "business_unit_name": "string|null",
+              "is_active": "boolean",
+              "created_at": "timestamp"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "name kosong, role tidak valid, business_unit_id kosong padahal role!=admin atau tidak valid"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "User id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/users/:id/status",
+          "description": "Mengubah status aktif/nonaktif user (toggle langsung dari daftar, tanpa form)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID User"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "is_active": "boolean, required"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "is_active": "boolean"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "User id tidak ditemukan"
+              },
+              {
+                "http_code": 409,
+                "error_code": "CANNOT_DEACTIVATE_SELF",
+                "condition": "Admin mencoba menonaktifkan (is_active=false) akun miliknya sendiri yang sedang login"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "User yang login bukan Admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by role/business_unit_id, eager-load businessUnit untuk business_unit_name. password_hash tidak pernah diekspos (sudah $hidden di model)",
+        "2. POST create: validate username required + unik → validate name required → validate role required (enum) → validate business_unit_id required jika role != admin, harus Business Unit yang ada → validate password required + minimal 6 karakter → if invalid: return 422 VALIDATION_ERROR → hash password → insert User baru dengan is_active=true",
+        "3. PATCH update: validate id ada → if not: return 404 NOT_FOUND → validate name required → validate role required → validate business_unit_id required jika role != admin → if invalid: return 422 VALIDATION_ERROR → update User (name, role, business_unit_id) — password_hash TIDAK disentuh endpoint ini",
+        "4. PATCH status: validate id ada → if not: return 404 NOT_FOUND → jika is_active=false DAN id == id user yang login: return 409 CANNOT_DEACTIVATE_SELF → else update is_active"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "SELECT User dipaginasi dengan Business Unit terkait, opsional filter role/business_unit_id; SELECT untuk validasi id ada saat update/status"
+        },
+        {
+          "entity_id": "user",
+          "operation": "INSERT",
+          "description": "INSERT User baru dengan password_hash ter-hash"
+        },
+        {
+          "entity_id": "user",
+          "operation": "UPDATE",
+          "description": "UPDATE name/role/business_unit_id (endpoint update), atau UPDATE is_active (endpoint status)"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "SELECT untuk validasi business_unit_id ada saat create/update; dropdown Business Unit di FE memakai endpoint publik GET /api/business-units (screen-029) yang sudah ada, tidak perlu endpoint baru"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "username sudah dipakai user lain",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.username"
+        },
+        {
+          "condition": "business_unit_id kosong padahal role != admin",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.business_unit_id"
+        },
+        {
+          "condition": "business_unit_id tidak valid/tidak ditemukan",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.business_unit_id"
+        },
+        {
+          "condition": "password kurang dari 6 karakter",
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.password"
+        },
+        {
+          "condition": "id tidak ditemukan pada update/status",
+          "handling": "Return 404 NOT_FOUND"
+        },
+        {
+          "condition": "Admin mencoba menonaktifkan akun miliknya sendiri",
+          "handling": "Return 409 CANNOT_DEACTIVATE_SELF, status tidak berubah"
+        }
+      ],
+      "business_rules_applied": [
+        "Username harus unik di seluruh sistem",
+        "Role selain Admin wajib memiliki Business Unit terkait",
+        "Admin tidak dapat menonaktifkan akun miliknya sendiri",
+        "User tidak dihapus permanen, hanya dinonaktifkan (tidak ada endpoint DELETE)",
+        "Password awal ditentukan Admin saat membuat user baru",
+        "Hanya Admin yang dapat mengakses layar ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns paginated user list with business_unit_name for each row",
+          "given": "UserRepository.findPaginated() returns rows joined with BusinessUnit",
+          "expect": "return 200 with data array including business_unit_name per row, plus pagination meta"
+        },
+        {
+          "description": "filters list by role and business_unit_id when provided",
+          "given": "query params role=supervisor and business_unit_id=X are provided",
+          "expect": "only users matching both filters are returned"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating user with duplicate username",
+          "given": "UserRepository.existsByUsername(username) returns true",
+          "expect": "throw ValidationException with errors.username; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating user with role != admin and no business_unit_id",
+          "given": "role is 'supervisor' and business_unit_id is null",
+          "expect": "throw ValidationException with errors.business_unit_id; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "allows creating an Admin user without business_unit_id",
+          "given": "role is 'admin' and business_unit_id is null",
+          "expect": "user created successfully with business_unit_id null"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when creating user with invalid business_unit_id",
+          "given": "BusinessUnitRepository.findById(business_unit_id) returns null",
+          "expect": "throw ValidationException with errors.business_unit_id; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "returns 422 VALIDATION_ERROR when password is shorter than 6 characters",
+          "given": "input password has length < 6",
+          "expect": "throw ValidationException with errors.password; http 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "hashes the password before storing on create",
+          "given": "valid create input with password 'Passw0rd!'",
+          "expect": "stored password_hash is a bcrypt hash, not the plain-text password"
+        },
+        {
+          "description": "returns 404 NOT_FOUND when updating/setting status of a non-existent user id",
+          "given": "UserRepository.findById(id) returns null",
+          "expect": "throw NotFoundException; http 404 NOT_FOUND"
+        },
+        {
+          "description": "update endpoint does not modify password_hash",
+          "given": "valid update input (name/role/business_unit_id only, no password field in this endpoint)",
+          "expect": "password_hash on the user row is unchanged after update"
+        },
+        {
+          "description": "returns 409 CANNOT_DEACTIVATE_SELF when the acting admin sets is_active=false on their own user id",
+          "given": "path id == acting user's own id, body is_active=false",
+          "expect": "throw ConflictException; http 409 CANNOT_DEACTIVATE_SELF; is_active unchanged"
+        },
+        {
+          "description": "allows an admin to deactivate a different user",
+          "given": "path id != acting user's own id, body is_active=false",
+          "expect": "target user's is_active becomes false"
+        },
+        {
+          "description": "allows an admin to reactivate their own account is_active=true (only deactivation of self is blocked, not reactivation)",
+          "given": "path id == acting user's own id, body is_active=true",
+          "expect": "is_active updated to true, no error"
+        },
+        {
+          "description": "returns 403 FORBIDDEN for all endpoints when authenticated user is not Admin",
+          "given": "authenticated user role != admin",
+          "expect": "return 403 FORBIDDEN, no data/mutation returned"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-029--kelola-business-unit",
+      "reason": "Dropdown Business Unit memakai endpoint publik GET /api/business-units yang sudah ada dari screen-029; role selain Admin butuh Business Unit yang sudah dibuat lebih dulu"
+    }
+  ],
+  "implementation_notes": [
+    "403 FORBIDDEN pada seluruh endpoint disimpulkan dari actor_permissions, sama seperti screen-027/028/029",
+    "Livewire component memanggil Service Layer yang sama dengan REST API, konsisten dengan pola screen sebelumnya",
+    "password_hash tidak pernah diekspos di response manapun (sudah $hidden di model User)",
+    "Endpoint status (PATCH /api/users/:id/status) dipisah dari update (PATCH /api/users/:id) agar toggle aktif/nonaktif dari daftar tidak perlu membuka form penuh dan tidak bisa tidak sengaja mengubah field lain",
+    "Tidak ada endpoint DELETE — user tidak pernah dihapus permanen, hanya endpoint status yang mengubah is_active"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Kelola User & Role — Tambah User berhasil",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/users"
+          },
+          "request_example": {
+            "username": "supervisor02",
+            "name": "Andi Wijaya",
+            "role": "supervisor",
+            "business_unit_id": "{{business_unit_id}}",
+            "password": "Passw0rd!"
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "UserForm",
+        "action": "isi username, nama, pilih role Supervisor, pilih Business Unit, isi password, klik Simpan",
+        "assert": "form submit berhasil, baris baru muncul di daftar dengan role dan Business Unit yang benar"
+      },
+      "browser_test": {
+        "route": "/users",
+        "action": "klik Tambah User, isi field, pilih role dan Business Unit, klik Simpan",
+        "assert": "baris user baru muncul di tabel dengan status aktif"
+      }
+    },
+    {
+      "scenario_ref": "Kelola User & Role — Edit User berhasil",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/users/:id"
+          },
+          "request_example": {
+            "id": "<existing-user-id>",
+            "name": "Andi Wijaya Updated",
+            "role": "mill_management",
+            "business_unit_id": "{{business_unit_id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "UserForm",
+        "action": "klik Edit pada baris user, ubah nama/role/Business Unit, klik Simpan",
+        "assert": "baris user diperbarui dengan nilai baru"
+      },
+      "browser_test": {
+        "route": "/users",
+        "action": "klik Edit pada baris, ubah data, klik Simpan",
+        "assert": "tabel menampilkan data user yang sudah diperbarui"
+      }
+    },
+    {
+      "scenario_ref": "Kelola User & Role — Username duplikat",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/users"
+          },
+          "request_example": {
+            "username": "supervisor02",
+            "name": "User Lain",
+            "role": "supervisor",
+            "business_unit_id": "{{business_unit_id}}",
+            "password": "Passw0rd!"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "UserForm",
+        "action": "isi username yang sudah dipakai user lain, klik Simpan",
+        "assert": "pesan validasi muncul di bawah field username, form tidak tersimpan"
+      },
+      "browser_test": {
+        "route": "/users",
+        "action": "submit form Tambah User dengan username yang sudah dipakai",
+        "assert": "pesan validasi username sudah dipakai ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Kelola User & Role — Business Unit wajib untuk role non-Admin",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/users"
+          },
+          "request_example": {
+            "username": "operator05",
+            "name": "Operator Baru",
+            "role": "operator",
+            "password": "Passw0rd!"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "UserForm",
+        "action": "pilih role selain Admin tanpa memilih Business Unit, klik Simpan",
+        "assert": "pesan validasi Business Unit wajib dipilih ditampilkan"
+      },
+      "browser_test": {
+        "route": "/users",
+        "action": "submit form Tambah User dengan role Operator tanpa Business Unit",
+        "assert": "pesan validasi Business Unit wajib ditampilkan, tidak ada baris baru"
+      }
+    },
+    {
+      "scenario_ref": "Kelola User & Role — Admin menonaktifkan akun sendiri ditolak",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/users/:id/status"
+          },
+          "request_example": {
+            "id": "<own-user-id>",
+            "is_active": false
+          },
+          "expected_status": 409,
+          "expected_error_code": "CANNOT_DEACTIVATE_SELF"
+        }
+      ],
+      "component_test": {
+        "component": "UserList",
+        "action": "klik toggle Nonaktifkan pada baris akun sendiri",
+        "assert": "pesan error ditampilkan, status baris tetap aktif"
+      },
+      "browser_test": {
+        "route": "/users",
+        "action": "klik Nonaktifkan pada baris akun sendiri yang sedang login",
+        "assert": "pesan error ditampilkan, status tidak berubah"
+      }
+    },
+    {
+      "scenario_ref": "Kelola User & Role — Nonaktifkan user lain berhasil",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/users/:id/status"
+          },
+          "request_example": {
+            "id": "<other-user-id>",
+            "is_active": false
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "UserList",
+        "action": "klik toggle Nonaktifkan pada baris user lain",
+        "assert": "status baris berubah menjadi nonaktif"
+      },
+      "browser_test": {
+        "route": "/users",
+        "action": "klik Nonaktifkan pada baris user lain, konfirmasi",
+        "assert": "status user di tabel berubah menjadi nonaktif"
+      }
+    },
+    {
+      "scenario_ref": "Kelola User & Role — Akses ditolak untuk non-Admin",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/users"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "UserManagement",
+        "action": "coba muat layar Kelola User & Role sebagai user non-Admin",
+        "assert": "tampilan akses ditolak muncul, daftar/kontrol user tidak dirender"
+      },
+      "browser_test": {
+        "route": "/users",
+        "action": "navigasi ke /users sebagai user non-Admin",
+        "assert": "browser menampilkan status akses ditolak/redirect"
+      }
+    }
+  ]
+}

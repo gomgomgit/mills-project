@@ -1,0 +1,120 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "usecase-026--laporan-manajemen",
+  "name": "Lihat Laporan Manajemen",
+  "description": "Mill Management melihat laporan operasional periode berupa breakdown harian data ketiga stasiun MVP (Weighbridge, Grading, Cages Track) untuk mill miliknya, dapat memfilter rentang tanggal, dan mengekspor laporan ke CSV/Excel.",
+  "actors": [
+    "actor-mill-management"
+  ],
+  "preconditions": [
+    "User sudah login sebagai Mill Management"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-mill-management",
+      "description": "Klik menu 'Laporan Manajemen' di sidebar"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Render laporan dengan filter default (awal bulan berjalan s/d hari ini), dibatasi ke business unit milik user, tampilkan breakdown harian + baris Total"
+    },
+    {
+      "step": 3,
+      "actor": "actor-mill-management",
+      "description": "(opsional) Mengubah rentang tanggal filter"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Memperbarui breakdown harian dan baris Total sesuai rentang yang aktif"
+    },
+    {
+      "step": 5,
+      "actor": "actor-mill-management",
+      "description": "(opsional) Klik tombol Ekspor"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menghasilkan file CSV/Excel breakdown harian sesuai filter aktif dan memicu download"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Rentang Tanggal Tidak Valid",
+      "trigger": "Step 3-4, date_from > date_to",
+      "steps": [
+        "System menampilkan pesan validasi rentang tanggal tidak valid",
+        "Filter tidak diterapkan, laporan tetap menampilkan hasil filter sebelumnya"
+      ]
+    },
+    {
+      "name": "Tidak Ada Data Sesuai Filter",
+      "trigger": "Step 2/4, tidak ada record pada rentang tanggal manapun",
+      "steps": [
+        "Breakdown harian menampilkan seluruh baris bernilai 0",
+        "System menampilkan pesan 'belum ada data'"
+      ]
+    },
+    {
+      "name": "Ekspor Tanpa Data",
+      "trigger": "Step 5-6, tidak ada data pada rentang yang sedang aktif",
+      "steps": [
+        "System tetap menghasilkan file CSV/Excel berisi header saja, tanpa baris data",
+        "Download tetap berhasil, bukan error"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Laporan menampilkan breakdown harian & Total sesuai filter yang aktif",
+    "ATAU file laporan (CSV/Excel) berhasil diunduh"
+  ],
+  "business_rules": [
+    "Laporan otomatis dibatasi ke business unit/mill milik Mill Management yang login",
+    "Filter rentang tanggal default: awal bulan berjalan sampai hari ini",
+    "Breakdown harian dihitung dari data gabungan sync mobile + input web",
+    "Baris Total menjumlahkan seluruh hari dalam rentang",
+    "Ekspor mengikuti filter rentang tanggal aktif"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Manajemen — berhasil",
+      "given": "User sudah login sebagai Mill Management, terdapat record Weighbridge/Grading/Cages Track pada bulan berjalan",
+      "when": "User membuka halaman Laporan Manajemen",
+      "then": "Breakdown harian dan baris Total menampilkan data bulan berjalan untuk mill milik user"
+    },
+    {
+      "scenario": "Lihat Laporan Manajemen — Filter Diterapkan",
+      "given": "User berada di halaman Laporan Manajemen",
+      "when": "User mengubah rentang tanggal filter",
+      "then": "Breakdown harian dan baris Total diperbarui sesuai rentang yang dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Manajemen — Tidak Ada Data Sesuai Filter",
+      "given": "User menerapkan rentang tanggal yang tidak memiliki record apapun",
+      "when": "Filter diterapkan",
+      "then": "Breakdown harian menampilkan nilai 0 di seluruh baris, disertai pesan 'belum ada data'"
+    },
+    {
+      "scenario": "Lihat Laporan Manajemen — Rentang Tanggal Tidak Valid",
+      "given": "User berada di halaman Laporan Manajemen",
+      "when": "User memasukkan date_from lebih besar dari date_to",
+      "then": "System menampilkan pesan validasi, filter tidak diterapkan"
+    },
+    {
+      "scenario": "Lihat Laporan Manajemen — Ekspor Laporan",
+      "given": "User berada di halaman Laporan Manajemen dengan filter aktif yang memiliki data",
+      "when": "User klik tombol Ekspor",
+      "then": "File CSV/Excel breakdown harian sesuai filter aktif berhasil diunduh"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-026--laporan-manajemen"
+  ]
+}

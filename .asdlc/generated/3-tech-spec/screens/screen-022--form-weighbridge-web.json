@@ -1,0 +1,512 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-022--form-weighbridge-web",
+  "name": "Form Weighbridge (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/weighbridge/create (buat baru), /data/weighbridge/{id}/edit (ubah)",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-022--form-weighbridge-web",
+      "usecase_name": "Input & Edit Data Weighbridge (Web)",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/weighbridge-records",
+          "description": "Membuat record Weighbridge baru; station diresolve dari business_unit_id",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "business_unit_id": "uuid, required",
+              "wb_card_number": "string, required",
+              "weighbridge_type": "enum(receive, dispatch), required",
+              "record_datetime": "timestamp, required",
+              "vehicle_number": "string, required",
+              "driver_name": "string, required",
+              "estate_supplier": "string, required",
+              "destination": "string, required jika dispatch",
+              "division": "string, optional",
+              "block": "string, optional",
+              "gross_weight": "float, required",
+              "tare_weight": "float, optional",
+              "quantity": "float, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "wb_card_number": "string",
+              "weighbridge_type": "enum(receive, dispatch)",
+              "record_datetime": "timestamp",
+              "net_weight": "float|null",
+              "status": "string"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong"
+              },
+              {
+                "http_code": 422,
+                "error_code": "NO_ACTIVE_WEIGHBRIDGE_STATION",
+                "condition": "business unit tanpa station weighbridge aktif"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/weighbridge-records/{id}",
+          "description": "Memperbarui record Weighbridge tersimpan",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID record"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "wb_card_number": "string, required",
+              "weighbridge_type": "enum(receive, dispatch), required",
+              "record_datetime": "timestamp, required",
+              "vehicle_number": "string, required",
+              "driver_name": "string, required",
+              "estate_supplier": "string, required",
+              "destination": "string, required jika dispatch",
+              "division": "string, optional",
+              "block": "string, optional",
+              "gross_weight": "float, required",
+              "tare_weight": "float, optional",
+              "quantity": "float, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "wb_card_number": "string",
+              "net_weight": "float|null",
+              "status": "string"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong"
+              },
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Create: validate field wajib termasuk destination jika dispatch -> 422 VALIDATION_ERROR",
+        "2. Create: resolve station = Station WHERE business_unit_id AND type=weighbridge AND is_active=true -> 422 NO_ACTIVE_WEIGHBRIDGE_STATION jika tidak ada",
+        "3. checked=true+role=supervisor -> checked_by=requester id; acknowledged=true+role=mill_management -> acknowledged_by=requester id; role lain diabaikan",
+        "4. INSERT record status=saved, net_weight dihitung model event, tidak menerima override",
+        "5. Update: validate id -> 404 jika tidak ada -> validate field wajib -> 422 jika gagal",
+        "6. Update: business_unit_id/station_id tidak diterima dari body, tidak berubah",
+        "7. UPDATE record, net_weight dihitung ulang model event",
+        "8. FE: mode create tampilkan dropdown Business Unit (GET /api/business-units); mode edit GET /api/weighbridge-records/{id} untuk prefill, BU ditampilkan read-only",
+        "9. FE: tab Tipe default Receive (create) atau tersimpan (edit); ganti tab reset record_datetime & destination ke default",
+        "10. FE: record_datetime input datetime-local, default waktu saat ini, tetap dapat diedit manual",
+        "11. FE: Net Weight dihitung reaktif untuk preview tapi field disabled (invariant data, dikecualikan dari konvensi web-form-input)",
+        "12. FE: checkbox Checked hanya untuk role supervisor, Acknowledged hanya mill_management",
+        "13. Simpan berhasil -> navigasi ke Detail Weighbridge",
+        "14. Batal -> kembali tanpa API call"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "INSERT",
+          "description": "INSERT record baru"
+        },
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "UPDATE",
+          "description": "UPDATE record edit"
+        },
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "SELECT",
+          "description": "SELECT untuk prefill edit"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "Resolve station aktif dari business_unit_id"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Field wajib kosong",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "BU tanpa station weighbridge aktif",
+          "handling": "422 NO_ACTIVE_WEIGHBRIDGE_STATION"
+        },
+        {
+          "condition": "id tidak ditemukan (update)",
+          "handling": "404 RECORD_NOT_FOUND"
+        },
+        {
+          "condition": "Ganti tab tipe setelah terisi",
+          "handling": "FE reset tanggal & destination"
+        },
+        {
+          "condition": "checked/acknowledged oleh role tidak berhak",
+          "handling": "diabaikan diam-diam"
+        }
+      ],
+      "business_rules_applied": [
+        "Tidak ada draft/pause di web",
+        "record_datetime default sekarang, tetap dapat diedit",
+        "Net Weight dihitung model event, tidak menerima override",
+        "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Business Unit tidak berubah setelah dibuat"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "creates record with resolved station_id when valid (receive)",
+          "given": "valid body type=receive, BU punya 1 station weighbridge aktif",
+          "expect": "record insert dengan station_id sesuai, status=saved"
+        },
+        {
+          "description": "creates record when type=dispatch with destination",
+          "given": "valid body type=dispatch, destination terisi",
+          "expect": "record insert dengan destination tersimpan"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when destination empty and type=dispatch",
+          "given": "type=dispatch, destination kosong",
+          "expect": "ValidationException errors.destination"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when required field empty",
+          "given": "wb_card_number kosong",
+          "expect": "ValidationException errors.wb_card_number"
+        },
+        {
+          "description": "422 NO_ACTIVE_WEIGHBRIDGE_STATION when BU has no active weighbridge station",
+          "given": "Station query kosong",
+          "expect": "throw NoActiveWeighbridgeStationException"
+        },
+        {
+          "description": "sets checked_by when checked=true and role=supervisor",
+          "given": "checked=true, role=supervisor",
+          "expect": "checked_by=requester id"
+        },
+        {
+          "description": "ignores checked=true when role is not supervisor",
+          "given": "checked=true, role=mill_management",
+          "expect": "checked_by tetap null, tidak error"
+        },
+        {
+          "description": "sets acknowledged_by when acknowledged=true and role=mill_management",
+          "given": "acknowledged=true, role=mill_management",
+          "expect": "acknowledged_by=requester id"
+        },
+        {
+          "description": "updates record without accepting business_unit_id change",
+          "given": "PATCH tanpa business_unit_id",
+          "expect": "station_id tidak berubah"
+        },
+        {
+          "description": "404 RECORD_NOT_FOUND when updating non-existent id",
+          "given": "findOrFail throws",
+          "expect": "404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "recomputes net_weight on update via model event",
+          "given": "update gross/tare weight",
+          "expect": "net_weight = gross-tare baru"
+        },
+        {
+          "description": "returns success with resolved station_name",
+          "given": "create/update sukses",
+          "expect": "response berisi station_name via relasi"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-016--data-browser-weighbridge-web",
+      "reason": "Entry point mode create"
+    },
+    {
+      "screen_id": "screen-019--detail-weighbridge-web",
+      "reason": "Entry point mode edit dan tujuan navigasi setelah Simpan"
+    }
+  ],
+  "implementation_notes": [
+    "DIVERGENSI DARI MOBILE: record_datetime pada web default waktu saat ini namun TETAP dapat diedit manual - berbeda dari mobile (screen-010) yang menguncinya. Gunakan input type=datetime-local",
+    "DIVERGENSI DARI MOBILE: data web dapat diedit setelah tersimpan (mode edit penuh), tidak ada draft/pause - status langsung saved",
+    "PENGECUALIAN konvensi web-form-input: Net Weight tetap disabled karena WeighbridgeRecord model event selalu menghitung ulang net_weight=gross-tare untuk semua entry point - field editable akan menyesatkan karena nilai user akan ditimpa diam-diam saat disimpan. Setara pengecualian role-based Checked By/Acknowledged By, hanya beda alasan (data-integrity)",
+    "Business Unit dropdown reuse GET /api/business-units (sudah ada, publik)",
+    "Mode edit prefill reuse GET /api/weighbridge-records/{id} (screen-019)",
+    "Route web /data/weighbridge/create HARUS didaftarkan SEBELUM /data/weighbridge/{id} agar tidak tertangkap sebagai {id}",
+    "Checked/Acknowledged sebagai checkbox self-attestation, mengisi checked_by/acknowledged_by dengan id user login"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Buat Record Weighbridge Baru - berhasil",
+      "usecase_id": "usecase-022--form-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/weighbridge-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_uuid}}",
+            "wb_card_number": "WB-WEB-001",
+            "weighbridge_type": "receive",
+            "record_datetime": "2026-08-20T08:00:00Z",
+            "vehicle_number": "B 1234 XY",
+            "driver_name": "Budi",
+            "estate_supplier": "Estate A",
+            "gross_weight": 15000
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormWeighbridge",
+        "action": "pilih Business Unit, isi field wajib tipe Receive, klik Simpan",
+        "assert": "record tersimpan, navigasi ke Detail Weighbridge"
+      },
+      "browser_test": {
+        "route": "/data/weighbridge/create",
+        "action": "klik Tambah Data, isi form, klik Simpan",
+        "assert": "halaman Detail menampilkan record baru"
+      }
+    },
+    {
+      "scenario_ref": "Edit Record Weighbridge - berhasil",
+      "usecase_id": "usecase-022--form-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/weighbridge-records/{id}"
+          },
+          "request_example": {
+            "id": "{{record_uuid}}",
+            "wb_card_number": "WB-WEB-001-EDIT",
+            "weighbridge_type": "receive",
+            "record_datetime": "2026-08-20T09:00:00Z",
+            "vehicle_number": "B 1234 XY",
+            "driver_name": "Budi",
+            "estate_supplier": "Estate A",
+            "gross_weight": 15500
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormWeighbridge",
+        "action": "buka mode edit, ubah WB Card Number, klik Simpan",
+        "assert": "perubahan tersimpan"
+      },
+      "browser_test": {
+        "route": "/data/weighbridge/{id}/edit",
+        "action": "klik Edit dari Detail, ubah field, klik Simpan",
+        "assert": "Detail menampilkan nilai baru"
+      }
+    },
+    {
+      "scenario_ref": "Tanggal & Waktu Dapat Diedit Manual",
+      "usecase_id": "usecase-022--form-weighbridge-web",
+      "api_test": [],
+      "component_test": {
+        "component": "FormWeighbridge",
+        "action": "ubah input record_datetime manual sebelum Simpan",
+        "assert": "nilai input user tersimpan, bukan default"
+      },
+      "browser_test": {
+        "route": "/data/weighbridge/create",
+        "action": "ubah tanggal & waktu manual, isi field lain, klik Simpan",
+        "assert": "record tersimpan sesuai input user"
+      }
+    },
+    {
+      "scenario_ref": "Ganti Tipe Setelah Field Terisi",
+      "usecase_id": "usecase-022--form-weighbridge-web",
+      "api_test": [],
+      "component_test": {
+        "component": "FormWeighbridge",
+        "action": "dengan record_datetime/destination terisi di Receive, klik tab Dispatch",
+        "assert": "record_datetime direset, Tujuan Muatan muncul dan wajib"
+      },
+      "browser_test": {
+        "route": "/data/weighbridge/create",
+        "action": "isi field di Receive lalu tap Dispatch",
+        "assert": "field menyesuaikan tipe baru"
+      }
+    },
+    {
+      "scenario_ref": "Field Wajib Belum Lengkap",
+      "usecase_id": "usecase-022--form-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/weighbridge-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_uuid}}",
+            "weighbridge_type": "dispatch"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormWeighbridge",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      },
+      "browser_test": {
+        "route": "/data/weighbridge/create",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      }
+    },
+    {
+      "scenario_ref": "Business Unit Tanpa Station Weighbridge Aktif",
+      "usecase_id": "usecase-022--form-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/weighbridge-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_tanpa_weighbridge_uuid}}",
+            "wb_card_number": "WB-X",
+            "weighbridge_type": "receive",
+            "record_datetime": "2026-08-20T08:00:00Z",
+            "vehicle_number": "B",
+            "driver_name": "A",
+            "estate_supplier": "E",
+            "gross_weight": 100
+          },
+          "expected_status": 422,
+          "expected_error_code": "NO_ACTIVE_WEIGHBRIDGE_STATION"
+        }
+      ],
+      "component_test": {
+        "component": "FormWeighbridge",
+        "action": "pilih BU tanpa station weighbridge aktif, klik Simpan",
+        "assert": "error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/weighbridge/create",
+        "action": "pilih BU tanpa station weighbridge, klik Simpan",
+        "assert": "error ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Record Tidak Ditemukan (mode edit)",
+      "usecase_id": "usecase-022--form-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/weighbridge-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "wb_card_number": "X",
+            "weighbridge_type": "receive",
+            "record_datetime": "2026-08-20T08:00:00Z",
+            "vehicle_number": "B",
+            "driver_name": "A",
+            "estate_supplier": "E",
+            "gross_weight": 100
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "FormWeighbridge",
+        "action": "render edit dengan GET 404",
+        "assert": "pesan error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/weighbridge/00000000-0000-0000-0000-000000000000/edit",
+        "action": "navigasi ke id tidak valid",
+        "assert": "halaman menampilkan error"
+      }
+    }
+  ]
+}

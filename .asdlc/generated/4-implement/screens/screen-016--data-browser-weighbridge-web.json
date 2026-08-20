@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
-    "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
   },
   "id": "screen-016--data-browser-weighbridge-web",
   "name": "Data Browser Weighbridge (Web)",
@@ -40,14 +40,11 @@
     "KEPUTUSAN HITL: total_pages=1 saat hasil kosong (standar Laravel) dipilih sebagai kontrak resmi, Pagination.php dikembalikan ke perilaku standar lastPage()",
     "KEPUTUSAN HITL: Content-Type 'text/csv; charset=utf-8' diterima setara 'text/csv', assertion test dilonggarkan",
     "Full regression suite: 75/75 test backend lulus (semua screen 001-004 + 016), diverifikasi langsung oleh command setelah rekonsiliasi race condition",
-    "REVISI v2 (entity-catalog v5, Weighbridge type/date restructure): arrival_datetime/dispatch_datetime diganti weighbridge_type + record_datetime (migration & model rename sudah dilakukan sebelumnya oleh proses lain, terverifikasi ada di backend/database/database.sqlite); WeighbridgeRecordService/Controller/Livewire component/Blade view diperbarui untuk field baru + filter weighbridge_type baru + kolom Tujuan Muatan (destination); WeighbridgeRecordFactory.php diperbarui (field shared, dipakai screen 007/010/013 juga) — factory helper arrivedAt() dipertahankan namanya tapi kini menulis ke record_datetime; ditambahkan factory state baru ofType(). Full regression suite re-run: 602/602 test backend lulus setelah perubahan ini."
+    "REVISI v2 (entity-catalog v5, Weighbridge type/date restructure): arrival_datetime/dispatch_datetime diganti weighbridge_type + record_datetime; WeighbridgeRecordService/Controller/Livewire component/Blade view diperbarui untuk field baru + filter weighbridge_type baru + kolom Tujuan Muatan (destination); WeighbridgeRecordFactory.php diperbarui, ditambahkan factory state ofType(). Full regression suite re-run: 602/602 test backend lulus.",
+    "REVISI v3 (screen-019--detail-weighbridge-web Phase 4 selesai): route data.weighbridge.detail sekarang ada, baris tabel di Data Browser kini benar-benar clickable (onclick navigasi ke Detail) — known_issue lama tentang ini dihapus. Test Feature/Livewire scenario 'Klik Baris Membuka Detail' diperbarui untuk assert perilaku baru (bukan lagi assert non-clickable)."
   ],
   "deferred_items": [],
   "known_issues": [
-    {
-      "description": "Route data.weighbridge.detail (screen-019) belum ada — baris tabel non-clickable, dijaga via Route::has()",
-      "severity": "minor"
-    },
     {
       "description": "format=excel mengembalikan konten CSV dengan mimetype/ekstensi .xlsx (fallback MVP pragmatis, bukan file OOXML asli)",
       "severity": "minor"
@@ -86,7 +83,7 @@
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-19T00:00:05Z",
+      "run_at": "2026-08-20T00:00:00Z",
       "passed": 6,
       "failed": 0
     },

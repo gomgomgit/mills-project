@@ -6,6 +6,9 @@
         </div>
 
         <div class="ct-browser__export">
+            <a href="{{ route('data.cages-track.create') }}" class="ct-button ct-button--secondary" data-testid="add-data-button">
+                Tambah Data
+            </a>
             <a href="{{ $exportCsvUrl }}" class="ct-button ct-button--secondary" target="_blank" rel="noopener">
                 Ekspor CSV
             </a>

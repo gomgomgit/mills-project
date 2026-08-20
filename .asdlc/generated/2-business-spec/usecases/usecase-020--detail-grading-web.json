@@ -1,0 +1,92 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "usecase-020--detail-grading-web",
+  "name": "Lihat Detail Grading (Web)",
+  "description": "User membuka detail read-only satu record Grading tersimpan beserta grid Grading Detail dari Data Browser Grading (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login dan berada di Data Browser Grading (Web)"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Klik salah satu baris record di Data Browser Grading"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Navigasi ke halaman Detail Grading (/data/grading/{id})"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Load dan tampilkan seluruh field header record beserta grid Grading Detail (nama Quality Parameter ter-resolve) secara read-only, dikelompokkan per section"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Klik tombol Back"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Kembali ke Data Browser Grading (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Record Tidak Ditemukan",
+      "trigger": "id record pada URL tidak valid/tidak ditemukan",
+      "steps": [
+        "System menampilkan pesan error 'record tidak ditemukan'",
+        "System menampilkan tombol Back"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail lengkap record Grading beserta grid Grading Detail, tidak ada perubahan data"
+  ],
+  "business_rules": [
+    "Seluruh field read-only",
+    "Checked By tidak ditampilkan",
+    "Grid Grading Detail menampilkan nama Quality Parameter ter-resolve"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Detail Grading — berhasil",
+      "given": "User berada di Data Browser Grading dan ada record tersimpan",
+      "when": "User klik salah satu baris record",
+      "then": "Halaman Detail Grading menampilkan seluruh field header dan grid Grading Detail secara read-only"
+    },
+    {
+      "scenario": "Lihat Detail Grading — Nama Quality Parameter Ter-resolve",
+      "given": "Record memiliki baris Grading Detail dengan grading_parameter_id tertentu",
+      "when": "Halaman Detail Grading dimuat",
+      "then": "Grid menampilkan nama Quality Parameter (bukan raw ID) untuk setiap baris"
+    },
+    {
+      "scenario": "Record Tidak Ditemukan",
+      "given": "id record pada URL tidak valid",
+      "when": "Halaman Detail Grading dimuat",
+      "then": "Pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back"
+    },
+    {
+      "scenario": "Back Kembali ke Data Browser",
+      "given": "User berada di halaman Detail Grading",
+      "when": "User klik tombol Back",
+      "then": "System menavigasi kembali ke Data Browser Grading (Web)"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-020--detail-grading-web"
+  ]
+}

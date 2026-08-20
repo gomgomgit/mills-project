@@ -1,0 +1,136 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-023--form-grading-web",
+  "name": "Form Grading (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Form web untuk input record Grading baru dan mengubah record tersimpan, mengikuti flow yang sama dengan Form Grading mobile (screen-011) — referensi WB Card No dengan auto-fill, grid Grading Detail (Quality Parameter unik per baris, UOM snapshot, Percentage otomatis). Berbeda dari mobile: Tanggal berdefault hari ini namun tetap dapat diedit user, dan record yang sudah tersimpan dapat diubah kapan saja lewat mode edit (bukan input sekali terkunci seperti draft mobile).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Tombol 'Tambah Data' dari Data Browser Grading (Web) — mode buat baru",
+    "Tombol 'Edit' dari Detail Grading (Web) — mode ubah record"
+  ],
+  "information_displayed": [
+    "Business Unit (dropdown) — hanya pada mode buat baru, menentukan mill tujuan record; station Grading otomatis di-resolve dari Business Unit terpilih (1 station Grading aktif per mill)",
+    "Grading Number",
+    "Tanggal — default hari ini, DAPAT diedit manual oleh user (berbeda dari mobile yang mengunci field ini)",
+    "WB Card No (dropdown dari record Weighbridge tersimpan milik Business Unit yang sama)",
+    "License Plate No (auto-terisi dari Weighbridge saat WB Card No dipilih, tetap dapat diedit manual)",
+    "Vehicle Code (input manual, opsional)",
+    "Estate/Supplier (auto-terisi dari Weighbridge, dapat diedit)",
+    "Divisi (auto-terisi dari Weighbridge, dapat diedit)",
+    "Netto (kg) dan Quantity (bunch) - input manual",
+    "Note (input manual, opsional)",
+    "Grid Grading Detail: Quality Parameter (dropdown, hanya parameter yang belum dipakai baris lain), Qty (input manual), UOM (otomatis mengikuti Quality Parameter, tidak dapat diedit), Percentage (dihitung otomatis) — baris bisa ditambah/dihapus",
+    "Acknowledged By — checkbox 'Tandai sudah dikonfirmasi', hanya tampil & aktif untuk role Mill Management",
+    "Field dikelompokkan per section: Identitas Grading, Referensi Weighbridge & Kendaraan, Asal Muatan, Data Berat & Kuantitas, Grading Detail, Verifikasi"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Business Unit",
+      "description": "Menentukan mill tujuan record baru (hanya mode buat baru)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih WB Card No",
+      "description": "Memilih record Weighbridge tersimpan milik Business Unit yang sama; License Plate No, Estate, dan Divisi otomatis terisi dari record tersebut (tetap dapat diedit setelahnya)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah baris Grading Detail",
+      "description": "Menambah satu baris penilaian kosong ke grid Grading Detail",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus baris Grading Detail",
+      "description": "Menghapus satu baris penilaian dari grid; Quality Parameter yang dipakai baris tersebut kembali tersedia untuk baris lain",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Quality Parameter per baris",
+      "description": "Memilih parameter grading untuk baris tersebut dari daftar parameter yang belum dipakai di baris lain; UOM otomatis terisi, Percentage dihitung ulang",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record baru (mode buat) atau memperbarui record tersimpan (mode edit), status langsung 'saved' — tidak ada draft/pause seperti mobile",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Batal",
+      "description": "Kembali ke Data Browser Grading (mode buat) atau Detail Grading (mode edit) tanpa menyimpan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tandai Acknowledged",
+      "description": "Menandai record sudah dikonfirmasi, mengisi Acknowledged By dengan user yang login",
+      "actor_ids": [
+        "actor-mill-management"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tidak ada konsep draft/pause di web — Simpan langsung membuat/memperbarui record dengan status 'saved'",
+    "Field wajib ditandai asterisk merah dengan validasi inline",
+    "Tanggal default hari ini saat form dibuka, TETAP DAPAT diedit manual oleh user",
+    "WB Card No wajib dipilih dari dropdown record Weighbridge milik Business Unit yang sama (bukan teks bebas)",
+    "License Plate No, Estate, dan Divisi auto-terisi dari Weighbridge Record yang dipilih saat WB Card No dipilih, namun tetap dapat diedit manual setelahnya",
+    "Vehicle Code opsional, tidak ada auto-fill",
+    "Minimal satu baris Grading Detail (Quality Parameter + Qty terisi) harus ada sebelum Simpan",
+    "Setiap Quality Parameter hanya dapat dipakai di SATU baris Grading Detail — parameter yang sudah dipilih di suatu baris tidak muncul lagi sebagai opsi di dropdown baris lain, dan kembali tersedia jika baris tersebut dihapus atau parameternya diganti; divalidasi juga di server, bukan hanya UI",
+    "UOM pada tiap baris Grading Detail otomatis mengikuti Quality Parameter yang dipilih (snapshot), tidak dapat diedit manual — dikecualikan dari konvensi 'input web tidak boleh disabled' karena merupakan invariant data (snapshot historis), sama seperti Net Weight pada Form Weighbridge Web",
+    "Percentage dihitung otomatis: Qty/Netto*100 jika UOM=kg, Qty/Quantity*100 jika UOM=bunch, dihitung ulang setiap kali Qty baris atau Netto/Quantity header berubah — juga dikecualikan dari konvensi input web (computed, bukan diinput)",
+    "Business Unit (dan station Grading terkait) tidak dapat diubah setelah record dibuat — pada mode edit, mill asal ditampilkan sebagai teks read-only",
+    "Acknowledged By hanya dapat diisi (via checkbox) oleh user dengan role Mill Management — field disembunyikan untuk role lain",
+    "Checked By TIDAK ditampilkan pada form ini, konsisten dengan Form Grading mobile (screen-011) dan Detail Grading Web (screen-020)"
+  ],
+  "usecase_ids": [
+    "usecase-023--form-grading-web"
+  ],
+  "edge_cases": [
+    "Field wajib belum lengkap saat Simpan ditekan",
+    "Belum ada baris Grading Detail valid saat Simpan ditekan",
+    "Business Unit terpilih belum memiliki station Grading aktif (mode buat baru) — Simpan ditolak dengan pesan error",
+    "Belum ada data Weighbridge tersimpan untuk Business Unit terpilih (dropdown WB Card No kosong)",
+    "User memilih Quality Parameter yang sudah dipakai baris lain — parameter tersebut tidak ditampilkan sebagai opsi",
+    "Record tidak ditemukan saat mode edit dibuka dengan id tidak valid",
+    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola mobile & Form Weighbridge Web)"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

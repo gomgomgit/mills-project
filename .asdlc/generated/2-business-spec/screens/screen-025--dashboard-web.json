@@ -1,0 +1,74 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-025--dashboard-web",
+  "name": "Dashboard Web",
+  "module_id": "module-dashboard",
+  "description": "Halaman utama setelah login untuk Supervisor, Mill Management, dan Admin — menampilkan ringkasan KPI operasional (jumlah record, total berat/kuantitas) untuk tiga stasiun MVP (Weighbridge, Grading, Cages Track), yang dapat difilter berdasarkan rentang tanggal dan business unit/mill.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Redirect otomatis setelah login berhasil (web)",
+    "Klik menu 'Dashboard' di sidebar dari halaman web mana pun"
+  ],
+  "information_displayed": [
+    "Filter rentang tanggal (date_from/date_to) dan business unit/mill",
+    "Card KPI Weighbridge: jumlah record, total Net Weight (kg)",
+    "Card KPI Grading: jumlah record, total Netto (kg), total Quantity (tandan)",
+    "Card KPI Cages Track: jumlah record, total cages tipped (dari seluruh baris Cages Tipped Time)",
+    "Tabel ringkas per stasiun: nama stasiun, jumlah record, agregat utama, dalam rentang filter yang aktif",
+    "Pesan 'belum ada data' jika tidak ada record sesuai filter"
+  ],
+  "available_actions": [
+    {
+      "action": "Filter rentang tanggal",
+      "description": "Menyaring seluruh KPI dan tabel ringkas berdasarkan rentang tanggal yang dipilih; default menampilkan data hari ini",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Filter business unit/mill",
+      "description": "Menyaring KPI dan tabel ringkas untuk business unit/mill tertentu, atau semua business unit sekaligus",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Klik card/baris stasiun",
+      "description": "Navigasi ke Data Browser stasiun terkait (Weighbridge/Grading/Cages Track) dengan filter tanggal & business unit yang sama diteruskan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Filter tanggal default menampilkan data hari ini saat dashboard pertama dibuka",
+    "KPI dihitung dari data gabungan hasil sync mobile dan input web, sama seperti Data Browser",
+    "Filter business unit bersifat opsional — kosong berarti tampilkan seluruh business unit",
+    "Dashboard harus termuat <=2 detik untuk dataset normal, konsisten dengan NFR Data Browser",
+    "Klik card/baris stasiun meneruskan filter tanggal & business unit yang sedang aktif ke Data Browser tujuan"
+  ],
+  "usecase_ids": [
+    "usecase-025--dashboard-web"
+  ],
+  "edge_cases": [
+    "Tidak ada data sesuai filter pada satu atau lebih stasiun — card menampilkan 0, bukan error",
+    "Filter rentang tanggal tidak valid (date_from > date_to) — tampilkan pesan validasi, filter tidak diterapkan",
+    "Business unit yang dipilih tidak memiliki data pada rentang tanggal manapun — tabel ringkas tetap tampil dengan nilai 0"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

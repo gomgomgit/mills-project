@@ -12,12 +12,11 @@
  * Scenario 4, "Klik Baris Membuka Detail", does NOT assert real
  * navigation (row-click is a plain `onclick="window.location.href=...`
  * attribute rendered by the Blade view, not a Livewire action/dispatched
- * event — there is nothing to ->call() for it, and screen-020's
- * `data.grading.detail` route does not exist yet); it instead asserts the
- * guarded rendering behavior: since Route::has('data.grading.detail') is
- * false in this test env, rows render with the `gr-table__row--static`
- * class and no `onclick=` attribute — see the Blade view's
- * `$hasDetailRoute` check.
+ * event — there is nothing to ->call() for it); it instead asserts the
+ * guarded rendering behavior: since screen-020--detail-grading-web's
+ * `data.grading.detail` route now exists (Phase 4 landed), rows render
+ * WITH the clickable-row affordance — an `onclick=` attribute navigating
+ * to the real detail route — see the Blade view's `$hasDetailRoute` check.
  *
  * Uses Livewire::actingAs($user)->test() since this screen requires an
  * authenticated session (route is behind 'auth' + 'role:supervisor,
@@ -139,20 +138,26 @@ it('Ekspor Gagal: export links are always built from the current filters (no cli
 });
 
 // Scenario: "Telusuri & Ekspor Data Grading — Klik Baris Membuka Detail"
-// (row-click navigation itself is client-side and screen-020's
-// `data.grading.detail` route does not exist yet, so navigation is NOT
-// asserted here — only the guarded rendering behavior is: since
-// Route::has('data.grading.detail') is false in this test env, rows must
-// render WITHOUT the clickable-row affordance, i.e. with the
-// `gr-table__row--static` class and no `onclick=` attribute.)
-it('Klik Baris Membuka Detail: rows render without navigation since the detail route does not exist yet', function () {
-    GradingRecord::factory()
+// (updated for screen-020--detail-grading-web's Phase 4: the
+// `data.grading.detail` route now exists, so rows render WITH the
+// clickable-row affordance — onclick navigating to the real detail route
+// for the row's record id. Row-click navigation itself is still
+// client-side (plain `onclick=`, not a Livewire action/dispatched event),
+// so this test asserts the rendered HTML, not a ->call()/navigation
+// assertion.)
+it('Klik Baris Membuka Detail: rows render with a clickable-row link to the real detail route', function () {
+    $record = GradingRecord::factory()
         ->forStation($this->station)
         ->onDate('2026-02-05')
         ->create();
 
+    // Assert the specific class= attribute value on the <tr> (not just the
+    // bare class name — that substring also appears in this view's inline
+    // <style> block as a CSS selector, which would always match and make
+    // this assertion vacuous — mirrors DataBrowserWeighbridgeTest.php's
+    // equivalent test).
     Livewire::actingAs($this->user)
         ->test(DataBrowserGrading::class)
-        ->assertSeeHtml('gr-table__row--static')
-        ->assertDontSeeHtml('onclick=');
+        ->assertDontSeeHtml('class="gr-table__row gr-table__row--static"')
+        ->assertSeeHtml("onclick=\"window.location.href='".route('data.grading.detail', ['id' => $record->id])."'\"");
 });

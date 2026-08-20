@@ -43,7 +43,7 @@ it('shows a loading affordance and redirects to the role dashboard on success', 
         ->set('password', 'Passw0rd!')
         ->set('business_unit_id', $this->businessUnit->id)
         ->call('login')
-        ->assertRedirect('/supervisor/dashboard');
+        ->assertRedirect('/dashboard');
 
     $component->assertSet('errorMessage', null);
 });

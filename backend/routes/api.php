@@ -5,11 +5,14 @@ use App\Http\Controllers\Api\BusinessUnitController;
 use App\Http\Controllers\Api\CagesTrackRecordController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\CorporateController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\GradingRecordController;
 use App\Http\Controllers\Api\MachineryController;
 use App\Http\Controllers\Api\MachineryGroupController;
+use App\Http\Controllers\Api\ManagementReportController;
 use App\Http\Controllers\Api\MillSettingController;
 use App\Http\Controllers\Api\StationController;
+use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WeighbridgeRecordController;
 use Illuminate\Support\Facades\Route;
 
@@ -97,6 +100,23 @@ Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/weighbridge-records/export', [WeighbridgeRecordController::class, 'export']);
 
+// screen-019--detail-weighbridge-web
+// IMPORTANT — registered AFTER /weighbridge-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/weighbridge-records/{id}', [WeighbridgeRecordController::class, 'show']);
+
+// screen-022--form-weighbridge-web
+// Same guard as screen-016/019 above (this module has no mobile
+// counterpart). POST has no {id} segment to collide with; PATCH shares
+// the exact {id} path GET/show already uses above but a different HTTP
+// method never collides in Laravel routing.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->post('/weighbridge-records', [WeighbridgeRecordController::class, 'store']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->patch('/weighbridge-records/{id}', [WeighbridgeRecordController::class, 'update']);
+
 // screen-017--data-browser-grading-web
 // Session-guarded ('auth:web' — this screen is web-only, no mobile
 // counterpart exists for it yet) + role-guarded (supervisor,
@@ -116,6 +136,43 @@ Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/cages-track-records', [CagesTrackRecordController::class, 'index']);
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/cages-track-records/export', [CagesTrackRecordController::class, 'export']);
+
+// screen-021--detail-cages-track-web
+// IMPORTANT — registered AFTER /cages-track-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-019/020's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/cages-track-records/{id}', [CagesTrackRecordController::class, 'show']);
+
+// screen-024--form-cages-track-web
+// Same guard as screen-018/021 above (this module has no mobile
+// counterpart). POST has no {id} segment to collide with; PATCH shares
+// the exact {id} path GET/show already uses above but a different HTTP
+// method never collides in Laravel routing. Mirrors screen-022/023's
+// registration pattern exactly.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->post('/cages-track-records', [CagesTrackRecordController::class, 'store']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->patch('/cages-track-records/{id}', [CagesTrackRecordController::class, 'update']);
+
+// screen-020--detail-grading-web
+// IMPORTANT — registered AFTER /grading-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-019's registration pattern
+// exactly.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/grading-records/{id}', [GradingRecordController::class, 'show']);
+
+// screen-023--form-grading-web
+// Same guard as screen-017/020 above (this module has no mobile
+// counterpart). POST has no {id} segment to collide with; PATCH shares
+// the exact {id} path GET/show already uses above but a different HTTP
+// method never collides in Laravel routing. Mirrors screen-022's
+// registration pattern exactly.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->post('/grading-records', [GradingRecordController::class, 'store']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->patch('/grading-records/{id}', [GradingRecordController::class, 'update']);
 
 // screen-027--kelola-corporate
 // Session-guarded ('auth:web' — this is an admin-only web master-data
@@ -290,4 +347,37 @@ Route::middleware(['auth:web', 'role:admin,mill_management'])->group(function ()
     Route::get('/mill-settings/{businessUnitId}/stations', [MillSettingController::class, 'stations']);
     Route::patch('/mill-settings/{businessUnitId}/stations/{stationId}', [MillSettingController::class, 'setStationIcon']);
 });
+// screen-025--dashboard-web
+// Dual-guarded ('auth:web,sanctum' — this screen is web-only per PRD
+// ("Dashboard & Reporting mobile ditunda ke fase berikutnya"), but the
+// dual guard is kept for consistency with every other endpoint in this
+// file rather than narrowing to 'auth:web' alone) + role-guarded
+// (supervisor, mill_management, admin per screen_tech_spec.actor_permissions).
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
+    ->get('/dashboard/summary', [DashboardController::class, 'summary']);
+
+// screen-026--laporan-manajemen
+// Dual-guarded ('auth:web,sanctum', same reasoning as screen-025 above) +
+// role-guarded to Mill Management ONLY (per screen_tech_spec.actor_permissions
+// — narrower than Dashboard Web, which is also open to Supervisor/Admin).
+// business_unit_id is never a request param here — always resolved from
+// the acting user (ManagementReportController), since Mill Management is
+// scoped to their own mill only.
+Route::middleware(['auth:web,sanctum', 'role:mill_management'])->group(function () {
+    Route::get('/reports/management-summary', [ManagementReportController::class, 'summary']);
+    Route::get('/reports/management-summary/export', [ManagementReportController::class, 'export']);
+});
+
+// screen-032--kelola-user-role
+// Session-guarded ('auth:web' — this screen is web-only, no mobile
+// counterpart) + role-guarded (admin only, per
+// screen_tech_spec.actor_permissions — supervisor/mill_management/
+// operator all have can_access=false for this screen).
+Route::middleware(['auth:web', 'role:admin'])->group(function () {
+    Route::get('/users', [UserController::class, 'index']);
+    Route::post('/users', [UserController::class, 'store']);
+    Route::patch('/users/{id}', [UserController::class, 'update']);
+    Route::patch('/users/{id}/status', [UserController::class, 'setStatus']);
+});
+
 // === ASDLC_ROUTES_END ===

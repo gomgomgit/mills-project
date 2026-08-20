@@ -1,0 +1,99 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "usecase-019--detail-weighbridge-web",
+  "name": "Lihat Detail Weighbridge (Web)",
+  "description": "User membuka detail read-only satu record Weighbridge tersimpan dari Data Browser Weighbridge (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login dan berada di Data Browser Weighbridge (Web)"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Klik salah satu baris record di Data Browser Weighbridge"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Navigasi ke halaman Detail Weighbridge (/data/weighbridge/{id})"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Load dan tampilkan seluruh field record secara read-only, dikelompokkan per section, label tanggal & tampilan Tujuan Muatan menyesuaikan tipe record"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Klik tombol Back"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Kembali ke Data Browser Weighbridge (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Record Tidak Ditemukan",
+      "trigger": "id record pada URL tidak valid/tidak ditemukan",
+      "steps": [
+        "System menampilkan pesan error 'record tidak ditemukan'",
+        "System menampilkan tombol Back"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail lengkap record Weighbridge, tidak ada perubahan data"
+  ],
+  "business_rules": [
+    "Seluruh field read-only",
+    "Tanggal & Waktu berlabel sesuai tipe, 1 field",
+    "Tujuan Muatan hanya untuk tipe Dispatch",
+    "Label satuan (kg) dan (tandan)"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Detail Weighbridge — berhasil",
+      "given": "User berada di Data Browser Weighbridge dan ada record tersimpan",
+      "when": "User klik salah satu baris record",
+      "then": "Halaman Detail Weighbridge menampilkan seluruh field record tersebut secara read-only"
+    },
+    {
+      "scenario": "Lihat Detail Weighbridge — Tipe Dispatch menampilkan Tujuan Muatan",
+      "given": "Record yang dibuka bertipe Dispatch",
+      "when": "Halaman Detail Weighbridge dimuat",
+      "then": "Field Tujuan Muatan ditampilkan dengan label 'Tanggal & Waktu Dispatch' untuk field tanggal"
+    },
+    {
+      "scenario": "Lihat Detail Weighbridge — Tipe Receive menyembunyikan Tujuan Muatan",
+      "given": "Record yang dibuka bertipe Receive",
+      "when": "Halaman Detail Weighbridge dimuat",
+      "then": "Field Tujuan Muatan tidak ditampilkan, label field tanggal adalah 'Tanggal & Waktu Arrival'"
+    },
+    {
+      "scenario": "Record Tidak Ditemukan",
+      "given": "id record pada URL tidak valid",
+      "when": "Halaman Detail Weighbridge dimuat",
+      "then": "Pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back"
+    },
+    {
+      "scenario": "Back Kembali ke Data Browser",
+      "given": "User berada di halaman Detail Weighbridge",
+      "when": "User klik tombol Back",
+      "then": "System menavigasi kembali ke Data Browser Weighbridge (Web)"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-019--detail-weighbridge-web"
+  ]
+}

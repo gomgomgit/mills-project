@@ -13,15 +13,16 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', fn () => response()->json(['status' => 'ok']));
 
 // === ASDLC_ROUTES_START ===
-// screen-025--dashboard-web (PLACEHOLDER — see App\Livewire\Dashboard\
-// DashboardHome's docblock. screen-025 has no business/tech spec or real
-// implementation yet; this stub exists only so the sidebar's pre-existing
-// "Dashboard" link resolves instead of 404ing, unblocking manual testing
-// of the other already-implemented screens. Replace wholesale, not
-// extend, once screen-025's real spec+implementation land.)
+// screen-025--dashboard-web
 Route::middleware(['auth', 'role:admin,supervisor,mill_management'])
     ->get('/dashboard', \App\Livewire\Dashboard\DashboardHome::class)
     ->name('dashboard');
+
+// screen-026--laporan-manajemen — Mill Management only, per
+// screen_tech_spec.actor_permissions (narrower than Dashboard Web above).
+Route::middleware(['auth', 'role:mill_management'])
+    ->get('/reports/management', \App\Livewire\Dashboard\ManagementReport::class)
+    ->name('reports.management');
 
 // screen-001--login-web
 Route::get('/login', \App\Livewire\Auth\LoginForm::class)->name('login');
@@ -36,6 +37,26 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/data/weighbridge', \App\Livewire\Data\DataBrowserWeighbridge::class)
     ->name('data.weighbridge');
 
+// screen-022--form-weighbridge-web
+// IMPORTANT — '/data/weighbridge/create' MUST be registered BEFORE
+// '/data/weighbridge/{id}' (screen-019, right below) or Laravel would
+// match the literal "create" segment against {id} instead.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/weighbridge/create', \App\Livewire\Data\FormWeighbridge::class)
+    ->name('data.weighbridge.create');
+
+// screen-019--detail-weighbridge-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/weighbridge/{id}', \App\Livewire\Data\DetailWeighbridge::class)
+    ->name('data.weighbridge.detail');
+
+// screen-022--form-weighbridge-web (edit mode) — extra '/edit' segment
+// never collides with '/data/weighbridge/{id}' above regardless of
+// registration order.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/weighbridge/{id}/edit', \App\Livewire\Data\FormWeighbridge::class)
+    ->name('data.weighbridge.edit');
+
 // screen-017--data-browser-grading-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/data/grading', \App\Livewire\Data\DataBrowserGrading::class)
@@ -45,6 +66,48 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/data/cages-track', \App\Livewire\Data\DataBrowserCagesTrack::class)
     ->name('data.cages-track');
+
+// screen-023--form-grading-web
+// IMPORTANT — '/data/grading/create' MUST be registered BEFORE
+// '/data/grading/{id}' (screen-020, right below) or Laravel would match
+// the literal "create" segment against {id} instead. Mirrors
+// screen-022's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/grading/create', \App\Livewire\Data\FormGrading::class)
+    ->name('data.grading.create');
+
+// screen-020--detail-grading-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/grading/{id}', \App\Livewire\Data\DetailGrading::class)
+    ->name('data.grading.detail');
+
+// screen-023--form-grading-web (edit mode) — extra '/edit' segment never
+// collides with '/data/grading/{id}' above regardless of registration
+// order.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/grading/{id}/edit', \App\Livewire\Data\FormGrading::class)
+    ->name('data.grading.edit');
+
+// screen-024--form-cages-track-web
+// IMPORTANT — '/data/cages-track/create' MUST be registered BEFORE
+// '/data/cages-track/{id}' (screen-021, right below) or Laravel would match
+// the literal "create" segment against {id} instead. Mirrors
+// screen-022/023's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/cages-track/create', \App\Livewire\Data\FormCagesTrack::class)
+    ->name('data.cages-track.create');
+
+// screen-021--detail-cages-track-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/cages-track/{id}', \App\Livewire\Data\DetailCagesTrack::class)
+    ->name('data.cages-track.detail');
+
+// screen-024--form-cages-track-web (edit mode) — extra '/edit' segment never
+// collides with '/data/cages-track/{id}' above regardless of registration
+// order.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/cages-track/{id}/edit', \App\Livewire\Data\FormCagesTrack::class)
+    ->name('data.cages-track.edit');
 
 // screen-027--kelola-corporate
 // Session-guarded ('auth') + role-guarded (admin only, per
@@ -127,4 +190,16 @@ Route::middleware(['auth', 'role:admin'])
 Route::middleware(['auth', 'role:admin,mill_management'])
     ->get('/mill-settings', \App\Livewire\Settings\MillsSetting::class)
     ->name('mill-settings');
+
+// screen-032--kelola-user-role
+// Session-guarded ('auth') + role-guarded (admin only, per
+// screen_tech_spec.actor_permissions — supervisor/mill_management/
+// operator all have can_access=false for this screen). Mirrors
+// screen-027/028/029/030/031/033's registration pattern exactly —
+// EnsureRole::forbidden() aborts(403) with Laravel's default HTML error
+// page for any non-admin session before App\Livewire\UserManagement\
+// KelolaUserRole ever mounts.
+Route::middleware(['auth', 'role:admin'])
+    ->get('/users', \App\Livewire\UserManagement\KelolaUserRole::class)
+    ->name('users.index');
 // === ASDLC_ROUTES_END ===

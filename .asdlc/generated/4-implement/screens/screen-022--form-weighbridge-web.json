@@ -1,0 +1,83 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-022--form-weighbridge-web",
+  "name": "Form Weighbridge (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Exceptions/NoActiveWeighbridgeStationException.php",
+    "backend/app/Services/WeighbridgeRecordService.php",
+    "backend/app/Http/Controllers/Api/WeighbridgeRecordController.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/WeighbridgeRecordServiceTest.php",
+    "backend/tests/Feature/Api/FormWeighbridgeTest.php",
+    "backend/tests/Feature/Livewire/FormWeighbridgeTest.php",
+    "backend/tests/Browser/FormWeighbridgeTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormWeighbridge.php",
+    "backend/resources/views/livewire/data/form-weighbridge.blade.php",
+    "backend/resources/views/data/weighbridge-form.blade.php",
+    "backend/routes/web.php",
+    "backend/resources/views/livewire/data/data-browser-weighbridge.blade.php",
+    "backend/resources/views/livewire/data/detail-weighbridge.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "Satu Livewire component (FormWeighbridge) menangani mode create DAN edit - mode ditentukan oleh ada/tidaknya parameter $id di mount(), sesuai pola route data.weighbridge.create vs data.weighbridge.edit yang keduanya mengarah ke class yang sama",
+    "WeighbridgeRecordService::create()/update() ditambahkan, dipanggil dari WeighbridgeRecordController::store()/update() (API) DAN Livewire FormWeighbridge::save() - satu source of truth validasi/business logic, mengikuti pola getDetail()/listRecords() yang sudah ada",
+    "DIVERGENSI DARI MOBILE (instruksi eksplisit user): record_datetime pada web adalah input datetime-local yang genuinely editable, default now() saat form dibuka/tipe berganti - TIDAK dikunci seperti mobile screen-010",
+    "DIVERGENSI DARI MOBILE (instruksi eksplisit user): tidak ada draft/pause/lock di web - Simpan langsung create/update dengan status=saved, record dapat diedit kapan saja lewat mode edit",
+    "PENGECUALIAN dari konvensi web-form-input 'tidak boleh disabled': Net Weight tetap field disabled (hanya preview dihitung reaktif client-side) karena WeighbridgeRecord model punya 'saving' event yang SELALU menghitung ulang net_weight=gross-tare untuk semua entry point (mobile/sync/web) - field editable akan menyesatkan karena nilai user akan diam-diam ditimpa saat disimpan. Didokumentasikan di WeighbridgeRecordService::create()'s docblock",
+    "Business Unit dropdown query langsung BusinessUnit::query()->orderBy('name')->get(['id','name']) di dalam Livewire mount() - identik dengan query yang sudah dipakai BusinessUnitController::index() untuk endpoint publik GET /api/business-units, tidak perlu endpoint baru",
+    "Station diresolve otomatis dari business_unit_id (WHERE type=weighbridge AND is_active=true, ambil 1) - mengasumsikan tiap mill hanya punya 1 station weighbridge aktif (keputusan pragmatis yang sudah dipakai fitur Mills Setting sebelumnya di sesi ini)",
+    "Checked/Acknowledged diimplementasikan sebagai checkbox self-attestation boolean (bukan pilih user lain) di WeighbridgeRecordService::applyVerification() - mengisi checked_by/acknowledged_by dengan id user yang login, role-gated (Supervisor untuk Checked, Mill Management untuk Acknowledged), field FE hanya dirender untuk role yang sesuai",
+    "Route web /data/weighbridge/create HARUS terdaftar SEBELUM /data/weighbridge/{id} (screen-019) di routes/web.php agar literal 'create' tidak tertangkap sebagai {id} - didokumentasikan dengan komentar IMPORTANT di file tsb",
+    "Ditambahkan tombol 'Tambah Data' di Data Browser Weighbridge (screen-016) dan tombol 'Edit' di Detail Weighbridge (screen-019) sebagai entry point ke screen ini - keduanya navigasi client-side murni, tidak ada perubahan API pada kedua screen tsb selain link",
+    "Error umum non-field-keyed (NoActiveWeighbridgeStationException, 422) ditangkap terpisah dari ValidationException di FormWeighbridge::save() dan ditampilkan sebagai alert level-halaman ($generalError), bukan error inline per-field"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan - tidak ada browser di sandbox",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur - tidak ada Xdebug/PCOV",
+      "severity": "minor"
+    },
+    {
+      "description": "Business Unit tidak dapat diubah di mode edit by design (immutable setelah create) - jika record perlu dipindah ke mill lain, tidak ada jalur UI untuk itu di screen ini",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 12,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 10,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

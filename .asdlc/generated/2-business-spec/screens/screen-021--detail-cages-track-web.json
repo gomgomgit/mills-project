@@ -1,0 +1,53 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-021--detail-cages-track-web",
+  "name": "Detail Cages Track (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman detail read-only untuk melihat 1 record Cages Track tersimpan secara lengkap beserta grid Cages Tipped Time, diakses dari klik baris di Data Browser Cages Track (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Klik baris di Data Browser Cages Track (Web)"
+  ],
+  "information_displayed": [
+    "Identitas Cages Track: Cages Track Number, Tanggal, Tippler Start Time, Tippler Stop Time",
+    "Data Sesi: Cages Out, Cages Tipped, Note",
+    "Grid Cages Tipped Time: Time, daftar cage yang dicentang, Total Cages, Cages Remain per baris",
+    "Verifikasi: Inputted By, Checked By, Acknowledged By (nama user, atau '-' jika belum diisi)",
+    "Status record (saved/synced)",
+    "Tombol Back kembali ke Data Browser Cages Track"
+  ],
+  "available_actions": [
+    {
+      "action": "Back",
+      "description": "Kembali ke Data Browser Cages Track (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Seluruh field ditampilkan read-only — tidak ada aksi edit dari layar ini (koreksi data dilakukan lewat Form Cages Track Web)",
+    "Checked By DAN Acknowledged By keduanya ditampilkan apa adanya, tanpa pembatasan role untuk melihat, konsisten dengan Data Preview Cages Track mobile (screen-015)",
+    "Grid Cages Tipped Time ditampilkan langsung dari data tersimpan (historical), tidak dihitung ulang",
+    "Field dikelompokkan sesuai struktur Form Cages Track (Identitas, Data Sesi, Grid Detail, Verifikasi)"
+  ],
+  "usecase_ids": [
+    "usecase-021--detail-cages-track-web"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
+    "Checked By/Acknowledged By belum diisi — tampilkan '-'"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

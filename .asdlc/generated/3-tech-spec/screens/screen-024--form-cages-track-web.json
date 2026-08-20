@@ -1,0 +1,718 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-024--form-cages-track-web",
+  "name": "Form Cages Track (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/cages-track/create (buat baru), /data/cages-track/{id}/edit (ubah)",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-024--form-cages-track-web",
+      "usecase_name": "Input & Edit Data Cages Track (Web)",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/cages-track-records",
+          "description": "Membuat record Cages Track baru beserta baris Cages Tipped Time; station diresolve dari business_unit_id, N kolom diresolve dari mill_setting.jumlah_cages",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "business_unit_id": "uuid, required",
+              "cages_track_number": "string, required",
+              "date": "date, required",
+              "tippler_start_time": "timestamp, required",
+              "tippler_stop_time": "timestamp, required",
+              "cages_out": "integer, required",
+              "cages_tipped": "integer, required",
+              "note": "string, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of {id?: uuid, tipped_hour: integer 0-23, checked_cage_numbers: array of integer}, required, min 1 item"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "cages_track_number": "string",
+              "date": "date",
+              "status": "string",
+              "details": "array baris dengan total_cages/cages_remain terhitung server"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong, details kosong, checked_cage_numbers kosong pada suatu baris, atau tipped_hour duplikat/tidak ascending antar baris"
+              },
+              {
+                "http_code": 422,
+                "error_code": "NO_ACTIVE_CAGES_TRACK_STATION",
+                "condition": "business unit tanpa station cages-track aktif"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/cages-track-records/{id}",
+          "description": "Memperbarui record Cages Track tersimpan beserta baris Cages Tipped Time (upsert: baris tanpa id di-insert, baris dengan id di-update, baris yang dihapus dari array di-delete)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID record"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "cages_track_number": "string, required",
+              "date": "date, required",
+              "tippler_start_time": "timestamp, required",
+              "tippler_stop_time": "timestamp, required",
+              "cages_out": "integer, required",
+              "cages_tipped": "integer, required",
+              "note": "string, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of {id?: uuid, tipped_hour: integer 0-23, checked_cage_numbers: array of integer}, required, min 1 item"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "cages_track_number": "string",
+              "status": "string",
+              "details": "array baris dengan total_cages/cages_remain terhitung server"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong, details kosong, atau tipped_hour duplikat/tidak ascending"
+              },
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Create: validate field wajib (cages_track_number, date, tippler_start_time, tippler_stop_time, cages_out, cages_tipped) + minimal 1 baris details valid (tipped_hour terisi + checked_cage_numbers tidak kosong) + tipped_hour antar baris unik dan ascending (setiap baris > tipped_hour baris sebelumnya dalam array) -> 422 VALIDATION_ERROR",
+        "2. Create: resolve station = Station WHERE business_unit_id AND type=cages-track AND is_active=true -> 422 NO_ACTIVE_CAGES_TRACK_STATION jika tidak ada",
+        "3. Resolve N = MillSettingService::getJumlahCages(business_unit_id) — method baru, read-only, TIDAK memanggil checkAccess() (berbeda dari getOrCreate() yang dipakai screen-034) karena N dibutuhkan oleh ketiga actor screen ini (termasuk Supervisor yang direject checkAccess()); auto-create default mill_setting (jumlah_cages=1) jika business unit belum punya, sama seperti perilaku Mills Setting",
+        "4. Untuk tiap baris details: total_cages = count(checked_cage_numbers); cages_remain = N - total_cages (dihitung server, bukan diterima dari client)",
+        "5. checked=true+role=supervisor -> checked_by=requester id; acknowledged=true+role=mill_management -> acknowledged_by=requester id; role lain diabaikan diam-diam",
+        "6. Dalam transaksi DB: INSERT cages_track_record (status=saved) lalu INSERT seluruh cages_tipped_time rows",
+        "7. Update: validate id -> 404 jika tidak ada -> validate field wajib + details sama seperti create -> 422 jika gagal",
+        "8. Update: business_unit_id/station_id tidak diterima dari body, tidak berubah",
+        "9. Dalam transaksi DB: UPDATE cages_track_record, lalu upsert cages_tipped_time (baris tanpa id: INSERT; baris dengan id yang masih ada di array: UPDATE; baris yang sebelumnya ada di DB tapi tidak lagi ada di array: DELETE)",
+        "10. FE: mode create tampilkan dropdown Business Unit (query langsung BusinessUnit di Livewire mount(), sama seperti FormWeighbridge/FormGrading); mode edit GET /api/cages-track-records/{id} untuk prefill, BU ditampilkan read-only",
+        "11. FE: Tanggal/Tippler Start Time/Tippler Stop Time masing-masing default waktu saat ini pada mode create, tetap dapat diedit manual (input type=date dan type=datetime-local)",
+        "12. FE: N (jumlah_cages) diresolve via query langsung MillSettingService::getJumlahCages(businessUnitId) di Livewire (dipanggil ulang setiap kali Business Unit berganti pada mode create; sekali saat mount pada mode edit dari station record) — BUKAN lewat endpoint REST terpisah, konsisten dengan pola query-langsung BusinessUnit/WeighbridgeRecord/GradingParameter dropdown di screen-022/023; tombol 'Tambah baris' disabled jika Business Unit belum dipilih atau N=0",
+        "13. FE: Tambah baris menambah 1 baris kosong tanpa id dengan N checkbox cage (dari langkah 12); Hapus baris menghapus baris dari form state (jika punya id, dihapus dari array yang dikirim -> ditangani sebagai DELETE oleh backend)",
+        "14. FE: dropdown Time per baris = jam 0-23 DIKURANGI (jam yang sudah dipakai baris manapun) DAN (jam yang <= jam baris terakhir ditambahkan) — dihitung ulang reaktif setiap kali baris manapun berubah/ditambah/dihapus",
+        "15. FE: Total Cages dan Cages Remain dihitung reaktif client-side untuk preview (disabled, dikecualikan dari konvensi web-form-input sebagai computed value, sama seperti Net Weight/UOM/Percentage) menggunakan rumus yang sama seperti server, direkalkulasi tiap checklist baris berubah",
+        "16. FE: checkbox Checked hanya untuk role supervisor, Acknowledged hanya mill_management (pola sama dengan FormWeighbridge)",
+        "17. FE: render field per section (Identitas Cages Track, Tippler & Cages, Cages Tipped Time grid, Verifikasi)",
+        "18. Simpan berhasil -> navigasi ke Detail Cages Track (Web)",
+        "19. Batal -> kembali tanpa API call, dengan konfirmasi jika form dirty"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "cages-track-record",
+          "operation": "INSERT",
+          "description": "INSERT record baru"
+        },
+        {
+          "entity_id": "cages-track-record",
+          "operation": "UPDATE",
+          "description": "UPDATE record edit"
+        },
+        {
+          "entity_id": "cages-track-record",
+          "operation": "SELECT",
+          "description": "SELECT untuk prefill edit"
+        },
+        {
+          "entity_id": "cages-tipped-time",
+          "operation": "INSERT",
+          "description": "INSERT baris baru pada create/update"
+        },
+        {
+          "entity_id": "cages-tipped-time",
+          "operation": "UPDATE",
+          "description": "UPDATE baris existing pada update"
+        },
+        {
+          "entity_id": "cages-tipped-time",
+          "operation": "DELETE",
+          "description": "DELETE baris yang dihapus dari array pada update"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "Resolve station cages-track aktif dari business_unit_id"
+        },
+        {
+          "entity_id": "mill-setting",
+          "operation": "SELECT",
+          "description": "Resolve jumlah_cages (N) dari business_unit_id, auto-create default jika belum ada"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Field wajib kosong",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Tidak ada baris details valid",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "tipped_hour duplikat atau tidak ascending antar baris details",
+          "handling": "422 VALIDATION_ERROR (dicegah juga di UI via exclusion dropdown)"
+        },
+        {
+          "condition": "BU tanpa station cages-track aktif",
+          "handling": "422 NO_ACTIVE_CAGES_TRACK_STATION"
+        },
+        {
+          "condition": "id tidak ditemukan (update)",
+          "handling": "404 RECORD_NOT_FOUND"
+        },
+        {
+          "condition": "checked/acknowledged oleh role tidak berhak",
+          "handling": "diabaikan diam-diam"
+        },
+        {
+          "condition": "BU belum punya mill_setting",
+          "handling": "auto-create default (jumlah_cages=1) sebelum dipakai"
+        }
+      ],
+      "business_rules_applied": [
+        "Tidak ada draft/pause di web",
+        "Jumlah kolom checklist grid mengacu ke mill_setting.jumlah_cages, bukan cages_tipped header",
+        "Total Cages dan Cages Remain dihitung server, tidak menerima override",
+        "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Business Unit tidak berubah setelah dibuat"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "creates record with resolved station_id and inserted details when valid",
+          "given": "valid body dengan 1 baris details lengkap, BU punya 1 station cages-track aktif dan mill_setting.jumlah_cages=10",
+          "expect": "cages_track_record insert dengan station_id sesuai, status=saved, 1 cages_tipped_time row terinsert dengan total_cages/cages_remain terhitung"
+        },
+        {
+          "description": "computes total_cages and cages_remain from checked_cage_numbers and mill_setting.jumlah_cages",
+          "given": "mill_setting.jumlah_cages=10, detail checked_cage_numbers=[1,3,5]",
+          "expect": "total_cages=3, cages_remain=7"
+        },
+        {
+          "description": "auto-creates default mill_setting when business unit has none yet",
+          "given": "BU belum punya mill_setting row",
+          "expect": "mill_setting dibuat dengan jumlah_cages=1, dipakai untuk menghitung grid"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when required field empty",
+          "given": "cages_track_number kosong",
+          "expect": "ValidationException errors.cages_track_number"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when details array is empty",
+          "given": "details=[]",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when a detail row has empty checked_cage_numbers",
+          "given": "details berisi 1 baris dengan checked_cage_numbers=[]",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when tipped_hour is not strictly ascending across detail rows",
+          "given": "details berisi 2 baris dengan tipped_hour=[7, 5]",
+          "expect": "ValidationException errors.details, record tidak tersimpan"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when two detail rows share the same tipped_hour",
+          "given": "details berisi 2 baris dengan tipped_hour sama",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 NO_ACTIVE_CAGES_TRACK_STATION when BU has no active cages-track station",
+          "given": "Station query kosong untuk business_unit_id+type=cages-track",
+          "expect": "throw NoActiveCagesTrackStationException"
+        },
+        {
+          "description": "sets checked_by when checked=true and role=supervisor",
+          "given": "checked=true, role=supervisor",
+          "expect": "checked_by=requester id"
+        },
+        {
+          "description": "ignores checked=true when role is not supervisor",
+          "given": "checked=true, role=mill_management",
+          "expect": "checked_by tetap null, tidak error"
+        },
+        {
+          "description": "sets acknowledged_by when acknowledged=true and role=mill_management",
+          "given": "acknowledged=true, role=mill_management",
+          "expect": "acknowledged_by=requester id"
+        },
+        {
+          "description": "updates record and upserts details: inserts new row, updates existing row, deletes removed row",
+          "given": "PATCH dengan 1 baris baru (tanpa id), 1 baris existing (id, checked_cage_numbers diubah), 1 baris existing sebelumnya dihilangkan dari array",
+          "expect": "1 cages_tipped_time row terinsert baru, 1 ter-update total_cages/cages_remain-nya, 1 row lama terhapus"
+        },
+        {
+          "description": "updates record without accepting business_unit_id change",
+          "given": "PATCH tanpa business_unit_id",
+          "expect": "station_id tidak berubah"
+        },
+        {
+          "description": "404 RECORD_NOT_FOUND when updating non-existent id",
+          "given": "findOrFail throws",
+          "expect": "404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "getJumlahCages does not enforce MillSettingService::checkAccess role restriction",
+          "given": "acting user role=supervisor (rejected by checkAccess in getOrCreate)",
+          "expect": "getJumlahCages still returns the value successfully, no AuthorizationException"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "mill-setting",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-018--data-browser-cages-track-web",
+      "reason": "Entry point mode create"
+    },
+    {
+      "screen_id": "screen-021--detail-cages-track-web",
+      "reason": "Entry point mode edit dan tujuan navigasi setelah Simpan"
+    },
+    {
+      "screen_id": "screen-034--mills-setting",
+      "reason": "Sumber jumlah_cages yang menentukan jumlah kolom checklist grid"
+    }
+  ],
+  "implementation_notes": [
+    "DIVERGENSI DARI MOBILE: Tanggal/Tippler Start Time/Tippler Stop Time pada web masing-masing default waktu saat ini namun TETAP dapat diedit manual - berbeda dari mobile (screen-012) yang menguncinya/membekukannya otomatis. Gunakan input type=date dan type=datetime-local",
+    "DIVERGENSI DARI MOBILE: data web dapat diedit setelah tersimpan (mode edit penuh), tidak ada draft/pause/Clear - status langsung saved",
+    "PENGECUALIAN konvensi web-form-input: Total Cages dan Cages Remain tiap baris tetap disabled - computed server-side dari checked_cage_numbers dan mill_setting.jumlah_cages, sama alasan seperti Net Weight (Form Weighbridge Web) dan UOM/Percentage (Form Grading Web)",
+    "BARU: MillSettingService::getJumlahCages(string $businessUnitId): int - method baru, TIDAK memanggil checkAccess(), auto-create default row (jumlah_cages=1) via findOrCreateRow() yang sudah ada; dipakai screen ini karena N dibutuhkan oleh Supervisor juga (yang direject checkAccess() milik getOrCreate())",
+    "Business Unit dropdown reuse GET /api/business-units (sudah ada, publik) — atau query langsung Eloquent di Livewire mount(), mengikuti pola screen-022/023",
+    "Mode edit prefill reuse GET /api/cages-track-records/{id} (screen-021)",
+    "Route web /data/cages-track/create HARUS didaftarkan SEBELUM /data/cages-track/{id} agar tidak tertangkap sebagai {id} - sama pola dengan screen-022/023",
+    "Checked By DAN Acknowledged By sebagai checkbox self-attestation (keduanya ada di screen ini, berbeda dari Form Weighbridge/Grading Web yang hanya Acknowledged atau tanpa Checked sama sekali) - mengisi checked_by/acknowledged_by dengan id user login, role-gated",
+    "Detail upsert (insert/update/delete baris) dijalankan dalam DB transaction agar konsisten, sama pola dengan Grading Detail"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Buat Record Cages Track Baru — berhasil",
+      "usecase_id": "usecase-024--form-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/cages-track-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_uuid}}",
+            "cages_track_number": "CT-WEB-001",
+            "date": "2026-08-20",
+            "tippler_start_time": "2026-08-20T08:00:00Z",
+            "tippler_stop_time": "2026-08-20T09:00:00Z",
+            "cages_out": 12,
+            "cages_tipped": 10,
+            "details": [
+              {
+                "tipped_hour": 8,
+                "checked_cage_numbers": [
+                  1,
+                  2,
+                  3
+                ]
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormCagesTrack",
+        "action": "pilih Business Unit, isi field wajib, tambah 1 baris Cages Tipped Time, klik Simpan",
+        "assert": "record tersimpan, navigasi ke Detail Cages Track"
+      },
+      "browser_test": {
+        "route": "/data/cages-track/create",
+        "action": "klik Tambah Data, isi form lengkap termasuk 1 baris Cages Tipped Time, klik Simpan",
+        "assert": "halaman Detail menampilkan record baru beserta grid detail"
+      }
+    },
+    {
+      "scenario_ref": "Edit Record Cages Track — berhasil",
+      "usecase_id": "usecase-024--form-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/cages-track-records/{id}"
+          },
+          "request_example": {
+            "id": "{{record_uuid}}",
+            "cages_track_number": "CT-WEB-001-EDIT",
+            "date": "2026-08-20",
+            "tippler_start_time": "2026-08-20T08:00:00Z",
+            "tippler_stop_time": "2026-08-20T09:30:00Z",
+            "cages_out": 12,
+            "cages_tipped": 10,
+            "details": [
+              {
+                "id": "{{detail_uuid}}",
+                "tipped_hour": 8,
+                "checked_cage_numbers": [
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormCagesTrack",
+        "action": "buka mode edit, ubah Tippler Stop Time dan checklist baris, klik Simpan",
+        "assert": "perubahan tersimpan"
+      },
+      "browser_test": {
+        "route": "/data/cages-track/{id}/edit",
+        "action": "klik Edit dari Detail, ubah field, klik Simpan",
+        "assert": "Detail menampilkan nilai baru"
+      }
+    },
+    {
+      "scenario_ref": "Tanggal & Tippler Time Dapat Diedit Manual",
+      "usecase_id": "usecase-024--form-cages-track-web",
+      "api_test": [],
+      "component_test": {
+        "component": "FormCagesTrack",
+        "action": "ubah input Tanggal/Tippler Start/Stop Time manual sebelum Simpan",
+        "assert": "nilai input user tersimpan, bukan default waktu saat ini"
+      },
+      "browser_test": {
+        "route": "/data/cages-track/create",
+        "action": "ubah Tanggal & Tippler Time manual, isi field lain, klik Simpan",
+        "assert": "record tersimpan sesuai input user"
+      }
+    },
+    {
+      "scenario_ref": "Jumlah Kolom Grid Mengikuti Mills Setting, Bukan Cages Tipped Header",
+      "usecase_id": "usecase-024--form-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/cages-track-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_jumlah_cages_8_uuid}}",
+            "cages_track_number": "CT-COL",
+            "date": "2026-08-20",
+            "tippler_start_time": "2026-08-20T08:00:00Z",
+            "tippler_stop_time": "2026-08-20T09:00:00Z",
+            "cages_out": 12,
+            "cages_tipped": 15,
+            "details": [
+              {
+                "tipped_hour": 8,
+                "checked_cage_numbers": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ]
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormCagesTrack",
+        "action": "pilih BU dengan Jumlah Cages=8 di Mills Setting, isi header Cages Tipped=15, tambah 1 baris",
+        "assert": "baris tersebut menampilkan 8 checkbox (dari mill_setting), bukan 15 (header tidak berpengaruh)"
+      },
+      "browser_test": {
+        "route": "/data/cages-track/create",
+        "action": "pilih BU dengan Jumlah Cages=8, isi Cages Tipped header dengan 15, tambah 1 baris",
+        "assert": "grid menampilkan 8 kolom checklist, bukan 15"
+      }
+    },
+    {
+      "scenario_ref": "Field Wajib Belum Lengkap",
+      "usecase_id": "usecase-024--form-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/cages-track-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_uuid}}"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormCagesTrack",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      },
+      "browser_test": {
+        "route": "/data/cages-track/create",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      }
+    },
+    {
+      "scenario_ref": "Belum Ada Baris Cages Tipped Time Valid",
+      "usecase_id": "usecase-024--form-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/cages-track-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_uuid}}",
+            "cages_track_number": "CT-X",
+            "date": "2026-08-20",
+            "tippler_start_time": "2026-08-20T08:00:00Z",
+            "tippler_stop_time": "2026-08-20T09:00:00Z",
+            "cages_out": 12,
+            "cages_tipped": 10,
+            "details": []
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormCagesTrack",
+        "action": "isi seluruh header, jangan tambah baris Cages Tipped Time, klik Simpan",
+        "assert": "pesan error khusus muncul"
+      },
+      "browser_test": {
+        "route": "/data/cages-track/create",
+        "action": "isi header lengkap tanpa baris detail, klik Simpan",
+        "assert": "pesan error khusus muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Business Unit Tanpa Station Cages Track Aktif",
+      "usecase_id": "usecase-024--form-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/cages-track-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_tanpa_cages_track_uuid}}",
+            "cages_track_number": "CT-Y",
+            "date": "2026-08-20",
+            "tippler_start_time": "2026-08-20T08:00:00Z",
+            "tippler_stop_time": "2026-08-20T09:00:00Z",
+            "cages_out": 12,
+            "cages_tipped": 10,
+            "details": [
+              {
+                "tipped_hour": 8,
+                "checked_cage_numbers": [
+                  1
+                ]
+              }
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "NO_ACTIVE_CAGES_TRACK_STATION"
+        }
+      ],
+      "component_test": {
+        "component": "FormCagesTrack",
+        "action": "pilih BU tanpa station cages-track aktif, klik Simpan",
+        "assert": "error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/cages-track/create",
+        "action": "pilih BU tanpa station cages-track, klik Simpan",
+        "assert": "error ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Time Tidak Bisa Duplikat Atau Mundur",
+      "usecase_id": "usecase-024--form-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/cages-track-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_uuid}}",
+            "cages_track_number": "CT-DUP",
+            "date": "2026-08-20",
+            "tippler_start_time": "2026-08-20T08:00:00Z",
+            "tippler_stop_time": "2026-08-20T09:00:00Z",
+            "cages_out": 12,
+            "cages_tipped": 10,
+            "details": [
+              {
+                "tipped_hour": 7,
+                "checked_cage_numbers": [
+                  1
+                ]
+              },
+              {
+                "tipped_hour": 5,
+                "checked_cage_numbers": [
+                  2
+                ]
+              }
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormCagesTrack",
+        "action": "pilih jam 7 di baris pertama, buka dropdown Time baris kedua",
+        "assert": "hanya jam 8 ke atas yang tersedia sebagai opsi"
+      },
+      "browser_test": {
+        "route": "/data/cages-track/create",
+        "action": "pilih jam 7 pada baris pertama, tambah baris kedua, buka dropdown Time baris kedua",
+        "assert": "hanya jam 8 ke atas yang tersedia"
+      }
+    },
+    {
+      "scenario_ref": "Record Tidak Ditemukan (mode edit)",
+      "usecase_id": "usecase-024--form-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/cages-track-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "cages_track_number": "X",
+            "date": "2026-08-20",
+            "tippler_start_time": "2026-08-20T08:00:00Z",
+            "tippler_stop_time": "2026-08-20T09:00:00Z",
+            "cages_out": 12,
+            "cages_tipped": 10,
+            "details": [
+              {
+                "tipped_hour": 8,
+                "checked_cage_numbers": [
+                  1
+                ]
+              }
+            ]
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "FormCagesTrack",
+        "action": "render edit dengan GET 404",
+        "assert": "pesan error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/cages-track/00000000-0000-0000-0000-000000000000/edit",
+        "action": "navigasi ke id tidak valid",
+        "assert": "halaman menampilkan error"
+      }
+    }
+  ]
+}

@@ -1,0 +1,647 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-023--form-grading-web",
+  "name": "Form Grading (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/grading/create (buat baru), /data/grading/{id}/edit (ubah)",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-023--form-grading-web",
+      "usecase_name": "Input Data Grading (Web)",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/grading-records",
+          "description": "Membuat record Grading baru beserta baris Grading Detail; station diresolve dari business_unit_id",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "business_unit_id": "uuid, required",
+              "grading_number": "string, required",
+              "date": "date, required",
+              "weighbridge_record_id": "uuid, required",
+              "license_plate_no": "string, required",
+              "vehicle_code": "string, optional",
+              "estate_supplier": "string, required",
+              "division": "string, optional",
+              "netto": "float, required",
+              "quantity": "float, required",
+              "note": "string, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of {id?: uuid, grading_parameter_id: uuid, quantity: float}, required, min 1 item"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "grading_number": "string",
+              "date": "date",
+              "status": "string",
+              "details": "array of resolved detail rows"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong, atau details kosong, atau grading_parameter_id duplikat antar baris"
+              },
+              {
+                "http_code": 422,
+                "error_code": "NO_ACTIVE_GRADING_STATION",
+                "condition": "business unit tanpa station grading aktif"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/grading-records/{id}",
+          "description": "Memperbarui record Grading tersimpan beserta baris Grading Detail (upsert: baris tanpa id di-insert, baris dengan id di-update, baris yang dihapus dari array di-delete)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID record"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "grading_number": "string, required",
+              "date": "date, required",
+              "weighbridge_record_id": "uuid, required",
+              "license_plate_no": "string, required",
+              "vehicle_code": "string, optional",
+              "estate_supplier": "string, required",
+              "division": "string, optional",
+              "netto": "float, required",
+              "quantity": "float, required",
+              "note": "string, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of {id?: uuid, grading_parameter_id: uuid, quantity: float}, required, min 1 item"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "grading_number": "string",
+              "status": "string",
+              "details": "array of resolved detail rows"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong, atau details kosong, atau grading_parameter_id duplikat antar baris"
+              },
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Create: validate field wajib (grading_number, weighbridge_record_id, license_plate_no, estate_supplier, netto, quantity) + minimal 1 baris details valid (grading_parameter_id+quantity terisi) + tidak ada grading_parameter_id duplikat antar baris -> 422 VALIDATION_ERROR",
+        "2. Create: resolve station = Station WHERE business_unit_id AND type=grading AND is_active=true -> 422 NO_ACTIVE_GRADING_STATION jika tidak ada",
+        "3. Untuk tiap baris details: resolve GradingParameter by id -> uom = snapshot dari grading_parameter.uom; percentage dihitung server-side: quantity_baris/netto*100 jika uom=kg, quantity_baris/quantity_header*100 jika uom=bunch",
+        "4. acknowledged=true+role=mill_management -> acknowledged_by=requester id; role lain diabaikan diam-diam",
+        "5. Dalam transaksi DB: INSERT grading_record (status=saved) lalu INSERT seluruh grading_detail rows",
+        "6. Update: validate id -> 404 jika tidak ada -> validate field wajib + details sama seperti create -> 422 jika gagal",
+        "7. Update: business_unit_id/station_id tidak diterima dari body, tidak berubah",
+        "8. Dalam transaksi DB: UPDATE grading_record, lalu upsert grading_detail (baris tanpa id: INSERT; baris dengan id yang masih ada di array: UPDATE; baris yang sebelumnya ada di DB tapi tidak lagi ada di array: DELETE)",
+        "9. FE: mode create tampilkan dropdown Business Unit (query langsung BusinessUnit di Livewire mount(), sama seperti FormWeighbridge); mode edit GET /api/grading-records/{id} untuk prefill, BU ditampilkan read-only",
+        "10. FE: dropdown WB Card No = query WeighbridgeRecord WHERE station.business_unit_id = Business Unit terpilih, urut record_datetime terbaru dulu (query langsung di Livewire, bukan endpoint terpisah, mengikuti pola query-langsung BusinessUnit/GradingParameter)",
+        "11. FE: on pilih WB Card No: auto-isi license_plate_no dari vehicle_number, estate_supplier, division dari weighbridge_record terkait; auto-fill hanya terjadi ULANG setiap kali WB Card No BERGANTI (bukan tiap render), field tetap dapat diedit manual setelahnya",
+        "12. FE: dropdown Quality Parameter per baris = seluruh GradingParameter (query langsung di Livewire mount(), urut sort_order) DIKURANGI grading_parameter_id yang sudah dipilih baris LAIN pada grid yang sama, dihitung ulang reaktif tiap kali baris manapun berubah/ditambah/dihapus",
+        "13. FE: UOM per baris di-set otomatis dari grading_parameter yang dipilih (disabled/read-only, dikecualikan dari konvensi web-form-input sebagai data snapshot); Percentage dihitung reaktif client-side untuk preview (disabled, dikecualikan sebagai computed value) menggunakan rumus yang sama seperti server, direkalkulasi tiap qty baris atau netto/quantity header berubah",
+        "14. FE: Tambah baris menambah 1 baris kosong tanpa id; Hapus baris menghapus baris dari form state (jika punya id, dihapus dari array yang dikirim -> ditangani sebagai DELETE oleh backend)",
+        "15. FE: render field per section (Identitas Grading, Referensi Weighbridge & Kendaraan, Asal Muatan, Data Berat & Kuantitas, Grading Detail grid, Verifikasi)",
+        "16. Simpan berhasil -> navigasi ke Detail Grading (Web)",
+        "17. Batal -> kembali tanpa API call, dengan konfirmasi jika form dirty"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "grading-record",
+          "operation": "INSERT",
+          "description": "INSERT record baru"
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "UPDATE",
+          "description": "UPDATE record edit"
+        },
+        {
+          "entity_id": "grading-record",
+          "operation": "SELECT",
+          "description": "SELECT untuk prefill edit"
+        },
+        {
+          "entity_id": "grading-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru pada create/update"
+        },
+        {
+          "entity_id": "grading-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris existing pada update"
+        },
+        {
+          "entity_id": "grading-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris yang dihapus dari array pada update"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "Resolve station grading aktif dari business_unit_id"
+        },
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "SELECT",
+          "description": "Populate dropdown WB Card No scoped ke business unit, dan auto-fill saat dipilih"
+        },
+        {
+          "entity_id": "grading-parameter",
+          "operation": "SELECT",
+          "description": "Populate dropdown Quality Parameter per baris"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Field wajib kosong",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Tidak ada baris details valid",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "grading_parameter_id duplikat antar baris details",
+          "handling": "422 VALIDATION_ERROR (dicegah juga di UI via exclusion dropdown)"
+        },
+        {
+          "condition": "BU tanpa station grading aktif",
+          "handling": "422 NO_ACTIVE_GRADING_STATION"
+        },
+        {
+          "condition": "id tidak ditemukan (update)",
+          "handling": "404 RECORD_NOT_FOUND"
+        },
+        {
+          "condition": "acknowledged oleh role tidak berhak",
+          "handling": "diabaikan diam-diam"
+        },
+        {
+          "condition": "Ganti WB Card No setelah auto-fill",
+          "handling": "FE re-isi ulang license_plate_no/estate_supplier/division dari record baru"
+        }
+      ],
+      "business_rules_applied": [
+        "Tidak ada draft/pause di web",
+        "WB Card No wajib dipilih dari dropdown",
+        "Setiap Quality Parameter hanya dapat dipakai di satu baris",
+        "UOM dan Percentage adalah computed/snapshot, tidak dapat diedit manual",
+        "Business Unit tidak berubah setelah record dibuat",
+        "Acknowledged By hanya Mill Management"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "creates record with resolved station_id and inserted details when valid",
+          "given": "valid body dengan 1 baris details lengkap, BU punya 1 station grading aktif",
+          "expect": "grading_record insert dengan station_id sesuai, status=saved, 1 grading_detail row terinsert dengan uom snapshot dan percentage terhitung"
+        },
+        {
+          "description": "computes detail percentage using netto when uom is kg",
+          "given": "header netto=1000, detail quantity=250, grading_parameter.uom=kg",
+          "expect": "detail percentage = 25"
+        },
+        {
+          "description": "computes detail percentage using quantity when uom is bunch",
+          "given": "header quantity=120, detail quantity=30, grading_parameter.uom=bunch",
+          "expect": "detail percentage = 25"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when required field empty",
+          "given": "grading_number kosong",
+          "expect": "ValidationException errors.grading_number"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when details array is empty",
+          "given": "details=[]",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when two detail rows share the same grading_parameter_id",
+          "given": "details berisi 2 baris dengan grading_parameter_id sama",
+          "expect": "ValidationException errors.details, record tidak tersimpan"
+        },
+        {
+          "description": "422 NO_ACTIVE_GRADING_STATION when BU has no active grading station",
+          "given": "Station query kosong untuk business_unit_id+type=grading",
+          "expect": "throw NoActiveGradingStationException"
+        },
+        {
+          "description": "sets acknowledged_by when acknowledged=true and role=mill_management",
+          "given": "acknowledged=true, role=mill_management",
+          "expect": "acknowledged_by=requester id"
+        },
+        {
+          "description": "ignores acknowledged=true when role is not mill_management",
+          "given": "acknowledged=true, role=supervisor",
+          "expect": "acknowledged_by tetap null, tidak error"
+        },
+        {
+          "description": "updates record and upserts details: inserts new row, updates existing row, deletes removed row",
+          "given": "PATCH dengan 1 baris baru (tanpa id), 1 baris existing (dengan id, quantity diubah), 1 baris existing sebelumnya dihilangkan dari array",
+          "expect": "1 grading_detail row terinsert baru, 1 ter-update quantity+percentage-nya, 1 row lama terhapus"
+        },
+        {
+          "description": "updates record without accepting business_unit_id change",
+          "given": "PATCH tanpa business_unit_id",
+          "expect": "station_id tidak berubah"
+        },
+        {
+          "description": "404 RECORD_NOT_FOUND when updating non-existent id",
+          "given": "findOrFail throws",
+          "expect": "404 RECORD_NOT_FOUND"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "weighbridge-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "grading-parameter",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-017--data-browser-grading-web",
+      "reason": "Entry point mode create"
+    },
+    {
+      "screen_id": "screen-020--detail-grading-web",
+      "reason": "Entry point mode edit dan tujuan navigasi setelah Simpan"
+    }
+  ],
+  "implementation_notes": [
+    "DIVERGENSI DARI MOBILE: Tanggal pada web default hari ini namun TETAP dapat diedit manual - berbeda dari mobile (screen-011) yang menguncinya. Gunakan input type=date",
+    "DIVERGENSI DARI MOBILE: data web dapat diedit setelah tersimpan (mode edit penuh), tidak ada draft/pause - status langsung saved",
+    "PENGECUALIAN konvensi web-form-input: UOM dan Percentage tiap baris Grading Detail tetap disabled - computed/snapshot server-side, sama alasan seperti Net Weight pada Form Weighbridge Web (data-integrity, bukan role-based)",
+    "vehicle_code bersifat optional (mengikuti perubahan yang sudah diterapkan di Form Grading mobile sebelumnya di sesi ini)",
+    "WB Card No dropdown scoped ke business_unit_id via query langsung Livewire (WeighbridgeRecord whereHas station.business_unit_id), bukan endpoint REST terpisah - sama pola dengan Business Unit dan Quality Parameter dropdown",
+    "Route web /data/grading/create HARUS didaftarkan SEBELUM /data/grading/{id} (screen-020) agar tidak tertangkap sebagai {id} - sama pola dengan screen-022",
+    "Detail upsert (insert/update/delete baris) dijalankan dalam DB transaction agar konsisten",
+    "Acknowledged sebagai checkbox self-attestation, mengisi acknowledged_by dengan id user login; Checked By tidak diimplementasikan sama sekali di screen ini, konsisten dengan mobile screen-011 dan Detail Grading Web"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Buat Record Grading Baru — berhasil",
+      "usecase_id": "usecase-023--form-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/grading-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_uuid}}",
+            "grading_number": "GR-WEB-001",
+            "date": "2026-08-20",
+            "weighbridge_record_id": "{{weighbridge_record_uuid}}",
+            "license_plate_no": "B 1234 XY",
+            "estate_supplier": "Estate A",
+            "netto": 1000,
+            "quantity": 120,
+            "details": [
+              {
+                "grading_parameter_id": "{{grading_parameter_uuid}}",
+                "quantity": 30
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormGrading",
+        "action": "pilih Business Unit, WB Card No, isi field wajib, tambah 1 baris Grading Detail, klik Simpan",
+        "assert": "record tersimpan, navigasi ke Detail Grading"
+      },
+      "browser_test": {
+        "route": "/data/grading/create",
+        "action": "klik Tambah Data, isi form lengkap termasuk 1 baris Grading Detail, klik Simpan",
+        "assert": "halaman Detail menampilkan record baru beserta grid detail"
+      }
+    },
+    {
+      "scenario_ref": "Edit Record Grading — berhasil",
+      "usecase_id": "usecase-023--form-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/grading-records/{id}"
+          },
+          "request_example": {
+            "id": "{{record_uuid}}",
+            "grading_number": "GR-WEB-001-EDIT",
+            "date": "2026-08-20",
+            "weighbridge_record_id": "{{weighbridge_record_uuid}}",
+            "license_plate_no": "B 1234 XY",
+            "estate_supplier": "Estate A",
+            "netto": 1100,
+            "quantity": 130,
+            "details": [
+              {
+                "id": "{{detail_uuid}}",
+                "grading_parameter_id": "{{grading_parameter_uuid}}",
+                "quantity": 35
+              }
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormGrading",
+        "action": "buka mode edit, ubah Netto dan Qty baris detail, klik Simpan",
+        "assert": "perubahan tersimpan"
+      },
+      "browser_test": {
+        "route": "/data/grading/{id}/edit",
+        "action": "klik Edit dari Detail, ubah field, klik Simpan",
+        "assert": "Detail menampilkan nilai baru"
+      }
+    },
+    {
+      "scenario_ref": "Tanggal Dapat Diedit Manual",
+      "usecase_id": "usecase-023--form-grading-web",
+      "api_test": [],
+      "component_test": {
+        "component": "FormGrading",
+        "action": "ubah input Tanggal manual sebelum Simpan",
+        "assert": "nilai input user tersimpan, bukan default hari ini"
+      },
+      "browser_test": {
+        "route": "/data/grading/create",
+        "action": "ubah Tanggal manual, isi field lain, klik Simpan",
+        "assert": "record tersimpan sesuai input user"
+      }
+    },
+    {
+      "scenario_ref": "Quality Parameter Tidak Bisa Duplikat Antar Baris",
+      "usecase_id": "usecase-023--form-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/grading-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_uuid}}",
+            "grading_number": "GR-DUP",
+            "date": "2026-08-20",
+            "weighbridge_record_id": "{{weighbridge_record_uuid}}",
+            "license_plate_no": "B",
+            "estate_supplier": "E",
+            "netto": 100,
+            "quantity": 10,
+            "details": [
+              {
+                "grading_parameter_id": "{{gp_uuid}}",
+                "quantity": 5
+              },
+              {
+                "grading_parameter_id": "{{gp_uuid}}",
+                "quantity": 5
+              }
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormGrading",
+        "action": "pilih Quality Parameter di baris 1, buka dropdown baris 2",
+        "assert": "parameter baris 1 tidak muncul sebagai opsi di baris 2"
+      },
+      "browser_test": {
+        "route": "/data/grading/create",
+        "action": "tambah 2 baris, pilih Quality Parameter sama di keduanya jika dipaksa via API",
+        "assert": "server menolak dengan error validasi"
+      }
+    },
+    {
+      "scenario_ref": "Field Wajib Belum Lengkap",
+      "usecase_id": "usecase-023--form-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/grading-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_uuid}}"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormGrading",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      },
+      "browser_test": {
+        "route": "/data/grading/create",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      }
+    },
+    {
+      "scenario_ref": "Belum Ada Baris Grading Detail Valid",
+      "usecase_id": "usecase-023--form-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/grading-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_uuid}}",
+            "grading_number": "GR-X",
+            "date": "2026-08-20",
+            "weighbridge_record_id": "{{weighbridge_record_uuid}}",
+            "license_plate_no": "B",
+            "estate_supplier": "E",
+            "netto": 100,
+            "quantity": 10,
+            "details": []
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormGrading",
+        "action": "isi seluruh header, jangan tambah baris Grading Detail, klik Simpan",
+        "assert": "pesan error khusus grading detail muncul"
+      },
+      "browser_test": {
+        "route": "/data/grading/create",
+        "action": "isi header lengkap tanpa baris detail, klik Simpan",
+        "assert": "pesan error khusus grading detail muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Business Unit Tanpa Station Grading Aktif",
+      "usecase_id": "usecase-023--form-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/grading-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{business_unit_tanpa_grading_uuid}}",
+            "grading_number": "GR-Y",
+            "date": "2026-08-20",
+            "weighbridge_record_id": "{{weighbridge_record_uuid}}",
+            "license_plate_no": "B",
+            "estate_supplier": "E",
+            "netto": 100,
+            "quantity": 10,
+            "details": [
+              {
+                "grading_parameter_id": "{{gp_uuid}}",
+                "quantity": 5
+              }
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "NO_ACTIVE_GRADING_STATION"
+        }
+      ],
+      "component_test": {
+        "component": "FormGrading",
+        "action": "pilih BU tanpa station grading aktif, klik Simpan",
+        "assert": "error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/grading/create",
+        "action": "pilih BU tanpa station grading, klik Simpan",
+        "assert": "error ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Record Tidak Ditemukan (mode edit)",
+      "usecase_id": "usecase-023--form-grading-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/grading-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "grading_number": "X",
+            "date": "2026-08-20",
+            "weighbridge_record_id": "{{weighbridge_record_uuid}}",
+            "license_plate_no": "B",
+            "estate_supplier": "E",
+            "netto": 100,
+            "quantity": 10,
+            "details": [
+              {
+                "grading_parameter_id": "{{gp_uuid}}",
+                "quantity": 5
+              }
+            ]
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "FormGrading",
+        "action": "render edit dengan GET 404",
+        "assert": "pesan error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/grading/00000000-0000-0000-0000-000000000000/edit",
+        "action": "navigasi ke id tidak valid",
+        "assert": "halaman menampilkan error"
+      }
+    }
+  ]
+}

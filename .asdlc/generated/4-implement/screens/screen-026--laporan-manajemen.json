@@ -1,0 +1,67 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-026--laporan-manajemen",
+  "name": "Laporan Manajemen",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/ManagementReportService.php",
+    "backend/app/Http/Controllers/Api/ManagementReportController.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/ManagementReportServiceTest.php",
+    "backend/tests/Feature/Api/ManagementReportTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/ManagementReport.php",
+    "backend/resources/views/livewire/dashboard/management-report.blade.php",
+    "backend/resources/views/dashboard/management-report.blade.php",
+    "backend/routes/web.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/ManagementReportTest.php",
+    "backend/tests/Browser/ManagementReportTest.php"
+  ],
+  "implementation_notes": [
+    "ManagementReportService baru (bukan reuse DashboardService/screen-025) karena bentuk data berbeda: satu row PER HARI + baris Total, bukan satu snapshot rentang gabungan, dan business_unit_id selalu diresolve dari acting user (bukan query param) karena Mill Management hanya punya satu mill",
+    "Route web /reports/management dan layout dashboard.management-report.blade.php dibuat baru (bukan reuse dashboard.index) supaya judul halaman & sidebar-active-state benar; sidebar 'Laporan Manajemen' ditambahkan ke seluruh 18 view yang punya shell-sidebar__nav di codebase ini untuk konsistensi navigasi",
+    "Endpoint dual-guarded 'auth:web,sanctum' tapi role dibatasi hanya mill_management (bukan supervisor/admin seperti screen-025), sesuai actor_permissions",
+    "export() reuse pola WeighbridgeRecordService::export() -- CSV native, format=excel fallback ke CSV dengan xlsx mimetype",
+    "Route registrations di routes/api.php dan routes/web.php untuk screen-025 sekaligus dibersihkan dari komentar PLACEHOLDER yang sudah usang (screen-025 sudah diimplementasikan penuh sesi sebelumnya)"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) test ditulis lengkap tapi tidak dijalankan -- tidak ada browser/dev server di sandbox ini, known_issue yang sama seperti semua screen web lain sesi ini",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 9,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 9,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -233,3 +233,179 @@ it('returns a StreamedResponse with the correct content-type for csv and excel f
     'csv' => ['csv', 'text/csv'],
     'excel' => ['excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
 ]);
+
+/**
+ * getDetail() — screen-019--detail-weighbridge-web unit test cases.
+ */
+it('throws ModelNotFoundException when the id does not exist', function () {
+    $this->service->getDetail((string) Str::uuid());
+})->throws(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+
+it('returns the full record with resolved station_name when id exists', function () {
+    $record = WeighbridgeRecord::factory()->forStation($this->station)->ofType('receive')->create();
+
+    $result = $this->service->getDetail($record->id);
+
+    expect($result['id'])->toBe($record->id);
+    expect($result['station_name'])->toBe($this->station->name);
+    expect($result['weighbridge_type'])->toBe('receive');
+});
+
+it('returns destination populated when weighbridge_type=dispatch', function () {
+    $record = WeighbridgeRecord::factory()->forStation($this->station)->ofType('dispatch')->create(['destination' => 'PKS Sukamaju']);
+
+    $result = $this->service->getDetail($record->id);
+
+    expect($result['destination'])->toBe('PKS Sukamaju');
+});
+
+it('returns null checked_by_name/acknowledged_by_name when not set', function () {
+    $record = WeighbridgeRecord::factory()->forStation($this->station)->create(['checked_by' => null, 'acknowledged_by' => null]);
+
+    $result = $this->service->getDetail($record->id);
+
+    expect($result['checked_by_name'])->toBeNull();
+    expect($result['acknowledged_by_name'])->toBeNull();
+});
+
+it('resolves checked_by_name/acknowledged_by_name to user names when present', function () {
+    $checker = User::factory()->create(['name' => 'Budi Supervisor']);
+    $acknowledger = User::factory()->create(['name' => 'Siti Manager']);
+    $record = WeighbridgeRecord::factory()->forStation($this->station)->create([
+        'checked_by' => $checker->id,
+        'acknowledged_by' => $acknowledger->id,
+    ]);
+
+    $result = $this->service->getDetail($record->id);
+
+    expect($result['checked_by_name'])->toBe('Budi Supervisor');
+    expect($result['acknowledged_by_name'])->toBe('Siti Manager');
+});
+
+/**
+ * create()/update() — screen-022--form-weighbridge-web unit_test_cases.
+ */
+function weighbridgeFormPayload(array $overrides = []): array
+{
+    return array_merge([
+        'wb_card_number' => 'WB-TEST-001',
+        'weighbridge_type' => 'receive',
+        'record_datetime' => '2026-08-20T08:00:00',
+        'vehicle_number' => 'B 1234 XY',
+        'driver_name' => 'Budi',
+        'estate_supplier' => 'Estate A',
+        'gross_weight' => 15000,
+        'tare_weight' => 5000,
+    ], $overrides);
+}
+
+it('creates record with resolved station_id when all required fields valid (type=receive)', function () {
+    $result = $this->service->create(
+        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id]),
+        $this->creator
+    );
+
+    expect($result['station_id'])->toBe($this->station->id);
+    expect($result['status'])->toBe('saved');
+    expect($result['net_weight'])->toBe(10000.0);
+});
+
+it('creates record successfully when type=dispatch and destination provided', function () {
+    $result = $this->service->create(
+        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id, 'weighbridge_type' => 'dispatch', 'destination' => 'PKS A']),
+        $this->creator
+    );
+
+    expect($result['destination'])->toBe('PKS A');
+});
+
+it('throws ValidationException when destination is empty and type=dispatch', function () {
+    expect(fn () => $this->service->create(
+        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id, 'weighbridge_type' => 'dispatch']),
+        $this->creator
+    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+});
+
+it('throws ValidationException when a required field is empty', function () {
+    expect(fn () => $this->service->create(
+        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id, 'wb_card_number' => '']),
+        $this->creator
+    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+});
+
+it('throws NoActiveWeighbridgeStationException when business_unit_id has no active weighbridge station', function () {
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+
+    expect(fn () => $this->service->create(
+        weighbridgeFormPayload(['business_unit_id' => $otherBusinessUnit->id]),
+        $this->creator
+    ))->toThrow(\App\Exceptions\NoActiveWeighbridgeStationException::class);
+});
+
+it('sets checked_by to requester id when checked=true and requester role=supervisor', function () {
+    $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->create();
+
+    $result = $this->service->create(
+        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id, 'checked' => true]),
+        $supervisor
+    );
+
+    expect($result['checked_by_name'])->toBe($supervisor->name);
+});
+
+it('ignores checked=true when requester role is not supervisor', function () {
+    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->create();
+
+    $result = $this->service->create(
+        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id, 'checked' => true]),
+        $millManagement
+    );
+
+    expect($result['checked_by_name'])->toBeNull();
+});
+
+it('sets acknowledged_by to requester id when acknowledged=true and requester role=mill_management', function () {
+    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->create();
+
+    $result = $this->service->create(
+        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id, 'acknowledged' => true]),
+        $millManagement
+    );
+
+    expect($result['acknowledged_by_name'])->toBe($millManagement->name);
+});
+
+it('updates an existing record and does not accept a business_unit_id change', function () {
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherBusinessUnit)->create();
+    $record = WeighbridgeRecord::factory()->forStation($this->station)->create();
+
+    $result = $this->service->update(
+        $record->id,
+        weighbridgeFormPayload(['business_unit_id' => $otherBusinessUnit->id, 'wb_card_number' => 'WB-EDITED']),
+        $this->creator
+    );
+
+    expect($result['station_id'])->toBe($this->station->id);
+    expect($result['wb_card_number'])->toBe('WB-EDITED');
+});
+
+it('throws ModelNotFoundException when updating a non-existent id', function () {
+    expect(fn () => $this->service->update(
+        (string) Str::uuid(),
+        weighbridgeFormPayload(),
+        $this->creator
+    ))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+});
+
+it('recomputes net_weight via model event on update regardless of gross/tare change', function () {
+    $record = WeighbridgeRecord::factory()->forStation($this->station)->create(['gross_weight' => 10000, 'tare_weight' => 3000]);
+
+    $result = $this->service->update(
+        $record->id,
+        weighbridgeFormPayload(['gross_weight' => 12000, 'tare_weight' => 4000]),
+        $this->creator
+    );
+
+    expect($result['net_weight'])->toBe(8000.0);
+});

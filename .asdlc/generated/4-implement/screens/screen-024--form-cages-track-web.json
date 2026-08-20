@@ -1,0 +1,95 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-024--form-cages-track-web",
+  "name": "Form Cages Track (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Exceptions/NoActiveCagesTrackStationException.php",
+    "backend/app/Services/CagesTrackRecordService.php",
+    "backend/app/Services/MillSettingService.php",
+    "backend/app/Http/Controllers/Api/CagesTrackRecordController.php",
+    "backend/app/Models/CagesTippedTime.php",
+    "backend/routes/api.php",
+    "backend/database/factories/StationFactory.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/CagesTrackRecordServiceTest.php",
+    "backend/tests/Feature/Api/FormCagesTrackTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormCagesTrack.php",
+    "backend/resources/views/livewire/data/form-cages-track.blade.php",
+    "backend/resources/views/data/cages-track-form.blade.php",
+    "backend/routes/web.php",
+    "backend/resources/views/livewire/data/data-browser-cages-track.blade.php",
+    "backend/resources/views/livewire/data/detail-cages-track.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormCagesTrackTest.php",
+    "backend/tests/Browser/FormCagesTrackTest.php"
+  ],
+  "implementation_notes": [
+    "Satu Livewire component (FormCagesTrack) menangani mode create DAN edit — mode ditentukan oleh ada/tidaknya parameter $id di mount(), sama persis pola FormWeighbridge/FormGrading (screen-022/023)",
+    "CagesTrackRecordService::create()/update() ditambahkan, dipanggil dari CagesTrackRecordController::store()/update() (API) DAN Livewire FormCagesTrack::save() — satu source of truth validasi/business logic",
+    "CagesTrackRecord::booted()'s saving guard (menolak status=saved dengan 0 cages_tipped_time) ditangani di create() dengan insert status=Synced dulu, lalu upsert details, baru update ke status=saved dalam 1 DB transaction — pola identik GradingRecordService::create()",
+    "BARU: MillSettingService::getJumlahCages(string $businessUnitId): int ditambahkan — TIDAK memanggil checkAccess() (berbeda dari getOrCreate()/getCurrent()) karena N dibutuhkan oleh ketiga actor screen ini termasuk Supervisor, yang direject checkAccess()'s Admin/Mill-Management-only rule. Auto-create default row (jumlah_cages=1) via findOrCreateRow() yang sudah ada",
+    "DIVERGENSI DARI MOBILE (instruksi eksplisit user): Tanggal/Tippler Start Time/Tippler Stop Time pada web masing-masing input type=date/datetime-local yang genuinely editable, default waktu saat ini saat form dibuka — TIDAK dikunci/dibekukan seperti mobile screen-012",
+    "DIVERGENSI DARI MOBILE (instruksi eksplisit user): tidak ada draft/pause/Clear di web — Simpan langsung create/update dengan status=saved, record dapat diedit kapan saja lewat mode edit",
+    "PENGECUALIAN dari konvensi web-form-input: Total Cages dan Cages Remain tiap baris Cages Tipped Time tetap disabled (computed server-side dari checked_cage_numbers + mill_setting.jumlah_cages), sama alasan seperti Net Weight (Form Weighbridge Web) dan UOM/Percentage (Form Grading Web)",
+    "Grid Cages Tipped Time: N (jumlah kolom checklist) diresolve via panggilan langsung MillSettingService::getJumlahCages() di Livewire (bukan endpoint REST terpisah) — dipanggil ulang tiap Business Unit berganti (mode create) atau sekali dari station record (mode edit); tombol 'Tambah baris' disabled sampai N>0",
+    "Time dropdown per baris (availableHourOptions()): mengecualikan jam yang sudah dipakai baris lain DAN jam <= jam tertinggi di antara baris lain yang sudah terisi (bukan literal index array terakhir) — memastikan urutan ascending tetap benar terlepas dari baris mana yang sedang dihitung",
+    "checked_cage_numbers disimpan sebagai CSV string (kolom string di CagesTippedTime model) — konversi array int <-> CSV dilakukan di CagesTrackRecordService::upsertDetails()/normalizeDetails()",
+    "Checked By DAN Acknowledged By keduanya ada di form ini sebagai checkbox self-attestation role-gated (berbeda dari Form Weighbridge/Grading Web yang hanya salah satu atau tanpa Checked By sama sekali) — mengikuti mobile screen-012 dan Detail Cages Track Web (screen-021)",
+    "Route web /data/cages-track/create HARUS didaftarkan SEBELUM /data/cages-track/{id} (screen-021) — sama pola dengan screen-022/023",
+    "Ditambahkan tombol 'Tambah Data' di Data Browser Cages Track (screen-018) dan tombol 'Edit' di Detail Cages Track (screen-021) sebagai entry point ke screen ini",
+    "Station::factory()->cagesTrack() state ditambahkan (mirrors weighbridge()/grading() states yang sudah ada) untuk kebutuhan test suite screen ini",
+    "Model CagesTippedTime's docblock comment (cages_remain) diperbaiki — sebelumnya menyebut 'cages_tipped header minus total_cages' (belum pernah benar-benar diimplementasikan server-side sebelum screen ini), sekarang mencerminkan sumber sebenarnya (mill-setting.jumlah_cages)"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV",
+      "severity": "minor"
+    },
+    {
+      "description": "Business Unit tidak dapat diubah di mode edit by design (immutable setelah create) — konsisten dengan screen-022/023, tidak ada jalur UI untuk memindah record ke mill lain",
+      "severity": "minor"
+    },
+    {
+      "description": "availableHourOptions() menggunakan MAX jam di antara baris lain (bukan literal urutan insersi) untuk aturan ascending — valid untuk alur normal (isi baris berurutan dari atas ke bawah), tapi bisa memberi hasil tidak intuitif jika user mengedit ulang jam baris yang lebih awal setelah baris berikutnya sudah diisi jam lebih tinggi",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 29,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 13,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 14,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

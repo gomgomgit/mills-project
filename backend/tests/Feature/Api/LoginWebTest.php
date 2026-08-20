@@ -50,7 +50,7 @@ it('returns 200 with user, business_unit and redirect_to on valid login', functi
             'id' => $this->businessUnit->id,
             'name' => $this->businessUnit->name,
         ],
-        'redirect_to' => '/supervisor/dashboard',
+        'redirect_to' => '/dashboard',
     ]);
 });
 

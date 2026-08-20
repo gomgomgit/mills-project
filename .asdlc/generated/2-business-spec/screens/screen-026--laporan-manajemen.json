@@ -1,0 +1,58 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-026--laporan-manajemen",
+  "name": "Laporan Manajemen",
+  "module_id": "module-dashboard",
+  "description": "Laporan operasional periode (default awal bulan berjalan s/d hari ini) khusus untuk Mill Management, merangkum data ketiga stasiun MVP (Weighbridge, Grading, Cages Track) sebagai breakdown harian dalam rentang tanggal terpilih, dengan baris total keseluruhan, dan dapat diekspor ke CSV/Excel. Otomatis dibatasi ke mill (business unit) milik Mill Management yang login.",
+  "actors": [
+    "actor-mill-management"
+  ],
+  "entry_points": [
+    "Klik menu 'Laporan Manajemen' di sidebar (khusus Mill Management)"
+  ],
+  "information_displayed": [
+    "Filter rentang tanggal (date_from/date_to), default awal bulan berjalan sampai hari ini",
+    "Tabel breakdown harian: untuk setiap tanggal dalam rentang — jumlah record & total Net Weight Weighbridge, jumlah record & total Netto/Quantity Grading, jumlah record & total cages tipped Cages Track",
+    "Baris Total: penjumlahan seluruh hari dalam rentang, untuk ketiga stasiun",
+    "Tombol ekspor CSV/Excel mengikuti filter aktif",
+    "Pesan 'belum ada data' jika tidak ada record sesuai filter di seluruh rentang"
+  ],
+  "available_actions": [
+    {
+      "action": "Filter rentang tanggal",
+      "description": "Menyaring breakdown harian dan baris total berdasarkan rentang tanggal yang dipilih; default awal bulan berjalan sampai hari ini",
+      "actor_ids": [
+        "actor-mill-management"
+      ]
+    },
+    {
+      "action": "Ekspor laporan",
+      "description": "Mengekspor breakdown harian (dan baris total) yang sedang ditampilkan ke CSV/Excel, mengikuti filter rentang tanggal aktif",
+      "actor_ids": [
+        "actor-mill-management"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Laporan otomatis dibatasi ke business unit/mill milik Mill Management yang login — tidak ada pilihan mill lain, konsisten dengan pembatasan akses Mills Setting",
+    "Filter rentang tanggal default: awal bulan berjalan sampai hari ini, saat laporan pertama dibuka",
+    "Breakdown harian dihitung dari data gabungan hasil sync mobile dan input web, sama seperti Dashboard Web",
+    "Baris Total menjumlahkan seluruh hari dalam rentang tanggal yang difilter",
+    "Ekspor mengikuti filter rentang tanggal yang sedang aktif",
+    "Laporan harus termuat <=2 detik untuk dataset normal, konsisten dengan NFR Dashboard/Data Browser"
+  ],
+  "usecase_ids": [
+    "usecase-026--laporan-manajemen"
+  ],
+  "edge_cases": [
+    "Tidak ada data pada satu atau lebih hari dalam rentang — baris hari tersebut tampil dengan nilai 0, bukan dilewati",
+    "Rentang tanggal tidak valid (date_from > date_to) — tampilkan pesan validasi, filter tidak diterapkan",
+    "Tidak ada data sama sekali di seluruh rentang — tampilkan pesan 'belum ada data', tombol ekspor tetap tersedia tapi menghasilkan file kosong (header saja)"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

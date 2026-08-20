@@ -1,0 +1,92 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "usecase-021--detail-cages-track-web",
+  "name": "Lihat Detail Cages Track (Web)",
+  "description": "User membuka detail read-only satu record Cages Track tersimpan beserta grid Cages Tipped Time dari Data Browser Cages Track (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login dan berada di Data Browser Cages Track (Web)"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Klik salah satu baris record di Data Browser Cages Track"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Navigasi ke halaman Detail Cages Track (/data/cages-track/{id})"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Load dan tampilkan seluruh field header record beserta grid Cages Tipped Time secara read-only, dikelompokkan per section"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Klik tombol Back"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Kembali ke Data Browser Cages Track (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Record Tidak Ditemukan",
+      "trigger": "id record pada URL tidak valid/tidak ditemukan",
+      "steps": [
+        "System menampilkan pesan error 'record tidak ditemukan'",
+        "System menampilkan tombol Back"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail lengkap record Cages Track beserta grid Cages Tipped Time, tidak ada perubahan data"
+  ],
+  "business_rules": [
+    "Seluruh field read-only",
+    "Checked By dan Acknowledged By keduanya ditampilkan apa adanya",
+    "Grid Cages Tipped Time ditampilkan langsung dari data tersimpan, tidak dihitung ulang"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Detail Cages Track — berhasil",
+      "given": "User berada di Data Browser Cages Track dan ada record tersimpan",
+      "when": "User klik salah satu baris record",
+      "then": "Halaman Detail Cages Track menampilkan seluruh field header dan grid Cages Tipped Time secara read-only"
+    },
+    {
+      "scenario": "Lihat Detail Cages Track — Grid Cages Tipped Time Tampil Lengkap",
+      "given": "Record memiliki beberapa baris Cages Tipped Time",
+      "when": "Halaman Detail Cages Track dimuat",
+      "then": "Grid menampilkan Time, cage yang dicentang, Total Cages, dan Cages Remain untuk setiap baris"
+    },
+    {
+      "scenario": "Record Tidak Ditemukan",
+      "given": "id record pada URL tidak valid",
+      "when": "Halaman Detail Cages Track dimuat",
+      "then": "Pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back"
+    },
+    {
+      "scenario": "Back Kembali ke Data Browser",
+      "given": "User berada di halaman Detail Cages Track",
+      "when": "User klik tombol Back",
+      "then": "System menavigasi kembali ke Data Browser Cages Track (Web)"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-021--detail-cages-track-web"
+  ]
+}

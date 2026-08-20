@@ -1,0 +1,55 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-020--detail-grading-web",
+  "name": "Detail Grading (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman detail read-only untuk melihat 1 record Grading tersimpan secara lengkap beserta grid Grading Detail, diakses dari klik baris di Data Browser Grading (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Klik baris di Data Browser Grading (Web)"
+  ],
+  "information_displayed": [
+    "Identitas Grading: Grading Number, Tanggal, WB Card Number (referensi Weighbridge terkait)",
+    "Kendaraan: License Plate No, Vehicle Code",
+    "Asal Muatan: Estate/Supplier, Divisi",
+    "Data Grading: Netto (kg), Quantity (bunch), Note",
+    "Grid Grading Detail: Quality Parameter, Qty, UOM, Percentage per baris",
+    "Verifikasi: Acknowledged By (nama user, atau '-' jika belum diisi)",
+    "Status record (saved/synced)",
+    "Tombol Back kembali ke Data Browser Grading"
+  ],
+  "available_actions": [
+    {
+      "action": "Back",
+      "description": "Kembali ke Data Browser Grading (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Seluruh field ditampilkan read-only — tidak ada aksi edit dari layar ini (koreksi data dilakukan lewat Form Grading Web)",
+    "Checked By TIDAK ditampilkan pada layar ini, konsisten dengan Data Preview Grading mobile (screen-014)",
+    "Grid Grading Detail ditampilkan lengkap dengan nama Quality Parameter yang di-resolve (bukan raw grading_parameter_id)",
+    "Field dikelompokkan sesuai struktur Form Grading (Identitas, Kendaraan, Asal Muatan, Data Grading, Grid Detail)"
+  ],
+  "usecase_ids": [
+    "usecase-020--detail-grading-web"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
+    "Acknowledged By belum diisi — tampilkan '-'"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

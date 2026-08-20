@@ -11,10 +11,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * Cages Tipped Time — one hour-slot checklist row belonging to a Cages Track
  * Record. Each row covers a single whole hour (`tipped_hour`, 0-23, unique
  * per cages_track_record_id) and records which cage numbers were checked in
- * that hour (`checked_cage_numbers`, client-computed CSV text), plus two
- * client-computed-then-persisted counters: `total_cages` (count of entries
- * in checked_cage_numbers) and `cages_remain` (parent record's cages_tipped
- * minus total_cages).
+ * that hour (`checked_cage_numbers`, server-computed CSV text — see
+ * CagesTrackRecordService::upsertDetails()), plus two server-computed
+ * counters: `total_cages` (count of entries in checked_cage_numbers) and
+ * `cages_remain` (the business unit's mill-setting.jumlah_cages minus
+ * total_cages — NOT the parent record's `cages_tipped` header field,
+ * which is a separate, unrelated manual input since entity-catalog v7).
  */
 class CagesTippedTime extends Model
 {

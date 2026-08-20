@@ -127,14 +127,16 @@ test.describe('Data Browser Cages Track', () => {
   });
 
   // Scenario: "Telusuri & Ekspor Data Cages Track — Klik Baris Membuka
-  // Detail" — screen-021 (Detail Cages Track, Web) does not exist yet, so
-  // this scenario cannot be exercised end-to-end (no route to navigate
-  // to). Skipped until screen-021 is implemented, mirroring screen-017's
-  // equivalent gap (see tests/Feature/Livewire/DataBrowserCagesTrackTest.
-  // php's docblock for the same reasoning at the component-test level).
-  test.skip('klik baris membuka detail cages track — menunggu screen-021 (Detail Cages Track, Web)', async ({ page }) => {
-    // Intentionally left unimplemented: no `data.cages-track.detail` route
-    // exists yet for Playwright to navigate to and assert against.
+  // Detail" — screen-021 (Detail Cages Track, Web) now exists (Phase 4
+  // landed), so this scenario is exercised end-to-end.
+  test('klik baris membuka detail cages track', async ({ page }) => {
+    await login(page, USERNAME, PASSWORD);
+    await page.goto(`${BASE_URL}${DATA_BROWSER_PATH}`);
+
+    await page.locator('.ct-table__row').first().click();
+
+    await page.waitForURL(/\/data\/cages-track\/[0-9a-f-]+$/);
+    await expect(page.getByText('Detail Cages Track')).toBeVisible();
   });
 
   // Scenario: "Telusuri & Ekspor Data Cages Track — Ekspor Gagal"

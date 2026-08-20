@@ -43,6 +43,55 @@ class WeighbridgeRecordController extends Controller
     }
 
     /**
+     * show() — GET /api/weighbridge-records/{id}. screen-019--detail-weighbridge-web
+     * business_logic steps 1-3: findOrFail (404 auto-handled by
+     * ApiExceptionHandler when not found) → resolve display names via
+     * WeighbridgeRecordService::getDetail().
+     */
+    public function show(string $id): JsonResponse
+    {
+        return response()->json($this->service->getDetail($id));
+    }
+
+    /**
+     * store() — POST /api/weighbridge-records. screen-022--form-weighbridge-web
+     * business_logic steps 1-4: create a new record, resolving station_id
+     * from the given business_unit_id.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->only([
+            'business_unit_id', 'wb_card_number', 'weighbridge_type', 'record_datetime',
+            'vehicle_number', 'driver_name', 'estate_supplier', 'destination',
+            'division', 'block', 'gross_weight', 'tare_weight', 'quantity',
+            'checked', 'acknowledged',
+        ]);
+
+        $record = $this->service->create($data, $request->user());
+
+        return response()->json($record, 201);
+    }
+
+    /**
+     * update() — PATCH /api/weighbridge-records/{id}. screen-022--form-weighbridge-web
+     * business_logic steps 5-7: update an existing record; business_unit_id/
+     * station_id are never accepted here.
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $data = $request->only([
+            'wb_card_number', 'weighbridge_type', 'record_datetime',
+            'vehicle_number', 'driver_name', 'estate_supplier', 'destination',
+            'division', 'block', 'gross_weight', 'tare_weight', 'quantity',
+            'checked', 'acknowledged',
+        ]);
+
+        $record = $this->service->update($id, $data, $request->user());
+
+        return response()->json($record);
+    }
+
+    /**
      * export() — GET /api/weighbridge-records/export. business_logic
      * steps 1-2 (same filters, no pagination) + 5-6: generate a file
      * stream (CSV, or CSV-as-xlsx fallback for format=excel — see

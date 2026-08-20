@@ -238,6 +238,30 @@ class MillSettingService
     }
 
     /**
+     * getJumlahCages() — screen-024--form-cages-track-web business_logic
+     * step 3. Read-only lookup of a single business unit's physical cage
+     * count, used to size the Cages Tipped Time grid's checklist columns.
+     * Deliberately does NOT call checkAccess(): this value is needed by
+     * ALL THREE of screen-024's actors (supervisor/mill_management/admin),
+     * but checkAccess() only accepts Admin or the Mill Management user's
+     * own business_unit_id — a Supervisor would always be rejected. Unlike
+     * Mills Setting's own management endpoints, jumlah_cages here is
+     * consumed operationally (grid sizing), not managed, so it carries no
+     * access restriction beyond this screen's own route-level role gate.
+     * Auto-creates the default row (jumlah_cages=1) via the existing
+     * findOrCreateRow() if the business unit has none yet — same behavior
+     * as getOrCreate()/getCurrent().
+     *
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException if business_unit_id does not exist
+     */
+    public function getJumlahCages(string $businessUnitId): int
+    {
+        $businessUnit = BusinessUnit::findOrFail($businessUnitId);
+
+        return $this->findOrCreateRow($businessUnit)->jumlah_cages;
+    }
+
+    /**
      * Shared by listStations()/listCurrentStations() — factored out so
      * the self-scoped read path doesn't duplicate the mapping logic.
      */

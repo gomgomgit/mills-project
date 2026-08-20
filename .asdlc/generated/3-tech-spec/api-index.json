@@ -1,8 +1,8 @@
 {
-  "ver": 20,
+  "ver": 29,
   "meta": {
-    "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
   },
   "endpoints": [
     {
@@ -138,6 +138,45 @@
       "description": "Ekspor data Cages Track terfilter ke CSV/Excel",
       "screen_id": "screen-018--data-browser-cages-track-web",
       "usecase_id": "usecase-018--data-browser-cages-track-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/weighbridge-records/{id}",
+      "description": "Ambil 1 record Weighbridge lengkap beserta nama station dan nama user (checked_by/acknowledged_by) untuk halaman Detail",
+      "screen_id": "screen-019--detail-weighbridge-web",
+      "usecase_id": "usecase-019--detail-weighbridge-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/grading-records/{id}",
+      "description": "Ambil 1 record Grading lengkap beserta grid Grading Detail (nama Quality Parameter ter-resolve), WB Card Number, dan station_name untuk halaman Detail",
+      "screen_id": "screen-020--detail-grading-web",
+      "usecase_id": "usecase-020--detail-grading-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/cages-track-records/{id}",
+      "description": "Ambil 1 record Cages Track lengkap beserta grid Cages Tipped Time, station_name, dan nama user (Inputted By/Checked By/Acknowledged By) untuk halaman Detail",
+      "screen_id": "screen-021--detail-cages-track-web",
+      "usecase_id": "usecase-021--detail-cages-track-web",
       "auth_required": true,
       "actor_ids": [
         "actor-supervisor",
@@ -524,6 +563,163 @@
       "actor_ids": [
         "actor-admin",
         "actor-mill-management"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/weighbridge-records",
+      "description": "Membuat record Weighbridge baru dari web; station diresolve otomatis dari business_unit_id terpilih",
+      "screen_id": "screen-022--form-weighbridge-web",
+      "usecase_id": "usecase-022--form-weighbridge-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/weighbridge-records/{id}",
+      "description": "Memperbarui record Weighbridge tersimpan dari web",
+      "screen_id": "screen-022--form-weighbridge-web",
+      "usecase_id": "usecase-022--form-weighbridge-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/grading-records",
+      "description": "Membuat record Grading baru dari web beserta baris Grading Detail; station diresolve otomatis dari business_unit_id terpilih",
+      "screen_id": "screen-023--form-grading-web",
+      "usecase_id": "usecase-023--form-grading-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/grading-records/{id}",
+      "description": "Memperbarui record Grading tersimpan dari web beserta upsert baris Grading Detail",
+      "screen_id": "screen-023--form-grading-web",
+      "usecase_id": "usecase-023--form-grading-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/cages-track-records",
+      "description": "Membuat record Cages Track baru dari web beserta baris Cages Tipped Time; station diresolve otomatis dari business_unit_id terpilih, N kolom dari mill-setting.jumlah_cages",
+      "screen_id": "screen-024--form-cages-track-web",
+      "usecase_id": "usecase-024--form-cages-track-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/cages-track-records/{id}",
+      "description": "Memperbarui record Cages Track tersimpan dari web beserta upsert baris Cages Tipped Time",
+      "screen_id": "screen-024--form-cages-track-web",
+      "usecase_id": "usecase-024--form-cages-track-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/dashboard/summary",
+      "description": "Ringkasan KPI agregat Weighbridge/Grading/Cages Track (count + total) untuk rentang tanggal & business unit terfilter",
+      "screen_id": "screen-025--dashboard-web",
+      "usecase_id": "usecase-025--dashboard-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/management-summary",
+      "description": "Breakdown harian + baris Total Weighbridge/Grading/Cages Track untuk mill milik acting user, dalam rentang tanggal terfilter",
+      "screen_id": "screen-026--laporan-manajemen",
+      "usecase_id": "usecase-026--laporan-manajemen",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-mill-management"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/reports/management-summary/export",
+      "description": "Ekspor breakdown harian + baris Total ke CSV/Excel, mengikuti filter rentang tanggal yang sama",
+      "screen_id": "screen-026--laporan-manajemen",
+      "usecase_id": "usecase-026--laporan-manajemen",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-mill-management"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/users",
+      "description": "List user dipaginasi dengan nama Business Unit terkait, opsional filter role/business_unit_id",
+      "screen_id": "screen-032--kelola-user-role",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/users",
+      "description": "Membuat user baru dengan role dan Business Unit terkait",
+      "screen_id": "screen-032--kelola-user-role",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/:id",
+      "description": "Mengubah nama, role, dan Business Unit user (tidak termasuk password)",
+      "screen_id": "screen-032--kelola-user-role",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/users/:id/status",
+      "description": "Mengubah status aktif/nonaktif user (toggle langsung dari daftar, tanpa form)",
+      "screen_id": "screen-032--kelola-user-role",
+      "usecase_id": "usecase-032--kelola-user-role",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
       ]
     }
   ]

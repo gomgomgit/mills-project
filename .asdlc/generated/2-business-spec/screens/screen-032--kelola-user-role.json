@@ -1,0 +1,74 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-032--kelola-user-role",
+  "name": "Kelola User & Role",
+  "module_id": "module-user-management",
+  "description": "Layar bagi Admin untuk mengelola akun user sistem — melihat daftar seluruh user, membuat user baru dengan menentukan role dan mill (Business Unit) yang menjadi tanggung jawabnya, mengedit data/role/mill user yang sudah ada, serta menonaktifkan atau mengaktifkan kembali user tanpa menghapusnya secara permanen (menjaga integritas data historis yang dibuat/diverifikasi user tersebut).",
+  "actors": [
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'User & Role Management' > 'Kelola User & Role'"
+  ],
+  "information_displayed": [
+    "Daftar user: username, nama lengkap, role, nama Business Unit (mill) terkait atau '-' untuk role Admin, status aktif/nonaktif, tanggal dibuat",
+    "Form tambah/edit — Identitas: username, nama lengkap, role (dropdown: Operator/Supervisor/Mill Management/Admin), Business Unit/mill (dropdown, wajib untuk role selain Admin)",
+    "Form tambah — Password awal: field password yang ditentukan Admin saat membuat user baru",
+    "Form edit — status aktif/nonaktif (toggle)"
+  ],
+  "available_actions": [
+    {
+      "action": "Lihat daftar user",
+      "description": "Menampilkan seluruh user dengan username, nama, role, mill terkait, dan status aktif/nonaktif",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah User",
+      "description": "Membuat akun user baru dengan username, nama, password awal, role, dan Business Unit (wajib jika role bukan Admin)",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit User",
+      "description": "Mengubah nama, role, dan Business Unit terkait user yang sudah ada (tidak termasuk mengubah password — itu domain self-service Ganti Password oleh user bersangkutan)",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Aktifkan/Nonaktifkan User",
+      "description": "Mengubah status aktif/nonaktif user; user nonaktif tidak dapat login. Tidak berlaku untuk akun Admin yang sedang login (tidak bisa menonaktifkan diri sendiri)",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Username harus unik di seluruh sistem",
+    "Role selain Admin wajib memiliki Business Unit (mill) terkait; role Admin tidak wajib memilih Business Unit",
+    "Admin tidak dapat menonaktifkan akun miliknya sendiri yang sedang login",
+    "User yang dinonaktifkan tidak dapat login, namun seluruh data historis yang pernah dibuat/diverifikasi user tersebut (created_by, Checked By, Acknowledged By pada record stasiun) tetap utuh dan tidak terpengaruh",
+    "Password awal ditentukan langsung oleh Admin saat membuat user baru; user dapat menggantinya sendiri lewat layar Ganti Password setelah login pertama",
+    "User tidak dapat dihapus secara permanen dari sistem — hanya dapat dinonaktifkan, untuk menjaga integritas referensi pada data historis",
+    "Hanya Admin yang dapat mengakses dan mengelola layar ini"
+  ],
+  "usecase_ids": [
+    "usecase-032--kelola-user-role"
+  ],
+  "edge_cases": [
+    "Percobaan menyimpan username yang sudah dipakai user lain — validasi gagal, pesan error di bawah field username",
+    "Admin mencoba menonaktifkan akun miliknya sendiri yang sedang login — ditolak dengan pesan penjelasan, status tidak berubah",
+    "Membuat/mengedit user dengan role selain Admin tanpa memilih Business Unit — validasi gagal",
+    "Belum ada Business Unit sama sekali — user dengan role Admin tetap bisa dibuat, role lain tidak bisa disimpan sampai ada Business Unit yang bisa dipilih",
+    "Password awal terlalu pendek/tidak memenuhi aturan minimal (mengikuti aturan password_hash di entity User) — validasi gagal"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

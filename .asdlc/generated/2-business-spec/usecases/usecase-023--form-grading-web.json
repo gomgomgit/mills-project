@@ -1,0 +1,191 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "usecase-023--form-grading-web",
+  "name": "Input Data Grading (Web)",
+  "description": "User (Supervisor/Mill Management/Admin) membuat record Grading baru atau mengubah record tersimpan lewat web, memilih Business Unit (mode buat) dan WB Card No referensi, mengisi data header dan minimal satu baris Grading Detail dengan Quality Parameter unik per baris, lalu menyimpan.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web app",
+    "Untuk mode edit: record Grading dengan id terkait sudah ada"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Membuka Form Grading (mode buat via tombol 'Tambah Data' di Data Browser Grading, atau mode edit via tombol 'Edit' di Detail Grading)"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Render form: mode buat menampilkan dropdown Business Unit kosong dan Tanggal default hari ini; mode edit memuat data record tersimpan, Business Unit ditampilkan read-only"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "(mode buat) Memilih Business Unit"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Memilih WB Card No dari dropdown; License Plate No, Estate, dan Divisi otomatis terisi"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Mengisi Grading Number, Vehicle Code (opsional), Netto, Quantity, Note"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Menambah minimal satu baris Grading Detail, memilih Quality Parameter dan mengisi Qty per baris"
+    },
+    {
+      "step": 7,
+      "actor": "actor-supervisor",
+      "description": "Menekan tombol Simpan"
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Memvalidasi field wajib dan minimal satu baris Grading Detail valid; jika mode buat, resolve station Grading dari Business Unit"
+    },
+    {
+      "step": 9,
+      "actor": "System",
+      "description": "Menyimpan record (status=saved) beserta seluruh baris Grading Detail, dan mengarahkan ke Detail Grading (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field Wajib Belum Lengkap",
+      "trigger": "Step 8, ada field wajib kosong",
+      "steps": [
+        "System menampilkan pesan error inline di bawah field terkait",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum Ada Baris Grading Detail Valid",
+      "trigger": "Step 8, tidak ada baris dengan Quality Parameter + Qty terisi",
+      "steps": [
+        "System menampilkan pesan error khusus grading detail",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Business Unit Tanpa Station Grading Aktif",
+      "trigger": "Step 8 (mode buat), Business Unit terpilih tidak memiliki station bertipe grading yang aktif",
+      "steps": [
+        "System menampilkan pesan error",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Quality Parameter Duplikat Antar Baris",
+      "trigger": "Step 6-7, dua baris memakai Quality Parameter yang sama",
+      "steps": [
+        "Dropdown Quality Parameter baris lain tidak menampilkan parameter yang sudah dipakai baris lain, mencegah duplikasi dari UI",
+        "Jika tetap terkirim (mis. race condition), System menolak dengan error validasi"
+      ]
+    },
+    {
+      "name": "Record Tidak Ditemukan (mode edit)",
+      "trigger": "Mode edit dibuka dengan id tidak valid",
+      "steps": [
+        "System menampilkan pesan error 'record tidak ditemukan'",
+        "User dapat menekan Batal untuk kembali"
+      ]
+    },
+    {
+      "name": "Batal Dengan Perubahan Belum Tersimpan",
+      "trigger": "Step 1-7, user menekan Batal sebelum Simpan dan ada perubahan belum tersimpan",
+      "steps": [
+        "System menampilkan dialog konfirmasi sebelum keluar"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Grading tersimpan (baru atau diperbarui) dengan status 'saved', beserta seluruh baris Grading Detail-nya, ATAU tidak ada perubahan jika Batal/validasi gagal"
+  ],
+  "business_rules": [
+    "WB Card No wajib dipilih dari dropdown, bukan teks bebas",
+    "Setiap Quality Parameter hanya dapat dipakai di satu baris Grading Detail",
+    "UOM dan Percentage tiap baris adalah computed/snapshot, tidak dapat diedit manual",
+    "Business Unit tidak dapat diubah setelah record dibuat",
+    "Acknowledged By hanya dapat diisi oleh role Mill Management",
+    "Tidak ada draft/pause di web — Simpan langsung menghasilkan status saved"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Buat Record Grading Baru — berhasil",
+      "given": "User berada di Data Browser Grading dan klik Tambah Data",
+      "when": "User memilih Business Unit, WB Card No, mengisi field wajib, menambah satu baris Grading Detail lengkap, dan klik Simpan",
+      "then": "Record baru tersimpan dengan status 'saved' dan user diarahkan ke Detail Grading record tersebut"
+    },
+    {
+      "scenario": "Edit Record Grading — berhasil",
+      "given": "User membuka Detail Grading lalu klik Edit",
+      "when": "User mengubah salah satu field dan klik Simpan",
+      "then": "Record diperbarui dan perubahan terlihat di Detail Grading"
+    },
+    {
+      "scenario": "Tanggal Dapat Diedit Manual",
+      "given": "Form Grading Web terbuka dengan field Tanggal terisi default hari ini",
+      "when": "User mengubah nilai Tanggal secara manual",
+      "then": "Nilai yang diinput user tersimpan, bukan default hari ini"
+    },
+    {
+      "scenario": "Auto-fill Dari WB Card No",
+      "given": "Form Grading Web dalam mode buat",
+      "when": "User memilih WB Card No",
+      "then": "License Plate No, Estate, dan Divisi otomatis terisi dari record Weighbridge terkait, tetap dapat diedit"
+    },
+    {
+      "scenario": "Field Wajib Belum Lengkap",
+      "given": "Ada field wajib kosong",
+      "when": "User klik Simpan",
+      "then": "Pesan error inline muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Belum Ada Baris Grading Detail Valid",
+      "given": "Seluruh field header wajib terisi tapi belum ada baris Grading Detail valid",
+      "when": "User klik Simpan",
+      "then": "Pesan error khusus grading detail muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Business Unit Tanpa Station Grading Aktif",
+      "given": "Business Unit terpilih tidak punya station Grading aktif",
+      "when": "User klik Simpan",
+      "then": "Pesan error ditampilkan, record tidak tersimpan"
+    },
+    {
+      "scenario": "Quality Parameter Tidak Bisa Duplikat Antar Baris",
+      "given": "Quality Parameter sudah dipilih di baris pertama",
+      "when": "User membuka dropdown Quality Parameter di baris kedua",
+      "then": "Parameter yang sudah dipakai baris pertama tidak muncul sebagai opsi di baris kedua"
+    },
+    {
+      "scenario": "Record Tidak Ditemukan (mode edit)",
+      "given": "id record pada URL tidak valid",
+      "when": "Halaman Form Grading (edit) dimuat",
+      "then": "Pesan error 'record tidak ditemukan' ditampilkan"
+    },
+    {
+      "scenario": "Batal Dengan Perubahan Belum Tersimpan",
+      "given": "User sudah mengubah salah satu field",
+      "when": "User klik Batal sebelum Simpan",
+      "then": "Dialog konfirmasi keluar ditampilkan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-023--form-grading-web"
+  ]
+}

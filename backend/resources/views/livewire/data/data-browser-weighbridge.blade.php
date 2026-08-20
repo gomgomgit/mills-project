@@ -6,6 +6,9 @@
         </div>
 
         <div class="wb-browser__export">
+            <a href="{{ route('data.weighbridge.create') }}" class="wb-button wb-button--secondary" data-testid="add-data-button">
+                Tambah Data
+            </a>
             <a href="{{ $exportCsvUrl }}" class="wb-button wb-button--secondary" target="_blank" rel="noopener">
                 Ekspor CSV
             </a>

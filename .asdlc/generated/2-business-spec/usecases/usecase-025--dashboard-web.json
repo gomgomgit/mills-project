@@ -1,0 +1,113 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "usecase-025--dashboard-web",
+  "name": "Lihat Dashboard Web",
+  "description": "User (Supervisor/Mill Management/Admin) melihat ringkasan KPI operasional tiga stasiun MVP setelah login, dapat memfilter berdasarkan rentang tanggal dan business unit, lalu berpindah ke Data Browser stasiun terkait untuk detail lebih lanjut.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web app"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Login berhasil (redirect otomatis) atau klik menu 'Dashboard' di sidebar"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Render dashboard dengan filter default (rentang tanggal hari ini, seluruh business unit) dan tampilkan KPI card + tabel ringkas per stasiun"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "(opsional) Mengubah filter rentang tanggal dan/atau business unit"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Memperbarui KPI card dan tabel ringkas sesuai filter yang aktif"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "(opsional) Klik card atau baris stasiun tertentu"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Navigasi ke Data Browser stasiun terkait dengan filter tanggal & business unit yang sama diteruskan"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tidak Ada Data Sesuai Filter",
+      "trigger": "Step 4, tidak ada record yang cocok dengan filter pada satu atau lebih stasiun",
+      "steps": [
+        "Card stasiun terkait menampilkan nilai 0, bukan error",
+        "Tabel ringkas tetap tampil dengan baris bernilai 0 untuk stasiun tersebut"
+      ]
+    },
+    {
+      "name": "Filter Tanggal Tidak Valid",
+      "trigger": "Step 3, date_from > date_to",
+      "steps": [
+        "System menampilkan pesan validasi rentang tanggal tidak valid",
+        "Filter tidak diterapkan, KPI tetap menampilkan hasil filter sebelumnya"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Dashboard menampilkan KPI sesuai filter yang aktif",
+    "ATAU user berpindah ke Data Browser stasiun terkait dengan filter diteruskan"
+  ],
+  "business_rules": [
+    "Filter tanggal default hari ini saat dashboard pertama dibuka",
+    "KPI dihitung dari data gabungan sync mobile + input web",
+    "Filter business unit opsional, kosong berarti seluruh business unit",
+    "Dashboard termuat <=2 detik untuk dataset normal"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Dashboard Web — berhasil",
+      "given": "User sudah login sebagai Supervisor/Mill Management/Admin, terdapat record Weighbridge/Grading/Cages Track hari ini",
+      "when": "User membuka halaman Dashboard",
+      "then": "KPI card dan tabel ringkas menampilkan data hari ini untuk seluruh business unit"
+    },
+    {
+      "scenario": "Lihat Dashboard Web — Filter Diterapkan",
+      "given": "User berada di halaman Dashboard",
+      "when": "User mengubah rentang tanggal dan/atau memilih business unit tertentu",
+      "then": "KPI card dan tabel ringkas diperbarui sesuai filter yang dipilih"
+    },
+    {
+      "scenario": "Lihat Dashboard Web — Tidak Ada Data Sesuai Filter",
+      "given": "User menerapkan filter yang tidak memiliki record apapun",
+      "when": "Filter diterapkan",
+      "then": "Card dan tabel menampilkan nilai 0, bukan pesan error"
+    },
+    {
+      "scenario": "Lihat Dashboard Web — Filter Tanggal Tidak Valid",
+      "given": "User berada di halaman Dashboard",
+      "when": "User memasukkan date_from lebih besar dari date_to",
+      "then": "System menampilkan pesan validasi, filter tidak diterapkan"
+    },
+    {
+      "scenario": "Lihat Dashboard Web — Klik Card Stasiun",
+      "given": "User berada di halaman Dashboard dengan filter aktif",
+      "when": "User klik card atau baris tabel ringkas stasiun Weighbridge",
+      "then": "System menavigasi ke Data Browser Weighbridge dengan filter tanggal & business unit yang sama"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-025--dashboard-web"
+  ]
+}

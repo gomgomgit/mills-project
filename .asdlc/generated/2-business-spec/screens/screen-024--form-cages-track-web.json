@@ -1,0 +1,141 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-024--form-cages-track-web",
+  "name": "Form Cages Track (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Form web untuk input record Cages Track baru dan mengubah record tersimpan, mengikuti flow yang sama dengan Form Cages Track mobile (screen-012) — grid Cages Tipped Time dengan jumlah kolom checklist mengacu ke Jumlah Cages di Mills Setting mill terkait. Berbeda dari mobile: Tanggal, Tippler Start Time, dan Tippler Stop Time berdefault waktu saat ini namun tetap dapat diedit user, dan record yang sudah tersimpan dapat diubah kapan saja lewat mode edit (bukan input sekali terkunci seperti draft mobile, tidak ada konsep Pause/Clear di web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Tombol 'Tambah Data' dari Data Browser Cages Track (Web) — mode buat baru",
+    "Tombol 'Edit' dari Detail Cages Track (Web) — mode ubah record"
+  ],
+  "information_displayed": [
+    "Business Unit (dropdown) — hanya pada mode buat baru, menentukan mill tujuan record; station Cages Track otomatis di-resolve dari Business Unit terpilih (1 station Cages Track aktif per mill)",
+    "Cages Track Number",
+    "Tanggal — default hari ini, DAPAT diedit manual (berbeda dari mobile yang mengunci field ini)",
+    "Tippler Start Time — default waktu saat ini, DAPAT diedit manual (berbeda dari mobile)",
+    "Tippler Stop Time — default waktu saat ini, DAPAT diedit manual (berbeda dari mobile yang membekukannya otomatis saat Simpan)",
+    "Cages Out (input manual)",
+    "Cages Tipped (input manual — jumlah cage yang akan di-tipping sesi ini; TIDAK menentukan jumlah kolom checklist grid, murni informasional sama seperti di mobile)",
+    "Note (input manual, opsional)",
+    "Grid Cages Tipped Time: Time (dropdown jam 0-23, hanya jam yang lebih besar dari jam baris terakhir ditambahkan dan belum dipakai baris lain), checklist Cage 1..N (N = Jumlah Cages dari Mills Setting milik Business Unit terpilih), Total Cages (dihitung otomatis dari cage tercentang baris itu), Cages Remain (dihitung otomatis: N dikurangi Total Cages baris itu) — baris bisa ditambah/dihapus",
+    "Checked By — checkbox 'Tandai sudah diperiksa', hanya tampil & aktif untuk role Supervisor",
+    "Acknowledged By — checkbox 'Tandai sudah dikonfirmasi', hanya tampil & aktif untuk role Mill Management",
+    "Field dikelompokkan per section: Identitas Cages Track, Tippler & Cages, Cages Tipped Time, Verifikasi"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Business Unit",
+      "description": "Menentukan mill tujuan record baru (hanya mode buat baru); menentukan N (Jumlah Cages dari Mills Setting) untuk grid",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah baris Cages Tipped Time",
+      "description": "Menambah satu baris slot waktu kosong ke grid; nonaktif jika Business Unit belum dipilih atau Jumlah Cages mill tersebut 0",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus baris Cages Tipped Time",
+      "description": "Menghapus satu baris dari grid; jam yang dipakainya kembali tersedia untuk baris lain",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Time per baris",
+      "description": "Memilih slot jam untuk baris tersebut dari jam yang tersedia (lebih besar dari jam baris terakhir ditambahkan, belum dipakai baris lain)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Centang Cage per baris",
+      "description": "Mencentang cage mana saja yang di-tipping pada jam tersebut; Total Cages dan Cages Remain dihitung ulang otomatis",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record baru (mode buat) atau memperbarui record tersimpan (mode edit), status langsung 'saved' — tidak ada draft/pause seperti mobile",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Batal",
+      "description": "Kembali ke Data Browser Cages Track (mode buat) atau Detail Cages Track (mode edit) tanpa menyimpan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tandai Checked",
+      "description": "Menandai record sudah diperiksa, mengisi Checked By dengan user yang login",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tandai Acknowledged",
+      "description": "Menandai record sudah dikonfirmasi, mengisi Acknowledged By dengan user yang login",
+      "actor_ids": [
+        "actor-mill-management"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tidak ada konsep draft/pause/Clear di web — Simpan langsung membuat/memperbarui record dengan status 'saved'",
+    "Field wajib ditandai asterisk merah dengan validasi inline",
+    "Tanggal, Tippler Start Time, dan Tippler Stop Time masing-masing default waktu saat ini saat form dibuka, TETAP DAPAT diedit manual oleh user",
+    "Jumlah kolom checklist Cage 1..N pada grid Cages Tipped Time mengacu ke Jumlah Cages di Mills Setting milik Business Unit terpilih — BUKAN dari field Cages Tipped header. Field Cages Tipped tetap input manual terpisah dengan makna aslinya, tidak memengaruhi jumlah kolom",
+    "Tombol 'Tambah baris' nonaktif jika Business Unit belum dipilih (mode buat) atau Jumlah Cages mill tersebut bernilai 0",
+    "Minimal satu baris Cages Tipped Time valid (Time terpilih + minimal 1 cage tercentang) harus ada sebelum Simpan",
+    "Time tiap baris wajib lebih besar dari Time baris terakhir ditambahkan pada record yang sama, dan tidak boleh duplikat dengan baris manapun",
+    "Total Cages dan Cages Remain dihitung otomatis per baris — dikecualikan dari konvensi 'input web tidak boleh disabled' karena computed/data-integrity, sama seperti Net Weight pada Form Weighbridge Web dan UOM/Percentage pada Form Grading Web",
+    "Business Unit (dan station Cages Track terkait) tidak dapat diubah setelah record dibuat — pada mode edit, mill asal ditampilkan sebagai teks read-only",
+    "Checked By hanya dapat diisi (via checkbox) oleh user dengan role Supervisor — field disembunyikan untuk role lain",
+    "Acknowledged By hanya dapat diisi (via checkbox) oleh user dengan role Mill Management — field disembunyikan untuk role lain",
+    "Checked By DAN Acknowledged By TETAP ada di form ini (berbeda dari Form Weighbridge/Grading Web yang menghapus Checked By), konsisten dengan Form Cages Track mobile (screen-012) dan Detail Cages Track Web (screen-021)"
+  ],
+  "usecase_ids": [
+    "usecase-024--form-cages-track-web"
+  ],
+  "edge_cases": [
+    "Field wajib belum lengkap saat Simpan ditekan",
+    "Belum ada baris Cages Tipped Time valid saat Simpan ditekan",
+    "Business Unit terpilih belum memiliki station Cages Track aktif (mode buat baru) — Simpan ditolak dengan pesan error",
+    "Business Unit terpilih belum punya Mills Setting (Jumlah Cages) — auto-default dibuat (jumlah_cages=1) sama seperti perilaku Mills Setting screen, grid tetap bisa dipakai",
+    "User memilih Time yang sudah dipakai baris lain atau lebih awal dari baris terakhir — opsi tidak tersedia di dropdown",
+    "Record tidak ditemukan saat mode edit dibuka dengan id tidak valid",
+    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Weighbridge/Grading Web)"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

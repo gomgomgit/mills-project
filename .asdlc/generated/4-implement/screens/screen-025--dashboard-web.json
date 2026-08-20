@@ -1,0 +1,66 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-025--dashboard-web",
+  "name": "Dashboard Web",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/DashboardService.php",
+    "backend/app/Http/Controllers/Api/DashboardController.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/DashboardServiceTest.php",
+    "backend/tests/Feature/Api/DashboardTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/DashboardHome.php",
+    "backend/resources/views/livewire/dashboard/dashboard-home.blade.php",
+    "backend/resources/views/dashboard/index.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DashboardHomeTest.php",
+    "backend/tests/Browser/DashboardHomeTest.php"
+  ],
+  "implementation_notes": [
+    "Menggantikan App\\Livewire\\Dashboard\\DashboardHome placeholder stub yang sudah ada sejak bootstrap project (route /dashboard sudah terdaftar sebelumnya, role admin/supervisor/mill_management) -- component & view diganti total, layout dashboard.index (resources/views/dashboard/index.blade.php) dipertahankan, hanya komentar placeholder-nya dihapus",
+    "Satu endpoint agregat tunggal (GET /api/dashboard/summary), bukan 3 request terpisah, agar NFR <=2 detik tercapai",
+    "total_cages_tipped dihitung dari SUM(cages-tipped-time.total_cages), bukan dari cages_out/cages_tipped header -- konsisten dengan business rule Mills Setting yang sudah ditetapkan sesi ini",
+    "DashboardService::resolveDateRange() membandingkan Carbon langsung lalu throw InvalidDateRangeException, bukan Laravel Validator -- exception ini bukan error per-field, mengikuti pola WeighbridgeRecordService yang sudah ada",
+    "Ini screen pertama yang mengagregasi 3 entity (weighbridge-record, grading-record, cages-track-record+cages-tipped-time) dalam 1 query call"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) test ditulis lengkap tapi tidak dijalankan -- tidak ada browser/dev server di sandbox ini, known_issue yang sama seperti semua screen web lain sesi ini",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 6,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

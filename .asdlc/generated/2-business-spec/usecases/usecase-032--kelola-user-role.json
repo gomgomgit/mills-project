@@ -1,0 +1,135 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "usecase-032--kelola-user-role",
+  "name": "Kelola User & Role",
+  "description": "Admin mengelola akun user sistem: melihat daftar user, membuat user baru dengan menentukan role dan mill (Business Unit) yang menjadi tanggung jawabnya, mengedit data/role/mill user yang sudah ada, serta mengaktifkan/menonaktifkan user tanpa menghapusnya secara permanen.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login dan berada di layar Kelola User & Role"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Membuka layar Kelola User & Role dari menu sidebar"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan daftar seluruh user dengan username, nama, role, mill terkait, dan status aktif/nonaktif"
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Klik Tambah User (atau klik Edit pada baris user yang sudah ada)"
+    },
+    {
+      "step": 4,
+      "actor": "actor-admin",
+      "description": "Mengisi/mengubah username, nama lengkap, role, Business Unit (jika role bukan Admin), dan password awal (khusus Tambah User)"
+    },
+    {
+      "step": 5,
+      "actor": "actor-admin",
+      "description": "Klik Simpan"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Memvalidasi data (username unik, Business Unit wajib untuk role selain Admin, password memenuhi aturan minimal) lalu menyimpan user baru atau memperbarui data user"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Username Sudah Dipakai",
+      "trigger": "Step 6, username yang diisi sudah dipakai user lain",
+      "steps": [
+        "System menampilkan pesan validasi di bawah field username",
+        "Data tidak tersimpan",
+        "Admin dapat memperbaiki username dan mencoba lagi"
+      ]
+    },
+    {
+      "name": "Business Unit Wajib Dipilih",
+      "trigger": "Step 6, role yang dipilih bukan Admin tetapi Business Unit belum diisi",
+      "steps": [
+        "System menampilkan pesan validasi di bawah field Business Unit",
+        "Data tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Admin Menonaktifkan Akun Sendiri",
+      "trigger": "Admin klik Nonaktifkan pada baris akun miliknya sendiri yang sedang login",
+      "steps": [
+        "System menolak aksi dan menampilkan pesan penjelasan",
+        "Status user tidak berubah"
+      ]
+    },
+    {
+      "name": "Aktifkan/Nonaktifkan User Lain",
+      "trigger": "Admin klik toggle status pada baris user lain (bukan akun sendiri)",
+      "steps": [
+        "System langsung memperbarui status is_active user tersebut tanpa form terpisah",
+        "Daftar user diperbarui menampilkan status baru"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User baru tersimpan dengan role dan Business Unit terkait, ATAU data user existing diperbarui, ATAU status aktif/nonaktif user berubah"
+  ],
+  "business_rules": [
+    "Username harus unik di seluruh sistem",
+    "Role selain Admin wajib memiliki Business Unit terkait",
+    "Admin tidak dapat menonaktifkan akun miliknya sendiri",
+    "User tidak dihapus permanen, hanya dinonaktifkan",
+    "Password awal ditentukan Admin saat membuat user baru",
+    "Hanya Admin yang dapat mengakses layar ini"
+  ],
+  "related_screen_ids": [
+    "screen-032--kelola-user-role"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Kelola User & Role — Tambah User berhasil",
+      "given": "Admin login dan berada di layar Kelola User & Role, Business Unit sudah tersedia",
+      "when": "Admin mengisi username unik, nama, role Supervisor, memilih Business Unit, mengisi password awal valid, lalu klik Simpan",
+      "then": "User baru tersimpan dengan role dan Business Unit yang dipilih, muncul di daftar user dengan status aktif"
+    },
+    {
+      "scenario": "Kelola User & Role — Edit User berhasil",
+      "given": "User yang sudah ada dipilih untuk diedit",
+      "when": "Admin mengubah nama, role, atau Business Unit lalu klik Simpan",
+      "then": "Data user diperbarui sesuai perubahan, tampil di daftar dengan nilai baru"
+    },
+    {
+      "scenario": "Kelola User & Role — Username Sudah Dipakai",
+      "given": "Username yang diisi sudah dipakai user lain",
+      "when": "Admin submit form Tambah/Edit User dengan username tersebut",
+      "then": "Pesan validasi username sudah dipakai ditampilkan, data tidak tersimpan"
+    },
+    {
+      "scenario": "Kelola User & Role — Business Unit Wajib Dipilih",
+      "given": "Role yang dipilih bukan Admin",
+      "when": "Admin submit form tanpa memilih Business Unit",
+      "then": "Pesan validasi Business Unit wajib dipilih ditampilkan, data tidak tersimpan"
+    },
+    {
+      "scenario": "Kelola User & Role — Admin Menonaktifkan Akun Sendiri Ditolak",
+      "given": "Admin sedang login dan melihat baris akunnya sendiri di daftar user",
+      "when": "Admin klik Nonaktifkan pada baris akunnya sendiri",
+      "then": "System menolak aksi dengan pesan penjelasan, status akun tetap aktif"
+    },
+    {
+      "scenario": "Kelola User & Role — Nonaktifkan/Aktifkan User Lain berhasil",
+      "given": "Ada user lain (bukan akun Admin yang login) berstatus aktif",
+      "when": "Admin klik toggle Nonaktifkan pada baris user tersebut",
+      "then": "Status user berubah menjadi nonaktif, daftar user diperbarui menampilkan status baru"
+    }
+  ]
+}

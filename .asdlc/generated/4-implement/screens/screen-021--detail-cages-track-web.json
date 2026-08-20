@@ -1,0 +1,78 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-021--detail-cages-track-web",
+  "name": "Detail Cages Track (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/CagesTrackRecordController.php",
+    "backend/app/Services/CagesTrackRecordService.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/CagesTrackRecordServiceTest.php",
+    "backend/tests/Feature/Api/DetailCagesTrackTest.php",
+    "backend/tests/Feature/Livewire/DetailCagesTrackTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserCagesTrackTest.php",
+    "backend/tests/Browser/DetailCagesTrackTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DetailCagesTrack.php",
+    "backend/resources/views/livewire/data/detail-cages-track.blade.php",
+    "backend/resources/views/data/cages-track-detail.blade.php",
+    "backend/routes/web.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "Dual entry point: GET /api/cages-track-records/{id} (CagesTrackRecordController::show()) dan Livewire DetailCagesTrack keduanya panggil CagesTrackRecordService::getDetail() yang sama, mengikuti pola screen-019/020 persis",
+    "getDetail() eager-load station/createdBy/checkedBy/acknowledgedBy/cagesTippedTimes dan resolve ke station_name/created_by_name/checked_by_name/acknowledged_by_name — raw UUID tidak berguna di layar detail human-facing. UNLIKE screen-020 (Grading), Checked By IS ditampilkan di sini, konsisten dengan Data Preview Cages Track mobile (screen-015) yang menampilkan Checked By dan Acknowledged By keduanya tanpa pembatasan role untuk melihat",
+    "tipped_times di-sort by tipped_hour di service layer (bukan hanya di query) supaya urutan konsisten terlepas dari urutan insert",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-019/020",
+    "Field grouping & urutan field di blade view MENIRU PERSIS mobile/src/views/DataPreviewCagesTrackView.vue mode detail (Cages Track Number, Tanggal, Tippler Start/Stop Time, Cages Out, Cages Tipped, Inputted By, Checked By, Acknowledged By, Note, grid Cages Tipped Time) per arahan eksplisit: web station screens mengikuti flow/UX mobile, tidak didesain independen",
+    "Route /cages-track-records/{id} didaftarkan SETELAH /cages-track-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}",
+    "Route /data/cages-track/{id} mengaktifkan affordance clickable-row yang sudah dibangun di screen-018's Blade view (guarded via Route::has('data.cages-track.detail')) — DataBrowserCagesTrackTest.php diupdate untuk mencerminkan perilaku baru ini, mengikuti pola screen-016/017",
+    "Layout Blade terpisah (cages-track-detail.blade.php) dari screen-018 (cages-track.blade.php) karena Blade #[Layout(...)] tidak menerima parameter untuk judul header yang berbeda — shell/sidebar disalin identik dari layout screen-018/020"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV",
+      "severity": "minor"
+    },
+    {
+      "description": "Response error tidak punya field error_code mesin-terbaca, hanya message (404 generik), konsisten dengan pola error_format di seluruh codebase",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 5,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 8,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 4,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-023--form-grading-web",
+  "name": "Form Grading (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Exceptions/NoActiveGradingStationException.php",
+    "backend/app/Services/GradingRecordService.php",
+    "backend/app/Http/Controllers/Api/GradingRecordController.php",
+    "backend/routes/api.php",
+    "backend/database/migrations/2026_08_20_000001_make_vehicle_code_nullable_on_grading_records_table.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/composer.json"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/GradingRecordServiceTest.php",
+    "backend/tests/Feature/Api/FormGradingTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormGrading.php",
+    "backend/resources/views/livewire/data/form-grading.blade.php",
+    "backend/resources/views/data/grading-form.blade.php",
+    "backend/routes/web.php",
+    "backend/resources/views/livewire/data/data-browser-grading.blade.php",
+    "backend/resources/views/livewire/data/detail-grading.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormGradingTest.php",
+    "backend/tests/Browser/FormGradingTest.php"
+  ],
+  "implementation_notes": [
+    "Satu Livewire component (FormGrading) menangani mode create DAN edit — mode ditentukan oleh ada/tidaknya parameter $id di mount(), sama persis pola FormWeighbridge (screen-022)",
+    "GradingRecordService::create()/update() ditambahkan, dipanggil dari GradingRecordController::store()/update() (API) DAN Livewire FormGrading::save() — satu source of truth validasi/business logic",
+    "GradingRecord::booted()'s saving guard (menolak status=saved dengan 0 grading_detail) ditangani di create() dengan insert status=Synced dulu, lalu upsert details, baru update ke status=saved dalam 1 DB transaction",
+    "DIVERGENSI DARI MOBILE (instruksi eksplisit user): Tanggal pada web adalah input type=date yang genuinely editable, default today() saat form dibuka — TIDAK dikunci seperti mobile screen-011",
+    "DIVERGENSI DARI MOBILE (instruksi eksplisit user): tidak ada draft/pause/lock di web — Simpan langsung create/update dengan status=saved, record dapat diedit kapan saja lewat mode edit",
+    "PENGECUALIAN dari konvensi web-form-input: UOM dan Percentage tiap baris Grading Detail tetap disabled (computed/snapshot server-side), sama alasan seperti Net Weight pada Form Weighbridge Web",
+    "WB Card No dropdown scoped ke business_unit_id terpilih (query WeighbridgeRecord whereHas station.business_unit_id), dimuat ulang tiap kali Business Unit berganti; auto-fill license_plate_no/estate_supplier/division hanya terjadi ulang saat WB Card No spesifik berganti",
+    "Quality Parameter dropdown per baris dihitung reaktif (availableParameterOptions()) — mengecualikan grading_parameter_id yang dipakai baris LAIN; server re-validasi independen (tidak percaya UI saja) menolak duplikat dengan 422",
+    "FALLOUT DITEMUKAN & DIPERBAIKI: grading_records.vehicle_code masih NOT NULL di database meski sudah dibuat opsional di UI mobile pada sesi sebelumnya (perubahan itu tidak pernah menyentuh skema). Migration baru dibuat untuk membuat kolom nullable; entity-catalog (v8) turut diperbarui agar konsisten. doctrine/dbal ditambahkan ke composer.json — migration pertama di proyek ini yang butuh CHANGE kolom, bukan sekadar ADD COLUMN",
+    "Route web /data/grading/create HARUS didaftarkan SEBELUM /data/grading/{id} (screen-020) — sama pola dengan screen-022",
+    "Ditambahkan tombol 'Tambah Data' di Data Browser Grading (screen-017) dan tombol 'Edit' di Detail Grading (screen-020) sebagai entry point ke screen ini",
+    "Station::factory()->grading() state ditambahkan (mirrors weighbridge() state yang sudah ada) untuk kebutuhan test suite screen ini"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV",
+      "severity": "minor"
+    },
+    {
+      "description": "Business Unit tidak dapat diubah di mode edit by design (immutable setelah create) — konsisten dengan screen-022, tidak ada jalur UI untuk memindah record ke mill lain",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 12,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 10,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 13,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

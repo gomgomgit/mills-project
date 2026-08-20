@@ -43,6 +43,53 @@ class GradingRecordController extends Controller
     }
 
     /**
+     * show() — GET /api/grading-records/{id}. screen-020--detail-grading-web
+     * business_logic steps 1-4: findOrFail (404 auto-handled by
+     * ApiExceptionHandler when not found) → resolve display names/grid via
+     * GradingRecordService::getDetail().
+     */
+    public function show(string $id): JsonResponse
+    {
+        return response()->json($this->service->getDetail($id));
+    }
+
+    /**
+     * store() — POST /api/grading-records. screen-023--form-grading-web
+     * business_logic steps 1-5: create a new record + details, resolving
+     * station_id from the given business_unit_id.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->only([
+            'business_unit_id', 'grading_number', 'date', 'weighbridge_record_id',
+            'license_plate_no', 'vehicle_code', 'estate_supplier', 'division',
+            'netto', 'quantity', 'note', 'acknowledged', 'details',
+        ]);
+
+        $record = $this->service->create($data, $request->user());
+
+        return response()->json($record, 201);
+    }
+
+    /**
+     * update() — PATCH /api/grading-records/{id}. screen-023--form-grading-web
+     * business_logic steps 6-8: update an existing record and upsert its
+     * details; business_unit_id/station_id are never accepted here.
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $data = $request->only([
+            'grading_number', 'date', 'weighbridge_record_id',
+            'license_plate_no', 'vehicle_code', 'estate_supplier', 'division',
+            'netto', 'quantity', 'note', 'acknowledged', 'details',
+        ]);
+
+        $record = $this->service->update($id, $data, $request->user());
+
+        return response()->json($record);
+    }
+
+    /**
      * export() — GET /api/grading-records/export. business_logic
      * steps 1-2 (same filters, no pagination) + 5-6: generate a file
      * stream (CSV, or CSV-as-xlsx fallback for format=excel — see

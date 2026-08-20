@@ -7,14 +7,13 @@
  *
  * Component tests for App\Livewire\Data\DataBrowserWeighbridge, one per
  * test_scenarios' component_test step (scenarios 1-5). Scenario 4, "Klik
- * Baris Membuka Detail", does NOT assert real navigation (row-click is a
- * plain `onclick="window.location.href=...` attribute rendered by the
- * Blade view, not a Livewire action/dispatched event — there is nothing to
- * ->call() for it, and screen-019's `data.weighbridge.detail` route does
- * not exist yet); it instead asserts the guarded rendering behavior: since
- * Route::has('data.weighbridge.detail') is false in this test env, rows
- * render with the `wb-table__row--static` class and no `onclick=`
- * attribute — see the Blade view's `$hasDetailRoute` check.
+ * Baris Membuka Detail", does NOT ->call() anything (row-click is a plain
+ * `onclick="window.location.href=...` attribute rendered by the Blade
+ * view, not a Livewire action/dispatched event) — it asserts the rendered
+ * HTML instead: since screen-019--detail-weighbridge-web's
+ * `data.weighbridge.detail` route now exists, rows render with a working
+ * onclick navigating to that route for the row's record id (the Blade
+ * view's `$hasDetailRoute` check).
  *
  * Uses Livewire::actingAs($user)->test() since this screen requires an
  * authenticated session (route is behind 'auth' + 'role:supervisor,
@@ -148,20 +147,25 @@ it('Ekspor Gagal: export links are always built from the current filters (no cli
 });
 
 // Scenario: "Telusuri & Ekspor Data Weighbridge — Klik Baris Membuka Detail"
-// (added by test-writer-agent: row-click navigation itself is client-side
-// and screen-019's `data.weighbridge.detail` route does not exist yet, so
-// navigation is NOT asserted here — only the guarded rendering behavior
-// is: since Route::has('data.weighbridge.detail') is false in this test
-// env, rows must render WITHOUT the clickable-row affordance, i.e. with
-// the `wb-table__row--static` class and no `onclick=` attribute.)
-it('Klik Baris Membuka Detail: rows render without navigation since the detail route does not exist yet', function () {
-    WeighbridgeRecord::factory()
+// (updated for screen-019--detail-weighbridge-web's Phase 4: the
+// `data.weighbridge.detail` route now exists, so rows render WITH the
+// clickable-row affordance — onclick navigating to the real detail route
+// for that record's id, per the Blade view's `$hasDetailRoute` check.
+// Row-click navigation itself is still client-side (plain `onclick=`, not
+// a Livewire action) — nothing to ->call() here, only the rendered HTML
+// is asserted.)
+it('Klik Baris Membuka Detail: rows render with a clickable-row link to the real detail route', function () {
+    $record = WeighbridgeRecord::factory()
         ->forStation($this->station)
         ->arrivedAt('2026-02-05 09:00:00')
         ->create();
 
+    // Assert the specific class= attribute value on the <tr> (not just the
+    // bare class name — that substring also appears in this view's inline
+    // <style> block as a CSS selector, which would always match and make
+    // this assertion vacuous).
     Livewire::actingAs($this->user)
         ->test(DataBrowserWeighbridge::class)
-        ->assertSeeHtml('wb-table__row--static')
-        ->assertDontSeeHtml('onclick=');
+        ->assertDontSeeHtml('class="wb-table__row wb-table__row--static"')
+        ->assertSeeHtml("onclick=\"window.location.href='".route('data.weighbridge.detail', ['id' => $record->id])."'\"");
 });

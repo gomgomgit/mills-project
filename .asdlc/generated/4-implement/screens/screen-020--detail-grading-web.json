@@ -1,0 +1,77 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-020--detail-grading-web",
+  "name": "Detail Grading (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/GradingRecordController.php",
+    "backend/app/Services/GradingRecordService.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/GradingRecordServiceTest.php",
+    "backend/tests/Feature/Api/DetailGradingTest.php",
+    "backend/tests/Feature/Livewire/DetailGradingTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserGradingTest.php",
+    "backend/tests/Browser/DetailGradingTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DetailGrading.php",
+    "backend/resources/views/livewire/data/detail-grading.blade.php",
+    "backend/resources/views/data/grading-detail.blade.php",
+    "backend/routes/web.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "Dual entry point: GET /api/grading-records/{id} (GradingRecordController::show()) dan Livewire DetailGrading keduanya panggil GradingRecordService::getDetail() yang sama, mengikuti pola screen-019 (Detail Weighbridge) persis",
+    "getDetail() eager-load station/weighbridgeRecord/acknowledgedBy/gradingDetails.gradingParameter dan resolve ke station_name/wb_card_number/acknowledged_by_name/grading_parameter_name per baris grid — raw UUID tidak berguna di layar detail human-facing. Checked By TIDAK di-resolve/tidak diexpose sama sekali, konsisten dengan Data Preview Grading mobile (screen-014)",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-019",
+    "Field grouping & urutan field di blade view sengaja MENIRU PERSIS mobile/src/views/DataPreviewGradingView.vue mode detail (Grading Number, Tanggal, WB Card Number, License Plate No, Vehicle Code, Estate, Divisi, Netto (kg), Quantity (bunch), Note, grid Grading Detail, Acknowledged By) per arahan eksplisit: web station screens mengikuti flow/UX mobile, tidak didesain independen",
+    "Route /grading-records/{id} didaftarkan SETELAH /grading-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}",
+    "Route /data/grading/{id} mengaktifkan kembali affordance clickable-row yang sudah lebih dulu dibangun (guarded via Route::has('data.grading.detail')) di screen-017's Blade view — tidak ada perubahan pada screen-017 selain test yang di-update untuk mencerminkan perilaku baru ini",
+    "Layout Blade terpisah (grading-detail.blade.php) dari screen-017 (grading.blade.php) karena Blade #[Layout(...)] tidak menerima parameter untuk judul header yang berbeda — shell/sidebar disalin identik dari layout screen-017 (termasuk link Kelola Station/Machinery Group/Machinery/Mills Setting yang sudah lebih dulu ditambahkan ke sidebar tersebut)"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV",
+      "severity": "minor"
+    },
+    {
+      "description": "Response error tidak punya field error_code mesin-terbaca, hanya message (404 generik), konsisten dengan pola error_format di seluruh codebase",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 5,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 6,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 4,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -6,6 +6,9 @@
         </div>
 
         <div class="gr-browser__export">
+            <a href="{{ route('data.grading.create') }}" class="gr-button gr-button--secondary" data-testid="add-data-button">
+                Tambah Data
+            </a>
             <a href="{{ $exportCsvUrl }}" class="gr-button gr-button--secondary" target="_blank" rel="noopener">
                 Ekspor CSV
             </a>

@@ -108,8 +108,8 @@ export async function fetchAndCacheStationsForProductionLine(
 
   for (const station of stations) {
     await run(
-      `INSERT INTO station (id, business_unit_id, production_line_id, name, type, is_active, icon, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO station (id, business_unit_id, production_line_id, name, type, is_active, icon, machinery_count, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          business_unit_id = excluded.business_unit_id,
          production_line_id = excluded.production_line_id,
@@ -117,6 +117,7 @@ export async function fetchAndCacheStationsForProductionLine(
          type = excluded.type,
          is_active = excluded.is_active,
          icon = excluded.icon,
+         machinery_count = excluded.machinery_count,
          updated_at = excluded.updated_at`,
       [
         station.id,
@@ -126,6 +127,7 @@ export async function fetchAndCacheStationsForProductionLine(
         station.type,
         station.is_active ? 1 : 0,
         station.icon,
+        station.machinery_count,
         now,
         now,
       ],

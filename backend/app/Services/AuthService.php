@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\UserRole;
 use App\Exceptions\AccountInactiveException;
 use App\Exceptions\BusinessAreaMismatchException;
 use App\Exceptions\InvalidCredentialsException;
@@ -58,7 +59,7 @@ class AuthService
     /**
      * @return array{
      *     user: array{id: string, username: string, name: string, role: string, business_unit_id: ?string},
-     *     business_unit: array{id: string, name: string},
+     *     business_unit: ?array{id: string, name: string},
      *     redirect_to?: string,
      *     token?: string,
      * }
@@ -68,7 +69,7 @@ class AuthService
      * @throws AccountInactiveException          (403 ACCOUNT_INACTIVE)
      * @throws BusinessAreaMismatchException     (403 BUSINESS_AREA_MISMATCH)
      */
-    public function login(string $username, string $password, ?string $businessUnitId, ?string $deviceName = null): array
+    public function login(string $username, string $password, ?string $businessUnitId = null, ?string $deviceName = null): array
     {
         // Step 1: required fields (+ device_name, only when the mobile
         // branch was selected by the caller passing a non-null $deviceName —
@@ -92,29 +93,41 @@ class AuthService
             throw new AccountInactiveException();
         }
 
-        // Step 5: business area resolution. $businessUnitId is now OPTIONAL
-        // — a user already assigned to one business unit (operator/
-        // supervisor/mill_management) no longer needs to pick it at login;
-        // it's auto-derived from the account. Admin (business_unit_id is
-        // typically null — unrestricted across mills) has nothing to
-        // auto-derive and must still send one explicitly, same as before.
+        // Step 5: business area resolution. $businessUnitId is now ALWAYS
+        // auto-derived from the account — no caller (web screen-001 or
+        // mobile screen-002) sends it anymore (2026-08-20: the "Business
+        // Area" picker was removed from the web login form too, mirroring
+        // the earlier mobile removal). A user already assigned to one
+        // business unit (operator/supervisor/mill_management) resolves to
+        // it automatically. Admin has no business_unit_id (unrestricted
+        // across mills, by design — every Admin-facing screen scopes by an
+        // explicit selection elsewhere, e.g. Mills Setting's mill picker,
+        // Data Browser filters) — this is expected, not an error, so Admin
+        // logs in with no business area at all rather than being rejected.
         //
-        // When the caller DOES send a business_unit_id, the exact-match
-        // check against the user's own assignment still applies — no
-        // many-to-many "accessible business units" table exists in the
-        // entity catalog for this screen, so "akses user" is an exact match,
-        // not a lookup.
+        // A caller MAY still pass an explicit $businessUnitId (kept for
+        // backward compatibility / defense in depth, e.g. a future
+        // cross-mill Admin action) — the exact-match check against the
+        // user's own assignment still applies then; no many-to-many
+        // "accessible business units" table exists in the entity catalog
+        // for this screen, so "akses user" is an exact match, not a lookup.
         if ($businessUnitId === null) {
-            if (! $user->business_unit_id) {
+            if ($user->business_unit_id) {
+                $businessUnitId = (string) $user->business_unit_id;
+            } elseif ($user->role !== UserRole::Admin) {
+                // Non-Admin account with no business unit assigned is a
+                // data-integrity problem (Kelola User & Role requires one
+                // for every non-Admin role), not a normal Admin case —
+                // reject it the same way an explicit mismatch is rejected.
                 throw new BusinessAreaMismatchException();
             }
-
-            $businessUnitId = (string) $user->business_unit_id;
+            // else: Admin with none assigned — proceed with $businessUnitId
+            // left null, no exception.
         } elseif (! $user->business_unit_id || (string) $user->business_unit_id !== (string) $businessUnitId) {
             throw new BusinessAreaMismatchException();
         }
 
-        $businessUnit = $user->businessUnit;
+        $businessUnit = $businessUnitId !== null ? $user->businessUnit : null;
 
         $userPayload = [
             'id' => $user->id,
@@ -132,10 +145,14 @@ class AuthService
             'business_unit_id' => $user->business_unit_id,
         ];
 
-        $businessUnitPayload = [
+        // null for Admin (no business unit assigned/selected) — every
+        // caller (web session response, mobile token response) must treat
+        // 'business_unit' as optional/nullable now, not assume it's always
+        // present.
+        $businessUnitPayload = $businessUnit !== null ? [
             'id' => $businessUnit->id,
             'name' => $businessUnit->name,
-        ];
+        ] : null;
 
         if ($deviceName !== null) {
             // Step 6 (mobile, screen-002): issue a Sanctum personal access

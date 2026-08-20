@@ -13,6 +13,16 @@
  * pragmatic equivalent asserted here is that the rendered markup actually
  * wires up a loading indicator for the `login` action (wire:loading /
  * wire:target="login"), which is what makes the loading state possible.
+ *
+ * 2026-08-20: the "Business Area" field/picker was removed from this form
+ * (mirrors the earlier mobile login removal — see AuthService::login()'s
+ * own comment) — business_unit_id is now always auto-derived server-side
+ * from the account. The old "Business Area Tidak Sesuai" scenario (client
+ * sends a mismatched business_unit_id) is no longer reachable from this UI
+ * at all, so it's replaced below with "Akun Tanpa Business Unit" (a
+ * defense-in-depth path: a non-Admin account somehow has no business unit
+ * assigned) and a new "Admin Tanpa Business Unit" success scenario (Admin
+ * logs in with no business area at all — expected, not an error).
  */
 
 use App\Enums\UserRole;
@@ -41,11 +51,25 @@ it('shows a loading affordance and redirects to the role dashboard on success', 
     $component
         ->set('username', $user->username)
         ->set('password', 'Passw0rd!')
-        ->set('business_unit_id', $this->businessUnit->id)
         ->call('login')
         ->assertRedirect('/dashboard');
 
     $component->assertSet('errorMessage', null);
+});
+
+// Scenario: "Login Web — Admin tanpa business unit berhasil login"
+it('lets an Admin (no business unit assigned) log in successfully', function () {
+    $admin = User::factory()
+        ->password('Passw0rd!')
+        ->role(UserRole::Admin)
+        ->create(['business_unit_id' => null]);
+
+    Livewire::test(LoginForm::class)
+        ->set('username', $admin->username)
+        ->set('password', 'Passw0rd!')
+        ->call('login')
+        ->assertRedirect('/dashboard')
+        ->assertSet('errorMessage', null);
 });
 
 // Scenario: "Login Web — Kredensial Salah"
@@ -58,7 +82,6 @@ it('shows an invalid-credentials error, clears the password, and stays editable'
     Livewire::test(LoginForm::class)
         ->set('username', $user->username)
         ->set('password', 'WrongPass1!')
-        ->set('business_unit_id', $this->businessUnit->id)
         ->call('login')
         ->assertNoRedirect()
         ->assertSet('errorMessage', 'Username atau password salah.')
@@ -76,26 +99,25 @@ it('shows an account-inactive error', function () {
     Livewire::test(LoginForm::class)
         ->set('username', $user->username)
         ->set('password', 'Passw0rd!')
-        ->set('business_unit_id', $this->businessUnit->id)
         ->call('login')
         ->assertNoRedirect()
         ->assertSet('errorMessage', 'Akun tidak aktif, hubungi Admin.')
         ->assertSet('password', '');
 });
 
-// Scenario: "Login Web — Business Area Tidak Sesuai"
-it('shows a business-area-mismatch error', function () {
-    $otherBusinessUnit = BusinessUnit::factory()->create();
-
+// Scenario: "Login Web — Akun Tanpa Business Unit" (defense in depth — a
+// non-Admin account with no business unit assigned is a data-integrity
+// issue, not reachable through normal Kelola User & Role usage, but still
+// handled gracefully rather than a raw fatal error).
+it('shows a business-area-mismatch error for a non-Admin account with no business unit assigned', function () {
     $user = User::factory()
         ->password('Passw0rd!')
-        ->forBusinessUnit($this->businessUnit)
-        ->create();
+        ->role(UserRole::Supervisor)
+        ->create(['business_unit_id' => null]);
 
     Livewire::test(LoginForm::class)
         ->set('username', $user->username)
         ->set('password', 'Passw0rd!')
-        ->set('business_unit_id', $otherBusinessUnit->id)
         ->call('login')
         ->assertNoRedirect()
         ->assertSet('errorMessage', 'Business area yang dipilih tidak sesuai dengan akses Anda.')
@@ -111,7 +133,6 @@ it('shows a password-format validation error and blocks submission', function ()
     Livewire::test(LoginForm::class)
         ->set('username', $user->username)
         ->set('password', 'abc')
-        ->set('business_unit_id', $this->businessUnit->id)
         ->call('login')
         ->assertNoRedirect()
         ->assertHasErrors(['password'])

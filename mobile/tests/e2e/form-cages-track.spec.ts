@@ -8,17 +8,18 @@ import { login, USERS, getAuthUserId, getBusinessUnitId } from './helpers'
 // "No. Cages Track" + free-text cage/time-per-row model). Mirrors
 // form-grading.spec.ts's structure/conventions.
 //
-// UPDATED 2026-08-20 (tech-spec v3, business_logic step 5): the grid's N
+// UPDATED 2026-08-20 (tech-spec v4, entity-catalog v9 — mill-setting.
+// jumlah_cages was removed from the backend entirely): the grid's N
 // (shared "Cage 1".."Cage N" checkbox column count) and the "Tambah baris"
-// enable/disable condition now come from the local `mill_setting` cache
-// (jumlah_cages), not the Cages Tipped header field — see `seedMillSetting()`
-// below for how this suite seeds that table directly (GET
-// /api/mill-settings/current, the real sync source, is not implemented on
-// the backend yet — see routes/api.php's own "NOT YET implemented" note
-// next to that route — so a real login never actually populates it).
+// enable/disable condition now come from the local `station` cache's
+// `machinery_count` for the active Cages Track station, not the Cages
+// Tipped header field and no longer from mill_setting — see
+// `seedCagesTrackStationMachineryCount()` below for how this suite seeds
+// that column directly (GET /api/production-lines/current/stations, the
+// real sync source, is not exercised by this offline-only test
+// environment).
 
-// Matches entity-catalog's `mill-setting` test_fixture (ms-001.jumlah_cages).
-const DEFAULT_JUMLAH_CAGES = 10
+const DEFAULT_MACHINERY_COUNT = 10
 
 async function fillRequiredHeaderFields(page: Page): Promise<void> {
   await page.locator('#field-cages-track-number').fill('CT-E2E-001')
@@ -55,30 +56,37 @@ async function searchableSelectOptionValues(page: Page, testId: string): Promise
 }
 
 /**
- * Seeds/overrides the local (offline) `mill_setting` table directly via
- * the dev-only `window.__mslTestDb` bridge — same technique/rationale as
- * helpers.ts's `seedStations()` (there is no in-app sync flow that
- * reliably populates this table in this test environment — see this
- * file's header comment above). `jumlahCages: null` deletes any existing
- * row instead, to simulate "mill_setting not synced locally yet for this
- * business unit" (distinct from a synced-but-zero value).
+ * Seeds/overrides the local (offline) `station` table's active Cages
+ * Track station row directly via the dev-only `window.__mslTestDb` bridge
+ * — same technique/rationale as helpers.ts's `seedStations()` (there is
+ * no in-app sync flow that reliably populates this table in this test
+ * environment — see this file's header comment above). Uses the same
+ * deterministic id (`e2e-station-cages-track`) as `seedStations()` so a
+ * test that also seeds the full station grid doesn't end up with two
+ * competing Cages Track rows. `jumlahCages: null` deletes the row instead,
+ * to simulate "station not synced locally yet for this business unit"
+ * (distinct from a synced-but-zero value).
  */
-async function seedMillSetting(page: Page, businessUnitId: string, jumlahCages: number | null): Promise<void> {
+async function seedCagesTrackStationMachineryCount(
+  page: Page,
+  businessUnitId: string,
+  jumlahCages: number | null,
+): Promise<void> {
   await page.evaluate(
     async ({ buId, jumlahCages }) => {
       const db = (window as unknown as { __mslTestDb: { run: (sql: string, params?: unknown[]) => Promise<unknown> } })
         .__mslTestDb
 
       if (jumlahCages === null) {
-        await db.run('DELETE FROM mill_setting WHERE business_unit_id = ?', [buId])
+        await db.run('DELETE FROM station WHERE id = ?', ['e2e-station-cages-track'])
         return
       }
 
       const now = new Date().toISOString()
       await db.run(
-        `INSERT OR REPLACE INTO mill_setting (id, business_unit_id, app_name, logo, home_page_image, jumlah_cages, created_at, updated_at)
+        `INSERT OR REPLACE INTO station (id, business_unit_id, name, type, is_active, machinery_count, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [`e2e-mill-setting-${buId}`, buId, 'Mills Smart Log', null, null, jumlahCages, now, now],
+        ['e2e-station-cages-track', buId, 'Cages Track 01', 'cages-track', 1, jumlahCages, now, now],
       )
     },
     { buId: businessUnitId, jumlahCages },
@@ -89,15 +97,16 @@ test.describe('Form Cages Track (screen-012)', () => {
   test.beforeEach(async ({ page }) => {
     await login(page)
 
-    // Default: mill_setting already synced locally with a positive
-    // jumlah_cages, matching entity-catalog's test_fixture — keeps every
-    // scenario below that adds a detail row working, now that "Tambah
-    // baris"/the grid's column count are mill_setting-driven rather than
-    // Cages Tipped-header-driven (2026-08-20, tech-spec v3). Scenarios
-    // exercising the mill_setting-driven behavior itself re-seed with a
-    // different value.
+    // Default: the local `station` cache already has a positive
+    // machinery_count for the active Cages Track station, matching
+    // entity-catalog's test_fixture — keeps every scenario below that adds
+    // a detail row working, now that "Tambah baris"/the grid's column count
+    // are machinery_count-driven rather than Cages Tipped-header-driven
+    // (2026-08-20, tech-spec v4). Scenarios exercising the
+    // machinery_count-driven behavior itself re-seed with a different
+    // value.
     const businessUnitId = await getBusinessUnitId(page)
-    await seedMillSetting(page, businessUnitId, DEFAULT_JUMLAH_CAGES)
+    await seedCagesTrackStationMachineryCount(page, businessUnitId, DEFAULT_MACHINERY_COUNT)
   })
 
   test('Form Cages Track — success as Station Operator', async ({ page }) => {
@@ -116,9 +125,10 @@ test.describe('Form Cages Track (screen-012)', () => {
     expect(await page.getByTestId('acknowledged-by-toggle').isDisabled()).toBe(true)
 
     await page.getByTestId('row-total-cages-0').textContent().then((t) => expect(t).toContain('2'))
-    // cages_remain = mill_setting.jumlah_cages (DEFAULT_JUMLAH_CAGES = 10)
-    // minus this row's own total_cages (2) — NOT derived from the Cages
-    // Tipped header field (filled to 5 above by fillRequiredHeaderFields).
+    // cages_remain = the Cages Track station's machinery_count
+    // (DEFAULT_MACHINERY_COUNT = 10) minus this row's own total_cages (2)
+    // — NOT derived from the Cages Tipped header field (filled to 5 above
+    // by fillRequiredHeaderFields).
     await page.getByTestId('row-cages-remain-0').textContent().then((t) => expect(t).toContain('8'))
 
     await page.getByTestId('save-button').click()
@@ -169,11 +179,12 @@ test.describe('Form Cages Track (screen-012)', () => {
 
   // Replaces the pre-2026-08-20 "Cages Tipped Belum Diisi Menonaktifkan
   // Tambah Baris" scenario: "Tambah baris" is no longer gated on the Cages
-  // Tipped header field — it's gated on the local mill_setting cache
-  // (business_logic step 5, tech-spec v3).
+  // Tipped header field — it's gated on the local `station` cache's
+  // machinery_count for the active Cages Track station (business_logic
+  // step 5, tech-spec v4).
   test('Form Cages Track — Data Jumlah Cages Mills Setting Belum Tersedia Menonaktifkan Tambah Baris', async ({ page }) => {
     const businessUnitId = await getBusinessUnitId(page)
-    await seedMillSetting(page, businessUnitId, null)
+    await seedCagesTrackStationMachineryCount(page, businessUnitId, null)
 
     await page.goto('/stations/cages-track/monitor')
     await page.getByTestId('new-data-button').click()
@@ -182,7 +193,7 @@ test.describe('Form Cages Track (screen-012)', () => {
     await expect(page.getByTestId('add-tipped-time-row-button')).toBeDisabled()
     await expect(page.getByTestId('add-row-jumlah-cages-hint')).toBeVisible()
 
-    await seedMillSetting(page, businessUnitId, DEFAULT_JUMLAH_CAGES)
+    await seedCagesTrackStationMachineryCount(page, businessUnitId, DEFAULT_MACHINERY_COUNT)
     await page.reload()
 
     await expect(page.getByTestId('add-tipped-time-row-button')).toBeEnabled()
@@ -193,7 +204,7 @@ test.describe('Form Cages Track (screen-012)', () => {
   // Jumlah Kolom Grid Mengikuti Mills Setting, Bukan Cages Tipped Header".
   test('Form Cages Track — Jumlah Kolom Grid Mengikuti Mills Setting, Bukan Cages Tipped Header', async ({ page }) => {
     const businessUnitId = await getBusinessUnitId(page)
-    await seedMillSetting(page, businessUnitId, 8)
+    await seedCagesTrackStationMachineryCount(page, businessUnitId, 8)
 
     await page.goto('/stations/cages-track/monitor')
     await page.getByTestId('new-data-button').click()

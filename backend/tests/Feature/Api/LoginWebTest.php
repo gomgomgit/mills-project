@@ -54,6 +54,55 @@ it('returns 200 with user, business_unit and redirect_to on valid login', functi
     ]);
 });
 
+// Scenario: "Login Web — berhasil tanpa mengirim business_unit_id"
+// (2026-08-20: the "Business Area" picker was removed from the web login
+// form — the client no longer sends this field at all; it's auto-derived
+// server-side from the account, mirroring the earlier mobile removal.)
+it('auto-derives business_unit_id from the account when the field is omitted', function () {
+    $user = User::factory()
+        ->password('Passw0rd!')
+        ->role(UserRole::Supervisor)
+        ->forBusinessUnit($this->businessUnit)
+        ->create();
+
+    $response = $this->postJson('/api/login', [
+        'username' => $user->username,
+        'password' => 'Passw0rd!',
+    ]);
+
+    $response->assertOk();
+    $response->assertJson([
+        'business_unit' => [
+            'id' => $this->businessUnit->id,
+            'name' => $this->businessUnit->name,
+        ],
+        'redirect_to' => '/dashboard',
+    ]);
+});
+
+// Scenario: "Login Web — Admin tanpa business unit berhasil login"
+// Admin has no business_unit_id assigned (unrestricted across mills, by
+// design) — this is expected, not an error; 'business_unit' is null in the
+// response rather than the request being rejected.
+it('lets an Admin (no business unit assigned) log in with a null business_unit in the response', function () {
+    $admin = User::factory()
+        ->password('Passw0rd!')
+        ->role(UserRole::Admin)
+        ->create(['business_unit_id' => null]);
+
+    $response = $this->postJson('/api/login', [
+        'username' => $admin->username,
+        'password' => 'Passw0rd!',
+    ]);
+
+    $response->assertOk();
+    $response->assertJson([
+        'user' => ['role' => 'admin', 'business_unit_id' => null],
+        'business_unit' => null,
+        'redirect_to' => '/dashboard',
+    ]);
+});
+
 // Scenario: "Login Web — Kredensial Salah"
 it('returns 401 when the password is wrong', function () {
     $user = User::factory()

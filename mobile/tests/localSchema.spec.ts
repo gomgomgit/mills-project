@@ -316,6 +316,7 @@ describe('localSchema — initLocalSchema() station.icon v7 migration', () => {
       { name: 'type' },
       { name: 'is_active' },
       { name: 'icon' },
+      { name: 'machinery_count' },
     ] as never)
 
     await initLocalSchema()
@@ -367,6 +368,60 @@ describe('localSchema — initLocalSchema() station.production_line_id v9 migrat
       { name: 'type' },
       { name: 'is_active' },
       { name: 'icon' },
+      { name: 'machinery_count' },
+    ] as never)
+
+    await initLocalSchema()
+
+    const alterCalls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(alterCalls.some((sql) => sql.includes('ALTER TABLE station'))).toBe(false)
+  })
+})
+
+/**
+ * initLocalSchema() — station.machinery_count column migration (Cages Track
+ * grid fix, 2026-08-20). Same "CREATE TABLE IF NOT EXISTS is a no-op on an
+ * existing table" gap as every migration above.
+ */
+describe('localSchema — initLocalSchema() station.machinery_count migration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(run).mockResolvedValue({ changes: 1 })
+  })
+
+  it('adds the machinery_count column to station when the table pre-dates this migration', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('station')) {
+        return [
+          { name: 'id' },
+          { name: 'business_unit_id' },
+          { name: 'production_line_id' },
+          { name: 'name' },
+          { name: 'type' },
+          { name: 'is_active' },
+          { name: 'icon' },
+        ] as never
+      }
+
+      return [{ name: 'id' }] as never
+    })
+
+    await initLocalSchema()
+
+    const alterCalls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(alterCalls).toContain('ALTER TABLE station ADD COLUMN machinery_count INTEGER')
+  })
+
+  it('does not re-add machinery_count when PRAGMA table_info already reports it as present', async () => {
+    vi.mocked(query).mockResolvedValue([
+      { name: 'id' },
+      { name: 'business_unit_id' },
+      { name: 'production_line_id' },
+      { name: 'name' },
+      { name: 'type' },
+      { name: 'is_active' },
+      { name: 'icon' },
+      { name: 'machinery_count' },
     ] as never)
 
     await initLocalSchema()

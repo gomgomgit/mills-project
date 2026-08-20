@@ -5,9 +5,7 @@ namespace App\Livewire\Auth;
 use App\Exceptions\AccountInactiveException;
 use App\Exceptions\BusinessAreaMismatchException;
 use App\Exceptions\InvalidCredentialsException;
-use App\Models\BusinessUnit;
 use App\Services\AuthService;
-use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -32,16 +30,7 @@ class LoginForm extends Component
 
     public string $password = '';
 
-    public string $business_unit_id = '';
-
-    public Collection $businessUnits;
-
     public ?string $errorMessage = null;
-
-    public function mount(): void
-    {
-        $this->businessUnits = BusinessUnit::orderBy('name')->get();
-    }
 
     /**
      * Mirrors AuthService's business_logic step 1 (required fields) and
@@ -54,7 +43,6 @@ class LoginForm extends Component
         return [
             'username' => ['required', 'string'],
             'password' => ['required', 'string', 'min:6', 'regex:/[A-Za-z0-9]/', 'regex:/[^A-Za-z0-9]/'],
-            'business_unit_id' => ['required', 'string'],
         ];
     }
 
@@ -65,7 +53,6 @@ class LoginForm extends Component
             'password.required' => 'Password wajib diisi.',
             'password.min' => 'Password minimal 6 karakter.',
             'password.regex' => 'Password harus mengandung kombinasi huruf/angka serta simbol.',
-            'business_unit_id.required' => 'Business area wajib dipilih.',
         ];
     }
 
@@ -83,7 +70,7 @@ class LoginForm extends Component
         $authService = app(AuthService::class);
 
         try {
-            $result = $authService->login($this->username, $this->password, $this->business_unit_id);
+            $result = $authService->login($this->username, $this->password);
         } catch (InvalidCredentialsException) {
             $this->password = '';
             $this->errorMessage = 'Username atau password salah.';

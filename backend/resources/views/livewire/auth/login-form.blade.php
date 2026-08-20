@@ -53,22 +53,6 @@
             @enderror
         </div>
 
-        <div class="form-field">
-            <label for="business_unit_id" class="form-field__label">
-                Business Area <span class="form-field__required">*</span>
-            </label>
-            <x-searchable-select
-                id="business_unit_id"
-                wire:model="business_unit_id"
-                :options="collect($businessUnits)->map(fn ($businessUnit) => ['value' => $businessUnit->id, 'label' => $businessUnit->name])->all()"
-                placeholder="Pilih business area…"
-                :class="'form-field__input'.($errors->has('business_unit_id') ? ' form-field__input--error' : '')"
-            />
-            @error('business_unit_id')
-                <p class="form-field__error">{{ $message }}</p>
-            @enderror
-        </div>
-
         <button type="submit" class="login-button" wire:loading.attr="disabled" wire:target="login">
             <span wire:loading.remove wire:target="login">Masuk</span>
             <span wire:loading wire:target="login">Memproses&hellip;</span>

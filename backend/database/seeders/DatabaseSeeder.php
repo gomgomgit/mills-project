@@ -13,5 +13,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(GradingParameterSeeder::class);
         $this->call(DemoAccountSeeder::class);
+        $this->call(DemoMachineryDataSeeder::class);
+        $this->call(DemoOperationalDataSeeder::class);
     }
 }

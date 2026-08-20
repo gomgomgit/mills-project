@@ -32,11 +32,15 @@ class AuthController extends Controller
     {
         $username = (string) $request->input('username');
         $password = (string) $request->input('password');
-        // Optional as of this session: a user with their own business_unit_id
-        // assigned (operator/supervisor/mill_management) no longer needs to
-        // pick one — AuthService::login() auto-derives it from the account
-        // when omitted. Admin (no assigned business_unit_id) must still send
-        // one explicitly. $request->filled() (not ->has()) so an
+        // Optional — no caller (web screen-001 or mobile screen-002) sends
+        // this anymore (2026-08-20: the web "Business Area" picker was also
+        // removed, mirroring the earlier mobile removal). A user with their
+        // own business_unit_id assigned (operator/supervisor/
+        // mill_management) auto-derives it via AuthService::login(); Admin
+        // (no business_unit_id assigned) logs in with none at all — not an
+        // error, see AuthService::login()'s own comment. Kept accepting an
+        // explicit value here for defense in depth / potential future
+        // cross-mill Admin actions. $request->filled() (not ->has()) so an
         // empty-string value is also treated as "omitted", not as a literal
         // business_unit_id to match against.
         $businessUnitId = $request->filled('business_unit_id') ? (string) $request->input('business_unit_id') : null;

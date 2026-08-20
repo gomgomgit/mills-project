@@ -74,15 +74,17 @@
  *    as every other role-gated field in this app. `note` (optional free
  *    text) also lives in this section per the mock.
  *
- *  - "Cages Tipped Time" section — the dynamic grid. UPDATED 2026-08-19
- *    (tech-spec v3, business_logic step 5): N (the shared "Cage 1".."Cage
- *    N" checkbox column count, `cageColumns`) is no longer derived from
- *    the header's `cages_tipped` — it now comes from the local
- *    `mill_setting` reference cache's `jumlah_cages`
- *    (`jumlahCagesFromMillSetting`, loaded once on mount via
- *    `millSettingRepo.getJumlahCages()`, keyed by the current session's
- *    business unit — see that ref's own comment for the exact
- *    business-unit-id derivation and its documented scope limitation).
+ *  - "Cages Tipped Time" section — the dynamic grid. UPDATED 2026-08-20
+ *    (tech-spec v4, entity-catalog v9 — mill-setting.jumlah_cages was
+ *    removed): N (the shared "Cage 1".."Cage N" checkbox column count,
+ *    `cageColumns`) is no longer derived from `mill_setting.jumlah_cages`
+ *    — it now comes from the local `station` reference cache's
+ *    `machinery_count` for this business unit's active Cages Track station
+ *    (`jumlahCagesFromStation`, loaded once on mount via
+ *    `stationRepo.getMachineryCountForCagesTrackStation()` — see that
+ *    function's own comment for the exact business-unit-id derivation and
+ *    its documented scope limitation, same class as before). The header's
+ *    `cages_tipped` field is still never involved here either way.
  *    Each row's Time <select> options are computed reactively by
  *    `availableHourOptions()` — see that function's own comment for the
  *    exact exclusion rule (already-used-by-another-row, plus a floor at
@@ -91,12 +93,12 @@
  *    row's `checked_cage_numbers` (comma-separated, sorted ascending, via
  *    `toggleCage()`); `rowTotalCages()`/`rowCagesRemain()` are pure
  *    per-row display functions, never accumulated across rows —
- *    `rowCagesRemain()` is now N (mill_setting) MINUS that row's own
- *    total, not header `cages_tipped` MINUS total.
+ *    `rowCagesRemain()` is now N (station machinery_count) MINUS that
+ *    row's own total, not header `cages_tipped` MINUS total.
  *    "Tambah baris" (`canAddTippedTimeRow`) is disabled until N is loaded
- *    (mill_setting synced locally, not null) AND N > 0 — a short inline
+ *    (station synced locally, not null) AND N > 0 — a short inline
  *    hint is shown next to the button whenever it's disabled for this
- *    reason (edge_case_handling, tech-spec v3). "Hapus baris" on
+ *    reason (edge_case_handling, tech-spec v4). "Hapus baris" on
  *    a row with an `id` (loaded from an existing draft) queues it in
  *    `pendingDeletionIds` (deleted only at the next Simpan/Pause) rather
  *    than deleting immediately, exact same pattern as
@@ -152,7 +154,7 @@ import cagesTrackRecordRepo, {
   type CagesTrackHeaderFormData,
   type CagesTrackRecord,
 } from '@/services/cagesTrackRecordRepo'
-import { getJumlahCages } from '@/services/millSettingRepo'
+import { getMachineryCountForCagesTrackStation } from '@/services/stationRepo'
 import FormField from '@/components/FormField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import SearchableSelect, { type SearchableSelectOption } from '@/components/SearchableSelect.vue'
@@ -229,10 +231,11 @@ const actionInProgress = computed(() => saving.value || pausing.value || clearin
 const isSupervisor = computed(() => authStore.currentUser?.role === 'supervisor')
 const isMillManagement = computed(() => authStore.currentUser?.role === 'mill_management')
 
-// business_logic step 5 (tech-spec v3) — N (the grid's shared "Cage
+// business_logic step 5 (tech-spec v4) — N (the grid's shared "Cage
 // 1".."Cage N" checkbox column count) is loaded once, on mount, from the
-// local mill_setting reference cache — see the onMounted block right
-// below this ref for the exact load. null = not yet loaded / mill_setting
+// local `station` reference cache's `machinery_count` for this business
+// unit's active Cages Track station — see the onMounted block right
+// below this ref for the exact load. null = not yet loaded / station
 // not synced locally yet for this business unit, distinct from a synced-
 // but-zero value; both disable "Tambah baris" per edge_case_handling
 // below, but the distinction is kept here in case a future UI wants to
@@ -246,7 +249,7 @@ const isMillManagement = computed(() => authStore.currentUser?.role === 'mill_ma
 // rows existed, back when it drove the grid) has been removed entirely
 // — `cages_tipped` is now a fully plain manual number input at all
 // times.
-const jumlahCagesFromMillSetting = ref<number | null>(null)
+const jumlahCagesFromStation = ref<number | null>(null)
 
 onMounted(async () => {
   // business_unit_id derivation: per business_logic step 5, the
@@ -269,21 +272,22 @@ onMounted(async () => {
     return
   }
 
-  jumlahCagesFromMillSetting.value = await getJumlahCages(businessUnitId)
+  jumlahCagesFromStation.value = await getMachineryCountForCagesTrackStation(businessUnitId)
 })
 
 // business_logic step 5/edge_case_handling — "Tambah baris" is only
-// enabled once N has been loaded (mill_setting synced locally, not null)
+// enabled once N has been loaded (station synced locally, not null)
 // AND N > 0.
 const canAddTippedTimeRow = computed(
-  () => jumlahCagesFromMillSetting.value !== null && jumlahCagesFromMillSetting.value > 0,
+  () => jumlahCagesFromStation.value !== null && jumlahCagesFromStation.value > 0,
 )
 
 // business_logic step 5 — the shared "Cage 1".."Cage N" checkbox columns
-// rendered identically in every row, N = mill_setting.jumlah_cages for
-// this session's business unit (0/not-yet-loaded → no columns at all).
+// rendered identically in every row, N = the active Cages Track station's
+// machinery_count for this session's business unit (0/not-yet-loaded →
+// no columns at all).
 const cageColumns = computed<number[]>(() => {
-  const n = jumlahCagesFromMillSetting.value ?? 0
+  const n = jumlahCagesFromStation.value ?? 0
 
   if (n <= 0) {
     return []
@@ -535,18 +539,18 @@ function rowTotalCages(row: CagesTippedTimeFormRow): number {
 }
 
 function rowCagesRemain(row: CagesTippedTimeFormRow): number {
-  return (jumlahCagesFromMillSetting.value ?? 0) - rowTotalCages(row)
+  return (jumlahCagesFromStation.value ?? 0) - rowTotalCages(row)
 }
 
 // business_logic step 6 — "Tambah baris": only enabled once N
-// (jumlahCagesFromMillSetting) is loaded and > 0 (see
+// (jumlahCagesFromStation) is loaded and > 0 (see
 // canAddTippedTimeRow above).
 function addTippedTimeRow(): void {
   tippedTimeRows.value.push({
     tipped_hour: null,
     checked_cage_numbers: '',
     total_cages: 0,
-    cages_remain: jumlahCagesFromMillSetting.value ?? 0,
+    cages_remain: jumlahCagesFromStation.value ?? 0,
   })
 }
 
@@ -613,7 +617,7 @@ function validateTippedTimeRows(): boolean {
  * Builds the `tippedTimeRows` payload sent to saveDraft()/
  * pauseDraftWithFormData() — each row's `total_cages`/`cages_remain` are
  * (re)computed fresh from that row's own `checked_cage_numbers` plus the
- * current mill_setting-derived N (`jumlahCagesFromMillSetting`), right
+ * current station-derived N (`jumlahCagesFromStation`), right
  * before the call, rather than tracked live on the row object between
  * renders.
  */

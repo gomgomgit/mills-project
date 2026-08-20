@@ -281,6 +281,7 @@ const CREATE_STATION = `
     type TEXT NOT NULL,
     is_active INTEGER NOT NULL DEFAULT 0,
     icon TEXT,
+    machinery_count INTEGER,
     created_at TEXT,
     updated_at TEXT
   )
@@ -351,6 +352,7 @@ export async function initLocalSchema(): Promise<void> {
   await migrateCagesTrackTablesToV3()
   await migrateStationTableToV7()
   await migrateStationTableToV9()
+  await migrateStationTableForMachineryCount()
   await migrateRecordTablesForSync()
   await dedupeStationRows()
 }
@@ -496,6 +498,22 @@ async function migrateStationTableToV7(): Promise<void> {
  */
 async function migrateStationTableToV9(): Promise<void> {
   await addMissingColumns('station', [{ name: 'production_line_id', type: 'TEXT' }])
+}
+
+/**
+ * Cages Track grid fix (2026-08-20) — `station` gained `machinery_count`.
+ * The backend already returns this per-station (Cages Track type) via
+ * GET /api/production-lines/current/stations, and `productionLineRepo.ts`
+ * already typed it in `CurrentStationRow` — but never persisted it locally,
+ * so `FormCagesTrackView.vue` was left reading the now-removed
+ * `mill_setting.jumlah_cages` (dropped from the backend when Mills Setting's
+ * jumlah_cages field was removed in favor of this exact machinery-count
+ * approach), which always resolves to null and disables "Tambah baris"
+ * entirely. Same "CREATE TABLE IF NOT EXISTS is a no-op on an existing
+ * table" gap as every other migration in this file.
+ */
+async function migrateStationTableForMachineryCount(): Promise<void> {
+  await addMissingColumns('station', [{ name: 'machinery_count', type: 'INTEGER' }])
 }
 
 /**

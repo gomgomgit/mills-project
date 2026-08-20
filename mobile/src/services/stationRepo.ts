@@ -139,9 +139,46 @@ export async function getActiveAndPlaceholderStationsForProductionLine(
   return rows.map(toStationSlot)
 }
 
+interface MachineryCountRow {
+  machinery_count: number | null
+}
+
+/**
+ * getMachineryCountForCagesTrackStation() — screen-012--form-cages-track
+ * fix (2026-08-20): the Cages Tipped Time grid's checklist column count
+ * (Cage 1..N) now derives from this business unit's active Cages Track
+ * station's `machinery_count` (synced via
+ * productionLineRepo.fetchAndCacheStationsForProductionLine(), see
+ * `station.machinery_count`'s own migration comment) instead of the
+ * removed `mill_setting.jumlah_cages`.
+ *
+ * Scoped by `business_unit_id`, not `production_line_id` — same
+ * single-business-unit-per-session simplification
+ * FormCagesTrackView.vue's own business_unit_id derivation already
+ * documents (`cages_track_record.station_id`/a "current production line"
+ * are not threaded through this screen's navigation yet, matching the
+ * pre-existing gap already noted there). If a business unit ever has more
+ * than one Production Line each with its own active Cages Track station,
+ * this picks whichever synced most recently — a known limitation of the
+ * same class as `getActiveAndPlaceholderStations()`'s own dedup subquery,
+ * not a new one introduced here.
+ */
+export async function getMachineryCountForCagesTrackStation(businessUnitId: string): Promise<number | null> {
+  const rows = await query<MachineryCountRow>(
+    `SELECT machinery_count FROM station
+     WHERE business_unit_id = ? AND type = 'cages-track' AND is_active = 1
+     ORDER BY updated_at DESC, id DESC
+     LIMIT 1`,
+    [businessUnitId],
+  )
+
+  return rows[0]?.machinery_count ?? null
+}
+
 export const stationRepo = {
   getActiveAndPlaceholderStations,
   getActiveAndPlaceholderStationsForProductionLine,
+  getMachineryCountForCagesTrackStation,
 }
 
 export default stationRepo

@@ -7,23 +7,24 @@
  * Component tests covering:
  *   1. Date/Tippler Start Time auto-set once for a new draft, preserved
  *      for a resumed one.
- *   2. UPDATED 2026-08-20: "Tambah baris" (`canAddTippedTimeRow`) is
- *      disabled until the local mill_setting cache has a synced,
- *      positive `jumlah_cages` for the current session's business unit
- *      (loaded once on mount via millSettingRepo.getJumlahCages()) — no
+ *   2. UPDATED 2026-08-20 (twice — see below): "Tambah baris"
+ *      (`canAddTippedTimeRow`) is disabled until the local `station` cache
+ *      has a synced, positive `machinery_count` for the current session's
+ *      business unit's active Cages Track station (loaded once on mount
+ *      via stationRepo.getMachineryCountForCagesTrackStation()) — no
  *      longer driven by the header's Cages Tipped field. Cages Tipped
  *      itself is now a fully plain manual input, never locked/disabled,
  *      with zero coupling to the grid (the old `cagesTippedLocked`
  *      computed was removed entirely).
  *   3. UPDATED 2026-08-20: Cage checklist renders N checkboxes matching
- *      mill_setting.jumlah_cages, independent of whatever value is typed
- *      into the Cages Tipped header field.
+ *      the active Cages Track station's machinery_count, independent of
+ *      whatever value is typed into the Cages Tipped header field.
  *   4. Time dropdown excludes hours used by other rows AND hours ≤ the
  *      most-recently-added row's hour.
  *   5. UPDATED 2026-08-20: Checking/unchecking a cage recomputes Total
- *      Cages/Cages Remain for that row only; Cages Remain is
- *      mill_setting.jumlah_cages MINUS that row's own Total Cages —
- *      neither is affected by the Cages Tipped header value.
+ *      Cages/Cages Remain for that row only; Cages Remain is the active
+ *      Cages Track station's machinery_count MINUS that row's own Total
+ *      Cages — neither is affected by the Cages Tipped header value.
  *   6. Removing a row frees its hour for other rows.
  *   7. Checked By toggle interactive only for supervisor.
  *   8. Acknowledged By toggle interactive only for mill_management.
@@ -38,14 +39,14 @@
  * '@/stores/auth' mocked at module level; '@/services/cagesTrackRecordRepo'
  * mocked at module level (its own behavior already covered by
  * cagesTrackRecordRepo.spec.ts) so this file never touches localDb.ts / a
- * real SQLite connection. ADDED 2026-08-20: '@/services/millSettingRepo'
- * is now also mocked at module level (mirrors HomeView.spec.ts's own
- * `getMillSettingMock` pattern) — `getJumlahCagesMock` defaults to
- * resolving `10` in the outer `beforeEach` (matching entity-catalog's
- * `mill-setting` test_fixture, ms-001.jumlah_cages) so every pre-existing
- * test that adds a detail row keeps working unchanged; individual tests
- * override via `mockResolvedValueOnce()` where the mill_setting value
- * itself is what's under test.
+ * real SQLite connection. UPDATED 2026-08-20 (again — mill-setting.
+ * jumlah_cages was removed from the backend entirely; the column count now
+ * comes from the active Cages Track station's `machinery_count` instead):
+ * '@/services/stationRepo' is mocked at module level —
+ * `getMachineryCountMock` defaults to resolving `10` in the outer
+ * `beforeEach` so every pre-existing test that adds a detail row keeps
+ * working unchanged; individual tests override via `mockResolvedValueOnce()`
+ * where the machinery_count value itself is what's under test.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
@@ -102,18 +103,17 @@ vi.mock('@/services/cagesTrackRecordRepo', () => {
 
 import { CagesTippedTimeRequiredError } from '@/services/cagesTrackRecordRepo'
 
-// business_logic step 5 (tech-spec v3) — N (the grid's shared "Cage
-// 1".."Cage N" checkbox column count) now comes from the local
-// mill_setting reference cache, not the Cages Tipped header field. Mocked
-// at module level the same way HomeView.spec.ts mocks this repo's
-// `getMillSetting`.
-const { getJumlahCagesMock } = vi.hoisted(() => ({ getJumlahCagesMock: vi.fn() }))
+// business_logic step 5 (tech-spec v4) — N (the grid's shared "Cage
+// 1".."Cage N" checkbox column count) now comes from the local `station`
+// reference cache's `machinery_count`, not the Cages Tipped header field
+// and no longer from mill_setting (removed 2026-08-20). Mocked at module
+// level.
+const { getMachineryCountMock } = vi.hoisted(() => ({ getMachineryCountMock: vi.fn() }))
 
-vi.mock('@/services/millSettingRepo', () => ({
-  getJumlahCages: getJumlahCagesMock,
+vi.mock('@/services/stationRepo', () => ({
+  getMachineryCountForCagesTrackStation: getMachineryCountMock,
 }))
 
-// Matches entity-catalog's `mill-setting` test_fixture (ms-001.jumlah_cages).
 const DEFAULT_JUMLAH_CAGES = 10
 
 function makeDraftRecord(overrides: Partial<CagesTrackRecord> = {}): CagesTrackRecord {
@@ -153,9 +153,9 @@ function makeTippedTimeRow(overrides: Partial<CagesTippedTimeRow> = {}): CagesTi
 
 // business_unit_id: derived by the component from
 // `authStore.currentUser?.business_unit_id` (see FormCagesTrackView.vue's
-// onMounted block) to look up the local mill_setting cache — added
-// 2026-08-20, mirrors HomeView.spec.ts's `mockAuthUser()`'s
-// `business_unit_id: 'bu-1'`.
+// onMounted block) to look up the local `station` cache's active Cages
+// Track station machinery_count — added 2026-08-20, mirrors
+// HomeView.spec.ts's `mockAuthUser()`'s `business_unit_id: 'bu-1'`.
 function setCurrentUser(role: 'operator' | 'supervisor' | 'mill_management' = 'operator'): void {
   useAuthStoreMock.mockReturnValue({
     currentUser: { id: 'user-1', username: 'operator01', name: 'Operator Satu', role, business_unit_id: 'bu-1' },
@@ -252,7 +252,7 @@ describe('FormCagesTrackView', () => {
     // working unchanged. Tests that exercise the mill_setting-driven
     // enable/disable logic itself override this via
     // `mockResolvedValueOnce()`.
-    getJumlahCagesMock.mockResolvedValue(DEFAULT_JUMLAH_CAGES)
+    getMachineryCountMock.mockResolvedValue(DEFAULT_JUMLAH_CAGES)
   })
 
   afterEach(() => {
@@ -325,7 +325,7 @@ describe('FormCagesTrackView', () => {
   // mill_setting cache, not the Cages Tipped header field (2026-08-20,
   // tech-spec v3, business_logic step 5).
   it("disables 'Tambah baris' when mill_setting.jumlah_cages is unavailable locally (not synced)", async () => {
-    getJumlahCagesMock.mockResolvedValueOnce(null)
+    getMachineryCountMock.mockResolvedValueOnce(null)
     getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
 
     const wrapper = mount(FormCagesTrackView)
@@ -339,7 +339,7 @@ describe('FormCagesTrackView', () => {
   })
 
   it("disables 'Tambah baris' when mill_setting.jumlah_cages is 0", async () => {
-    getJumlahCagesMock.mockResolvedValueOnce(0)
+    getMachineryCountMock.mockResolvedValueOnce(0)
     getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
 
     const wrapper = mount(FormCagesTrackView)
@@ -350,7 +350,7 @@ describe('FormCagesTrackView', () => {
   })
 
   it("enables 'Tambah baris' once mill_setting.jumlah_cages is a positive value", async () => {
-    getJumlahCagesMock.mockResolvedValueOnce(10)
+    getMachineryCountMock.mockResolvedValueOnce(10)
     getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
 
     const wrapper = mount(FormCagesTrackView)
@@ -365,7 +365,7 @@ describe('FormCagesTrackView', () => {
   // NOT the header field, which this test deliberately sets to a
   // different value to prove the decoupling.
   it('renders N checklist checkboxes per row matching mill_setting.jumlah_cages, independent of the Cages Tipped header value', async () => {
-    getJumlahCagesMock.mockResolvedValueOnce(10)
+    getMachineryCountMock.mockResolvedValueOnce(10)
     getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
 
     const wrapper = mount(FormCagesTrackView)
@@ -419,7 +419,7 @@ describe('FormCagesTrackView', () => {
   // derived from mill_setting.jumlah_cages, not the Cages Tipped header
   // field (2026-08-20, tech-spec v3).
   it('computes total_cages for a row as the count of checked cage checkboxes in that row, independent of the Cages Tipped header value', async () => {
-    getJumlahCagesMock.mockResolvedValueOnce(10)
+    getMachineryCountMock.mockResolvedValueOnce(10)
     getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
 
     const wrapper = mount(FormCagesTrackView)
@@ -437,7 +437,7 @@ describe('FormCagesTrackView', () => {
   })
 
   it("computes cages_remain for a row as mill_setting.jumlah_cages minus that row's own total_cages", async () => {
-    getJumlahCagesMock.mockResolvedValueOnce(10)
+    getMachineryCountMock.mockResolvedValueOnce(10)
     getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
 
     const wrapper = mount(FormCagesTrackView)

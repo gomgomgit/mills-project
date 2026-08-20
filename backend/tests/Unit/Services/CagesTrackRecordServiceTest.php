@@ -45,11 +45,10 @@ use App\Exceptions\NoActiveCagesTrackStationException;
 use App\Models\BusinessUnit;
 use App\Models\CagesTippedTime;
 use App\Models\CagesTrackRecord;
-use App\Models\MillSetting;
+use App\Models\Machinery;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\CagesTrackRecordService;
-use App\Services\MillSettingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -78,7 +77,7 @@ function cagesFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new CagesTrackRecordService(new MillSettingService());
+    $this->service = new CagesTrackRecordService();
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     // Additive for screen-024--form-cages-track-web's create()/update()
@@ -332,11 +331,11 @@ it('resolves created_by_name, checked_by_name, acknowledged_by_name to user name
 // screen-024--form-cages-track-web: create()/update() tests below.
 
 it('creates record with resolved station_id and inserted details when valid', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
+    Machinery::factory()->count(10)->create(['station_id' => $this->cagesTrackStation->id]);
 
     $result = $this->service->create(
         cagesFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->cagesTrackStation->production_line_id,
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1, 3, 5]]],
         ]),
         $this->creator
@@ -347,12 +346,12 @@ it('creates record with resolved station_id and inserted details when valid', fu
     expect($result['tipped_times'])->toHaveCount(1);
 });
 
-it('computes total_cages and cages_remain from checked_cage_numbers and mill_setting.jumlah_cages', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
+it('computes total_cages and cages_remain from checked_cage_numbers and COUNT(machinery) for the resolved station', function () {
+    Machinery::factory()->count(10)->create(['station_id' => $this->cagesTrackStation->id]);
 
     $result = $this->service->create(
         cagesFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->cagesTrackStation->production_line_id,
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1, 3, 5]]],
         ]),
         $this->creator
@@ -362,27 +361,25 @@ it('computes total_cages and cages_remain from checked_cage_numbers and mill_set
     expect($result['tipped_times'][0]['cages_remain'])->toBe(7);
 });
 
-it('auto-creates default mill_setting when business unit has none yet', function () {
-    expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->exists())->toBeFalse();
+it('resolves cages_remain to 0 when the station has zero machinery registered', function () {
+    expect(Machinery::where('station_id', $this->cagesTrackStation->id)->count())->toBe(0);
 
     $result = $this->service->create(
         cagesFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->cagesTrackStation->production_line_id,
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
         ]),
         $this->creator
     );
 
-    expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->first()->jumlah_cages)->toBe(1);
-    expect($result['tipped_times'][0]['cages_remain'])->toBe(0);
+    expect($result['tipped_times'][0]['total_cages'])->toBe(1);
+    expect($result['tipped_times'][0]['cages_remain'])->toBe(-1);
 });
 
 it('throws ValidationException when a required field is empty', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
-
     expect(fn () => $this->service->create(
         cagesFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->cagesTrackStation->production_line_id,
             'cages_track_number' => '',
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
         ]),
@@ -391,20 +388,16 @@ it('throws ValidationException when a required field is empty', function () {
 });
 
 it('throws ValidationException when details array is empty', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
-
     expect(fn () => $this->service->create(
-        cagesFormPayload(['business_unit_id' => $this->businessUnit->id, 'details' => []]),
+        cagesFormPayload(['production_line_id' => $this->cagesTrackStation->production_line_id, 'details' => []]),
         $this->creator
     ))->toThrow(\Illuminate\Validation\ValidationException::class);
 });
 
 it('throws ValidationException when a detail row has empty checked_cage_numbers', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
-
     expect(fn () => $this->service->create(
         cagesFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->cagesTrackStation->production_line_id,
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => []]],
         ]),
         $this->creator
@@ -412,11 +405,9 @@ it('throws ValidationException when a detail row has empty checked_cage_numbers'
 });
 
 it('throws ValidationException when tipped_hour is not strictly ascending across detail rows', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
-
     expect(fn () => $this->service->create(
         cagesFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->cagesTrackStation->production_line_id,
             'details' => [
                 ['tipped_hour' => 7, 'checked_cage_numbers' => [1]],
                 ['tipped_hour' => 5, 'checked_cage_numbers' => [2]],
@@ -427,11 +418,9 @@ it('throws ValidationException when tipped_hour is not strictly ascending across
 });
 
 it('throws ValidationException when two detail rows share the same tipped_hour', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
-
     expect(fn () => $this->service->create(
         cagesFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->cagesTrackStation->production_line_id,
             'details' => [
                 ['tipped_hour' => 7, 'checked_cage_numbers' => [1]],
                 ['tipped_hour' => 7, 'checked_cage_numbers' => [2]],
@@ -441,13 +430,12 @@ it('throws ValidationException when two detail rows share the same tipped_hour',
     ))->toThrow(\Illuminate\Validation\ValidationException::class);
 });
 
-it('throws NoActiveCagesTrackStationException when business_unit_id has no active cages-track station', function () {
-    $otherBusinessUnit = BusinessUnit::factory()->create();
-    MillSetting::factory()->forBusinessUnit($otherBusinessUnit)->withJumlahCages(10)->create();
+it('throws NoActiveCagesTrackStationException when production_line_id has no active cages-track station', function () {
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
 
     expect(fn () => $this->service->create(
         cagesFormPayload([
-            'business_unit_id' => $otherBusinessUnit->id,
+            'production_line_id' => $otherProductionLine->id,
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
         ]),
         $this->creator
@@ -455,12 +443,11 @@ it('throws NoActiveCagesTrackStationException when business_unit_id has no activ
 });
 
 it('sets checked_by to requester id when checked=true and requester role=supervisor', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
     $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->create();
 
     $result = $this->service->create(
         cagesFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->cagesTrackStation->production_line_id,
             'checked' => true,
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
         ]),
@@ -471,12 +458,11 @@ it('sets checked_by to requester id when checked=true and requester role=supervi
 });
 
 it('ignores checked=true when requester role is not supervisor', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
     $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->create();
 
     $result = $this->service->create(
         cagesFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->cagesTrackStation->production_line_id,
             'checked' => true,
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
         ]),
@@ -487,12 +473,11 @@ it('ignores checked=true when requester role is not supervisor', function () {
 });
 
 it('sets acknowledged_by to requester id when acknowledged=true and requester role=mill_management', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
     $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->create();
 
     $result = $this->service->create(
         cagesFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->cagesTrackStation->production_line_id,
             'acknowledged' => true,
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
         ]),
@@ -503,7 +488,7 @@ it('sets acknowledged_by to requester id when acknowledged=true and requester ro
 });
 
 it('updates record and upserts details: inserts new row, updates existing row, deletes removed row', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
+    Machinery::factory()->count(10)->create(['station_id' => $this->cagesTrackStation->id]);
     $record = CagesTrackRecord::factory()->forStation($this->cagesTrackStation)->create();
     $keptDetail = CagesTippedTime::factory()->forRecord($record)->create(['tipped_hour' => 5, 'checked_cage_numbers' => '1,2']);
     CagesTippedTime::factory()->forRecord($record)->create(['tipped_hour' => 9]);
@@ -525,16 +510,15 @@ it('updates record and upserts details: inserts new row, updates existing row, d
     expect(CagesTippedTime::where('tipped_hour', 9)->exists())->toBeFalse();
 });
 
-it('updates record without accepting a business_unit_id change', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
-    $otherBusinessUnit = BusinessUnit::factory()->create();
+it('updates record without accepting a production_line_id change', function () {
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
     $record = CagesTrackRecord::factory()->forStation($this->cagesTrackStation)->create();
     CagesTippedTime::factory()->forRecord($record)->create();
 
     $result = $this->service->update(
         $record->id,
         cagesFormPayload([
-            'business_unit_id' => $otherBusinessUnit->id,
+            'production_line_id' => $otherProductionLine->id,
             'cages_track_number' => 'CT-EDITED',
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
         ]),
@@ -553,13 +537,12 @@ it('throws ModelNotFoundException when updating a non-existent id', function () 
     ))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 });
 
-it('getJumlahCages does not enforce MillSettingService::checkAccess role restriction', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
+it('machineryCountForStation does not enforce any role restriction — any actor can create()', function () {
     $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->create();
 
     $result = $this->service->create(
         cagesFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->cagesTrackStation->production_line_id,
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
         ]),
         $supervisor

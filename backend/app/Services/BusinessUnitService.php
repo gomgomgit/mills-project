@@ -5,11 +5,9 @@ namespace App\Services;
 use App\Exceptions\BusinessUnitHasStationsException;
 use App\Models\BusinessUnit;
 use App\Models\Company;
-use App\Models\Station;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -112,39 +110,6 @@ class BusinessUnitService
     protected const LOGO_DIRECTORY = 'business-unit-logos';
 
     /**
-     * The 15 canonical stations every Business Unit is auto-provisioned
-     * with on create() (business_logic step "create", new rule — see
-     * screen-029's business spec) — 3 MVP-functional (weighbridge/grading/
-     * cages-track, `is_active` true) + 12 `other`-typed placeholders for
-     * future station schemas (`is_active` false), matching the exact list
-     * mobile's `DEFAULT_STATIONS` (mobile/src/services/localSchema.ts)
-     * already seeds locally at login — kept here as the real, server-side
-     * `station` rows those mobile-local synthetic rows should eventually
-     * reconcile against (see that file's own docblock on the pre-existing
-     * synthetic-id gap; unaffected by this change either way). `code` is
-     * intentionally left null for every row — nullable+unique at the DB
-     * layer (see 2026_08_19_000004_add_fields_to_stations_table.php),
-     * multiple null `code`s across many business units never collide.
-     */
-    protected const DEFAULT_STATIONS = [
-        ['name' => 'Weighbridge', 'type' => 'weighbridge', 'is_active' => true],
-        ['name' => 'Grading', 'type' => 'grading', 'is_active' => true],
-        ['name' => 'Cages Track', 'type' => 'cages-track', 'is_active' => true],
-        ['name' => 'Sterilizer', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Thresher', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Press', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Clarification', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Kernel Plant', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Boiler', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Effluent Treatment', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Loading Ramp', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Digester', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Engine Room', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Water Treatment', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Bulking Storage', 'type' => 'other', 'is_active' => false],
-    ];
-
-    /**
      * listBusinessUnits() — business_logic step "list": paginate,
      * optional company_id filter, eager-load company (for company_name) +
      * withCount('stations') (for station_count) — a single query
@@ -197,16 +162,16 @@ class BusinessUnitService
      * create() — business_logic step "create": validate company_id
      * exists → validate code required+unique GLOBALLY → validate name
      * required (NO uniqueness rule) (+ logo file type/size if present) →
-     * 422 if any invalid → insert, then auto-provision the 15 canonical
-     * DEFAULT_STATIONS rows for the new Business Unit (new rule — see
-     * that const's docblock). `created_by` is always set from the
+     * 422 if any invalid → insert. `created_by` is always set from the
      * authenticated admin — never accepted from $data even if present.
      *
-     * The Business Unit insert and the 15 Station inserts run inside one
-     * DB::transaction() — either all 16 rows are written, or none are;
-     * a station-insert failure (should never happen with this fixed,
-     * hardcoded list, but defensively) can't leave an orphaned Business
-     * Unit with zero stations.
+     * 2026-08-20 (entity-catalog v9): NO LONGER auto-provisions any
+     * stations — that behavior moved to ProductionLineService::create(),
+     * since each Production Line (the new hierarchy level inserted between
+     * Business Unit and Station) now gets its own full set of stations,
+     * not one shared set per Business Unit. A newly created Business Unit
+     * has zero Production Lines and zero Stations until an Admin
+     * explicitly creates a Production Line for it via screen-036.
      *
      * @param  array<string, mixed>  $data  raw create() payload — any
      *                                       'created_by'/'updated_by' keys
@@ -226,20 +191,7 @@ class BusinessUnitService
         $attributes['logo'] = $this->storeLogo($logo);
         $attributes['created_by'] = auth()->id();
 
-        $businessUnit = DB::transaction(function () use ($attributes) {
-            $businessUnit = BusinessUnit::create($attributes);
-
-            foreach (self::DEFAULT_STATIONS as $station) {
-                Station::create([
-                    'business_unit_id' => $businessUnit->id,
-                    'name' => $station['name'],
-                    'type' => $station['type'],
-                    'is_active' => $station['is_active'],
-                ]);
-            }
-
-            return $businessUnit;
-        });
+        $businessUnit = BusinessUnit::create($attributes);
 
         $businessUnit->load('company');
         $businessUnit->loadCount('stations');

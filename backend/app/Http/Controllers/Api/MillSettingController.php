@@ -64,15 +64,15 @@ class MillSettingController extends Controller
     /**
      * update() — PATCH /api/mill-settings/{businessUnitId}. business_logic
      * step 4: validate → get-or-create → store uploaded files → update.
-     * Multipart request (app_name/jumlah_cages as plain fields, logo/
-     * home_page_image as files).
+     * Multipart request (app_name as a plain field, logo/home_page_image
+     * as files).
      */
     public function update(Request $request, string $businessUnitId): JsonResponse
     {
         $millSetting = $this->service->update(
             $request->user(),
             $businessUnitId,
-            $request->only(['app_name', 'jumlah_cages']),
+            $request->only(['app_name']),
             $request->file('logo'),
             $request->file('home_page_image'),
         );

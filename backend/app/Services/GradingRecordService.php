@@ -58,9 +58,11 @@ class GradingRecordService
 
     /**
      * create() — screen-023--form-grading-web business_logic steps 1-5:
-     * validate header + details, resolve station from business_unit_id,
-     * compute each detail row's uom/percentage, then INSERT the record and
-     * its details inside a DB transaction.
+     * validate header + details, resolve station from production_line_id
+     * (2026-08-20: was business_unit_id — Production Line inserted into
+     * the hierarchy between Business Unit and Station, see entity-catalog
+     * v9), compute each detail row's uom/percentage, then INSERT the
+     * record and its details inside a DB transaction.
      */
     public function create(array $data, User $actor): array
     {
@@ -71,7 +73,7 @@ class GradingRecordService
         $this->validateDetails($details);
 
         $station = Station::query()
-            ->where('business_unit_id', $data['business_unit_id'] ?? null)
+            ->where('production_line_id', $data['production_line_id'] ?? null)
             ->where('type', 'grading')
             ->where('is_active', true)
             ->first();

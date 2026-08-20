@@ -157,6 +157,23 @@
                                 </div>
 
                                 <div class="kc-form-field">
+                                    <label for="production_line_id" class="kc-form-field__label">
+                                        Production Line <span class="kc-form-field__required">*</span>
+                                    </label>
+                                    <x-searchable-select
+                                        id="production_line_id"
+                                        wire:model="production_line_id"
+                                        :options="collect($productionLineOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
+                                        placeholder="-- Pilih Production Line --"
+                                        empty-message="Belum ada Production Line pada Business Unit ini. Buat Production Line terlebih dahulu."
+                                        :class="'kc-form-field__input'.($errors->has('production_line_id') ? ' kc-form-field__input--error' : '')"
+                                    />
+                                    @error('production_line_id')
+                                        <p class="kc-form-field__error">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <div class="kc-form-field">
                                     <label for="name" class="kc-form-field__label">
                                         Nama Station <span class="kc-form-field__required">*</span>
                                     </label>

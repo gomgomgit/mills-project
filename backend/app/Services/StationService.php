@@ -7,6 +7,7 @@ use App\Exceptions\StationHasMachineryException;
 use App\Models\BusinessUnit;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -94,8 +95,35 @@ class StationService
     }
 
     /**
+     * productionLineOptions() — feeds the Production Line-select on the
+     * Station create/edit form, cascaded from the chosen Business Unit
+     * (added 2026-08-20, entity-catalog v9: production_line_id is now a
+     * required FK on stations). Returns an empty list when
+     * $businessUnitId is null/blank — mirrors
+     * FormGrading::loadWeighbridgeOptions()'s "nothing selected yet"
+     * behaviour.
+     */
+    public function productionLineOptions(?string $businessUnitId): array
+    {
+        if ($businessUnitId === null || $businessUnitId === '') {
+            return [];
+        }
+
+        return ProductionLine::query()
+            ->where('business_unit_id', $businessUnitId)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ProductionLine $productionLine) => [
+                'id' => $productionLine->id,
+                'name' => $productionLine->name,
+            ])
+            ->all();
+    }
+
+    /**
      * create() — business_logic step "create": validate business_unit_id
-     * exists → validate name required → validate type required+in-enum →
+     * exists → validate production_line_id exists AND belongs to
+     * business_unit_id → validate name required → validate type required+in-enum →
      * validate is_active boolean + cross-field "not true when
      * type=other" → validate code nullable+unique globally → validate
      * description nullable → 422 if any invalid → insert. Station has no
@@ -198,6 +226,7 @@ class StationService
 
         $payload = [
             'business_unit_id' => $data['business_unit_id'] ?? null,
+            'production_line_id' => $data['production_line_id'] ?? null,
             'name' => $data['name'] ?? null,
             'type' => $data['type'] ?? null,
             'code' => $this->emptyToNull($data['code'] ?? null),
@@ -220,6 +249,7 @@ class StationService
 
         $rules = [
             'business_unit_id' => ['required', 'string', Rule::exists('business_units', 'id')],
+            'production_line_id' => ['required', 'string', Rule::exists('production_lines', 'id')],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(array_map(fn (StationType $case) => $case->value, StationType::cases()))],
             'is_active' => ['required', 'boolean'],
@@ -235,6 +265,8 @@ class StationService
         $messages = [
             'business_unit_id.required' => 'Business Unit wajib dipilih.',
             'business_unit_id.exists' => 'Business Unit yang dipilih tidak ditemukan.',
+            'production_line_id.required' => 'Production Line wajib dipilih.',
+            'production_line_id.exists' => 'Production Line yang dipilih tidak ditemukan.',
             'name.required' => 'Nama station wajib diisi.',
             'name.max' => 'Nama station maksimal 255 karakter.',
             'type.required' => 'Tipe station wajib dipilih.',
@@ -266,6 +298,22 @@ class StationService
                     'is_active',
                     'Station dengan tipe Other tidak boleh berstatus aktif — set Status menjadi nonaktif.'
                 );
+            }
+
+            // entity-catalog constraint: "production_line_id harus milik
+            // business_unit_id yang sama" — only checked once both FKs
+            // individually passed their own exists() rule above (a
+            // not-found production_line_id already carries its own error;
+            // this avoids a redundant second error on the same field).
+            if (! $validator->errors()->has('production_line_id') && ! $validator->errors()->has('business_unit_id')) {
+                $productionLine = ProductionLine::find($payload['production_line_id']);
+
+                if ($productionLine !== null && $productionLine->business_unit_id !== $payload['business_unit_id']) {
+                    $validator->errors()->add(
+                        'production_line_id',
+                        'Production Line yang dipilih bukan milik Business Unit ini.'
+                    );
+                }
             }
         });
 
@@ -316,6 +364,7 @@ class StationService
             'id' => $station->id,
             'business_unit_id' => $station->business_unit_id,
             'business_unit_name' => optional($station->businessUnit)->name,
+            'production_line_id' => $station->production_line_id,
             'name' => $station->name,
             'type' => $station->type instanceof StationType ? $station->type->value : $station->type,
             'is_active' => $station->is_active,

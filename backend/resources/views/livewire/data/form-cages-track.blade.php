@@ -24,15 +24,15 @@
 
                 @if (! $isEdit)
                     <div class="fc-field">
-                        <label class="fc-field__label" for="business_unit_id">Business Unit <span class="fc-required">*</span></label>
-                        <select id="business_unit_id" wire:model.live="form.business_unit_id" class="fc-input" data-testid="business-unit-select">
-                            <option value="">Pilih Business Unit</option>
-                            @foreach ($businessUnitOptions as $option)
+                        <label class="fc-field__label" for="production_line_id">Production Line <span class="fc-required">*</span></label>
+                        <select id="production_line_id" wire:model.live="form.production_line_id" class="fc-input" data-testid="production-line-select">
+                            <option value="">Pilih Production Line</option>
+                            @foreach ($productionLineOptions as $option)
                                 <option value="{{ $option['id'] }}">{{ $option['name'] }}</option>
                             @endforeach
                         </select>
-                        @if (isset($errors_['business_unit_id']))
-                            <span class="fc-field__error">{{ $errors_['business_unit_id'] }}</span>
+                        @if (isset($errors_['production_line_id']))
+                            <span class="fc-field__error">{{ $errors_['production_line_id'] }}</span>
                         @endif
                     </div>
                 @else
@@ -112,10 +112,10 @@
 
                 @if ($jumlahCages <= 0)
                     <span class="fc-field__hint" data-testid="jumlah-cages-unavailable-hint">
-                        {{ $isEdit || filled($form['business_unit_id']) ? 'Jumlah Cages dari Mills Setting belum tersedia untuk mill ini.' : 'Pilih Business Unit terlebih dahulu.' }}
+                        {{ $isEdit || filled($form['production_line_id']) ? 'Belum ada Machinery pada station Cages Track lini produksi ini.' : 'Pilih Production Line terlebih dahulu.' }}
                     </span>
                 @else
-                    <span class="fc-field__hint" data-testid="jumlah-cages-hint">Jumlah kolom checklist (N = {{ $jumlahCages }}) mengacu ke Jumlah Cages Mills Setting mill ini.</span>
+                    <span class="fc-field__hint" data-testid="jumlah-cages-hint">Jumlah kolom checklist (N = {{ $jumlahCages }}) mengacu ke jumlah Machinery pada station Cages Track lini produksi ini.</span>
                 @endif
 
                 <table class="fc-detail-table" data-testid="cages-tipped-time-grid">

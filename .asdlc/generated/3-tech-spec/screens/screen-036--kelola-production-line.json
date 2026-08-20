@@ -1,0 +1,592 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-036--kelola-production-line",
+  "name": "Kelola Production Line",
+  "module_id": "module-master-data",
+  "route": "/master-data/production-lines",
+  "auth_requirement": "role: admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-036--kelola-production-line",
+      "usecase_name": "Kelola Production Line",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/production-lines",
+          "description": "Daftar Production Line terpaginasi, filter opsional business_unit_id",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "page",
+                "type": "integer",
+                "required": false,
+                "default": 1,
+                "description": "Halaman"
+              },
+              {
+                "name": "per_page",
+                "type": "integer",
+                "required": false,
+                "default": 20,
+                "description": "Jumlah per halaman, max 100"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Filter Business Unit"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "business_unit_id": "uuid",
+                  "business_unit_name": "string",
+                  "name": "string",
+                  "code": "string|null",
+                  "description": "string|null",
+                  "station_count": "integer",
+                  "created_by": "uuid",
+                  "updated_by": "uuid|null",
+                  "created_at": "iso8601"
+                }
+              ],
+              "meta": {
+                "page": "integer",
+                "per_page": "integer",
+                "total": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor bukan admin"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/production-lines/business-units/options",
+          "description": "Daftar Business Unit untuk dropdown form",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor bukan admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/production-lines",
+          "description": "Membuat Production Line baru; otomatis memprovisikan 15 station kanonis dalam satu transaksi",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "business_unit_id": "uuid, required",
+              "name": "string, required",
+              "code": "string, optional, unique jika diisi",
+              "description": "string, optional"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "business_unit_id": "uuid",
+              "business_unit_name": "string",
+              "name": "string",
+              "code": "string|null",
+              "description": "string|null",
+              "station_count": 15,
+              "created_by": "uuid",
+              "created_at": "iso8601"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "business_unit_id tidak ada/kosong, name kosong, atau code sudah dipakai"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor bukan admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/production-lines/{id}",
+          "description": "Mengubah name/code/description Production Line (tidak menyentuh station)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "Production Line id"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "business_unit_id": "uuid, required",
+              "name": "string, required",
+              "code": "string, optional, unique-excluding-self jika diisi",
+              "description": "string, optional"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "business_unit_id": "uuid",
+              "business_unit_name": "string",
+              "name": "string",
+              "code": "string|null",
+              "description": "string|null",
+              "station_count": "integer",
+              "updated_by": "uuid",
+              "created_at": "iso8601"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong atau code duplikat"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/production-lines/{id}",
+          "description": "Menghapus Production Line jika tidak punya Station terkait",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "Production Line id"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "deleted": true
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              },
+              {
+                "http_code": 409,
+                "error_code": "PRODUCTION_LINE_HAS_STATIONS",
+                "condition": "masih ada Station dengan production_line_id ini"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "list: paginate ProductionLine, eager-load businessUnit, withCount('stations'), filter business_unit_id jika ada → return",
+        "create: validate business_unit_id exists, name required, code unique-if-filled → 422 jika invalid → INSERT ProductionLine → foreach 15 DEFAULT_STATIONS: INSERT Station (production_line_id + business_unit_id denormalized) → semua dalam DB::transaction → return row (201)",
+        "update: findOrFail id (404 jika tidak ada) → validasi sama seperti create (code unique excluding self) → UPDATE, TIDAK menyentuh station → return row",
+        "delete: findOrFail id (404) → COUNT Station WHERE production_line_id=id → jika >0 throw 409 PRODUCTION_LINE_HAS_STATIONS → else DELETE"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "List/detail dengan business unit + station count"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "INSERT",
+          "description": "create()"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "UPDATE",
+          "description": "update()"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "DELETE",
+          "description": "delete(), hanya jika tidak ada station terkait"
+        },
+        {
+          "entity_id": "station",
+          "operation": "INSERT",
+          "description": "15 station kanonis diprovisikan otomatis saat create() Production Line"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "COUNT station WHERE production_line_id=id, dipakai delete() guard"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Kode duplikat saat create/update",
+          "handling": "422 VALIDATION_ERROR, errors.code"
+        },
+        {
+          "condition": "Hapus Production Line yang masih punya Station",
+          "handling": "409 PRODUCTION_LINE_HAS_STATIONS, tidak menghapus apa pun"
+        },
+        {
+          "condition": "Update/delete Production Line yang sudah dihapus user lain",
+          "handling": "404 NOT_FOUND"
+        },
+        {
+          "condition": "Belum ada Business Unit",
+          "handling": "GET business-units/options mengembalikan data: [] kosong, form tidak bisa disimpan (client-side)"
+        }
+      ],
+      "business_rules_applied": [
+        "Business Unit wajib dipilih saat create/update",
+        "Nama wajib diisi",
+        "Kode opsional, unik global (unique-excluding-self saat update)",
+        "15 station kanonis diprovisikan HANYA saat create, dalam 1 transaksi dengan Production Line-nya",
+        "Update tidak pernah menyentuh station yang sudah ada",
+        "Delete ditolak jika masih ada Station terkait",
+        "Hanya Admin yang dapat mengakses seluruh endpoint CRUD ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "berhasil: creates a production line and auto-provisions 15 stations",
+          "given": "business_unit_id valid, name terisi",
+          "expect": "ProductionLine + 15 Station dibuat, station_count=15"
+        },
+        {
+          "description": "returns 422 when business_unit_id is missing/non-existent",
+          "given": "business_unit_id kosong atau tidak ada di DB",
+          "expect": "throw ValidationException, errors.business_unit_id"
+        },
+        {
+          "description": "returns 422 when name is empty",
+          "given": "name kosong",
+          "expect": "throw ValidationException, errors.name"
+        },
+        {
+          "description": "returns 422 when code is already taken (create/update)",
+          "given": "code sudah dipakai ProductionLine lain",
+          "expect": "throw ValidationException, errors.code"
+        },
+        {
+          "description": "update keeps its own code unchanged without error",
+          "given": "update dengan code yang sama seperti sebelumnya",
+          "expect": "berhasil, bukan dianggap duplikat"
+        },
+        {
+          "description": "update does not recreate or remove stations",
+          "given": "ProductionLine dengan 15 station sudah ada, update name",
+          "expect": "station_count tetap 15 setelah update"
+        },
+        {
+          "description": "returns 404 when updating/deleting a non-existent id",
+          "given": "id tidak ditemukan",
+          "expect": "throw ModelNotFoundException"
+        },
+        {
+          "description": "delete succeeds when there are no related stations",
+          "given": "ProductionLine tanpa Station terkait",
+          "expect": "ProductionLine terhapus"
+        },
+        {
+          "description": "delete throws ProductionLineHasStationsException when related stations exist",
+          "given": "ProductionLine dengan >=1 Station terkait",
+          "expect": "throw ProductionLineHasStationsException, tidak menghapus apa pun"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE"
+      ]
+    },
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT",
+        "INSERT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-029--kelola-business-unit",
+      "reason": "Production Line harus memilih Business Unit yang sudah ada dari screen ini"
+    },
+    {
+      "screen_id": "screen-030--kelola-station",
+      "reason": "Station yang diprovisikan otomatis dikelola lebih lanjut (nama, icon) lewat screen ini"
+    },
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Mobile Station List's Production Line picker step mengonsumsi GET /api/production-lines/current dan /current/stations, yang di-host di ProductionLineController/Service yang sama dengan screen ini (self-scoped, bukan bagian dari CRUD admin di atas)"
+    }
+  ],
+  "implementation_notes": [
+    "ProductionLineController juga meng-host current()/currentStations() (GET /api/production-lines/current, /current/stations) — endpoint self-scoped mobile-facing yang melayani screen-006 (Station List)'s Production Line picker, bukan bagian dari CRUD admin usecase-036 di atas; didaftarkan dengan auth:web,sanctum + role operator/supervisor/mill_management/admin, HARUS terdaftar sebelum route {id}-berparameter agar tidak collision, mengikuti pola persis GET /api/mill-settings/current",
+    "currentStations() menyertakan machinery_count (COUNT machinery WHERE station_id=...) khusus untuk station bertipe cages-track, null untuk tipe lain — dipakai Form Cages Track (mobile & web) sebagai pengganti mill-setting.jumlah_cages yang sudah dihapus",
+    "DEFAULT_STATIONS (15 baris kanonis) dipindah dari BusinessUnitService ke ProductionLineService — BusinessUnitService::create() tidak lagi memprovisikan station/production line apa pun",
+    "code dibiarkan null pada semua 15 station hasil auto-provisioning — nullable+unique di level DB, banyak null tidak collide",
+    "Belum ada Browser test (Playwright) khusus untuk screen ini — hanya Feature/Api + Feature/Livewire, berbeda dari sebagian screen master-data lain yang juga punya Browser test; dicatat sebagai known_issue minor di 4-implement"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Tambah Production Line — berhasil",
+      "usecase_id": "usecase-036--kelola-production-line",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/production-lines"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001",
+            "name": "Line 1"
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaProductionLine",
+        "action": "pilih Business Unit, isi Nama, klik Simpan",
+        "assert": "row baru muncul di tabel dengan station_count=15"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Edit Production Line — station tidak berubah",
+      "usecase_id": "usecase-036--kelola-production-line",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/production-lines/{id}"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001",
+            "name": "Line 1 Updated"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaProductionLine",
+        "action": "buka Edit, ubah Nama, klik Simpan",
+        "assert": "nama terupdate, station_count tetap 15"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Hapus Production Line — berhasil",
+      "usecase_id": "usecase-036--kelola-production-line",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/production-lines/{id}"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaProductionLine",
+        "action": "klik Hapus lalu konfirmasi pada Production Line tanpa station",
+        "assert": "row hilang dari daftar"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Hapus Production Line — ditolak karena punya Station",
+      "usecase_id": "usecase-036--kelola-production-line",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/production-lines/{id}"
+          },
+          "request_example": {},
+          "expected_status": 409,
+          "expected_error_code": "PRODUCTION_LINE_HAS_STATIONS"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaProductionLine",
+        "action": "klik Hapus lalu konfirmasi pada Production Line yang baru dibuat (15 station)",
+        "assert": "pesan error inline muncul, row tetap ada"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Kode Production Line duplikat",
+      "usecase_id": "usecase-036--kelola-production-line",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/production-lines"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001",
+            "name": "Line X",
+            "code": "PL-001"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaProductionLine",
+        "action": "isi Kode yang sudah dipakai Production Line lain, klik Simpan",
+        "assert": "error validasi di bawah field Kode"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Filter berdasarkan Business Unit",
+      "usecase_id": "usecase-036--kelola-production-line",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines"
+          },
+          "request_example": {
+            "business_unit_id": "bu-001"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaProductionLine",
+        "action": "pilih Business Unit di filter",
+        "assert": "hanya Production Line milik Business Unit itu yang tampil, halaman reset ke 1"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    }
+  ]
+}

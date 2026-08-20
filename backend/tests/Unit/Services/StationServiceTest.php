@@ -31,6 +31,7 @@ use App\Exceptions\StationHasMachineryException;
 use App\Models\BusinessUnit;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Services\StationService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -74,6 +75,68 @@ it('throws a ValidationException when creating without a business_unit_id', func
         $this->fail('Expected ValidationException was not thrown.');
     } catch (ValidationException $e) {
         expect($e->errors())->toHaveKey('business_unit_id');
+    }
+
+    expect(Station::count())->toBe(0);
+});
+
+// 2026-08-20 (entity-catalog v9): create with a non-existent
+// production_line_id -> 422 under production_line_id.
+it('throws a ValidationException when creating with a non-existent production_line_id', function () {
+    $businessUnit = BusinessUnit::factory()->create();
+
+    try {
+        $this->service->create([
+            'business_unit_id' => $businessUnit->id,
+            'production_line_id' => '00000000-0000-0000-0000-000000000000',
+            'name' => 'Weighbridge Utama',
+            'type' => 'weighbridge',
+            'is_active' => true,
+        ]);
+        $this->fail('Expected ValidationException was not thrown.');
+    } catch (ValidationException $e) {
+        expect($e->errors())->toHaveKey('production_line_id');
+    }
+
+    expect(Station::count())->toBe(0);
+});
+
+// create without a production_line_id at all -> 422 under production_line_id.
+it('throws a ValidationException when creating without a production_line_id', function () {
+    $businessUnit = BusinessUnit::factory()->create();
+
+    try {
+        $this->service->create([
+            'business_unit_id' => $businessUnit->id,
+            'name' => 'Weighbridge Tanpa PL',
+            'type' => 'weighbridge',
+            'is_active' => true,
+        ]);
+        $this->fail('Expected ValidationException was not thrown.');
+    } catch (ValidationException $e) {
+        expect($e->errors())->toHaveKey('production_line_id');
+    }
+
+    expect(Station::count())->toBe(0);
+});
+
+// entity-catalog constraint: production_line_id must belong to the same
+// business_unit_id -> 422 under production_line_id.
+it('throws a ValidationException when production_line_id does not belong to business_unit_id', function () {
+    $businessUnit = BusinessUnit::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->create();
+
+    try {
+        $this->service->create([
+            'business_unit_id' => $businessUnit->id,
+            'production_line_id' => $otherProductionLine->id,
+            'name' => 'Weighbridge Salah PL',
+            'type' => 'weighbridge',
+            'is_active' => true,
+        ]);
+        $this->fail('Expected ValidationException was not thrown.');
+    } catch (ValidationException $e) {
+        expect($e->errors())->toHaveKey('production_line_id');
     }
 
     expect(Station::count())->toBe(0);
@@ -221,9 +284,11 @@ it('throws a ValidationException when creating with is_active=true and type=othe
 // Allows is_active=true for every non-"other" type.
 it('allows is_active=true for weighbridge, grading, and cages-track types', function (string $type) {
     $businessUnit = BusinessUnit::factory()->create();
+    $productionLine = ProductionLine::factory()->forBusinessUnit($businessUnit)->create();
 
     $result = $this->service->create([
         'business_unit_id' => $businessUnit->id,
+        'production_line_id' => $productionLine->id,
         'name' => "Station Aktif $type",
         'type' => $type,
         'is_active' => true,
@@ -241,9 +306,11 @@ it('allows is_active=true for weighbridge, grading, and cages-track types', func
 // that type).
 it('allows is_active=false for type=other', function () {
     $businessUnit = BusinessUnit::factory()->create();
+    $productionLine = ProductionLine::factory()->forBusinessUnit($businessUnit)->create();
 
     $result = $this->service->create([
         'business_unit_id' => $businessUnit->id,
+        'production_line_id' => $productionLine->id,
         'name' => 'Station Other Nonaktif',
         'type' => 'other',
         'is_active' => false,
@@ -258,9 +325,11 @@ it('allows is_active=false for type=other', function () {
 // Happy path — create: all fields, returns the expected row shape.
 it('creates a station with all fields and returns the expected row shape', function () {
     $businessUnit = BusinessUnit::factory()->create(['name' => 'Mill Unit Utama']);
+    $productionLine = ProductionLine::factory()->forBusinessUnit($businessUnit)->create();
 
     $result = $this->service->create([
         'business_unit_id' => $businessUnit->id,
+        'production_line_id' => $productionLine->id,
         'name' => 'Weighbridge 1',
         'type' => 'weighbridge',
         'is_active' => true,
@@ -269,11 +338,12 @@ it('creates a station with all fields and returns the expected row shape', funct
     ]);
 
     expect($result)->toHaveKeys([
-        'id', 'business_unit_id', 'business_unit_name', 'name', 'type',
+        'id', 'business_unit_id', 'business_unit_name', 'production_line_id', 'name', 'type',
         'is_active', 'code', 'description', 'machinery_group_count', 'created_at',
     ]);
     expect($result['name'])->toBe('Weighbridge 1');
     expect($result['business_unit_id'])->toBe($businessUnit->id);
+    expect($result['production_line_id'])->toBe($productionLine->id);
     expect($result['business_unit_name'])->toBe('Mill Unit Utama');
     expect($result['type'])->toBe('weighbridge');
     expect($result['is_active'])->toBeTrue();
@@ -287,9 +357,11 @@ it('creates a station with all fields and returns the expected row shape', funct
 // as null (not empty string).
 it('creates a station with minimal fields, omitted code and description saved as null', function () {
     $businessUnit = BusinessUnit::factory()->create();
+    $productionLine = ProductionLine::factory()->forBusinessUnit($businessUnit)->create();
 
     $result = $this->service->create([
         'business_unit_id' => $businessUnit->id,
+        'production_line_id' => $productionLine->id,
         'name' => 'Weighbridge Minimal',
         'type' => 'weighbridge',
         'is_active' => true,
@@ -308,9 +380,11 @@ it('creates a station with minimal fields, omitted code and description saved as
 // update a non-existent id -> 404.
 it('throws a ModelNotFoundException when updating a non-existent station', function () {
     $businessUnit = BusinessUnit::factory()->create();
+    $productionLine = ProductionLine::factory()->forBusinessUnit($businessUnit)->create();
 
     expect(fn () => $this->service->update('00000000-0000-0000-0000-000000000000', [
         'business_unit_id' => $businessUnit->id,
+        'production_line_id' => $productionLine->id,
         'name' => 'Any Name',
         'type' => 'weighbridge',
         'is_active' => true,
@@ -326,6 +400,7 @@ it('throws a ValidationException when updating to a code taken by another statio
     try {
         $this->service->update($target->id, [
             'business_unit_id' => $businessUnit->id,
+            'production_line_id' => $target->production_line_id,
             'name' => $target->name,
             'type' => 'weighbridge',
             'is_active' => true,
@@ -347,6 +422,7 @@ it('updates a station keeping its own code without a false-positive uniqueness e
 
     $result = $this->service->update($station->id, [
         'business_unit_id' => $businessUnit->id,
+        'production_line_id' => $station->production_line_id,
         'name' => 'Weighbridge Baru',
         'type' => 'weighbridge',
         'is_active' => true,
@@ -365,6 +441,7 @@ it('throws a ValidationException when updating to is_active=true and type=other'
     try {
         $this->service->update($station->id, [
             'business_unit_id' => $station->business_unit_id,
+            'production_line_id' => $station->production_line_id,
             'name' => $station->name,
             'type' => 'other',
             'is_active' => true,
@@ -382,10 +459,12 @@ it('throws a ValidationException when updating to is_active=true and type=other'
 it('updates a station and returns the expected row shape', function () {
     $businessUnitA = BusinessUnit::factory()->create();
     $businessUnitB = BusinessUnit::factory()->create(['name' => 'Mill Unit Tujuan']);
+    $productionLineB = ProductionLine::factory()->forBusinessUnit($businessUnitB)->create();
     $station = Station::factory()->forBusinessUnit($businessUnitA)->withCode('STA-200')->create(['name' => 'Weighbridge Lama']);
 
     $result = $this->service->update($station->id, [
         'business_unit_id' => $businessUnitB->id,
+        'production_line_id' => $productionLineB->id,
         'name' => 'Weighbridge Baru',
         'type' => 'grading',
         'is_active' => true,
@@ -519,4 +598,28 @@ it('returns an empty business unit options list when no business units exist', f
     $result = $this->service->businessUnitOptions();
 
     expect($result)->toBe([]);
+});
+
+// productionLineOptions(): 2026-08-20 (entity-catalog v9) — returns only
+// the given business unit's own production lines, ordered by name.
+it('returns a populated production line options list scoped to the given business unit, ordered by name', function () {
+    $businessUnitA = BusinessUnit::factory()->create();
+    $businessUnitB = BusinessUnit::factory()->create();
+    ProductionLine::factory()->forBusinessUnit($businessUnitA)->create(['name' => 'Line Zulu']);
+    ProductionLine::factory()->forBusinessUnit($businessUnitA)->create(['name' => 'Line Alpha']);
+    ProductionLine::factory()->forBusinessUnit($businessUnitB)->create(['name' => 'Line Other BU']);
+
+    $result = $this->service->productionLineOptions($businessUnitA->id);
+
+    expect(collect($result)->pluck('name')->all())->toBe(['Line Alpha', 'Line Zulu']);
+    expect($result[0])->toHaveKeys(['id', 'name']);
+});
+
+// productionLineOptions(): null/blank business_unit_id -> empty list
+// (nothing selected yet on the cascading dropdown).
+it('returns an empty production line options list when business_unit_id is null', function () {
+    ProductionLine::factory()->create();
+
+    expect($this->service->productionLineOptions(null))->toBe([]);
+    expect($this->service->productionLineOptions(''))->toBe([]);
 });

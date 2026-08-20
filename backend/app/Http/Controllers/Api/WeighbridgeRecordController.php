@@ -56,12 +56,12 @@ class WeighbridgeRecordController extends Controller
     /**
      * store() — POST /api/weighbridge-records. screen-022--form-weighbridge-web
      * business_logic steps 1-4: create a new record, resolving station_id
-     * from the given business_unit_id.
+     * from the given production_line_id (2026-08-20: was business_unit_id).
      */
     public function store(Request $request): JsonResponse
     {
         $data = $request->only([
-            'business_unit_id', 'wb_card_number', 'weighbridge_type', 'record_datetime',
+            'production_line_id', 'wb_card_number', 'weighbridge_type', 'record_datetime',
             'vehicle_number', 'driver_name', 'estate_supplier', 'destination',
             'division', 'block', 'gross_weight', 'tare_weight', 'quantity',
             'checked', 'acknowledged',
@@ -74,7 +74,7 @@ class WeighbridgeRecordController extends Controller
 
     /**
      * update() — PATCH /api/weighbridge-records/{id}. screen-022--form-weighbridge-web
-     * business_logic steps 5-7: update an existing record; business_unit_id/
+     * business_logic steps 5-7: update an existing record; production_line_id/
      * station_id are never accepted here.
      */
     public function update(Request $request, string $id): JsonResponse

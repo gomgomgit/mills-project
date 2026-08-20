@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Station — belongs to a Business Unit, has many Machinery.
+ * Station — belongs to a Production Line (its real hierarchical parent,
+ * entity-catalog v9), has many Machinery.
  * Production station of one of the log-sheet types: weighbridge, grading, cages-track, other.
  *
  * `code` and `description` were added by screen-030--kelola-station's
@@ -19,6 +20,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * `business_unit_id`/`name`/`type`/`is_active` fields and the
  * `businessUnit()`/`machinery()` relationships below are completely
  * unchanged by that rework.
+ *
+ * `production_line_id` was added 2026-08-20 (entity-catalog v9, Production
+ * Line inserted between Business Unit and Station) — see
+ * 2026_08_20_000004_add_production_line_id_to_stations_table.php.
+ * `business_unit_id` is DELIBERATELY kept as a denormalized column
+ * alongside it (not removed) — mirrors the same denormalization pattern
+ * `machinery_groups.business_unit_id`/`machinery.business_unit_id` already
+ * use, so every existing caller resolving a station by `business_unit_id`
+ * keeps working unchanged.
  */
 class Station extends Model
 {
@@ -26,6 +36,7 @@ class Station extends Model
 
     protected $fillable = [
         'business_unit_id',
+        'production_line_id',
         'name',
         'type',
         'is_active',
@@ -44,6 +55,11 @@ class Station extends Model
     public function businessUnit(): BelongsTo
     {
         return $this->belongsTo(BusinessUnit::class);
+    }
+
+    public function productionLine(): BelongsTo
+    {
+        return $this->belongsTo(ProductionLine::class);
     }
 
     public function machinery(): HasMany

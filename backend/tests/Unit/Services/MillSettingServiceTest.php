@@ -49,17 +49,15 @@ it('creates a default mill-setting row on first GET when none exists for the bus
     $result = $this->service->getOrCreate($this->admin, $this->businessUnit->id);
 
     expect($result['app_name'])->toBe('Mill Unit Alpha');
-    expect($result['jumlah_cages'])->toBe(1);
     expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->count())->toBe(1);
 });
 
 it('returns the existing mill-setting row as-is on GET when one already exists', function () {
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(7)->create(['app_name' => 'Custom Name']);
+    MillSetting::factory()->forBusinessUnit($this->businessUnit)->create(['app_name' => 'Custom Name']);
 
     $result = $this->service->getOrCreate($this->admin, $this->businessUnit->id);
 
     expect($result['app_name'])->toBe('Custom Name');
-    expect($result['jumlah_cages'])->toBe(7);
     expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->count())->toBe(1);
 });
 
@@ -91,23 +89,6 @@ it('updates app_name on update()', function () {
     expect($result['app_name'])->toBe('Mill Baru');
 });
 
-it('throws a ValidationException when jumlah_cages is 0 or negative', function () {
-    try {
-        $this->service->update($this->admin, $this->businessUnit->id, ['jumlah_cages' => 0]);
-        $this->fail('Expected ValidationException was not thrown.');
-    } catch (ValidationException $e) {
-        expect($e->errors())->toHaveKey('jumlah_cages');
-    }
-
-    expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->exists())->toBeFalse();
-});
-
-it('updates jumlah_cages when a positive integer is sent', function () {
-    $result = $this->service->update($this->admin, $this->businessUnit->id, ['jumlah_cages' => 8]);
-
-    expect($result['jumlah_cages'])->toBe(8);
-});
-
 it('stores an uploaded logo file and returns a resolved logo URL', function () {
     Storage::fake(MillSettingService::LOGO_DISK);
     $logo = UploadedFile::fake()->create('logo.jpg', 500, 'image/jpeg');
@@ -136,10 +117,9 @@ it('throws a ValidationException when the uploaded logo has an unsupported forma
 it('auto-creates the default row before applying an update when none exists yet', function () {
     expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->exists())->toBeFalse();
 
-    $result = $this->service->update($this->admin, $this->businessUnit->id, ['jumlah_cages' => 3]);
+    $result = $this->service->update($this->admin, $this->businessUnit->id, ['app_name' => 'Mill Baru']);
 
-    expect($result['app_name'])->toBe('Mill Unit Alpha');
-    expect($result['jumlah_cages'])->toBe(3);
+    expect($result['app_name'])->toBe('Mill Baru');
     expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->count())->toBe(1);
 });
 

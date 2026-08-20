@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\StationType;
 use App\Models\BusinessUnit;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -20,6 +21,15 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  * (StationServiceTest / KelolaStationTest, both Api and Livewire) — the
  * existing `definition()` default and `weighbridge()`/`forBusinessUnit()`
  * states above are completely unchanged.
+ *
+ * 2026-08-20 (entity-catalog v9): `production_line_id` is now a required
+ * (NOT NULL) column — `definition()` auto-creates a ProductionLine and
+ * derives `business_unit_id` from it, so every one of this factory's many
+ * pre-existing call sites across the suite keeps working unchanged.
+ * `forBusinessUnit()` is updated the same way (auto-creates a matching
+ * ProductionLine under the forced business unit, so the two FKs never
+ * disagree); new `forProductionLine()` state added for tests that need to
+ * pin the production line directly.
  */
 class StationFactory extends Factory
 {
@@ -28,7 +38,10 @@ class StationFactory extends Factory
     public function definition(): array
     {
         return [
-            'business_unit_id' => BusinessUnit::factory(),
+            'production_line_id' => ProductionLine::factory(),
+            'business_unit_id' => function (array $attributes) {
+                return ProductionLine::find($attributes['production_line_id'])?->business_unit_id;
+            },
             'name' => 'Weighbridge '.$this->faker->unique()->numerify('##'),
             'type' => StationType::Weighbridge,
             'is_active' => true,
@@ -63,9 +76,33 @@ class StationFactory extends Factory
 
     public function forBusinessUnit(BusinessUnit|string $businessUnit): self
     {
-        return $this->state(fn () => [
-            'business_unit_id' => $businessUnit instanceof BusinessUnit ? $businessUnit->id : $businessUnit,
-        ]);
+        return $this->state(function () use ($businessUnit) {
+            $businessUnitId = $businessUnit instanceof BusinessUnit ? $businessUnit->id : $businessUnit;
+
+            return [
+                'business_unit_id' => $businessUnitId,
+                'production_line_id' => ProductionLine::factory()->forBusinessUnit($businessUnitId),
+            ];
+        });
+    }
+
+    /**
+     * Pins both FKs from an existing ProductionLine — used by tests that
+     * need a Station to belong to a specific, already-created production
+     * line rather than getting a freshly factory-created one.
+     */
+    public function forProductionLine(ProductionLine|string $productionLine): self
+    {
+        return $this->state(function () use ($productionLine) {
+            $productionLine = $productionLine instanceof ProductionLine
+                ? $productionLine
+                : ProductionLine::findOrFail($productionLine);
+
+            return [
+                'production_line_id' => $productionLine->id,
+                'business_unit_id' => $productionLine->business_unit_id,
+            ];
+        });
     }
 
     /**

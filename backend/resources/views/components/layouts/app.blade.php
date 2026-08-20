@@ -121,6 +121,7 @@
             <li><a href="{{ route('master-data.corporates') }}"{!! request()->routeIs('master-data.corporates') ? ' class="active"' : '' !!}>Kelola Corporate</a></li>
             <li><a href="{{ route('master-data.companies') }}"{!! request()->routeIs('master-data.companies') ? ' class="active"' : '' !!}>Kelola Company</a></li>
             <li><a href="{{ route('master-data.business-units') }}"{!! request()->routeIs('master-data.business-units') ? ' class="active"' : '' !!}>Kelola Business Unit</a></li>
+            <li><a href="{{ route('master-data.production-lines') }}"{!! request()->routeIs('master-data.production-lines') ? ' class="active"' : '' !!}>Kelola Production Line</a></li>
             <li><a href="{{ route('master-data.stations') }}"{!! request()->routeIs('master-data.stations') ? ' class="active"' : '' !!}>Kelola Station</a></li>
             <li><a href="{{ route('master-data.machinery-groups') }}"{!! request()->routeIs('master-data.machinery-groups') ? ' class="active"' : '' !!}>Kelola Machinery Group</a></li>
             <li><a href="{{ route('master-data.machinery') }}"{!! request()->routeIs('master-data.machinery') ? ' class="active"' : '' !!}>Kelola Machinery</a></li>

@@ -63,12 +63,18 @@ use App\Livewire\MasterData\KelolaStation;
 use App\Models\BusinessUnit;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use Livewire\Livewire;
 
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create(['name' => 'Mill Unit Awal']);
+    // 2026-08-20 (entity-catalog v9): production_line_id is now a
+    // required FK on stations — the form's Production Line-select
+    // (cascaded from business_unit_id via updatedBusinessUnitId()) needs
+    // one to pick.
+    $this->productionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Line Awal']);
     $this->admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
 });
 
@@ -79,6 +85,7 @@ it('berhasil: picks a Business Unit, fills the form and creates a station that a
         ->call('openCreateForm')
         ->assertSet('showForm', true)
         ->set('business_unit_id', $this->businessUnit->id)
+        ->set('production_line_id', $this->productionLine->id)
         ->set('type', 'weighbridge')
         ->set('is_active', true)
         ->set('form.name', 'Weighbridge Baru')
@@ -98,6 +105,7 @@ it('berhasil: picks a Business Unit, fills the form and creates a station that a
 // Scenario "Kelola Station — Edit Station"
 it('Edit Station: loads the existing values then updates the name/type/business unit', function () {
     $businessUnitB = BusinessUnit::factory()->create(['name' => 'Mill Unit Tujuan']);
+    $productionLineB = ProductionLine::factory()->forBusinessUnit($businessUnitB)->create();
     $station = Station::factory()->forBusinessUnit($this->businessUnit)->withCode('STA-LW-002')->create(['name' => 'Weighbridge Lama']);
 
     Livewire::actingAs($this->admin)
@@ -105,10 +113,12 @@ it('Edit Station: loads the existing values then updates the name/type/business 
         ->call('openEditForm', $station->id)
         ->assertSet('editingId', $station->id)
         ->assertSet('business_unit_id', $this->businessUnit->id)
+        ->assertSet('production_line_id', $station->production_line_id)
         ->assertSet('type', 'weighbridge')
         ->assertSet('form.name', 'Weighbridge Lama')
         ->assertSet('form.code', 'STA-LW-002')
         ->set('business_unit_id', $businessUnitB->id)
+        ->set('production_line_id', $productionLineB->id)
         ->set('form.name', 'Weighbridge Baru')
         ->call('save')
         ->assertHasNoErrors()
@@ -282,6 +292,7 @@ it('creates a station successfully with is_active=true for non-other types', fun
         ->test(KelolaStation::class)
         ->call('openCreateForm')
         ->set('business_unit_id', $this->businessUnit->id)
+        ->set('production_line_id', $this->productionLine->id)
         ->set('type', $type)
         ->set('is_active', true)
         ->set('form.name', "Station Aktif LW $type")
@@ -301,6 +312,7 @@ it('creates a station successfully with is_active=false for type=other', functio
         ->test(KelolaStation::class)
         ->call('openCreateForm')
         ->set('business_unit_id', $this->businessUnit->id)
+        ->set('production_line_id', $this->productionLine->id)
         ->set('type', 'other')
         ->set('is_active', false)
         ->set('form.name', 'Station Other LW Nonaktif')

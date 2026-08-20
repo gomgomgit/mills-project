@@ -87,7 +87,7 @@ it('berhasil: picks a Company, fills a unique code+name and creates a business u
         ->assertViewHas('businessUnits', fn ($businessUnits) => collect($businessUnits)->contains(
             fn ($bu) => $bu['name'] === 'Mill Unit 1'
                 && $bu['company_name'] === 'PT Induk Company'
-                && $bu['station_count'] === 15
+                && $bu['station_count'] === 0
         ));
 
     expect(BusinessUnit::where('name', 'Mill Unit 1')->exists())->toBeTrue();

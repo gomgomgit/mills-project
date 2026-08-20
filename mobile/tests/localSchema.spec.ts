@@ -33,24 +33,31 @@ describe('localSchema — seedDefaultStationsIfNeeded()', () => {
     vi.mocked(run).mockResolvedValue({ changes: 1 })
   })
 
-  it('seeds all 15 MVP stations (3 active + 12 placeholder) for the given business unit', async () => {
+  it('deletes any existing rows for the business unit first, then inserts all 15 MVP stations (replace, not merge)', async () => {
     await seedDefaultStationsIfNeeded(BUSINESS_UNIT_ID)
 
-    expect(run).toHaveBeenCalledTimes(15)
+    // 1 DELETE (clears stale/duplicate rows for this business unit) + 15 INSERT.
+    expect(run).toHaveBeenCalledTimes(16)
+    expect(run).toHaveBeenNthCalledWith(1, expect.stringContaining('DELETE FROM station WHERE business_unit_id = ?'), [
+      BUSINESS_UNIT_ID,
+    ])
   })
 
-  it('uses INSERT OR IGNORE so re-seeding on every login never duplicates rows', async () => {
+  it('inserts each station as a fresh row (no ON CONFLICT/IGNORE needed — the delete-first replace already guarantees no duplicates)', async () => {
     await seedDefaultStationsIfNeeded(BUSINESS_UNIT_ID)
 
-    for (const call of vi.mocked(run).mock.calls) {
-      expect(call[0]).toContain('INSERT OR IGNORE INTO station')
+    const insertCalls = vi.mocked(run).mock.calls.slice(1)
+    expect(insertCalls).toHaveLength(15)
+    for (const call of insertCalls) {
+      expect(call[0]).toContain('INSERT INTO station')
     }
   })
 
   it('seeds exactly the 3 active MVP station types with is_active=1', async () => {
     await seedDefaultStationsIfNeeded(BUSINESS_UNIT_ID)
 
-    const activeCalls = vi.mocked(run).mock.calls.filter((call) => call[1]?.[4] === 1)
+    const insertCalls = vi.mocked(run).mock.calls.slice(1)
+    const activeCalls = insertCalls.filter((call) => call[1]?.[4] === 1)
     const activeTypes = activeCalls.map((call) => call[1]?.[3])
 
     expect(activeTypes.sort()).toEqual(['cages-track', 'grading', 'weighbridge'])
@@ -59,7 +66,8 @@ describe('localSchema — seedDefaultStationsIfNeeded()', () => {
   it('seeds the 12 placeholder stations with type=other and is_active=0', async () => {
     await seedDefaultStationsIfNeeded(BUSINESS_UNIT_ID)
 
-    const placeholderCalls = vi.mocked(run).mock.calls.filter((call) => call[1]?.[4] === 0)
+    const insertCalls = vi.mocked(run).mock.calls.slice(1)
+    const placeholderCalls = insertCalls.filter((call) => call[1]?.[4] === 0)
 
     expect(placeholderCalls).toHaveLength(12)
     for (const call of placeholderCalls) {
@@ -70,7 +78,8 @@ describe('localSchema — seedDefaultStationsIfNeeded()', () => {
   it('scopes every seeded row to the given business_unit_id and derives a deterministic id from it', async () => {
     await seedDefaultStationsIfNeeded(BUSINESS_UNIT_ID)
 
-    for (const call of vi.mocked(run).mock.calls) {
+    const insertCalls = vi.mocked(run).mock.calls.slice(1)
+    for (const call of insertCalls) {
       const [id, businessUnitId] = call[1] ?? []
       expect(businessUnitId).toBe(BUSINESS_UNIT_ID)
       expect(id).toContain(BUSINESS_UNIT_ID)
@@ -124,6 +133,7 @@ describe('localSchema — initLocalSchema() weighbridge_record v5 migration', ()
       { name: 'weighbridge_type' },
       { name: 'record_datetime' },
       { name: 'destination' },
+      { name: 'server_id' },
     ] as never)
 
     await initLocalSchema()
@@ -191,6 +201,7 @@ describe('localSchema — initLocalSchema() grading_record/grading_detail v2 mig
       { name: 'netto' },
       { name: 'quantity' },
       { name: 'note' },
+      { name: 'server_id' },
     ] as never)
 
     await initLocalSchema()
@@ -256,6 +267,7 @@ describe('localSchema — initLocalSchema() cages_track_record/cages_tipped_time
       { name: 'cages_out' },
       { name: 'cages_tipped' },
       { name: 'note' },
+      { name: 'server_id' },
     ] as never)
 
     await initLocalSchema()
@@ -299,6 +311,58 @@ describe('localSchema — initLocalSchema() station.icon v7 migration', () => {
     vi.mocked(query).mockResolvedValue([
       { name: 'id' },
       { name: 'business_unit_id' },
+      { name: 'production_line_id' },
+      { name: 'name' },
+      { name: 'type' },
+      { name: 'is_active' },
+      { name: 'icon' },
+    ] as never)
+
+    await initLocalSchema()
+
+    const alterCalls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(alterCalls.some((sql) => sql.includes('ALTER TABLE station'))).toBe(false)
+  })
+})
+
+/**
+ * initLocalSchema() — v9 station.production_line_id column migration
+ * (Production Line feature, entity-catalog v9). Same "CREATE TABLE IF NOT
+ * EXISTS is a no-op on an existing table" gap as every migration above.
+ */
+describe('localSchema — initLocalSchema() station.production_line_id v9 migration', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(run).mockResolvedValue({ changes: 1 })
+  })
+
+  it('adds the production_line_id column to station when the table pre-dates the v9 schema', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('station')) {
+        return [
+          { name: 'id' },
+          { name: 'business_unit_id' },
+          { name: 'name' },
+          { name: 'type' },
+          { name: 'is_active' },
+          { name: 'icon' },
+        ] as never
+      }
+
+      return [{ name: 'id' }] as never
+    })
+
+    await initLocalSchema()
+
+    const alterCalls = vi.mocked(run).mock.calls.map((call) => call[0])
+    expect(alterCalls).toContain('ALTER TABLE station ADD COLUMN production_line_id TEXT')
+  })
+
+  it('does not re-add production_line_id when PRAGMA table_info already reports it as present', async () => {
+    vi.mocked(query).mockResolvedValue([
+      { name: 'id' },
+      { name: 'business_unit_id' },
+      { name: 'production_line_id' },
       { name: 'name' },
       { name: 'type' },
       { name: 'is_active' },

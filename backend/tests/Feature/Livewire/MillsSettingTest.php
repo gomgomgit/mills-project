@@ -48,16 +48,13 @@ it('berhasil: Admin selects a mill, edits the form, and saves successfully', fun
         ->assertSet('selectedBusinessUnitId', '')
         ->set('selectedBusinessUnitId', $this->businessUnit->id)
         ->assertSet('app_name', 'Mill Unit Alpha')
-        ->assertSet('jumlah_cages', 1)
         ->set('app_name', 'Mill Baru')
-        ->set('jumlah_cages', 8)
         ->call('save')
         ->assertHasNoErrors()
         ->assertSet('successMessage', 'Mills Setting berhasil disimpan.');
 
     $millSetting = MillSetting::where('business_unit_id', $this->businessUnit->id)->firstOrFail();
     expect($millSetting->app_name)->toBe('Mill Baru');
-    expect($millSetting->jumlah_cages)->toBe(8);
 });
 
 // Scenario: "Mills Setting — Mill Management langsung terarah ke mill sendiri"
@@ -77,26 +74,7 @@ it('Mill belum punya setting: selecting a mill with no existing row shows defaul
     Livewire::actingAs($this->admin)
         ->test(MillsSetting::class)
         ->set('selectedBusinessUnitId', $this->businessUnit->id)
-        ->assertSet('app_name', 'Mill Unit Alpha')
-        ->assertSet('jumlah_cages', 1);
-});
-
-// Scenario: "Mills Setting — Validasi jumlah cages gagal"
-it('Validasi gagal: setting jumlah_cages to 0 and saving surfaces a validation error', function () {
-    Livewire::actingAs($this->admin)
-        ->test(MillsSetting::class)
-        ->set('selectedBusinessUnitId', $this->businessUnit->id)
-        ->set('jumlah_cages', 0)
-        ->call('save')
-        ->assertHasErrors(['jumlah_cages']);
-
-    // selectedBusinessUnitId's own setter already auto-created the default
-    // row via getOrCreate() (business_logic step 3) BEFORE save() was ever
-    // called — so the row legitimately exists at this point; what matters
-    // is that the rejected update never touched it, so jumlah_cages stays
-    // at its default (1), not the invalid 0 that was attempted.
-    $millSetting = MillSetting::where('business_unit_id', $this->businessUnit->id)->firstOrFail();
-    expect($millSetting->jumlah_cages)->toBe(1);
+        ->assertSet('app_name', 'Mill Unit Alpha');
 });
 
 // Scenario: "Mills Setting — Mill Management akses mill lain ditolak"

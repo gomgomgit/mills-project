@@ -3,10 +3,8 @@
 namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
-use App\Models\BusinessUnit;
-use App\Models\Station;
+use App\Models\ProductionLine;
 use App\Services\CagesTrackRecordService;
-use App\Services\MillSettingService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -37,11 +35,14 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  *    no draft/pause/Clear concept on web; Simpan always results in
  *    status=saved.
  *
- * Grid column count (N = jumlah_cages) is resolved via
- * MillSettingService::getJumlahCages() — a direct in-process call, NOT a
- * separate REST endpoint, mirroring the query-langsung convention already
- * used for Business Unit/WB Card No/Quality Parameter dropdowns on
- * screen-022/023. total_cages/cages_remain are NOT bound as editable
+ * Grid column count (N) is resolved via
+ * CagesTrackRecordService::jumlahCagesForProductionLine() (2026-08-20:
+ * was MillSettingService::getJumlahCages()/mill-setting.jumlah_cages,
+ * both removed — N is now COUNT(machinery WHERE station_id = the
+ * production line's active Cages Track station)) — a direct in-process
+ * call, NOT a separate REST endpoint, mirroring the query-langsung
+ * convention already used for Business Unit/WB Card No/Quality Parameter
+ * dropdowns on screen-022/023. total_cages/cages_remain are NOT bound as editable
  * inputs despite uiux-spec's 'web-form-input' convention (no disabled
  * fields) — see CagesTrackRecordService::upsertDetails()'s docblock for
  * why these are a deliberate exception (server-computed values, same
@@ -51,7 +52,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class FormCagesTrack extends Component
 {
     protected const FIELDS = [
-        'business_unit_id',
+        'production_line_id',
         'cages_track_number',
         'date',
         'tippler_start_time',
@@ -69,7 +70,7 @@ class FormCagesTrack extends Component
 
     /** @var array<string, mixed> */
     public array $form = [
-        'business_unit_id' => '',
+        'production_line_id' => '',
         'cages_track_number' => '',
         'date' => '',
         'tippler_start_time' => '',
@@ -86,11 +87,11 @@ class FormCagesTrack extends Component
 
     public bool $acknowledged = false;
 
-    /** Read-only display for edit mode (business_unit_id is immutable after create). */
+    /** Read-only display for edit mode (production_line_id is immutable after create). */
     public ?string $businessUnitName = null;
 
     /** @var array<int, array{id: string, name: string}> */
-    public array $businessUnitOptions = [];
+    public array $productionLineOptions = [];
 
     /** N — jumlah kolom checklist cage, diresolve dari mill-setting milik Business Unit terpilih. */
     public int $jumlahCages = 0;
@@ -104,7 +105,7 @@ class FormCagesTrack extends Component
 
     public function mount(?string $id = null): void
     {
-        $this->businessUnitOptions = BusinessUnit::query()->orderBy('name')->get(['id', 'name'])->toArray();
+        $this->productionLineOptions = ProductionLine::query()->orderBy('name')->get(['id', 'name'])->toArray();
 
         if ($id === null) {
             $this->isEdit = false;
@@ -128,7 +129,7 @@ class FormCagesTrack extends Component
         }
 
         foreach (self::FIELDS as $field) {
-            if ($field === 'business_unit_id') {
+            if ($field === 'production_line_id') {
                 continue;
             }
             $this->form[$field] = $record[$field] ?? '';
@@ -156,26 +157,21 @@ class FormCagesTrack extends Component
             ])
             ->toArray();
 
-        // Edit mode: resolve N from the record's own mill via its station
-        // (business_unit_id is immutable and not directly on $this->form,
-        // so it can't drive updatedFormBusinessUnitId() the way
-        // create-mode does).
-        $businessUnitId = Station::find($record['station_id'])?->business_unit_id;
-        if ($businessUnitId !== null) {
-            $this->jumlahCages = app(MillSettingService::class)->getJumlahCages($businessUnitId);
+        // Edit mode: resolve N directly from the record's own station
+        // (production_line_id is immutable and not directly on
+        // $this->form, so it can't drive updatedFormProductionLineId()
+        // the way create-mode does).
+        $stationId = $record['station_id'] ?? null;
+        if ($stationId !== null) {
+            $this->jumlahCages = app(CagesTrackRecordService::class)->machineryCountForStation($stationId);
         }
     }
 
-    /** Mode buat: BU dipilih -> resolve ulang N (jumlah_cages) dari mill-setting mill tsb. */
-    public function updatedFormBusinessUnitId(): void
+    /** Mode buat: Production Line dipilih -> resolve ulang N dari machinery station Cages Track lini tsb. */
+    public function updatedFormProductionLineId(): void
     {
-        if (blank($this->form['business_unit_id'])) {
-            $this->jumlahCages = 0;
-
-            return;
-        }
-
-        $this->jumlahCages = app(MillSettingService::class)->getJumlahCages($this->form['business_unit_id']);
+        $this->jumlahCages = app(CagesTrackRecordService::class)
+            ->jumlahCagesForProductionLine(blank($this->form['production_line_id']) ? null : $this->form['production_line_id']);
     }
 
     public function addDetailRow(): void

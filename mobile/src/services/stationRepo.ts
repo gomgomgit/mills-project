@@ -79,7 +79,14 @@ function toStationSlot(row: StationRow): StationSlot {
 export async function getActiveAndPlaceholderStations(businessUnitId: string): Promise<StationSlot[]> {
   const rows = await query<StationRow>(
     `SELECT id, business_unit_id, name, type, is_active, icon
-     FROM station WHERE business_unit_id = ?
+     FROM station
+     WHERE business_unit_id = ?
+       AND id = (
+         SELECT s2.id FROM station s2
+         WHERE s2.business_unit_id = station.business_unit_id AND s2.type = station.type
+         ORDER BY s2.updated_at DESC, s2.id DESC
+         LIMIT 1
+       )
      ORDER BY
        CASE type
          WHEN 'weighbridge' THEN 1
@@ -94,8 +101,47 @@ export async function getActiveAndPlaceholderStations(businessUnitId: string): P
   return rows.map(toStationSlot)
 }
 
+/**
+ * Production Line-scoped counterpart to getActiveAndPlaceholderStations()
+ * (entity-catalog v9, 2026-08-20) — used once a Production Line has been
+ * selected (StationListView.vue's new picker step) and its real stations
+ * synced locally via productionLineRepo.fetchAndCacheStationsForProductionLine()
+ * (real backend ids, not the legacy synthetic per-business-unit seed).
+ * Filtering by `production_line_id` (rather than reusing the
+ * business-unit-scoped query above) avoids showing duplicate/merged tiles
+ * once a mill has more than one Production Line's stations cached locally.
+ * Same fixed canonical grid ordering as the business-unit-scoped query.
+ */
+export async function getActiveAndPlaceholderStationsForProductionLine(
+  productionLineId: string,
+): Promise<StationSlot[]> {
+  const rows = await query<StationRow>(
+    `SELECT id, business_unit_id, name, type, is_active, icon
+     FROM station
+     WHERE production_line_id = ?
+       AND id = (
+         SELECT s2.id FROM station s2
+         WHERE s2.production_line_id = station.production_line_id AND s2.type = station.type
+         ORDER BY s2.updated_at DESC, s2.id DESC
+         LIMIT 1
+       )
+     ORDER BY
+       CASE type
+         WHEN 'weighbridge' THEN 1
+         WHEN 'grading' THEN 2
+         WHEN 'cages-track' THEN 3
+         ELSE 99
+       END ASC,
+       id ASC`,
+    [productionLineId],
+  )
+
+  return rows.map(toStationSlot)
+}
+
 export const stationRepo = {
   getActiveAndPlaceholderStations,
+  getActiveAndPlaceholderStationsForProductionLine,
 }
 
 export default stationRepo

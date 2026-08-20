@@ -8,16 +8,17 @@
  * test_scenarios' component_test step. Mirrors FormGradingTest.php
  * (screen-023)'s setup/conventions, with the Cages Tipped Time grid
  * (tipped_hour dropdown exclusion + toggleCage() checkbox grid sized to
- * mill-setting.jumlah_cages) layered on top, plus FormWeighbridgeTest.php's
- * dual Checked/Acknowledged checkbox coverage (unlike Grading, which only
- * has Acknowledged).
+ * COUNT(machinery WHERE station_id = the production line's active Cages
+ * Track station)) layered on top, plus FormWeighbridgeTest.php's dual
+ * Checked/Acknowledged checkbox coverage (unlike Grading, which only has
+ * Acknowledged).
  */
 
 use App\Enums\UserRole;
 use App\Livewire\Data\FormCagesTrack;
 use App\Models\BusinessUnit;
 use App\Models\CagesTrackRecord;
-use App\Models\MillSetting;
+use App\Models\Machinery;
 use App\Models\Station;
 use App\Models\User;
 use Livewire\Livewire;
@@ -25,7 +26,7 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->cagesTrackStation = Station::factory()->forBusinessUnit($this->businessUnit)->cagesTrack()->create();
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
+    Machinery::factory()->count(10)->create(['station_id' => $this->cagesTrackStation->id]);
     $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
     $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
 });
@@ -33,7 +34,7 @@ beforeEach(function () {
 function fillFormCagesTrack($component, array $overrides = []): void
 {
     $defaults = [
-        'form.business_unit_id' => null,
+        'form.production_line_id' => null,
         'form.cages_track_number' => 'CT-LW-001',
         'form.cages_out' => 12,
         'form.cages_tipped' => 10,
@@ -51,7 +52,7 @@ function fillFormCagesTrack($component, array $overrides = []): void
 it('berhasil: creates a new record and redirects to Detail Cages Track', function () {
     $component = Livewire::actingAs($this->supervisor)->test(FormCagesTrack::class);
 
-    fillFormCagesTrack($component, ['form.business_unit_id' => $this->businessUnit->id]);
+    fillFormCagesTrack($component, ['form.production_line_id' => $this->cagesTrackStation->production_line_id]);
     $component->call('addDetailRow');
     $component->set('detailRows.0.tipped_hour', 8);
     $component->call('toggleCage', 0, 1);
@@ -61,11 +62,11 @@ it('berhasil: creates a new record and redirects to Detail Cages Track', functio
     expect(CagesTrackRecord::where('cages_track_number', 'CT-LW-001')->exists())->toBeTrue();
 });
 
-it('default: mode create renders empty form with Business Unit dropdown', function () {
+it('default: mode create renders empty form with Production Line dropdown', function () {
     Livewire::actingAs($this->supervisor)
         ->test(FormCagesTrack::class)
         ->assertSet('isEdit', false)
-        ->assertSeeHtml('data-testid="business-unit-select"');
+        ->assertSeeHtml('data-testid="production-line-select"');
 });
 
 // Scenario: "Tanggal & Tippler Time Dapat Diedit Manual"
@@ -76,7 +77,7 @@ it('date/tippler times default to now but a manually-set value is preserved and 
     expect($component->get('form.tippler_start_time'))->not->toBeEmpty();
     expect($component->get('form.tippler_stop_time'))->not->toBeEmpty();
 
-    fillFormCagesTrack($component, ['form.business_unit_id' => $this->businessUnit->id]);
+    fillFormCagesTrack($component, ['form.production_line_id' => $this->cagesTrackStation->production_line_id]);
     $component->set('form.date', '2020-01-01');
     $component->call('addDetailRow');
     $component->set('detailRows.0.tipped_hour', 8);
@@ -87,13 +88,13 @@ it('date/tippler times default to now but a manually-set value is preserved and 
     expect($record->date->format('Y-m-d'))->toBe('2020-01-01');
 });
 
-// Scenario: "Jumlah Kolom Grid Mengikuti Mills Setting, Bukan Cages Tipped Header"
-it('resolves jumlahCages from mill-setting when Business Unit is selected, independent of the cages_tipped header value', function () {
+// Scenario: "Jumlah Kolom Grid Mengikuti Machinery Count, Bukan Cages Tipped Header"
+it('resolves jumlahCages from machinery count when Production Line is selected, independent of the cages_tipped header value', function () {
     $component = Livewire::actingAs($this->supervisor)->test(FormCagesTrack::class);
 
     expect($component->get('jumlahCages'))->toBe(0);
 
-    $component->set('form.business_unit_id', $this->businessUnit->id);
+    $component->set('form.production_line_id', $this->cagesTrackStation->production_line_id);
     $component->set('form.cages_tipped', 999);
 
     expect($component->get('jumlahCages'))->toBe(10);
@@ -102,7 +103,7 @@ it('resolves jumlahCages from mill-setting when Business Unit is selected, indep
 // Scenario: "Time Tidak Bisa Duplikat Atau Mundur"
 it('excludes hours already used by other rows and hours <= the last-added row\'s hour', function () {
     $component = Livewire::actingAs($this->supervisor)->test(FormCagesTrack::class);
-    $component->set('form.business_unit_id', $this->businessUnit->id);
+    $component->set('form.production_line_id', $this->cagesTrackStation->production_line_id);
 
     $component->call('addDetailRow');
     $component->set('detailRows.0.tipped_hour', 7);
@@ -114,12 +115,12 @@ it('excludes hours already used by other rows and hours <= the last-added row\'s
     expect($available)->toContain(8);
 });
 
-it('addDetailRow is disabled (canAddRow=false) until a Business Unit with jumlahCages>0 is selected', function () {
+it('addDetailRow is disabled (canAddRow=false) until a Production Line with jumlahCages>0 is selected', function () {
     $component = Livewire::actingAs($this->supervisor)->test(FormCagesTrack::class);
 
     expect($component->instance()->canAddRow())->toBeFalse();
 
-    $component->set('form.business_unit_id', $this->businessUnit->id);
+    $component->set('form.production_line_id', $this->cagesTrackStation->production_line_id);
 
     expect($component->instance()->canAddRow())->toBeTrue();
 });
@@ -128,7 +129,7 @@ it('addDetailRow is disabled (canAddRow=false) until a Business Unit with jumlah
 it('shows inline validation error when a required field is empty on save', function () {
     $component = Livewire::actingAs($this->supervisor)->test(FormCagesTrack::class);
 
-    $component->set('form.business_unit_id', $this->businessUnit->id);
+    $component->set('form.production_line_id', $this->cagesTrackStation->production_line_id);
     $component->set('form.cages_track_number', '');
     $component->call('addDetailRow');
     $component->set('detailRows.0.tipped_hour', 8);
@@ -142,7 +143,7 @@ it('shows inline validation error when a required field is empty on save', funct
 it('shows detail-specific error when no valid Cages Tipped Time row exists on save', function () {
     $component = Livewire::actingAs($this->supervisor)->test(FormCagesTrack::class);
 
-    fillFormCagesTrack($component, ['form.business_unit_id' => $this->businessUnit->id]);
+    fillFormCagesTrack($component, ['form.production_line_id' => $this->cagesTrackStation->production_line_id]);
     $component->call('save');
 
     expect($component->get('detailError'))->not->toBeNull();
@@ -150,12 +151,11 @@ it('shows detail-specific error when no valid Cages Tipped Time row exists on sa
 });
 
 // Scenario: "Business Unit Tanpa Station Cages Track Aktif"
-it('shows an error when the selected Business Unit has no active cages-track station', function () {
-    $otherBusinessUnit = BusinessUnit::factory()->create();
-    MillSetting::factory()->forBusinessUnit($otherBusinessUnit)->withJumlahCages(10)->create();
+it('shows an error when the selected Production Line has no active cages-track station', function () {
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
     $component = Livewire::actingAs($this->supervisor)->test(FormCagesTrack::class);
 
-    fillFormCagesTrack($component, ['form.business_unit_id' => $otherBusinessUnit->id]);
+    fillFormCagesTrack($component, ['form.production_line_id' => $otherProductionLine->id]);
     $component->call('addDetailRow');
     $component->set('detailRows.0.tipped_hour', 8);
     $component->call('toggleCage', 0, 1);
@@ -175,7 +175,7 @@ it('edit mode: prefills the form from the existing record and shows Business Uni
         ->assertSet('form.cages_track_number', 'CT-EXISTING')
         ->assertSet('jumlahCages', 10)
         ->assertSeeHtml('data-testid="business-unit-readonly"')
-        ->assertDontSeeHtml('data-testid="business-unit-select"');
+        ->assertDontSeeHtml('data-testid="production-line-select"');
 });
 
 it('edit mode: saving updates the existing record', function () {

@@ -46,7 +46,7 @@ function gradingApiPayload(array $overrides = []): array
 // Scenario: "Buat Record Grading Baru — berhasil"
 it('berhasil: creates a new record with status=saved, resolved station_id, and inserted details', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/grading-records', gradingApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->gradingStation->production_line_id,
         'weighbridge_record_id' => $this->weighbridgeRecord->id,
         'details' => [['grading_parameter_id' => $this->gradingParameter->id, 'quantity' => 250]],
     ]));
@@ -59,7 +59,7 @@ it('berhasil: creates a new record with status=saved, resolved station_id, and i
 // Scenario: "Field Wajib Belum Lengkap"
 it('returns 422 VALIDATION_ERROR when a required field is empty', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/grading-records', gradingApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->gradingStation->production_line_id,
         'weighbridge_record_id' => $this->weighbridgeRecord->id,
         'grading_number' => '',
         'details' => [['grading_parameter_id' => $this->gradingParameter->id, 'quantity' => 5]],
@@ -72,7 +72,7 @@ it('returns 422 VALIDATION_ERROR when a required field is empty', function () {
 // Scenario: "Belum Ada Baris Grading Detail Valid"
 it('returns 422 VALIDATION_ERROR when details array is empty', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/grading-records', gradingApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->gradingStation->production_line_id,
         'weighbridge_record_id' => $this->weighbridgeRecord->id,
         'details' => [],
     ]));
@@ -84,7 +84,7 @@ it('returns 422 VALIDATION_ERROR when details array is empty', function () {
 // Scenario: "Quality Parameter Tidak Bisa Duplikat Antar Baris"
 it('returns 422 VALIDATION_ERROR when two detail rows share the same grading_parameter_id', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/grading-records', gradingApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->gradingStation->production_line_id,
         'weighbridge_record_id' => $this->weighbridgeRecord->id,
         'details' => [
             ['grading_parameter_id' => $this->gradingParameter->id, 'quantity' => 5],
@@ -97,11 +97,11 @@ it('returns 422 VALIDATION_ERROR when two detail rows share the same grading_par
 });
 
 // Scenario: "Business Unit Tanpa Station Grading Aktif"
-it('returns 422 when business_unit_id has no active grading station', function () {
-    $otherBusinessUnit = BusinessUnit::factory()->create();
+it('returns 422 when production_line_id has no active grading station', function () {
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
 
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/grading-records', gradingApiPayload([
-        'business_unit_id' => $otherBusinessUnit->id,
+        'production_line_id' => $otherProductionLine->id,
         'weighbridge_record_id' => $this->weighbridgeRecord->id,
         'details' => [['grading_parameter_id' => $this->gradingParameter->id, 'quantity' => 5]],
     ]));
@@ -109,14 +109,17 @@ it('returns 422 when business_unit_id has no active grading station', function (
     $response->assertStatus(422);
 });
 
-it('returns 403 for the Operator role on create', function () {
+// TEMPORARY (2026-08-20, mobile syncService.ts): Operator is now allowed
+// on this route (was 403) — see FormWeighbridgeTest.php's matching test
+// for the full rationale.
+it('allows the Operator role to create (mobile sync)', function () {
     $response = $this->actingAs($this->operator, 'web')->postJson('/api/grading-records', gradingApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->gradingStation->production_line_id,
         'weighbridge_record_id' => $this->weighbridgeRecord->id,
         'details' => [['grading_parameter_id' => $this->gradingParameter->id, 'quantity' => 5]],
     ]));
 
-    $response->assertStatus(403);
+    $response->assertCreated();
 });
 
 // Scenario: "Edit Record Grading — berhasil"
@@ -134,12 +137,13 @@ it('berhasil: updates an existing record and its details', function () {
     expect($record->fresh()->grading_number)->toBe('GR-NEW');
 });
 
-it('does not change station_id even if business_unit_id is sent on update', function () {
+it('does not change station_id even if production_line_id is sent on update', function () {
     $record = GradingRecord::factory()->forStation($this->gradingStation)->create();
-    $otherBusinessUnit = BusinessUnit::factory()->create();
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    Station::factory()->forProductionLine($otherProductionLine)->grading()->create();
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/grading-records/{$record->id}", gradingApiPayload([
-        'business_unit_id' => $otherBusinessUnit->id,
+        'production_line_id' => $otherProductionLine->id,
         'weighbridge_record_id' => $this->weighbridgeRecord->id,
         'details' => [['grading_parameter_id' => $this->gradingParameter->id, 'quantity' => 5]],
     ]));
@@ -163,7 +167,7 @@ it('returns 404 RECORD_NOT_FOUND when updating a non-existent id', function () {
 
 it('rejects unauthenticated requests on create and update', function () {
     $this->postJson('/api/grading-records', gradingApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->gradingStation->production_line_id,
         'weighbridge_record_id' => $this->weighbridgeRecord->id,
         'details' => [['grading_parameter_id' => $this->gradingParameter->id, 'quantity' => 5]],
     ]))->assertStatus(401);

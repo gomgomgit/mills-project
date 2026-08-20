@@ -1,5 +1,5 @@
 {
-  "ver": 8,
+  "ver": 9,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-08-20"
@@ -577,6 +577,11 @@
           "entity_id": "machinery",
           "type": "one-to-many",
           "description": "Satu Business Unit dapat memiliki banyak Machinery (denormalized, mengikuti ERD)."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Business Unit dapat memiliki banyak Production Line."
         }
       ],
       "constraints": [
@@ -612,9 +617,9 @@
       }
     },
     {
-      "id": "station",
-      "name": "Station",
-      "description": "Stasiun produksi mill — 3 aktif di MVP (Weighbridge, Grading, Cages Track), 12 lainnya placeholder skema masa depan. Field code/description/no_of_machinery_group ditambah dari ERD; field type tetap dipertahankan (TIDAK ada di ERD literal) karena krusial bagi mobile app (screen-006 Station List dan Monitor 007-009) yang sudah diimplementasikan dan diverifikasi berdasarkan field ini.",
+      "id": "production-line",
+      "name": "Production Line",
+      "description": "Lini produksi di bawah Business Unit (2026-08-20, disisipkan antara Business Unit dan Station) — satu Business Unit/mill dapat memiliki beberapa Production Line, dan tiap Production Line memiliki set Station-nya sendiri (termasuk 3 station aktif MVP: Weighbridge, Grading, Cages Track).",
       "fields": [
         {
           "name": "id",
@@ -627,6 +632,94 @@
           "type": "uuid",
           "required": true,
           "description": "FK ke Business Unit induk."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Nama Production Line."
+        },
+        {
+          "name": "code",
+          "type": "string",
+          "required": false,
+          "description": "Kode Production Line, unik jika diisi."
+        },
+        {
+          "name": "description",
+          "type": "string",
+          "required": false,
+          "description": "Deskripsi Production Line."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record."
+        },
+        {
+          "name": "updated_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User yang terakhir memperbarui record."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "station",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Station (termasuk set 15 station kanonis, 3 aktif + 12 placeholder, auto-dibuat saat Production Line dibuat)."
+        }
+      ],
+      "constraints": [
+        "code unik jika diisi"
+      ],
+      "test_fixture": {
+        "id": "pl-001",
+        "business_unit_id": "bu-001",
+        "name": "Production Line 1",
+        "code": "PL-1",
+        "description": "Lini produksi utama Business Unit A",
+        "created_by": "usr-001",
+        "updated_by": null,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "station",
+      "name": "Station",
+      "description": "Stasiun produksi mill, di bawah Production Line — 3 aktif di MVP per Production Line (Weighbridge, Grading, Cages Track), 12 lainnya placeholder skema masa depan. Field code/description/no_of_machinery_group ditambah dari ERD; field type tetap dipertahankan (TIDAK ada di ERD literal) karena krusial bagi mobile app (screen-006 Station List dan Monitor 007-009) yang sudah diimplementasikan dan diverifikasi berdasarkan field ini.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "business_unit_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Business Unit (denormalized dari production_line.business_unit_id, mengikuti pola denormalisasi machinery-group/machinery — mempertahankan kompatibilitas kode yang sudah resolve station langsung dari business_unit_id)."
+        },
+        {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line induk — parent hierarkis station yang sesungguhnya (2026-08-20: Production Line disisipkan antara Business Unit dan Station)."
         },
         {
           "name": "code",
@@ -685,6 +778,11 @@
       ],
       "relationships": [
         {
+          "entity_id": "production-line",
+          "type": "many-to-one",
+          "description": "Setiap Station merujuk satu Production Line induk."
+        },
+        {
           "entity_id": "machinery",
           "type": "one-to-many",
           "description": "Satu Station dapat memiliki banyak Machinery."
@@ -697,7 +795,8 @@
       ],
       "constraints": [
         "Hanya station bertipe weighbridge/grading/cages-track yang is_active=true di MVP; tipe lain adalah placeholder skema masa depan dengan is_active=false",
-        "code unik jika diisi"
+        "code unik jika diisi",
+        "production_line_id harus milik business_unit_id yang sama"
       ],
       "test_fixture": {
         "id": "stn-001",
@@ -710,7 +809,8 @@
         "is_active": true,
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z",
-        "icon": null
+        "icon": null,
+        "production_line_id": "pl-001"
       }
     },
     {
@@ -1838,7 +1938,7 @@
         "minimal satu Cages Tipped Time harus ada sebelum status=saved",
         "tippler_start_time diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
         "tippler_stop_time diisi otomatis sekali tepat saat Simpan ditekan, tidak dapat diedit manual",
-        "Jumlah kolom checklist cage (1..N) di setiap baris Cages Tipped Time mengacu ke mill-setting.jumlah_cages (via business_unit dari station terkait) — BUKAN ke cages_tipped. Field cages_tipped tetap input manual terpisah, tidak lagi menentukan jumlah kolom."
+        "Jumlah kolom checklist cage (1..N) di setiap baris Cages Tipped Time mengacu ke COUNT(machinery WHERE station_id = station_id record ini) — BUKAN ke cages_tipped maupun mill-setting (2026-08-20: mill-setting.jumlah_cages dihapus). Field cages_tipped tetap input manual terpisah, tidak lagi menentukan jumlah kolom."
       ],
       "test_fixture": {
         "id": "ctr-001",
@@ -1932,7 +2032,7 @@
     {
       "id": "mill-setting",
       "name": "Mill Setting",
-      "description": "Pengaturan branding & konfigurasi operasional per mill (Business Unit) — nama aplikasi, logo, gambar home page mobile, dan jumlah cages fisik milik mill. Satu Business Unit memiliki tepat satu Mill Setting (1:1). Dikelola lewat screen Mills Setting oleh Admin & Mill Management.",
+      "description": "Pengaturan branding & konfigurasi operasional per mill (Business Unit) — nama aplikasi, logo, gambar home page mobile. Satu Business Unit memiliki tepat satu Mill Setting (1:1). Dikelola lewat screen Mills Setting oleh Admin & Mill Management. (2026-08-20: jumlah_cages dihapus — jumlah kolom checklist Cages Tipped Time sekarang diturunkan dari COUNT(machinery) per station Cages Track, lihat cages-track-record.)",
       "fields": [
         {
           "name": "id",
@@ -1963,12 +2063,6 @@
           "type": "string",
           "required": false,
           "description": "Path/URL gambar yang ditampilkan di Home mobile (screen-005) untuk user dari mill ini."
-        },
-        {
-          "name": "jumlah_cages",
-          "type": "integer",
-          "required": true,
-          "description": "Jumlah fisik cages/lori yang dimiliki mill ini. Menentukan jumlah kolom checklist (1..N) pada grid Cages Tipped Time di Form Cages Track (screen-012) — menggantikan peran cages_tipped untuk keperluan ini."
         },
         {
           "name": "created_by",
@@ -2003,8 +2097,7 @@
         }
       ],
       "constraints": [
-        "business_unit_id harus unik (1:1 dengan Business Unit)",
-        "jumlah_cages harus > 0"
+        "business_unit_id harus unik (1:1 dengan Business Unit)"
       ],
       "test_fixture": {
         "id": "ms-001",
@@ -2012,7 +2105,6 @@
         "app_name": "Mills Smart Log",
         "logo": "storage/mill-settings/ms-001-logo.png",
         "home_page_image": "storage/mill-settings/ms-001-home.jpg",
-        "jumlah_cages": 10,
         "created_by": "usr-001",
         "updated_by": null,
         "created_at": "2024-01-01T00:00:00Z",

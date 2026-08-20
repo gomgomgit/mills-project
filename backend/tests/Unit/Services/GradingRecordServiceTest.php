@@ -298,7 +298,7 @@ it('creates record with resolved station_id and inserted details when valid', fu
 
     $result = $this->service->create(
         gradingFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->gradingStation->production_line_id,
             'weighbridge_record_id' => $weighbridgeRecord->id,
             'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 250]],
         ]),
@@ -316,7 +316,7 @@ it('computes detail percentage using netto when uom is kg', function () {
 
     $result = $this->service->create(
         gradingFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->gradingStation->production_line_id,
             'weighbridge_record_id' => $weighbridgeRecord->id,
             'netto' => 1000,
             'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 250]],
@@ -333,7 +333,7 @@ it('computes detail percentage using quantity when uom is bunch', function () {
 
     $result = $this->service->create(
         gradingFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->gradingStation->production_line_id,
             'weighbridge_record_id' => $weighbridgeRecord->id,
             'quantity' => 120,
             'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 30]],
@@ -350,7 +350,7 @@ it('throws ValidationException when a required field is empty', function () {
 
     expect(fn () => $this->service->create(
         gradingFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->gradingStation->production_line_id,
             'weighbridge_record_id' => $weighbridgeRecord->id,
             'grading_number' => '',
             'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
@@ -364,7 +364,7 @@ it('throws ValidationException when details array is empty', function () {
 
     expect(fn () => $this->service->create(
         gradingFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->gradingStation->production_line_id,
             'weighbridge_record_id' => $weighbridgeRecord->id,
             'details' => [],
         ]),
@@ -378,7 +378,7 @@ it('throws ValidationException when two detail rows share the same grading_param
 
     expect(fn () => $this->service->create(
         gradingFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->gradingStation->production_line_id,
             'weighbridge_record_id' => $weighbridgeRecord->id,
             'details' => [
                 ['grading_parameter_id' => $parameter->id, 'quantity' => 5],
@@ -389,14 +389,14 @@ it('throws ValidationException when two detail rows share the same grading_param
     ))->toThrow(\Illuminate\Validation\ValidationException::class);
 });
 
-it('throws NoActiveGradingStationException when business_unit_id has no active grading station', function () {
-    $otherBusinessUnit = BusinessUnit::factory()->create();
+it('throws NoActiveGradingStationException when production_line_id has no active grading station', function () {
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
     $parameter = GradingParameter::factory()->create();
 
     expect(fn () => $this->service->create(
         gradingFormPayload([
-            'business_unit_id' => $otherBusinessUnit->id,
+            'production_line_id' => $otherProductionLine->id,
             'weighbridge_record_id' => $weighbridgeRecord->id,
             'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
         ]),
@@ -411,7 +411,7 @@ it('sets acknowledged_by to requester id when acknowledged=true and requester ro
 
     $result = $this->service->create(
         gradingFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->gradingStation->production_line_id,
             'weighbridge_record_id' => $weighbridgeRecord->id,
             'acknowledged' => true,
             'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
@@ -429,7 +429,7 @@ it('ignores acknowledged=true when requester role is not mill_management', funct
 
     $result = $this->service->create(
         gradingFormPayload([
-            'business_unit_id' => $this->businessUnit->id,
+            'production_line_id' => $this->gradingStation->production_line_id,
             'weighbridge_record_id' => $weighbridgeRecord->id,
             'acknowledged' => true,
             'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
@@ -469,8 +469,8 @@ it('updates record and upserts details: inserts new row, updates existing row, d
     expect(GradingDetail::where('grading_parameter_id', $removedParameter->id)->exists())->toBeFalse();
 });
 
-it('updates record without accepting a business_unit_id change', function () {
-    $otherBusinessUnit = BusinessUnit::factory()->create();
+it('updates record without accepting a production_line_id change', function () {
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
     $record = GradingRecord::factory()->forStation($this->gradingStation)->create();
     $parameter = GradingParameter::factory()->create();
@@ -479,7 +479,7 @@ it('updates record without accepting a business_unit_id change', function () {
     $result = $this->service->update(
         $record->id,
         gradingFormPayload([
-            'business_unit_id' => $otherBusinessUnit->id,
+            'production_line_id' => $otherProductionLine->id,
             'weighbridge_record_id' => $weighbridgeRecord->id,
             'grading_number' => 'GR-EDITED',
             'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],

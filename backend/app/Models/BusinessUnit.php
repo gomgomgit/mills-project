@@ -69,6 +69,19 @@ class BusinessUnit extends Model
         return $this->hasMany(Station::class);
     }
 
+    /**
+     * productionLines() — added 2026-08-20 (entity-catalog v9, Production
+     * Line inserted between Business Unit and Station). `stations()` above
+     * is DELIBERATELY left untouched — Station still keeps a denormalized
+     * `business_unit_id` (see Station's own docblock), so this direct
+     * relationship stays valid/queryable even though Production Line is
+     * now Station's real hierarchical parent.
+     */
+    public function productionLines(): HasMany
+    {
+        return $this->hasMany(ProductionLine::class);
+    }
+
     public function users(): HasMany
     {
         return $this->hasMany(User::class);

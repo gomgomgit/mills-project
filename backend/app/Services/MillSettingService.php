@@ -18,8 +18,11 @@ use Illuminate\Validation\ValidationException;
 /**
  * MillSettingService — screen-034--mills-setting /
  * usecase-034--mills-setting (Mills Setting — Admin + Mill Management,
- * per-mill app branding + physical cage count + per-station icon
- * override).
+ * per-mill app branding + per-station icon override).
+ *
+ * `jumlah_cages` was REMOVED 2026-08-20 (entity-catalog v9) — see
+ * App\Models\MillSetting's docblock and
+ * App\Services\CagesTrackRecordService::machineryCountForStation().
  *
  * Shared by both the API controller (App\Http\Controllers\Api\
  * MillSettingController) and the Livewire component (App\Livewire\
@@ -93,8 +96,8 @@ class MillSettingService
     /**
      * getOrCreate() — business_logic step 3: validate business_unit_id
      * exists → 404 if not → SELECT mill-setting WHERE business_unit_id →
-     * if none, INSERT default (app_name = business_unit.name,
-     * jumlah_cages = 1) and return the newly created row.
+     * if none, INSERT default (app_name = business_unit.name) and return
+     * the newly created row.
      *
      * @throws ModelNotFoundException
      * @throws AuthorizationException
@@ -111,10 +114,9 @@ class MillSettingService
     }
 
     /**
-     * update() — business_logic step 4: validate jumlah_cages > 0 (if
-     * sent) → validate logo/home_page_image format+size (if sent) → 422
-     * if invalid → get-or-create the row (step 3) → store any uploaded
-     * files → UPDATE.
+     * update() — business_logic step 4: validate logo/home_page_image
+     * format+size (if sent) → 422 if invalid → get-or-create the row
+     * (step 3) → store any uploaded files → UPDATE.
      *
      * @throws ModelNotFoundException
      * @throws AuthorizationException
@@ -133,20 +135,16 @@ class MillSettingService
 
         $payload = [
             'app_name' => array_key_exists('app_name', $data) ? trim((string) $data['app_name']) : null,
-            'jumlah_cages' => array_key_exists('jumlah_cages', $data) ? $data['jumlah_cages'] : null,
             'logo' => $logo,
             'home_page_image' => $homePageImage,
         ];
 
         Validator::make($payload, [
             'app_name' => ['nullable', 'string', 'max:255'],
-            'jumlah_cages' => ['nullable', 'integer', 'min:1'],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
             'home_page_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
         ], [
             'app_name.max' => 'Nama aplikasi maksimal 255 karakter.',
-            'jumlah_cages.integer' => 'Jumlah cages harus berupa angka.',
-            'jumlah_cages.min' => 'Jumlah cages harus lebih dari 0.',
             'logo.file' => 'Logo harus berupa file.',
             'logo.mimes' => 'Logo harus berformat JPG atau PNG.',
             'logo.max' => 'Ukuran logo maksimal 2MB.',
@@ -161,10 +159,6 @@ class MillSettingService
 
         if (array_key_exists('app_name', $data) && trim((string) $data['app_name']) !== '') {
             $attributes['app_name'] = trim((string) $data['app_name']);
-        }
-
-        if (array_key_exists('jumlah_cages', $data) && $data['jumlah_cages'] !== null) {
-            $attributes['jumlah_cages'] = (int) $data['jumlah_cages'];
         }
 
         if ($logo !== null) {
@@ -235,30 +229,6 @@ class MillSettingService
         }
 
         return $this->mapStations($user->business_unit_id);
-    }
-
-    /**
-     * getJumlahCages() — screen-024--form-cages-track-web business_logic
-     * step 3. Read-only lookup of a single business unit's physical cage
-     * count, used to size the Cages Tipped Time grid's checklist columns.
-     * Deliberately does NOT call checkAccess(): this value is needed by
-     * ALL THREE of screen-024's actors (supervisor/mill_management/admin),
-     * but checkAccess() only accepts Admin or the Mill Management user's
-     * own business_unit_id — a Supervisor would always be rejected. Unlike
-     * Mills Setting's own management endpoints, jumlah_cages here is
-     * consumed operationally (grid sizing), not managed, so it carries no
-     * access restriction beyond this screen's own route-level role gate.
-     * Auto-creates the default row (jumlah_cages=1) via the existing
-     * findOrCreateRow() if the business unit has none yet — same behavior
-     * as getOrCreate()/getCurrent().
-     *
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException if business_unit_id does not exist
-     */
-    public function getJumlahCages(string $businessUnitId): int
-    {
-        $businessUnit = BusinessUnit::findOrFail($businessUnitId);
-
-        return $this->findOrCreateRow($businessUnit)->jumlah_cages;
     }
 
     /**
@@ -337,7 +307,6 @@ class MillSettingService
         return MillSetting::create([
             'business_unit_id' => $businessUnit->id,
             'app_name' => $businessUnit->name,
-            'jumlah_cages' => 1,
         ]);
     }
 
@@ -377,7 +346,6 @@ class MillSettingService
             'home_page_image' => $millSetting->home_page_image
                 ? Storage::disk(self::LOGO_DISK)->url($millSetting->home_page_image)
                 : null,
-            'jumlah_cages' => $millSetting->jumlah_cages,
             'created_at' => optional($millSetting->created_at)->toIso8601String(),
         ];
     }

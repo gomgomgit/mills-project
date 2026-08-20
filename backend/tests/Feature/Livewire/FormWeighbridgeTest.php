@@ -26,8 +26,14 @@ beforeEach(function () {
 
 function fillFormWeighbridge($component, array $overrides = []): void
 {
+    // Order matters: form.business_unit_id must be set BEFORE
+    // form.production_line_id — setting it triggers
+    // FormWeighbridge::updatedFormBusinessUnitId(), which resets
+    // form.production_line_id back to '' and reloads productionLineOptions
+    // (mirrors the real cascading Business Unit -> Production Line select).
     $defaults = [
         'form.business_unit_id' => null,
+        'form.production_line_id' => null,
         'form.wb_card_number' => 'WB-LW-001',
         'form.vehicle_number' => 'B 1234 XY',
         'form.driver_name' => 'Budi',
@@ -48,7 +54,10 @@ function fillFormWeighbridge($component, array $overrides = []): void
 it('berhasil: creates a new record and redirects to Detail Weighbridge', function () {
     $component = Livewire::actingAs($this->supervisor)->test(FormWeighbridge::class);
 
-    fillFormWeighbridge($component, ['form.business_unit_id' => $this->businessUnit->id]);
+    fillFormWeighbridge($component, [
+        'form.business_unit_id' => $this->businessUnit->id,
+        'form.production_line_id' => $this->station->production_line_id,
+    ]);
     $component->call('save');
 
     expect(WeighbridgeRecord::where('wb_card_number', 'WB-LW-001')->exists())->toBeTrue();
@@ -70,6 +79,7 @@ it('record_datetime defaults to now but a manually-set value is preserved and sa
 
     fillFormWeighbridge($component, [
         'form.business_unit_id' => $this->businessUnit->id,
+        'form.production_line_id' => $this->station->production_line_id,
         'form.record_datetime' => '2020-01-01T00:00',
     ]);
     $component->call('save');
@@ -94,6 +104,7 @@ it('shows inline validation error when a required field is empty on save', funct
     $component = Livewire::actingAs($this->supervisor)->test(FormWeighbridge::class);
 
     $component->set('form.business_unit_id', $this->businessUnit->id);
+    $component->set('form.production_line_id', $this->station->production_line_id);
     $component->call('save');
 
     expect($component->get('errors_'))->toHaveKey('wb_card_number');
@@ -102,7 +113,10 @@ it('shows inline validation error when a required field is empty on save', funct
 it('requires destination when type=dispatch', function () {
     $component = Livewire::actingAs($this->supervisor)->test(FormWeighbridge::class);
 
-    fillFormWeighbridge($component, ['form.business_unit_id' => $this->businessUnit->id]);
+    fillFormWeighbridge($component, [
+        'form.business_unit_id' => $this->businessUnit->id,
+        'form.production_line_id' => $this->station->production_line_id,
+    ]);
     $component->set('form.weighbridge_type', 'dispatch');
     $component->call('save');
 
@@ -115,6 +129,10 @@ it('shows an error when the selected Business Unit has no active weighbridge sta
     $component = Livewire::actingAs($this->supervisor)->test(FormWeighbridge::class);
 
     fillFormWeighbridge($component, ['form.business_unit_id' => $otherBusinessUnit->id]);
+    // $otherBusinessUnit has zero Production Lines, so the cascading
+    // select never offers one — form.production_line_id stays empty,
+    // reproducing "no active weighbridge station" the same way a real
+    // user would hit it (unable to pick a Production Line at all).
     $component->call('save');
 
     expect($component->get('generalError'))->not->toBeNull();

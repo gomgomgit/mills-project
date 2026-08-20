@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\MachineryController;
 use App\Http\Controllers\Api\MachineryGroupController;
 use App\Http\Controllers\Api\ManagementReportController;
 use App\Http\Controllers\Api\MillSettingController;
+use App\Http\Controllers\Api\ProductionLineController;
 use App\Http\Controllers\Api\StationController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WeighbridgeRecordController;
@@ -108,13 +109,21 @@ Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/weighbridge-records/{id}', [WeighbridgeRecordController::class, 'show']);
 
 // screen-022--form-weighbridge-web
-// Same guard as screen-016/019 above (this module has no mobile
-// counterpart). POST has no {id} segment to collide with; PATCH shares
-// the exact {id} path GET/show already uses above but a different HTTP
-// method never collides in Laravel routing.
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+// POST has no {id} segment to collide with; PATCH shares the exact {id}
+// path GET/show already uses above but a different HTTP method never
+// collides in Laravel routing.
+//
+// TEMPORARY (2026-08-20, syncService.ts): dual-guarded 'auth:web,sanctum'
+// + 'operator' added to the role list — this pair is now also called from
+// the mobile app's manual "Sinkronisasi" button (Station List, screen-006)
+// to push locally-entered Weighbridge records so they become visible on
+// web. See syncService.ts's own doc comment for the full mechanism
+// (station_id is never sent by either caller; the server always resolves
+// it from business_unit_id, so mobile's synthetic local station ids never
+// need to reconcile with real Station rows).
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
     ->post('/weighbridge-records', [WeighbridgeRecordController::class, 'store']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
     ->patch('/weighbridge-records/{id}', [WeighbridgeRecordController::class, 'update']);
 
 // screen-017--data-browser-grading-web
@@ -145,14 +154,16 @@ Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/cages-track-records/{id}', [CagesTrackRecordController::class, 'show']);
 
 // screen-024--form-cages-track-web
-// Same guard as screen-018/021 above (this module has no mobile
-// counterpart). POST has no {id} segment to collide with; PATCH shares
-// the exact {id} path GET/show already uses above but a different HTTP
-// method never collides in Laravel routing. Mirrors screen-022/023's
-// registration pattern exactly.
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+// POST has no {id} segment to collide with; PATCH shares the exact {id}
+// path GET/show already uses above but a different HTTP method never
+// collides in Laravel routing. Mirrors screen-022/023's registration
+// pattern exactly.
+//
+// TEMPORARY (2026-08-20, syncService.ts) — same dual-guard + 'operator'
+// addition as screen-022's routes above, for the mobile sync button.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
     ->post('/cages-track-records', [CagesTrackRecordController::class, 'store']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
     ->patch('/cages-track-records/{id}', [CagesTrackRecordController::class, 'update']);
 
 // screen-020--detail-grading-web
@@ -164,14 +175,16 @@ Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/grading-records/{id}', [GradingRecordController::class, 'show']);
 
 // screen-023--form-grading-web
-// Same guard as screen-017/020 above (this module has no mobile
-// counterpart). POST has no {id} segment to collide with; PATCH shares
-// the exact {id} path GET/show already uses above but a different HTTP
-// method never collides in Laravel routing. Mirrors screen-022's
-// registration pattern exactly.
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+// POST has no {id} segment to collide with; PATCH shares the exact {id}
+// path GET/show already uses above but a different HTTP method never
+// collides in Laravel routing. Mirrors screen-022's registration pattern
+// exactly.
+//
+// TEMPORARY (2026-08-20, syncService.ts) — same dual-guard + 'operator'
+// addition as screen-022's routes above, for the mobile sync button.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
     ->post('/grading-records', [GradingRecordController::class, 'store']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
     ->patch('/grading-records/{id}', [GradingRecordController::class, 'update']);
 
 // screen-027--kelola-corporate
@@ -236,6 +249,35 @@ Route::middleware(['auth:web', 'role:admin'])->group(function () {
     Route::delete('/business-units/{id}', [BusinessUnitController::class, 'destroy']);
 });
 
+// screen-036--kelola-production-line (entity-catalog v9, 2026-08-20 —
+// inserted between Business Unit and Station in the hierarchy).
+// IMPORTANT — route ordering: GET /api/production-lines/current and
+// /api/production-lines/current/stations (self-scoped, mobile-facing —
+// Station List's new Production Line picker step) MUST be registered
+// BEFORE the admin-only /production-lines routes below, mirroring
+// screen-034's GET /mill-settings/current ordering requirement exactly —
+// otherwise Laravel would match the literal "current" segment against a
+// {id}-shaped route instead of reaching these dedicated routes (there is
+// no such route on ProductionLineController today, but this ordering is
+// kept as a standing guard against ever introducing one above these).
+Route::middleware(['auth:web,sanctum', 'role:operator,supervisor,mill_management,admin'])->group(function () {
+    Route::get('/production-lines/current', [ProductionLineController::class, 'current']);
+    Route::get('/production-lines/current/stations', [ProductionLineController::class, 'currentStations']);
+});
+
+// Admin-only CRUD — mirrors MachineryGroupController's registration
+// pattern exactly (every action uniformly admin-gated, no public-endpoint
+// collision to accommodate). GET /business-units/options-shaped dropdown
+// feed is declared as businessUnitOptions() here for this screen's own
+// create/edit form.
+Route::middleware(['auth:web', 'role:admin'])->group(function () {
+    Route::get('/production-lines', [ProductionLineController::class, 'index']);
+    Route::get('/production-lines/business-units/options', [ProductionLineController::class, 'businessUnitOptions']);
+    Route::post('/production-lines', [ProductionLineController::class, 'store']);
+    Route::patch('/production-lines/{id}', [ProductionLineController::class, 'update']);
+    Route::delete('/production-lines/{id}', [ProductionLineController::class, 'destroy']);
+});
+
 // screen-030--kelola-station
 // Unlike BusinessUnitController::index()'s merged public/admin
 // GET /business-units above, GET /stations has no pre-existing public
@@ -259,6 +301,13 @@ Route::middleware(['auth:web', 'role:admin'])->group(function () {
 Route::middleware(['auth:web', 'role:admin'])->group(function () {
     Route::get('/stations', [StationController::class, 'index']);
     Route::get('/business-units/options', [StationController::class, 'businessUnitOptions']);
+    // /production-lines/options — added 2026-08-20 (entity-catalog v9,
+    // production_line_id is now a required FK on stations). Feeds the
+    // Station form's new Production Line-select, cascaded from the
+    // chosen Business Unit via the required ?business_unit_id= query
+    // param — mirrors GET /business-units/options exactly, one level
+    // down.
+    Route::get('/production-lines/options', [StationController::class, 'productionLineOptions']);
     Route::post('/stations', [StationController::class, 'store']);
     Route::patch('/stations/{id}', [StationController::class, 'update']);
     Route::delete('/stations/{id}', [StationController::class, 'destroy']);

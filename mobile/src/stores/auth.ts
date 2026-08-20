@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import apiClient from '@/services/apiClient'
 import { tokenStorage } from '@/services/tokenStorage'
-import { fetchAndCacheMillSetting, seedDefaultStationsIfNeeded } from '@/services/localSchema'
+import { fetchAndCacheMillSetting } from '@/services/localSchema'
 
 /**
  * OFFLINE_GRACE_PERIOD_MS — screen-002--login-mobile / "Token Sesi Lokal
@@ -100,22 +100,19 @@ export const useAuthStore = defineStore('auth', {
       tokenStorage.setBusinessUnit(businessUnit ?? null)
       tokenStorage.setTokenIssuedAt(issuedAt)
 
-      // screen-006--station-list fix (2026-08-18): the local `station`
-      // table was never populated on a real device (no sync flow exists
-      // anywhere in this project — see localSchema.ts's header comment),
-      // leaving Station List permanently empty. The 15 MVP stations are
-      // fixed domain data, so they're seeded locally right here, once
-      // business_unit_id is known. Best-effort: a seed failure must not
-      // block a successful login — Station List simply stays empty and
-      // can be diagnosed separately, same principle as logout()'s
-      // best-effort API call below.
+      // screen-006--station-list fix (2026-08-18), SUPERSEDED (2026-08-20):
+      // this used to unconditionally seed the 15 synthetic MVP stations
+      // here on every login. Since the Production Line feature added a
+      // real server-backed station sync (productionLineRepo.ts, real
+      // backend UUIDs), calling both meant a business unit's local
+      // `station` table accumulated BOTH the synthetic seed AND the real
+      // synced rows for the same conceptual stations — StationListView.vue
+      // would then show every station twice (found via user report,
+      // 2026-08-20). The synthetic seed is now ONLY called from
+      // StationListView.vue's own fallback path (production-line fetch
+      // returned zero lines — offline, or the business unit genuinely has
+      // none yet), never unconditionally at login.
       if (businessUnit?.id) {
-        try {
-          await seedDefaultStationsIfNeeded(businessUnit.id)
-        } catch {
-          // Local SQLite write failed — non-fatal, login already succeeded.
-        }
-
         // Mills Setting feature (2026-08-19): mill-setting (app_name/logo/
         // home_page_image/jumlah_cages) is genuinely server-authored data
         // (edited via the web Mills Setting screen, screen-034), unlike the

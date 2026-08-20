@@ -119,6 +119,7 @@ const CREATE_WEIGHBRIDGE_RECORD = `
     checked_by TEXT,
     acknowledged_by TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
     created_by TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -149,6 +150,7 @@ const CREATE_GRADING_RECORD = `
     checked_by TEXT,
     acknowledged_by TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
     created_by TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -221,6 +223,7 @@ const CREATE_CAGES_TRACK_RECORD = `
     checked_by TEXT,
     acknowledged_by TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
     created_by TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -273,6 +276,7 @@ const CREATE_STATION = `
   CREATE TABLE IF NOT EXISTS station (
     id TEXT PRIMARY KEY,
     business_unit_id TEXT NOT NULL,
+    production_line_id TEXT,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
     is_active INTEGER NOT NULL DEFAULT 0,
@@ -346,6 +350,9 @@ export async function initLocalSchema(): Promise<void> {
   await migrateGradingTablesToV2()
   await migrateCagesTrackTablesToV3()
   await migrateStationTableToV7()
+  await migrateStationTableToV9()
+  await migrateRecordTablesForSync()
+  await dedupeStationRows()
 }
 
 /**
@@ -473,6 +480,44 @@ async function migrateStationTableToV7(): Promise<void> {
 }
 
 /**
+ * entity-catalog v9 (2026-08-20, Production Line feature) — a new
+ * hierarchy level (Business Unit → Production Line → Station) was inserted
+ * above Station; `station` gained `production_line_id`. Same "CREATE TABLE
+ * IF NOT EXISTS is a no-op on an existing table" gap as every other
+ * migration in this file. NULL for rows seeded by
+ * `seedDefaultStationsIfNeeded()` (that seed predates Production Line and
+ * has no real production line to attach to — see that function's own
+ * comment); populated for rows written by
+ * `productionLineRepo.fetchAndCacheStationsForProductionLine()`, which uses
+ * real backend station ids/production_line_ids (see that function's own
+ * comment for why this finally fixes the long-standing "local rows use
+ * synthetic ids, not real server Station UUIDs" limitation documented on
+ * `fetchAndCacheStationIconOverrides()` below).
+ */
+async function migrateStationTableToV9(): Promise<void> {
+  await addMissingColumns('station', [{ name: 'production_line_id', type: 'TEXT' }])
+}
+
+/**
+ * Temporary sync feature (2026-08-20) — adds `server_id` to
+ * weighbridge_record/grading_record/cages_track_record. Populated by
+ * syncService.ts after a record is successfully POSTed to the backend
+ * (backend always assigns its own UUID via HasUuids, never the local id —
+ * see syncService.ts's own doc comment), so grading_record's sync can look
+ * up its parent weighbridge_record's server-assigned id (required by
+ * POST /api/grading-records' weighbridge_record_id, which validates
+ * `exists:weighbridge_records,id`). NULL until synced. Same
+ * "CREATE TABLE IF NOT EXISTS is a no-op on an existing table" gap as
+ * every prior migration in this file — required for any device/browser
+ * whose these 3 tables pre-date this change.
+ */
+async function migrateRecordTablesForSync(): Promise<void> {
+  await addMissingColumns('weighbridge_record', [{ name: 'server_id', type: 'TEXT' }])
+  await addMissingColumns('grading_record', [{ name: 'server_id', type: 'TEXT' }])
+  await addMissingColumns('cages_track_record', [{ name: 'server_id', type: 'TEXT' }])
+}
+
+/**
  * The 15 MVP stations (business_rules: "Hanya 3 stasiun MVP yang aktif
  * secara fungsional; 12 lainnya adalah placeholder skema data untuk fase
  * mendatang") — fixed, known domain data per entity-catalog's `station`
@@ -506,17 +551,60 @@ const DEFAULT_STATIONS: Array<{ idSuffix: string; name: string; type: string; is
 ]
 
 /**
- * Seeds the 15 default MVP stations for `businessUnitId` if they are not
- * already present — `INSERT OR IGNORE` on a deterministic id makes this
- * idempotent, so callers don't need their own "already seeded" check.
- * Call once per successful login (see `stores/auth.ts`'s `login()`).
+ * One-time cleanup migration (2026-08-20) for devices that already
+ * accumulated duplicate `station` rows before the login-time seed call was
+ * removed and the two seeding paths (seedDefaultStationsIfNeeded() /
+ * fetchAndCacheStationsForProductionLine()) were made delete-first — this
+ * is the concrete "bersihkan semua data" fix for existing installs, since
+ * a device already affected needs its bad local data cleared, not just a
+ * guarantee that no *new* duplicates will form.
+ *
+ * Deliberately narrow: only deletes legacy SYNTHETIC rows
+ * (`production_line_id IS NULL`, from seedDefaultStationsIfNeeded()) that
+ * coexist with at least one REAL row (`production_line_id IS NOT NULL`,
+ * from a Production Line sync) for the same (business_unit_id, type) — the
+ * exact combination that renders as doubled tiles. Does NOT collapse
+ * multiple REAL rows sharing a (business_unit_id, type) — a business unit
+ * with 2+ Production Lines legitimately has multiple real stations of the
+ * same type (one per line), and each is already correctly scoped by
+ * `production_line_id` wherever it's queried (see
+ * getActiveAndPlaceholderStationsForProductionLine()) — those must not be
+ * treated as duplicates or deleted.
+ */
+async function dedupeStationRows(): Promise<void> {
+  await run(`
+    DELETE FROM station
+    WHERE production_line_id IS NULL
+      AND EXISTS (
+        SELECT 1 FROM station s2
+        WHERE s2.business_unit_id = station.business_unit_id
+          AND s2.type = station.type
+          AND s2.production_line_id IS NOT NULL
+      )
+  `)
+}
+
+/**
+ * Seeds the 15 default MVP stations for `businessUnitId` — replace, not
+ * merge: deletes every existing `station` row for this business unit
+ * FIRST, then inserts the fixed synthetic set fresh. This is now a
+ * fallback-only path (Production Line fetch unreachable — see
+ * StationListView.vue's `loadProductionLinesAndStations()`, the only
+ * caller), so it must never leave stale rows behind from a previous
+ * real/production-line-scoped sync mixed in with the synthetic set —
+ * that combination was what caused stations to render doubled
+ * (2026-08-20, found via user report). Previously `INSERT OR IGNORE`
+ * (merge-safe but not double-safe); the delete-first replace makes this
+ * function's output deterministic regardless of what was cached before.
  */
 export async function seedDefaultStationsIfNeeded(businessUnitId: string): Promise<void> {
   const now = new Date().toISOString()
 
+  await run('DELETE FROM station WHERE business_unit_id = ?', [businessUnitId])
+
   for (const station of DEFAULT_STATIONS) {
     await run(
-      `INSERT OR IGNORE INTO station (id, business_unit_id, name, type, is_active, created_at, updated_at)
+      `INSERT INTO station (id, business_unit_id, name, type, is_active, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [`default-${businessUnitId}-${station.idSuffix}`, businessUnitId, station.name, station.type, station.isActive ? 1 : 0, now, now],
     )

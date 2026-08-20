@@ -48,8 +48,6 @@ class MillsSetting extends Component
 
     public string $app_name = '';
 
-    public int $jumlah_cages = 1;
-
     /**
      * Newly selected (not yet saved) uploads — Livewire
      * TemporaryUploadedFile, previewed via ->temporaryUrl(). Null means
@@ -140,7 +138,6 @@ class MillsSetting extends Component
         }
 
         $this->app_name = $millSetting['app_name'];
-        $this->jumlah_cages = $millSetting['jumlah_cages'];
         $this->existingLogoUrl = $millSetting['logo'];
         $this->existingHomePageImageUrl = $millSetting['home_page_image'];
         $this->logo = null;
@@ -150,7 +147,6 @@ class MillsSetting extends Component
     protected function resetForm(): void
     {
         $this->app_name = '';
-        $this->jumlah_cages = 1;
         $this->existingLogoUrl = null;
         $this->existingHomePageImageUrl = null;
         $this->logo = null;
@@ -171,12 +167,9 @@ class MillsSetting extends Component
 
         $this->validate([
             'app_name' => ['nullable', 'string', 'max:255'],
-            'jumlah_cages' => ['required', 'integer', 'min:1'],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
             'home_page_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
         ], [
-            'jumlah_cages.required' => 'Jumlah cages wajib diisi.',
-            'jumlah_cages.min' => 'Jumlah cages harus lebih dari 0.',
             'logo.mimes' => 'Logo harus berformat JPG atau PNG.',
             'logo.max' => 'Ukuran logo maksimal 2MB.',
             'home_page_image.mimes' => 'Gambar halaman utama harus berformat JPG atau PNG.',
@@ -191,7 +184,6 @@ class MillsSetting extends Component
                 $this->selectedBusinessUnitId,
                 [
                     'app_name' => $this->app_name,
-                    'jumlah_cages' => $this->jumlah_cages,
                 ],
                 $this->logo,
                 $this->home_page_image,

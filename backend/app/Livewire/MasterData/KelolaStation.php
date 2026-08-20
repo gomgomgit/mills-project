@@ -63,6 +63,11 @@ class KelolaStation extends Component
 
     public string $business_unit_id = '';
 
+    public string $production_line_id = '';
+
+    /** @var array<int, array{id: string, name: string}> */
+    public array $productionLineOptions = [];
+
     public string $type = '';
 
     public bool $is_active = true;
@@ -89,6 +94,25 @@ class KelolaStation extends Component
     public function updatedFilterBusinessUnitId(): void
     {
         $this->page = 1;
+    }
+
+    /**
+     * Form's Business Unit-select changed (create mode; edit mode never
+     * re-fires this since business_unit_id is set once in openEditForm()
+     * without going through the property update lifecycle the same way) —
+     * reload the cascaded Production Line-select and reset its own
+     * selection, mirroring FormGrading::updatedFormBusinessUnitId().
+     */
+    public function updatedBusinessUnitId(): void
+    {
+        $this->production_line_id = '';
+        $this->loadProductionLineOptions();
+    }
+
+    protected function loadProductionLineOptions(): void
+    {
+        $this->productionLineOptions = app(StationService::class)
+            ->productionLineOptions($this->business_unit_id !== '' ? $this->business_unit_id : null);
     }
 
     /**
@@ -139,6 +163,7 @@ class KelolaStation extends Component
         // would never be found and would always fail as missing/null.
         $payload = [
             'business_unit_id' => $this->business_unit_id,
+            'production_line_id' => $this->production_line_id,
             'type' => $this->type,
             'is_active' => $this->is_active,
             'form' => [
@@ -150,6 +175,7 @@ class KelolaStation extends Component
 
         $rules = [
             'business_unit_id' => ['required', 'string', Rule::exists('business_units', 'id')],
+            'production_line_id' => ['required', 'string', Rule::exists('production_lines', 'id')],
             'form.name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(array_map(fn (StationType $case) => $case->value, StationType::cases()))],
             'is_active' => ['required', 'boolean'],
@@ -160,6 +186,8 @@ class KelolaStation extends Component
         $messages = [
             'business_unit_id.required' => 'Business Unit wajib dipilih.',
             'business_unit_id.exists' => 'Business Unit yang dipilih tidak ditemukan.',
+            'production_line_id.required' => 'Production Line wajib dipilih.',
+            'production_line_id.exists' => 'Production Line yang dipilih tidak ditemukan.',
             'form.name.required' => 'Nama station wajib diisi.',
             'form.name.max' => 'Nama station maksimal 255 karakter.',
             'type.required' => 'Tipe station wajib dipilih.',
@@ -180,6 +208,17 @@ class KelolaStation extends Component
                     'Station dengan tipe Other tidak boleh berstatus aktif — set Status menjadi nonaktif.'
                 );
             }
+
+            if (! $validator->errors()->has('production_line_id') && ! $validator->errors()->has('business_unit_id')) {
+                $productionLine = \App\Models\ProductionLine::find($payload['production_line_id']);
+
+                if ($productionLine !== null && $productionLine->business_unit_id !== $payload['business_unit_id']) {
+                    $validator->errors()->add(
+                        'production_line_id',
+                        'Production Line yang dipilih bukan milik Business Unit ini.'
+                    );
+                }
+            }
         });
 
         return $validator;
@@ -193,6 +232,8 @@ class KelolaStation extends Component
         $this->resetValidation();
         $this->editingId = null;
         $this->business_unit_id = '';
+        $this->production_line_id = '';
+        $this->productionLineOptions = [];
         $this->type = '';
         $this->is_active = true;
         $this->form = $this->emptyForm();
@@ -212,6 +253,8 @@ class KelolaStation extends Component
         $this->formErrorMessage = null;
         $this->editingId = $station->id;
         $this->business_unit_id = $station->business_unit_id;
+        $this->production_line_id = $station->production_line_id;
+        $this->loadProductionLineOptions();
         $this->type = $station->type instanceof StationType ? $station->type->value : (string) $station->type;
         $this->is_active = (bool) $station->is_active;
 
@@ -229,6 +272,8 @@ class KelolaStation extends Component
         $this->showForm = false;
         $this->editingId = null;
         $this->business_unit_id = '';
+        $this->production_line_id = '';
+        $this->productionLineOptions = [];
         $this->type = '';
         $this->is_active = true;
         $this->form = $this->emptyForm();
@@ -256,6 +301,7 @@ class KelolaStation extends Component
 
         $payload = [
             'business_unit_id' => $this->business_unit_id,
+            'production_line_id' => $this->production_line_id,
             'name' => $this->form['name'],
             'type' => $this->type,
             'is_active' => $this->is_active,
@@ -286,7 +332,7 @@ class KelolaStation extends Component
             // key — so the error surfaces under the right input instead
             // of being silently dropped.
             foreach ($e->errors() as $field => $messages) {
-                $key = in_array($field, ['business_unit_id', 'type', 'is_active'], true)
+                $key = in_array($field, ['business_unit_id', 'production_line_id', 'type', 'is_active'], true)
                     ? $field
                     : "form.$field";
                 $this->addError($key, $messages[0] ?? 'Validasi gagal.');
@@ -298,6 +344,8 @@ class KelolaStation extends Component
         $this->showForm = false;
         $this->editingId = null;
         $this->business_unit_id = '';
+        $this->production_line_id = '';
+        $this->productionLineOptions = [];
         $this->type = '';
         $this->is_active = true;
         $this->form = $this->emptyForm();

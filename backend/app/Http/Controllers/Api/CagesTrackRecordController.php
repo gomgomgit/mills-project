@@ -56,13 +56,15 @@ class CagesTrackRecordController extends Controller
     /**
      * store() — POST /api/cages-track-records. screen-024--form-cages-track-web
      * business_logic steps 1-6: create a new record + cages_tipped_time
-     * rows, resolving station_id from the given business_unit_id and N
-     * (jumlah_cages) from mill-setting.
+     * rows, resolving station_id from the given production_line_id
+     * (2026-08-20: was business_unit_id) and N as
+     * COUNT(machinery WHERE station_id = the resolved station) (2026-08-20:
+     * was mill-setting.jumlah_cages, now removed).
      */
     public function store(Request $request): JsonResponse
     {
         $data = $request->only([
-            'business_unit_id', 'cages_track_number', 'date', 'tippler_start_time',
+            'production_line_id', 'cages_track_number', 'date', 'tippler_start_time',
             'tippler_stop_time', 'cages_out', 'cages_tipped', 'note',
             'checked', 'acknowledged', 'details',
         ]);
@@ -75,7 +77,7 @@ class CagesTrackRecordController extends Controller
     /**
      * update() — PATCH /api/cages-track-records/{id}. screen-024--form-cages-track-web
      * business_logic steps 7-9: update an existing record and upsert its
-     * cages_tipped_time rows; business_unit_id/station_id are never
+     * cages_tipped_time rows; production_line_id/station_id are never
      * accepted here.
      */
     public function update(Request $request, string $id): JsonResponse

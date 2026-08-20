@@ -49,10 +49,14 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useFloatingClockStore } from '@/stores/floatingClock'
 import { stationRepo, type StationSlot, type StationType } from '@/services/stationRepo'
+import { productionLineRepo, type ProductionLineOption } from '@/services/productionLineRepo'
+import { seedDefaultStationsIfNeeded } from '@/services/localSchema'
 import { weighbridgeRecordRepo } from '@/services/weighbridgeRecordRepo'
 import { gradingRecordRepo } from '@/services/gradingRecordRepo'
 import { cagesTrackRecordRepo } from '@/services/cagesTrackRecordRepo'
+import { syncAllRecords, type SyncSummary } from '@/services/syncService'
 import StationGrid from '@/components/StationGrid.vue'
+import SyncResultDialog from '@/components/SyncResultDialog.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -62,6 +66,26 @@ const stations = ref<StationSlot[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const draftStatusByType = ref<Partial<Record<StationType, boolean>>>({})
+const syncing = ref(false)
+const syncDialogOpen = ref(false)
+const syncSummary = ref<SyncSummary | null>(null)
+const syncErrorMessage = ref<string | null>(null)
+
+/**
+ * Production Line picker step (2026-08-20, entity-catalog v9 — Business
+ * Unit → Production Line → Station: a Business Unit/mill can now have
+ * several Production Lines, each with its own full set of stations),
+ * inserted before the station-tile grid per explicit product decision.
+ *
+ * `productionLines.length > 1` gates whether the picker UI actually shows
+ * — exactly one Production Line (by far the common case today) or zero
+ * (fetch failed, offline, or the business unit has none yet — legacy
+ * fallback) both skip straight to the grid, per
+ * `loadProductionLinesAndStations()` below.
+ */
+const productionLines = ref<ProductionLineOption[]>([])
+const selectedProductionLineId = ref<string | null>(null)
+const showProductionLinePicker = ref(false)
 
 /**
  * Maps an active station's type to the (not-yet-registered) monitor
@@ -86,16 +110,100 @@ onMounted(async () => {
   loading.value = true
   error.value = null
 
+  await loadProductionLinesAndStations(businessUnitId)
+
+  loading.value = false
+
+  await loadDraftStatusByType()
+})
+
+/**
+ * business_logic step 1, extended for the Production Line picker step:
+ *   - >1 Production Line -> show the picker (grid stays hidden until the
+ *     user taps one, see selectProductionLine() below).
+ *   - exactly 1 -> auto-select it (no picker shown at all), best-effort
+ *     sync its real stations from the backend, then load the grid scoped
+ *     to it.
+ *   - 0 (fetch failed, offline, or the business unit genuinely has none
+ *     yet) -> legacy fallback: load the grid the OLD way, scoped by
+ *     business_unit_id against whatever `station` rows are already cached
+ *     locally (seedDefaultStationsIfNeeded()'s synthetic seed, and/or any
+ *     previously-synced real rows) — never leaves the user with a
+ *     permanently empty screen just because the Production Line feature
+ *     itself is unreachable.
+ */
+async function loadProductionLinesAndStations(businessUnitId: string): Promise<void> {
+  const lines = await productionLineRepo.fetchCurrentProductionLines().catch(() => [])
+
+  if (lines.length > 1) {
+    productionLines.value = lines
+    showProductionLinePicker.value = true
+
+    return
+  }
+
+  showProductionLinePicker.value = false
+
+  if (lines.length === 1) {
+    await selectProductionLine(lines[0], businessUnitId)
+
+    return
+  }
+
+  // Legacy fallback (2026-08-20) — the Production Line fetch returned zero
+  // lines (offline, or the business unit genuinely has none yet). The
+  // synthetic 15-station seed used to run unconditionally at login
+  // instead — moved here so it only ever runs when the real sync path is
+  // unreachable, never alongside it (that combination was what caused
+  // stations to render doubled, see seedDefaultStationsIfNeeded()'s own
+  // updated doc comment).
+  try {
+    await seedDefaultStationsIfNeeded(businessUnitId)
+  } catch {
+    // Local SQLite write failed — non-fatal, fall through to whatever is
+    // already cached (possibly nothing, possibly a prior successful seed).
+  }
+
   try {
     stations.value = await stationRepo.getActiveAndPlaceholderStations(businessUnitId)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Gagal memuat daftar stasiun lokal.'
+  }
+}
+
+/**
+ * Tapping a Production Line on the picker (or the auto-select branch
+ * above). Syncing its real stations from the backend is best-effort — a
+ * failure (offline) still lets the grid render from whatever `station`
+ * rows are already cached locally for this Production Line from an
+ * earlier sync, consistent with every other best-effort fetch in this
+ * screen/localSchema.ts.
+ */
+async function selectProductionLine(line: ProductionLineOption, businessUnitId: string): Promise<void> {
+  selectedProductionLineId.value = line.id
+  showProductionLinePicker.value = false
+  loading.value = true
+  error.value = null
+
+  try {
+    await productionLineRepo.fetchAndCacheStationsForProductionLine(line.id, businessUnitId).catch(() => {})
+    stations.value = await stationRepo.getActiveAndPlaceholderStationsForProductionLine(line.id)
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Gagal memuat daftar stasiun lokal.'
   } finally {
     loading.value = false
   }
+}
 
-  await loadDraftStatusByType()
-})
+async function onSelectProductionLine(line: ProductionLineOption): Promise<void> {
+  const businessUnitId = authStore.currentUser?.business_unit_id
+
+  if (!businessUnitId) {
+    return
+  }
+
+  await selectProductionLine(line, businessUnitId)
+}
 
 /**
  * business_logic step 2 — hasDraft per active station type, for the
@@ -163,6 +271,37 @@ async function onLogout() {
 function goToHome() {
   router.push({ name: 'home' })
 }
+
+/**
+ * TEMPORARY (2026-08-20) — manual "Sinkronisasi" button, see
+ * syncService.ts's doc comment for the full mechanism/scope. Not tied to
+ * business_logic in this screen's spec (screen-006) — a pragmatic stopgap
+ * added on direct request, not through a spec revision, per the user's own
+ * "sementara" framing.
+ *
+ * Result is shown in a popup (SyncResultDialog) rather than inline text —
+ * a long failure list (each with its own reason) previously pushed the
+ * rest of the screen's layout around; a dialog keeps that contained
+ * without disturbing the station grid underneath.
+ */
+async function onSync() {
+  syncing.value = true
+  syncSummary.value = null
+  syncErrorMessage.value = null
+
+  try {
+    syncSummary.value = await syncAllRecords(selectedProductionLineId.value)
+  } catch (err) {
+    syncErrorMessage.value = err instanceof Error ? err.message : 'Sinkronisasi gagal — kesalahan tidak diketahui.'
+  } finally {
+    syncing.value = false
+    syncDialogOpen.value = true
+  }
+}
+
+function closeSyncDialog() {
+  syncDialogOpen.value = false
+}
 </script>
 
 <template>
@@ -222,7 +361,40 @@ function goToHome() {
     <p v-if="loading" class="status-text">Memuat daftar stasiun…</p>
     <p v-else-if="error" class="status-text status-text--error" role="alert">{{ error }}</p>
 
+    <div v-else-if="showProductionLinePicker" class="production-line-picker" data-testid="production-line-picker">
+      <p class="production-line-picker-title">Pilih Production Line</p>
+      <button
+        v-for="line in productionLines"
+        :key="line.id"
+        type="button"
+        class="production-line-option"
+        :data-testid="`production-line-option-${line.id}`"
+        @click="onSelectProductionLine(line)"
+      >
+        {{ line.name }}
+      </button>
+    </div>
+
     <StationGrid v-else :stations="stations" :draft-status-by-type="draftStatusByType" @navigate="onNavigate" />
+
+    <footer class="action-footer">
+      <button
+        type="button"
+        class="action-button action-button--primary"
+        data-testid="sync-button"
+        :disabled="syncing"
+        @click="onSync"
+      >
+        {{ syncing ? 'Menyinkronkan…' : 'Sinkronisasi' }}
+      </button>
+    </footer>
+
+    <SyncResultDialog
+      :open="syncDialogOpen"
+      :summary="syncSummary"
+      :error-message="syncErrorMessage"
+      @close="closeSyncDialog"
+    />
   </main>
 </template>
 
@@ -360,6 +532,34 @@ function goToHome() {
   color: #1f2937;
 }
 
+.action-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.action-button {
+  min-height: 44px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.action-button--primary {
+  border: none;
+  background-color: #249360;
+  color: #ffffff;
+}
+
+.action-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .status-text {
   font-size: 14px;
   color: #6b7280;
@@ -367,5 +567,37 @@ function goToHome() {
 
 .status-text--error {
   color: #dc2626;
+}
+
+.production-line-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.production-line-picker-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.production-line-option {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+  color: #1f2937;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.production-line-option:hover {
+  border-color: #249360;
+  color: #249360;
 }
 </style>

@@ -32,8 +32,13 @@ beforeEach(function () {
 
 function fillFormGrading($component, array $overrides = []): void
 {
+    // Order matters: form.business_unit_id must be set BEFORE
+    // form.production_line_id — setting it triggers
+    // FormGrading::updatedFormBusinessUnitId(), which resets
+    // form.production_line_id back to '' and reloads productionLineOptions.
     $defaults = [
         'form.business_unit_id' => null,
+        'form.production_line_id' => null,
         'form.grading_number' => 'GR-LW-001',
         'form.estate_supplier' => 'Estate A',
         'form.netto' => 1000,
@@ -52,7 +57,10 @@ function fillFormGrading($component, array $overrides = []): void
 it('berhasil: creates a new record and redirects to Detail Grading', function () {
     $component = Livewire::actingAs($this->supervisor)->test(FormGrading::class);
 
-    fillFormGrading($component, ['form.business_unit_id' => $this->businessUnit->id]);
+    fillFormGrading($component, [
+        'form.business_unit_id' => $this->businessUnit->id,
+        'form.production_line_id' => $this->gradingStation->production_line_id,
+    ]);
     $component->set('form.weighbridge_record_id', $this->weighbridgeRecord->id);
     $component->call('addDetailRow');
     $component->set('detailRows.0.grading_parameter_id', $this->gradingParameter->id);
@@ -75,7 +83,10 @@ it('date defaults to today but a manually-set value is preserved and saved', fun
 
     expect($component->get('form.date'))->not->toBeEmpty();
 
-    fillFormGrading($component, ['form.business_unit_id' => $this->businessUnit->id]);
+    fillFormGrading($component, [
+        'form.business_unit_id' => $this->businessUnit->id,
+        'form.production_line_id' => $this->gradingStation->production_line_id,
+    ]);
     $component->set('form.weighbridge_record_id', $this->weighbridgeRecord->id);
     $component->set('form.date', '2020-01-01');
     $component->call('addDetailRow');

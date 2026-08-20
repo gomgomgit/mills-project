@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\BusinessUnit;
 use App\Models\Company;
 use App\Models\Corporate;
+use App\Models\Station;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -27,6 +28,37 @@ use Illuminate\Support\Facades\Hash;
  */
 class DemoAccountSeeder extends Seeder
 {
+    /**
+     * Same fixed canonical 15-station list as
+     * `BusinessUnitService::DEFAULT_STATIONS` (protected there, so not
+     * reusable from a seeder) and mobile's `DEFAULT_STATIONS`
+     * (localSchema.ts) — kept in sync manually, same as those two already
+     * are with each other. This seeder pre-dates that auto-provisioning
+     * rule (`BusinessUnit::firstOrCreate()` here bypasses the service
+     * entirely), so 'Business Unit A' was left with zero stations —
+     * confirmed as the actual cause of a "no active Weighbridge station"
+     * 422 hit via the mobile sync feature (2026-08-20). `code` left null
+     * for every row, same reasoning as the service (nullable+unique,
+     * never collides).
+     */
+    private const DEFAULT_STATIONS = [
+        ['name' => 'Weighbridge', 'type' => 'weighbridge', 'is_active' => true],
+        ['name' => 'Grading', 'type' => 'grading', 'is_active' => true],
+        ['name' => 'Cages Track', 'type' => 'cages-track', 'is_active' => true],
+        ['name' => 'Sterilizer', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Thresher', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Press', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Clarification', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Kernel Plant', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Boiler', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Effluent Treatment', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Loading Ramp', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Digester', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Engine Room', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Water Treatment', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Bulking Storage', 'type' => 'other', 'is_active' => false],
+    ];
+
     public function run(): void
     {
         $corporate = Corporate::firstOrCreate(['name' => 'PT Sawit Nusantara']);
@@ -40,6 +72,13 @@ class DemoAccountSeeder extends Seeder
             ['code' => 'BU-A'],
             ['company_id' => $company->id, 'name' => 'Business Unit A'],
         );
+
+        foreach (self::DEFAULT_STATIONS as $station) {
+            Station::firstOrCreate(
+                ['business_unit_id' => $businessUnit->id, 'name' => $station['name']],
+                ['type' => $station['type'], 'is_active' => $station['is_active']],
+            );
+        }
 
         $accounts = [
             ['username' => 'admin', 'name' => 'Admin', 'role' => 'admin'],

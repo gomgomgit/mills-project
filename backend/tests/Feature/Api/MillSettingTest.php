@@ -47,15 +47,14 @@ beforeEach(function () {
 it('berhasil: Admin loads then updates mill-setting for a chosen business unit, returns 200', function () {
     $getResponse = $this->actingAs($this->admin, 'web')->getJson("/api/mill-settings/{$this->businessUnit->id}");
     $getResponse->assertOk();
-    $getResponse->assertJsonFragment(['app_name' => 'Mill Unit Alpha', 'jumlah_cages' => 1]);
+    $getResponse->assertJsonFragment(['app_name' => 'Mill Unit Alpha']);
 
     $patchResponse = $this->actingAs($this->admin, 'web')->patchJson("/api/mill-settings/{$this->businessUnit->id}", [
         'app_name' => 'Mill Baru',
-        'jumlah_cages' => 8,
     ]);
 
     $patchResponse->assertOk();
-    $patchResponse->assertJsonFragment(['app_name' => 'Mill Baru', 'jumlah_cages' => 8]);
+    $patchResponse->assertJsonFragment(['app_name' => 'Mill Baru']);
     expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->first()->app_name)->toBe('Mill Baru');
 });
 
@@ -74,19 +73,8 @@ it('Mill belum punya setting: GET auto-creates a default row for a business unit
     $response = $this->actingAs($this->admin, 'web')->getJson("/api/mill-settings/{$this->businessUnit->id}");
 
     $response->assertOk();
-    $response->assertJsonFragment(['app_name' => 'Mill Unit Alpha', 'jumlah_cages' => 1]);
+    $response->assertJsonFragment(['app_name' => 'Mill Unit Alpha']);
     expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->count())->toBe(1);
-});
-
-// Scenario: "Mills Setting — Validasi jumlah cages gagal"
-it('Validasi gagal: PATCH with jumlah_cages=0 returns 422', function () {
-    $response = $this->actingAs($this->admin, 'web')->patchJson("/api/mill-settings/{$this->businessUnit->id}", [
-        'jumlah_cages' => 0,
-    ]);
-
-    $response->assertStatus(422);
-    $response->assertJsonValidationErrors('jumlah_cages');
-    expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->exists())->toBeFalse();
 });
 
 // Scenario: "Mills Setting — Mill Management akses mill lain ditolak"

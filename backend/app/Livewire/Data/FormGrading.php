@@ -8,6 +8,7 @@ use App\Models\GradingParameter;
 use App\Models\Station;
 use App\Models\WeighbridgeRecord;
 use App\Services\GradingRecordService;
+use App\Services\StationService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -45,7 +46,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class FormGrading extends Component
 {
     protected const FIELDS = [
-        'business_unit_id',
+        'production_line_id',
         'grading_number',
         'date',
         'weighbridge_record_id',
@@ -67,6 +68,7 @@ class FormGrading extends Component
     /** @var array<string, mixed> */
     public array $form = [
         'business_unit_id' => '',
+        'production_line_id' => '',
         'grading_number' => '',
         'date' => '',
         'weighbridge_record_id' => '',
@@ -88,6 +90,9 @@ class FormGrading extends Component
 
     /** @var array<int, array{id: string, name: string}> */
     public array $businessUnitOptions = [];
+
+    /** @var array<int, array{id: string, name: string}> */
+    public array $productionLineOptions = [];
 
     /** @var array<int, array{id: string, wb_card_number: string, vehicle_number: string, estate_supplier: string, division: ?string}> */
     public array $weighbridgeOptions = [];
@@ -130,7 +135,7 @@ class FormGrading extends Component
         }
 
         foreach (self::FIELDS as $field) {
-            if ($field === 'business_unit_id') {
+            if ($field === 'production_line_id') {
                 continue;
             }
             $this->form[$field] = $record[$field] ?? '';
@@ -158,11 +163,20 @@ class FormGrading extends Component
         }
     }
 
-    /** Mode buat: BU dipilih -> muat ulang dropdown WB Card No scoped ke mill tsb. */
+    /** Mode buat: BU dipilih -> reset Production Line + muat ulang dropdown WB Card No scoped ke mill tsb. */
     public function updatedFormBusinessUnitId(): void
     {
+        $this->form['production_line_id'] = '';
         $this->form['weighbridge_record_id'] = '';
+        $this->loadProductionLineOptions();
         $this->loadWeighbridgeOptions($this->form['business_unit_id']);
+    }
+
+    protected function loadProductionLineOptions(): void
+    {
+        $businessUnitId = $this->form['business_unit_id'];
+        $this->productionLineOptions = app(StationService::class)
+            ->productionLineOptions($businessUnitId !== '' ? $businessUnitId : null);
     }
 
     protected function loadWeighbridgeOptions(?string $businessUnitId): void

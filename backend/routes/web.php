@@ -151,6 +151,19 @@ Route::middleware(['auth', 'role:admin'])
     ->get('/master-data/business-units', \App\Livewire\MasterData\KelolaBusinessUnit::class)
     ->name('master-data.business-units');
 
+// screen-036--kelola-production-line
+// Session-guarded ('auth') + role-guarded (admin only, per
+// screen_tech_spec.actor_permissions — supervisor/mill_management/operator
+// all have can_access=false for this screen). Mirrors screen-027/028/029's
+// registration pattern exactly — EnsureRole::forbidden() aborts(403) with
+// Laravel's default HTML error page for any non-admin session before
+// App\Livewire\MasterData\KelolaProductionLine ever mounts. Inserted here
+// (between Business Unit and Station) to mirror the hierarchy: Business
+// Unit → Production Line → Station.
+Route::middleware(['auth', 'role:admin'])
+    ->get('/master-data/production-lines', \App\Livewire\MasterData\KelolaProductionLine::class)
+    ->name('master-data.production-lines');
+
 // screen-030--kelola-station
 // Session-guarded ('auth') + role-guarded (admin only, per
 // screen_tech_spec.actor_permissions — supervisor/mill_management/operator

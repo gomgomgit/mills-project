@@ -9,22 +9,23 @@
  * CagesTrackRecordController::store()/update()), one per test_scenarios'
  * api_test step(s). Mirrors FormGradingTest.php's setup/conventions
  * (screen-023), with CagesTrackRecord's tipped_hour/checked_cage_numbers
- * detail grid + mill-setting.jumlah_cages resolution layered on top —
- * unlike Grading (Acknowledged By only), this screen also has Checked By,
- * mirroring FormWeighbridgeTest.php's dual checkbox coverage.
+ * detail grid + COUNT(machinery WHERE station_id = the production line's
+ * active Cages Track station) resolution layered on top — unlike Grading
+ * (Acknowledged By only), this screen also has Checked By, mirroring
+ * FormWeighbridgeTest.php's dual checkbox coverage.
  */
 
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\CagesTrackRecord;
-use App\Models\MillSetting;
+use App\Models\Machinery;
 use App\Models\Station;
 use App\Models\User;
 
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->cagesTrackStation = Station::factory()->forBusinessUnit($this->businessUnit)->cagesTrack()->create();
-    MillSetting::factory()->forBusinessUnit($this->businessUnit)->withJumlahCages(10)->create();
+    Machinery::factory()->count(10)->create(['station_id' => $this->cagesTrackStation->id]);
     $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
     $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
     $this->admin = User::factory()->role(UserRole::Admin)->create();
@@ -46,7 +47,7 @@ function cagesApiPayload(array $overrides = []): array
 // Scenario: "Buat Record Cages Track Baru — berhasil"
 it('berhasil: creates a new record with status=saved, resolved station_id, and inserted details', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/cages-track-records', cagesApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->cagesTrackStation->production_line_id,
         'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1, 2, 3]]],
     ]));
 
@@ -55,10 +56,10 @@ it('berhasil: creates a new record with status=saved, resolved station_id, and i
     expect(CagesTrackRecord::where('cages_track_number', 'CT-API-001')->exists())->toBeTrue();
 });
 
-// Scenario: "Jumlah Kolom Grid Mengikuti Mills Setting, Bukan Cages Tipped Header"
-it('computes total_cages/cages_remain from mill-setting.jumlah_cages, not the cages_tipped header value', function () {
+// Scenario: "Jumlah Kolom Grid Mengikuti Machinery Count, Bukan Cages Tipped Header"
+it('computes total_cages/cages_remain from machinery count, not the cages_tipped header value', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/cages-track-records', cagesApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->cagesTrackStation->production_line_id,
         'cages_tipped' => 15,
         'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1, 2, 3, 4, 5, 6, 7, 8]]],
     ]));
@@ -70,7 +71,7 @@ it('computes total_cages/cages_remain from mill-setting.jumlah_cages, not the ca
 // Scenario: "Field Wajib Belum Lengkap"
 it('returns 422 VALIDATION_ERROR when a required field is empty', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/cages-track-records', cagesApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->cagesTrackStation->production_line_id,
         'cages_track_number' => '',
         'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
     ]));
@@ -82,7 +83,7 @@ it('returns 422 VALIDATION_ERROR when a required field is empty', function () {
 // Scenario: "Belum Ada Baris Cages Tipped Time Valid"
 it('returns 422 VALIDATION_ERROR when details array is empty', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/cages-track-records', cagesApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->cagesTrackStation->production_line_id,
         'details' => [],
     ]));
 
@@ -93,7 +94,7 @@ it('returns 422 VALIDATION_ERROR when details array is empty', function () {
 // Scenario: "Time Tidak Bisa Duplikat Atau Mundur"
 it('returns 422 VALIDATION_ERROR when tipped_hour is not ascending across detail rows', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/cages-track-records', cagesApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->cagesTrackStation->production_line_id,
         'details' => [
             ['tipped_hour' => 7, 'checked_cage_numbers' => [1]],
             ['tipped_hour' => 5, 'checked_cage_numbers' => [2]],
@@ -105,12 +106,11 @@ it('returns 422 VALIDATION_ERROR when tipped_hour is not ascending across detail
 });
 
 // Scenario: "Business Unit Tanpa Station Cages Track Aktif"
-it('returns 422 when business_unit_id has no active cages-track station', function () {
-    $otherBusinessUnit = BusinessUnit::factory()->create();
-    MillSetting::factory()->forBusinessUnit($otherBusinessUnit)->withJumlahCages(10)->create();
+it('returns 422 when production_line_id has no active cages-track station', function () {
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
 
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/cages-track-records', cagesApiPayload([
-        'business_unit_id' => $otherBusinessUnit->id,
+        'production_line_id' => $otherProductionLine->id,
         'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
     ]));
 
@@ -119,7 +119,7 @@ it('returns 422 when business_unit_id has no active cages-track station', functi
 
 it('sets checked_by when checked=true and requester role=supervisor', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/cages-track-records', cagesApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->cagesTrackStation->production_line_id,
         'checked' => true,
         'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
     ]));
@@ -130,7 +130,7 @@ it('sets checked_by when checked=true and requester role=supervisor', function (
 
 it('sets acknowledged_by when acknowledged=true and requester role=mill_management', function () {
     $response = $this->actingAs($this->millManagement, 'web')->postJson('/api/cages-track-records', cagesApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->cagesTrackStation->production_line_id,
         'acknowledged' => true,
         'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
     ]));
@@ -139,13 +139,16 @@ it('sets acknowledged_by when acknowledged=true and requester role=mill_manageme
     expect(CagesTrackRecord::where('cages_track_number', 'CT-API-001')->first()->acknowledged_by)->toBe($this->millManagement->id);
 });
 
-it('returns 403 for the Operator role on create', function () {
+// TEMPORARY (2026-08-20, mobile syncService.ts): Operator is now allowed
+// on this route (was 403) — see FormWeighbridgeTest.php's matching test
+// for the full rationale.
+it('allows the Operator role to create (mobile sync)', function () {
     $response = $this->actingAs($this->operator, 'web')->postJson('/api/cages-track-records', cagesApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->cagesTrackStation->production_line_id,
         'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
     ]));
 
-    $response->assertStatus(403);
+    $response->assertCreated();
 });
 
 // Scenario: "Edit Record Cages Track — berhasil"
@@ -162,12 +165,13 @@ it('berhasil: updates an existing record and its details', function () {
     expect($record->fresh()->cages_track_number)->toBe('CT-NEW');
 });
 
-it('does not change station_id even if business_unit_id is sent on update', function () {
+it('does not change station_id even if production_line_id is sent on update', function () {
     $record = CagesTrackRecord::factory()->forStation($this->cagesTrackStation)->create();
-    $otherBusinessUnit = BusinessUnit::factory()->create();
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    Station::factory()->forProductionLine($otherProductionLine)->cagesTrack()->create();
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/cages-track-records/{$record->id}", cagesApiPayload([
-        'business_unit_id' => $otherBusinessUnit->id,
+        'production_line_id' => $otherProductionLine->id,
         'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
     ]));
 
@@ -187,7 +191,7 @@ it('returns 404 RECORD_NOT_FOUND when updating a non-existent id', function () {
 
 it('rejects unauthenticated requests on create and update', function () {
     $this->postJson('/api/cages-track-records', cagesApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->cagesTrackStation->production_line_id,
         'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
     ]))->assertStatus(401);
 

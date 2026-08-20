@@ -34,6 +34,7 @@ class StationController extends Controller
 {
     protected const FIELDS = [
         'business_unit_id',
+        'production_line_id',
         'name',
         'type',
         'is_active',
@@ -83,6 +84,21 @@ class StationController extends Controller
     public function businessUnitOptions(): JsonResponse
     {
         return response()->json(['data' => $this->service->businessUnitOptions()]);
+    }
+
+    /**
+     * productionLineOptions() — GET /production-lines/options?business_unit_id=.
+     * Added 2026-08-20 (entity-catalog v9): feeds the Station form's
+     * Production Line-select, cascaded from the chosen Business Unit —
+     * mirrors businessUnitOptions() one level down.
+     */
+    public function productionLineOptions(Request $request): JsonResponse
+    {
+        $businessUnitId = $request->query('business_unit_id');
+
+        return response()->json([
+            'data' => $this->service->productionLineOptions($businessUnitId !== null ? (string) $businessUnitId : null),
+        ]);
     }
 
     /**

@@ -244,8 +244,11 @@ class WeighbridgeRecordService
      * create() — screen-022--form-weighbridge-web business_logic steps
      * 1-4: validate required fields (destination required iff
      * weighbridge_type=dispatch) → resolve the sole active weighbridge
-     * Station for business_unit_id (422 NO_ACTIVE_WEIGHBRIDGE_STATION if
-     * none) → apply role-gated checked/acknowledged → insert with
+     * Station for production_line_id (2026-08-20: was business_unit_id —
+     * Production Line inserted into the hierarchy between Business Unit
+     * and Station, see entity-catalog v9) (422
+     * NO_ACTIVE_WEIGHBRIDGE_STATION if none) → apply role-gated
+     * checked/acknowledged → insert with
      * status=saved. net_weight is never accepted from $data — the
      * WeighbridgeRecord model's `saving` event always recomputes it from
      * gross/tare (see that model's docblock); this is why Net Weight
@@ -267,7 +270,7 @@ class WeighbridgeRecordService
         $this->validateForm($attributes);
 
         $station = Station::query()
-            ->where('business_unit_id', $data['business_unit_id'] ?? null)
+            ->where('production_line_id', $data['production_line_id'] ?? null)
             ->where('type', 'weighbridge')
             ->where('is_active', true)
             ->first();

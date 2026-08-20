@@ -22,7 +22,11 @@ vi.mock('@/services/localDb', () => ({
 }))
 
 import { query } from '@/services/localDb'
-import { getActiveAndPlaceholderStations, type StationSlot } from '@/services/stationRepo'
+import {
+  getActiveAndPlaceholderStations,
+  getActiveAndPlaceholderStationsForProductionLine,
+  type StationSlot,
+} from '@/services/stationRepo'
 
 const BUSINESS_UNIT_ID = 'bu-1'
 
@@ -37,9 +41,10 @@ describe('stationRepo — getActiveAndPlaceholderStations()', () => {
     await getActiveAndPlaceholderStations(BUSINESS_UNIT_ID)
 
     expect(query).toHaveBeenCalledTimes(1)
-    expect(query).toHaveBeenCalledWith(expect.stringContaining('FROM station WHERE business_unit_id = ?'), [
-      BUSINESS_UNIT_ID,
-    ])
+    const [sql, params] = vi.mocked(query).mock.calls[0]
+    expect(sql).toContain('FROM station')
+    expect(sql).toContain('WHERE business_unit_id = ?')
+    expect(params).toEqual([BUSINESS_UNIT_ID])
   })
 
   it('normalizes snake_case rows into camelCase StationSlot objects, with is_active as INTEGER (0/1)', async () => {
@@ -122,6 +127,65 @@ describe('stationRepo — getActiveAndPlaceholderStations()', () => {
     vi.mocked(query).mockResolvedValue([])
 
     const result = await getActiveAndPlaceholderStations(BUSINESS_UNIT_ID)
+
+    expect(result).toEqual([])
+  })
+})
+
+// entity-catalog v9 (2026-08-20, Production Line feature) — used once a
+// Production Line has been selected on Station List's new picker step;
+// mirrors getActiveAndPlaceholderStations()'s behavior exactly, just
+// filtered by production_line_id instead of business_unit_id.
+describe('stationRepo — getActiveAndPlaceholderStationsForProductionLine()', () => {
+  const PRODUCTION_LINE_ID = 'pl-1'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('queries the local station table filtered by the given production line', async () => {
+    vi.mocked(query).mockResolvedValue([])
+
+    await getActiveAndPlaceholderStationsForProductionLine(PRODUCTION_LINE_ID)
+
+    expect(query).toHaveBeenCalledTimes(1)
+    const [sql, params] = vi.mocked(query).mock.calls[0]
+    expect(sql).toContain('FROM station')
+    expect(sql).toContain('WHERE production_line_id = ?')
+    expect(params).toEqual([PRODUCTION_LINE_ID])
+  })
+
+  it('normalizes snake_case rows into camelCase StationSlot objects', async () => {
+    vi.mocked(query).mockResolvedValue([
+      {
+        id: 'station-1',
+        business_unit_id: BUSINESS_UNIT_ID,
+        name: 'Timbangan',
+        type: 'weighbridge',
+        is_active: 1,
+        icon: 'truck',
+      },
+    ])
+
+    const result = await getActiveAndPlaceholderStationsForProductionLine(PRODUCTION_LINE_ID)
+
+    const expected: StationSlot[] = [
+      {
+        id: 'station-1',
+        businessUnitId: BUSINESS_UNIT_ID,
+        name: 'Timbangan',
+        type: 'weighbridge',
+        isActive: true,
+        icon: 'truck',
+      },
+    ]
+    expect(result).toEqual(expected)
+  })
+
+  it('returns an empty list when no rows match the production line', async () => {
+    vi.mocked(query).mockResolvedValue([])
+
+    const result = await getActiveAndPlaceholderStationsForProductionLine(PRODUCTION_LINE_ID)
 
     expect(result).toEqual([])
   })

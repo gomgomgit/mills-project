@@ -1,0 +1,133 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "usecase-036--kelola-production-line",
+  "name": "Kelola Production Line",
+  "description": "Admin membuat, mengubah, dan menghapus data master Production Line — level hierarki baru antara Business Unit dan Station. Membuat Production Line otomatis memprovisikan 15 station kanonis untuknya.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login",
+    "Minimal satu Business Unit sudah ada"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Membuka halaman Kelola Production Line dari sidebar"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan daftar Production Line terpaginasi (Nama, Kode, Business Unit, Jumlah Station)"
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Menekan tombol Tambah Production Line, memilih Business Unit, mengisi Nama (dan opsional Kode/Deskripsi)"
+    },
+    {
+      "step": 4,
+      "actor": "actor-admin",
+      "description": "Menekan Simpan"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi input, menyimpan Production Line baru, lalu otomatis membuat 15 station kanonis untuknya dalam satu transaksi"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menutup form, menampilkan Production Line baru di daftar dengan Jumlah Station = 15"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Edit Production Line",
+      "trigger": "Actor menekan Edit pada salah satu baris",
+      "steps": [
+        "Form terbuka terisi nilai Production Line tersebut (Business Unit, Nama, Kode, Deskripsi)",
+        "Actor mengubah nilai lalu menekan Simpan",
+        "System memvalidasi dan menyimpan perubahan tanpa menyentuh station yang sudah ada"
+      ]
+    },
+    {
+      "name": "Kode Duplikat",
+      "trigger": "Step 4/Edit, Kode yang diisi sudah dipakai Production Line lain",
+      "steps": [
+        "System menampilkan error validasi di bawah field Kode",
+        "Production Line tidak tersimpan/tidak berubah"
+      ]
+    },
+    {
+      "name": "Hapus Production Line",
+      "trigger": "Actor menekan Hapus pada salah satu baris",
+      "steps": [
+        "System menampilkan konfirmasi inline",
+        "Jika dikonfirmasi dan Production Line tidak punya Station terkait, System menghapusnya dan baris hilang dari daftar",
+        "Jika Production Line masih punya Station terkait, System menolak dengan pesan error inline, baris tetap ada"
+      ]
+    },
+    {
+      "name": "Filter Berdasarkan Business Unit",
+      "trigger": "Actor memilih Business Unit pada filter",
+      "steps": [
+        "System menyaring daftar hanya menampilkan Production Line milik Business Unit tersebut, kembali ke halaman 1"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Production Line baru tersimpan beserta 15 station kanonisnya (create), ATAU Production Line yang sudah ada diperbarui (edit) tanpa mengubah station-nya, ATAU Production Line dihapus (delete, hanya jika tidak punya station terkait)"
+  ],
+  "business_rules": [
+    "Business Unit wajib dipilih; Nama wajib diisi; Kode opsional tapi unik global jika diisi",
+    "15 station kanonis diprovisikan otomatis HANYA saat create, tidak saat edit",
+    "Delete ditolak jika Production Line masih punya Station terkait"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Tambah Production Line — berhasil",
+      "given": "Admin sudah login dan berada di halaman Kelola Production Line",
+      "when": "Admin memilih Business Unit, mengisi Nama, menekan Simpan",
+      "then": "Production Line baru tersimpan dan otomatis memiliki 15 station (3 aktif + 12 placeholder)"
+    },
+    {
+      "scenario": "Edit Production Line — station tidak berubah",
+      "given": "Production Line dengan 15 station sudah ada",
+      "when": "Admin mengubah Nama/Kode/Deskripsi lalu Simpan",
+      "then": "Data Production Line terupdate, jumlah station tetap 15"
+    },
+    {
+      "scenario": "Hapus Production Line — berhasil",
+      "given": "Production Line tanpa Station terkait",
+      "when": "Admin menekan Hapus dan mengonfirmasi",
+      "then": "Production Line terhapus dari daftar"
+    },
+    {
+      "scenario": "Hapus Production Line — ditolak karena punya Station",
+      "given": "Production Line dengan Station terkait (mis. baru dibuat, 15 station)",
+      "when": "Admin menekan Hapus dan mengonfirmasi",
+      "then": "Sistem menolak dengan pesan error inline, Production Line tetap ada"
+    },
+    {
+      "scenario": "Kode Production Line duplikat",
+      "given": "Sudah ada Production Line dengan kode 'PL-001'",
+      "when": "Admin membuat/mengedit Production Line lain dengan kode yang sama",
+      "then": "Sistem menampilkan error validasi di bawah field Kode, tidak tersimpan"
+    },
+    {
+      "scenario": "Filter berdasarkan Business Unit",
+      "given": "Ada Production Line dari beberapa Business Unit berbeda",
+      "when": "Admin memilih satu Business Unit pada filter",
+      "then": "Daftar hanya menampilkan Production Line milik Business Unit tersebut"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-036--kelola-production-line"
+  ]
+}

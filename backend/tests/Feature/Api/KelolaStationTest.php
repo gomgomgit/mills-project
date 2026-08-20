@@ -39,6 +39,7 @@ use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 
@@ -49,6 +50,10 @@ beforeEach(function () {
     // would create one incidental BusinessUnit row per user, inflating
     // any meta.total assertion below.
     $this->businessUnit = BusinessUnit::factory()->create();
+    // 2026-08-20 (entity-catalog v9): production_line_id is now a
+    // required FK on stations — every create()/update() payload below
+    // needs one belonging to $this->businessUnit.
+    $this->productionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
     $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
     $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
@@ -63,6 +68,7 @@ it('berhasil: loads business unit options then creates a station, returns 201 wi
 
     $response = $this->actingAs($this->admin, 'web')->postJson('/api/stations', [
         'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->productionLine->id,
         'name' => 'Weighbridge Utama',
         'type' => 'weighbridge',
         'is_active' => true,
@@ -86,10 +92,12 @@ it('berhasil: loads business unit options then creates a station, returns 201 wi
 // Scenario: "Kelola Station — Edit Station"
 it('Edit Station: updates the name, type, and business unit then returns 200 with the updated row', function () {
     $businessUnitB = BusinessUnit::factory()->create(['name' => 'Mill Unit Tujuan']);
+    $productionLineB = ProductionLine::factory()->forBusinessUnit($businessUnitB)->create();
     $station = Station::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Weighbridge Lama']);
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/stations/{$station->id}", [
         'business_unit_id' => $businessUnitB->id,
+        'production_line_id' => $productionLineB->id,
         'name' => 'Weighbridge Baru',
         'type' => 'grading',
         'is_active' => true,
@@ -151,6 +159,7 @@ it('Kode duplikat (create): returns 422 with errors.code when the code already e
 
     $response = $this->actingAs($this->admin, 'web')->postJson('/api/stations', [
         'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->productionLine->id,
         'name' => 'Weighbridge Kode Duplikat',
         'type' => 'weighbridge',
         'is_active' => true,
@@ -169,6 +178,7 @@ it('Kode duplikat (edit): returns 422 with errors.code when updating to a code t
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/stations/{$target->id}", [
         'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $target->production_line_id,
         'name' => $target->name,
         'type' => 'weighbridge',
         'is_active' => true,
@@ -187,6 +197,7 @@ it('succeeds when updating a station and keeping its own code unchanged', functi
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/stations/{$station->id}", [
         'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $station->production_line_id,
         'name' => 'Weighbridge Baru Nama',
         'type' => 'weighbridge',
         'is_active' => true,
@@ -235,6 +246,7 @@ it('Status/Type invalid (edit): returns 422 with errors.is_active when updating 
 it('allows is_active=true for non-other types and is_active=false for type=other', function (string $type, bool $isActive) {
     $response = $this->actingAs($this->admin, 'web')->postJson('/api/stations', [
         'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->productionLine->id,
         'name' => "Station Valid $type $isActive",
         'type' => $type,
         'is_active' => $isActive,
@@ -273,6 +285,21 @@ it('returns 422 with errors.business_unit_id when creating with a non-existent b
 
     $response->assertStatus(422);
     $response->assertJsonValidationErrors(['business_unit_id']);
+});
+
+// 2026-08-20 (entity-catalog v9): production_line_id tidak ada -> 422
+// under errors.production_line_id.
+it('returns 422 with errors.production_line_id when creating with a non-existent production_line_id', function () {
+    $response = $this->actingAs($this->admin, 'web')->postJson('/api/stations', [
+        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => '00000000-0000-0000-0000-000000000000',
+        'name' => 'Station Tanpa PL',
+        'type' => 'weighbridge',
+        'is_active' => true,
+    ]);
+
+    $response->assertStatus(422);
+    $response->assertJsonValidationErrors(['production_line_id']);
 });
 
 // type tidak ada -> 422 under errors.type.
@@ -329,6 +356,7 @@ it('returns 422 with errors.is_active when is_active is not a boolean', function
 it('creates a station successfully when code and description are omitted', function () {
     $response = $this->actingAs($this->admin, 'web')->postJson('/api/stations', [
         'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->productionLine->id,
         'name' => 'Weighbridge Minimal',
         'type' => 'weighbridge',
         'is_active' => true,

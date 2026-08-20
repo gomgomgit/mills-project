@@ -8,6 +8,7 @@ use App\Exceptions\InvalidDateRangeException;
 use App\Exceptions\NoActiveCagesTrackStationException;
 use App\Models\CagesTippedTime;
 use App\Models\CagesTrackRecord;
+use App\Models\Machinery;
 use App\Models\Station;
 use App\Models\User;
 use App\Support\Pagination;
@@ -61,14 +62,17 @@ class CagesTrackRecordService
         'cages_out', 'cages_tipped', 'note',
     ];
 
-    public function __construct(protected MillSettingService $millSettingService) {}
-
     /**
      * create() — screen-024--form-cages-track-web business_logic steps
      * 1-6: validate header + details, resolve station from
-     * business_unit_id, resolve N (jumlah_cages) from mill-setting, compute
-     * each detail row's total_cages/cages_remain, then INSERT the record
-     * and its cages_tipped_time rows inside a DB transaction.
+     * production_line_id (2026-08-20: was business_unit_id — Production
+     * Line inserted into the hierarchy between Business Unit and Station,
+     * see entity-catalog v9), resolve N as
+     * COUNT(machinery WHERE station_id = the resolved station) (2026-08-20:
+     * mill-setting.jumlah_cages was removed — see
+     * machineryCountForStation()), compute each detail row's
+     * total_cages/cages_remain, then INSERT the record and its
+     * cages_tipped_time rows inside a DB transaction.
      */
     public function create(array $data, User $actor): array
     {
@@ -79,7 +83,7 @@ class CagesTrackRecordService
         $this->validateDetails($details);
 
         $station = Station::query()
-            ->where('business_unit_id', $data['business_unit_id'] ?? null)
+            ->where('production_line_id', $data['production_line_id'] ?? null)
             ->where('type', 'cages-track')
             ->where('is_active', true)
             ->first();
@@ -88,7 +92,7 @@ class CagesTrackRecordService
             throw new NoActiveCagesTrackStationException();
         }
 
-        $jumlahCages = $this->millSettingService->getJumlahCages($data['business_unit_id']);
+        $jumlahCages = $this->machineryCountForStation($station->id);
 
         $attributes['station_id'] = $station->id;
         $attributes['created_by'] = $actor->id;
@@ -134,7 +138,7 @@ class CagesTrackRecordService
         $this->validateForm($attributes);
         $this->validateDetails($details);
 
-        $jumlahCages = $this->millSettingService->getJumlahCages($record->station->business_unit_id);
+        $jumlahCages = $this->machineryCountForStation($record->station_id);
 
         $this->applyVerification($attributes, $data, $actor);
 
@@ -146,6 +150,46 @@ class CagesTrackRecordService
         $record->load(['station', 'createdBy', 'checkedBy', 'acknowledgedBy', 'cagesTippedTimes']);
 
         return $this->toDetailRow($record);
+    }
+
+    /**
+     * jumlahCagesForProductionLine() — screen-024--form-cages-track-web's
+     * Livewire form preview (App\Livewire\Data\FormCagesTrack): resolves
+     * the SAME active Cages Track station create()/update() would resolve
+     * from a production_line_id, and returns its machinery count — so the
+     * grid's column count preview (before the record is actually saved)
+     * matches exactly what create() will compute. Returns 0 when
+     * production_line_id is blank or has no active Cages Track station
+     * (mirrors the pre-2026-08-20 behavior of always resolving to SOME
+     * int, never throwing, for a preview-only lookup).
+     */
+    public function jumlahCagesForProductionLine(?string $productionLineId): int
+    {
+        if ($productionLineId === null || $productionLineId === '') {
+            return 0;
+        }
+
+        $station = Station::query()
+            ->where('production_line_id', $productionLineId)
+            ->where('type', 'cages-track')
+            ->where('is_active', true)
+            ->first();
+
+        return $station !== null ? $this->machineryCountForStation($station->id) : 0;
+    }
+
+    /**
+     * machineryCountForStation() — replaces mill-setting.jumlah_cages
+     * (removed 2026-08-20, entity-catalog v9) as the source for N, the
+     * Cages Tipped Time grid's checklist column count: simply
+     * COUNT(machinery WHERE station_id = $stationId). No mill-setting
+     * lookup/auto-create involved anymore. Public (not protected) since
+     * App\Livewire\Data\FormCagesTrack also calls it directly, to resolve
+     * N in edit mode from the record's already-known station_id.
+     */
+    public function machineryCountForStation(string $stationId): int
+    {
+        return Machinery::where('station_id', $stationId)->count();
     }
 
     protected function normalizeFormFields(array $data): array

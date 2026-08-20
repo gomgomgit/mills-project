@@ -1,0 +1,79 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-036--kelola-production-line",
+  "name": "Kelola Production Line",
+  "module_id": "module-master-data",
+  "description": "Halaman Admin untuk mengelola data master Production Line — level hierarki baru yang disisipkan antara Business Unit dan Station (Business Unit → Production Line → Station → Machinery Group → Machinery). Satu Business Unit dapat memiliki beberapa Production Line, dan setiap Production Line memiliki set 15 station kanonisnya sendiri (3 aktif: Weighbridge/Grading/Cages Track, 12 placeholder skema masa depan) yang otomatis dibuat saat Production Line dibuat.",
+  "actors": [
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Kelola Production Line'"
+  ],
+  "information_displayed": [
+    "Tabel Production Line: Nama, Kode, Business Unit, Jumlah Station, tanggal dibuat",
+    "Filter daftar berdasarkan Business Unit",
+    "Form tambah/edit: Business Unit (dropdown), Nama, Kode (opsional), Deskripsi (opsional)"
+  ],
+  "available_actions": [
+    {
+      "action": "Filter berdasarkan Business Unit",
+      "description": "Menyaring daftar Production Line berdasarkan Business Unit tertentu",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah Production Line",
+      "description": "Membuka form kosong untuk membuat Production Line baru; begitu Production Line disimpan, sistem otomatis membuat 15 station kanonis (3 aktif + 12 placeholder) untuk Production Line tersebut",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit Production Line",
+      "description": "Membuka form terisi data Production Line yang dipilih untuk diubah namanya, kode, atau deskripsi (Business Unit dan station yang sudah ada tidak berubah)",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus Production Line",
+      "description": "Menghapus Production Line, dengan konfirmasi inline; ditolak jika Production Line masih memiliki Station terkait",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Navigasi halaman",
+      "description": "Berpindah antar halaman daftar Production Line yang terpaginasi",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Business Unit wajib dipilih saat membuat Production Line",
+    "Nama Production Line wajib diisi",
+    "Kode Production Line opsional, tapi harus unik secara global jika diisi",
+    "Saat Production Line baru dibuat, sistem otomatis membuat 15 station kanonis (Weighbridge/Grading/Cages Track aktif + 12 placeholder skema masa depan tipe 'other') untuk Production Line tersebut, dalam satu transaksi dengan pembuatan Production Line-nya sendiri",
+    "Mengubah (edit) Production Line TIDAK membuat ulang atau menghapus station yang sudah ada — provisioning station hanya terjadi sekali, saat pembuatan",
+    "Production Line tidak dapat dihapus selama masih memiliki Station terkait — Admin harus memindah/menghapus station-nya terlebih dahulu (di luar screen ini, lewat Kelola Station)",
+    "Hanya Admin yang dapat mengakses screen ini"
+  ],
+  "usecase_ids": [
+    "usecase-036--kelola-production-line"
+  ],
+  "edge_cases": [
+    "Membuat Production Line dengan kode yang sudah dipakai Production Line lain → ditolak, error di bawah field Kode",
+    "Menghapus Production Line yang masih punya Station → ditolak dengan pesan inline, baris tetap ada di daftar",
+    "Mengedit/menghapus Production Line yang sudah dihapus pengguna lain di antara form dibuka dan disimpan → pesan error ramah, tidak crash",
+    "Belum ada Business Unit sama sekali → dropdown Business Unit kosong, form tidak bisa disimpan"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

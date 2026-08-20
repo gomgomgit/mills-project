@@ -25,14 +25,24 @@
                 @if (! $isEdit)
                     <div class="fw-field">
                         <label class="fw-field__label" for="business_unit_id">Business Unit <span class="fw-required">*</span></label>
-                        <select id="business_unit_id" wire:model="form.business_unit_id" class="fw-input" data-testid="business-unit-select">
+                        <select id="business_unit_id" wire:model.live="form.business_unit_id" class="fw-input" data-testid="business-unit-select">
                             <option value="">Pilih Business Unit</option>
                             @foreach ($businessUnitOptions as $option)
                                 <option value="{{ $option['id'] }}">{{ $option['name'] }}</option>
                             @endforeach
                         </select>
-                        @if (isset($errors_['business_unit_id']))
-                            <span class="fw-field__error">{{ $errors_['business_unit_id'] }}</span>
+                    </div>
+
+                    <div class="fw-field">
+                        <label class="fw-field__label" for="production_line_id">Production Line <span class="fw-required">*</span></label>
+                        <select id="production_line_id" wire:model="form.production_line_id" class="fw-input" data-testid="production-line-select" @disabled(empty($productionLineOptions))>
+                            <option value="">Pilih Production Line</option>
+                            @foreach ($productionLineOptions as $option)
+                                <option value="{{ $option['id'] }}">{{ $option['name'] }}</option>
+                            @endforeach
+                        </select>
+                        @if (isset($errors_['production_line_id']))
+                            <span class="fw-field__error">{{ $errors_['production_line_id'] }}</span>
                         @endif
                     </div>
                 @else

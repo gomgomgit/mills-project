@@ -15,6 +15,7 @@ use App\Models\BusinessUnit;
 use App\Models\Station;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
+use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
@@ -40,7 +41,7 @@ function weighbridgeApiPayload(array $overrides = []): array
 // Scenario: "Buat Record Weighbridge Baru - berhasil"
 it('berhasil: creates a new record with status=saved and resolved station_id', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/weighbridge-records', weighbridgeApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->station->production_line_id,
     ]));
 
     $response->assertCreated();
@@ -50,7 +51,7 @@ it('berhasil: creates a new record with status=saved and resolved station_id', f
 
 it('creates a record with destination when type=dispatch', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/weighbridge-records', weighbridgeApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->station->production_line_id,
         'weighbridge_type' => 'dispatch',
         'destination' => 'PKS Sukamaju',
     ]));
@@ -62,7 +63,7 @@ it('creates a record with destination when type=dispatch', function () {
 // Scenario: "Field Wajib Belum Lengkap"
 it('returns 422 VALIDATION_ERROR when destination is empty and type=dispatch', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/weighbridge-records', weighbridgeApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->station->production_line_id,
         'weighbridge_type' => 'dispatch',
     ]));
 
@@ -72,7 +73,7 @@ it('returns 422 VALIDATION_ERROR when destination is empty and type=dispatch', f
 
 it('returns 422 VALIDATION_ERROR when a required field is empty', function () {
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/weighbridge-records', weighbridgeApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->station->production_line_id,
         'wb_card_number' => '',
     ]));
 
@@ -81,22 +82,45 @@ it('returns 422 VALIDATION_ERROR when a required field is empty', function () {
 });
 
 // Scenario: "Business Unit Tanpa Station Weighbridge Aktif"
-it('returns 422 when business_unit_id has no active weighbridge station', function () {
-    $otherBusinessUnit = BusinessUnit::factory()->create();
+it('returns 422 when production_line_id has no active weighbridge station', function () {
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
 
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/weighbridge-records', weighbridgeApiPayload([
-        'business_unit_id' => $otherBusinessUnit->id,
+        'production_line_id' => $otherProductionLine->id,
     ]));
 
     $response->assertStatus(422);
 });
 
-it('returns 403 for the Operator role on create', function () {
+// TEMPORARY (2026-08-20, mobile syncService.ts): Operator is now allowed
+// on this route (was 403) — the route's role list gained 'operator' and
+// its guard became 'auth:web,sanctum' so the mobile app's manual
+// "Sinkronisasi" button (Station List) can push locally-entered
+// Weighbridge records here via a Sanctum token. See routes/api.php's
+// screen-022 route comment for the full rationale.
+it('allows the Operator role to create (mobile sync)', function () {
     $response = $this->actingAs($this->operator, 'web')->postJson('/api/weighbridge-records', weighbridgeApiPayload([
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->station->production_line_id,
     ]));
 
-    $response->assertStatus(403);
+    $response->assertCreated();
+});
+
+// TEMPORARY (2026-08-20, mobile syncService.ts): reachable via the
+// Sanctum guard too, not just 'web' — this is the real auth path mobile
+// actually uses (apiClient.ts attaches a Bearer token, never a session
+// cookie). station_id is never sent; the server resolves the Station from
+// business_unit_id + weighbridge_type, so syncService.ts never needs to
+// reconcile mobile's synthetic local station ids with real ones.
+it('allows a Sanctum-authenticated Operator (mobile) to create, without sending station_id', function () {
+    Sanctum::actingAs($this->operator, ['*']);
+
+    $response = $this->postJson('/api/weighbridge-records', weighbridgeApiPayload([
+        'production_line_id' => $this->station->production_line_id,
+    ]));
+
+    $response->assertCreated();
+    expect(WeighbridgeRecord::first()->station_id)->toBe($this->station->id);
 });
 
 // Scenario: "Edit Record Weighbridge - berhasil"
@@ -110,13 +134,13 @@ it('berhasil: updates an existing record', function () {
     expect($record->fresh()->wb_card_number)->toBe('WB-NEW');
 });
 
-it('does not change station_id even if business_unit_id is sent on update', function () {
+it('does not change station_id even if production_line_id is sent on update', function () {
     $record = WeighbridgeRecord::factory()->forStation($this->station)->create();
-    $otherBusinessUnit = BusinessUnit::factory()->create();
-    Station::factory()->forBusinessUnit($otherBusinessUnit)->create();
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    Station::factory()->forProductionLine($otherProductionLine)->create();
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/weighbridge-records/{$record->id}", weighbridgeApiPayload([
-        'business_unit_id' => $otherBusinessUnit->id,
+        'production_line_id' => $otherProductionLine->id,
     ]));
 
     $response->assertOk();
@@ -134,7 +158,7 @@ it('returns 404 RECORD_NOT_FOUND when updating a non-existent id', function () {
 });
 
 it('rejects unauthenticated requests on create and update', function () {
-    $this->postJson('/api/weighbridge-records', weighbridgeApiPayload(['business_unit_id' => $this->businessUnit->id]))->assertStatus(401);
+    $this->postJson('/api/weighbridge-records', weighbridgeApiPayload(['production_line_id' => $this->station->production_line_id]))->assertStatus(401);
 
     $record = WeighbridgeRecord::factory()->forStation($this->station)->create();
     $this->patchJson("/api/weighbridge-records/{$record->id}", weighbridgeApiPayload())->assertStatus(401);

@@ -98,7 +98,7 @@ it('berhasil: loads company options then creates a business unit, returns 201 wi
         'name' => 'Mill Unit 1',
         'company_id' => $company->id,
         'company_name' => 'PT Induk Company',
-        'station_count' => 15,
+        'station_count' => 0,
     ]);
 
     expect(BusinessUnit::where('name', 'Mill Unit 1')->exists())->toBeTrue();
@@ -555,7 +555,7 @@ it('list (no params): returns the legacy public {data:[{id,name}]} shape with no
 it('list (with params, unauthenticated): returns the richer paginated shape with company_name/station_count without any session', function () {
     $company = Company::factory()->create(['name' => 'PT Induk Jaya']);
     $businessUnit = BusinessUnit::factory()->create(['company_id' => $company->id, 'name' => 'Mill Alpha']);
-    Station::factory()->count(2)->create(['business_unit_id' => $businessUnit->id]);
+    Station::factory()->count(2)->forBusinessUnit($businessUnit)->create();
 
     $response = $this->getJson('/api/business-units?page=1&per_page=20');
 

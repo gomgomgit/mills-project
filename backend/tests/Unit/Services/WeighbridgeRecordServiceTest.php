@@ -301,7 +301,7 @@ function weighbridgeFormPayload(array $overrides = []): array
 
 it('creates record with resolved station_id when all required fields valid (type=receive)', function () {
     $result = $this->service->create(
-        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id]),
+        weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id]),
         $this->creator
     );
 
@@ -312,7 +312,7 @@ it('creates record with resolved station_id when all required fields valid (type
 
 it('creates record successfully when type=dispatch and destination provided', function () {
     $result = $this->service->create(
-        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id, 'weighbridge_type' => 'dispatch', 'destination' => 'PKS A']),
+        weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'weighbridge_type' => 'dispatch', 'destination' => 'PKS A']),
         $this->creator
     );
 
@@ -321,23 +321,23 @@ it('creates record successfully when type=dispatch and destination provided', fu
 
 it('throws ValidationException when destination is empty and type=dispatch', function () {
     expect(fn () => $this->service->create(
-        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id, 'weighbridge_type' => 'dispatch']),
+        weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'weighbridge_type' => 'dispatch']),
         $this->creator
     ))->toThrow(\Illuminate\Validation\ValidationException::class);
 });
 
 it('throws ValidationException when a required field is empty', function () {
     expect(fn () => $this->service->create(
-        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id, 'wb_card_number' => '']),
+        weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'wb_card_number' => '']),
         $this->creator
     ))->toThrow(\Illuminate\Validation\ValidationException::class);
 });
 
-it('throws NoActiveWeighbridgeStationException when business_unit_id has no active weighbridge station', function () {
-    $otherBusinessUnit = BusinessUnit::factory()->create();
+it('throws NoActiveWeighbridgeStationException when production_line_id has no active weighbridge station', function () {
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
 
     expect(fn () => $this->service->create(
-        weighbridgeFormPayload(['business_unit_id' => $otherBusinessUnit->id]),
+        weighbridgeFormPayload(['production_line_id' => $otherProductionLine->id]),
         $this->creator
     ))->toThrow(\App\Exceptions\NoActiveWeighbridgeStationException::class);
 });
@@ -346,7 +346,7 @@ it('sets checked_by to requester id when checked=true and requester role=supervi
     $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->create();
 
     $result = $this->service->create(
-        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id, 'checked' => true]),
+        weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'checked' => true]),
         $supervisor
     );
 
@@ -357,7 +357,7 @@ it('ignores checked=true when requester role is not supervisor', function () {
     $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->create();
 
     $result = $this->service->create(
-        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id, 'checked' => true]),
+        weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'checked' => true]),
         $millManagement
     );
 
@@ -368,21 +368,20 @@ it('sets acknowledged_by to requester id when acknowledged=true and requester ro
     $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->create();
 
     $result = $this->service->create(
-        weighbridgeFormPayload(['business_unit_id' => $this->businessUnit->id, 'acknowledged' => true]),
+        weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'acknowledged' => true]),
         $millManagement
     );
 
     expect($result['acknowledged_by_name'])->toBe($millManagement->name);
 });
 
-it('updates an existing record and does not accept a business_unit_id change', function () {
-    $otherBusinessUnit = BusinessUnit::factory()->create();
-    $otherStation = Station::factory()->forBusinessUnit($otherBusinessUnit)->create();
+it('updates an existing record and does not accept a production_line_id change', function () {
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
     $record = WeighbridgeRecord::factory()->forStation($this->station)->create();
 
     $result = $this->service->update(
         $record->id,
-        weighbridgeFormPayload(['business_unit_id' => $otherBusinessUnit->id, 'wb_card_number' => 'WB-EDITED']),
+        weighbridgeFormPayload(['production_line_id' => $otherProductionLine->id, 'wb_card_number' => 'WB-EDITED']),
         $this->creator
     );
 

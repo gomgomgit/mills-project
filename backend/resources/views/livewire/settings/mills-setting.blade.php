@@ -49,23 +49,6 @@
                         @enderror
                     </div>
 
-                    <div class="ms-form-field">
-                        <label for="jumlah_cages" class="ms-form-field__label">
-                            Jumlah Cages <span class="ms-form-field__required">*</span>
-                        </label>
-                        <input
-                            type="number"
-                            min="1"
-                            id="jumlah_cages"
-                            wire:model="jumlah_cages"
-                            class="ms-form-field__input @error('jumlah_cages') ms-form-field__input--error @enderror"
-                        >
-                        <p class="ms-form-field__hint">Menentukan jumlah kolom checklist pada grid Cages Tipped Time (Form Cages Track).</p>
-                        @error('jumlah_cages')
-                            <p class="ms-form-field__error">{{ $message }}</p>
-                        @enderror
-                    </div>
-
                     <div class="ms-form-field ms-form-field--span2">
                         <label class="ms-form-field__label">Logo</label>
                         <div class="ms-image-field">

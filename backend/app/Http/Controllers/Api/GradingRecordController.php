@@ -56,12 +56,13 @@ class GradingRecordController extends Controller
     /**
      * store() — POST /api/grading-records. screen-023--form-grading-web
      * business_logic steps 1-5: create a new record + details, resolving
-     * station_id from the given business_unit_id.
+     * station_id from the given production_line_id (2026-08-20: was
+     * business_unit_id).
      */
     public function store(Request $request): JsonResponse
     {
         $data = $request->only([
-            'business_unit_id', 'grading_number', 'date', 'weighbridge_record_id',
+            'production_line_id', 'grading_number', 'date', 'weighbridge_record_id',
             'license_plate_no', 'vehicle_code', 'estate_supplier', 'division',
             'netto', 'quantity', 'note', 'acknowledged', 'details',
         ]);
@@ -74,7 +75,7 @@ class GradingRecordController extends Controller
     /**
      * update() — PATCH /api/grading-records/{id}. screen-023--form-grading-web
      * business_logic steps 6-8: update an existing record and upsert its
-     * details; business_unit_id/station_id are never accepted here.
+     * details; production_line_id/station_id are never accepted here.
      */
     public function update(Request $request, string $id): JsonResponse
     {

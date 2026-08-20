@@ -4,6 +4,7 @@ namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
+use App\Services\StationService;
 use App\Services\WeighbridgeRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
@@ -41,7 +42,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class FormWeighbridge extends Component
 {
     protected const FIELDS = [
-        'business_unit_id',
+        'production_line_id',
         'wb_card_number',
         'weighbridge_type',
         'record_datetime',
@@ -65,6 +66,7 @@ class FormWeighbridge extends Component
     /** @var array<string, mixed> */
     public array $form = [
         'business_unit_id' => '',
+        'production_line_id' => '',
         'wb_card_number' => '',
         'weighbridge_type' => 'receive',
         'record_datetime' => '',
@@ -90,6 +92,9 @@ class FormWeighbridge extends Component
 
     /** @var array<int, array{id: string, name: string}> */
     public array $businessUnitOptions = [];
+
+    /** @var array<int, array{id: string, name: string}> */
+    public array $productionLineOptions = [];
 
     /** @var array<string, string> */
     public array $errors_ = [];
@@ -119,7 +124,7 @@ class FormWeighbridge extends Component
         }
 
         foreach (self::FIELDS as $field) {
-            if ($field === 'business_unit_id') {
+            if ($field === 'production_line_id') {
                 continue;
             }
             $this->form[$field] = $record[$field] ?? '';
@@ -140,6 +145,26 @@ class FormWeighbridge extends Component
     {
         $this->form['record_datetime'] = now()->format('Y-m-d\TH:i');
         $this->form['destination'] = '';
+    }
+
+    /**
+     * Ganti Business Unit (create mode only): buang production_line_id
+     * lama, muat ulang daftar Production Line untuk Business Unit yang
+     * baru dipilih — mirrors KelolaStation::updatedBusinessUnitId()'s
+     * cascading pattern exactly, via the same StationService::
+     * productionLineOptions() query.
+     */
+    public function updatedFormBusinessUnitId(): void
+    {
+        $this->form['production_line_id'] = '';
+        $this->loadProductionLineOptions();
+    }
+
+    protected function loadProductionLineOptions(): void
+    {
+        $businessUnitId = $this->form['business_unit_id'];
+        $this->productionLineOptions = app(StationService::class)
+            ->productionLineOptions($businessUnitId !== '' ? $businessUnitId : null);
     }
 
     public function save(): void

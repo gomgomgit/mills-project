@@ -57,6 +57,45 @@ it('returns 200 with user, business_unit and token on valid mobile login', funct
     expect($response->json('token'))->toBeString()->not->toBeEmpty();
 });
 
+// business_unit_id is no longer collected client-side (mobile/src/
+// components/LoginForm.vue) — an operator/supervisor/mill_management
+// account already has one assigned, so AuthService::login() auto-derives
+// it when the request omits the field entirely.
+it('auto-derives business_unit_id from the account when the field is omitted', function () {
+    $user = User::factory()
+        ->password('Passw0rd!')
+        ->forBusinessUnit($this->businessUnit)
+        ->create(['username' => 'operator01']);
+
+    $response = $this->postJson('/api/login', [
+        'username' => $user->username,
+        'password' => 'Passw0rd!',
+        'device_name' => 'Samsung A54 - Operator',
+    ]);
+
+    $response->assertOk();
+    $response->assertJson([
+        'business_unit' => [
+            'id' => $this->businessUnit->id,
+            'name' => $this->businessUnit->name,
+        ],
+    ]);
+});
+
+it('returns 403 when business_unit_id is omitted and the account has none assigned', function () {
+    $user = User::factory()
+        ->password('Passw0rd!')
+        ->create(['username' => 'orphanuser', 'business_unit_id' => null]);
+
+    $response = $this->postJson('/api/login', [
+        'username' => $user->username,
+        'password' => 'Passw0rd!',
+        'device_name' => 'Samsung A54 - Operator',
+    ]);
+
+    $response->assertStatus(403);
+});
+
 // Scenario: "Login Mobile — Kredensial Salah"
 it('returns 401 when the password is wrong', function () {
     $user = User::factory()

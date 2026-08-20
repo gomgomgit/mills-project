@@ -1,0 +1,105 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "ver": 1,
+  "id": "screen-035--production-process-activity-web",
+  "name": "Production Process Activity (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/production-process-activity",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-035--production-process-activity-web",
+      "usecase_name": "Pilih Stasiun (Web)",
+      "endpoints": [],
+      "business_logic": [
+        "1. Render grid berisi 15 station tile: 3 aktif (Weighbridge, Grading, Cages Track) dengan link ke route Data Browser masing-masing (data.weighbridge, data.grading, data.cages-track), 12 placeholder nonaktif dengan atribut disabled",
+        "2. On click tile aktif -> navigasi (redirect biasa, bukan Livewire) ke route Data Browser stasiun terkait",
+        "3. On click tile disabled -> tidak melakukan aksi apapun (tidak ada handler navigasi terpasang)"
+      ],
+      "data_operations": [],
+      "edge_case_handling": [
+        {
+          "condition": "User klik stasiun yang disabled",
+          "handling": "Tidak ada navigasi; tile tetap non-interaktif (disabled, tanpa href), tidak memicu error"
+        }
+      ],
+      "business_rules_applied": [
+        "Hanya 3 stasiun MVP yang aktif secara fungsional; 12 lainnya adalah placeholder skema data untuk fase mendatang",
+        "Menggantikan link sidebar terpisah per stasiun dengan satu pintu masuk tunggal"
+      ],
+      "unit_test_cases": []
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-016--data-browser-weighbridge-web",
+      "reason": "Tile Weighbridge aktif menavigasi ke sini"
+    },
+    {
+      "screen_id": "screen-017--data-browser-grading-web",
+      "reason": "Tile Grading aktif menavigasi ke sini"
+    },
+    {
+      "screen_id": "screen-018--data-browser-cages-track-web",
+      "reason": "Tile Cages Track aktif menavigasi ke sini"
+    }
+  ],
+  "implementation_notes": [
+    "Halaman statis murni (Blade view, tanpa Livewire component/service, tanpa endpoint API) - daftar 15 station tile di-hardcode di view, mengikuti pola DEFAULT_STATIONS di mobile localSchema.ts, bukan hasil query database",
+    "Styling/layout tile mengikuti pola component_patterns 'station-tile' di uiux-spec (icon Gauge/Layers/Package, radius card, shadow)",
+    "Setelah screen ini diimplementasikan, 6 link sidebar individual (Data Browser + Input Weighbridge/Grading/Cages Track) di semua shell-sidebar view diganti dengan 1 link 'Production Process Activity' mengarah ke route ini"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Pilih Stasiun (Web) — berhasil",
+      "usecase_id": "usecase-035--production-process-activity-web",
+      "api_test": [],
+      "component_test": {
+        "component": "N/A - Blade view statis, bukan Livewire component",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "/production-process-activity",
+        "action": "Klik tile Weighbridge",
+        "assert": "URL berubah ke /data/weighbridge (Data Browser Weighbridge)"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun (Web) — Klik Stasiun Disabled",
+      "usecase_id": "usecase-035--production-process-activity-web",
+      "api_test": [],
+      "component_test": {
+        "component": "N/A - Blade view statis, bukan Livewire component",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "/production-process-activity",
+        "action": "Klik salah satu tile placeholder (mis. Sterilizer)",
+        "assert": "URL tidak berubah, tetap di /production-process-activity"
+      }
+    }
+  ]
+}

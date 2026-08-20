@@ -1,0 +1,52 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "id": "screen-035--production-process-activity-web",
+  "name": "Production Process Activity (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/routes/web.php",
+    "backend/resources/views/data/production-process-activity.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Feature/ProductionProcessActivityTest.php",
+    "backend/tests/Browser/ProductionProcessActivityTest.php"
+  ],
+  "fe_files_generated": [],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "Pure static Blade view per tech-spec v1 — no Livewire component/controller/service/API endpoint; route registered via a closure (Route::get(..., fn () => view(...))) since Route::view() is not chainable with ->middleware() in this Laravel version",
+    "15 station tiles hardcoded in the view (3 active linking to route('data.weighbridge')/'data.grading'/'data.cages-track', 12 disabled placeholders looped via @foreach) — mirrors mobile's DEFAULT_STATIONS in localSchema.ts, not a database query",
+    "Icons are small inline SVGs (gauge/layers/box outlines) for the 3 active tiles — no icon library exists yet in the backend Blade layer, so these are hand-drawn minimal glyphs rather than a Lucide dependency",
+    "Sidebar link added to this view's own sidebar only in this pass — restructuring all other sidebars (adding this link everywhere, removing the 6 individual Data Browser/Input shortcuts it replaces) is a separate follow-up step"
+  ],
+  "deferred_items": [],
+  "known_issues": [],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-20T00:00:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

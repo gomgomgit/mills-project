@@ -68,13 +68,14 @@ class AuthService
      * @throws AccountInactiveException          (403 ACCOUNT_INACTIVE)
      * @throws BusinessAreaMismatchException     (403 BUSINESS_AREA_MISMATCH)
      */
-    public function login(string $username, string $password, string $businessUnitId, ?string $deviceName = null): array
+    public function login(string $username, string $password, ?string $businessUnitId, ?string $deviceName = null): array
     {
         // Step 1: required fields (+ device_name, only when the mobile
         // branch was selected by the caller passing a non-null $deviceName —
         // screen-001's callers never pass it, so their validation is
-        // unaffected).
-        $this->validateRequired($username, $password, $businessUnitId, $deviceName);
+        // unaffected). $businessUnitId is intentionally NOT in this list —
+        // it's optional (see step 5).
+        $this->validateRequired($username, $password, $deviceName);
 
         // Step 2: password format — min 6 characters, alphanumeric + symbol.
         $this->validatePasswordFormat($password);
@@ -91,12 +92,25 @@ class AuthService
             throw new AccountInactiveException();
         }
 
-        // Step 5: business area access check. No many-to-many "accessible
-        // business units" table exists in the entity catalog for this
-        // screen, so "akses user" is interpreted as an exact match against
-        // the user's own business_unit_id (nullable — a user with no
-        // assigned business unit never matches).
-        if (! $user->business_unit_id || (string) $user->business_unit_id !== (string) $businessUnitId) {
+        // Step 5: business area resolution. $businessUnitId is now OPTIONAL
+        // — a user already assigned to one business unit (operator/
+        // supervisor/mill_management) no longer needs to pick it at login;
+        // it's auto-derived from the account. Admin (business_unit_id is
+        // typically null — unrestricted across mills) has nothing to
+        // auto-derive and must still send one explicitly, same as before.
+        //
+        // When the caller DOES send a business_unit_id, the exact-match
+        // check against the user's own assignment still applies — no
+        // many-to-many "accessible business units" table exists in the
+        // entity catalog for this screen, so "akses user" is an exact match,
+        // not a lookup.
+        if ($businessUnitId === null) {
+            if (! $user->business_unit_id) {
+                throw new BusinessAreaMismatchException();
+            }
+
+            $businessUnitId = (string) $user->business_unit_id;
+        } elseif (! $user->business_unit_id || (string) $user->business_unit_id !== (string) $businessUnitId) {
             throw new BusinessAreaMismatchException();
         }
 
@@ -151,18 +165,16 @@ class AuthService
     /**
      * @throws ValidationException
      */
-    protected function validateRequired(string $username, string $password, string $businessUnitId, ?string $deviceName = null): void
+    protected function validateRequired(string $username, string $password, ?string $deviceName = null): void
     {
         $data = [
             'username' => $username,
             'password' => $password,
-            'business_unit_id' => $businessUnitId,
         ];
 
         $rules = [
             'username' => ['required', 'string'],
             'password' => ['required', 'string'],
-            'business_unit_id' => ['required', 'string'],
         ];
 
         // device_name is only required when the caller selected the mobile

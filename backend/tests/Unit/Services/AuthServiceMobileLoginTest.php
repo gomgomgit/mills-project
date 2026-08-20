@@ -55,9 +55,9 @@ it('throws a 422 ValidationException when a required field is missing (mobile br
     expect(fn () => $this->authService->login('someuser', '', $this->businessUnit->id, $this->deviceName))
         ->toThrow(ValidationException::class);
 
-    // business_unit_id missing
-    expect(fn () => $this->authService->login('someuser', 'Passw0rd!', '', $this->deviceName))
-        ->toThrow(ValidationException::class);
+    // business_unit_id is intentionally NOT required for mobile — an
+    // operator/supervisor already has one assigned, auto-derived instead
+    // (see AuthServiceTest.php's auto-derive tests, same logic path).
 
     // device_name explicitly empty (still selects the mobile branch, but
     // fails its own required-field rule).

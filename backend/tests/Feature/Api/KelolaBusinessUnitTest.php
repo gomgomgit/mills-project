@@ -98,7 +98,7 @@ it('berhasil: loads company options then creates a business unit, returns 201 wi
         'name' => 'Mill Unit 1',
         'company_id' => $company->id,
         'company_name' => 'PT Induk Company',
-        'station_count' => 0,
+        'station_count' => 15,
     ]);
 
     expect(BusinessUnit::where('name', 'Mill Unit 1')->exists())->toBeTrue();

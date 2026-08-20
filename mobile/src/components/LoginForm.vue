@@ -14,23 +14,18 @@
  *   - error display + password-clear-on-error per edge_case_handling.
  *
  * States: idle / submitting / error / success (uiux-spec "auth" screen
- * type). Business Area is a predefined dropdown, not free text, per
- * uiux-spec form pattern — see loadBusinessUnits()/known_issues for the
- * data-source gap (no business-units listing endpoint exists yet in this
- * screen's api_contracts).
+ * type). Business Area selection was removed from this form — an
+ * operator/supervisor already has a `business_unit_id` assigned to their
+ * account, so the backend now auto-derives it (AuthService::login() step 5)
+ * when the request omits `business_unit_id`, instead of requiring the user
+ * to pick one every login.
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import apiClient, { type NormalizedApiError } from '@/services/apiClient'
+import { type NormalizedApiError } from '@/services/apiClient'
 import { toDisplayMessage } from '@/services/errorHandler'
 import { useAuthStore } from '@/stores/auth'
 import { useConnectivityGuard } from '@/composables/useConnectivityGuard'
-import SearchableSelect, { type SearchableSelectOption } from '@/components/SearchableSelect.vue'
-
-interface BusinessUnitOption {
-  id: string
-  name: string
-}
 
 const router = useRouter()
 const route = useRoute()
@@ -46,49 +41,11 @@ const showPassword = ref(false)
 const form = reactive({
   username: '',
   password: '',
-  business_unit_id: '',
 })
 
-const fieldErrors = reactive<{ username: string | null; password: string | null; business_unit_id: string | null }>({
+const fieldErrors = reactive<{ username: string | null; password: string | null }>({
   username: null,
   password: null,
-  business_unit_id: null,
-})
-
-const businessUnits = ref<BusinessUnitOption[]>([])
-const businessUnitsLoadFailed = ref(false)
-
-// SearchableSelect's fixed { value, label } option shape — this component
-// owns no filtering logic of its own, just maps the already-loaded, full
-// businessUnits list once per change.
-const businessUnitOptions = computed<SearchableSelectOption[]>(() =>
-  businessUnits.value.map((unit) => ({ value: unit.id, label: unit.name })),
-)
-
-/**
- * KNOWN GAP: no `GET /api/business-units` (or equivalent public listing)
- * endpoint exists in this screen's api_contracts / the current
- * implementation plan — screen-001's equivalent dropdown is populated
- * server-side inside the Livewire component's mount() (BusinessUnit::
- * orderBy('name')->get()), which has no mobile/API equivalent yet. This
- * fetch is written against the REST-conventional path so it starts working
- * the moment that endpoint is added; until then it fails gracefully (empty
- * dropdown + inline notice) rather than crashing the screen. See
- * known_issues in the implementation report.
- */
-async function loadBusinessUnits() {
-  try {
-    const response = await apiClient.get('/api/business-units')
-    const payload = response.data
-    businessUnits.value = Array.isArray(payload) ? payload : (payload?.data ?? [])
-  } catch {
-    businessUnitsLoadFailed.value = true
-    businessUnits.value = []
-  }
-}
-
-onMounted(() => {
-  loadBusinessUnits()
 })
 
 /**
@@ -105,7 +62,6 @@ function isPasswordFormatValid(password: string): boolean {
 
 function validate(): boolean {
   fieldErrors.username = form.username.trim() ? null : 'Username wajib diisi.'
-  fieldErrors.business_unit_id = form.business_unit_id ? null : 'Business area wajib dipilih.'
 
   if (!form.password) {
     fieldErrors.password = 'Password wajib diisi.'
@@ -115,7 +71,7 @@ function validate(): boolean {
     fieldErrors.password = null
   }
 
-  return !fieldErrors.username && !fieldErrors.password && !fieldErrors.business_unit_id
+  return !fieldErrors.username && !fieldErrors.password
 }
 
 const isSubmitting = computed(() => status.value === 'submitting')
@@ -141,7 +97,6 @@ async function onSubmit() {
     await authStore.login({
       username: form.username,
       password: form.password,
-      business_unit_id: form.business_unit_id,
     })
 
     status.value = 'success'
@@ -216,24 +171,6 @@ async function onSubmit() {
         </button>
       </div>
       <p v-if="fieldErrors.password" class="field-error">{{ fieldErrors.password }}</p>
-    </div>
-
-    <div class="field">
-      <label for="business_unit_id">
-        Business Area <span class="required">*</span>
-      </label>
-      <SearchableSelect
-        id="business_unit_id"
-        v-model="form.business_unit_id"
-        :options="businessUnitOptions"
-        placeholder="Pilih Business Area"
-        :disabled="isSubmitting"
-        @select="validate"
-      />
-      <p v-if="fieldErrors.business_unit_id" class="field-error">{{ fieldErrors.business_unit_id }}</p>
-      <p v-if="businessUnitsLoadFailed" class="field-error">
-        Daftar Business Area tidak dapat dimuat. Coba lagi saat online.
-      </p>
     </div>
 
     <button type="submit" class="submit-button" :disabled="isSubmitting">

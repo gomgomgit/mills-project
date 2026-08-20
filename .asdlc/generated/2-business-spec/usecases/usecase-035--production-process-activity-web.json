@@ -1,0 +1,72 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "ver": 1,
+  "id": "usecase-035--production-process-activity-web",
+  "name": "Pilih Stasiun (Web)",
+  "description": "User (Supervisor/Mill Management/Admin) membuka halaman Production Process Activity dari sidebar, melihat grid pemilihan stasiun, lalu memilih salah satu stasiun aktif untuk diarahkan ke Data Browser stasiun tersebut.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "related_screen_ids": [
+    "screen-035--production-process-activity-web"
+  ],
+  "preconditions": [
+    "User sudah login ke web app"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Klik menu 'Production Process Activity' di sidebar"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan grid 15 stasiun: 3 aktif (Weighbridge, Grading, Cages Track) dan 12 placeholder nonaktif"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Klik salah satu stasiun aktif"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Mengarahkan ke halaman Data Browser stasiun tersebut"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Klik Stasiun Disabled",
+      "trigger": "Step 3, stasiun yang diklik adalah placeholder nonaktif",
+      "steps": [
+        "System tidak melakukan navigasi / menampilkan info 'Belum tersedia'"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User berada di halaman Data Browser stasiun yang dipilih"
+  ],
+  "business_rules": [
+    "Hanya 3 stasiun MVP yang aktif secara fungsional"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Pilih Stasiun (Web) — berhasil",
+      "given": "User login sebagai Supervisor dan berada di halaman Production Process Activity",
+      "when": "User klik stasiun Weighbridge",
+      "then": "User diarahkan ke halaman Data Browser Weighbridge"
+    },
+    {
+      "scenario": "Pilih Stasiun (Web) — Klik Stasiun Disabled",
+      "given": "User berada di halaman Production Process Activity",
+      "when": "User klik salah satu dari 12 stasiun placeholder",
+      "then": "Tidak ada navigasi terjadi"
+    }
+  ]
+}

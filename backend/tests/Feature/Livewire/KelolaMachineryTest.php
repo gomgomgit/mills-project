@@ -20,9 +20,9 @@
  *  - `machinery_group_id` is the bare top-level bound property (like
  *    `station_id` on KelolaMachineryGroupTest.php); `selectedStationName`/
  *    `selectedBusinessUnitName` are display-only derived properties.
- *  - `$insurances`/`$taxPurchases` are the two repeatable child-row grids
- *    — addInsuranceRow()/removeInsuranceRow() (and the tax_purchases
- *    equivalents) are exercised directly, plus a persistence round-trip.
+ *  - `$insurances`/`$taxPurchases` are single-row sections (index 0 only,
+ *    one Asuransi row and one Pajak/Pembelian row per machinery — not a
+ *    repeatable grid); a blank row persists no child record at all.
  *  - `picture` is a WithFileUploads upload (mirrors
  *    tests/Feature/Livewire/KelolaCorporateTest.php's `logo` coverage,
  *    using UploadedFile::fake()->create() rather than ->image() per the
@@ -253,24 +253,18 @@ it('Nama kosong (create): shows a validation error under form.name and does not 
     expect(Machinery::count())->toBe(0);
 });
 
-// --- child-row grids: insurances ------------------------------------------------
+// --- single-row section: insurance ------------------------------------------------
 
-it('addInsuranceRow/removeInsuranceRow mutate the insurances array and persist correctly', function () {
+it('insurances.0.* fields persist as a single Asuransi row', function () {
     Livewire::actingAs($this->admin)
         ->test(KelolaMachinery::class)
         ->call('openCreateForm')
+        ->assertCount('insurances', 1)
         ->set('machinery_group_id', $this->group->id)
         ->set('form.equipment_code', 'EQ-LW-INS')
         ->set('form.name', 'Mesin Asuransi')
-        ->call('addInsuranceRow')
-        ->call('addInsuranceRow')
-        ->assertCount('insurances', 2)
         ->set('insurances.0.ownership', 'Perusahaan')
         ->set('insurances.0.insurance_policy_no', 'POL-LW-1')
-        ->set('insurances.1.ownership', 'Perusahaan')
-        ->set('insurances.1.insurance_policy_no', 'POL-LW-2')
-        ->call('removeInsuranceRow', 1)
-        ->assertCount('insurances', 1)
         ->call('save')
         ->assertHasNoErrors();
 
@@ -279,17 +273,30 @@ it('addInsuranceRow/removeInsuranceRow mutate the insurances array and persist c
     expect(MachineryInsurance::where('machinery_id', $machinery->id)->first()->insurance_policy_no)->toBe('POL-LW-1');
 });
 
-// --- child-row grids: tax_purchases ----------------------------------------------
-
-it('addTaxPurchaseRow/removeTaxPurchaseRow mutate the taxPurchases array and persist correctly', function () {
+it('leaving the insurance row entirely blank creates no MachineryInsurance record', function () {
     Livewire::actingAs($this->admin)
         ->test(KelolaMachinery::class)
         ->call('openCreateForm')
         ->set('machinery_group_id', $this->group->id)
+        ->set('form.equipment_code', 'EQ-LW-INS-BLANK')
+        ->set('form.name', 'Mesin Tanpa Asuransi')
+        ->call('save')
+        ->assertHasNoErrors();
+
+    $machinery = Machinery::where('equipment_code', 'EQ-LW-INS-BLANK')->firstOrFail();
+    expect(MachineryInsurance::where('machinery_id', $machinery->id)->count())->toBe(0);
+});
+
+// --- single-row section: tax / purchase ----------------------------------------------
+
+it('taxPurchases.0.* fields persist as a single Pajak/Pembelian row', function () {
+    Livewire::actingAs($this->admin)
+        ->test(KelolaMachinery::class)
+        ->call('openCreateForm')
+        ->assertCount('taxPurchases', 1)
+        ->set('machinery_group_id', $this->group->id)
         ->set('form.equipment_code', 'EQ-LW-TAX')
         ->set('form.name', 'Mesin Pajak')
-        ->call('addTaxPurchaseRow')
-        ->assertCount('taxPurchases', 1)
         ->set('taxPurchases.0.policy_type', 'Cash')
         ->set('taxPurchases.0.contact_name', 'Budi')
         ->call('save')
@@ -351,14 +358,14 @@ it('shows a validation error under picture when the file exceeds the max size', 
     expect(Machinery::where('equipment_code', 'EQ-LW-PICBIG')->exists())->toBeFalse();
 });
 
-// "closeForm" resets the form entirely, including the child-row grids.
-it('closeForm: resets the form, picture, and child-row grids and hides it', function () {
+// "closeForm" resets the form entirely, including the insurance/tax rows.
+it('closeForm: resets the form, picture, and insurance/tax rows and hides it', function () {
     Livewire::actingAs($this->admin)
         ->test(KelolaMachinery::class)
         ->call('openCreateForm')
         ->set('machinery_group_id', $this->group->id)
         ->set('form.equipment_code', 'EQ-LW-DRAFT')
-        ->call('addInsuranceRow')
+        ->set('insurances.0.ownership', 'Perusahaan')
         ->call('closeForm')
         ->assertSet('showForm', false)
         ->assertSet('form.equipment_code', '')

@@ -1,13 +1,13 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-08-20"
   },
   "id": "screen-029--kelola-business-unit",
   "name": "Kelola Business Unit",
   "module_id": "module-master-data",
-  "description": "Layar bagi Admin untuk mengelola data master Business Unit — mill/unit operasional di bawah Company. Admin dapat melihat daftar Business Unit (dapat difilter per Company), menambah Business Unit baru dengan profil lengkap (identitas, kontak, legal) dan memilih Company induk, mengedit data yang sudah ada, dan menghapus Business Unit yang tidak lagi memiliki Station terkait.",
+  "description": "Layar bagi Admin untuk mengelola data master Business Unit — mill/unit operasional di bawah Company. Admin dapat melihat daftar Business Unit (dapat difilter per Company), menambah Business Unit baru dengan profil lengkap (identitas, kontak, legal) dan memilih Company induk, mengedit data yang sudah ada, dan menghapus Business Unit yang tidak lagi memiliki Station terkait. Saat Business Unit baru dibuat, sistem otomatis membuat 15 Station kanonis untuk Business Unit tersebut.",
   "actors": [
     "actor-admin"
   ],
@@ -30,7 +30,7 @@
     },
     {
       "action": "Tambah Business Unit",
-      "description": "Membuat Business Unit baru dengan memilih Company induk dan mengisi kode, nama, serta profil lengkap (kontak, legal, kepegawaian, logo)",
+      "description": "Membuat Business Unit baru dengan memilih Company induk dan mengisi kode, nama, serta profil lengkap (kontak, legal, kepegawaian, logo). Sistem otomatis membuat 15 Station kanonis untuk Business Unit ini sekaligus.",
       "actor_ids": [
         "actor-admin"
       ]
@@ -55,13 +55,14 @@
     "Business Unit tidak dapat dihapus jika masih memiliki satu atau lebih Station terkait",
     "Hanya Admin yang dapat mengakses dan mengelola data Business Unit",
     "Business Unit harus terkait ke tepat satu Company yang sudah ada (dipilih via dropdown, bukan input bebas)",
-    "Field selain kode, nama, dan Company induk bersifat opsional"
+    "Field selain kode, nama, dan Company induk bersifat opsional",
+    "Saat Business Unit baru dibuat, sistem otomatis membuat 15 Station kanonis — 3 aktif (Weighbridge, Grading, Cages Track) dan 12 placeholder nonaktif untuk skema stasiun masa depan (Sterilizer, Thresher, Press, Clarification, Kernel Plant, Boiler, Effluent Treatment, Loading Ramp, Digester, Engine Room, Water Treatment, Bulking Storage). Admin tidak perlu membuat Station ini secara manual lewat Kelola Station — Kelola Station tetap dapat dipakai untuk menambah Station lain di luar 15 kanonis, atau mengedit/menghapusnya."
   ],
   "usecase_ids": [
     "usecase-029--kelola-business-unit"
   ],
   "edge_cases": [
-    "Percobaan menghapus Business Unit yang masih memiliki Station terkait — ditolak dengan pesan penjelasan",
+    "Percobaan menghapus Business Unit yang masih memiliki Station terkait — ditolak dengan pesan penjelasan (termasuk 15 Station kanonis yang dibuat otomatis)",
     "Percobaan menyimpan kode Business Unit yang sudah dipakai Business Unit lain — validasi gagal (berlaku global, bukan per-Company)",
     "Belum ada Company sama sekali — form Tambah Business Unit tidak dapat diisi, arahkan Admin untuk membuat Company dahulu",
     "Belum ada Business Unit sama sekali — tampilkan empty state dengan ajakan tambah data pertama",

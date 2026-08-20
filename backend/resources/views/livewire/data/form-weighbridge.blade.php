@@ -163,7 +163,7 @@
     @endif
 
     <style>
-        .fw-page { display: flex; flex-direction: column; gap: 20px; max-width: 720px; }
+        .fw-page { display: flex; flex-direction: column; gap: 20px; max-width: 960px; }
         .fw-page__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
         .fw-page__title { margin: 0 0 4px; font-size: 20px; font-weight: 700; }
         .fw-page__subtitle { margin: 0; font-size: 14px; color: var(--color-text-muted, #6b7280); }
@@ -173,7 +173,10 @@
         .fw-alert { padding: 12px 16px; border-radius: var(--radius-input, 6px); font-size: 14px; }
         .fw-alert--error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
         .fw-form { display: flex; flex-direction: column; gap: 20px; }
-        .fw-section { background: #fff; border: 1px solid var(--color-border, #d1d5db); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+        .fw-section { background: #fff; border: 1px solid var(--color-border, #d1d5db); border-radius: 8px; padding: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 20px; }
+        .fw-section > *:not(.fw-field) { grid-column: 1 / -1; }
+        .fw-field--full { grid-column: 1 / -1; }
+        @media (max-width: 640px) { .fw-section { grid-template-columns: 1fr; } }
         .fw-section__title { margin: 0; font-size: 16px; font-weight: 700; }
         .fw-field { display: flex; flex-direction: column; gap: 4px; }
         .fw-field__label { font-size: 13px; font-weight: 500; color: var(--color-text, #1f2937); }

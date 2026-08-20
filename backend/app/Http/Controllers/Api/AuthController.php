@@ -32,7 +32,14 @@ class AuthController extends Controller
     {
         $username = (string) $request->input('username');
         $password = (string) $request->input('password');
-        $businessUnitId = (string) $request->input('business_unit_id');
+        // Optional as of this session: a user with their own business_unit_id
+        // assigned (operator/supervisor/mill_management) no longer needs to
+        // pick one — AuthService::login() auto-derives it from the account
+        // when omitted. Admin (no assigned business_unit_id) must still send
+        // one explicitly. $request->filled() (not ->has()) so an
+        // empty-string value is also treated as "omitted", not as a literal
+        // business_unit_id to match against.
+        $businessUnitId = $request->filled('business_unit_id') ? (string) $request->input('business_unit_id') : null;
 
         // Presence (not truthiness) of `device_name` in the payload selects
         // the mobile/token branch — see AuthService::login()'s $deviceName

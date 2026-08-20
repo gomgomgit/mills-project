@@ -47,9 +47,10 @@ it('throws a 422 ValidationException when a required field is missing', function
     expect(fn () => $this->authService->login('someuser', '', $this->businessUnit->id))
         ->toThrow(ValidationException::class);
 
-    // business_unit_id missing
-    expect(fn () => $this->authService->login('someuser', 'Passw0rd!', ''))
-        ->toThrow(ValidationException::class);
+    // business_unit_id is intentionally NOT required — see the
+    // auto-derive tests below (an operator/supervisor/mill_management
+    // account already has one assigned, so the caller no longer has to
+    // send it).
 });
 
 it('throws a 422 ValidationException when the password format is invalid', function (string $badPassword) {
@@ -96,6 +97,26 @@ it('throws BusinessAreaMismatchException (403) when business_unit_id does not ma
         ->create();
 
     expect(fn () => $this->authService->login($user->username, 'Passw0rd!', $otherBusinessUnit->id))
+        ->toThrow(BusinessAreaMismatchException::class);
+});
+
+it('auto-derives business_unit_id from the account when it is omitted (null)', function () {
+    $user = User::factory()
+        ->password('Passw0rd!')
+        ->forBusinessUnit($this->businessUnit)
+        ->create();
+
+    $result = $this->authService->login($user->username, 'Passw0rd!', null);
+
+    expect($result['business_unit']['id'])->toBe($this->businessUnit->id);
+});
+
+it('throws BusinessAreaMismatchException (403) when business_unit_id is omitted and the account has none assigned', function () {
+    $user = User::factory()
+        ->password('Passw0rd!')
+        ->create(['business_unit_id' => null]);
+
+    expect(fn () => $this->authService->login($user->username, 'Passw0rd!', null))
         ->toThrow(BusinessAreaMismatchException::class);
 });
 

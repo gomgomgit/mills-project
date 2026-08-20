@@ -1,8 +1,8 @@
 /**
  * LoginForm.spec.ts — screen-002--login-mobile / usecase-002--login-mobile.
  *
- * Component tests for mobile/src/components/LoginForm.vue, covering all 7
- * test_scenarios' component_test entries (component: "LoginForm") for the
+ * Component tests for mobile/src/components/LoginForm.vue, covering the
+ * component_test scenarios (component: "LoginForm") for the
  * POST /api/login (mobile, device_name) use case:
  *   1. Login Mobile — berhasil
  *   2. Tidak Ada Koneksi Saat Login Pertama
@@ -13,7 +13,14 @@
  *      stores/auth.ts's restoreSession(), per the app-boot/offline nature
  *      of that edge case.)
  *   6. Login Mobile — Password Tidak Memenuhi Format Minimum
- *   7. Login Mobile — Business Area Tidak Sesuai Penugasan
+ *   7. Login Mobile — Akun Tanpa Business Unit (server-side auto-derive
+ *      failure — replaces the old "Business Area Tidak Sesuai Penugasan"
+ *      scenario, which required a client-side Business Area picker that no
+ *      longer exists: business_unit_id is no longer collected in this form
+ *      at all — AuthService::login() now auto-derives it from the account
+ *      when the request omits it. This scenario now covers the one
+ *      remaining reachable server-side rejection: an account with no
+ *      business_unit_id assigned has nothing to auto-derive.)
  *
  * Mocking strategy:
  *   - '@/services/apiClient' is mocked at module level. stores/auth.ts's
@@ -32,13 +39,6 @@
  *     useConnectivityGuard's hasStoredToken() can be controlled per test.
  *   - vue-router's useRouter/useRoute are mocked at module level (LoginForm
  *     is rendered standalone, not through a mounted router).
- *
- * KNOWN GAP (see LoginForm.vue's loadBusinessUnits() comment and this
- * screen's implementation known_issues): there is no `GET
- * /api/business-units` endpoint implemented yet. These tests mock
- * apiClient.get's resolution directly to supply the Business Area dropdown
- * options, so they are not blocked by that gap. Once the real endpoint
- * exists, this mock keeps working unchanged (it mocks the same call site).
  *
  * '@/services/localSchema' is mocked at module level too: stores/auth.ts's
  * real login() (exercised here, see above) now calls
@@ -92,11 +92,6 @@ vi.mock('@/services/tokenStorage', () => ({
   },
 }))
 
-const MOCK_BUSINESS_UNITS = [
-  { id: 'bu-001', name: 'Mill A' },
-  { id: 'bu-002', name: 'Mill B' },
-]
-
 /**
  * Small controllable-promise helper so "loading state shown" can be
  * asserted while the mocked apiClient.post call is still pending.
@@ -119,51 +114,20 @@ async function mountLoginForm() {
     },
   })
 
-  // Let onMounted's loadBusinessUnits() resolve so the dropdown is
-  // populated before tests interact with it.
   await flushPromises()
 
   return wrapper
 }
 
-// --- SearchableSelect.vue interaction helpers -----------------------------
-// Business Area is now a SearchableSelect.vue instance — `id="business_unit_id"`
-// is bound to its inner <input> (SearchableSelect.vue's own `<label for>`
-// convention), so `#business_unit_id` still resolves to a single focusable
-// element, same as before. Selection is now driven by opening the popup
-// (focus) and clicking the `role="option"` item with the exact label text,
-// the same open-then-click sequence a real user does, rather than a single
-// synchronous `.setValue(id)` DOM assignment. See FormGradingView.spec.ts's
-// header comment for the fuller rationale (mirrored here).
-async function chooseBusinessUnit(
-  wrapper: Awaited<ReturnType<typeof mountLoginForm>>,
-  unitName: string,
-): Promise<void> {
-  const root = wrapper.find('#business_unit_id')
-  await root.trigger('focus')
-
-  const match = wrapper
-    .findAll('[role="option"]')
-    .find((option) => option.text() === unitName)
-
-  if (!match) {
-    throw new Error(`chooseBusinessUnit: no option labeled "${unitName}" found`)
-  }
-
-  await match.trigger('mousedown')
-}
-
 async function fillValidForm(wrapper: Awaited<ReturnType<typeof mountLoginForm>>) {
   await wrapper.find('#username').setValue('operator01')
   await wrapper.find('#password').setValue('Passw0rd!')
-  await chooseBusinessUnit(wrapper, 'Mill A')
 }
 
 describe('LoginForm — POST /api/login (mobile, device_name)', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    vi.mocked(apiClient.get).mockResolvedValue({ data: MOCK_BUSINESS_UNITS })
     vi.mocked(tokenStorage.hasToken).mockReturnValue(true)
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true })
   })
@@ -198,14 +162,19 @@ describe('LoginForm — POST /api/login (mobile, device_name)', () => {
     await submitPromise
     await flushPromises()
 
+    // business_unit_id is intentionally NOT sent — the backend auto-derives
+    // it from the authenticated account (AuthService::login() step 5).
     expect(apiClient.post).toHaveBeenCalledWith(
       '/api/login',
       expect.objectContaining({
         username: 'operator01',
         password: 'Passw0rd!',
-        business_unit_id: 'bu-001',
         device_name: expect.any(String),
       }),
+    )
+    expect(apiClient.post).not.toHaveBeenCalledWith(
+      '/api/login',
+      expect.objectContaining({ business_unit_id: expect.anything() }),
     )
     expect(pushMock).toHaveBeenCalledWith('/home')
     expect(tokenStorage.setToken).toHaveBeenCalledWith('sanctum-token-abc')
@@ -271,7 +240,6 @@ describe('LoginForm — POST /api/login (mobile, device_name)', () => {
 
     await wrapper.find('#username').setValue('operator01')
     await wrapper.find('#password').setValue('abc')
-    await chooseBusinessUnit(wrapper, 'Mill A')
 
     await wrapper.find('form').trigger('submit')
     await flushPromises()
@@ -284,17 +252,15 @@ describe('LoginForm — POST /api/login (mobile, device_name)', () => {
     )
   })
 
-  // Scenario: "Login Mobile — Business Area Tidak Sesuai Penugasan"
-  it('scenario: business area tidak sesuai penugasan — shows mismatch error, login rejected', async () => {
+  // Scenario: "Login Mobile — Akun Tanpa Business Unit"
+  it('scenario: akun tanpa business unit — server rejects auto-derive, login ditolak', async () => {
     vi.mocked(apiClient.post).mockRejectedValue({
       message: 'Business area yang dipilih tidak sesuai dengan akses Anda.',
       status: 403,
     })
 
     const wrapper = await mountLoginForm()
-    await wrapper.find('#username').setValue('operator01')
-    await wrapper.find('#password').setValue('Passw0rd!')
-    await chooseBusinessUnit(wrapper, 'Mill B')
+    await fillValidForm(wrapper)
 
     await wrapper.find('form').trigger('submit')
     await flushPromises()

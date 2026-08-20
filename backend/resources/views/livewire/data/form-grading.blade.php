@@ -120,7 +120,7 @@
                         <span class="fg-field__error">{{ $errors_['quantity'] }}</span>
                     @endif
                 </div>
-                <div class="fg-field">
+                <div class="fg-field fg-field--full">
                     <label class="fg-field__label" for="note">Note</label>
                     <textarea id="note" wire:model="form.note" class="fg-input" data-testid="note-input"></textarea>
                 </div>
@@ -193,7 +193,7 @@
     @endif
 
     <style>
-        .fg-page { display: flex; flex-direction: column; gap: 20px; max-width: 860px; }
+        .fg-page { display: flex; flex-direction: column; gap: 20px; max-width: 1040px; }
         .fg-page__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
         .fg-page__title { margin: 0 0 4px; font-size: 20px; font-weight: 700; }
         .fg-page__subtitle { margin: 0; font-size: 14px; color: var(--color-text-muted, #6b7280); }
@@ -203,7 +203,10 @@
         .fg-alert { padding: 12px 16px; border-radius: var(--radius-input, 6px); font-size: 14px; }
         .fg-alert--error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
         .fg-form { display: flex; flex-direction: column; gap: 20px; }
-        .fg-section { background: #fff; border: 1px solid var(--color-border, #d1d5db); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+        .fg-section { background: #fff; border: 1px solid var(--color-border, #d1d5db); border-radius: 8px; padding: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 20px; }
+        .fg-section > *:not(.fg-field) { grid-column: 1 / -1; }
+        .fg-field--full { grid-column: 1 / -1; }
+        @media (max-width: 640px) { .fg-section { grid-template-columns: 1fr; } }
         .fg-section__title { margin: 0; font-size: 16px; font-weight: 700; }
         .fg-field { display: flex; flex-direction: column; gap: 4px; }
         .fg-field__label { font-size: 13px; font-weight: 500; color: var(--color-text, #1f2937); }

@@ -33,15 +33,14 @@ use Livewire\WithFileUploads;
  *    `$selectedStationName`/`$selectedBusinessUnitName` are DISPLAY-ONLY
  *    properties (derived via updatedMachineryGroupId()/openEditForm()),
  *    never sent to the service.
- *  - `$insurances`/`$taxPurchases` are public arrays of plain field-map
- *    rows, bound via `wire:model="insurances.<index>.<field>"` — the two
- *    repeatable child-row grids. addInsuranceRow()/removeInsuranceRow()
- *    (and the tax_purchases equivalents) mutate these arrays directly;
- *    save() always sends both arrays to the service (replace-all
- *    semantics — see MachineryService::update()'s docblock — this
- *    component always has both keys "present" since they are always
- *    initialized, even to an empty array, so it always intends to
- *    replace/set them).
+ *  - `$insurances`/`$taxPurchases` are single-element public arrays
+ *    (index 0 only — one Asuransi row and one Pajak/Pembelian row per
+ *    machinery in practice, not a repeatable history grid), bound via
+ *    `wire:model="insurances.0.<field>"`. save() sends `[$row]` to the
+ *    service only if the row has at least one non-blank field, else `[]`
+ *    (see rowIsBlank()) — the service still applies replace-all
+ *    semantics on update() (see MachineryService::update()'s docblock),
+ *    so this component always sends both keys, even as an empty array.
  *  - `picture` is a WithFileUploads upload, mirrors KelolaCorporate's
  *    `logo` handling exactly (PREVIEWABLE_PICTURE_EXTENSIONS guards the
  *    view's ->temporaryUrl() call the same way KelolaCorporate's
@@ -194,26 +193,22 @@ class KelolaMachinery extends Component
         ];
     }
 
-    public function addInsuranceRow(): void
+    /**
+     * A machinery unit only ever has one Asuransi row and one Pajak/
+     * Pembelian row in practice (not a true repeatable history grid) —
+     * the form binds directly to index 0 of each array (see
+     * openCreateForm()/openEditForm()/save()), so no add/remove-row
+     * actions exist anymore.
+     */
+    protected function rowIsBlank(array $row): bool
     {
-        $this->insurances[] = $this->emptyInsuranceRow();
-    }
+        foreach ($row as $value) {
+            if ($value !== null && $value !== '') {
+                return false;
+            }
+        }
 
-    public function removeInsuranceRow(int $index): void
-    {
-        unset($this->insurances[$index]);
-        $this->insurances = array_values($this->insurances);
-    }
-
-    public function addTaxPurchaseRow(): void
-    {
-        $this->taxPurchases[] = $this->emptyTaxPurchaseRow();
-    }
-
-    public function removeTaxPurchaseRow(int $index): void
-    {
-        unset($this->taxPurchases[$index]);
-        $this->taxPurchases = array_values($this->taxPurchases);
+        return true;
     }
 
     /**
@@ -270,8 +265,8 @@ class KelolaMachinery extends Component
         $this->form = $this->emptyForm();
         $this->picture = null;
         $this->existingPictureUrl = null;
-        $this->insurances = [];
-        $this->taxPurchases = [];
+        $this->insurances = [$this->emptyInsuranceRow()];
+        $this->taxPurchases = [$this->emptyTaxPurchaseRow()];
         $this->formErrorMessage = null;
         $this->showForm = true;
     }
@@ -305,24 +300,31 @@ class KelolaMachinery extends Component
             ? Storage::disk(MachineryService::PICTURE_DISK)->url($machinery->picture)
             : null;
 
-        $this->insurances = $machinery->insurances->map(fn ($insurance) => [
-            'ownership' => (string) ($insurance->ownership ?? ''),
-            'insurance_policy_no' => (string) ($insurance->insurance_policy_no ?? ''),
-            'insurance_company' => (string) ($insurance->insurance_company ?? ''),
-            'insurance_expiry_date' => optional($insurance->insurance_expiry_date)->toDateString() ?? '',
-            'premium' => $insurance->premium !== null ? (string) $insurance->premium : '',
-            'amount_insured' => $insurance->amount_insured !== null ? (string) $insurance->amount_insured : '',
-        ])->all();
+        // Only one Asuransi / Pajak & Pembelian row is ever used per
+        // machinery in practice — the form binds a single fixed-field
+        // section, not a repeatable grid. If legacy data somehow has
+        // more than one row, only the first is shown/editable here;
+        // save() replaces all rows with just this one on the next save.
+        $insurance = $machinery->insurances->first();
+        $this->insurances = [[
+            'ownership' => (string) (optional($insurance)->ownership ?? ''),
+            'insurance_policy_no' => (string) (optional($insurance)->insurance_policy_no ?? ''),
+            'insurance_company' => (string) (optional($insurance)->insurance_company ?? ''),
+            'insurance_expiry_date' => optional(optional($insurance)->insurance_expiry_date)->toDateString() ?? '',
+            'premium' => optional($insurance)->premium !== null ? (string) $insurance->premium : '',
+            'amount_insured' => optional($insurance)->amount_insured !== null ? (string) $insurance->amount_insured : '',
+        ]];
 
-        $this->taxPurchases = $machinery->taxPurchases->map(fn ($taxPurchase) => [
-            'purchase_date' => optional($taxPurchase->purchase_date)->toDateString() ?? '',
-            'purchase_cost' => $taxPurchase->purchase_cost !== null ? (string) $taxPurchase->purchase_cost : '',
-            'policy_type' => (string) ($taxPurchase->policy_type ?? ''),
-            'contact_name' => (string) ($taxPurchase->contact_name ?? ''),
-            'contact_phone' => (string) ($taxPurchase->contact_phone ?? ''),
-            'contact_fax' => (string) ($taxPurchase->contact_fax ?? ''),
-            'contact_email' => (string) ($taxPurchase->contact_email ?? ''),
-        ])->all();
+        $taxPurchase = $machinery->taxPurchases->first();
+        $this->taxPurchases = [[
+            'purchase_date' => optional(optional($taxPurchase)->purchase_date)->toDateString() ?? '',
+            'purchase_cost' => optional($taxPurchase)->purchase_cost !== null ? (string) $taxPurchase->purchase_cost : '',
+            'policy_type' => (string) (optional($taxPurchase)->policy_type ?? ''),
+            'contact_name' => (string) (optional($taxPurchase)->contact_name ?? ''),
+            'contact_phone' => (string) (optional($taxPurchase)->contact_phone ?? ''),
+            'contact_fax' => (string) (optional($taxPurchase)->contact_fax ?? ''),
+            'contact_email' => (string) (optional($taxPurchase)->contact_email ?? ''),
+        ]];
 
         $this->showForm = true;
     }
@@ -367,10 +369,15 @@ class KelolaMachinery extends Component
 
         $service = app(MachineryService::class);
 
+        $insuranceRow = $this->insurances[0] ?? [];
+        $taxPurchaseRow = $this->taxPurchases[0] ?? [];
+
         $payload = array_merge($this->form, [
             'machinery_group_id' => $this->machinery_group_id,
-            'insurances' => $this->insurances,
-            'tax_purchases' => $this->taxPurchases,
+            // Single-row sections: an all-blank row means "no data", so
+            // nothing is sent (no empty child record gets created).
+            'insurances' => $this->rowIsBlank($insuranceRow) ? [] : [$insuranceRow],
+            'tax_purchases' => $this->rowIsBlank($taxPurchaseRow) ? [] : [$taxPurchaseRow],
         ]);
 
         /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null $picture */

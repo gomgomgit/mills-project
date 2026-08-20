@@ -32,6 +32,14 @@ Route::middleware(['auth', 'role:admin,supervisor,mill_management'])
     ->get('/settings/password', \App\Livewire\Settings\ChangePasswordForm::class)
     ->name('settings.password');
 
+// screen-035--production-process-activity-web
+// Pure static Blade view (no Livewire component, no controller/service, per
+// tech-spec v1) — the 15-tile station picker that replaces the 6 individual
+// sidebar shortcuts (Data Browser + Input Weighbridge/Grading/Cages Track).
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/production-process-activity', fn () => view('data.production-process-activity'))
+    ->name('production-process-activity');
+
 // screen-016--data-browser-weighbridge-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/data/weighbridge', \App\Livewire\Data\DataBrowserWeighbridge::class)

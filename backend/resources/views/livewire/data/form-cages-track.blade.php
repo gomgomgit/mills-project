@@ -95,7 +95,7 @@
                     <span class="fc-field__hint">Jumlah cage yang akan di-tipping sesi ini — tidak menentukan jumlah kolom checklist di bawah.</span>
                 </div>
 
-                <div class="fc-field">
+                <div class="fc-field fc-field--full">
                     <label class="fc-field__label" for="note">Note</label>
                     <textarea id="note" wire:model="form.note" class="fc-input" data-testid="note-input"></textarea>
                 </div>
@@ -198,7 +198,7 @@
     @endif
 
     <style>
-        .fc-page { display: flex; flex-direction: column; gap: 20px; max-width: 900px; }
+        .fc-page { display: flex; flex-direction: column; gap: 20px; max-width: 1080px; }
         .fc-page__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
         .fc-page__title { margin: 0 0 4px; font-size: 20px; font-weight: 700; }
         .fc-page__subtitle { margin: 0; font-size: 14px; color: var(--color-text-muted, #6b7280); }
@@ -209,7 +209,10 @@
         .fc-alert { padding: 12px 16px; border-radius: var(--radius-input, 6px); font-size: 14px; }
         .fc-alert--error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
         .fc-form { display: flex; flex-direction: column; gap: 20px; }
-        .fc-section { background: #fff; border: 1px solid var(--color-border, #d1d5db); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+        .fc-section { background: #fff; border: 1px solid var(--color-border, #d1d5db); border-radius: 8px; padding: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 20px; }
+        .fc-section > *:not(.fc-field) { grid-column: 1 / -1; }
+        .fc-field--full { grid-column: 1 / -1; }
+        @media (max-width: 640px) { .fc-section { grid-template-columns: 1fr; } }
         .fc-section__title { margin: 0; font-size: 16px; font-weight: 700; }
         .fc-field { display: flex; flex-direction: column; gap: 4px; }
         .fc-field__label { font-size: 13px; font-weight: 500; color: var(--color-text, #1f2937); }

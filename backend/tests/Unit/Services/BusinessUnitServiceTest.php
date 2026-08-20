@@ -263,7 +263,7 @@ it('creates a business unit and returns the expected row shape', function () {
     expect($result['name'])->toBe('Mill Unit 1');
     expect($result['company_id'])->toBe($company->id);
     expect($result['company_name'])->toBe('PT Induk Company');
-    expect($result['station_count'])->toBe(0);
+    expect($result['station_count'])->toBe(15);
     expect($result['logo'])->toBeNull();
     expect($result['logo_url'])->toBeNull();
     expect(BusinessUnit::where('name', 'Mill Unit 1')->exists())->toBeTrue();
@@ -571,4 +571,46 @@ it('accepts, persists, and returns the optional fields when updated', function (
     expect($result['address'])->toBe('Jl. Industri No. 1');
     expect($result['website'])->toBe('https://milllengkap.co.id');
     expect($businessUnit->fresh()->address)->toBe('Jl. Industri No. 1');
+});
+
+// New rule: create() auto-provisions the 15 canonical Station rows
+// (business_rules_applied, screen-029 tech-spec ver 4) — 3 active
+// (weighbridge/grading/cages-track) + 12 inactive `other`-typed
+// placeholders, atomically alongside the Business Unit insert.
+it('auto-creates the 15 canonical stations when a new business unit is created', function () {
+    $company = Company::factory()->create();
+
+    $result = $this->service->create([
+        'company_id' => $company->id,
+        'code' => 'BU-2000',
+        'name' => 'Mill Baru',
+    ]);
+
+    $stations = Station::where('business_unit_id', $result['id'])->get();
+
+    expect($stations)->toHaveCount(15);
+    expect($stations->where('type', 'weighbridge')->where('is_active', true))->toHaveCount(1);
+    expect($stations->where('type', 'grading')->where('is_active', true))->toHaveCount(1);
+    expect($stations->where('type', 'cages-track')->where('is_active', true))->toHaveCount(1);
+    expect($stations->where('type', 'other')->where('is_active', false))->toHaveCount(12);
+    expect($stations->pluck('name')->sort()->values()->all())->toBe([
+        'Boiler', 'Bulking Storage', 'Cages Track', 'Clarification', 'Digester',
+        'Effluent Treatment', 'Engine Room', 'Grading', 'Kernel Plant', 'Loading Ramp',
+        'Press', 'Sterilizer', 'Thresher', 'Water Treatment', 'Weighbridge',
+    ]);
+    expect($result['station_count'])->toBe(15);
+});
+
+// The reported station_count reflects the auto-created 15, confirming
+// toRow()'s loadCount('stations') runs after the transaction commits.
+it('reflects the auto-created station_count immediately in create()\'s return value', function () {
+    $company = Company::factory()->create();
+
+    $result = $this->service->create([
+        'company_id' => $company->id,
+        'code' => 'BU-2001',
+        'name' => 'Mill Baru Lain',
+    ]);
+
+    expect($result['station_count'])->toBe(15);
 });

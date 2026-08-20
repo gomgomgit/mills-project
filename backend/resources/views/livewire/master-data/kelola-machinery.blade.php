@@ -113,21 +113,21 @@
     @endif
 
     @if ($showForm)
-        <div class="kc-modal-backdrop" wire:key="machinery-form-backdrop">
-            <div class="kc-modal kc-modal--wide" role="dialog" aria-modal="true">
-                <h3 class="kc-modal__title">
-                    {{ $editingId !== null ? 'Edit Machinery' : 'Tambah Machinery' }}
-                </h3>
-
+        <x-modal
+            :title="$editingId !== null ? 'Edit Machinery' : 'Tambah Machinery'"
+            wide
+            submit="save"
+            backdrop-key="machinery-form-backdrop"
+        >
+            <x-slot:error>
                 @if ($formErrorMessage)
                     <div class="kc-alert" role="alert">
                         {{ $formErrorMessage }}
                     </div>
                 @endif
+            </x-slot:error>
 
-                <form wire:submit="save" novalidate>
-                    <div class="kc-modal__body">
-                        {{-- Identity --}}
+            {{-- Identity --}}
                         <div class="kc-form-section">
                             <h4 class="kc-form-section__title">Identitas</h4>
                             <div class="kc-form-grid">
@@ -252,115 +252,71 @@
                             </div>
                         </div>
 
-                        {{-- Insurance grid --}}
+                        {{-- Insurance — one row per machinery, plain fields (not a repeatable grid) --}}
                         <div class="kc-form-section">
-                            <div class="kc-form-section__header">
-                                <h4 class="kc-form-section__title">Asuransi</h4>
-                                <button type="button" wire:click="addInsuranceRow" class="kc-button kc-button--ghost kc-button--sm">
-                                    + Tambah Baris Asuransi
-                                </button>
+                            <h4 class="kc-form-section__title">Asuransi</h4>
+                            <div class="kc-form-grid">
+                                @foreach ([
+                                    'ownership' => ['Kepemilikan', 'text'],
+                                    'insurance_policy_no' => ['No. Polis', 'text'],
+                                    'insurance_company' => ['Perusahaan Asuransi', 'text'],
+                                    'insurance_expiry_date' => ['Tgl Kadaluarsa', 'date'],
+                                    'premium' => ['Premi', 'decimal'],
+                                    'amount_insured' => ['Jml Diasuransikan', 'decimal'],
+                                ] as $field => [$label, $type]
+                                )
+                                    <div class="kc-form-field">
+                                        <label for="insurance_{{ $field }}" class="kc-form-field__label">{{ $label }}</label>
+                                        <input
+                                            type="{{ $type === 'decimal' ? 'text' : $type }}"
+                                            @if ($type === 'decimal') inputmode="decimal" @endif
+                                            id="insurance_{{ $field }}"
+                                            wire:model="insurances.0.{{ $field }}"
+                                            class="kc-form-field__input"
+                                        >
+                                    </div>
+                                @endforeach
                             </div>
-
-                            @if (empty($insurances))
-                                <p class="kc-grid-empty">Belum ada data asuransi.</p>
-                            @else
-                                <div class="kc-child-grid-wrap">
-                                    <table class="kc-child-grid">
-                                        <thead>
-                                            <tr>
-                                                <th>Kepemilikan</th>
-                                                <th>No. Polis</th>
-                                                <th>Perusahaan Asuransi</th>
-                                                <th>Tgl Kadaluarsa</th>
-                                                <th>Premi</th>
-                                                <th>Jml Diasuransikan</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach ($insurances as $index => $row)
-                                                <tr wire:key="insurance-row-{{ $index }}">
-                                                    <td><input type="text" wire:model="insurances.{{ $index }}.ownership" class="kc-form-field__input"></td>
-                                                    <td><input type="text" wire:model="insurances.{{ $index }}.insurance_policy_no" class="kc-form-field__input"></td>
-                                                    <td><input type="text" wire:model="insurances.{{ $index }}.insurance_company" class="kc-form-field__input"></td>
-                                                    <td><input type="date" wire:model="insurances.{{ $index }}.insurance_expiry_date" class="kc-form-field__input"></td>
-                                                    <td><input type="text" inputmode="decimal" wire:model="insurances.{{ $index }}.premium" class="kc-form-field__input"></td>
-                                                    <td><input type="text" inputmode="decimal" wire:model="insurances.{{ $index }}.amount_insured" class="kc-form-field__input"></td>
-                                                    <td>
-                                                        <button type="button" wire:click="removeInsuranceRow({{ $index }})" class="kc-button kc-button--ghost kc-button--sm kc-button--danger-text">
-                                                            Hapus
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            @endif
                         </div>
 
-                        {{-- Tax / Purchase grid --}}
+                        {{-- Tax / Purchase — one row per machinery, plain fields (not a repeatable grid) --}}
                         <div class="kc-form-section">
-                            <div class="kc-form-section__header">
-                                <h4 class="kc-form-section__title">Pajak &amp; Pembelian</h4>
-                                <button type="button" wire:click="addTaxPurchaseRow" class="kc-button kc-button--ghost kc-button--sm">
-                                    + Tambah Baris Pajak/Pembelian
-                                </button>
+                            <h4 class="kc-form-section__title">Pajak &amp; Pembelian</h4>
+                            <div class="kc-form-grid">
+                                @foreach ([
+                                    'purchase_date' => ['Tgl Pembelian', 'date'],
+                                    'purchase_cost' => ['Biaya Pembelian', 'decimal'],
+                                    'policy_type' => ['Jenis Polis', 'text'],
+                                    'contact_name' => ['Nama Kontak', 'text'],
+                                    'contact_phone' => ['Telp Kontak', 'text'],
+                                    'contact_fax' => ['Fax Kontak', 'text'],
+                                    'contact_email' => ['Email Kontak', 'email'],
+                                ] as $field => [$label, $type]
+                                )
+                                    <div class="kc-form-field">
+                                        <label for="tax_{{ $field }}" class="kc-form-field__label">{{ $label }}</label>
+                                        <input
+                                            type="{{ $type === 'decimal' ? 'text' : $type }}"
+                                            @if ($type === 'decimal') inputmode="decimal" @endif
+                                            id="tax_{{ $field }}"
+                                            wire:model="taxPurchases.0.{{ $field }}"
+                                            class="kc-form-field__input"
+                                        >
+                                    </div>
+                                @endforeach
                             </div>
-
-                            @if (empty($taxPurchases))
-                                <p class="kc-grid-empty">Belum ada data pajak/pembelian.</p>
-                            @else
-                                <div class="kc-child-grid-wrap">
-                                    <table class="kc-child-grid">
-                                        <thead>
-                                            <tr>
-                                                <th>Tgl Pembelian</th>
-                                                <th>Biaya Pembelian</th>
-                                                <th>Jenis Polis</th>
-                                                <th>Nama Kontak</th>
-                                                <th>Telp Kontak</th>
-                                                <th>Fax Kontak</th>
-                                                <th>Email Kontak</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach ($taxPurchases as $index => $row)
-                                                <tr wire:key="tax-purchase-row-{{ $index }}">
-                                                    <td><input type="date" wire:model="taxPurchases.{{ $index }}.purchase_date" class="kc-form-field__input"></td>
-                                                    <td><input type="text" inputmode="decimal" wire:model="taxPurchases.{{ $index }}.purchase_cost" class="kc-form-field__input"></td>
-                                                    <td><input type="text" wire:model="taxPurchases.{{ $index }}.policy_type" class="kc-form-field__input"></td>
-                                                    <td><input type="text" wire:model="taxPurchases.{{ $index }}.contact_name" class="kc-form-field__input"></td>
-                                                    <td><input type="text" wire:model="taxPurchases.{{ $index }}.contact_phone" class="kc-form-field__input"></td>
-                                                    <td><input type="text" wire:model="taxPurchases.{{ $index }}.contact_fax" class="kc-form-field__input"></td>
-                                                    <td><input type="email" wire:model="taxPurchases.{{ $index }}.contact_email" class="kc-form-field__input"></td>
-                                                    <td>
-                                                        <button type="button" wire:click="removeTaxPurchaseRow({{ $index }})" class="kc-button kc-button--ghost kc-button--sm kc-button--danger-text">
-                                                            Hapus
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            @endif
                         </div>
-                    </div>
 
-                    <div class="kc-modal__actions">
-                        <button type="button" wire:click="closeForm" class="kc-button kc-button--ghost">
-                            Batal
-                        </button>
-                        <button type="submit" class="kc-button kc-button--primary" wire:loading.attr="disabled" wire:target="save">
-                            <span wire:loading.remove wire:target="save">Simpan</span>
-                            <span wire:loading wire:target="save">Menyimpan&hellip;</span>
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+            <x-slot:actions>
+                <button type="button" wire:click="closeForm" class="kc-button kc-button--ghost">
+                    Batal
+                </button>
+                <button type="submit" class="kc-button kc-button--primary" wire:loading.attr="disabled" wire:target="save">
+                    <span wire:loading.remove wire:target="save">Simpan</span>
+                    <span wire:loading wire:target="save">Menyimpan&hellip;</span>
+                </button>
+            </x-slot:actions>
+        </x-modal>
     @endif
 
     <style>
@@ -588,51 +544,13 @@
             cursor: not-allowed;
         }
 
-        .kc-modal-backdrop {
-            position: fixed;
-            inset: 0;
-            background: rgba(17, 24, 39, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 16px;
-            z-index: 50;
-        }
-
-        .kc-modal {
-            width: 100%;
-            max-width: 420px;
-            background: #fff;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-        }
-
-        .kc-modal--wide {
-            max-width: 920px;
-            max-height: 90vh;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .kc-modal__title {
-            margin: 0 0 16px;
-            font-size: 17px;
-            font-weight: 700;
-        }
-
-        .kc-modal__body {
-            overflow-y: auto;
-            padding-right: 4px;
-            flex: 1;
-        }
-
-        .kc-modal__actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 8px;
-            margin-top: 20px;
-        }
+        /* Modal shell (backdrop/box/title/scrollable body/actions) now
+           lives in the reusable modal Blade component
+           (resources/views/components/modal.blade.php, used here as the
+           x-modal tag) — it ships its own scoped kcm-modal-* CSS, so the
+           old .kc-modal-* rules that used to live here (and had a scroll
+           bug: .kc-modal__body's flex:1 had no effect since its parent
+           form element wasn't a flex container) have been removed. */
 
         .kc-form-section {
             margin-bottom: 20px;

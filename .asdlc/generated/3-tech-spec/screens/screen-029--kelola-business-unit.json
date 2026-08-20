@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-08-20"
   },
   "id": "screen-029--kelola-business-unit",
   "name": "Kelola Business Unit",
@@ -341,7 +341,7 @@
       "business_logic": [
         "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by company_id, eager-load Company untuk company_name, hitung station_count via COUNT station WHERE business_unit_id. Endpoint ini digabung dengan endpoint publik pra-login screen-001/002 (lihat implementation_notes) — tanpa query param, kembalikan bentuk lama tanpa autentikasi",
         "2. GET /api/companies/options: SELECT id, name dari seluruh Company, urut nama, untuk dropdown form (tanpa pagination)",
-        "3. POST create: validate company_id ada → validate name required → validate code required + unik secara GLOBAL → validate logo (jika ada) → if invalid: return 422 VALIDATION_ERROR → simpan logo jika ada → insert Business Unit baru dengan seluruh field profil",
+        "3. POST create: validate company_id ada → validate name required → validate code required + unik secara GLOBAL → validate logo (jika ada) → if invalid: return 422 VALIDATION_ERROR → simpan logo jika ada → dalam satu DB transaction: insert Business Unit baru dengan seluruh field profil, lalu insert 15 Station kanonis (3 aktif: weighbridge/grading/cages-track, 12 nonaktif tipe 'other') untuk Business Unit tersebut — lihat business_rules_applied",
         "4. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate company_id ada → validate name required → validate code required + unik global (exclude self) → validate logo (jika diganti) → if invalid: return 422 VALIDATION_ERROR → update Business Unit dengan seluruh field profil",
         "5. DELETE: validate id exists → if not: return 404 NOT_FOUND → count Station WHERE business_unit_id=id → if count > 0: return 409 BUSINESS_UNIT_HAS_STATIONS → else delete Business Unit"
       ],
@@ -375,6 +375,11 @@
           "entity_id": "station",
           "operation": "SELECT",
           "description": "COUNT Station WHERE business_unit_id sebelum delete"
+        },
+        {
+          "entity_id": "station",
+          "operation": "INSERT",
+          "description": "INSERT 15 Station kanonis (3 aktif + 12 placeholder nonaktif) untuk Business Unit yang baru dibuat, dalam transaction yang sama dengan insert Business Unit"
         }
       ],
       "edge_case_handling": [
@@ -411,7 +416,8 @@
         "Kode Business Unit harus unik di seluruh sistem",
         "Business Unit tidak dapat dihapus jika masih memiliki satu atau lebih Station terkait",
         "Hanya Admin yang dapat mengakses dan mengelola data Business Unit (kecuali membaca daftar mentah via GET /api/business-units, endpoint bersama pra-login)",
-        "Business Unit harus terkait ke tepat satu Company yang sudah ada"
+        "Business Unit harus terkait ke tepat satu Company yang sudah ada",
+        "Saat Business Unit baru dibuat, sistem otomatis membuat 15 Station kanonis (3 aktif + 12 placeholder nonaktif) dalam satu transaction"
       ],
       "unit_test_cases": [
         {
@@ -488,6 +494,11 @@
           "description": "returns 403 FORBIDDEN for companyOptions/create/update/delete when authenticated user is not Admin",
           "given": "authenticated user role != admin",
           "expect": "return 403 FORBIDDEN, no data/mutation returned"
+        },
+        {
+          "description": "creates the 15 canonical Station rows (3 active, 12 inactive) atomically when a new Business Unit is created",
+          "given": "create() is called with valid data (no existing stations for this business unit)",
+          "expect": "after create() returns, StationRepository has exactly 15 rows for the new business_unit_id — weighbridge/grading/cages-track with is_active=true, the remaining 12 'other'-typed with is_active=false; if station insertion fails, the Business Unit insert is rolled back too (nothing persisted)"
         }
       ]
     }
@@ -522,7 +533,8 @@
     "CRITICAL: keunikan code Business Unit berlaku GLOBAL, BUKAN per-Company — kontras dengan screen-028 (Company.name, per-Corporate) dan screen-027 (Corporate.name + corporate_code, keduanya global). name Business Unit tidak punya constraint keunikan sama sekali.",
     "REWORK ver 2 (2026-08-19, adopsi ERD): id tetap uuid PK/FK. code (sudah ada sejak ver 1) TIDAK diganti nama field-nya. 17 field profil baru + business_unit_type_code + logo ditambahkan, seluruhnya opsional kecuali code, name, dan company_id.",
     "Logo disimpan di Laravel Filesystem local disk, diekspos di response sebagai logo_url — pola sama dengan Corporate/Company",
-    "KOREKSI ver 3 (ditemukan saat implementasi, bukan diasumsikan di awal): GET /api/business-units TERNYATA sudah ada sebelum screen-029 — endpoint publik/tanpa auth yang dipakai screen-001/002 untuk dropdown 'Business Area' pra-login (dipanggil tanpa query param, mengharapkan {data:[{id,name}]} polos). Laravel tidak bisa mendaftarkan 2 route pada method+URI yang sama, sehingga kedua perilaku digabung dalam SATU action index(): tanpa page/per_page/company_id -> cabang lama TIDAK BERUBAH (tetap publik); dengan salah satu param tersebut -> cabang list terpaginasi screen-029 (masih publik juga, bukan hanya cabang lama). Ini PENGECUALIAN SENGAJA dari 'role:admin di semua endpoint' — store/update/destroy/companyOptions tetap admin-gated penuh. Skenario 'Akses ditolak untuk non-Admin' di bawah diuji lewat companyOptions (bukan lagi GET /api/business-units)."
+    "KOREKSI ver 3 (ditemukan saat implementasi, bukan diasumsikan di awal): GET /api/business-units TERNYATA sudah ada sebelum screen-029 — endpoint publik/tanpa auth yang dipakai screen-001/002 untuk dropdown 'Business Area' pra-login (dipanggil tanpa query param, mengharapkan {data:[{id,name}]} polos). Laravel tidak bisa mendaftarkan 2 route pada method+URI yang sama, sehingga kedua perilaku digabung dalam SATU action index(): tanpa page/per_page/company_id -> cabang lama TIDAK BERUBAH (tetap publik); dengan salah satu param tersebut -> cabang list terpaginasi screen-029 (masih publik juga, bukan hanya cabang lama). Ini PENGECUALIAN SENGAJA dari 'role:admin di semua endpoint' — store/update/destroy/companyOptions tetap admin-gated penuh. Skenario 'Akses ditolak untuk non-Admin' di bawah diuji lewat companyOptions (bukan lagi GET /api/business-units).",
+    "KOREKSI ver 4 (fitur baru): create() sekarang membuat 15 Station kanonis otomatis untuk setiap Business Unit baru (BusinessUnitService::DEFAULT_STATIONS, daftar identik dengan mobile's DEFAULT_STATIONS di localSchema.ts), dibungkus DB::transaction() bersama insert Business Unit itu sendiri agar atomik. Tidak ada endpoint/kontrak baru — murni business_logic tambahan pada POST /api/business-units yang sudah ada."
   ],
   "test_scenarios": [
     {
@@ -557,7 +569,7 @@
       "component_test": {
         "component": "BusinessUnitForm",
         "action": "pilih Company induk dari dropdown, isi nama dan kode unik, klik Simpan",
-        "assert": "form submit berhasil, baris baru muncul di daftar dengan nama Company yang benar dan station_count 0"
+        "assert": "form submit berhasil, baris baru muncul di daftar dengan nama Company yang benar dan station_count 15 (15 Station kanonis otomatis dibuat)"
       },
       "browser_test": {
         "route": "/master-data/business-units",

@@ -1,0 +1,57 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-20"
+  },
+  "ver": 1,
+  "id": "screen-035--production-process-activity-web",
+  "name": "Production Process Activity (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman pintu masuk tunggal untuk data operasional stasiun di web — menampilkan grid pemilihan stasiun (mirip Station List mobile), tempat Supervisor/Mill Management/Admin memilih salah satu dari 3 stasiun MVP aktif (Weighbridge, Grading, Cages Track) untuk melihat data tersimpan dan menginput data baru. 12 stasiun lain ditampilkan sebagai placeholder nonaktif untuk skema masa depan. Menggantikan link sidebar terpisah per stasiun (Data Browser & Input Weighbridge/Grading/Cages Track).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Production Process Activity'"
+  ],
+  "information_displayed": [
+    "Grid tombol stasiun (3 aktif: Weighbridge, Grading, Cages Track; 12 disabled/placeholder — sama seperti Station List mobile)",
+    "Ikon per tipe stasiun (Gauge=Weighbridge, Layers=Grading, Package=Cages Track untuk 3 aktif; ikon default untuk placeholder)",
+    "Nama stasiun pada tiap tile"
+  ],
+  "available_actions": [
+    {
+      "action": "Klik stasiun aktif",
+      "description": "Navigasi ke Data Browser stasiun tersebut — user melihat data tersimpan dan punya tombol Tambah Data untuk input baru",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Klik stasiun disabled",
+      "description": "Tidak melakukan aksi / menampilkan info belum tersedia",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Hanya 3 stasiun MVP yang aktif secara fungsional; 12 lainnya adalah placeholder skema data untuk fase mendatang (sama seperti Station List mobile)",
+    "Menggantikan link sidebar terpisah per stasiun (Data Browser Weighbridge/Grading/Cages Track, Input Weighbridge/Grading/Cages Track) — satu pintu masuk tunggal untuk seluruh data operasional stasiun",
+    "Setelah memilih stasiun, user diarahkan ke Data Browser stasiun tersebut (melihat data + tombol Tambah Data), mengikuti alur yang sudah ada di masing-masing screen Data Browser"
+  ],
+  "usecase_ids": [
+    "usecase-035--production-process-activity-web"
+  ],
+  "edge_cases": [
+    "User klik stasiun yang disabled"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

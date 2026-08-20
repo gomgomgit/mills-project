@@ -18,29 +18,15 @@ export const USERS = {
 
 /**
  * Logs in via the real LoginForm (screen-002--login-mobile) against the
- * live backend (GET /api/business-units + POST /api/login) — picks the
- * first real business unit option rather than hardcoding an id, so this
- * suite doesn't depend on a specific seeded UUID.
- *
- * Business Area is a SearchableSelect.vue instance (typeable/searchable
- * combobox, replacing the old plain <select>) — `#business_unit_id` is
- * bound to its `<input>` (SearchableSelect.vue's own `<label for>`
- * convention), same id as before. Clicking it opens the `role="option"`
- * popup once GET /api/business-units resolves; clicking the first real
- * option is the direct equivalent of the old `selectOption({ index: 1 })`
- * (which skipped index 0, the native <select>'s disabled placeholder —
- * SearchableSelect.vue has no such placeholder *option*, so index 0 here
- * is already the first real business unit).
+ * live backend (POST /api/login). Business Area is no longer collected in
+ * this form — the account's own `business_unit_id` is auto-derived
+ * server-side (AuthService::login() step 5), so there's no picker step
+ * here anymore.
  */
 export async function login(page: Page, user: { username: string; password: string } = USERS.operator): Promise<void> {
   await page.goto('/login')
   await page.locator('#username').fill(user.username)
   await page.locator('#password').fill(user.password)
-
-  await page.locator('#business_unit_id').click()
-  const firstBusinessUnitOption = page.locator('[role="option"]').first()
-  await firstBusinessUnitOption.waitFor({ state: 'visible', timeout: 15_000 })
-  await firstBusinessUnitOption.click()
 
   await page.getByRole('button', { name: 'Login' }).click()
   await page.waitForURL('**/home')

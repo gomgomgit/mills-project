@@ -32,7 +32,6 @@ export interface BusinessUnitSummary {
 export interface LoginCredentials {
   username: string
   password: string
-  business_unit_id: string
 }
 
 interface AuthState {

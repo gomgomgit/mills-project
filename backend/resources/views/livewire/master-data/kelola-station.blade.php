@@ -145,7 +145,7 @@
                                     </label>
                                     <x-searchable-select
                                         id="business_unit_id"
-                                        wire:model="business_unit_id"
+                                        wire:model.live="business_unit_id"
                                         :options="collect($businessUnitOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
                                         placeholder="-- Pilih Business Unit --"
                                         empty-message="Belum ada Business Unit. Buat Business Unit terlebih dahulu."

@@ -48,13 +48,18 @@ class DemoMachineryDataSeeder extends Seeder
 
             $stations = $activeStations->merge($placeholderStations);
 
-            $stations->each(function (Station $station) use ($businessUnit, &$machineryCounter): void {
+            $stations->each(function (Station $station) use (&$machineryCounter): void {
                 $groupCount = fake()->numberBetween(2, 3);
 
                 for ($g = 0; $g < $groupCount; $g++) {
+                    // production_line_id is derived automatically by
+                    // MachineryGroupFactory::definition()'s closure from
+                    // forStation()'s own station_id override — no explicit
+                    // override needed here (2026-08-20, entity-catalog v10:
+                    // business_unit_id renamed to production_line_id).
                     $group = MachineryGroup::factory()
                         ->forStation($station)
-                        ->create(['business_unit_id' => $businessUnit->id]);
+                        ->create();
 
                     $machineryCount = fake()->numberBetween(2, 4);
 
@@ -75,7 +80,7 @@ class DemoMachineryDataSeeder extends Seeder
                         $machinery = \App\Models\Machinery::create([
                             'machinery_group_id' => $group->id,
                             'station_id' => $group->station_id,
-                            'business_unit_id' => $group->business_unit_id,
+                            'production_line_id' => $group->production_line_id,
                             'name' => 'Machine '.str_pad((string) $machineryCounter, 4, '0', STR_PAD_LEFT),
                             'equipment_code' => 'EQ-'.str_pad((string) $machineryCounter, 8, '0', STR_PAD_LEFT),
                         ]);

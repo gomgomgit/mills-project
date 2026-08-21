@@ -27,7 +27,7 @@ use Illuminate\Http\Request;
  *
  * FIELDS — every Machinery field this screen's create/update forms accept
  * from the request, PLUS the two child-row array keys (`insurances`,
- * `tax_purchases`). `station_id`/`business_unit_id` are DELIBERATELY
+ * `tax_purchases`). `station_id`/`production_line_id` are DELIBERATELY
  * absent from this whitelist: even if a client includes either in the
  * request body, $request->only(self::FIELDS) below silently drops them
  * before they ever reach the service — MachineryService::create()/
@@ -95,7 +95,7 @@ class MachineryController extends Controller
     /**
      * groupOptions() — GET /api/machinery-groups/options. business_logic
      * step "machineryGroupOptions": unpaginated
-     * { id, group_code, station_id, business_unit_id } list, ordered by
+     * { id, group_code, station_id, production_line_id } list, ordered by
      * group_code — feeds the Machinery Group-select dropdown on this
      * screen's create/edit form. Declared here (not on
      * MachineryGroupController) even though it queries the MachineryGroup
@@ -125,7 +125,7 @@ class MachineryController extends Controller
      * store() — POST /api/machinery. business_logic step "create":
      * validate machinery_group_id exists → validate equipment_code
      * required+unique globally → validate name required, other fields
-     * nullable → 422 if any invalid → derive station_id/business_unit_id
+     * nullable → 422 if any invalid → derive station_id/production_line_id
      * from the found MachineryGroup → insert Machinery + insurances +
      * tax_purchases in one DB transaction.
      *
@@ -146,7 +146,7 @@ class MachineryController extends Controller
      * update() — PATCH /api/machinery/{id}. business_logic step "update":
      * validate id exists → 404 if not → same field validation as store()
      * (equipment_code unique excluding self) → 422 if any invalid →
-     * re-derive station_id/business_unit_id from the (possibly changed)
+     * re-derive station_id/production_line_id from the (possibly changed)
      * machinery_group_id → update, replacing child rows only when the
      * `insurances`/`tax_purchases` keys are present in the request body.
      */

@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * MachineryGroup — belongs to a Station (and, transitively, a Business
- * Unit copied from that Station), has many Machinery.
+ * MachineryGroup — belongs to a Station (and, transitively, a Production
+ * Line copied from that Station), has many Machinery.
  *
  * Originally created by screen-030--kelola-station as a MINIMAL
  * PLACEHOLDER (see git history / that screen's implementation_notes) —
@@ -22,14 +22,19 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * 2026_08_19_000006_add_fields_to_machinery_groups_table.php: added
  * `group_code` (globally unique), `description`, `unit`,
  * `workshop_factor`, `cost_per_equipment` to $fillable/$casts, and the
- * `machinery()` relationship below. The pre-existing
- * `business_unit_id`/`station_id` fields and `station()`/`businessUnit()`
- * relationships are UNCHANGED — this file was extended, not rewritten,
- * per that screen's own docblock precedent.
+ * `machinery()` relationship below.
  *
- * IMPORTANT — `business_unit_id` is NEVER set from user/request input.
+ * 2026-08-20 (entity-catalog v10): `business_unit_id` was RENAMED to
+ * `production_line_id` — the Production Line level was inserted between
+ * Business Unit and Station, so this denormalized convenience FK now
+ * points at the correct intermediate level (mirrors
+ * `station.business_unit_id`'s own denormalization from
+ * `production_line.business_unit_id`). `businessUnit()` is replaced by
+ * `productionLine()` below.
+ *
+ * IMPORTANT — `production_line_id` is NEVER set from user/request input.
  * MachineryGroupService::create()/::update() always overwrite it
- * server-side with the selected Station's own business_unit_id, even
+ * server-side with the selected Station's own production_line_id, even
  * though it is technically mass-assignable here — this is a structural
  * hierarchy-consistency guarantee enforced at the service layer, not the
  * model layer (mirrors how `code`/`is_active` etc. on sibling entities are
@@ -49,7 +54,7 @@ class MachineryGroup extends Model
     protected $table = 'machinery_groups';
 
     protected $fillable = [
-        'business_unit_id',
+        'production_line_id',
         'station_id',
         'group_code',
         'description',
@@ -70,9 +75,9 @@ class MachineryGroup extends Model
         return $this->belongsTo(Station::class);
     }
 
-    public function businessUnit(): BelongsTo
+    public function productionLine(): BelongsTo
     {
-        return $this->belongsTo(BusinessUnit::class);
+        return $this->belongsTo(ProductionLine::class);
     }
 
     /**

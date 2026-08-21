@@ -26,16 +26,16 @@ use Illuminate\Validation\ValidationException;
  * MachineryGroupService's/CorporateService's structure.
  *
  * STRUCTURAL RULES this screen exists to enforce:
- *  - `station_id` AND `business_unit_id` are NEVER read from the
+ *  - `station_id` AND `production_line_id` are NEVER read from the
  *    create()/update() $data payload, even if present — validate() below
  *    deliberately excludes both from the returned validated array.
  *    create()/update() instead look up the (already-validated-to-exist)
  *    MachineryGroup by its `machinery_group_id` and copy that group's own
- *    `station_id`/`business_unit_id` onto the Machinery being written.
- *    This mirrors MachineryGroupService's business_unit_id-from-Station
- *    pattern one level down: business_unit_id is derived from
+ *    `station_id`/`production_line_id` onto the Machinery being written.
+ *    This mirrors MachineryGroupService's production_line_id-from-Station
+ *    pattern one level down: production_line_id is derived from
  *    machinery_group_id, NOT from station_id directly, since MachineryGroup
- *    already carries a verified business_unit_id (copied from ITS own
+ *    already carries a verified production_line_id (copied from ITS own
  *    Station by MachineryGroupService).
  *  - `equipment_code` is REQUIRED and globally unique (mirrors
  *    group_code/corporate_code's required+unique convention).
@@ -124,10 +124,10 @@ class MachineryService
 
     /**
      * machineryGroupOptions() — business_logic step "machineryGroupOptions":
-     * SELECT id,group_code,station_id,business_unit_id from all
+     * SELECT id,group_code,station_id,production_line_id from all
      * MachineryGroup, ordered by group_code, unpaginated — feeds the
      * Machinery Group-select dropdown on this screen's create/edit form.
-     * `station_id`/`business_unit_id` are included so the FE can
+     * `station_id`/`production_line_id` are included so the FE can
      * copy/display them client-side before submit — the server
      * independently re-derives both again on create()/update(), never
      * trusting client input for either (see this class's own docblock).
@@ -136,12 +136,12 @@ class MachineryService
     {
         return MachineryGroup::query()
             ->orderBy('group_code')
-            ->get(['id', 'group_code', 'station_id', 'business_unit_id'])
+            ->get(['id', 'group_code', 'station_id', 'production_line_id'])
             ->map(fn (MachineryGroup $group) => [
                 'id' => $group->id,
                 'group_code' => $group->group_code,
                 'station_id' => $group->station_id,
-                'business_unit_id' => $group->business_unit_id,
+                'production_line_id' => $group->production_line_id,
             ])
             ->all();
     }
@@ -166,7 +166,7 @@ class MachineryService
      * create() — business_logic step "create": validate machinery_group_id
      * exists → validate equipment_code required+unique globally → validate
      * name required, description/picture/technical fields nullable → 422
-     * if any invalid → derive station_id/business_unit_id from the found
+     * if any invalid → derive station_id/production_line_id from the found
      * MachineryGroup → insert Machinery + insurances + tax_purchases
      * inside one DB transaction.
      *
@@ -185,7 +185,7 @@ class MachineryService
         // machinery_group_id was already validated to exist via
         // Rule::exists above — findOrFail() here is a defensive re-fetch
         // (the actual MachineryGroup row is needed regardless, to copy
-        // its station_id/business_unit_id) rather than a second
+        // its station_id/production_line_id) rather than a second
         // validation pass; a race where the MachineryGroup is deleted
         // between validate() and this line is an acceptable, extremely
         // narrow edge case shared by every sibling Service::create() in
@@ -193,7 +193,7 @@ class MachineryService
         // precedent).
         $machineryGroup = MachineryGroup::findOrFail($attributes['machinery_group_id']);
         $attributes['station_id'] = $machineryGroup->station_id;
-        $attributes['business_unit_id'] = $machineryGroup->business_unit_id;
+        $attributes['production_line_id'] = $machineryGroup->production_line_id;
 
         $attributes['picture'] = $this->storePicture($picture);
 
@@ -215,7 +215,7 @@ class MachineryService
      * update() — business_logic step "update": validate id exists → 404
      * if not → same field validation as create() (equipment_code unique
      * excluding self) → 422 if any invalid → re-derive
-     * station_id/business_unit_id from the (possibly changed)
+     * station_id/production_line_id from the (possibly changed)
      * machinery_group_id → update Machinery, and — only when the
      * `insurances`/`tax_purchases` keys are PRESENT in $data — replace
      * all existing child rows for this machinery_id (see this class's own
@@ -241,7 +241,7 @@ class MachineryService
 
         $machineryGroup = MachineryGroup::findOrFail($attributes['machinery_group_id']);
         $attributes['station_id'] = $machineryGroup->station_id;
-        $attributes['business_unit_id'] = $machineryGroup->business_unit_id;
+        $attributes['production_line_id'] = $machineryGroup->production_line_id;
 
         if ($picture !== null) {
             $attributes['picture'] = $this->storePicture($picture);
@@ -316,7 +316,7 @@ class MachineryService
      * Validates the top-level Machinery fields (machinery_group_id,
      * equipment_code, name, description, picture, technical fields).
      * DELIBERATELY never validates or returns `station_id`/
-     * `business_unit_id` — see this class's own docblock; create()/
+     * `production_line_id` — see this class's own docblock; create()/
      * update() derive both themselves from the MachineryGroup found via
      * `machinery_group_id`.
      *
@@ -533,7 +533,7 @@ class MachineryService
             'machinery_group_id' => $machinery->machinery_group_id,
             'machinery_group_code' => optional($machinery->machineryGroup)->group_code,
             'station_id' => $machinery->station_id,
-            'business_unit_id' => $machinery->business_unit_id,
+            'production_line_id' => $machinery->production_line_id,
             'equipment_code' => $machinery->equipment_code,
             'name' => $machinery->name,
             'equipment_type' => $machinery->equipment_type,
@@ -558,7 +558,7 @@ class MachineryService
             'machinery_group_id' => $machinery->machinery_group_id,
             'machinery_group_code' => optional($machinery->machineryGroup)->group_code,
             'station_id' => $machinery->station_id,
-            'business_unit_id' => $machinery->business_unit_id,
+            'production_line_id' => $machinery->production_line_id,
             'equipment_code' => $machinery->equipment_code,
             'name' => $machinery->name,
             'description' => $machinery->description,

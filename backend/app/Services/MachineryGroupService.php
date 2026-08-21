@@ -24,14 +24,14 @@ use Illuminate\Validation\ValidationException;
  * entry points. Mirrors App\Services\StationService's structure exactly,
  * with one CRITICAL structural divergence this screen exists to enforce:
  *
- *  - `business_unit_id` is NEVER read from the create()/update() $data
+ *  - `production_line_id` is NEVER read from the create()/update() $data
  *    payload, even if present — validate() below deliberately excludes it
  *    from both $payload and the returned validated array. create()/
  *    update() instead look up the (already-validated-to-exist) Station by
- *    its `station_id` and copy that Station's own `business_unit_id`
+ *    its `station_id` and copy that Station's own `production_line_id`
  *    onto the MachineryGroup being written. This guarantees
- *    machinery_groups.business_unit_id can never drift from its parent
- *    Station's business_unit_id, regardless of what a client sends —
+ *    machinery_groups.production_line_id can never drift from its parent
+ *    Station's production_line_id, regardless of what a client sends —
  *    the structural hierarchy-consistency guarantee this screen exists
  *    to enforce (see App\Models\MachineryGroup's docblock).
  *  - `group_code` is REQUIRED (unlike Station's optional `code`) and
@@ -44,8 +44,8 @@ class MachineryGroupService
 {
     /**
      * listMachineryGroups() — business_logic step "list": paginate,
-     * optional station_id filter, eager-load station + businessUnit (for
-     * station_name/business_unit_name) + withCount('machinery') (for
+     * optional station_id filter, eager-load station + productionLine (for
+     * station_name/production_line_name) + withCount('machinery') (for
      * machinery_count) — a single query regardless of page size, same
      * approach as StationService::listStations()'s
      * with('businessUnit')/withCount('machineryGroups').
@@ -53,7 +53,7 @@ class MachineryGroupService
     public function listMachineryGroups(int $page, int $perPage, ?string $stationId = null): array
     {
         $query = MachineryGroup::query()
-            ->with(['station', 'businessUnit'])
+            ->with(['station', 'productionLine'])
             ->withCount('machinery')
             ->orderBy('group_code');
 
@@ -73,12 +73,12 @@ class MachineryGroupService
 
     /**
      * stationOptions() — business_logic step "stationOptions": SELECT
-     * id,name,business_unit_id from all Station, ordered by name,
+     * id,name,production_line_id from all Station, ordered by name,
      * unpaginated — feeds the Station-select dropdown on the Machinery
-     * Group create/edit form. `business_unit_id` is included (unlike
+     * Group create/edit form. `production_line_id` is included (unlike
      * StationService::businessUnitOptions()'s plain id/name shape) so the
      * FE can copy/display it client-side before submit — the server
-     * independently re-derives business_unit_id from station_id again
+     * independently re-derives production_line_id from station_id again
      * anyway on create()/update(), never trusting client input for that
      * field (see this class's own docblock).
      */
@@ -86,11 +86,11 @@ class MachineryGroupService
     {
         return Station::query()
             ->orderBy('name')
-            ->get(['id', 'name', 'business_unit_id'])
+            ->get(['id', 'name', 'production_line_id'])
             ->map(fn (Station $station) => [
                 'id' => $station->id,
                 'name' => $station->name,
-                'business_unit_id' => $station->business_unit_id,
+                'production_line_id' => $station->production_line_id,
             ])
             ->all();
     }
@@ -99,7 +99,7 @@ class MachineryGroupService
      * create() — business_logic step "create": validate station_id
      * exists → validate group_code required+unique globally → validate
      * description/unit/workshop_factor/cost_per_equipment nullable → 422
-     * if any invalid → copy business_unit_id from the found Station →
+     * if any invalid → copy production_line_id from the found Station →
      * insert.
      *
      * @param  array<string, mixed>  $data
@@ -113,16 +113,16 @@ class MachineryGroupService
 
         // station_id was already validated to exist via Rule::exists
         // above — findOrFail() here is a defensive re-fetch (the actual
-        // Station row is needed regardless, to copy its business_unit_id)
+        // Station row is needed regardless, to copy its production_line_id)
         // rather than a second validation pass; a race where the Station
         // is deleted between validate() and this line is an acceptable,
         // extremely narrow edge case shared by every sibling
         // Service::create() in this codebase.
         $station = Station::findOrFail($attributes['station_id']);
-        $attributes['business_unit_id'] = $station->business_unit_id;
+        $attributes['production_line_id'] = $station->production_line_id;
 
         $machineryGroup = MachineryGroup::create($attributes);
-        $machineryGroup->load(['station', 'businessUnit']);
+        $machineryGroup->load(['station', 'productionLine']);
         $machineryGroup->loadCount('machinery');
 
         return $this->toRow($machineryGroup);
@@ -131,7 +131,7 @@ class MachineryGroupService
     /**
      * update() — business_logic step "update": validate id exists → 404
      * if not → same field validation as create() (group_code unique
-     * excluding self) → 422 if any invalid → re-copy business_unit_id
+     * excluding self) → 422 if any invalid → re-copy production_line_id
      * from the (possibly changed) station_id → update.
      *
      * @param  array<string, mixed>  $data
@@ -146,10 +146,10 @@ class MachineryGroupService
         $attributes = $this->validate($data, $machineryGroup->id);
 
         $station = Station::findOrFail($attributes['station_id']);
-        $attributes['business_unit_id'] = $station->business_unit_id;
+        $attributes['production_line_id'] = $station->production_line_id;
 
         $machineryGroup->update($attributes);
-        $machineryGroup->load(['station', 'businessUnit']);
+        $machineryGroup->load(['station', 'productionLine']);
         $machineryGroup->loadCount('machinery');
 
         return $this->toRow($machineryGroup);
@@ -183,7 +183,7 @@ class MachineryGroupService
      * `{ message, errors: { field: [...] } }` shape. Mirrors
      * StationService::validate()'s structure.
      *
-     * DELIBERATELY never validates or returns `business_unit_id` — it is
+     * DELIBERATELY never validates or returns `production_line_id` — it is
      * not part of this screen's writable field set at all (see this
      * class's own docblock); create()/update() derive it themselves from
      * the Station found via `station_id`.
@@ -197,7 +197,7 @@ class MachineryGroupService
      *                              group_code, description, unit,
      *                              workshop_factor, cost_per_equipment),
      *                              ready for MachineryGroup::create()/
-     *                              ->update() once business_unit_id is
+     *                              ->update() once production_line_id is
      *                              added by the caller
      *
      * @throws ValidationException
@@ -274,7 +274,7 @@ class MachineryGroupService
     }
 
     /**
-     * Maps a MachineryGroup (with station+businessUnit eager-loaded +
+     * Maps a MachineryGroup (with station+productionLine eager-loaded +
      * machinery count already loaded via withCount()/loadCount()) to the
      * endpoints' shared row shape.
      */
@@ -282,8 +282,8 @@ class MachineryGroupService
     {
         return [
             'id' => $machineryGroup->id,
-            'business_unit_id' => $machineryGroup->business_unit_id,
-            'business_unit_name' => optional($machineryGroup->businessUnit)->name,
+            'production_line_id' => $machineryGroup->production_line_id,
+            'production_line_name' => optional($machineryGroup->productionLine)->name,
             'station_id' => $machineryGroup->station_id,
             'station_name' => optional($machineryGroup->station)->name,
             'group_code' => $machineryGroup->group_code,

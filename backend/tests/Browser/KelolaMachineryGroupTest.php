@@ -37,7 +37,7 @@
  *   - mgtest-nonadmin01 / Passw0rd! (role: supervisor) — scenario 7
  * Scenario 1 assumes a Station named "Mill Machinery Group Station Baru"
  * already exists (to pick from the Station dropdown), and that Station's
- * own Business Unit is named "Mill Machinery Group BU Baru". Scenario 2
+ * own Production Line is named "Mill Machinery Group PL Baru". Scenario 2
  * assumes a machinery group with group_code "MG-BROWSER-SEBELUM-EDIT"
  * already exists under some Station, and a Station named
  * "Mill Machinery Group Station Tujuan Edit" exists as the edit target.
@@ -77,17 +77,17 @@ async function gotoMachineryGroups(page) {
 
 test.describe('Kelola Machinery Group', () => {
   // Scenario: "Kelola Machinery Group — success"
-  test('menambah machinery group baru dengan memilih station, business unit terisi otomatis, dan menampilkannya di tabel', async ({ page }) => {
+  test('menambah machinery group baru dengan memilih station, production line terisi otomatis, dan menampilkannya di tabel', async ({ page }) => {
     await login(page, 'mgtest-admin01', PASSWORD);
     await gotoMachineryGroups(page);
 
     await page.locator('button', { hasText: 'Tambah Machinery Group' }).click();
     await page.locator('#station_id').selectOption({ label: 'Mill Machinery Group Station Baru' });
 
-    // The Business Unit field is read-only and auto-populated from the
+    // The Production Line field is read-only and auto-populated from the
     // selected Station — never independently typed by the admin.
-    await expect(page.locator('#business_unit_display')).toHaveValue('Mill Machinery Group BU Baru');
-    await expect(page.locator('#business_unit_display')).toBeDisabled();
+    await expect(page.locator('#production_line_display')).toHaveValue('Mill Machinery Group PL Baru');
+    await expect(page.locator('#production_line_display')).toBeDisabled();
 
     const uniqueSuffix = Date.now();
     const uniqueCode = `MG-BROWSER-${uniqueSuffix}`;
@@ -98,7 +98,7 @@ test.describe('Kelola Machinery Group', () => {
     const row = page.locator('.kc-table__row', { hasText: uniqueCode });
     await expect(row).toBeVisible();
     await expect(row).toContainText('Mill Machinery Group Station Baru');
-    await expect(row).toContainText('Mill Machinery Group BU Baru');
+    await expect(row).toContainText('Mill Machinery Group PL Baru');
     await expect(row).toContainText('0');
   });
 

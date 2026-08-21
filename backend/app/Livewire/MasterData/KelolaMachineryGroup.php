@@ -24,14 +24,14 @@ use Livewire\Component;
  * so validation and business rules stay identical between the web and
  * API entry points. Mirrors App\Livewire\MasterData\KelolaStation's
  * structure closely, with the key structural divergence this screen
- * exists to enforce: `business_unit_id` is NEVER a bound/submitted form
+ * exists to enforce: `production_line_id` is NEVER a bound/submitted form
  * property here — it is always derived server-side by the service from
  * the selected Station, regardless of what this component holds.
- * `$selectedBusinessUnitName` below is a DISPLAY-ONLY property (derived
+ * `$selectedProductionLineName` below is a DISPLAY-ONLY property (derived
  * via updatedStationId()/openEditForm()) so the admin can see which
- * Business Unit a Machinery Group will belong to before saving — it is
+ * Production Line a Machinery Group will belong to before saving — it is
  * never sent to the service, purely a UX convenience matching this
- * screen's tech-spec requirement that the FE "copy business_unit_id
+ * screen's tech-spec requirement that the FE "copy production_line_id
  * client-side for display before submit".
  *
  * Access control: route-level only. routes/web.php guards
@@ -61,15 +61,15 @@ class KelolaMachineryGroup extends Component
     public string $station_id = '';
 
     /**
-     * Display-only — the name of the Business Unit the currently-selected
+     * Display-only — the name of the Production Line the currently-selected
      * Station belongs to. Derived via updatedStationId() (create mode) or
      * openEditForm() (edit mode), never bound to a submitted form input,
      * never read by save() or the service — MachineryGroupService::
      * create()/::update() independently re-derive the real
-     * business_unit_id server-side from station_id regardless of what
+     * production_line_id server-side from station_id regardless of what
      * this property holds.
      */
-    public ?string $selectedBusinessUnitName = null;
+    public ?string $selectedProductionLineName = null;
 
     /** @var array<string, string> */
     public array $form = [];
@@ -96,20 +96,20 @@ class KelolaMachineryGroup extends Component
 
     /**
      * Fires whenever `station_id` changes (the create/edit form's Station
-     * picker) — re-derives the display-only selectedBusinessUnitName from
+     * picker) — re-derives the display-only selectedProductionLineName from
      * the newly selected Station. Purely cosmetic: see this class's own
-     * docblock and $selectedBusinessUnitName's docblock.
+     * docblock and $selectedProductionLineName's docblock.
      */
     public function updatedStationId(string $value): void
     {
         if ($value === '') {
-            $this->selectedBusinessUnitName = null;
+            $this->selectedProductionLineName = null;
 
             return;
         }
 
-        $station = Station::with('businessUnit')->find($value);
-        $this->selectedBusinessUnitName = optional(optional($station)->businessUnit)->name;
+        $station = Station::with('productionLine')->find($value);
+        $this->selectedProductionLineName = optional(optional($station)->productionLine)->name;
     }
 
     /**
@@ -136,7 +136,8 @@ class KelolaMachineryGroup extends Component
      * `station_id` is bound directly (unprefixed), while group_code/
      * description/unit/workshop_factor/cost_per_equipment all live under
      * the `form.` array binding — mirrors KelolaStation::buildValidator()'s
-     * business_unit_id-vs-form.* split exactly.
+     * business_unit_id-vs-form.* split exactly (same shape, one level down
+     * the hierarchy).
      */
     protected function buildValidator(): \Illuminate\Validation\Validator
     {
@@ -190,7 +191,7 @@ class KelolaMachineryGroup extends Component
         $this->resetValidation();
         $this->editingId = null;
         $this->station_id = '';
-        $this->selectedBusinessUnitName = null;
+        $this->selectedProductionLineName = null;
         $this->form = $this->emptyForm();
         $this->formErrorMessage = null;
         $this->showForm = true;
@@ -202,13 +203,13 @@ class KelolaMachineryGroup extends Component
      */
     public function openEditForm(string $id): void
     {
-        $machineryGroup = MachineryGroup::with('businessUnit')->findOrFail($id);
+        $machineryGroup = MachineryGroup::with('productionLine')->findOrFail($id);
 
         $this->resetValidation();
         $this->formErrorMessage = null;
         $this->editingId = $machineryGroup->id;
         $this->station_id = $machineryGroup->station_id;
-        $this->selectedBusinessUnitName = optional($machineryGroup->businessUnit)->name;
+        $this->selectedProductionLineName = optional($machineryGroup->productionLine)->name;
 
         $this->form = [
             'group_code' => (string) ($machineryGroup->group_code ?? ''),
@@ -226,7 +227,7 @@ class KelolaMachineryGroup extends Component
         $this->showForm = false;
         $this->editingId = null;
         $this->station_id = '';
-        $this->selectedBusinessUnitName = null;
+        $this->selectedProductionLineName = null;
         $this->form = $this->emptyForm();
         $this->formErrorMessage = null;
         $this->resetValidation();
@@ -248,10 +249,10 @@ class KelolaMachineryGroup extends Component
 
         $service = app(MachineryGroupService::class);
 
-        // `business_unit_id` is deliberately never included in this
+        // `production_line_id` is deliberately never included in this
         // payload — MachineryGroupService::create()/::update() derive it
         // server-side from station_id regardless of what (if anything)
-        // this component holds client-side (see $selectedBusinessUnitName's
+        // this component holds client-side (see $selectedProductionLineName's
         // docblock).
         $payload = [
             'station_id' => $this->station_id,
@@ -293,7 +294,7 @@ class KelolaMachineryGroup extends Component
         $this->showForm = false;
         $this->editingId = null;
         $this->station_id = '';
-        $this->selectedBusinessUnitName = null;
+        $this->selectedProductionLineName = null;
         $this->form = $this->emptyForm();
         $this->resetValidation();
     }

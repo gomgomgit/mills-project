@@ -15,11 +15,11 @@
  * (sqlite in-memory) and seeds fixture data via model factories.
  *
  * CRITICAL — the key structural rules this screen exists to enforce:
- *  - `station_id`/`business_unit_id` are NEVER read from create()/
+ *  - `station_id`/`production_line_id` are NEVER read from create()/
  *    update()'s $data payload, even when a caller spoofs them — both are
  *    always independently re-derived server-side from the selected
- *    MachineryGroup's own station_id/business_unit_id. See the dedicated
- *    "spoofed" block below.
+ *    MachineryGroup's own station_id/production_line_id. See the
+ *    dedicated "spoofed" block below.
  *  - `insurances`/`tax_purchases` are replace-all child-row collections:
  *    create() always syncs both (from an empty default if absent),
  *    update() only replaces a collection when its key is PRESENT in the
@@ -29,11 +29,11 @@
  *    child rows exist.
  */
 
-use App\Models\BusinessUnit;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
 use App\Models\MachineryInsurance;
 use App\Models\MachineryTaxPurchase;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Services\MachineryService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -52,12 +52,7 @@ beforeEach(function () {
 if (! function_exists('makeMachineryGroupFixture')) {
     function makeMachineryGroupFixture(): MachineryGroup
     {
-        $businessUnit = BusinessUnit::factory()->create();
-        $station = Station::factory()->forBusinessUnit($businessUnit)->create();
-
-        return MachineryGroup::factory()->forStation($station)->create([
-            'business_unit_id' => $businessUnit->id,
-        ]);
+        return MachineryGroup::factory()->create();
     }
 }
 
@@ -154,29 +149,29 @@ it('throws a ValidationException when year_made is not an integer', function () 
     }
 });
 
-// --- create(): station_id/business_unit_id structural rule ------------------
+// --- create(): station_id/production_line_id structural rule ------------------
 
-it('ignores spoofed station_id/business_unit_id and always derives them from the selected MachineryGroup', function () {
+it('ignores spoofed station_id/production_line_id and always derives them from the selected MachineryGroup', function () {
     $group = makeMachineryGroupFixture();
     $spoofedStation = Station::factory()->create();
-    $spoofedBusinessUnit = BusinessUnit::factory()->create();
+    $spoofedProductionLine = ProductionLine::factory()->create();
 
     $result = $this->service->create([
         'machinery_group_id' => $group->id,
         'station_id' => $spoofedStation->id,
-        'business_unit_id' => $spoofedBusinessUnit->id,
+        'production_line_id' => $spoofedProductionLine->id,
         'equipment_code' => 'EQ-SPOOF',
         'name' => 'Mesin Spoof',
     ]);
 
     expect($result['station_id'])->toBe($group->station_id);
     expect($result['station_id'])->not->toBe($spoofedStation->id);
-    expect($result['business_unit_id'])->toBe($group->business_unit_id);
-    expect($result['business_unit_id'])->not->toBe($spoofedBusinessUnit->id);
+    expect($result['production_line_id'])->toBe($group->production_line_id);
+    expect($result['production_line_id'])->not->toBe($spoofedProductionLine->id);
 
     $fresh = Machinery::where('equipment_code', 'EQ-SPOOF')->firstOrFail();
     expect($fresh->station_id)->toBe($group->station_id);
-    expect($fresh->business_unit_id)->toBe($group->business_unit_id);
+    expect($fresh->production_line_id)->toBe($group->production_line_id);
 });
 
 // --- create(): happy path ----------------------------------------------------
@@ -302,23 +297,23 @@ it('throws a ModelNotFoundException when updating a machinery id that does not e
     ]))->toThrow(ModelNotFoundException::class);
 });
 
-it('re-derives station_id/business_unit_id when the machinery_group_id changes on update, ignoring spoofed values', function () {
+it('re-derives station_id/production_line_id when the machinery_group_id changes on update, ignoring spoofed values', function () {
     $groupA = makeMachineryGroupFixture();
     $groupB = makeMachineryGroupFixture();
     $machinery = Machinery::factory()->forFullMachineryGroup($groupA)->create();
-    $spoofedBusinessUnit = BusinessUnit::factory()->create();
+    $spoofedProductionLine = ProductionLine::factory()->create();
 
     $result = $this->service->update($machinery->id, [
         'machinery_group_id' => $groupB->id,
-        'business_unit_id' => $spoofedBusinessUnit->id,
+        'production_line_id' => $spoofedProductionLine->id,
         'equipment_code' => $machinery->equipment_code,
         'name' => $machinery->name,
     ]);
 
     expect($result['machinery_group_id'])->toBe($groupB->id);
     expect($result['station_id'])->toBe($groupB->station_id);
-    expect($result['business_unit_id'])->toBe($groupB->business_unit_id);
-    expect($result['business_unit_id'])->not->toBe($spoofedBusinessUnit->id);
+    expect($result['production_line_id'])->toBe($groupB->production_line_id);
+    expect($result['production_line_id'])->not->toBe($spoofedProductionLine->id);
 });
 
 // --- update(): child-row replace-all semantics --------------------------------
@@ -461,7 +456,7 @@ it('filters listMachinery by machinery_group_id', function () {
     expect($result['data'][0]['machinery_group_id'])->toBe($groupA->id);
 });
 
-it('returns machineryGroupOptions with id/group_code/station_id/business_unit_id', function () {
+it('returns machineryGroupOptions with id/group_code/station_id/production_line_id', function () {
     $group = makeMachineryGroupFixture();
 
     $options = $this->service->machineryGroupOptions();
@@ -471,7 +466,7 @@ it('returns machineryGroupOptions with id/group_code/station_id/business_unit_id
         'id' => $group->id,
         'group_code' => $group->group_code,
         'station_id' => $group->station_id,
-        'business_unit_id' => $group->business_unit_id,
+        'production_line_id' => $group->production_line_id,
     ]);
 });
 

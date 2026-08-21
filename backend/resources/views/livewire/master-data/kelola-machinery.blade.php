@@ -155,9 +155,9 @@
                                 </div>
 
                                 <div class="kc-form-field">
-                                    <label for="business_unit_display" class="kc-form-field__label">Business Unit</label>
-                                    <input type="text" id="business_unit_display" value="{{ $selectedBusinessUnitName ?? '-' }}" class="kc-form-field__input" disabled>
-                                    <p class="kc-form-field__hint">Otomatis mengikuti Business Unit dari Machinery Group.</p>
+                                    <label for="production_line_display" class="kc-form-field__label">Production Line</label>
+                                    <input type="text" id="production_line_display" value="{{ $selectedProductionLineName ?? '-' }}" class="kc-form-field__input" disabled>
+                                    <p class="kc-form-field__hint">Otomatis mengikuti Production Line dari Machinery Group.</p>
                                 </div>
 
                                 <div class="kc-form-field">

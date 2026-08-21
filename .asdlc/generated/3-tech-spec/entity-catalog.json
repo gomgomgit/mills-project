@@ -1,5 +1,5 @@
 {
-  "ver": 9,
+  "ver": 10,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-08-20"
@@ -825,10 +825,10 @@
           "description": "Identifier unik, dibuat sebagai UUID."
         },
         {
-          "name": "business_unit_id",
+          "name": "production_line_id",
           "type": "uuid",
           "required": true,
-          "description": "FK ke Business Unit (denormalized, mengikuti ERD)."
+          "description": "FK ke Production Line (denormalized dari station.production_line_id, mengikuti pola denormalisasi station sendiri)."
         },
         {
           "name": "station_id",
@@ -894,11 +894,11 @@
       ],
       "constraints": [
         "group_code harus unik",
-        "station_id harus milik business_unit_id yang sama"
+        "station_id harus milik production_line_id yang sama"
       ],
       "test_fixture": {
         "id": "mg-001",
-        "business_unit_id": "bu-001",
+        "production_line_id": "pl-001",
         "station_id": "stn-001",
         "group_code": "MG-WB-001",
         "description": "Grup Mesin Timbangan",
@@ -922,10 +922,10 @@
           "description": "Identifier unik, dibuat sebagai UUID."
         },
         {
-          "name": "business_unit_id",
+          "name": "production_line_id",
           "type": "uuid",
           "required": true,
-          "description": "FK ke Business Unit (denormalized, mengikuti ERD)."
+          "description": "FK ke Production Line (denormalized dari station.production_line_id, mengikuti pola denormalisasi station sendiri)."
         },
         {
           "name": "station_id",
@@ -1092,12 +1092,12 @@
       ],
       "constraints": [
         "equipment_code harus unik",
-        "station_id harus milik business_unit_id yang sama",
+        "station_id harus milik production_line_id yang sama",
         "machinery_group_id harus milik station_id yang sama"
       ],
       "test_fixture": {
         "id": "mch-001",
-        "business_unit_id": "bu-001",
+        "production_line_id": "pl-001",
         "station_id": "stn-001",
         "machinery_group_id": "mg-001",
         "equipment_code": "EQ-WB-001",

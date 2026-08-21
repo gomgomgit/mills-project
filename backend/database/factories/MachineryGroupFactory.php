@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\BusinessUnit;
 use App\Models\MachineryGroup;
 use App\Models\Station;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -22,8 +21,14 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  * placeholder — see that model's own docblock) and a `withGroupCode()`
  * state for uniqueness-conflict fixtures, mirroring
  * database/factories/StationFactory.php's `withCode()` precedent exactly.
- * `forStation()` and the pre-existing `business_unit_id`/`station_id`
- * default are UNCHANGED.
+ * `forStation()` is UNCHANGED.
+ *
+ * 2026-08-20 (entity-catalog v10): `business_unit_id` was RENAMED to
+ * `production_line_id` — `definition()` derives it from the auto-created
+ * Station's own `production_line_id`, mirroring
+ * StationFactory::definition()'s identical
+ * business_unit_id-derived-from-production_line_id closure pattern one
+ * level down.
  */
 class MachineryGroupFactory extends Factory
 {
@@ -32,8 +37,10 @@ class MachineryGroupFactory extends Factory
     public function definition(): array
     {
         return [
-            'business_unit_id' => BusinessUnit::factory(),
             'station_id' => Station::factory(),
+            'production_line_id' => function (array $attributes) {
+                return Station::find($attributes['station_id'])?->production_line_id;
+            },
             'group_code' => 'MG-'.$this->faker->unique()->numerify('####'),
         ];
     }

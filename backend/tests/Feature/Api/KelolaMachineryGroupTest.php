@@ -18,8 +18,8 @@
  * routes are gated by ('auth:web' in routes/api.php).
  *
  * CRITICAL divergence from KelolaStationTest.php — the structural rule
- * this screen exists to enforce: `business_unit_id` is NEVER accepted
- * from the request body. See the dedicated "spoofed business_unit_id"
+ * this screen exists to enforce: `production_line_id` is NEVER accepted
+ * from the request body. See the dedicated "spoofed production_line_id"
  * tests below; this is the most important behaviour for this screen,
  * exercised here at the Api layer (also covered at the Service unit level
  * and the Livewire component level). `group_code` is REQUIRED (unlike
@@ -54,7 +54,7 @@ it('berhasil: loads station options then creates a machinery group, returns 201 
     $optionsResponse->assertOk();
     $optionsResponse->assertJsonFragment([
         'name' => $this->station->name,
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->station->production_line_id,
     ]);
 
     $response = $this->actingAs($this->admin, 'web')->postJson('/api/machinery-groups', [
@@ -71,7 +71,7 @@ it('berhasil: loads station options then creates a machinery group, returns 201 
         'group_code' => 'MG-API-001',
         'station_id' => $this->station->id,
         'station_name' => $this->station->name,
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->station->production_line_id,
         'description' => 'Kelompok mesin utama',
         'unit' => 'unit',
         'workshop_factor' => 1.5,
@@ -81,54 +81,53 @@ it('berhasil: loads station options then creates a machinery group, returns 201 
     expect(MachineryGroup::where('group_code', 'MG-API-001')->exists())->toBeTrue();
 });
 
-// CRITICAL — the structural rule: a spoofed business_unit_id in the
+// CRITICAL — the structural rule: a spoofed production_line_id in the
 // request body is silently ignored on create(); the real one is always
 // derived from the selected Station.
-it('mengabaikan business_unit_id yang dikirim manual: selalu diturunkan dari Station (create)', function () {
-    $otherBusinessUnit = BusinessUnit::factory()->create();
+it('mengabaikan production_line_id yang dikirim manual: selalu diturunkan dari Station (create)', function () {
+    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
 
     $response = $this->actingAs($this->admin, 'web')->postJson('/api/machinery-groups', [
         'station_id' => $this->station->id,
-        'business_unit_id' => $otherBusinessUnit->id,
+        'production_line_id' => $otherProductionLine->id,
         'group_code' => 'MG-API-SPOOF',
     ]);
 
     $response->assertStatus(201);
-    $response->assertJsonFragment(['business_unit_id' => $this->businessUnit->id]);
-    $response->assertJsonMissing(['business_unit_id' => $otherBusinessUnit->id]);
+    $response->assertJsonFragment(['production_line_id' => $this->station->production_line_id]);
+    $response->assertJsonMissing(['production_line_id' => $otherProductionLine->id]);
 
     $fresh = MachineryGroup::where('group_code', 'MG-API-SPOOF')->firstOrFail();
-    expect($fresh->business_unit_id)->toBe($this->businessUnit->id);
+    expect($fresh->production_line_id)->toBe($this->station->production_line_id);
 });
 
-// CRITICAL — same rule on update(): a spoofed business_unit_id is
-// ignored, and business_unit_id is re-derived from a NEW station_id when
-// the station is changed.
-it('mengabaikan business_unit_id yang dikirim manual: selalu diturunkan dari Station (edit)', function () {
-    $otherBusinessUnit = BusinessUnit::factory()->create();
-    $otherStation = Station::factory()->forBusinessUnit($otherBusinessUnit)->create(['name' => 'Weighbridge Tujuan']);
-    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create(['business_unit_id' => $this->businessUnit->id]);
+// CRITICAL — same rule on update(): a spoofed production_line_id is
+// ignored, and production_line_id is re-derived from a NEW station_id
+// when the station is changed.
+it('mengabaikan production_line_id yang dikirim manual: selalu diturunkan dari Station (edit)', function () {
+    $otherStation = Station::factory()->forBusinessUnit(BusinessUnit::factory()->create())->create(['name' => 'Weighbridge Tujuan']);
+    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create();
 
-    $spoofedBusinessUnit = BusinessUnit::factory()->create();
+    $spoofedProductionLine = \App\Models\ProductionLine::factory()->create();
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/machinery-groups/{$machineryGroup->id}", [
         'station_id' => $otherStation->id,
-        'business_unit_id' => $spoofedBusinessUnit->id,
+        'production_line_id' => $spoofedProductionLine->id,
         'group_code' => $machineryGroup->group_code,
     ]);
 
     $response->assertOk();
     $response->assertJsonFragment([
         'station_id' => $otherStation->id,
-        'business_unit_id' => $otherBusinessUnit->id,
+        'production_line_id' => $otherStation->production_line_id,
     ]);
-    expect($machineryGroup->fresh()->business_unit_id)->toBe($otherBusinessUnit->id);
+    expect($machineryGroup->fresh()->production_line_id)->toBe($otherStation->production_line_id);
 });
 
 // Scenario: "Kelola Machinery Group — Edit Machinery Group"
 it('Edit Machinery Group: updates the group_code, description, and station then returns 200 with the updated row', function () {
     $stationB = Station::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Weighbridge Tujuan']);
-    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-LAMA')->create(['business_unit_id' => $this->businessUnit->id]);
+    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-LAMA')->create();
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/machinery-groups/{$machineryGroup->id}", [
         'station_id' => $stationB->id,
@@ -150,7 +149,7 @@ it('Edit Machinery Group: updates the group_code, description, and station then 
 
 // Scenario: "Kelola Machinery Group — Hapus — berhasil"
 it('Hapus berhasil: deletes a machinery group with no related machinery, returns 200', function () {
-    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create(['business_unit_id' => $this->businessUnit->id]);
+    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create();
 
     $response = $this->actingAs($this->admin, 'web')->deleteJson("/api/machinery-groups/{$machineryGroup->id}");
 
@@ -161,7 +160,7 @@ it('Hapus berhasil: deletes a machinery group with no related machinery, returns
 
 // Scenario: "Kelola Machinery Group — Hapus — ditolak (Machinery)"
 it('Hapus ditolak: returns 409 MACHINERY_GROUP_HAS_MACHINERY and keeps the row when it has related Machinery', function () {
-    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create(['business_unit_id' => $this->businessUnit->id]);
+    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create();
     Machinery::factory()->forMachineryGroup($machineryGroup)->create(['station_id' => $this->station->id]);
 
     $response = $this->actingAs($this->admin, 'web')->deleteJson("/api/machinery-groups/{$machineryGroup->id}");
@@ -174,7 +173,7 @@ it('Hapus ditolak: returns 409 MACHINERY_GROUP_HAS_MACHINERY and keeps the row w
 
 // Kode duplikat (create): 422 under errors.group_code.
 it('Kode duplikat (create): returns 422 with errors.group_code when the group_code already exists', function () {
-    MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-DUP')->create(['business_unit_id' => $this->businessUnit->id]);
+    MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-DUP')->create();
 
     $response = $this->actingAs($this->admin, 'web')->postJson('/api/machinery-groups', [
         'station_id' => $this->station->id,
@@ -188,8 +187,8 @@ it('Kode duplikat (create): returns 422 with errors.group_code when the group_co
 
 // Kode duplikat (edit): 422 under errors.group_code.
 it('Kode duplikat (edit): returns 422 with errors.group_code when updating to a group_code taken by another machinery group', function () {
-    MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-OTHER')->create(['business_unit_id' => $this->businessUnit->id]);
-    $target = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-TARGET')->create(['business_unit_id' => $this->businessUnit->id]);
+    MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-OTHER')->create();
+    $target = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-TARGET')->create();
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/machinery-groups/{$target->id}", [
         'station_id' => $this->station->id,
@@ -204,7 +203,7 @@ it('Kode duplikat (edit): returns 422 with errors.group_code when updating to a 
 // Keep-own-code-unchanged on update must succeed (no false-positive
 // uniqueness violation against self).
 it('succeeds when updating a machinery group and keeping its own group_code unchanged', function () {
-    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-SELF')->create(['business_unit_id' => $this->businessUnit->id]);
+    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-SELF')->create();
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/machinery-groups/{$machineryGroup->id}", [
         'station_id' => $this->station->id,
@@ -321,7 +320,7 @@ it('akses ditolak: returns 403 for the list endpoint when the user is not an adm
 // Actor-permission: stationOptions()/create/update/delete are also
 // admin-only (same 'role:admin' middleware group in routes/api.php).
 it('akses ditolak: returns 403 for options/create/update/delete when the user is not an admin', function () {
-    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create(['business_unit_id' => $this->businessUnit->id]);
+    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create();
 
     $optionsResponse = $this->actingAs($this->supervisor, 'web')->getJson('/api/stations/options');
     $optionsResponse->assertStatus(403);
@@ -347,7 +346,7 @@ it('akses ditolak: returns 403 for options/create/update/delete when the user is
 // Auth-guard coverage: unauthenticated requests must not reach the
 // service at all, for every endpoint.
 it('returns 401 for every endpoint when there is no authenticated session', function () {
-    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create(['business_unit_id' => $this->businessUnit->id]);
+    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create();
 
     $this->getJson('/api/machinery-groups')->assertStatus(401);
     $this->getJson('/api/stations/options')->assertStatus(401);
@@ -362,11 +361,11 @@ it('returns 401 for every endpoint when there is no authenticated session', func
     $this->deleteJson("/api/machinery-groups/{$machineryGroup->id}")->assertStatus(401);
 });
 
-// Baseline happy-path list coverage: station_name + business_unit_id +
+// Baseline happy-path list coverage: station_name + production_line_id +
 // machinery_count per row, pagination meta shape, and the optional
 // station_id filter.
-it('lists machinery groups paginated with station_name, business_unit_id, and machinery_count per row for an admin', function () {
-    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-LIST')->create(['business_unit_id' => $this->businessUnit->id]);
+it('lists machinery groups paginated with station_name, production_line_id, and machinery_count per row for an admin', function () {
+    $machineryGroup = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-LIST')->create();
     Machinery::factory()->forMachineryGroup($machineryGroup)->count(2)->create(['station_id' => $this->station->id]);
 
     $response = $this->actingAs($this->admin, 'web')->getJson('/api/machinery-groups');
@@ -382,7 +381,7 @@ it('lists machinery groups paginated with station_name, business_unit_id, and ma
     $response->assertJsonFragment([
         'group_code' => 'MG-API-LIST',
         'station_name' => $this->station->name,
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->station->production_line_id,
         'machinery_count' => 2,
     ]);
 });
@@ -391,8 +390,8 @@ it('lists machinery groups paginated with station_name, business_unit_id, and ma
 // machinery groups.
 it('filters the list by station_id when the query param is provided', function () {
     $stationB = Station::factory()->forBusinessUnit($this->businessUnit)->create();
-    MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-A1')->create(['business_unit_id' => $this->businessUnit->id]);
-    MachineryGroup::factory()->forStation($stationB)->withGroupCode('MG-API-B1')->create(['business_unit_id' => $this->businessUnit->id]);
+    MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-A1')->create();
+    MachineryGroup::factory()->forStation($stationB)->withGroupCode('MG-API-B1')->create();
 
     $response = $this->actingAs($this->admin, 'web')->getJson("/api/machinery-groups?station_id={$this->station->id}");
 
@@ -403,8 +402,8 @@ it('filters the list by station_id when the query param is provided', function (
 
 // List pagination — page/per_page query params respected.
 it('paginates the machinery group list by page and per_page query params', function () {
-    MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-PA')->create(['business_unit_id' => $this->businessUnit->id]);
-    MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-PB')->create(['business_unit_id' => $this->businessUnit->id]);
+    MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-PA')->create();
+    MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-PB')->create();
 
     $response = $this->actingAs($this->admin, 'web')->getJson('/api/machinery-groups?page=2&per_page=1');
 

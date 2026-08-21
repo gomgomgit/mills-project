@@ -14,19 +14,19 @@
  * RefreshDatabase (sqlite in-memory) and seeds fixture data via model
  * factories.
  *
- * CRITICAL — the key structural rule for this screen: `business_unit_id`
+ * CRITICAL — the key structural rule for this screen: `production_line_id`
  * is NEVER read from create()/update()'s $data payload, even when a
  * caller spoofs one — it is always independently re-derived server-side
- * from the selected Station's own business_unit_id. See the dedicated
- * "spoofed business_unit_id" block below; this is exercised from the
+ * from the selected Station's own production_line_id. See the dedicated
+ * "spoofed production_line_id" block below; this is exercised from the
  * Service layer here, and again from both the Api and Livewire Feature
  * suites.
  */
 
 use App\Exceptions\MachineryGroupHasMachineryException;
-use App\Models\BusinessUnit;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Services\MachineryGroupService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -173,35 +173,34 @@ it('throws a ValidationException when cost_per_equipment is not numeric', functi
     }
 });
 
-// --- create(): business_unit_id structural rule ----------------------------
+// --- create(): production_line_id structural rule ----------------------------
 
-// CRITICAL — business_unit_id is ALWAYS server-derived from the Station,
-// never trusted from the caller, even when the caller sends a spoofed
-// value pointing at a totally different Business Unit.
-it('ignores a spoofed business_unit_id and always derives it from the selected Station', function () {
-    $realBusinessUnit = BusinessUnit::factory()->create();
-    $spoofedBusinessUnit = BusinessUnit::factory()->create();
-    $station = Station::factory()->forBusinessUnit($realBusinessUnit)->create();
+// CRITICAL — production_line_id is ALWAYS server-derived from the
+// Station, never trusted from the caller, even when the caller sends a
+// spoofed value pointing at a totally different Production Line.
+it('ignores a spoofed production_line_id and always derives it from the selected Station', function () {
+    $station = Station::factory()->create();
+    $spoofedProductionLine = ProductionLine::factory()->create();
 
     $result = $this->service->create([
         'station_id' => $station->id,
-        'business_unit_id' => $spoofedBusinessUnit->id,
+        'production_line_id' => $spoofedProductionLine->id,
         'group_code' => 'MG-SPOOF',
     ]);
 
-    expect($result['business_unit_id'])->toBe($realBusinessUnit->id);
-    expect($result['business_unit_id'])->not->toBe($spoofedBusinessUnit->id);
+    expect($result['production_line_id'])->toBe($station->production_line_id);
+    expect($result['production_line_id'])->not->toBe($spoofedProductionLine->id);
 
     $fresh = MachineryGroup::where('group_code', 'MG-SPOOF')->firstOrFail();
-    expect($fresh->business_unit_id)->toBe($realBusinessUnit->id);
+    expect($fresh->production_line_id)->toBe($station->production_line_id);
 });
 
 // --- create(): happy paths --------------------------------------------------
 
 // Happy path — create: all fields, returns the expected row shape.
 it('creates a machinery group with all fields and returns the expected row shape', function () {
-    $businessUnit = BusinessUnit::factory()->create(['name' => 'Mill Unit Utama']);
-    $station = Station::factory()->forBusinessUnit($businessUnit)->create(['name' => 'Weighbridge Utama']);
+    $productionLine = ProductionLine::factory()->create(['name' => 'Line Utama']);
+    $station = Station::factory()->forProductionLine($productionLine)->create(['name' => 'Weighbridge Utama']);
 
     $result = $this->service->create([
         'station_id' => $station->id,
@@ -213,15 +212,15 @@ it('creates a machinery group with all fields and returns the expected row shape
     ]);
 
     expect($result)->toHaveKeys([
-        'id', 'business_unit_id', 'business_unit_name', 'station_id', 'station_name',
+        'id', 'production_line_id', 'production_line_name', 'station_id', 'station_name',
         'group_code', 'description', 'unit', 'workshop_factor', 'cost_per_equipment',
         'machinery_count', 'created_at',
     ]);
     expect($result['group_code'])->toBe('MG-100');
     expect($result['station_id'])->toBe($station->id);
     expect($result['station_name'])->toBe('Weighbridge Utama');
-    expect($result['business_unit_id'])->toBe($businessUnit->id);
-    expect($result['business_unit_name'])->toBe('Mill Unit Utama');
+    expect($result['production_line_id'])->toBe($productionLine->id);
+    expect($result['production_line_name'])->toBe('Line Utama');
     expect($result['description'])->toBe('Kelompok mesin utama');
     expect($result['unit'])->toBe('unit');
     expect($result['workshop_factor'])->toBe(1.5);
@@ -300,25 +299,24 @@ it('updates a machinery group keeping its own group_code without a false-positiv
 });
 
 // CRITICAL — updating a machinery group to point at a different Station
-// re-derives business_unit_id from the NEW station, not the old one, and
-// a spoofed business_unit_id in the update payload is still ignored.
-it('re-derives business_unit_id from the new station when the station is changed on update, ignoring a spoofed value', function () {
-    $businessUnitA = BusinessUnit::factory()->create();
-    $businessUnitB = BusinessUnit::factory()->create();
-    $spoofedBusinessUnit = BusinessUnit::factory()->create();
-    $stationA = Station::factory()->forBusinessUnit($businessUnitA)->create();
-    $stationB = Station::factory()->forBusinessUnit($businessUnitB)->create();
-    $machineryGroup = MachineryGroup::factory()->forStation($stationA)->create(['business_unit_id' => $businessUnitA->id]);
+// re-derives production_line_id from the NEW station, not the old one,
+// and a spoofed production_line_id in the update payload is still
+// ignored.
+it('re-derives production_line_id from the new station when the station is changed on update, ignoring a spoofed value', function () {
+    $stationA = Station::factory()->create();
+    $stationB = Station::factory()->create();
+    $spoofedProductionLine = ProductionLine::factory()->create();
+    $machineryGroup = MachineryGroup::factory()->forStation($stationA)->create();
 
     $result = $this->service->update($machineryGroup->id, [
         'station_id' => $stationB->id,
-        'business_unit_id' => $spoofedBusinessUnit->id,
+        'production_line_id' => $spoofedProductionLine->id,
         'group_code' => $machineryGroup->group_code,
     ]);
 
     expect($result['station_id'])->toBe($stationB->id);
-    expect($result['business_unit_id'])->toBe($businessUnitB->id);
-    expect($machineryGroup->fresh()->business_unit_id)->toBe($businessUnitB->id);
+    expect($result['production_line_id'])->toBe($stationB->production_line_id);
+    expect($machineryGroup->fresh()->production_line_id)->toBe($stationB->production_line_id);
 });
 
 // Happy path — update: success, returns the expected row shape with the
@@ -335,7 +333,7 @@ it('updates a machinery group and returns the expected row shape', function () {
         'workshop_factor' => 2.25,
     ]);
 
-    expect($result)->toHaveKeys(['id', 'business_unit_id', 'station_id', 'station_name', 'group_code', 'unit', 'workshop_factor']);
+    expect($result)->toHaveKeys(['id', 'production_line_id', 'station_id', 'station_name', 'group_code', 'unit', 'workshop_factor']);
     expect($result['id'])->toBe($machineryGroup->id);
     expect($result['station_id'])->toBe($stationB->id);
     expect($result['station_name'])->toBe('Weighbridge Tujuan');
@@ -377,13 +375,12 @@ it('deletes a machinery group that has no related Machinery rows', function () {
 // --- listMachineryGroups() / stationOptions() --------------------------------
 
 // listMachineryGroups(): paginated list returns rows with station_name +
-// business_unit_id + machinery_count per row.
-it('lists machinery groups paginated with station_name, business_unit_id, and machinery_count per row', function () {
-    $businessUnit = BusinessUnit::factory()->create(['name' => 'Mill Unit Alpha']);
-    $station = Station::factory()->forBusinessUnit($businessUnit)->create(['name' => 'Weighbridge Alpha']);
-    $machineryGroup = MachineryGroup::factory()->forStation($station)->create(['business_unit_id' => $businessUnit->id]);
+// production_line_id + machinery_count per row.
+it('lists machinery groups paginated with station_name, production_line_id, and machinery_count per row', function () {
+    $station = Station::factory()->create(['name' => 'Weighbridge Alpha']);
+    $machineryGroup = MachineryGroup::factory()->forStation($station)->create();
     Machinery::factory()->forMachineryGroup($machineryGroup)->count(3)->create();
-    MachineryGroup::factory()->forStation($station)->create(['business_unit_id' => $businessUnit->id]);
+    MachineryGroup::factory()->forStation($station)->create();
 
     $result = $this->service->listMachineryGroups(1, 20);
 
@@ -397,7 +394,7 @@ it('lists machinery groups paginated with station_name, business_unit_id, and ma
 
     $row = collect($result['data'])->firstWhere('id', $machineryGroup->id);
     expect($row['station_name'])->toBe('Weighbridge Alpha');
-    expect($row['business_unit_id'])->toBe($businessUnit->id);
+    expect($row['production_line_id'])->toBe($station->production_line_id);
     expect($row['machinery_count'])->toBe(3);
 });
 
@@ -434,17 +431,16 @@ it('filters the list by station_id when provided', function () {
 });
 
 // stationOptions(): returns a populated list, ordered by name, with
-// business_unit_id per row, when stations exist.
-it('returns a populated station options list ordered by name with business_unit_id per row', function () {
-    $businessUnit = BusinessUnit::factory()->create();
-    Station::factory()->forBusinessUnit($businessUnit)->create(['name' => 'Weighbridge Zulu']);
-    Station::factory()->forBusinessUnit($businessUnit)->create(['name' => 'Weighbridge Alpha']);
+// production_line_id per row, when stations exist.
+it('returns a populated station options list ordered by name with production_line_id per row', function () {
+    $stationZulu = Station::factory()->create(['name' => 'Weighbridge Zulu']);
+    Station::factory()->create(['name' => 'Weighbridge Alpha']);
 
     $result = $this->service->stationOptions();
 
     expect(collect($result)->pluck('name')->all())->toBe(['Weighbridge Alpha', 'Weighbridge Zulu']);
-    expect($result[0])->toHaveKeys(['id', 'name', 'business_unit_id']);
-    expect($result[0]['business_unit_id'])->toBe($businessUnit->id);
+    expect($result[1])->toHaveKeys(['id', 'name', 'production_line_id']);
+    expect($result[1]['production_line_id'])->toBe($stationZulu->production_line_id);
 });
 
 // stationOptions(): "No Station exists yet" edge case -> empty list.

@@ -31,13 +31,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * `notes` fields and `station()` relationship are UNCHANGED — this file
  * was extended, not rewritten, per screen-033's own docblock precedent.
  *
- * IMPORTANT — `station_id` and `business_unit_id` are NEVER set from
+ * 2026-08-20 (entity-catalog v10): `business_unit_id` was RENAMED to
+ * `production_line_id` — see App\Models\MachineryGroup's own docblock for
+ * the full rationale (Production Line inserted between Business Unit and
+ * Station). `businessUnit()` is replaced by `productionLine()` below.
+ *
+ * IMPORTANT — `station_id` and `production_line_id` are NEVER set from
  * user/request input. MachineryService::create()/::update() always
  * overwrite both server-side with the selected MachineryGroup's own
- * station_id/business_unit_id, even though both are technically
+ * station_id/production_line_id, even though both are technically
  * mass-assignable here — this is a structural hierarchy-consistency
  * guarantee enforced at the service layer, not the model layer (mirrors
- * how App\Models\MachineryGroup's own business_unit_id is handled).
+ * how App\Models\MachineryGroup's own production_line_id is handled).
  */
 class Machinery extends Model
 {
@@ -52,7 +57,7 @@ class Machinery extends Model
     protected $fillable = [
         'station_id',
         'machinery_group_id',
-        'business_unit_id',
+        'production_line_id',
         'equipment_code',
         'name',
         'description',
@@ -94,9 +99,9 @@ class Machinery extends Model
         return $this->belongsTo(MachineryGroup::class);
     }
 
-    public function businessUnit(): BelongsTo
+    public function productionLine(): BelongsTo
     {
-        return $this->belongsTo(BusinessUnit::class);
+        return $this->belongsTo(ProductionLine::class);
     }
 
     public function insurances(): HasMany

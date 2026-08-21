@@ -19,7 +19,8 @@
  * CRITICAL divergences this screen's own field set requires:
  *  - `machinery_group_id` is the bare top-level bound property (like
  *    `station_id` on KelolaMachineryGroupTest.php); `selectedStationName`/
- *    `selectedBusinessUnitName` are display-only derived properties.
+ *    `selectedProductionLineName` are display-only derived properties
+ *    (production_line_id, not business_unit_id — see entity-catalog v10).
  *  - `$insurances`/`$taxPurchases` are single-row sections (index 0 only,
  *    one Asuransi row and one Pajak/Pembelian row per machinery — not a
  *    repeatable grid); a blank row persists no child record at all.
@@ -51,7 +52,8 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create(['name' => 'Mill Unit Awal']);
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Weighbridge Awal']);
-    $this->group = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-LW-BASE')->create(['business_unit_id' => $this->businessUnit->id]);
+    $this->productionLine = $this->station->productionLine()->first();
+    $this->group = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-LW-BASE')->create();
     $this->admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
 });
 
@@ -63,7 +65,7 @@ it('berhasil: picks a Machinery Group, fills the form and creates a machinery th
         ->assertSet('showForm', true)
         ->set('machinery_group_id', $this->group->id)
         ->assertSet('selectedStationName', 'Weighbridge Awal')
-        ->assertSet('selectedBusinessUnitName', 'Mill Unit Awal')
+        ->assertSet('selectedProductionLineName', $this->productionLine->name)
         ->set('form.equipment_code', 'EQ-LW-001')
         ->set('form.name', 'Boiler Utama')
         ->call('save')
@@ -76,12 +78,12 @@ it('berhasil: picks a Machinery Group, fills the form and creates a machinery th
 
     $fresh = Machinery::where('equipment_code', 'EQ-LW-001')->firstOrFail();
     expect($fresh->station_id)->toBe($this->station->id);
-    expect($fresh->business_unit_id)->toBe($this->businessUnit->id);
+    expect($fresh->production_line_id)->toBe($this->station->production_line_id);
 });
 
 // CRITICAL — the derived display-only names never affect what's
 // persisted, even if forced out of sync.
-it('selectedStationName/selectedBusinessUnitName are purely cosmetic and never affect the persisted station_id/business_unit_id', function () {
+it('selectedStationName/selectedProductionLineName are purely cosmetic and never affect the persisted station_id/production_line_id', function () {
     $otherStation = Station::factory()->create(['name' => 'Station Lain']);
 
     $component = Livewire::actingAs($this->admin)
@@ -103,7 +105,7 @@ it('selectedStationName/selectedBusinessUnitName are purely cosmetic and never a
     expect($fresh->station_id)->not->toBe($otherStation->id);
 });
 
-it('clears selectedStationName/selectedBusinessUnitName when the machinery group selection is cleared', function () {
+it('clears selectedStationName/selectedProductionLineName when the machinery group selection is cleared', function () {
     Livewire::actingAs($this->admin)
         ->test(KelolaMachinery::class)
         ->call('openCreateForm')
@@ -111,7 +113,7 @@ it('clears selectedStationName/selectedBusinessUnitName when the machinery group
         ->assertSet('selectedStationName', 'Weighbridge Awal')
         ->set('machinery_group_id', '')
         ->assertSet('selectedStationName', null)
-        ->assertSet('selectedBusinessUnitName', null);
+        ->assertSet('selectedProductionLineName', null);
 });
 
 // Scenario "Kelola Machinery — Edit Machinery"
@@ -429,7 +431,7 @@ it('nextPage/previousPage: paginates the list and clamps at page 1', function ()
 // Filtering by filterMachineryGroupId resets to page 1 and only shows
 // that group's machinery.
 it('filters the list when filterMachineryGroupId is set, resetting to page 1', function () {
-    $groupB = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-LW-B')->create(['business_unit_id' => $this->businessUnit->id]);
+    $groupB = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-LW-B')->create();
     Machinery::factory()->forFullMachineryGroup($this->group)->withEquipmentCode('EQ-LW-A1')->create();
     Machinery::factory()->forFullMachineryGroup($groupB)->withEquipmentCode('EQ-LW-B1')->create();
 

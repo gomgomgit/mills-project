@@ -33,7 +33,7 @@
                 <tr>
                     <th>Kode</th>
                     <th>Station</th>
-                    <th>Business Unit</th>
+                    <th>Production Line</th>
                     <th>Deskripsi</th>
                     <th>Unit</th>
                     <th>Workshop Factor</th>
@@ -48,7 +48,7 @@
                     <tr class="kc-table__row" wire:key="machinery-group-{{ $machineryGroup['id'] }}">
                         <td>{{ $machineryGroup['group_code'] }}</td>
                         <td>{{ $machineryGroup['station_name'] ?? '-' }}</td>
-                        <td>{{ $machineryGroup['business_unit_name'] ?? '-' }}</td>
+                        <td>{{ $machineryGroup['production_line_name'] ?? '-' }}</td>
                         <td>{{ $machineryGroup['description'] ?? '-' }}</td>
                         <td>{{ $machineryGroup['unit'] ?? '-' }}</td>
                         <td>{{ $machineryGroup['workshop_factor'] ?? '-' }}</td>
@@ -155,15 +155,15 @@
                                 </div>
 
                                 <div class="kc-form-field">
-                                    <label for="business_unit_display" class="kc-form-field__label">Business Unit</label>
+                                    <label for="production_line_display" class="kc-form-field__label">Production Line</label>
                                     <input
                                         type="text"
-                                        id="business_unit_display"
-                                        value="{{ $selectedBusinessUnitName ?? '-' }}"
+                                        id="production_line_display"
+                                        value="{{ $selectedProductionLineName ?? '-' }}"
                                         class="kc-form-field__input"
                                         disabled
                                     >
-                                    <p class="kc-form-field__hint">Otomatis mengikuti Business Unit dari Station yang dipilih.</p>
+                                    <p class="kc-form-field__hint">Otomatis mengikuti Production Line dari Station yang dipilih.</p>
                                 </div>
 
                                 <div class="kc-form-field">
@@ -262,7 +262,7 @@
            verbatim (not duplicated-and-renamed) from
            kelola-station.blade.php to keep every master-data screen
            visually consistent — no new classes are introduced by this
-           screen, `business_unit_display`'s disabled input reuses the
+           screen, `production_line_display`'s disabled input reuses the
            plain `kc-form-field__input` class as-is. */
         .kc-page {
             --kc-brand: #249360;

@@ -27,10 +27,10 @@ use Livewire\WithFileUploads;
  *
  *  - `machinery_group_id` is a bare top-level bound property (like
  *    `station_id` on KelolaMachineryGroup); `station_id`/
- *    `business_unit_id` are NEVER bound/submitted form properties — both
+ *    `production_line_id` are NEVER bound/submitted form properties — both
  *    are always derived server-side by the service from the selected
  *    MachineryGroup, regardless of what this component holds.
- *    `$selectedStationName`/`$selectedBusinessUnitName` are DISPLAY-ONLY
+ *    `$selectedStationName`/`$selectedProductionLineName` are DISPLAY-ONLY
  *    properties (derived via updatedMachineryGroupId()/openEditForm()),
  *    never sent to the service.
  *  - `$insurances`/`$taxPurchases` are single-element public arrays
@@ -96,7 +96,7 @@ class KelolaMachinery extends Component
 
     public ?string $selectedStationName = null;
 
-    public ?string $selectedBusinessUnitName = null;
+    public ?string $selectedProductionLineName = null;
 
     /** @var array<string, string> */
     public array $form = [];
@@ -137,14 +137,14 @@ class KelolaMachinery extends Component
     {
         if ($value === '') {
             $this->selectedStationName = null;
-            $this->selectedBusinessUnitName = null;
+            $this->selectedProductionLineName = null;
 
             return;
         }
 
-        $group = MachineryGroup::with(['station', 'businessUnit'])->find($value);
+        $group = MachineryGroup::with(['station', 'productionLine'])->find($value);
         $this->selectedStationName = optional(optional($group)->station)->name;
-        $this->selectedBusinessUnitName = optional(optional($group)->businessUnit)->name;
+        $this->selectedProductionLineName = optional(optional($group)->productionLine)->name;
     }
 
     /**
@@ -261,7 +261,7 @@ class KelolaMachinery extends Component
         $this->editingId = null;
         $this->machinery_group_id = '';
         $this->selectedStationName = null;
-        $this->selectedBusinessUnitName = null;
+        $this->selectedProductionLineName = null;
         $this->form = $this->emptyForm();
         $this->picture = null;
         $this->existingPictureUrl = null;
@@ -273,7 +273,7 @@ class KelolaMachinery extends Component
 
     public function openEditForm(string $id): void
     {
-        $machinery = Machinery::with(['machineryGroup.station', 'machineryGroup.businessUnit', 'insurances', 'taxPurchases'])
+        $machinery = Machinery::with(['machineryGroup.station', 'machineryGroup.productionLine', 'insurances', 'taxPurchases'])
             ->findOrFail($id);
 
         $this->resetValidation();
@@ -281,7 +281,7 @@ class KelolaMachinery extends Component
         $this->editingId = $machinery->id;
         $this->machinery_group_id = (string) $machinery->machinery_group_id;
         $this->selectedStationName = optional(optional($machinery->machineryGroup)->station)->name;
-        $this->selectedBusinessUnitName = optional(optional($machinery->machineryGroup)->businessUnit)->name;
+        $this->selectedProductionLineName = optional(optional($machinery->machineryGroup)->productionLine)->name;
 
         $this->form = [
             'equipment_code' => (string) ($machinery->equipment_code ?? ''),
@@ -335,7 +335,7 @@ class KelolaMachinery extends Component
         $this->editingId = null;
         $this->machinery_group_id = '';
         $this->selectedStationName = null;
-        $this->selectedBusinessUnitName = null;
+        $this->selectedProductionLineName = null;
         $this->form = $this->emptyForm();
         $this->picture = null;
         $this->existingPictureUrl = null;
@@ -406,7 +406,7 @@ class KelolaMachinery extends Component
         $this->editingId = null;
         $this->machinery_group_id = '';
         $this->selectedStationName = null;
-        $this->selectedBusinessUnitName = null;
+        $this->selectedProductionLineName = null;
         $this->form = $this->emptyForm();
         $this->picture = null;
         $this->existingPictureUrl = null;

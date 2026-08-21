@@ -15,7 +15,7 @@
  * `picture`) upload conventions exactly.
  *
  * CRITICAL — the structural rules this screen exists to enforce, each
- * with a dedicated test below: `station_id`/`business_unit_id` are
+ * with a dedicated test below: `station_id`/`production_line_id` are
  * NEVER trusted from the request body, and are always independently
  * re-derived from the selected MachineryGroup's own values; the
  * `insurances`/`tax_purchases` child-row collections are replaced
@@ -50,9 +50,7 @@ beforeEach(function () {
     $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnit)->create();
 
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
-    $this->group = MachineryGroup::factory()->forStation($this->station)->create([
-        'business_unit_id' => $this->businessUnit->id,
-    ]);
+    $this->group = MachineryGroup::factory()->forStation($this->station)->create();
 });
 
 // --- create ------------------------------------------------------------------
@@ -66,27 +64,27 @@ it('berhasil: creates a machinery and returns 201 with the expected row shape', 
 
     $response->assertStatus(201);
     $response->assertJsonStructure([
-        'id', 'machinery_group_id', 'machinery_group_code', 'station_id', 'business_unit_id',
+        'id', 'machinery_group_id', 'machinery_group_code', 'station_id', 'production_line_id',
         'equipment_code', 'name', 'picture', 'picture_url', 'insurances', 'tax_purchases', 'created_at',
     ]);
     $response->assertJson([
         'equipment_code' => 'EQ-API-001',
         'name' => 'Boiler Utama',
         'station_id' => $this->station->id,
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->group->production_line_id,
     ]);
 
     expect(Machinery::where('equipment_code', 'EQ-API-001')->exists())->toBeTrue();
 });
 
-it('ignores spoofed station_id/business_unit_id sent in the request body', function () {
+it('ignores spoofed station_id/production_line_id sent in the request body', function () {
     $spoofedStation = Station::factory()->create();
-    $spoofedBusinessUnit = BusinessUnit::factory()->create();
+    $spoofedProductionLine = \App\Models\ProductionLine::factory()->create();
 
     $response = $this->actingAs($this->admin, 'web')->postJson('/api/machinery', [
         'machinery_group_id' => $this->group->id,
         'station_id' => $spoofedStation->id,
-        'business_unit_id' => $spoofedBusinessUnit->id,
+        'production_line_id' => $spoofedProductionLine->id,
         'equipment_code' => 'EQ-API-SPOOF',
         'name' => 'Mesin Spoof',
     ]);
@@ -94,12 +92,12 @@ it('ignores spoofed station_id/business_unit_id sent in the request body', funct
     $response->assertStatus(201);
     $response->assertJson([
         'station_id' => $this->station->id,
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->group->production_line_id,
     ]);
 
     $machinery = Machinery::where('equipment_code', 'EQ-API-SPOOF')->firstOrFail();
     expect($machinery->station_id)->toBe($this->station->id);
-    expect($machinery->business_unit_id)->toBe($this->businessUnit->id);
+    expect($machinery->production_line_id)->toBe($this->group->production_line_id);
 });
 
 it('creates a machinery with N insurance and M tax_purchase rows', function () {
@@ -219,7 +217,7 @@ it('lists machinery without child arrays and with machinery_group_code', functio
 });
 
 it('filters the list by machinery_group_id', function () {
-    $otherGroup = MachineryGroup::factory()->forStation($this->station)->create(['business_unit_id' => $this->businessUnit->id]);
+    $otherGroup = MachineryGroup::factory()->forStation($this->station)->create();
     Machinery::factory()->forFullMachineryGroup($this->group)->create();
     Machinery::factory()->forFullMachineryGroup($otherGroup)->create();
 
@@ -229,7 +227,7 @@ it('filters the list by machinery_group_id', function () {
     $response->assertJsonCount(1, 'data');
 });
 
-it('returns machinery-groups/options with id/group_code/station_id/business_unit_id', function () {
+it('returns machinery-groups/options with id/group_code/station_id/production_line_id', function () {
     $response = $this->actingAs($this->admin, 'web')->getJson('/api/machinery-groups/options');
 
     $response->assertOk();
@@ -237,7 +235,7 @@ it('returns machinery-groups/options with id/group_code/station_id/business_unit
         'id' => $this->group->id,
         'group_code' => $this->group->group_code,
         'station_id' => $this->station->id,
-        'business_unit_id' => $this->businessUnit->id,
+        'production_line_id' => $this->group->production_line_id,
     ]);
 });
 

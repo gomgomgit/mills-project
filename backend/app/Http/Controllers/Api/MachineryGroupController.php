@@ -25,11 +25,11 @@ use Illuminate\Http\Request;
  * entity.
  *
  * FIELDS — every MachineryGroup field this screen's create/update forms
- * accept from the request. `business_unit_id` is DELIBERATELY absent from
- * this whitelist: even if a client includes it in the request body,
+ * accept from the request. `production_line_id` is DELIBERATELY absent
+ * from this whitelist: even if a client includes it in the request body,
  * $request->only(self::FIELDS) below silently drops it before it ever
  * reaches the service — MachineryGroupService::create()/::update()
- * independently re-derive business_unit_id server-side from the found
+ * independently re-derive production_line_id server-side from the found
  * Station record instead, never trusting client input for this field
  * (the structural hierarchy-consistency guarantee this screen exists to
  * enforce — see App\Models\MachineryGroup's docblock).
@@ -50,7 +50,7 @@ class MachineryGroupController extends Controller
     /**
      * index() — GET /api/machinery-groups. business_logic step "list":
      * paginate, optional station_id filter, eager-load station +
-     * businessUnit + withCount('machinery').
+     * productionLine + withCount('machinery').
      */
     public function index(Request $request): JsonResponse
     {
@@ -69,7 +69,7 @@ class MachineryGroupController extends Controller
 
     /**
      * stationOptions() — GET /api/stations/options. business_logic step
-     * "stationOptions": unpaginated { id, name, business_unit_id } list,
+     * "stationOptions": unpaginated { id, name, production_line_id } list,
      * ordered by name — feeds the Station-select dropdown on the
      * Machinery Group create/edit form. This is a NEW endpoint — confirmed
      * via grep that no route named `stations/options` existed anywhere in
@@ -80,7 +80,7 @@ class MachineryGroupController extends Controller
      * declared on the CHILD entity's controller (here, MachineryGroup, one
      * level below Station) rather than on StationController itself, since
      * this is a screen-033-specific dropdown-population endpoint, not a
-     * general Station CRUD endpoint. `business_unit_id` is included per
+     * general Station CRUD endpoint. `production_line_id` is included per
      * row (unlike businessUnitOptions()'s plain id/name shape) so the FE
      * can copy/display it client-side before submit.
      */
@@ -94,7 +94,7 @@ class MachineryGroupController extends Controller
      * validate station_id exists → validate group_code required+unique
      * globally → validate description/unit/workshop_factor/
      * cost_per_equipment nullable → 422 if any invalid → copy
-     * business_unit_id from the found Station → insert.
+     * production_line_id from the found Station → insert.
      *
      * Response status: 201 Created, mirroring
      * StationController::store()/BusinessUnitController::store().
@@ -110,7 +110,7 @@ class MachineryGroupController extends Controller
      * update() — PATCH /api/machinery-groups/{id}. business_logic step
      * "update": validate id exists → 404 if not → same field validation as
      * store() (group_code unique excluding self) → 422 if any invalid →
-     * re-copy business_unit_id from the (possibly changed) station_id →
+     * re-copy production_line_id from the (possibly changed) station_id →
      * update.
      */
     public function update(Request $request, string $id): JsonResponse

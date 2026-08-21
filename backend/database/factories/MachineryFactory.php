@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\BusinessUnit;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
 use App\Models\Station;
@@ -31,6 +30,11 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  *
  * `picture`/`notes` remain nullable and left unset by default since most
  * callers never assert on them.
+ *
+ * 2026-08-20 (entity-catalog v10): `business_unit_id` was RENAMED to
+ * `production_line_id`, and is now NOT NULL — `definition()` derives it
+ * from the auto-created Station's own `production_line_id`, mirroring
+ * MachineryGroupFactory::definition()'s identical closure pattern.
  */
 class MachineryFactory extends Factory
 {
@@ -40,6 +44,9 @@ class MachineryFactory extends Factory
     {
         return [
             'station_id' => Station::factory(),
+            'production_line_id' => function (array $attributes) {
+                return Station::find($attributes['station_id'])?->production_line_id;
+            },
             'name' => 'Machine '.$this->faker->unique()->numerify('##'),
             'equipment_code' => 'EQ-'.$this->faker->unique()->numerify('######'),
         ];
@@ -53,7 +60,7 @@ class MachineryFactory extends Factory
     }
 
     /**
-     * Sets machinery_group_id/station_id/business_unit_id consistently
+     * Sets machinery_group_id/station_id/production_line_id consistently
      * from a given (or newly created) MachineryGroup — mirrors what
      * App\Services\MachineryService::create() derives server-side, for
      * tests that need a fully hierarchy-consistent row without going
@@ -67,7 +74,7 @@ class MachineryFactory extends Factory
         return $this->state(fn () => [
             'machinery_group_id' => $machineryGroup->id,
             'station_id' => $machineryGroup->station_id,
-            'business_unit_id' => $machineryGroup->business_unit_id,
+            'production_line_id' => $machineryGroup->production_line_id,
         ]);
     }
 

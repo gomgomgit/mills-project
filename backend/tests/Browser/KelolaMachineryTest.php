@@ -64,17 +64,17 @@ async function gotoMachinery(page) {
 
 test.describe('Kelola Machinery', () => {
   // Scenario: "Kelola Machinery — success"
-  test('menambah machinery baru dengan memilih machinery group, station/business unit terisi otomatis, dan menampilkannya di tabel', async ({ page }) => {
+  test('menambah machinery baru dengan memilih machinery group, station/production line terisi otomatis, dan menampilkannya di tabel', async ({ page }) => {
     await login(page, 'mtest-admin01', PASSWORD);
     await gotoMachinery(page);
 
     await page.locator('button', { hasText: 'Tambah Machinery' }).click();
     await page.locator('#machinery_group_id').selectOption({ label: 'MG-BROWSER-BASE' });
 
-    // Station/Business Unit fields are read-only and auto-populated from
-    // the selected Machinery Group — never independently typed.
+    // Station/Production Line fields are read-only and auto-populated
+    // from the selected Machinery Group — never independently typed.
     await expect(page.locator('#station_display')).toBeDisabled();
-    await expect(page.locator('#business_unit_display')).toBeDisabled();
+    await expect(page.locator('#production_line_display')).toBeDisabled();
 
     const uniqueSuffix = Date.now();
     const uniqueCode = `EQ-BROWSER-${uniqueSuffix}`;

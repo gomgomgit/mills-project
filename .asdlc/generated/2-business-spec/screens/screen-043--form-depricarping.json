@@ -1,0 +1,138 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-043--form-depricarping",
+  "name": "Form Depricarping",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar input/edit data log sheet stasiun Depricarping: header identitas (Presser ID, Tanggal, Inputted/Checked/Acknowledged By, Note) dan grid Depricarping Detail (baris time-slot ditambahkan satu per satu oleh user via 'Tambah baris', memilih Time-Slot dari 24 slot kanonis 07:00-06:00 keesokan hari secara berurutan — mengikuti pola persis Pressing Detail/Threshing Detail/Cages Tipped Time) dengan 8 kolom bacaan, beserta tabel referensi Target Operasional read-only di bawah form — mengikuti pola Form Pressing, disesuaikan dengan kolom bacaan dan tabel referensi Depricarping sendiri.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "'New Data' dari Monitor Depricarping (draft baru, grid Depricarping Detail dimulai kosong)",
+    "Tap item draft/pause dari list di Monitor Depricarping (lanjutkan draft)",
+    "Tap item draft/pause dari Data Preview Depricarping mode list (lanjutkan draft)"
+  ],
+  "information_displayed": [
+    "Identitas Depricarping: Presser ID (wajib, dapat diedit bebas), Tanggal (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual)",
+    "Verifikasi: Inputted By (read-only, nama user pembuat), Checked By (toggle 'Saya verifikasi data ini', khusus Supervisor), Acknowledged By (toggle 'Saya menyetujui data ini', khusus Mill Management), Note (opsional)",
+    "Depricarping Detail: grid baris time-slot yang ditambahkan satu per satu oleh user (Tambah baris), dengan kolom per baris: Time-Slot (dropdown, opsi = 24 slot kanonis jam 07:00-06:00 keesokan hari DIKURANGI yang sudah dipakai baris lain dan yang lebih awal-atau-sama dengan slot tertinggi yang sudah dipilih baris lain), Fan Static Pressure (mmH2O), Polishing Drum Speed (RPM), Air Velocity (m/s), Fibre Moisture (%), Kernel Recovery in Fibre (%), Nut Silo 1 Temp (°C), Nut Silo 2 Temp (°C), Downtime (Mins), dan Findings — seluruh 8 kolom bacaan opsional per baris, baris dapat dihapus (Hapus baris)",
+    "Target Operasional: tabel referensi read-only 6 baris x 4 kolom (Parameter/Metric, Target Range, Critical Limit, Operational Consequence/Justification), bukan bagian dari data yang disimpan",
+    "Header 'Mill Smart Log' + breadcrumb (Home > Production Process Activity > Depricarping > Form) + ikon hamburger menu"
+  ],
+  "available_actions": [
+    {
+      "action": "Simpan",
+      "description": "Validasi Presser ID wajib diisi dan minimal satu baris Depricarping Detail punya Time-Slot terpilih DAN minimal 1 dari 8 kolom bacaan terisi, lalu menyimpan record dengan status=saved dan kembali ke Monitor Depricarping",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tambah baris Depricarping Detail",
+      "description": "Menambah satu baris time-slot baru ke grid Depricarping Detail",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus baris Depricarping Detail",
+      "description": "Menghapus satu baris dari grid Depricarping Detail",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pilih Time-Slot per baris",
+      "description": "Memilih slot jam untuk baris tersebut dari slot kanonis yang tersedia (belum dipakai baris lain, lebih lambat dari slot tertinggi yang sudah dipilih baris lain)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi kolom bacaan pada baris Depricarping Detail",
+      "description": "Mengisi salah satu atau lebih dari 8 kolom bacaan (Fan Static Pressure, Polishing Drum Speed, Air Velocity, Fibre Moisture, Kernel Recovery in Fibre, Nut Silo 1 Temp, Nut Silo 2 Temp, Downtime (Mins), Findings) pada baris manapun yang sudah ditambahkan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progress saat ini apa adanya (tanpa validasi) dengan status=draft_paused dan kembali ke Monitor Depricarping",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus draft secara permanen (dengan konfirmasi) dan kembali ke Monitor Depricarping",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor Depricarping; jika ada perubahan belum tersimpan, tampilkan konfirmasi terlebih dahulu",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Toggle Checked By",
+      "description": "Menandai data sudah diverifikasi (self-attestation), hanya dapat diisi oleh Supervisor",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Toggle Acknowledged By",
+      "description": "Menandai data sudah disetujui (self-attestation), hanya dapat diisi oleh Mill Management (mengisi form dari mobile jika berperan sebagai Supervisor juga, sesuai kebijakan role gabungan)",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Presser ID wajib diisi sebelum Simpan; Note/Checked By/Acknowledged By tidak wajib",
+    "Tanggal otomatis terisi sekali saat draft baru dibuat (mengikuti pola Arrival Weighbridge), tidak dapat diedit manual sama sekali",
+    "Grid Depricarping Detail TIDAK di-pre-generate — baris ditambahkan satu per satu oleh user via 'Tambah baris' (revisi 2026-08-24 dari desain awal grid statis 24 baris, mengikuti pola persis Pressing Detail/Threshing Detail/Cages Tipped Time/Cages Track Record)",
+    "Time-Slot tiap baris wajib lebih lambat (index kanonis lebih besar) dari Time-Slot baris yang terakhir ditambahkan pada record yang sama, dan tidak boleh duplikat dengan baris manapun (urutan menaik kronologis, maksimal 24 baris karena hanya ada 24 slot kanonis)",
+    "Setiap kolom bacaan pada baris Depricarping Detail bersifat opsional — baris yang sebagian terisi tetap valid",
+    "Minimal satu baris Depricarping Detail (dengan Time-Slot terpilih) harus punya minimal 1 dari 8 kolom bacaan terisi sebelum Simpan bisa berhasil — error khusus ditampilkan pada grid, terpisah dari error field header",
+    "Checked By hanya dapat diisi oleh user berperan Supervisor; Acknowledged By hanya dapat diisi oleh user berperan Mill Management",
+    "Pause tidak memvalidasi apa pun — menyimpan apa adanya sebagai checkpoint",
+    "Clear meminta konfirmasi sebelum menghapus permanen",
+    "Back dengan perubahan belum tersimpan meminta konfirmasi sebelum keluar",
+    "Tabel Target Operasional adalah referensi baku mutu read-only, bukan bagian dari data yang disimpan ke record"
+  ],
+  "usecase_ids": [
+    "usecase-043--form-depricarping"
+  ],
+  "edge_cases": [
+    "User mencoba Simpan dengan Presser ID kosong — error inline pada field, tidak menyimpan",
+    "Belum ada satu pun baris Depricarping Detail yang punya Time-Slot terpilih dan minimal 1 dari 8 kolom bacaan terisi saat Simpan ditekan — error khusus pada grid, tidak menyimpan",
+    "User mengisi Downtime (Mins) atau Findings saja pada satu baris (tanpa kolom numerik lain) — tetap dianggap baris terisi, valid untuk Simpan",
+    "User mencoba memilih Time-Slot yang sudah dipakai baris lain atau lebih awal dari baris terakhir — opsi tersebut tidak tersedia di dropdown",
+    "User menghapus baris Depricarping Detail yang sudah ada sebelumnya (bukan baru ditambah) — baris di-queue untuk dihapus, benar-benar terhapus saat Simpan/Pause berikutnya",
+    "Draft yang di-Pause lalu dilanjutkan — baris yang sudah ditambahkan beserta bacaan yang sudah terisi tetap utuh",
+    "User menekan Pause tanpa mengisi apa pun — tetap tersimpan sebagai draft_paused tanpa validasi",
+    "User menekan Clear — draft dan seluruh baris terkait dihapus permanen setelah konfirmasi",
+    "User menekan Back dengan perubahan belum tersimpan — dialog konfirmasi sebelum keluar; jika tidak ada perubahan, langsung kembali tanpa dialog",
+    "Non-Supervisor mencoba toggle Checked By — kontrol nonaktif/tidak dapat ditekan",
+    "Non-Mill-Management mencoba toggle Acknowledged By — kontrol nonaktif/tidak dapat ditekan"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

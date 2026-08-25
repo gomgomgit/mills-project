@@ -9,19 +9,35 @@
  * Cages Tipped Time grid (Time dropdown + per-cage checkboxes) layered on
  * top.
  *
+ * REWRITTEN: unlike FormWeighbridgeTest.php/FormGradingTest.php (whose
+ * create forms still pick a Business Unit first, then a cascaded
+ * Production Line), this screen's create form dropped the Business Unit
+ * step entirely — resources/views/livewire/data/form-cages-track.blade.php
+ * only renders `[data-testid="production-line-select"]` in create mode
+ * (`@if (! $isEdit)`); Business Unit is derived server-side from the
+ * chosen Production Line and only shown read-only in edit mode
+ * (`[data-testid="business-unit-readonly"]`). Every
+ * `[data-testid="business-unit-select"]` interaction below (which no
+ * longer exists on this page at all) is replaced with
+ * `[data-testid="production-line-select"]`, and the fixture names in the
+ * doc comment below are now Production Line names rather than Business
+ * Unit names.
+ *
  * WRITTEN BUT NOT RUN IN THIS SESSION — same environment constraint as
  * every other Browser/* spec in this codebase (no dev server/browser
  * available in this sandbox).
  *
  * Test data assumption: authenticated Supervisor session via /login, then
  * navigate to /data/cages-track/create (or /data/cages-track/{id}/edit).
- * Scenarios assume a Business Unit named "Mill A" exists with an active
- * Cages Track station and a Mills Setting row (Jumlah Cages = 10), and (for
- * the "tanpa station aktif" scenario) a second Business Unit "Mill Tanpa
- * Cages Track" exists with no active Cages Track station. The "Jumlah Kolom
- * Grid" scenario assumes a third Business Unit "Mill Kecil" exists with
- * Jumlah Cages = 8. Edit scenarios assume a pre-seeded Cages Track record
- * with Cages Track Number "CT-BROWSER-EDIT" exists under "Mill A".
+ * Scenarios assume a Production Line named "PL Mill A" exists (under any
+ * Business Unit) with an active Cages Track station and a Mills Setting
+ * row on its Business Unit (Jumlah Cages = 10), and (for the "tanpa
+ * station aktif" scenario) a second Production Line "PL Tanpa Cages Track"
+ * exists with no active Cages Track station. The "Jumlah Kolom Grid"
+ * scenario assumes a third Production Line "PL Mill Kecil" exists whose
+ * Business Unit has Jumlah Cages = 8. Edit scenarios assume a pre-seeded
+ * Cages Track record with Cages Track Number "CT-BROWSER-EDIT" exists
+ * under "PL Mill A".
  */
 
 import { test, expect } from '@playwright/test';
@@ -29,14 +45,13 @@ import { test, expect } from '@playwright/test';
 const BASE_URL = 'http://localhost:8000';
 const LOGIN_PATH = '/login';
 const CREATE_PATH = '/data/cages-track/create';
-const BUSINESS_UNIT_NAME = 'Mill A';
+const PRODUCTION_LINE_NAME = 'PL Mill A';
 const PASSWORD = 'Passw0rd!';
 
 async function login(page, username, password) {
   await page.goto(`${BASE_URL}${LOGIN_PATH}`);
   await page.locator('#username').fill(username);
   await page.locator('#password').fill(password);
-  await page.locator('#business_unit_id').selectOption({ label: BUSINESS_UNIT_NAME });
   await page.locator('button[type="submit"]').click();
   await page.waitForURL((url) => !url.pathname.startsWith(LOGIN_PATH));
 }
@@ -49,7 +64,7 @@ test.describe('Form Cages Track (Web)', () => {
     await page.locator('[data-testid="add-data-button"]').click();
     await page.waitForURL(`${BASE_URL}${CREATE_PATH}`);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     const uniqueSuffix = Date.now();
     await page.locator('[data-testid="cages-track-number-input"]').fill(`CT-BROWSER-${uniqueSuffix}`);
     await page.locator('[data-testid="cages-out-input"]').fill('12');
@@ -83,7 +98,7 @@ test.describe('Form Cages Track (Web)', () => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(`${BASE_URL}${CREATE_PATH}`);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     await page.locator('[data-testid="date-input"]').fill('2020-01-01');
     const uniqueSuffix = Date.now();
     await page.locator('[data-testid="cages-track-number-input"]').fill(`CT-BROWSER-DT-${uniqueSuffix}`);
@@ -99,11 +114,11 @@ test.describe('Form Cages Track (Web)', () => {
   });
 
   // Scenario: "Jumlah Kolom Grid Mengikuti Mills Setting, Bukan Cages Tipped Header"
-  test('pilih BU dengan Jumlah Cages=8, isi Cages Tipped header dengan 15, tambah 1 baris, grid menampilkan 8 kolom checklist', async ({ page }) => {
+  test('pilih Production Line dengan Jumlah Cages=8, isi Cages Tipped header dengan 15, tambah 1 baris, grid menampilkan 8 kolom checklist', async ({ page }) => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(`${BASE_URL}${CREATE_PATH}`);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: 'Mill Kecil' });
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: 'PL Mill Kecil' });
     await page.locator('[data-testid="cages-tipped-input"]').fill('15');
     await page.locator('[data-testid="add-row-button"]').click();
 
@@ -115,7 +130,7 @@ test.describe('Form Cages Track (Web)', () => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(`${BASE_URL}${CREATE_PATH}`);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     await page.locator('[data-testid="add-row-button"]').click();
     await page.locator('[data-testid="detail-hour-select-0"]').selectOption('7');
     await page.locator('[data-testid="add-row-button"]').click();
@@ -130,7 +145,7 @@ test.describe('Form Cages Track (Web)', () => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(`${BASE_URL}${CREATE_PATH}`);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     await page.locator('[data-testid="save-button"]').click();
 
     await expect(page.locator('.fc-field__error')).toContainText('Cages Track Number');
@@ -141,7 +156,7 @@ test.describe('Form Cages Track (Web)', () => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(`${BASE_URL}${CREATE_PATH}`);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     await page.locator('[data-testid="cages-track-number-input"]').fill('CT-NO-DETAIL');
     await page.locator('[data-testid="cages-out-input"]').fill('12');
     await page.locator('[data-testid="cages-tipped-input"]').fill('10');
@@ -151,11 +166,11 @@ test.describe('Form Cages Track (Web)', () => {
   });
 
   // Scenario: "Business Unit Tanpa Station Cages Track Aktif"
-  test('pilih BU tanpa station cages-track, klik Simpan, error ditampilkan', async ({ page }) => {
+  test('pilih Production Line tanpa station cages-track, klik Simpan, error ditampilkan', async ({ page }) => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(`${BASE_URL}${CREATE_PATH}`);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: 'Mill Tanpa Cages Track' });
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: 'PL Tanpa Cages Track' });
     await page.locator('[data-testid="cages-track-number-input"]').fill('CT-NO-STATION');
     await page.locator('[data-testid="cages-out-input"]').fill('12');
     await page.locator('[data-testid="cages-tipped-input"]').fill('10');

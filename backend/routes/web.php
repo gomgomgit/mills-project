@@ -12,6 +12,21 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/health', fn () => response()->json(['status' => 'ok']));
 
+// Logout — not a screen route (no tech-spec entry), infrastructure like
+// /health above, so it lives outside the ASDLC-managed block. POST +
+// 'auth' middleware (session-guarded, same as every other web route here)
+// per Laravel's standard logout pattern: invalidate the session and
+// regenerate both the session id and CSRF token so a stale session cookie
+// can't be replayed, then redirect to Login.
+Route::middleware('auth')->post('/logout', function (\Illuminate\Http\Request $request) {
+    \Illuminate\Support\Facades\Auth::guard('web')->logout();
+
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
+
+    return redirect()->route('login');
+})->name('logout');
+
 // === ASDLC_ROUTES_START ===
 // screen-025--dashboard-web
 Route::middleware(['auth', 'role:admin,supervisor,mill_management'])
@@ -223,4 +238,110 @@ Route::middleware(['auth', 'role:admin,mill_management'])
 Route::middleware(['auth', 'role:admin'])
     ->get('/users', \App\Livewire\UserManagement\KelolaUserRole::class)
     ->name('users.index');
+
+// screen-049--data-browser-threshing-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/threshing', \App\Livewire\Data\DataBrowserThreshing::class)
+    ->name('data.threshing');
+
+// screen-057--form-threshing-web
+// IMPORTANT — '/data/threshing/create' MUST be registered BEFORE
+// '/data/threshing/{id}' (screen-053, right below) or Laravel would match
+// the literal 'create' segment as {id} instead. Mirrors
+// screen-024--form-cages-track-web's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/threshing/create', \App\Livewire\Data\FormThreshing::class)
+    ->name('data.threshing.create');
+
+// screen-053--detail-threshing-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/threshing/{id}', \App\Livewire\Data\DetailThreshing::class)
+    ->name('data.threshing.detail');
+
+// screen-057--form-threshing-web (edit mode) — extra '/edit' segment never
+// collides with '/data/threshing/{id}' above regardless of registration
+// order (different path shape), but kept after 'create' for readability.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/threshing/{id}/edit', \App\Livewire\Data\FormThreshing::class)
+    ->name('data.threshing.edit');
+
+// screen-050--data-browser-pressing-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/pressing', \App\Livewire\Data\DataBrowserPressing::class)
+    ->name('data.pressing');
+
+// screen-058--form-pressing-web
+// IMPORTANT — '/data/pressing/create' MUST be registered BEFORE
+// '/data/pressing/{id}' (screen-054, right below) or Laravel would match
+// the literal 'create' segment as {id} instead. Mirrors
+// screen-057--form-threshing-web's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/pressing/create', \App\Livewire\Data\FormPressing::class)
+    ->name('data.pressing.create');
+
+// screen-054--detail-pressing-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/pressing/{id}', \App\Livewire\Data\DetailPressing::class)
+    ->name('data.pressing.detail');
+
+// screen-058--form-pressing-web (edit mode) — extra '/edit' segment never
+// collides with '/data/pressing/{id}' above regardless of registration
+// order (different path shape), but kept after 'create' for readability.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/pressing/{id}/edit', \App\Livewire\Data\FormPressing::class)
+    ->name('data.pressing.edit');
+
+// screen-051--data-browser-depricarping-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/depricarping', \App\Livewire\Data\DataBrowserDepricarping::class)
+    ->name('data.depricarping');
+
+// screen-059--form-depricarping-web
+// IMPORTANT — '/data/depricarping/create' MUST be registered BEFORE
+// '/data/depricarping/{id}' (screen-055, right below) or Laravel would
+// match the literal 'create' segment as {id} instead. Mirrors
+// screen-058--form-pressing-web's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/depricarping/create', \App\Livewire\Data\FormDepricarping::class)
+    ->name('data.depricarping.create');
+
+// screen-055--detail-depricarping-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/depricarping/{id}', \App\Livewire\Data\DetailDepricarping::class)
+    ->name('data.depricarping.detail');
+
+// screen-059--form-depricarping-web (edit mode) — extra '/edit' segment
+// never collides with '/data/depricarping/{id}' above regardless of
+// registration order (different path shape), but kept after 'create' for
+// readability.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/depricarping/{id}/edit', \App\Livewire\Data\FormDepricarping::class)
+    ->name('data.depricarping.edit');
+
+// screen-052--data-browser-kernel-plant-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/kernel-plant', \App\Livewire\Data\DataBrowserKernelPlant::class)
+    ->name('data.kernel-plant');
+
+// screen-060--form-kernel-plant-web
+// IMPORTANT — '/data/kernel-plant/create' MUST be registered BEFORE
+// '/data/kernel-plant/{id}' (screen-056, right below) or Laravel would
+// match the literal 'create' segment as {id} instead. Mirrors
+// screen-059--form-depricarping-web's registration pattern.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/kernel-plant/create', \App\Livewire\Data\FormKernelPlant::class)
+    ->name('data.kernel-plant.create');
+
+// screen-056--detail-kernel-plant-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/kernel-plant/{id}', \App\Livewire\Data\DetailKernelPlant::class)
+    ->name('data.kernel-plant.detail');
+
+// screen-060--form-kernel-plant-web (edit mode) — extra '/edit' segment
+// never collides with '/data/kernel-plant/{id}' above regardless of
+// registration order (different path shape), but kept after 'create' for
+// readability.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/kernel-plant/{id}/edit', \App\Livewire\Data\FormKernelPlant::class)
+    ->name('data.kernel-plant.edit');
 // === ASDLC_ROUTES_END ===

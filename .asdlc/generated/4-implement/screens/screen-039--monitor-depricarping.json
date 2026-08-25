@@ -1,0 +1,67 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-039--monitor-depricarping",
+  "name": "Monitor Depricarping",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/localSchema.ts",
+    "mobile/src/services/depricarpingRecordRepo.ts",
+    "mobile/src/data/depricarpingOperationalTargets.ts",
+    "mobile/src/views/MonitorDepricarpingView.vue",
+    "mobile/src/router/index.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/depricarpingRecordRepo.spec.ts",
+    "mobile/tests/MonitorDepricarpingView.spec.ts",
+    "mobile/tests/e2e/monitor-depricarping.spec.ts"
+  ],
+  "implementation_notes": [
+    "depricarping_record/depricarping_detail local SQLite tables in localSchema.ts unchanged by this revision (same columns/unique constraint, including downtime_minutes integer + findings free-text kept as two distinct columns) -- only the row-population pattern changed",
+    "depricarpingRecordRepo.ts covers all 3 mobile Depricarping screens (039/043/047) in one file, same convention as pressingRecordRepo.ts covering screens 038/042/046; its full unit test coverage (depricarpingRecordRepo.spec.ts, 29 tests) is reported under this screen since it was authored first in sequence",
+    "REVISED 2026-08-24 (entity-catalog v12, correcting the original design the user explicitly rejected): createDraft() now inserts ONLY the header row -- the 24 pre-created depricarping_detail rows were a literal reading of the paper log-sheet mockup that wasted screen space; rows are now added one at a time by the user in Form Depricarping via 'Tambah baris', exactly mirroring pressingRecordRepo.ts's/threshingRecordRepo.ts's just-fixed pattern (itself mirroring cagesTrackRecordRepo.ts's cages_tipped_time pattern)",
+    "'Jumlah Baris Time-Slot Tercatat' counter redefined as a plain COUNT(*) of depricarping_detail rows belonging to today's records -- no longer filtered by 'has >=1 of 8 reading columns filled', since row existence itself is now the meaningful signal (a row only exists because the user explicitly added it); MonitorDepricarpingView.vue's counter field renamed from filledSlotCount/counter-filled-slot-count to detailRowCount/counter-detail-row-count",
+    "depricarpingOperationalTargets.ts uses the entity-catalog's own 4-column shape (parameter_metric/target_range/critical_limit/operational_consequence_justification) -- one column more than Threshing's/Pressing's 3-column shape -- UNTOUCHED by this revision",
+    "Router: route name 'monitor-depricarping' registered in router/index.ts, but StationListView.vue (screen-006, out of this 6-screen task's scope) has NOT been updated to link to it -- see known_issues, same known issue already documented for Threshing/Pressing"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "StationListView.vue (screen-006, out of this 6-screen task's scope) has not been updated to add a Depricarping tile/link to 'monitor-depricarping' -- this screen is reachable directly by route/URL but not yet from the Station List grid. Needs a separate revision of screen-006 (shared across all 4 new-station agent runs, not owned by any single one -- Threshing's/Pressing's implement artifacts document the identical gap).",
+      "severity": "major"
+    },
+    {
+      "description": "Browser (Playwright) e2e spec (mobile/tests/e2e/monitor-depricarping.spec.ts) was originally authored following Threshing's/Pressing's e2e-spec pattern for the fixed-24-row design, then REVISED 2026-08-24 alongside this fix to seed only as many depricarping_detail rows as a real 'Tambah baris' flow would produce and assert the dynamic-grid counter/testids -- still could not be executed in this sandboxed environment against a running dev server + seeded backend, verified only by static review (syntax confirmed via `playwright test --list`).",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-24T08:21:58Z",
+      "passed": 29,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T08:21:58Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

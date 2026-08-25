@@ -1,0 +1,567 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-057--form-threshing-web",
+  "name": "Form Threshing (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/threshing/create (buat baru), /data/threshing/{id}/edit (ubah)",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-057--form-threshing-web",
+      "usecase_name": "Input Data Threshing (Web)",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/threshing-records",
+          "description": "Membuat record Threshing baru beserta baris Threshing Detail yang diberikan (1..24 baris, tidak lagi harus tepat 24); station diresolve dari production_line_id",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "production_line_id": "uuid, required",
+              "thresher_id": "string, required",
+              "date": "date, required",
+              "note": "string, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of 1..24 {time_slot: string HH:00 (harus salah satu dari 24 slot kanonis, unik, urutan menaik), ffb_throughput_mt_hour?: float, thresher_drum_speed_rpm?: float, motor_current_amps?: float, unstripped_bunch_count_percent?: float, empty_bunch_oil_loss_percent?: float, downtime_reason?: string}, required, minimal 1 baris dengan minimal 1 kolom bacaan terisi"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "thresher_id": "string",
+              "date": "date",
+              "status": "string",
+              "details": "array baris sebanyak yang diberikan"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong, details kosong, time_slot bukan slot kanonis/duplikat/tidak urut menaik, atau tidak ada satu pun baris dengan minimal 1 kolom bacaan terisi"
+              },
+              {
+                "http_code": 422,
+                "error_code": "NO_ACTIVE_THRESHING_STATION",
+                "condition": "production line tanpa station threshing aktif"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/threshing-records/{id}",
+          "description": "Memperbarui record Threshing tersimpan beserta baris Threshing Detail-nya (upsert: baris tanpa id di-INSERT, baris dengan id di-UPDATE, baris existing yang idnya tidak lagi ada di payload di-DELETE)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID record"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "thresher_id": "string, required",
+              "date": "date, required",
+              "note": "string, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of 1..24 {id?: uuid (ada jika baris existing), time_slot: string, ffb_throughput_mt_hour?: float, thresher_drum_speed_rpm?: float, motor_current_amps?: float, unstripped_bunch_count_percent?: float, empty_bunch_oil_loss_percent?: float, downtime_reason?: string}, required"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "thresher_id": "string",
+              "status": "string",
+              "details": "array baris sebanyak yang diberikan"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong, details kosong, atau tidak ada baris terisi"
+              },
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Create: validate field wajib (thresher_id, date) + minimal 1 baris details valid (time_slot salah satu dari 24 slot kanonis DAN minimal 1 dari 6 kolom bacaan terisi), setiap time_slot valid harus unik dan urutan menaik kanonis -> 422 VALIDATION_ERROR",
+        "2. Create: resolve station = Station WHERE production_line_id AND type=threshing AND is_active=true -> 422 NO_ACTIVE_THRESHING_STATION jika tidak ada",
+        "3. Dalam transaksi DB: INSERT threshing_record (status=saved) lalu INSERT setiap baris details yang valid sebagai threshing_detail row (time_slot dari body)",
+        "4. checked=true+role=supervisor -> checked_by=requester id; acknowledged=true+role=mill_management -> acknowledged_by=requester id; role lain diabaikan diam-diam",
+        "5. Update: validate id -> 404 jika tidak ada -> validate field wajib + details (minimal 1 baris valid, time_slot unik + urutan menaik) -> 422 jika gagal",
+        "6. Update: production_line_id/station_id tidak diterima dari body, tidak berubah",
+        "7. Dalam transaksi DB: UPDATE threshing_record, lalu upsert threshing_detail (baris valid tanpa id: INSERT baru; baris valid dengan id: UPDATE; baris existing di DB yang idnya tidak lagi ada di payload valid: DELETE) -- mirrors CagesTrackRecordService::upsertDetails()",
+        "8. FE: mode create tampilkan dropdown Production Line (query langsung ProductionLine di Livewire mount(), sama pola dengan FormCagesTrack); grid Threshing Detail DIMULAI KOSONG (0 baris) -- REVISI 2026-08-24, menggantikan desain awal yang langsung membangun 24 baris kosong bertime_slot kanonis di client saat mount",
+        "9. FE: mode edit GET /api/threshing-records/{id} untuk prefill baris yang ada beserta id masing-masing (berapapun jumlahnya), Production Line ditampilkan read-only (resolve dari record.station_id -> nama production line, ditampilkan sebagai teks)",
+        "10. FE: Tanggal default waktu saat ini pada mode create, tetap dapat diedit manual (input type=date)",
+        "11. FE: grid Threshing Detail PUNYA tombol 'Tambah Baris' (menambah 1 baris kosong, time_slot belum dipilih) dan 'Hapus' per baris (menghapus dari state lokal, upsert di server terjadi saat Simpan) -- REVISI 2026-08-24, menggantikan grid statis 24 baris tanpa tombol",
+        "12. FE: Time-Slot per baris adalah dropdown <select>, opsi = 24 slot kanonis DIKURANGI (slot dipakai baris lain) DAN (slot dengan index kanonis <= index slot tertinggi baris lain) -- computed di Livewire component, mirror FormCagesTrack::availableHourOptions() tapi dibandingkan lewat index array canonicalTimeSlots(), bukan angka jam mentah",
+        "13. FE: checkbox Checked hanya untuk role supervisor, Acknowledged hanya mill_management (pola sama dengan FormCagesTrack)",
+        "14. FE: render field per section (Identitas Threshing, Threshing Detail grid dinamis, Target Operasional referensi read-only, Verifikasi)",
+        "15. FE: tabel Target Operasional di-query langsung via ThreshingOperationalTarget::orderBy('sort_order')->get() di Livewire component (bukan bagian dari payload create/update)",
+        "16. Simpan berhasil -> navigasi ke Detail Threshing (Web)",
+        "17. Batal -> kembali tanpa API call, dengan konfirmasi jika form dirty"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "threshing-record",
+          "operation": "INSERT",
+          "description": "INSERT record baru"
+        },
+        {
+          "entity_id": "threshing-record",
+          "operation": "UPDATE",
+          "description": "UPDATE record edit"
+        },
+        {
+          "entity_id": "threshing-record",
+          "operation": "SELECT",
+          "description": "SELECT untuk prefill edit"
+        },
+        {
+          "entity_id": "threshing-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru pada create, atau baris tanpa id pada update"
+        },
+        {
+          "entity_id": "threshing-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris yang sudah punya id pada update"
+        },
+        {
+          "entity_id": "threshing-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris existing yang idnya tidak lagi ada di payload valid pada update"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "Resolve station threshing aktif dari production_line_id"
+        },
+        {
+          "entity_id": "threshing-operational-target",
+          "operation": "SELECT",
+          "description": "Query langsung dari Livewire component untuk tabel referensi, bukan bagian dari payload"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Field wajib kosong",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "details kosong atau time_slot bukan slot kanonis/duplikat/tidak urut menaik",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Tidak ada baris details dengan minimal 1 kolom bacaan terisi",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Production Line tanpa station threshing aktif",
+          "handling": "422 NO_ACTIVE_THRESHING_STATION"
+        },
+        {
+          "condition": "id tidak ditemukan (update)",
+          "handling": "404 RECORD_NOT_FOUND"
+        },
+        {
+          "condition": "checked/acknowledged oleh role tidak berhak",
+          "handling": "diabaikan diam-diam"
+        },
+        {
+          "condition": "User memilih Time-Slot yang sudah dipakai baris lain atau lebih awal dari baris terakhir",
+          "handling": "opsi tersebut tidak ditampilkan di dropdown"
+        }
+      ],
+      "business_rules_applied": [
+        "Tidak ada draft/pause di web",
+        "Grid Threshing Detail dinamis, baris ditambahkan/dihapus satu per satu",
+        "Minimal satu baris harus punya minimal satu kolom bacaan terisi",
+        "Time-Slot tiap baris unik dan urutan menaik kanonis",
+        "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Production Line tidak berubah setelah dibuat",
+        "Tabel Target Operasional murni referensi, tidak pernah bagian dari payload"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "creates record with resolved station_id and only the given detail rows inserted (no forced 24)",
+          "given": "valid body dengan production_line_id yang punya 1 station threshing aktif, details berisi 1 entri valid",
+          "expect": "threshing_record insert dengan station_id sesuai, status=saved, 1 threshing_detail row terinsert"
+        },
+        {
+          "description": "creates a record with multiple detail rows when given several valid, ascending time slots",
+          "given": "details berisi 3 entri dengan time_slot 07:00, 09:00, 14:00 dalam urutan menaik",
+          "expect": "3 threshing_detail rows terinsert, urutan time_slot sesuai"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when required field empty",
+          "given": "thresher_id kosong",
+          "expect": "ValidationException errors.thresher_id"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when details is empty",
+          "given": "details = []",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when a detail row uses a time_slot outside the 24 canonical slots",
+          "given": "details berisi 1 entri dengan time_slot '07:15' (bukan slot kanonis)",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when time_slot is not strictly ascending or is duplicated across detail rows",
+          "given": "details berisi 2 entri dengan time_slot 09:00 lalu 07:00 (mundur), atau dua entri time_slot sama",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when zero detail rows have any reading column filled",
+          "given": "details berisi entri dengan time_slot terisi tapi seluruh kolom bacaan null/kosong",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "treats a row with only downtime_reason filled as satisfying the minimum-one-row rule",
+          "given": "details berisi 1 entri dengan downtime_reason='Maintenance' dan seluruh kolom numerik null",
+          "expect": "record berhasil disimpan (validasi lolos)"
+        },
+        {
+          "description": "422 NO_ACTIVE_THRESHING_STATION when production line has no active threshing station",
+          "given": "Station query kosong untuk production_line_id+type=threshing",
+          "expect": "throw NoActiveThreshingStationException"
+        },
+        {
+          "description": "sets checked_by when checked=true and role=supervisor",
+          "given": "checked=true, role=supervisor",
+          "expect": "checked_by=requester id"
+        },
+        {
+          "description": "ignores checked=true when role is not supervisor",
+          "given": "checked=true, role=mill_management",
+          "expect": "checked_by tetap null, tidak error"
+        },
+        {
+          "description": "sets acknowledged_by when acknowledged=true and role=mill_management",
+          "given": "acknowledged=true, role=mill_management",
+          "expect": "acknowledged_by=requester id"
+        },
+        {
+          "description": "updates record and upserts its detail rows: inserts new row, updates existing row, deletes removed row",
+          "given": "PATCH dengan 1 entri existing (punya id, nilai diubah) dan 1 entri baru (tanpa id); record sebelumnya punya 2 baris existing lain yang tidak lagi ada di payload",
+          "expect": "threshing_record ter-update; baris existing yang dikirim ter-UPDATE; baris baru ter-INSERT; baris existing yang tidak lagi dikirim ter-DELETE"
+        },
+        {
+          "description": "updates record without accepting production_line_id change",
+          "given": "PATCH tanpa production_line_id",
+          "expect": "station_id tidak berubah"
+        },
+        {
+          "description": "404 RECORD_NOT_FOUND when updating non-existent id",
+          "given": "findOrFail throws",
+          "expect": "404 RECORD_NOT_FOUND"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "threshing-operational-target",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-049--data-browser-threshing-web",
+      "reason": "Entry point mode create"
+    },
+    {
+      "screen_id": "screen-053--detail-threshing-web",
+      "reason": "Entry point mode edit dan tujuan navigasi setelah Simpan"
+    }
+  ],
+  "implementation_notes": [
+    "DIVERGENSI DARI MOBILE: Tanggal pada web default waktu saat ini namun TETAP dapat diedit manual - berbeda dari mobile (screen-041) yang menguncinya",
+    "DIVERGENSI DARI MOBILE: data web dapat diedit setelah tersimpan (mode edit penuh), tidak ada draft/pause/Clear - status langsung saved",
+    "REVISI 2026-08-24 (entity-catalog v12, menggantikan desain grid statis 24 baris yang ditolak user): grid Threshing Detail sekarang dinamis dengan tombol Tambah Baris/Hapus, persis seperti Cages Tipped Time Web (screen-024) -- lihat ThreshingRecordService::upsertDetails() dan FormThreshing::addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions()",
+    "BARU (dipertahankan): NoActiveThreshingStationException (mirrors NoActiveCagesTrackStationException) -- dilempar saat production_line_id tidak punya station type=threshing aktif",
+    "ThreshingRecordService (mirrors CagesTrackRecordService) -- create()/update()/listRecords()/export()/getDetail(), plus canonicalTimeSlots() helper yang mengembalikan array 24 string 'HH:00' mulai 07:00 (for i in 0..23 -> hour=(7+i)%24) -- SEKARANG dipakai untuk validasi ascending-order/dropdown, TIDAK lagi untuk memaksa tepat 24 baris",
+    "Production Line dropdown reuse GET /api/production-lines (jika sudah ada) atau query langsung Eloquent di Livewire mount(), mengikuti pola screen-024's FormCagesTrack -> ProductionLine::query()",
+    "Mode edit prefill reuse GET /api/threshing-records/{id} (screen-053)",
+    "Route web /data/threshing/create HARUS didaftarkan SEBELUM /data/threshing/{id} agar tidak tertangkap sebagai {id} - sama pola dengan screen-022/023/024",
+    "Checked By DAN Acknowledged By sebagai checkbox self-attestation, sama pola dengan FormCagesTrack",
+    "Detail upsert (insert/update/delete) dijalankan dalam DB transaction agar konsisten, sama pola dengan Cages Track/Grading Detail"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Buat Record Threshing Baru — berhasil",
+      "usecase_id": "usecase-057--form-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/threshing-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}",
+            "thresher_id": "TH-WEB-001",
+            "date": "2026-08-20",
+            "details": [
+              {
+                "time_slot": "07:00",
+                "ffb_throughput_mt_hour": 45.5
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormThreshing",
+        "action": "pilih Production Line, isi Thresher ID, klik Tambah Baris, pilih Time-Slot, isi salah satu kolom bacaan, klik Simpan",
+        "assert": "record tersimpan, navigasi ke Detail Threshing"
+      },
+      "browser_test": {
+        "route": "/data/threshing/create",
+        "action": "klik Tambah Data, isi form lengkap, klik Tambah Baris, pilih Time-Slot, isi 1 kolom bacaan, klik Simpan",
+        "assert": "halaman Detail menampilkan record baru beserta baris grid yang ditambahkan"
+      }
+    },
+    {
+      "scenario_ref": "Edit Record Threshing — berhasil",
+      "usecase_id": "usecase-057--form-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/threshing-records/{id}"
+          },
+          "request_example": {
+            "id": "{{record_uuid}}",
+            "thresher_id": "TH-WEB-001-EDIT",
+            "date": "2026-08-20",
+            "details": [
+              {
+                "id": "{{detail_uuid_0700}}",
+                "time_slot": "07:00",
+                "ffb_throughput_mt_hour": 50
+              }
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormThreshing",
+        "action": "buka mode edit, ubah salah satu kolom bacaan, klik Simpan",
+        "assert": "perubahan tersimpan"
+      },
+      "browser_test": {
+        "route": "/data/threshing/{id}/edit",
+        "action": "klik Edit dari Detail, ubah field, klik Simpan",
+        "assert": "Detail menampilkan nilai baru"
+      }
+    },
+    {
+      "scenario_ref": "Field Wajib Belum Lengkap",
+      "usecase_id": "usecase-057--form-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/threshing-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormThreshing",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      },
+      "browser_test": {
+        "route": "/data/threshing/create",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      }
+    },
+    {
+      "scenario_ref": "Belum Ada Baris Valid",
+      "usecase_id": "usecase-057--form-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/threshing-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}",
+            "thresher_id": "TH-X",
+            "date": "2026-08-20",
+            "details": []
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormThreshing",
+        "action": "isi header lengkap, jangan tambah baris apapun, klik Simpan",
+        "assert": "pesan error khusus muncul"
+      },
+      "browser_test": {
+        "route": "/data/threshing/create",
+        "action": "isi header lengkap tanpa menambah baris Threshing Detail apapun, klik Simpan",
+        "assert": "pesan error khusus muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Production Line Tanpa Station Threshing Aktif",
+      "usecase_id": "usecase-057--form-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/threshing-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_tanpa_threshing_uuid}}",
+            "thresher_id": "TH-Y",
+            "date": "2026-08-20",
+            "details": [
+              {
+                "time_slot": "07:00",
+                "ffb_throughput_mt_hour": 10
+              }
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "NO_ACTIVE_THRESHING_STATION"
+        }
+      ],
+      "component_test": {
+        "component": "FormThreshing",
+        "action": "pilih Production Line tanpa station threshing aktif, klik Simpan",
+        "assert": "error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/threshing/create",
+        "action": "pilih Production Line tanpa station threshing, klik Simpan",
+        "assert": "error ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Record Tidak Ditemukan (mode edit)",
+      "usecase_id": "usecase-057--form-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/threshing-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "thresher_id": "X",
+            "date": "2026-08-20",
+            "details": []
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "FormThreshing",
+        "action": "render edit dengan GET 404",
+        "assert": "pesan error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/threshing/00000000-0000-0000-0000-000000000000/edit",
+        "action": "navigasi ke id tidak valid",
+        "assert": "halaman menampilkan error"
+      }
+    },
+    {
+      "scenario_ref": "Tambah/Hapus Baris Dinamis dan Urutan Time-Slot",
+      "usecase_id": "usecase-057--form-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "FormThreshing",
+        "action": "render form mode create, klik Tambah Baris dua kali, pilih Time-Slot berbeda pada tiap baris, lalu klik Hapus pada satu baris",
+        "assert": "grid mulai kosong, bertambah satu baris tiap klik Tambah Baris, opsi Time-Slot baris berikutnya mengecualikan slot yang sudah dipakai/lebih awal, dan baris berkurang saat Hapus ditekan"
+      },
+      "browser_test": {
+        "route": "/data/threshing/create",
+        "action": "buka form buat baru, verifikasi grid kosong, klik Tambah Baris, pilih Time-Slot, klik Tambah Baris lagi, lalu Hapus salah satu baris",
+        "assert": "grid Threshing Detail dimulai kosong dan berubah sesuai interaksi tambah/hapus, tanpa batas 24 baris pre-generated"
+      }
+    }
+  ]
+}

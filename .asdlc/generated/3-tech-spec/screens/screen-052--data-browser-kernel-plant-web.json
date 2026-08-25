@@ -1,0 +1,445 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-052--data-browser-kernel-plant-web",
+  "name": "Data Browser Kernel Plant (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/kernel-plant",
+  "auth_requirement": "role: supervisor,mill_management,admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-052--data-browser-kernel-plant-web",
+      "usecase_name": "Telusuri & Ekspor Data Kernel Plant",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/kernel-plant-records",
+          "description": "List/filter data record Kernel Plant dengan pagination",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "date_from",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Filter tanggal mulai (YYYY-MM-DD)"
+              },
+              {
+                "name": "date_to",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Filter tanggal akhir (YYYY-MM-DD)"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Filter per Business Unit"
+              },
+              {
+                "name": "page",
+                "type": "integer",
+                "required": false,
+                "default": 1,
+                "description": "Halaman"
+              },
+              {
+                "name": "per_page",
+                "type": "integer",
+                "required": false,
+                "default": 20,
+                "description": "Jumlah per halaman"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "kernel_plant_id": "string",
+                  "date": "date",
+                  "filled_slot_count": "integer",
+                  "status": "enum"
+                }
+              ],
+              "meta": {
+                "page": "integer",
+                "per_page": "integer",
+                "total": "integer",
+                "total_pages": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "INVALID_DATE_RANGE",
+                "condition": "date_from > date_to"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada session"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "role Operator"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/kernel-plant-records/export",
+          "description": "Ekspor data Kernel Plant terfilter ke CSV/Excel",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "date_from",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Filter tanggal mulai"
+              },
+              {
+                "name": "date_to",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Filter tanggal akhir"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Filter per Business Unit"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "csv atau excel"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "stream": "file"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "INVALID_DATE_RANGE",
+                "condition": "date_from > date_to"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "dataset melebihi EXPORT_ROW_LIMIT (50000)"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada session"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "role Operator"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate date range (date_from <= date_to) → if invalid: return 422 INVALID_DATE_RANGE",
+        "2. Build filtered query (business_unit_id via station.business_unit_id, date range on date column)",
+        "3. withCount filled_slot_count: COUNT kernel_plant_detail rows per record WHERE minimal satu dari 9 kolom bacaan (ripple_mill_1_amps, ripple_mill_2_amps, claybath_hydro_sg, kernel_silo_1_temp_c, kernel_silo_2_temp_c, kernel_moisture_percent, shell_loss_percent, downtime_minutes, findings) non-null — REVISI 2026-08-24: sejak kernel_plant_detail rows tidak lagi di-pre-generate 24 sekaligus, metrik ini bisa jadi SAMA DENGAN total baris pada record (jika semua baris yang ditambahkan sudah terisi) atau lebih kecil (jika ada baris ditambahkan tapi belum diisi bacaan apapun) — tetap dihitung dari kolom bacaan terisi, bukan sekadar COUNT(*) baris",
+        "4. Paginate, return {data, meta}",
+        "5. export(): re-run filter query unpaginated → if count > EXPORT_ROW_LIMIT (50000): return 422 EXPORT_FAILED → else stream CSV/Excel body"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "kernel-plant-record",
+          "operation": "SELECT",
+          "description": "SELECT filtered/paginated records with filled_slot_count via withCount()"
+        },
+        {
+          "entity_id": "kernel-plant-detail",
+          "operation": "SELECT",
+          "description": "Counted (not selected directly) via withCount() subquery for filled_slot_count"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "date_from > date_to",
+          "handling": "Return 422 INVALID_DATE_RANGE before querying"
+        },
+        {
+          "condition": "Tidak ada data sesuai filter",
+          "handling": "Return 200 dengan data=[] dan meta.total=0"
+        },
+        {
+          "condition": "Dataset terfilter melebihi EXPORT_ROW_LIMIT",
+          "handling": "Return 422 EXPORT_FAILED, tidak stream apa pun"
+        },
+        {
+          "condition": "Role Operator mengakses",
+          "handling": "Route middleware role: gate menolak dengan 403 sebelum controller dipanggil"
+        }
+      ],
+      "business_rules_applied": [
+        "Rentang tanggal filter harus valid",
+        "Jumlah Baris Terisi dihitung dari 9 kolom bacaan, bukan hanya sebagian (bisa sama dengan atau lebih kecil dari total baris pada record, sejak baris tidak lagi selalu berjumlah 24)",
+        "Ekspor dibatasi EXPORT_ROW_LIMIT baris",
+        "Hanya Supervisor/Mill Management/Admin yang dapat mengakses (role-gated route)"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "throws InvalidDateRangeException when date_from is after date_to on listRecords()",
+          "given": "date_from > date_to",
+          "expect": "throw InvalidDateRangeException"
+        },
+        {
+          "description": "returns an empty data list and meta.total = 0 when no records match the filter",
+          "given": "filter matches zero records",
+          "expect": "data=[], meta.total=0"
+        },
+        {
+          "description": "returns a paginated, filtered list with the shared pagination meta shape",
+          "given": "3 matching records, per_page=2",
+          "expect": "meta={page:1,per_page:2,total:3,total_pages:2}, 2 rows returned"
+        },
+        {
+          "description": "computes filled_slot_count as the number of detail rows with at least one non-null reading column",
+          "given": "one record with 2 filled detail rows and 1 unfilled, another with 0 filled",
+          "expect": "filled_slot_count = 2 and 0 respectively"
+        },
+        {
+          "description": "throws InvalidDateRangeException when date_from is after date_to on export()",
+          "given": "date_from > date_to",
+          "expect": "throw InvalidDateRangeException"
+        },
+        {
+          "description": "throws ExportFailedException when the filtered dataset exceeds the export row limit",
+          "given": "50001 matching records",
+          "expect": "throw ExportFailedException"
+        },
+        {
+          "description": "returns a StreamedResponse with the correct content-type for csv and excel formats",
+          "given": "format=csv or format=excel",
+          "expect": "Content-Type text/csv or application/vnd...spreadsheetml.sheet respectively"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "kernel-plant-record",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-056--detail-kernel-plant-web",
+      "reason": "Klik baris membuka Detail Kernel Plant (Web)"
+    },
+    {
+      "screen_id": "screen-060--form-kernel-plant-web",
+      "reason": "Tombol Tambah Data membuka Form Kernel Plant (Web)"
+    }
+  ],
+  "implementation_notes": [
+    "KernelPlantRecordService/Controller/routes/seeder/factories adalah infrastruktur bersama untuk 3 layar web Kernel Plant (052/056/060), mengikuti precedent DepricarpingRecordService (screen-051) -- dilaporkan di bawah layar ini karena pertama dalam urutan implementasi",
+    "filled_slot_count dihitung via withCount() dengan constraint OR-whereNotNull di 9 kolom bacaan (mirrors DepricarpingRecordService persis, disesuaikan untuk 9 nama kolom Kernel Plant sendiri: ripple_mill_1_amps, ripple_mill_2_amps, claybath_hydro_sg, kernel_silo_1_temp_c, kernel_silo_2_temp_c, kernel_moisture_percent, shell_loss_percent, downtime_minutes, findings)",
+    "KernelPlantRecord/KernelPlantDetail/KernelPlantOperationalTarget Eloquent models dan 3 migration-nya sudah ada sebelum task ini (dibuat oleh pass impl-1-core/entity-models sebelumnya yang mencakup keempat stasiun baru) -- pekerjaan layar ini hanya menambahkan lapisan service/controller/routes/seeder/factories/Livewire di atas skema yang sudah ada, tidak perlu migration baru",
+    "REVISI 2026-08-24 (entity-catalog v12, menggantikan desain grid statis 24 baris yang ditolak user, diterapkan di Form Kernel Plant screen-060/mobile screen-044): kernel_plant_detail rows kini secara dinamis ditambahkan satu per satu (bukan lagi 'selalu 24') di kedua entry point (web dan mobile) -- withCount() filled_slot_count logic pada layar Data Browser ini sendiri TIDAK BERUBAH sama sekali, karena sejak awal sudah menghitung baris TERISI, bukan mengasumsikan total 24 baris"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Kernel Plant — success",
+      "usecase_id": "usecase-052--data-browser-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-records"
+          },
+          "request_example": {
+            "date_from": "2026-01-01",
+            "date_to": "2026-12-31"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserKernelPlant",
+        "action": "set date_from/date_to/business_unit_id filters",
+        "assert": "records/meta reflect filtered result, export links contain active filters"
+      },
+      "browser_test": {
+        "route": "/data/kernel-plant",
+        "action": "fill date filters, click Ekspor CSV",
+        "assert": "table updates and a CSV download is triggered"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Kernel Plant — Tidak Ada Data Sesuai Filter",
+      "usecase_id": "usecase-052--data-browser-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-records"
+          },
+          "request_example": {
+            "date_from": "2020-01-01",
+            "date_to": "2020-01-02"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserKernelPlant",
+        "action": "set filters matching zero records",
+        "assert": "empty-state message shown"
+      },
+      "browser_test": {
+        "route": "/data/kernel-plant",
+        "action": "apply a filter with no matching data",
+        "assert": "'Tidak ada data' message visible"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Kernel Plant — Rentang Tanggal Tidak Valid",
+      "usecase_id": "usecase-052--data-browser-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-records"
+          },
+          "request_example": {
+            "date_from": "2026-08-20",
+            "date_to": "2026-08-10"
+          },
+          "expected_status": 422,
+          "expected_error_code": "INVALID_DATE_RANGE"
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserKernelPlant",
+        "action": "set date_from after date_to",
+        "assert": "errorMessage set to invalid date range text"
+      },
+      "browser_test": {
+        "route": "/data/kernel-plant",
+        "action": "fill an invalid date range",
+        "assert": "validation message visible"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Kernel Plant — Klik Baris Membuka Detail",
+      "usecase_id": "usecase-052--data-browser-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-records"
+          },
+          "request_example": {
+            "page": 1,
+            "per_page": 20
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserKernelPlant",
+        "action": "render a row for an existing record",
+        "assert": "row has onclick navigating to the real detail route"
+      },
+      "browser_test": {
+        "route": "/data/kernel-plant",
+        "action": "click a table row",
+        "assert": "browser navigates to Detail Kernel Plant (Web) for that record"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Kernel Plant — Ekspor Gagal",
+      "usecase_id": "usecase-052--data-browser-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-records/export"
+          },
+          "request_example": {
+            "format": "excel"
+          },
+          "expected_status": 422,
+          "expected_error_code": "EXPORT_FAILED"
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserKernelPlant",
+        "action": "export links always reflect current filters",
+        "assert": "exportCsvUrl/exportExcelUrl contain the active filter query params"
+      },
+      "browser_test": {
+        "route": "/data/kernel-plant",
+        "action": "verify export link href reflects active filters (dataset-size failure verified via Feature/Api)",
+        "assert": "export href contains date_from/date_to query params"
+      }
+    }
+  ]
+}

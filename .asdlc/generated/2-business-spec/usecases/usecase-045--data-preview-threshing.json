@@ -1,0 +1,121 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-23"
+  },
+  "id": "usecase-045--data-preview-threshing",
+  "name": "Lihat Data Threshing Tersimpan",
+  "description": "Operator atau Supervisor menelusuri daftar seluruh record Threshing miliknya dengan filter tanggal dan pencarian, lalu membuka salah satu record tersimpan/tersinkron untuk melihat detail lengkap read-only termasuk grid 24 baris dan tabel referensi Target Operasional.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login di aplikasi mobile",
+    "User menekan 'Load Data' dari Monitor Threshing"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan daftar seluruh record Threshing milik user (status apapun) dengan filter tanggal default hari ini dan kolom pencarian"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Menekan salah satu item berstatus Tersimpan/Tersinkron"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menampilkan detail lengkap record tersebut secara read-only, termasuk grid 24 baris Threshing Detail dan tabel referensi Target Operasional"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tap item berstatus Pause",
+      "trigger": "Pada step 2, item yang ditekan berstatus draft_ongoing/draft_paused",
+      "steps": [
+        "System membuka Form Threshing untuk melanjutkan draft tersebut, bukan mode detail"
+      ]
+    },
+    {
+      "name": "Ubah filter tanggal/pencarian",
+      "trigger": "Pada step 1, user mengubah filter tanggal atau memasukkan kata kunci pencarian",
+      "steps": [
+        "System menyaring list sesuai filter yang berlaku"
+      ]
+    },
+    {
+      "name": "Record tidak ditemukan",
+      "trigger": "Pada step 3, id record yang diminta tidak valid/tidak ditemukan",
+      "steps": [
+        "System menampilkan pesan error 'record tidak ditemukan' dengan tombol Back ke list"
+      ]
+    },
+    {
+      "name": "List kosong",
+      "trigger": "Pada step 1, user belum punya record Threshing sama sekali",
+      "steps": [
+        "System menampilkan empty state"
+      ]
+    },
+    {
+      "name": "Filter tidak menghasilkan apapun",
+      "trigger": "Pada step 1, filter tanggal/pencarian tidak cocok dengan record manapun",
+      "steps": [
+        "System menampilkan pesan tidak ditemukan dengan opsi reset filter"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail read-only record Threshing, atau kembali berada di mode list"
+  ],
+  "business_rules": [
+    "Detail bersifat murni read-only",
+    "Filter tanggal default hari ini saat list pertama dibuka",
+    "Checked By/Acknowledged By ditampilkan apa adanya tanpa pembatasan role untuk melihat"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Data Threshing Tersimpan — success",
+      "given": "User sudah login di aplikasi mobile dan menekan 'Load Data' dari Monitor Threshing",
+      "when": "User menelusuri daftar seluruh record Threshing miliknya (dengan filter tanggal default hari ini) lalu menekan salah satu item berstatus Tersimpan/Tersinkron",
+      "then": "System menampilkan detail lengkap record tersebut secara read-only, termasuk grid 24 baris Threshing Detail dan tabel referensi Target Operasional"
+    },
+    {
+      "scenario": "Lihat Data Threshing Tersimpan — Tap item berstatus Pause",
+      "given": "User sudah login di aplikasi mobile dan menekan 'Load Data' dari Monitor Threshing",
+      "when": "User menekan item pada daftar yang berstatus draft_ongoing/draft_paused",
+      "then": "System membuka Form Threshing untuk melanjutkan draft tersebut, bukan mode detail read-only"
+    },
+    {
+      "scenario": "Lihat Data Threshing Tersimpan — Ubah filter tanggal/pencarian",
+      "given": "User sudah login di aplikasi mobile dan menekan 'Load Data' dari Monitor Threshing",
+      "when": "User mengubah filter tanggal atau memasukkan kata kunci pada kolom pencarian",
+      "then": "System menyaring daftar record Threshing sesuai filter yang berlaku"
+    },
+    {
+      "scenario": "Lihat Data Threshing Tersimpan — Record tidak ditemukan",
+      "given": "User sudah login di aplikasi mobile dan menekan 'Load Data' dari Monitor Threshing",
+      "when": "User membuka record dengan id yang tidak valid atau tidak ditemukan",
+      "then": "System menampilkan pesan error 'record tidak ditemukan' dengan tombol Back ke list"
+    },
+    {
+      "scenario": "Lihat Data Threshing Tersimpan — List kosong",
+      "given": "User sudah login di aplikasi mobile dan menekan 'Load Data' dari Monitor Threshing, namun belum memiliki record Threshing sama sekali",
+      "when": "User membuka daftar record Threshing",
+      "then": "System menampilkan empty state"
+    },
+    {
+      "scenario": "Lihat Data Threshing Tersimpan — Filter tidak menghasilkan apapun",
+      "given": "User sudah login di aplikasi mobile dan menekan 'Load Data' dari Monitor Threshing",
+      "when": "User menerapkan filter tanggal atau kata kunci pencarian yang tidak cocok dengan record manapun",
+      "then": "System menampilkan pesan tidak ditemukan dengan opsi reset filter"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-045--data-preview-threshing"
+  ]
+}

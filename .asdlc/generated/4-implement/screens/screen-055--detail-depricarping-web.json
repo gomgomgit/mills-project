@@ -1,0 +1,61 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-055--detail-depricarping-web",
+  "name": "Detail Depricarping (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/DetailDepricarpingTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DetailDepricarping.php",
+    "backend/resources/views/data/depricarping-detail.blade.php",
+    "backend/resources/views/livewire/data/detail-depricarping.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DetailDepricarpingTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses DepricarpingRecordService::getDetail() (BE service shared with screen-051, see that screen's implement artifact for the service/controller/route files)",
+    "Target Operasional table queried DIRECTLY by DetailDepricarping::render() (DepricarpingOperationalTarget::orderBy('sort_order')->get()) -- NOT part of the GET /api/depricarping-records/{id} response -- per this screen's tech-spec direction, mirrors DetailPressing (screen-054) exactly; renders 4 columns (Parameter/Metric, Target Range, Critical Limit, Operational Consequence/Justification) instead of Pressing's/Threshing's 3",
+    "Detail grid table renders all 8 reading columns (Fan Static Pressure, Polishing Drum Speed, Air Velocity, Fibre Moisture, Kernel Recovery in Fibre, Nut Silo 1/2 Temp, Downtime (Mins), Findings) -- one more column than Threshing/Pressing's 6-column grid, reflecting Depricarping's split Downtime Mins + Findings columns",
+    "Field grouping/order in the Blade view mirrors mobile/src/views/DataPreviewDepricarpingView.vue's detail mode exactly, per explicit product direction that web station screens mirror mobile flow/UX",
+    "Route /data/depricarping/{id} registered after /data/depricarping/create (screen-059) so the literal 'create' segment is not swallowed by {id}",
+    "REVISED 2026-08-24 (documentation-only correction, no functional code change needed): the Blade view (depricarping-detail.blade.php) already iterated $record['details'] directly with a plain @foreach and never assumed exactly 24 rows, so it required zero changes for the entity-catalog v12 dynamic-add-row revision to DepricarpingRecordService -- it correctly renders however many rows a record actually has, confirmed by grep (no '24' literal in the view), mirrors DetailPressing's (screen-054) identical finding"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DetailDepricarpingTest.php) was authored but could not be executed in this sandboxed environment -- verified only by static review.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-24T08:21:58Z",
+      "passed": 8,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T08:21:58Z",
+      "passed": 4,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

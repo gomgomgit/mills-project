@@ -62,7 +62,7 @@ const emit = defineEmits<{
   justify-content: center;
   padding: 20px;
   background-color: rgba(17, 24, 39, 0.5);
-  z-index: 1000;
+  z-index: 1200;
   box-sizing: border-box;
 }
 

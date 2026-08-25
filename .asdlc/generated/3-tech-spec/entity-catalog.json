@@ -1,8 +1,8 @@
 {
-  "ver": 10,
+  "ver": 12,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-08-24"
   },
   "entities": [
     {
@@ -701,7 +701,7 @@
     {
       "id": "station",
       "name": "Station",
-      "description": "Stasiun produksi mill, di bawah Production Line — 3 aktif di MVP per Production Line (Weighbridge, Grading, Cages Track), 12 lainnya placeholder skema masa depan. Field code/description/no_of_machinery_group ditambah dari ERD; field type tetap dipertahankan (TIDAK ada di ERD literal) karena krusial bagi mobile app (screen-006 Station List dan Monitor 007-009) yang sudah diimplementasikan dan diverifikasi berdasarkan field ini.",
+      "description": "Stasiun produksi mill, di bawah Production Line — 7 aktif di MVP per Production Line (Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant), 8 lainnya placeholder skema masa depan. Field code/description/no_of_machinery_group ditambah dari ERD; field type tetap dipertahankan (TIDAK ada di ERD literal) karena krusial bagi mobile app (screen-006 Station List dan Monitor 007-009/037-040) yang sudah diimplementasikan dan diverifikasi berdasarkan field ini.",
       "fields": [
         {
           "name": "id",
@@ -741,9 +741,9 @@
         },
         {
           "name": "type",
-          "type": "enum(weighbridge, grading, cages-track, other)",
+          "type": "enum(weighbridge, grading, cages-track, threshing, pressing, depricarping, kernel-plant, other)",
           "required": true,
-          "description": "Tipe stasiun; 'other' menampung 12 placeholder stasiun masa depan. DIPERTAHANKAN meski tidak ada di ERD literal — dipakai langsung oleh screen-006/007/008/009 mobile yang sudah diimplementasikan."
+          "description": "Tipe stasiun; 'other' menampung 8 placeholder stasiun masa depan (Sterilizer, Clarification, Boiler, Effluent Treatment, Loading Ramp, Engine Room, Water Treatment, Bulking Storage). DIPERTAHANKAN meski tidak ada di ERD literal — dipakai langsung oleh screen-006/007/008/009/037-060 mobile yang sudah/akan diimplementasikan."
         },
         {
           "name": "no_of_machinery_group",
@@ -794,7 +794,7 @@
         }
       ],
       "constraints": [
-        "Hanya station bertipe weighbridge/grading/cages-track yang is_active=true di MVP; tipe lain adalah placeholder skema masa depan dengan is_active=false",
+        "Hanya station bertipe weighbridge/grading/cages-track/threshing/pressing/depricarping/kernel-plant yang is_active=true di MVP; tipe lain (other) adalah placeholder skema masa depan dengan is_active=false",
         "code unik jika diisi",
         "production_line_id harus milik business_unit_id yang sama"
       ],
@@ -2107,6 +2107,1067 @@
         "home_page_image": "storage/mill-settings/ms-001-home.jpg",
         "created_by": "usr-001",
         "updated_by": null,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "threshing-record",
+      "name": "Threshing Record",
+      "description": "Record header log data stasiun Threshing — pola input manual header + grid time-slot per jam, mengikuti PRD §8.3/§8.4.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe threshing)."
+        },
+        {
+          "name": "thresher_id",
+          "type": "string",
+          "required": true,
+          "description": "Thresher ID, input manual — nomor/ID identifikasi stasiun pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat (mengikuti pola Arrival Weighbridge), tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "threshing-detail",
+          "type": "one-to-many",
+          "description": "Satu Threshing Record memiliki banyak Threshing Detail (baris time-slot per jam)."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail time-slot harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "thr-001",
+        "station_id": "stn-001",
+        "thresher_id": "TH-01",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": "usr-001",
+        "acknowledged_by": null,
+        "status": "saved",
+        "created_by": "usr-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T18:00:00Z"
+      }
+    },
+    {
+      "id": "threshing-detail",
+      "name": "Threshing Detail",
+      "description": "Baris detail time-slot per jam dalam satu Threshing Record, mengikuti PRD §8.4 (station-specific numeric/text fields per jam).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "threshing_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Threshing Record induk."
+        },
+        {
+          "name": "time_slot",
+          "type": "time",
+          "required": true,
+          "description": "Jam pencatatan untuk baris ini, dipilih user dari dropdown saat menambah baris (bukan pre-generated) — mengikuti pola cages-tipped-time.tipped_hour: opsi dropdown = seluruh slot kanonis 07:00..06:00 DIKURANGI yang sudah dipakai baris lain, dan harus lebih lambat (index kanonis lebih besar) dari time_slot tertinggi yang sudah dipilih baris lain (urutan menaik kronologis, tidak bisa mundur/duplikat)."
+        },
+        {
+          "name": "ffb_throughput_mt_hour",
+          "type": "float",
+          "required": false,
+          "description": "FFB Throughput (MT/hour)."
+        },
+        {
+          "name": "thresher_drum_speed_rpm",
+          "type": "float",
+          "required": false,
+          "description": "Thresher Drum Speed (RPM)."
+        },
+        {
+          "name": "motor_current_amps",
+          "type": "float",
+          "required": false,
+          "description": "Motor Current (Amps)."
+        },
+        {
+          "name": "unstripped_bunch_count_percent",
+          "type": "float",
+          "required": false,
+          "description": "Unstripped Bunch Count (%)."
+        },
+        {
+          "name": "empty_bunch_oil_loss_percent",
+          "type": "float",
+          "required": false,
+          "description": "Empty Bunch Oil Loss (%)."
+        },
+        {
+          "name": "downtime_reason",
+          "type": "string",
+          "required": false,
+          "description": "Downtime Reason, teks bebas."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "time_slot unik per header (tidak ada 2 baris dengan jam sama dalam 1 record)",
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' (tidak di-pre-generate 24 baris sekaligus saat draft dibuat) dan dapat dihapus via 'Hapus baris' — mengikuti pola persis cages-tipped-time/cages-track-record, BUKAN grid statis 24 baris (revisi 2026-08-24 dari desain awal).",
+        "time_slot baris baru harus berada setelah time_slot tertinggi yang sudah ada di antara baris lain pada record yang sama, dalam urutan kanonis 07:00->06:00 (analog dengan cages-tipped-time.tipped_hour's ascending-order constraint)"
+      ],
+      "test_fixture": {
+        "id": "thd-001",
+        "threshing_record_id": "thr-001",
+        "time_slot": "07:00",
+        "ffb_throughput_mt_hour": 45.5,
+        "thresher_drum_speed_rpm": 22,
+        "motor_current_amps": 38.2,
+        "unstripped_bunch_count_percent": 0.5,
+        "empty_bunch_oil_loss_percent": 0.3,
+        "downtime_reason": "",
+        "created_at": "2024-01-15T07:05:00Z",
+        "updated_at": "2024-01-15T07:05:00Z"
+      }
+    },
+    {
+      "id": "threshing-operational-target",
+      "name": "Threshing Operational Target",
+      "description": "Master data referensi target operasional read-only untuk form/detail — diseed oleh Admin, ditampilkan bukan bagian dari payload create/update record time-slot (PRD §8.5).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "parameter",
+          "type": "string",
+          "required": true,
+          "description": "Nama parameter (mis. FFB Throughput, Thresher Drum Speed)."
+        },
+        {
+          "name": "standard_operational_target",
+          "type": "string",
+          "required": true,
+          "description": "Target operasional standar, teks bebas (mis. '21 - 23 RPM')."
+        },
+        {
+          "name": "action_plan_on_deviation",
+          "type": "string",
+          "required": true,
+          "description": "Rencana aksi jika terjadi deviasi."
+        },
+        {
+          "name": "sort_order",
+          "type": "integer",
+          "required": true,
+          "description": "Urutan tampil pada tabel referensi read-only di form/detail."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "Diedit hanya oleh Admin/Mill Management; tidak ditulis dari flow input record time-slot"
+      ],
+      "test_fixture": {
+        "parameter": "Thresher Drum Speed",
+        "standard_operational_target": "21 - 23 RPM (optimal for separation)",
+        "action_plan_on_deviation": "Inspect drive belt tension and gearbox alignment.",
+        "id": "thr-tgt-001",
+        "sort_order": 1,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "pressing-record",
+      "name": "Pressing Record",
+      "description": "Record header log data stasiun Pressing — pola input manual header + grid time-slot per jam, mengikuti PRD §8.3/§8.4.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe pressing)."
+        },
+        {
+          "name": "presser_id",
+          "type": "string",
+          "required": true,
+          "description": "Presser ID, input manual — nomor/ID identifikasi stasiun pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat (mengikuti pola Arrival Weighbridge), tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "pressing-detail",
+          "type": "one-to-many",
+          "description": "Satu Pressing Record memiliki banyak Pressing Detail (baris time-slot per jam)."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail time-slot harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "prs-001",
+        "station_id": "stn-001",
+        "presser_id": "PR-01",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": "usr-001",
+        "acknowledged_by": null,
+        "status": "saved",
+        "created_by": "usr-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T18:00:00Z"
+      }
+    },
+    {
+      "id": "pressing-detail",
+      "name": "Pressing Detail",
+      "description": "Baris detail time-slot per jam dalam satu Pressing Record, mengikuti PRD §8.4 (station-specific numeric/text fields per jam).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "pressing_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Pressing Record induk."
+        },
+        {
+          "name": "time_slot",
+          "type": "time",
+          "required": true,
+          "description": "Jam pencatatan untuk baris ini, dipilih user dari dropdown saat menambah baris (bukan pre-generated) — mengikuti pola cages-tipped-time.tipped_hour: opsi dropdown = seluruh slot kanonis 07:00..06:00 DIKURANGI yang sudah dipakai baris lain, dan harus lebih lambat (index kanonis lebih besar) dari time_slot tertinggi yang sudah dipilih baris lain (urutan menaik kronologis, tidak bisa mundur/duplikat)."
+        },
+        {
+          "name": "digester_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Digester Temp (°C)."
+        },
+        {
+          "name": "digester_level_percent",
+          "type": "float",
+          "required": false,
+          "description": "Digester Level (%)."
+        },
+        {
+          "name": "press_motor_current_amps",
+          "type": "float",
+          "required": false,
+          "description": "Press Motor Current (Amps)."
+        },
+        {
+          "name": "cone_hydraulic_pressure_bar",
+          "type": "float",
+          "required": false,
+          "description": "Cone Hydraulic Pressure (Bar)."
+        },
+        {
+          "name": "dilution_water_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Dilution Water Temp (°C)."
+        },
+        {
+          "name": "downtime_reason",
+          "type": "string",
+          "required": false,
+          "description": "Downtime Reason, teks bebas."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "time_slot unik per header (tidak ada 2 baris dengan jam sama dalam 1 record)",
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' (tidak di-pre-generate 24 baris sekaligus saat draft dibuat) dan dapat dihapus via 'Hapus baris' — mengikuti pola persis cages-tipped-time/cages-track-record, BUKAN grid statis 24 baris (revisi 2026-08-24 dari desain awal).",
+        "time_slot baris baru harus berada setelah time_slot tertinggi yang sudah ada di antara baris lain pada record yang sama, dalam urutan kanonis 07:00->06:00 (analog dengan cages-tipped-time.tipped_hour's ascending-order constraint)"
+      ],
+      "test_fixture": {
+        "id": "prd-001",
+        "pressing_record_id": "prs-001",
+        "time_slot": "07:00",
+        "digester_temp_c": 92,
+        "digester_level_percent": 80,
+        "press_motor_current_amps": 40,
+        "cone_hydraulic_pressure_bar": 50,
+        "dilution_water_temp_c": 88,
+        "downtime_reason": "",
+        "created_at": "2024-01-15T07:05:00Z",
+        "updated_at": "2024-01-15T07:05:00Z"
+      }
+    },
+    {
+      "id": "pressing-operational-target",
+      "name": "Pressing Operational Target",
+      "description": "Master data referensi target operasional read-only untuk form/detail — diseed oleh Admin, ditampilkan bukan bagian dari payload create/update record time-slot (PRD §8.5).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "parameter_metric",
+          "type": "string",
+          "required": true,
+          "description": "Nama parameter/metric (mis. Digester Temperature)."
+        },
+        {
+          "name": "target_operating_range",
+          "type": "string",
+          "required": true,
+          "description": "Rentang operasi target, teks bebas (mis. '90°C - 95°C')."
+        },
+        {
+          "name": "critical_trigger_action_limit",
+          "type": "string",
+          "required": true,
+          "description": "Batas pemicu kritis/aksi."
+        },
+        {
+          "name": "sort_order",
+          "type": "integer",
+          "required": true,
+          "description": "Urutan tampil pada tabel referensi read-only di form/detail."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "Diedit hanya oleh Admin/Mill Management; tidak ditulis dari flow input record time-slot"
+      ],
+      "test_fixture": {
+        "parameter_metric": "Digester Temperature",
+        "target_operating_range": "90°C - 95°C",
+        "critical_trigger_action_limit": "< 85°C (Leads to poor oil liberation)",
+        "id": "prs-tgt-001",
+        "sort_order": 1,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "depricarping-record",
+      "name": "Depricarping Record",
+      "description": "Record header log data stasiun Depricarping — pola input manual header + grid time-slot per jam, mengikuti PRD §8.3/§8.4.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe depricarping)."
+        },
+        {
+          "name": "presser_id",
+          "type": "string",
+          "required": true,
+          "description": "Presser ID (Depricarper ID), input manual — nomor/ID identifikasi stasiun pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat (mengikuti pola Arrival Weighbridge), tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "depricarping-detail",
+          "type": "one-to-many",
+          "description": "Satu Depricarping Record memiliki banyak Depricarping Detail (baris time-slot per jam)."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail time-slot harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "dpc-001",
+        "station_id": "stn-001",
+        "presser_id": "DP-01",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": "usr-001",
+        "acknowledged_by": null,
+        "status": "saved",
+        "created_by": "usr-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T18:00:00Z"
+      }
+    },
+    {
+      "id": "depricarping-detail",
+      "name": "Depricarping Detail",
+      "description": "Baris detail time-slot per jam dalam satu Depricarping Record, mengikuti PRD §8.4 (station-specific numeric/text fields per jam).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "depricarping_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Depricarping Record induk."
+        },
+        {
+          "name": "time_slot",
+          "type": "time",
+          "required": true,
+          "description": "Jam pencatatan untuk baris ini, dipilih user dari dropdown saat menambah baris (bukan pre-generated) — mengikuti pola cages-tipped-time.tipped_hour: opsi dropdown = seluruh slot kanonis 07:00..06:00 DIKURANGI yang sudah dipakai baris lain, dan harus lebih lambat (index kanonis lebih besar) dari time_slot tertinggi yang sudah dipilih baris lain (urutan menaik kronologis, tidak bisa mundur/duplikat)."
+        },
+        {
+          "name": "fan_static_pressure_mmh2o",
+          "type": "float",
+          "required": false,
+          "description": "Fan Static Pressure (mmH2O)."
+        },
+        {
+          "name": "polishing_drum_speed_rpm",
+          "type": "float",
+          "required": false,
+          "description": "Polishing Drum Speed (RPM)."
+        },
+        {
+          "name": "air_velocity_ms",
+          "type": "float",
+          "required": false,
+          "description": "Air Velocity (m/s)."
+        },
+        {
+          "name": "fibre_moisture_percent",
+          "type": "float",
+          "required": false,
+          "description": "Fibre Moisture (%)."
+        },
+        {
+          "name": "kernel_recovery_in_fibre_percent",
+          "type": "float",
+          "required": false,
+          "description": "Kernel Recovery in Fibre (%)."
+        },
+        {
+          "name": "nut_silo_1_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Nut Silo 1 Temp (°C)."
+        },
+        {
+          "name": "nut_silo_2_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Nut Silo 2 Temp (°C)."
+        },
+        {
+          "name": "downtime_minutes",
+          "type": "integer",
+          "required": false,
+          "description": "Downtime (Mins)."
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "Findings, teks bebas."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "time_slot unik per header (tidak ada 2 baris dengan jam sama dalam 1 record)",
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' (tidak di-pre-generate 24 baris sekaligus saat draft dibuat) dan dapat dihapus via 'Hapus baris' — mengikuti pola persis cages-tipped-time/cages-track-record, BUKAN grid statis 24 baris (revisi 2026-08-24 dari desain awal).",
+        "time_slot baris baru harus berada setelah time_slot tertinggi yang sudah ada di antara baris lain pada record yang sama, dalam urutan kanonis 07:00->06:00 (analog dengan cages-tipped-time.tipped_hour's ascending-order constraint)"
+      ],
+      "test_fixture": {
+        "id": "dpd-001",
+        "depricarping_record_id": "dpc-001",
+        "time_slot": "07:00",
+        "fan_static_pressure_mmh2o": 45,
+        "polishing_drum_speed_rpm": 22,
+        "air_velocity_ms": 13,
+        "fibre_moisture_percent": 35,
+        "kernel_recovery_in_fibre_percent": 0.3,
+        "nut_silo_1_temp_c": 65,
+        "nut_silo_2_temp_c": 65,
+        "downtime_minutes": 0,
+        "findings": "",
+        "created_at": "2024-01-15T07:05:00Z",
+        "updated_at": "2024-01-15T07:05:00Z"
+      }
+    },
+    {
+      "id": "depricarping-operational-target",
+      "name": "Depricarping Operational Target",
+      "description": "Master data referensi target operasional read-only untuk form/detail — diseed oleh Admin, ditampilkan bukan bagian dari payload create/update record time-slot (PRD §8.5).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "parameter_metric",
+          "type": "string",
+          "required": true,
+          "description": "Nama parameter/metric (mis. Fan Static Pressure)."
+        },
+        {
+          "name": "target_range",
+          "type": "string",
+          "required": true,
+          "description": "Rentang target, teks bebas."
+        },
+        {
+          "name": "critical_limit",
+          "type": "string",
+          "required": true,
+          "description": "Batas kritis."
+        },
+        {
+          "name": "operational_consequence_justification",
+          "type": "string",
+          "required": true,
+          "description": "Konsekuensi operasional/justifikasi."
+        },
+        {
+          "name": "sort_order",
+          "type": "integer",
+          "required": true,
+          "description": "Urutan tampil pada tabel referensi read-only di form/detail."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "Diedit hanya oleh Admin/Mill Management; tidak ditulis dari flow input record time-slot"
+      ],
+      "test_fixture": {
+        "parameter_metric": "Fan Static Pressure",
+        "target_range": "40 - 50 mmH2O",
+        "critical_limit": "< 35 or > 55 mmH2O",
+        "operational_consequence_justification": "Low pressure drops fibre early (heavy losses). High pressure sucks clean small nuts into the fibre cyclone.",
+        "id": "dpc-tgt-001",
+        "sort_order": 1,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "kernel-plant-record",
+      "name": "Kernel Plant Record",
+      "description": "Record header log data stasiun Kernel Plant — pola input manual header + grid time-slot per jam, mengikuti PRD §8.3/§8.4.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe kernel-plant)."
+        },
+        {
+          "name": "kernel_plant_id",
+          "type": "string",
+          "required": true,
+          "description": "Kernel Plant ID, input manual — nomor/ID identifikasi stasiun pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat (mengikuti pola Arrival Weighbridge), tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "kernel-plant-detail",
+          "type": "one-to-many",
+          "description": "Satu Kernel Plant Record memiliki banyak Kernel Plant Detail (baris time-slot per jam)."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail time-slot harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "kpl-001",
+        "station_id": "stn-001",
+        "kernel_plant_id": "KP-01",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": "usr-001",
+        "acknowledged_by": null,
+        "status": "saved",
+        "created_by": "usr-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T18:00:00Z"
+      }
+    },
+    {
+      "id": "kernel-plant-detail",
+      "name": "Kernel Plant Detail",
+      "description": "Baris detail time-slot per jam dalam satu Kernel Plant Record, mengikuti PRD §8.4 (station-specific numeric/text fields per jam).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "kernel_plant_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Kernel Plant Record induk."
+        },
+        {
+          "name": "time_slot",
+          "type": "time",
+          "required": true,
+          "description": "Jam pencatatan untuk baris ini, dipilih user dari dropdown saat menambah baris (bukan pre-generated) — mengikuti pola cages-tipped-time.tipped_hour: opsi dropdown = seluruh slot kanonis 07:00..06:00 DIKURANGI yang sudah dipakai baris lain, dan harus lebih lambat (index kanonis lebih besar) dari time_slot tertinggi yang sudah dipilih baris lain (urutan menaik kronologis, tidak bisa mundur/duplikat)."
+        },
+        {
+          "name": "ripple_mill_1_amps",
+          "type": "float",
+          "required": false,
+          "description": "Ripple Mill 1 (Amps)."
+        },
+        {
+          "name": "ripple_mill_2_amps",
+          "type": "float",
+          "required": false,
+          "description": "Ripple Mill 2 (Amps)."
+        },
+        {
+          "name": "claybath_hydro_sg",
+          "type": "float",
+          "required": false,
+          "description": "Claybath/Hydro SG."
+        },
+        {
+          "name": "kernel_silo_1_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Kernel Silo 1 Temp (°C)."
+        },
+        {
+          "name": "kernel_silo_2_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Kernel Silo 2 Temp (°C)."
+        },
+        {
+          "name": "kernel_moisture_percent",
+          "type": "float",
+          "required": false,
+          "description": "Kernel Moisture (%)."
+        },
+        {
+          "name": "shell_loss_percent",
+          "type": "float",
+          "required": false,
+          "description": "Shell Loss (%)."
+        },
+        {
+          "name": "downtime_minutes",
+          "type": "integer",
+          "required": false,
+          "description": "Downtime (Mins)."
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "Findings, teks bebas."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "time_slot unik per header (tidak ada 2 baris dengan jam sama dalam 1 record)",
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' (tidak di-pre-generate 24 baris sekaligus saat draft dibuat) dan dapat dihapus via 'Hapus baris' — mengikuti pola persis cages-tipped-time/cages-track-record, BUKAN grid statis 24 baris (revisi 2026-08-24 dari desain awal).",
+        "time_slot baris baru harus berada setelah time_slot tertinggi yang sudah ada di antara baris lain pada record yang sama, dalam urutan kanonis 07:00->06:00 (analog dengan cages-tipped-time.tipped_hour's ascending-order constraint)"
+      ],
+      "test_fixture": {
+        "id": "kpd-001",
+        "kernel_plant_record_id": "kpl-001",
+        "time_slot": "07:00",
+        "ripple_mill_1_amps": 22,
+        "ripple_mill_2_amps": 22,
+        "claybath_hydro_sg": 1.2,
+        "kernel_silo_1_temp_c": 75,
+        "kernel_silo_2_temp_c": 75,
+        "kernel_moisture_percent": 6.5,
+        "shell_loss_percent": 5.5,
+        "downtime_minutes": 0,
+        "findings": "",
+        "created_at": "2024-01-15T07:05:00Z",
+        "updated_at": "2024-01-15T07:05:00Z"
+      }
+    },
+    {
+      "id": "kernel-plant-operational-target",
+      "name": "Kernel Plant Operational Target",
+      "description": "Master data referensi target operasional read-only untuk form/detail — diseed oleh Admin, ditampilkan bukan bagian dari payload create/update record time-slot (PRD §8.5).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "equipment_parameter",
+          "type": "string",
+          "required": true,
+          "description": "Nama equipment/parameter (mis. Ripple Mill (Cracker))."
+        },
+        {
+          "name": "target_benchmark",
+          "type": "string",
+          "required": true,
+          "description": "Target benchmark, teks bebas."
+        },
+        {
+          "name": "corrective_action_plan",
+          "type": "string",
+          "required": true,
+          "description": "Rencana aksi korektif."
+        },
+        {
+          "name": "sort_order",
+          "type": "integer",
+          "required": true,
+          "description": "Urutan tampil pada tabel referensi read-only di form/detail."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "Diedit hanya oleh Admin/Mill Management; tidak ditulis dari flow input record time-slot"
+      ],
+      "test_fixture": {
+        "equipment_parameter": "Ripple Mill (Cracker)",
+        "target_benchmark": "20 - 25 Amps (Nut Breakage >95%)",
+        "corrective_action_plan": "Adjust rotor-vane clearance if uncracked nut rate >5%.",
+        "id": "kpl-tgt-001",
+        "sort_order": 1,
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z"
       }

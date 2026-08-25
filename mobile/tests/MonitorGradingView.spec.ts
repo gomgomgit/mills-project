@@ -80,6 +80,21 @@ vi.mock('@/stores/floatingClock', () => ({
   useFloatingClockStore: () => ({ enabled: false, toggle: vi.fn() }),
 }))
 
+const { aiAssistantOpenMock, aiAssistantToggleBubbleMock } = vi.hoisted(() => ({
+  aiAssistantOpenMock: vi.fn(),
+  aiAssistantToggleBubbleMock: vi.fn(),
+}))
+
+vi.mock('@/stores/aiAssistant', () => ({
+  useAiAssistantStore: () => ({
+    isOpen: false,
+    bubbleEnabled: true,
+    open: aiAssistantOpenMock,
+    close: vi.fn(),
+    toggleBubble: aiAssistantToggleBubbleMock,
+  }),
+}))
+
 const {
   getDraftsMock,
   createDraftMock,
@@ -295,6 +310,7 @@ describe('MonitorGradingView', () => {
       const navMenu = wrapper.get('[data-testid="nav-menu"]')
       expect(navMenu.text()).toContain('Ganti Password')
       expect(navMenu.text()).toContain('Logout')
+      expect(wrapper.get('[data-testid="hamburger-button"]').attributes('aria-label')).toBe('Tutup menu navigasi')
     })
 
     it("navigates to 'change-password' when the 'Ganti Password' nav menu item is tapped", async () => {
@@ -305,6 +321,26 @@ describe('MonitorGradingView', () => {
       await wrapper.get('[data-testid="nav-menu-change-password"]').trigger('click')
 
       expect(pushMock).toHaveBeenCalledWith({ name: 'change-password' })
+    })
+
+    it("opens the AI assistant panel when the 'Bantuan AI' nav menu item is tapped", async () => {
+      const wrapper = mount(MonitorGradingView)
+      await flushPromises()
+
+      await wrapper.get('[data-testid="hamburger-button"]').trigger('click')
+      await wrapper.get('[data-testid="nav-menu-ai-assistant"]').trigger('click')
+
+      expect(aiAssistantOpenMock).toHaveBeenCalledTimes(1)
+    })
+
+    it("toggles the AI bubble via the 'Aktifkan/Nonaktifkan Bubble Chat AI' nav menu item", async () => {
+      const wrapper = mount(MonitorGradingView)
+      await flushPromises()
+
+      await wrapper.get('[data-testid="hamburger-button"]').trigger('click')
+      await wrapper.get('[data-testid="nav-menu-toggle-ai-bubble"]').trigger('click')
+
+      expect(aiAssistantToggleBubbleMock).toHaveBeenCalledTimes(1)
     })
 
     it("logs out and navigates to 'login' when the 'Logout' nav menu item is tapped", async () => {

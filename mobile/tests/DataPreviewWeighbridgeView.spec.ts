@@ -84,6 +84,21 @@ vi.mock('@/stores/floatingClock', () => ({
   useFloatingClockStore: () => ({ enabled: false, toggle: vi.fn() }),
 }))
 
+const { aiAssistantOpenMock, aiAssistantToggleBubbleMock } = vi.hoisted(() => ({
+  aiAssistantOpenMock: vi.fn(),
+  aiAssistantToggleBubbleMock: vi.fn(),
+}))
+
+vi.mock('@/stores/aiAssistant', () => ({
+  useAiAssistantStore: () => ({
+    isOpen: false,
+    bubbleEnabled: true,
+    open: aiAssistantOpenMock,
+    close: vi.fn(),
+    toggleBubble: aiAssistantToggleBubbleMock,
+  }),
+}))
+
 const { getAllRecordsMock, getDraftByIdMock } = vi.hoisted(() => ({
   getAllRecordsMock: vi.fn(),
   getDraftByIdMock: vi.fn(),

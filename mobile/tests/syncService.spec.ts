@@ -1,5 +1,6 @@
 /**
- * syncService.spec.ts — TEMPORARY manual sync feature (2026-08-20), see
+ * syncService.spec.ts — TEMPORARY manual sync feature (2026-08-20, scope
+ * extended 2026-08-24 to Threshing/Pressing/Depricarping/Kernel Plant), see
  * syncService.ts's own doc comment for the full mechanism/scope.
  *
  * '@/services/localDb' and '@/services/apiClient' are mocked at module
@@ -67,6 +68,10 @@ describe('syncService — syncAllRecords()', () => {
       weighbridge: [],
       grading: [],
       cagesTrack: [],
+      threshing: [],
+      pressing: [],
+      depricarping: [],
+      kernelPlant: [],
       syncedCount: 0,
       failedCount: 0,
     })
@@ -257,5 +262,176 @@ describe('syncService — syncAllRecords()', () => {
         details: [{ tipped_hour: 8, checked_cage_numbers: ['1', '3', '5'] }],
       }),
     )
+  })
+
+  it('syncs a saved Threshing record with its detail rows, then marks it synced with the server id', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM threshing_record')) {
+        return [
+          {
+            id: 'local-th-1',
+            thresher_id: 'TH-001',
+            date: '2026-08-24',
+            note: null,
+            checked_by: 'local-user-1',
+            acknowledged_by: null,
+            server_id: null,
+          },
+        ]
+      }
+      if (sql.includes('FROM threshing_detail')) {
+        return [{ time_slot: '07:00', ffb_throughput_mt_hour: 12.5, thresher_drum_speed_rpm: null, motor_current_amps: null, unstripped_bunch_count_percent: null, empty_bunch_oil_loss_percent: null, downtime_reason: null }]
+      }
+      return []
+    })
+    vi.mocked(apiClient.post).mockResolvedValue({ data: { id: 'server-th-1' } })
+
+    const summary = await syncAllRecords(PRODUCTION_LINE_ID)
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/threshing-records',
+      expect.objectContaining({
+        thresher_id: 'TH-001',
+        checked: true,
+        acknowledged: false,
+        details: [{ time_slot: '07:00', ffb_throughput_mt_hour: 12.5, thresher_drum_speed_rpm: null, motor_current_amps: null, unstripped_bunch_count_percent: null, empty_bunch_oil_loss_percent: null, downtime_reason: null }],
+      }),
+    )
+    expect(run).toHaveBeenCalledWith(
+      `UPDATE threshing_record SET status = 'synced', server_id = ? WHERE id = ?`,
+      ['server-th-1', 'local-th-1'],
+    )
+    expect(summary.threshing).toEqual([{ id: 'local-th-1', label: 'TH-001', ok: true }])
+  })
+
+  it('syncs a saved Pressing record with its detail rows, then marks it synced with the server id', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM pressing_record')) {
+        return [
+          {
+            id: 'local-pr-1',
+            presser_id: 'PR-001',
+            date: '2026-08-24',
+            note: null,
+            checked_by: null,
+            acknowledged_by: null,
+            server_id: null,
+          },
+        ]
+      }
+      if (sql.includes('FROM pressing_detail')) {
+        return [{ time_slot: '07:00', digester_temp_c: 92, digester_level_percent: null, press_motor_current_amps: null, cone_hydraulic_pressure_bar: null, dilution_water_temp_c: null, downtime_reason: null }]
+      }
+      return []
+    })
+    vi.mocked(apiClient.post).mockResolvedValue({ data: { id: 'server-pr-1' } })
+
+    const summary = await syncAllRecords(PRODUCTION_LINE_ID)
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/pressing-records',
+      expect.objectContaining({
+        presser_id: 'PR-001',
+        details: [{ time_slot: '07:00', digester_temp_c: 92, digester_level_percent: null, press_motor_current_amps: null, cone_hydraulic_pressure_bar: null, dilution_water_temp_c: null, downtime_reason: null }],
+      }),
+    )
+    expect(run).toHaveBeenCalledWith(
+      `UPDATE pressing_record SET status = 'synced', server_id = ? WHERE id = ?`,
+      ['server-pr-1', 'local-pr-1'],
+    )
+    expect(summary.pressing).toEqual([{ id: 'local-pr-1', label: 'PR-001', ok: true }])
+  })
+
+  it('syncs a saved Depricarping record with its detail rows (downtime_minutes/findings), then marks it synced', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM depricarping_record')) {
+        return [
+          {
+            id: 'local-dp-1',
+            presser_id: 'DP-001',
+            date: '2026-08-24',
+            note: null,
+            checked_by: null,
+            acknowledged_by: null,
+            server_id: null,
+          },
+        ]
+      }
+      if (sql.includes('FROM depricarping_detail')) {
+        return [{ time_slot: '07:00', fan_static_pressure_mmh2o: null, polishing_drum_speed_rpm: null, air_velocity_ms: null, fibre_moisture_percent: null, kernel_recovery_in_fibre_percent: null, nut_silo_1_temp_c: null, nut_silo_2_temp_c: null, downtime_minutes: 5, findings: 'Macet sebentar' }]
+      }
+      return []
+    })
+    vi.mocked(apiClient.post).mockResolvedValue({ data: { id: 'server-dp-1' } })
+
+    const summary = await syncAllRecords(PRODUCTION_LINE_ID)
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/depricarping-records',
+      expect.objectContaining({
+        presser_id: 'DP-001',
+        details: [{ time_slot: '07:00', fan_static_pressure_mmh2o: null, polishing_drum_speed_rpm: null, air_velocity_ms: null, fibre_moisture_percent: null, kernel_recovery_in_fibre_percent: null, nut_silo_1_temp_c: null, nut_silo_2_temp_c: null, downtime_minutes: 5, findings: 'Macet sebentar' }],
+      }),
+    )
+    expect(run).toHaveBeenCalledWith(
+      `UPDATE depricarping_record SET status = 'synced', server_id = ? WHERE id = ?`,
+      ['server-dp-1', 'local-dp-1'],
+    )
+    expect(summary.depricarping).toEqual([{ id: 'local-dp-1', label: 'DP-001', ok: true }])
+  })
+
+  it('syncs a saved Kernel Plant record with its detail rows, then marks it synced with the server id', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM kernel_plant_record')) {
+        return [
+          {
+            id: 'local-kp-1',
+            kernel_plant_id: 'KP-001',
+            date: '2026-08-24',
+            note: null,
+            checked_by: null,
+            acknowledged_by: null,
+            server_id: null,
+          },
+        ]
+      }
+      if (sql.includes('FROM kernel_plant_detail')) {
+        return [{ time_slot: '07:00', ripple_mill_1_amps: null, ripple_mill_2_amps: null, claybath_hydro_sg: null, kernel_silo_1_temp_c: null, kernel_silo_2_temp_c: null, kernel_moisture_percent: null, shell_loss_percent: null, downtime_minutes: null, findings: null }]
+      }
+      return []
+    })
+    vi.mocked(apiClient.post).mockResolvedValue({ data: { id: 'server-kp-1' } })
+
+    const summary = await syncAllRecords(PRODUCTION_LINE_ID)
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/kernel-plant-records',
+      expect.objectContaining({
+        kernel_plant_id: 'KP-001',
+      }),
+    )
+    expect(run).toHaveBeenCalledWith(
+      `UPDATE kernel_plant_record SET status = 'synced', server_id = ? WHERE id = ?`,
+      ['server-kp-1', 'local-kp-1'],
+    )
+    expect(summary.kernelPlant).toEqual([{ id: 'local-kp-1', label: 'KP-001', ok: true }])
+  })
+
+  it('reports a failed Pressing record with the API error message, and does not update local status', async () => {
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM pressing_record')) {
+        return [{ id: 'local-pr-1', presser_id: 'PR-001', date: '2026-08-24', note: null, checked_by: null, acknowledged_by: null, server_id: null }]
+      }
+      return []
+    })
+    vi.mocked(apiClient.post).mockRejectedValue({ message: 'Presser ID wajib diisi.' })
+
+    const summary = await syncAllRecords(PRODUCTION_LINE_ID)
+
+    expect(summary.pressing).toEqual([
+      { id: 'local-pr-1', label: 'PR-001', ok: false, reason: 'Presser ID wajib diisi.' },
+    ])
+    expect(summary.failedCount).toBe(1)
+    expect(run).not.toHaveBeenCalledWith(expect.stringContaining('UPDATE pressing_record'), expect.anything())
   })
 })

@@ -1,0 +1,60 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-044--form-kernel-plant",
+  "name": "Form Kernel Plant",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/FormKernelPlantView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/FormKernelPlantView.spec.ts",
+    "mobile/tests/e2e/form-kernel-plant.spec.ts"
+  ],
+  "implementation_notes": [
+    "REVISED 2026-08-24 (entity-catalog v12, replacing the original fixed 24-row design the user explicitly rejected as wasting screen space): Kernel Plant Detail grid now renders whatever rows exist (0..24) loaded from kernelPlantRecordRepo.getDraftWithDetails(), with Tambah baris/Hapus baris controls -- the exact same dynamic add-row/remove-row pattern as Depricarping Detail (screen-043, fixed moments earlier)/Pressing Detail (screen-042)/Threshing Detail (screen-041)/Cages Tipped Time (screen-012), no longer a structural difference from those grids",
+    "STRUCTURAL SHAPE MATCHES DEPRICARPING, UNAFFECTED by this revision: 9 reading columns per row (7 numeric + Downtime (Mins) as a separate numeric field + Findings as a separate free-text field), instead of Threshing's/Pressing's single free-text 'Downtime Reason' column -- isRowFilled()/validateDetailRows() in both the repo and this view check all 9 columns, with downtime_minutes and findings each independently sufficient to satisfy the minimum-one-row rule (which now also requires a selected Time-Slot, same as Depricarping/Pressing/Threshing)",
+    "Target Operasional reference table sourced from a STATIC constant (mobile/src/data/kernelPlantOperationalTargets.ts, created under screen-040) rather than a synced local reference table -- UNTOUCHED by this revision, same judgment call already documented for Threshing/Pressing/Depricarping; renders 3 columns (Equipment / Parameter, Target Benchmark, Corrective Action Plan) matching Threshing's/Pressing's shape, NOT Depricarping's 4-column shape",
+    "'Minimal 1 baris valid' (Time-Slot terpilih + minimal 1 dari 9 kolom bacaan terisi) validated at FE + repo level (kernelPlantRecordRepo.saveDraft() throws KernelPlantDetailRequiredError) -- NOT enforced by the server model's KernelPlantRecord::booted() saving guard, which only checks row EXISTENCE (now meaningfully true only once the user has added at least one row, since rows are no longer pre-created), same pattern already fixed for Threshing/Pressing/Depricarping",
+    "availableTimeSlotOptions() compares slots by their index in canonicalTimeSlots() rather than a raw hour number (since slots wrap starting at 07:00, not 0-23) -- the one structural difference from Cages Tipped Time's availableHourOptions(), otherwise the floor/exclusion logic is identical to Depricarping's/Pressing's/Threshing's fixed version",
+    "Every FormField id in the grid is set explicitly (e.g. ripple-mill-1-{index}, downtime-minutes-{index}, findings-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide",
+    "Time-Slot per row is now a SearchableSelect.vue instance (was a read-only label) -- mirrors FormDepricarpingView.vue exactly, WITH pendingDeletionIds for existing (has-id) rows removed via Hapus baris",
+    "Playwright e2e suite (mobile/tests/e2e/form-kernel-plant.spec.ts) REVISED 2026-08-24 alongside this fix to exercise Tambah baris/Hapus baris and the Time-Slot <select> (was 'always 24 rows, drive New Data flow directly'); syntax verified via `playwright test --list` (10 scenarios), not executed against a live dev server + backend in this environment, matching the sibling stations' now-standard verification depth for this revision."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) e2e spec (mobile/tests/e2e/form-kernel-plant.spec.ts) was originally authored and executed for the fixed-24-row design, then REVISED 2026-08-24 alongside this fix to exercise Tambah baris/Hapus baris and the Time-Slot <select> -- could not be re-executed in this sandboxed environment against a running dev server + seeded backend after the revision, verified only by static review (syntax confirmed via `playwright test --list`, 10 scenarios listed).",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T09:00:00Z",
+      "passed": 23,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

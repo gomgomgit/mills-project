@@ -1,0 +1,136 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-057--form-threshing-web",
+  "name": "Form Threshing (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Form web untuk input record Threshing baru dan mengubah record tersimpan, mengikuti flow yang sama dengan Form Threshing mobile (screen-041) — grid Threshing Detail dinamis, baris ditambahkan satu per satu oleh user via 'Tambah Baris' (revisi 2026-08-24, sama seperti Cages Tipped Time). Berbeda dari mobile: Tanggal berdefault waktu saat ini namun tetap dapat diedit user, dan record yang sudah tersimpan dapat diubah kapan saja lewat mode edit (bukan input sekali terkunci seperti draft mobile, tidak ada konsep Pause/Clear di web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Tombol 'Tambah Data' dari Data Browser Threshing (Web) — mode buat baru",
+    "Tombol 'Edit' dari Detail Threshing (Web) — mode ubah record"
+  ],
+  "information_displayed": [
+    "Production Line (dropdown) — hanya pada mode buat baru, menentukan station Threshing tujuan record (1 station Threshing aktif per production line)",
+    "Thresher ID",
+    "Tanggal — default hari ini, DAPAT diedit manual (berbeda dari mobile yang menguncinya)",
+    "Note (input manual, opsional)",
+    "Grid Threshing Detail: baris ditambahkan satu per satu (Tambah Baris), Time-Slot per baris dipilih dari dropdown (opsi = 24 slot kanonis 07:00-06:00 DIKURANGI yang sudah dipakai baris lain dan yang lebih awal-atau-sama dengan slot tertinggi yang sudah dipilih baris lain), kolom lain per baris: FFB Throughput, Thresher Drum Speed, Motor Current, Unstripped Bunch Count, Empty Bunch Oil Loss, Downtime Reason — semua kolom bacaan opsional, baris dapat dihapus",
+    "Tabel Referensi Target Operasional: read-only, ditampilkan di bawah grid, bukan bagian dari payload simpan",
+    "Checked By — checkbox 'Tandai sudah diperiksa', hanya tampil & aktif untuk role Supervisor",
+    "Acknowledged By — checkbox 'Tandai sudah dikonfirmasi', hanya tampil & aktif untuk role Mill Management",
+    "Field dikelompokkan per section: Identitas Threshing, Threshing Detail, Target Operasional (referensi), Verifikasi"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan station Threshing tujuan record baru (hanya mode buat baru)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah baris Threshing Detail",
+      "description": "Menambah satu baris time-slot kosong ke grid",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus baris Threshing Detail",
+      "description": "Menghapus satu baris dari grid; Time-Slot yang dipakainya kembali tersedia untuk baris lain",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Time-Slot per baris",
+      "description": "Memilih slot jam untuk baris tersebut dari slot kanonis yang tersedia (belum dipakai baris lain, lebih lambat dari slot tertinggi yang sudah dipilih baris lain)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Isi kolom bacaan pada baris Threshing Detail",
+      "description": "Mengisi salah satu atau lebih kolom bacaan pada baris manapun yang sudah ditambahkan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record baru (mode buat) atau memperbarui record tersimpan (mode edit), status langsung 'saved' — tidak ada draft/pause seperti mobile",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Batal",
+      "description": "Kembali ke Data Browser Threshing (mode buat) atau Detail Threshing (mode edit) tanpa menyimpan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tandai Checked",
+      "description": "Menandai record sudah diperiksa, mengisi Checked By dengan user yang login",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tandai Acknowledged",
+      "description": "Menandai record sudah dikonfirmasi, mengisi Acknowledged By dengan user yang login",
+      "actor_ids": [
+        "actor-mill-management"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tidak ada konsep draft/pause/Clear di web — Simpan langsung membuat/memperbarui record dengan status 'saved'",
+    "Field wajib ditandai asterisk merah dengan validasi inline",
+    "Tanggal default waktu saat ini saat form dibuka, TETAP DAPAT diedit manual oleh user",
+    "REVISI 2026-08-24 (menggantikan desain awal yang ditolak user): Grid Threshing Detail TIDAK di-pre-generate — baris ditambahkan satu per satu via 'Tambah Baris', dapat dihapus via 'Hapus', sama seperti mobile dan Cages Tipped Time Web",
+    "Time-Slot tiap baris wajib lebih lambat (index kanonis lebih besar) dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
+    "Setiap kolom bacaan pada baris opsional; minimal satu baris valid (Time-Slot terpilih + minimal satu kolom bacaan terisi) harus ada sebelum Simpan",
+    "Production Line (dan station Threshing terkait) tidak dapat diubah setelah record dibuat — pada mode edit, asal production line ditampilkan sebagai teks read-only",
+    "Thresher ID wajib diisi",
+    "Checked By hanya dapat diisi (via checkbox) oleh user dengan role Supervisor — field disembunyikan untuk role lain",
+    "Acknowledged By hanya dapat diisi (via checkbox) oleh user dengan role Mill Management — field disembunyikan untuk role lain",
+    "Tabel Target Operasional murni referensi read-only, tidak pernah dikirim sebagai bagian dari payload simpan record"
+  ],
+  "usecase_ids": [
+    "usecase-057--form-threshing-web"
+  ],
+  "edge_cases": [
+    "Field wajib belum lengkap saat Simpan ditekan",
+    "Belum ada satu pun baris Threshing Detail valid (Time-Slot terpilih + minimal 1 kolom bacaan terisi) saat Simpan ditekan",
+    "User memilih Time-Slot yang sudah dipakai baris lain atau lebih awal dari baris terakhir — opsi tidak tersedia di dropdown",
+    "Production Line terpilih belum memiliki station Threshing aktif (mode buat baru) — Simpan ditolak dengan pesan error",
+    "Record tidak ditemukan saat mode edit dibuka dengan id tidak valid",
+    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Weighbridge/Grading/Cages Track Web)"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

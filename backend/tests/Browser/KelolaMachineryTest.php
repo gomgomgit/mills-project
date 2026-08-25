@@ -53,13 +53,26 @@ async function login(page, username, password) {
   await page.goto(`${BASE_URL}${LOGIN_PATH}`);
   await page.locator('#username').fill(username);
   await page.locator('#password').fill(password);
-  await page.locator('#business_unit_id').selectOption({ label: BUSINESS_UNIT_NAME });
   await page.locator('button[type="submit"]').click();
   await page.waitForURL((url) => !url.pathname.startsWith(LOGIN_PATH));
 }
 
 async function gotoMachinery(page) {
   await page.goto(`${BASE_URL}${MACHINERY_PATH}`);
+}
+
+// Interacts with the x-searchable-select combobox (see
+// resources/views/components/searchable-select.blade.php) that replaced
+// this screen's #machinery_group_id / #filterMachineryGroupId <select>s.
+async function selectSearchable(page, id, label) {
+  await page.locator(`#${id}`).click();
+  await page.locator(`#${id}`).fill(label);
+  await page.locator(`#${id}-listbox`).getByRole('option', { name: label, exact: true }).click();
+}
+
+async function selectSearchableFirst(page, id) {
+  await page.locator(`#${id}`).click();
+  await page.locator(`#${id}-listbox`).getByRole('option').nth(1).click();
 }
 
 test.describe('Kelola Machinery', () => {
@@ -69,7 +82,7 @@ test.describe('Kelola Machinery', () => {
     await gotoMachinery(page);
 
     await page.locator('button', { hasText: 'Tambah Machinery' }).click();
-    await page.locator('#machinery_group_id').selectOption({ label: 'MG-BROWSER-BASE' });
+    await selectSearchable(page, 'machinery_group_id', 'MG-BROWSER-BASE');
 
     // Station/Production Line fields are read-only and auto-populated
     // from the selected Machinery Group — never independently typed.
@@ -94,7 +107,7 @@ test.describe('Kelola Machinery', () => {
     await gotoMachinery(page);
 
     await page.locator('button', { hasText: 'Tambah Machinery' }).click();
-    await page.locator('#machinery_group_id').selectOption({ label: 'MG-BROWSER-BASE' });
+    await selectSearchable(page, 'machinery_group_id', 'MG-BROWSER-BASE');
 
     const uniqueSuffix = Date.now();
     const uniqueCode = `EQ-BROWSER-CHILD-${uniqueSuffix}`;
@@ -155,7 +168,7 @@ test.describe('Kelola Machinery', () => {
     await gotoMachinery(page);
 
     await page.locator('button', { hasText: 'Tambah Machinery' }).click();
-    await page.locator('#machinery_group_id').selectOption({ index: 1 });
+    await selectSearchableFirst(page, 'machinery_group_id');
     await page.locator('#equipment_code').fill('EQ-DUP-01');
     await page.locator('#name').fill('Mesin Duplikat');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
@@ -193,7 +206,7 @@ test.describe('Kelola Machinery', () => {
     await login(page, 'mtest-admin01', PASSWORD);
     await gotoMachinery(page);
 
-    await page.locator('#filterMachineryGroupId').selectOption({ index: 1 });
+    await selectSearchableFirst(page, 'filterMachineryGroupId');
 
     await expect(page.locator('.kc-table')).toBeVisible();
   });

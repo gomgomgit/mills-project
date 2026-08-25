@@ -1,0 +1,120 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "ver": 1,
+  "id": "usecase-051--data-browser-depricarping-web",
+  "name": "Telusuri & Ekspor Data Depricarping",
+  "description": "Supervisor, Mill Management, atau Admin menelusuri, memfilter, dan mengekspor seluruh record Depricarping dari web.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login di web dengan role Supervisor/Mill Management/Admin"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan tabel record Depricarping terpaginasi, default tanpa filter tanggal aktif"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Mengisi filter Tanggal Dari/Sampai dan/atau Business Unit"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menyaring dan menampilkan ulang tabel sesuai filter"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Menekan Ekspor CSV atau Ekspor Excel"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Mengunduh seluruh data terfilter (tanpa pagination) sebagai berkas"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tidak ada data sesuai filter",
+      "trigger": "Pada step 3, filter tidak menghasilkan data apa pun",
+      "steps": [
+        "System menampilkan tabel kosong dengan pesan tidak ada data"
+      ]
+    },
+    {
+      "name": "Rentang tanggal tidak valid",
+      "trigger": "Pada step 2, Tanggal Dari lebih besar dari Tanggal Sampai",
+      "steps": [
+        "System menampilkan pesan validasi rentang tanggal tidak valid",
+        "Filter tidak diterapkan"
+      ]
+    },
+    {
+      "name": "Klik baris membuka detail",
+      "trigger": "Pada step 1/3, user menekan salah satu baris tabel",
+      "steps": [
+        "System membuka halaman Detail Depricarping (Web) untuk record tersebut"
+      ]
+    },
+    {
+      "name": "Ekspor gagal",
+      "trigger": "Pada step 5, dataset terfilter melebihi batas maksimum baris ekspor",
+      "steps": [
+        "System menampilkan pesan ekspor gagal",
+        "Tidak ada berkas yang diunduh"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat tabel record Depricarping terfilter, atau berkas ekspor terunduh, atau berada di halaman Detail Depricarping (Web)"
+  ],
+  "business_rules": [
+    "Rentang tanggal filter harus valid (Tanggal Dari <= Tanggal Sampai)",
+    "Ekspor dibatasi jumlah baris maksimum",
+    "Hanya Supervisor/Mill Management/Admin yang dapat mengakses"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Telusuri & Ekspor Data Depricarping — success",
+      "given": "User login sebagai Supervisor/Mill Management/Admin di web",
+      "when": "User menerapkan filter tanggal valid dan menekan Ekspor CSV",
+      "then": "Tabel diperbarui sesuai filter dan berkas CSV terunduh"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Depricarping — Tidak Ada Data Sesuai Filter",
+      "given": "User menerapkan filter yang tidak memiliki data cocok",
+      "when": "Tabel dimuat ulang",
+      "then": "System menampilkan pesan tidak ada data dengan meta.total=0"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Depricarping — Rentang Tanggal Tidak Valid",
+      "given": "User mengisi Tanggal Dari lebih besar dari Tanggal Sampai",
+      "when": "Filter diterapkan",
+      "then": "System menampilkan pesan validasi rentang tanggal tidak valid"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Depricarping — Klik Baris Membuka Detail",
+      "given": "Tabel menampilkan minimal satu record",
+      "when": "User menekan salah satu baris",
+      "then": "System membuka halaman Detail Depricarping (Web) untuk record tersebut"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Depricarping — Ekspor Gagal",
+      "given": "Dataset terfilter melebihi batas maksimum baris ekspor",
+      "when": "User menekan tombol ekspor",
+      "then": "System menampilkan pesan ekspor gagal tanpa mengunduh berkas"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-051--data-browser-depricarping-web"
+  ]
+}

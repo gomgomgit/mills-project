@@ -1,0 +1,99 @@
+<?php
+
+/**
+ * DetailKernelPlantTest (Feature/Api) — screen-056--detail-kernel-plant-web
+ * / usecase-056--detail-kernel-plant-web.
+ *
+ * Integration tests for GET /api/kernel-plant-records/{id}, mirroring
+ * tests/Feature/Api/DetailDepricarpingTest.php's structure exactly.
+ */
+
+use App\Enums\UserRole;
+use App\Models\BusinessUnit;
+use App\Models\KernelPlantDetail;
+use App\Models\KernelPlantRecord;
+use App\Models\Station;
+use App\Models\User;
+
+beforeEach(function () {
+    $this->businessUnit = BusinessUnit::factory()->create();
+    $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
+    $this->admin = User::factory()->role(UserRole::Admin)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $this->operator = User::factory()->role(UserRole::Operator)->create();
+});
+
+it('berhasil: returns the full record with resolved names and 24-row details grid', function () {
+    $record = KernelPlantRecord::factory()->forStation($this->station)->create();
+    KernelPlantDetail::factory()->forRecord($record)->timeSlot('09:00')->filled()->create();
+
+    $response = $this->actingAs($this->supervisor, 'web')->getJson("/api/kernel-plant-records/{$record->id}");
+
+    $response->assertOk();
+    $response->assertJsonFragment([
+        'id' => $record->id,
+        'kernel_plant_id' => $record->kernel_plant_id,
+        'station_name' => $this->station->name,
+    ]);
+    $response->assertJsonFragment(['time_slot' => '09:00']);
+});
+
+it('returns details ordered by canonical time-slot, not creation order', function () {
+    $record = KernelPlantRecord::factory()->forStation($this->station)->create();
+    KernelPlantDetail::factory()->forRecord($record)->timeSlot('14:00')->create();
+    KernelPlantDetail::factory()->forRecord($record)->timeSlot('08:00')->create();
+    KernelPlantDetail::factory()->forRecord($record)->timeSlot('00:00')->create();
+
+    $response = $this->actingAs($this->admin, 'web')->getJson("/api/kernel-plant-records/{$record->id}");
+
+    $response->assertOk();
+    $slots = array_column($response->json('details'), 'time_slot');
+    expect($slots)->toBe(['08:00', '14:00', '00:00']);
+});
+
+it('Mill Management and Admin can also access the detail endpoint', function () {
+    $record = KernelPlantRecord::factory()->forStation($this->station)->create();
+
+    $this->actingAs($this->millManagement, 'web')->getJson("/api/kernel-plant-records/{$record->id}")->assertOk();
+    $this->actingAs($this->admin, 'web')->getJson("/api/kernel-plant-records/{$record->id}")->assertOk();
+});
+
+it('returns 403 for the Operator role (route-level role gate)', function () {
+    $record = KernelPlantRecord::factory()->forStation($this->station)->create();
+
+    $this->actingAs($this->operator, 'web')->getJson("/api/kernel-plant-records/{$record->id}")->assertStatus(403);
+});
+
+it('returns 404 when the id does not exist', function () {
+    $this->actingAs($this->admin, 'web')->getJson('/api/kernel-plant-records/00000000-0000-0000-0000-000000000000')->assertStatus(404);
+});
+
+it('returns null checked_by_name and acknowledged_by_name when not set', function () {
+    $record = KernelPlantRecord::factory()->forStation($this->station)->create(['checked_by' => null, 'acknowledged_by' => null]);
+
+    $response = $this->actingAs($this->admin, 'web')->getJson("/api/kernel-plant-records/{$record->id}");
+
+    $response->assertOk();
+    $response->assertJsonFragment(['checked_by_name' => null, 'acknowledged_by_name' => null]);
+});
+
+it('resolves checked_by_name and acknowledged_by_name to user names when present', function () {
+    $checker = User::factory()->role(UserRole::Supervisor)->create(['name' => 'Checker Person']);
+    $acknowledger = User::factory()->role(UserRole::MillManagement)->create(['name' => 'Acknowledger Person']);
+    $record = KernelPlantRecord::factory()->forStation($this->station)->create([
+        'checked_by' => $checker->id,
+        'acknowledged_by' => $acknowledger->id,
+    ]);
+
+    $response = $this->actingAs($this->admin, 'web')->getJson("/api/kernel-plant-records/{$record->id}");
+
+    $response->assertOk();
+    $response->assertJsonFragment(['checked_by_name' => 'Checker Person', 'acknowledged_by_name' => 'Acknowledger Person']);
+});
+
+it('rejects unauthenticated requests', function () {
+    $record = KernelPlantRecord::factory()->forStation($this->station)->create();
+
+    $this->getJson("/api/kernel-plant-records/{$record->id}")->assertStatus(401);
+});

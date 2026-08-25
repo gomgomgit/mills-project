@@ -1,0 +1,216 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-048--data-preview-kernel-plant",
+  "name": "Data Preview Kernel Plant",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/kernel-plant/preview/:id?",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-048--data-preview-kernel-plant",
+      "usecase_name": "Lihat Data Kernel Plant Tersimpan",
+      "endpoints": [],
+      "business_logic": [
+        "1. watch() pada route param id (immediate: true) menentukan mode: id kosong → loadList(), id ada → loadDetail(id)",
+        "2. loadList(): set dateFilter=todayLocalDateString(), searchFilter='', lalu kernelPlantRecordRepo.getAllRecords(userId) — seluruh record milik user, status apapun",
+        "3. filteredRecords computed: filter by date (item.date.slice(0,10) === dateFilter jika dateFilter diisi) DAN by keyword (kernel_plant_id.toLowerCase().includes(keyword) jika searchFilter diisi)",
+        "4. onItemClick(item): draft_ongoing/draft_paused → navigate ke kernel-plant-form dengan id; saved/synced → navigate ke route ini sendiri dengan id (masuk mode detail)",
+        "5. loadDetail(id): kernelPlantRecordRepo.getDraftWithDetails(id) — null → detailNotFound=true; else set detailRecord + detailRows (berapapun jumlahnya, urut time_slot dari repo — REVISI 2026-08-24: TIDAK lagi selalu 24, mengikuti jumlah baris yang ditambahkan user via 'Tambah baris' di Form Kernel Plant)",
+        "6. onBack(): mode detail → navigate ke route ini sendiri tanpa id (kembali ke list); mode list → navigate ke monitor-kernel-plant"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "kernel-plant-record",
+          "operation": "SELECT",
+          "description": "SELECT seluruh record milik user (mode list) atau satu record by id (mode detail)"
+        },
+        {
+          "entity_id": "kernel-plant-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris (berapapun jumlahnya) terkait record, urut time_slot (mode detail)"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Filter aktif tidak menghasilkan data",
+          "handling": "empty-state dengan pesan 'Tidak ada data yang cocok dengan filter' + tombol Reset Filter (mengosongkan dateFilter dan searchFilter)"
+        },
+        {
+          "condition": "Belum ada data Kernel Plant sama sekali (list kosong tanpa filter aktif)",
+          "handling": "empty-state dengan pesan 'Belum ada data kernel plant.'"
+        },
+        {
+          "condition": "id tidak ditemukan di local storage (mode detail)",
+          "handling": "detailNotFound=true, pesan 'Data kernel plant tidak ditemukan.' ditampilkan"
+        },
+        {
+          "condition": "Item draft/pause ditekan di list",
+          "handling": "navigate ke kernel-plant-form, BUKAN masuk mode detail read-only layar ini"
+        },
+        {
+          "condition": "Record di mode detail memiliki nol baris Kernel Plant Detail (kasus tepi: tersimpan tanpa baris apapun)",
+          "handling": "Grid menampilkan pesan/empty state (kernel-plant-detail-rows-empty), bukan error -- header dan tabel Target Operasional tetap dirender normal"
+        }
+      ],
+      "business_rules_applied": [
+        "Filter tanggal default hari ini saat list dimuat",
+        "Pencarian case-insensitive terhadap kernel_plant_id",
+        "Status draft mengarah ke Form Kernel Plant; status saved/synced mengarah ke mode detail layar ini sendiri",
+        "Mode detail selalu read-only, tanpa aksi edit",
+        "Grid Kernel Plant Detail menampilkan persis baris yang tersimpan pada record (revisi 2026-08-24: tidak lagi selalu 24 baris)"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "defaults the date filter to today and shows only today-dated records initially",
+          "given": "getAllRecords() resolves with records dated today and a prior date",
+          "expect": "only today-dated record rendered in the list"
+        },
+        {
+          "description": "shows empty state when there are no local records",
+          "given": "getAllRecords() resolves with an empty array",
+          "expect": "record-list-empty rendered"
+        },
+        {
+          "description": "navigates to Form Kernel Plant when a draft/pause item is tapped",
+          "given": "a record with status=draft_ongoing is in the filtered list, tapped",
+          "expect": "router push to kernel-plant-form with that record's id"
+        },
+        {
+          "description": "navigates to detail mode when a saved/synced item is tapped",
+          "given": "a record with status=saved is in the filtered list, tapped",
+          "expect": "router push to data-preview-kernel-plant with that record's id as param"
+        },
+        {
+          "description": "navigates to Monitor Kernel Plant when Back is pressed in list mode",
+          "given": "component mounted in list mode (no id param)",
+          "expect": "Back click pushes to monitor-kernel-plant"
+        },
+        {
+          "description": "renders the record read-only with all of its detail rows (however many, a full 24 when all canonical slots were added) ordered by canonical time-slot",
+          "given": "route param id set, getDraftWithDetails() resolves with a record and 24 detail rows",
+          "expect": "kernel-plant-detail-rows-list rendered with 24 kernel-plant-detail-row-* items; operational-target-table renders 6 rows and 3 columns"
+        },
+        {
+          "description": "renders only the rows that actually exist when a record has fewer than 24 detail rows",
+          "given": "route param id set, getDraftWithDetails() resolves with a record and only 2 detail rows",
+          "expect": "kernel-plant-detail-rows-list rendered with exactly 2 kernel-plant-detail-row-* items, no assumption of 24"
+        },
+        {
+          "description": "shows an empty-state message (not an error) for the Kernel Plant Detail grid when the found record has zero detail rows",
+          "given": "route param id set, getDraftWithDetails() resolves with a record and an empty details array",
+          "expect": "kernel-plant-detail-rows-empty element rendered, header and operational-target-table still render normally"
+        },
+        {
+          "description": "shows 'record tidak ditemukan' when the record is not found",
+          "given": "route param id set, getDraftWithDetails() resolves null",
+          "expect": "record-not-found element rendered"
+        },
+        {
+          "description": "renders Checked By and Acknowledged By read-only regardless of the current role",
+          "given": "detail record has checked_by/acknowledged_by set, current user role is operator",
+          "expect": "both fields rendered with their stored values, not blanked by role"
+        },
+        {
+          "description": "navigates back to list mode (not Monitor Kernel Plant) when Back is pressed in detail mode",
+          "given": "component mounted in detail mode (id param set)",
+          "expect": "Back click pushes to data-preview-kernel-plant with no id param"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-040--monitor-kernel-plant",
+      "reason": "Load Data membuka layar ini; Back dari mode list kembali ke Monitor Kernel Plant"
+    },
+    {
+      "screen_id": "screen-044--form-kernel-plant",
+      "reason": "Item draft/pause pada mode list mengarah ke Form Kernel Plant"
+    }
+  ],
+  "implementation_notes": [
+    "Semua operasi dilakukan lokal di SQLite via kernelPlantRecordRepo.ts, tidak ada panggilan API",
+    "Mode ditentukan oleh keberadaan route param id via watch() immediate:true, bukan onMounted sekali saja — Vue Router menggunakan ulang instance komponen ini untuk navigasi antar-param pada route record yang sama",
+    "Grid detail mode-detail dirender langsung dari kolom tersimpan (findings/downtime_minutes/7 kolom numerik), tanpa perhitungan ulang — data historis; jumlah baris yang dirender sepenuhnya mengikuti `details.length` dari getDraftWithDetails(), tidak pernah diasumsikan 24",
+    "TIDAK ADA perubahan fungsional pada layar ini akibat revisi 2026-08-24 (grid dinamis di Form Kernel Plant), karena layar ini sejak awal sudah dirancang menampilkan 'seluruh baris yang ada' dan sudah punya empty-state untuk grid kosong — hanya doc comment/wording di kode dan artifact ini yang diperbarui untuk mencerminkan pola baru secara eksplisit"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Data Kernel Plant Tersimpan — success",
+      "usecase_id": "usecase-048--data-preview-kernel-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewKernelPlantView",
+        "action": "in list mode, tap a saved/synced record item",
+        "assert": "router push to data-preview-kernel-plant with the record's id; detail view renders header + all of its rows + operational target table"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-plant/preview",
+        "action": "tap a saved record in the list",
+        "assert": "browser navigates to the detail URL, showing the full record read-only"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Kernel Plant Tersimpan — Record Tidak Ditemukan",
+      "usecase_id": "usecase-048--data-preview-kernel-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewKernelPlantView",
+        "action": "mount with an id param that does not exist locally",
+        "assert": "record-not-found element rendered"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-plant/preview/non-existent-id",
+        "action": "navigate directly to a non-existent record id",
+        "assert": "record-not-found message visible"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Kernel Plant Tersimpan — List Kosong",
+      "usecase_id": "usecase-048--data-preview-kernel-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewKernelPlantView",
+        "action": "mount in list mode with no local records",
+        "assert": "record-list-empty rendered"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-plant/preview",
+        "action": "navigate to preview with no local Kernel Plant data",
+        "assert": "empty-state message visible"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Kernel Plant Tersimpan — Back dari Mode Detail",
+      "usecase_id": "usecase-048--data-preview-kernel-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewKernelPlantView",
+        "action": "in detail mode, click Back",
+        "assert": "router push to data-preview-kernel-plant with no id param"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-plant/preview/:id",
+        "action": "click Back while viewing a record detail",
+        "assert": "browser navigates back to the list URL, not Monitor Kernel Plant"
+      }
+    }
+  ]
+}

@@ -1,0 +1,139 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "ver": 2,
+  "id": "screen-044--form-kernel-plant",
+  "name": "Form Kernel Plant",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar input/edit data log sheet stasiun Kernel Plant: header identitas (Kernel Plant ID, Tanggal, Inputted/Checked/Acknowledged By, Note) dan grid Kernel Plant Detail (baris time-slot ditambahkan satu per satu oleh user via 'Tambah baris', memilih Time-Slot dari 24 slot kanonis 07:00-06:00 keesokan hari secara berurutan — mengikuti pola persis Depricarping Detail/Pressing Detail/Threshing Detail/Cages Tipped Time) dengan 9 kolom bacaan, beserta tabel referensi Target Operasional read-only di bawah form — mengikuti pola Form Depricarping untuk split Downtime(Mins)+Findings dan grid dinamis, dan pola Form Threshing/Pressing untuk tabel referensi 3 kolom.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "'New Data' dari Monitor Kernel Plant (draft baru, grid Kernel Plant Detail dimulai kosong)",
+    "Tap item draft/pause dari list di Monitor Kernel Plant (lanjutkan draft)",
+    "Tap item draft/pause dari Data Preview Kernel Plant mode list (lanjutkan draft)"
+  ],
+  "information_displayed": [
+    "Identitas Kernel Plant: Kernel Plant ID (wajib, dapat diedit bebas), Tanggal (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual)",
+    "Verifikasi: Inputted By (read-only, nama user pembuat), Checked By (toggle 'Saya verifikasi data ini', khusus Supervisor), Acknowledged By (toggle 'Saya menyetujui data ini', khusus Mill Management), Note (opsional)",
+    "Kernel Plant Detail: grid baris time-slot yang ditambahkan satu per satu oleh user (Tambah baris), dengan kolom per baris: Time-Slot (dropdown, opsi = 24 slot kanonis jam 07:00-06:00 keesokan hari DIKURANGI yang sudah dipakai baris lain dan yang lebih awal-atau-sama dengan slot tertinggi yang sudah dipilih baris lain), Ripple Mill 1 (Amps), Ripple Mill 2 (Amps), Claybath/Hydro SG, Kernel Silo 1 Temp (°C), Kernel Silo 2 Temp (°C), Kernel Moisture (%), Shell Loss (%), Downtime (Mins), dan Findings — seluruh 9 kolom bacaan opsional per baris, baris dapat dihapus (Hapus baris)",
+    "Target Operasional: tabel referensi read-only 6 baris x 3 kolom (Equipment / Parameter, Target Benchmark, Corrective Action Plan), bukan bagian dari data yang disimpan",
+    "Header 'Mill Smart Log' + breadcrumb (Home > Production Process Activity > Kernel Plant > Form) + ikon hamburger menu"
+  ],
+  "available_actions": [
+    {
+      "action": "Simpan",
+      "description": "Validasi Kernel Plant ID wajib diisi dan minimal satu baris Kernel Plant Detail punya Time-Slot terpilih DAN minimal 1 dari 9 kolom bacaan terisi, lalu menyimpan record dengan status=saved dan kembali ke Monitor Kernel Plant",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tambah baris Kernel Plant Detail",
+      "description": "Menambah satu baris time-slot baru ke grid Kernel Plant Detail",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus baris Kernel Plant Detail",
+      "description": "Menghapus satu baris dari grid Kernel Plant Detail",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pilih Time-Slot per baris",
+      "description": "Memilih slot jam untuk baris tersebut dari slot kanonis yang tersedia (belum dipakai baris lain, lebih lambat dari slot tertinggi yang sudah dipilih baris lain)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi kolom bacaan pada baris Kernel Plant Detail",
+      "description": "Mengisi salah satu atau lebih dari 9 kolom bacaan (Ripple Mill 1, Ripple Mill 2, Claybath/Hydro SG, Kernel Silo 1 Temp, Kernel Silo 2 Temp, Kernel Moisture, Shell Loss, Downtime (Mins), Findings) pada baris manapun yang sudah ditambahkan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progress saat ini apa adanya (tanpa validasi) dengan status=draft_paused dan kembali ke Monitor Kernel Plant",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus draft secara permanen (dengan konfirmasi) dan kembali ke Monitor Kernel Plant",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor Kernel Plant; jika ada perubahan belum tersimpan, tampilkan konfirmasi terlebih dahulu",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Toggle Checked By",
+      "description": "Menandai data sudah diverifikasi (self-attestation), hanya dapat diisi oleh Supervisor",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Toggle Acknowledged By",
+      "description": "Menandai data sudah disetujui (self-attestation), hanya dapat diisi oleh Mill Management (mengisi form dari mobile jika berperan sebagai Supervisor juga, sesuai kebijakan role gabungan)",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Kernel Plant ID wajib diisi sebelum Simpan; Note/Checked By/Acknowledged By tidak wajib",
+    "Tanggal otomatis terisi sekali saat draft baru dibuat (mengikuti pola Arrival Weighbridge), tidak dapat diedit manual sama sekali",
+    "Grid Kernel Plant Detail TIDAK di-pre-generate — baris ditambahkan satu per satu oleh user via 'Tambah baris' (revisi 2026-08-24 dari desain awal grid statis 24 baris, mengikuti pola persis Depricarping Detail/Pressing Detail/Threshing Detail/Cages Tipped Time/Cages Track Record)",
+    "Time-Slot tiap baris wajib lebih lambat (index kanonis lebih besar) dari Time-Slot baris yang terakhir ditambahkan pada record yang sama, dan tidak boleh duplikat dengan baris manapun (urutan menaik kronologis, maksimal 24 baris karena hanya ada 24 slot kanonis)",
+    "Setiap kolom bacaan pada baris Kernel Plant Detail bersifat opsional — baris yang sebagian terisi tetap valid",
+    "Minimal satu baris Kernel Plant Detail (dengan Time-Slot terpilih) harus punya minimal 1 dari 9 kolom bacaan terisi sebelum Simpan bisa berhasil — error khusus ditampilkan pada grid, terpisah dari error field header",
+    "Downtime (Mins) dan Findings dihitung sebagai kolom bacaan yang sah untuk memenuhi syarat 'baris terisi', sama seperti 7 kolom numerik lainnya",
+    "Checked By hanya dapat diisi oleh user berperan Supervisor; Acknowledged By hanya dapat diisi oleh user berperan Mill Management",
+    "Pause tidak memvalidasi apa pun — menyimpan apa adanya sebagai checkpoint",
+    "Clear meminta konfirmasi sebelum menghapus permanen",
+    "Back dengan perubahan belum tersimpan meminta konfirmasi sebelum keluar",
+    "Tabel Target Operasional adalah referensi baku mutu read-only 3 kolom, bukan bagian dari data yang disimpan ke record"
+  ],
+  "usecase_ids": [
+    "usecase-044--form-kernel-plant"
+  ],
+  "edge_cases": [
+    "User mencoba Simpan dengan Kernel Plant ID kosong — error inline pada field, tidak menyimpan",
+    "Belum ada satu pun baris Kernel Plant Detail yang punya Time-Slot terpilih dan minimal 1 dari 9 kolom bacaan terisi saat Simpan ditekan — error khusus pada grid, tidak menyimpan",
+    "User mengisi Downtime (Mins) atau Findings saja pada satu baris (tanpa kolom numerik lain) — tetap dianggap baris terisi, valid untuk Simpan",
+    "User mencoba memilih Time-Slot yang sudah dipakai baris lain atau lebih awal dari baris terakhir — opsi tersebut tidak tersedia di dropdown",
+    "User menghapus baris Kernel Plant Detail yang sudah ada sebelumnya (bukan baru ditambah) — baris di-queue untuk dihapus, benar-benar terhapus saat Simpan/Pause berikutnya",
+    "Draft yang di-Pause lalu dilanjutkan — baris yang sudah ditambahkan beserta bacaan yang sudah terisi tetap utuh",
+    "User menekan Pause tanpa mengisi apa pun — tetap tersimpan sebagai draft_paused tanpa validasi",
+    "User menekan Clear — draft dan seluruh baris terkait dihapus permanen setelah konfirmasi",
+    "User menekan Back dengan perubahan belum tersimpan — dialog konfirmasi sebelum keluar; jika tidak ada perubahan, langsung kembali tanpa dialog",
+    "Non-Supervisor mencoba toggle Checked By — kontrol nonaktif/tidak dapat ditekan",
+    "Non-Mill-Management mencoba toggle Acknowledged By — kontrol nonaktif/tidak dapat ditekan"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

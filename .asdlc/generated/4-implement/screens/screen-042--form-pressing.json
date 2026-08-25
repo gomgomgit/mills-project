@@ -1,0 +1,58 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-042--form-pressing",
+  "name": "Form Pressing",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/FormPressingView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/FormPressingView.spec.ts",
+    "mobile/tests/e2e/form-pressing.spec.ts"
+  ],
+  "implementation_notes": [
+    "REVISED 2026-08-24 (entity-catalog v12, replacing the original fixed 24-row design the user explicitly rejected as wasting screen space): Pressing Detail grid now renders whatever rows exist (0..24) loaded from pressingRecordRepo.getDraftWithDetails(), with Tambah baris/Hapus baris controls -- the exact same dynamic add-row/remove-row pattern as Threshing Detail (screen-041, just fixed) and Cages Tipped Time (screen-012), no longer a structural difference from those grids",
+    "Target Operasional reference table sourced from a STATIC constant (mobile/src/data/pressingOperationalTargets.ts, created under screen-038) rather than a synced local reference table -- unchanged by this revision, same judgment call already documented for Threshing (screen-041): building a sync mechanism for 7 rarely-changing rows was judged out of proportion; if Admin edits these values via web in the future, mobile needs an app update to reflect it",
+    "'Minimal 1 baris valid' (Time-Slot terpilih + minimal 1 kolom bacaan terisi) validated at FE + repo level (pressingRecordRepo.saveDraft() throws PressingDetailRequiredError) -- NOT enforced by the server model's PressingRecord::booted() saving guard, which only checks row EXISTENCE (now meaningfully true only once the user has added at least one row, since rows are no longer pre-created)",
+    "availableTimeSlotOptions() compares slots by their index in canonicalTimeSlots() rather than a raw hour number (since slots wrap starting at 07:00, not 0-23) -- the one structural difference from Cages Tipped Time's availableHourOptions(), otherwise the floor/exclusion logic is identical to Threshing's just-fixed version",
+    "Every FormField id in the grid is set explicitly (e.g. digester-temp-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide",
+    "Time-Slot per row is now a SearchableSelect.vue instance (was a read-only label) -- mirrors FormThreshingView.vue exactly"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) e2e spec (mobile/tests/e2e/form-pressing.spec.ts) was authored/revised for the dynamic grid but could not be executed in this sandboxed environment -- verified only by static review.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T08:10:00Z",
+      "passed": 21,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

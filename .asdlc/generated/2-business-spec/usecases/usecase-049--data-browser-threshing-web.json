@@ -1,0 +1,136 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-23"
+  },
+  "id": "usecase-049--data-browser-threshing-web",
+  "name": "Telusuri & Ekspor Data Threshing",
+  "description": "Supervisor, Mill Management, atau Admin menelusuri dan menyaring data record Threshing lewat web, lalu mengekspornya ke CSV/Excel atau membuka salah satu record untuk melihat detail.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login di web",
+    "User membuka Production Process Activity dan memilih Threshing"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan tabel data record Threshing dengan filter rentang tanggal dan business unit"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Menerapkan filter tanggal/business unit"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menampilkan data terfilter dengan pagination"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Klik baris",
+      "trigger": "Pada step 3, user mengklik salah satu baris data",
+      "steps": [
+        "System membuka Detail Threshing (Web) untuk record tersebut"
+      ]
+    },
+    {
+      "name": "Ekspor data",
+      "trigger": "Pada step 3, user menekan tombol ekspor",
+      "steps": [
+        "System mengekspor data terfilter ke CSV/Excel sesuai filter aktif"
+      ]
+    },
+    {
+      "name": "Tambah Data",
+      "trigger": "Pada step 1 atau 3, user menekan 'Tambah Data'",
+      "steps": [
+        "System membuka Form Threshing (Web) mode buat baru"
+      ]
+    },
+    {
+      "name": "Rentang tanggal tidak valid",
+      "trigger": "Pada step 2, tanggal awal lebih besar dari tanggal akhir",
+      "steps": [
+        "System menolak filter dan menampilkan pesan error, data tidak berubah"
+      ]
+    },
+    {
+      "name": "Tidak ada data sesuai filter",
+      "trigger": "Pada step 3, filter tidak menghasilkan data apapun",
+      "steps": [
+        "System menampilkan empty state dengan opsi reset filter"
+      ]
+    },
+    {
+      "name": "Ekspor gagal",
+      "trigger": "Pada alternative flow Ekspor data, dataset terlalu besar atau proses ekspor gagal",
+      "steps": [
+        "System menampilkan pesan error ekspor, file tidak diunduh"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat data Threshing terfilter, mengunduh file ekspor, atau berpindah ke Detail/Form Threshing (Web)"
+  ],
+  "business_rules": [
+    "Data mencakup hasil sync mobile & input web",
+    "Ekspor mengikuti filter aktif",
+    "Daftar termuat <=2 detik untuk dataset normal",
+    "Jumlah baris time-slot terisi dihitung sebagai baris Threshing Detail yang punya minimal satu kolom bacaan terisi"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Telusuri & Ekspor Data Threshing — success",
+      "given": "Supervisor sudah login di web dan telah membuka Production Process Activity dengan memilih Threshing",
+      "when": "Supervisor menerapkan filter tanggal dan/atau business unit pada tabel data Threshing",
+      "then": "System menampilkan data Threshing yang terfilter dengan pagination sesuai filter yang diterapkan"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Threshing — Klik baris",
+      "given": "User sudah login di web dan telah membuka Production Process Activity dengan memilih Threshing",
+      "when": "User mengklik salah satu baris data Threshing pada tabel hasil filter",
+      "then": "System membuka halaman Detail Threshing (Web) untuk record yang dipilih"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Threshing — Ekspor data",
+      "given": "User sudah login di web dan telah membuka Production Process Activity dengan memilih Threshing",
+      "when": "User menekan tombol ekspor pada tabel data Threshing yang telah difilter",
+      "then": "System mengekspor data terfilter ke file CSV/Excel sesuai filter aktif"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Threshing — Tambah Data",
+      "given": "User sudah login di web dan telah membuka Production Process Activity dengan memilih Threshing",
+      "when": "User menekan tombol 'Tambah Data' pada halaman data Threshing",
+      "then": "System membuka Form Threshing (Web) dalam mode buat baru"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Threshing — Rentang tanggal tidak valid",
+      "given": "User sudah login di web dan telah membuka Production Process Activity dengan memilih Threshing",
+      "when": "User menerapkan filter dengan tanggal awal yang lebih besar dari tanggal akhir",
+      "then": "System menolak filter tersebut, menampilkan pesan error, dan data yang ditampilkan tidak berubah"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Threshing — Tidak ada data sesuai filter",
+      "given": "User sudah login di web dan telah membuka Production Process Activity dengan memilih Threshing",
+      "when": "User menerapkan filter yang tidak menghasilkan data apapun",
+      "then": "System menampilkan empty state beserta opsi untuk mereset filter"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Threshing — Ekspor gagal",
+      "given": "User sudah login di web dan telah membuka Production Process Activity dengan memilih Threshing",
+      "when": "User menekan tombol ekspor namun dataset terlalu besar atau proses ekspor mengalami kegagalan",
+      "then": "System menampilkan pesan error ekspor dan file tidak diunduh"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-049--data-browser-threshing-web"
+  ]
+}

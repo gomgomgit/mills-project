@@ -53,23 +53,31 @@ describe('localSchema — seedDefaultStationsIfNeeded()', () => {
     }
   })
 
-  it('seeds exactly the 3 active MVP station types with is_active=1', async () => {
+  it('seeds exactly the 7 active MVP station types with is_active=1', async () => {
     await seedDefaultStationsIfNeeded(BUSINESS_UNIT_ID)
 
     const insertCalls = vi.mocked(run).mock.calls.slice(1)
     const activeCalls = insertCalls.filter((call) => call[1]?.[4] === 1)
     const activeTypes = activeCalls.map((call) => call[1]?.[3])
 
-    expect(activeTypes.sort()).toEqual(['cages-track', 'grading', 'weighbridge'])
+    expect(activeTypes.sort()).toEqual([
+      'cages-track',
+      'depricarping',
+      'grading',
+      'kernel-plant',
+      'pressing',
+      'threshing',
+      'weighbridge',
+    ])
   })
 
-  it('seeds the 12 placeholder stations with type=other and is_active=0', async () => {
+  it('seeds the 8 placeholder stations with type=other and is_active=0', async () => {
     await seedDefaultStationsIfNeeded(BUSINESS_UNIT_ID)
 
     const insertCalls = vi.mocked(run).mock.calls.slice(1)
     const placeholderCalls = insertCalls.filter((call) => call[1]?.[4] === 0)
 
-    expect(placeholderCalls).toHaveLength(12)
+    expect(placeholderCalls).toHaveLength(8)
     for (const call of placeholderCalls) {
       expect(call[1]?.[3]).toBe('other')
     }

@@ -1,0 +1,56 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-048--data-preview-kernel-plant",
+  "name": "Data Preview Kernel Plant",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/DataPreviewKernelPlantView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/DataPreviewKernelPlantView.spec.ts",
+    "mobile/tests/e2e/data-preview-kernel-plant.spec.ts"
+  ],
+  "implementation_notes": [
+    "Dual-mode component (list/detail driven by :id? route param), mirrors DataPreviewDepricarpingView.vue's watch()-driven mode switch exactly",
+    "Detail mode renders the Kernel Plant Detail grid read-only straight from stored columns (no recomputation, historical data), however many rows the record actually has (REVISED 2026-08-24: no longer always 24 -- this screen required NO functional code change for the entity-catalog v12 dynamic-add-row revision, since it already rendered `details.length` rows directly and already had an empty-state for zero rows) plus the same static 3-column Target Operasional reference table used by Form Kernel Plant (screen-044)",
+    "Checked By/Acknowledged By rendered read-only with no role restriction on viewing, consistent with Data Preview Threshing/Pressing/Depricarping and this screen's business spec",
+    "Playwright e2e spec (mobile/tests/e2e/data-preview-kernel-plant.spec.ts) REVISED 2026-08-24 alongside this fix to seed only 3 kernel_plant_detail rows (matching what a real saved record now typically looks like, mirroring data-preview-depricarping.spec.ts's already-revised seeding); the 'Back dari Mode Detail' assertion reverted from the exact-path regex workaround (added under the old fixed-24-row implementation, when this screen's own e2e run first surfaced the bare-glob-matching quirk) back to the plain '**/...' glob now that it mirrors data-preview-depricarping.spec.ts's own (working) assertion exactly -- kept for consistency across all 4 stations' sibling specs rather than carrying a station-specific workaround."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) e2e spec (mobile/tests/e2e/data-preview-kernel-plant.spec.ts) was originally authored and executed against a live dev server for the fixed-24-row design, then REVISED 2026-08-24 alongside this fix to seed only 3 kernel_plant_detail rows (matching what a real saved record now typically looks like) -- could not be re-executed in this sandboxed environment against a running dev server + seeded backend after the revision, verified only by static review (syntax confirmed via `playwright test --list`), same verification depth now used by all 4 sibling stations' revised e2e specs.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T09:00:00Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

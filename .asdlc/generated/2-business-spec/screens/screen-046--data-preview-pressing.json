@@ -1,0 +1,111 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-046--data-preview-pressing",
+  "name": "Data Preview Pressing",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar yang menampilkan daftar seluruh record Pressing (tersimpan maupun masih draft/pause) dengan filter tanggal (default hari ini) dan pencarian, lalu menampilkan detail read-only lengkap dengan grid Pressing Detail (menampilkan seluruh baris yang ada pada record tersebut, berapapun jumlahnya — grid tidak lagi selalu 24 baris tetap sejak revisi 2026-08-24) dan tabel referensi Target Operasional saat salah satu record tersimpan/tersinkron dipilih.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap 'Load Data' dari Monitor Pressing"
+  ],
+  "information_displayed": [
+    "Mode LIST: daftar seluruh record Pressing (draft/pause dan saved/synced) milik user, dengan filter tanggal (default terisi hari ini) & pencarian (Presser ID), masing-masing item menampilkan label + indikator status ('Pause' untuk draft_ongoing/draft_paused, 'Tersimpan' untuk saved, 'Tersinkron' untuk synced)",
+    "Mode DETAIL: seluruh field header Pressing (Presser ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note) dan grid Pressing Detail (Time-Slot, Digester Temp, Digester Level, Press Motor Current, Cone Hydraulic Pressure, Dilution Water Temp, Downtime Reason) secara read-only — menampilkan persis sebanyak baris yang tersimpan pada record tersebut (bisa kurang dari 24, sesuai berapa baris yang ditambahkan user saat input), beserta tabel referensi Target Operasional read-only di bawah grid dan status badge record",
+    "Breadcrumb navigasi (Home > Production Process Activity > Pressing > Load Data) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu"
+  ],
+  "available_actions": [
+    {
+      "action": "Tap item list berstatus Pause (draft)",
+      "description": "Membuka Form Pressing untuk melanjutkan draft tersebut",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap item list berstatus Tersimpan/Tersinkron",
+      "description": "Berpindah ke mode detail, menampilkan record tersebut secara read-only",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Ubah filter tanggal",
+      "description": "Menyaring list sesuai tanggal yang dipilih (termasuk mengosongkannya)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Masukkan kata kunci pencarian",
+      "description": "Menyaring list berdasarkan kecocokan Presser ID",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back (mode list)",
+      "description": "Kembali ke Monitor Pressing",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back (mode detail)",
+      "description": "Kembali ke mode list (bukan langsung ke Monitor Pressing)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Detail record bersifat murni read-only; koreksi data dilakukan lewat Form Pressing, bukan dari layar ini",
+    "List menampilkan seluruh record Pressing milik user apapun statusnya",
+    "Filter tanggal & pencarian bekerja terhadap list yang sedang ditampilkan (client-side)",
+    "Filter tanggal default ke hari ini saat list pertama kali dibuka (mengacu ke field Tanggal Pressing)",
+    "Breadcrumb harus dapat dinavigasi",
+    "Checked By dan Acknowledged By ditampilkan apa adanya di detail (read-only), tidak ada pembatasan role untuk MELIHAT (hanya untuk mengisi, yang terjadi di Form)",
+    "Grid Pressing Detail pada mode DETAIL menampilkan persis baris yang tersimpan pada record (revisi 2026-08-24: TIDAK lagi selalu 24 baris — mengikuti jumlah baris yang ditambahkan user via Form Pressing), termasuk kemungkinan tampil kosong jika record disimpan tanpa baris apapun",
+    "Tabel Target Operasional ditampilkan sebagai referensi read-only di bawah grid detail, tidak pernah menjadi bagian dari data record yang ditampilkan/diedit"
+  ],
+  "usecase_ids": [
+    "usecase-046--data-preview-pressing"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan di mode detail (id tidak valid/tidak ada)",
+    "List kosong (belum ada record Pressing sama sekali untuk user ini)",
+    "Filter tanggal/pencarian (termasuk default hari ini) tidak menghasilkan record yang cocok",
+    "Record ditampilkan di mode DETAIL dengan grid Pressing Detail kosong (kasus tepi: record tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

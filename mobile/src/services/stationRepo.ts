@@ -8,16 +8,28 @@ import { query } from '@/services/localDb'
  * device with the same shape as the server `station` entity (per
  * entity_catalog), pre-seeded by an earlier sync flow (a different
  * screen's responsibility, not this one). This repo is read-only: it never
- * writes to `station`, and it does not synthesize the "15 slots (3 active +
- * 12 placeholder)" shape in code — that shape is expected to already exist
+ * writes to `station`, and it does not synthesize the "15 slots (7 active +
+ * 8 placeholder)" shape in code — that shape is expected to already exist
  * as 15 rows in the local table (one per station master-data record synced
  * from the server, including the currently-not-implemented / not-yet-active
  * ones with `is_active = 0`). See localDb.ts's header comment, which lists
- * `station` alongside the 3 write-capable local tables as an existing local
+ * `station` alongside the write-capable local tables as an existing local
  * table this screen assumes rather than creates.
+ *
+ * 2026-08-23 — 4 of the former 12 placeholder slots (Threshing, Pressing,
+ * Depricarping, Kernel Plant) were promoted to active MVP stations; the
+ * remaining 8 stay `type = 'other'` placeholders.
  */
 
-export type StationType = 'weighbridge' | 'grading' | 'cages-track' | 'other'
+export type StationType =
+  | 'weighbridge'
+  | 'grading'
+  | 'cages-track'
+  | 'threshing'
+  | 'pressing'
+  | 'depricarping'
+  | 'kernel-plant'
+  | 'other'
 
 /**
  * A single station grid slot, camelCased from the raw `station` row for

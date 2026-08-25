@@ -1,11 +1,15 @@
 <script setup lang="ts">
 // Root shell — screen views are registered as routes; see src/router.
 import FloatingClock from '@/components/FloatingClock.vue'
+import AiAssistantPanel from '@/components/AiAssistantPanel.vue'
+import AiAssistantBubble from '@/components/AiAssistantBubble.vue'
 </script>
 
 <template>
   <router-view />
   <FloatingClock />
+  <AiAssistantBubble />
+  <AiAssistantPanel />
 </template>
 
 <!--

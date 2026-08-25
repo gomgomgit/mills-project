@@ -310,6 +310,219 @@ const CREATE_MILL_SETTING = `
   )
 `
 
+// screen-037--monitor-threshing / screen-041--form-threshing (entity-catalog
+// v11, 2026-08-23/24) — new station table. Unlike cages_track_record's
+// per-station dynamic column count, threshing_record's child table
+// (threshing_detail) is a FIXED set of 24 rows (one per hourly time-slot,
+// 07:00 through 06:00 the next day) created all at once when the draft is
+// first created (createDraft() in threshingRecordRepo.ts) — no
+// tambah-baris/hapus-baris UI exists for this grid at all, unlike
+// cages_tipped_time. `date` auto-fills once at draft creation (mirrors
+// cages_track_record.tippler_start_time's pattern), not manually editable.
+const CREATE_THRESHING_RECORD = `
+  CREATE TABLE IF NOT EXISTS threshing_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    thresher_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-041--form-threshing (entity-catalog v11) — one row per hourly
+// time-slot (24 rows/day, 07:00-06:00 next day) belonging to a
+// threshing_record. `time_slot` stored as plain TEXT 'HH:00' (not a SQLite
+// native TIME type — this app's SQLite layer has no such type; consistent
+// with every other local table in this file using TEXT for time-like
+// values). All 6 reading columns nullable — every column is optional per
+// row, only the row's EXISTENCE is fixed (all 24 always exist from
+// createDraft() onward), never its column values.
+const CREATE_THRESHING_DETAIL = `
+  CREATE TABLE IF NOT EXISTS threshing_detail (
+    id TEXT PRIMARY KEY,
+    threshing_record_id TEXT NOT NULL,
+    time_slot TEXT NOT NULL,
+    ffb_throughput_mt_hour REAL,
+    thresher_drum_speed_rpm REAL,
+    motor_current_amps REAL,
+    unstripped_bunch_count_percent REAL,
+    empty_bunch_oil_loss_percent REAL,
+    downtime_reason TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-038--monitor-pressing / screen-042--form-pressing (entity-catalog
+// v12, 2026-08-24 REVISED) — new station table, mirrors threshing_record/
+// threshing_detail's shape exactly: pressing_detail is a DYNAMIC
+// add-row/remove-row grid (one row per hourly time-slot, 07:00 through
+// 06:00 the next day) — the user explicitly rejected the original FIXED
+// 24-row design (all 24 rows pre-created at once by createDraft() in
+// pressingRecordRepo.ts) as wasting screen space. Rows are now added one at
+// a time via "Tambah baris" (FormPressingView.vue), same
+// tambah-baris/hapus-baris pattern as cages_tipped_time. `date` auto-fills
+// once at draft creation, not manually editable.
+const CREATE_PRESSING_RECORD = `
+  CREATE TABLE IF NOT EXISTS pressing_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    presser_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-042--form-pressing (entity-catalog v12, 2026-08-24 REVISED) — one
+// row per hourly time-slot belonging to a pressing_record, added dynamically
+// via "Tambah baris" (however many the user adds — no longer always 24).
+// `time_slot` stored as plain TEXT 'HH:00', consistent with
+// threshing_detail. All 6 reading columns nullable.
+const CREATE_PRESSING_DETAIL = `
+  CREATE TABLE IF NOT EXISTS pressing_detail (
+    id TEXT PRIMARY KEY,
+    pressing_record_id TEXT NOT NULL,
+    time_slot TEXT NOT NULL,
+    digester_temp_c REAL,
+    digester_level_percent REAL,
+    press_motor_current_amps REAL,
+    cone_hydraulic_pressure_bar REAL,
+    dilution_water_temp_c REAL,
+    downtime_reason TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-039--monitor-depricarping / screen-043--form-depricarping
+// (entity-catalog v11, 2026-08-24) — new station table, mirrors
+// threshing_record/pressing_record's shape exactly: depricarping_detail is
+// a FIXED set of 24 rows (one per hourly time-slot, 07:00 through 06:00 the
+// next day) created all at once when the draft is first created
+// (createDraft() in depricarpingRecordRepo.ts) — no tambah-baris/hapus-baris
+// UI exists for this grid at all. `date` auto-fills once at draft creation,
+// not manually editable. The header ID field is literally `presser_id`
+// (labeled "Presser ID" on the form) per entity-catalog — NOT a typo, both
+// Pressing's and Depricarping's header ID field share this name/label in
+// the source log sheet.
+const CREATE_DEPRICARPING_RECORD = `
+  CREATE TABLE IF NOT EXISTS depricarping_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    presser_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-043--form-depricarping (entity-catalog v11) — one row per hourly
+// time-slot (24 rows/day, 07:00-06:00 next day) belonging to a
+// depricarping_record. `time_slot` stored as plain TEXT 'HH:00', consistent
+// with threshing_detail/pressing_detail. Unlike Threshing/Pressing (a
+// single free-text "Downtime Reason" column), Depricarping has TWO separate
+// downtime-related columns per its own source log sheet: `downtime_minutes`
+// (INTEGER, numeric duration) and `findings` (TEXT, free-text notes) — kept
+// as two distinct columns end-to-end (repo/UI/backend), not merged. All 8
+// reading columns nullable — only the row's EXISTENCE is fixed (all 24
+// always exist from createDraft() onward), never its column values.
+const CREATE_DEPRICARPING_DETAIL = `
+  CREATE TABLE IF NOT EXISTS depricarping_detail (
+    id TEXT PRIMARY KEY,
+    depricarping_record_id TEXT NOT NULL,
+    time_slot TEXT NOT NULL,
+    fan_static_pressure_mmh2o REAL,
+    polishing_drum_speed_rpm REAL,
+    air_velocity_ms REAL,
+    fibre_moisture_percent REAL,
+    kernel_recovery_in_fibre_percent REAL,
+    nut_silo_1_temp_c REAL,
+    nut_silo_2_temp_c REAL,
+    downtime_minutes INTEGER,
+    findings TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-040--monitor-kernel-plant / screen-044--form-kernel-plant
+// (entity-catalog v12, 2026-08-24 REVISED) — new station table, mirrors
+// pressing_record/pressing_detail's shape exactly: kernel_plant_detail is a
+// DYNAMIC add-row/remove-row grid (one row per hourly time-slot, 07:00
+// through 06:00 the next day) — the user explicitly rejected the original
+// FIXED 24-row design (all 24 rows pre-created at once by createDraft() in
+// kernelPlantRecordRepo.ts) as wasting screen space. Rows are now added one
+// at a time via "Tambah baris" (FormKernelPlantView.vue), same
+// tambah-baris/hapus-baris pattern as cages_tipped_time/pressing_detail.
+// `date` auto-fills once at draft creation, not manually editable. The
+// header ID field is `kernel_plant_id` (labeled "Kernel Plant ID" on the
+// form) per entity-catalog.
+const CREATE_KERNEL_PLANT_RECORD = `
+  CREATE TABLE IF NOT EXISTS kernel_plant_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    kernel_plant_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-044--form-kernel-plant (entity-catalog v12, 2026-08-24 REVISED) —
+// one row per hourly time-slot belonging to a kernel_plant_record, added
+// dynamically via "Tambah baris" (however many the user adds — no longer
+// always 24). `time_slot` stored as plain TEXT 'HH:00', consistent with
+// threshing_detail/pressing_detail/depricarping_detail. Like Depricarping
+// (not Threshing/Pressing), Kernel Plant has TWO separate downtime-related
+// columns per its own source log sheet: `downtime_minutes` (INTEGER,
+// numeric duration) and `findings` (TEXT, free-text notes) — kept as two
+// distinct columns end-to-end (repo/UI/backend), not merged. All 9 reading
+// columns nullable.
+const CREATE_KERNEL_PLANT_DETAIL = `
+  CREATE TABLE IF NOT EXISTS kernel_plant_detail (
+    id TEXT PRIMARY KEY,
+    kernel_plant_record_id TEXT NOT NULL,
+    time_slot TEXT NOT NULL,
+    ripple_mill_1_amps REAL,
+    ripple_mill_2_amps REAL,
+    claybath_hydro_sg REAL,
+    kernel_silo_1_temp_c REAL,
+    kernel_silo_2_temp_c REAL,
+    kernel_moisture_percent REAL,
+    shell_loss_percent REAL,
+    downtime_minutes INTEGER,
+    findings TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
 const CREATE_TABLE_STATEMENTS: string[] = [
   CREATE_WEIGHBRIDGE_RECORD,
   CREATE_GRADING_RECORD,
@@ -319,6 +532,14 @@ const CREATE_TABLE_STATEMENTS: string[] = [
   CREATE_CAGES_TIPPED_TIME,
   CREATE_STATION,
   CREATE_MILL_SETTING,
+  CREATE_THRESHING_RECORD,
+  CREATE_THRESHING_DETAIL,
+  CREATE_PRESSING_RECORD,
+  CREATE_PRESSING_DETAIL,
+  CREATE_DEPRICARPING_RECORD,
+  CREATE_DEPRICARPING_DETAIL,
+  CREATE_KERNEL_PLANT_RECORD,
+  CREATE_KERNEL_PLANT_DETAIL,
 ]
 
 /**
@@ -554,15 +775,15 @@ const DEFAULT_STATIONS: Array<{ idSuffix: string; name: string; type: string; is
   { idSuffix: 'weighbridge', name: 'Weighbridge', type: 'weighbridge', isActive: true },
   { idSuffix: 'grading', name: 'Grading', type: 'grading', isActive: true },
   { idSuffix: 'cages-track', name: 'Cages Track', type: 'cages-track', isActive: true },
+  { idSuffix: 'threshing', name: 'Threshing', type: 'threshing', isActive: true },
+  { idSuffix: 'pressing', name: 'Pressing', type: 'pressing', isActive: true },
+  { idSuffix: 'depricarping', name: 'Depricarping', type: 'depricarping', isActive: true },
+  { idSuffix: 'kernel-plant', name: 'Kernel Plant', type: 'kernel-plant', isActive: true },
   { idSuffix: '01-sterilizer', name: 'Sterilizer', type: 'other', isActive: false },
-  { idSuffix: '02-thresher', name: 'Thresher', type: 'other', isActive: false },
-  { idSuffix: '03-press', name: 'Press', type: 'other', isActive: false },
   { idSuffix: '04-clarification', name: 'Clarification', type: 'other', isActive: false },
-  { idSuffix: '05-kernel-plant', name: 'Kernel Plant', type: 'other', isActive: false },
   { idSuffix: '06-boiler', name: 'Boiler', type: 'other', isActive: false },
   { idSuffix: '07-effluent-treatment', name: 'Effluent Treatment', type: 'other', isActive: false },
   { idSuffix: '08-loading-ramp', name: 'Loading Ramp', type: 'other', isActive: false },
-  { idSuffix: '09-digester', name: 'Digester', type: 'other', isActive: false },
   { idSuffix: '10-engine-room', name: 'Engine Room', type: 'other', isActive: false },
   { idSuffix: '11-water-treatment', name: 'Water Treatment', type: 'other', isActive: false },
   { idSuffix: '12-bulking-storage', name: 'Bulking Storage', type: 'other', isActive: false },

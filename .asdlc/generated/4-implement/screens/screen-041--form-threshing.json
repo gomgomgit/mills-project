@@ -1,0 +1,57 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-041--form-threshing",
+  "name": "Form Threshing",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/FormThreshingView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/FormThreshingView.spec.ts",
+    "mobile/tests/e2e/form-threshing.spec.ts"
+  ],
+  "implementation_notes": [
+    "REVISED 2026-08-24 (entity-catalog v12, replacing the original fixed 24-row design the user explicitly rejected as wasting screen space): Threshing Detail grid now renders whatever rows exist (0..24) loaded from threshingRecordRepo.getDraftWithDetails(), with Tambah baris/Hapus baris controls -- the exact same dynamic add-row/remove-row pattern as Cages Tipped Time (screen-012), no longer a structural difference from that grid",
+    "Target Operasional reference table sourced from a STATIC constant (mobile/src/data/threshingOperationalTargets.ts, created under screen-037) rather than a synced local reference table -- judgment call, documented in that file's own header comment and repeated here: building a third local-reference-sync mechanism (after station/mill_setting) for 6 rarely-changing rows was judged out of proportion; if Admin edits these values via web in the future, mobile needs an app update to reflect it",
+    "'Minimal 1 baris valid' (Time-Slot terpilih + minimal 1 kolom bacaan terisi) validated at FE + repo level (threshingRecordRepo.saveDraft() throws ThreshingDetailRequiredError) -- NOT enforced by the server model's ThreshingRecord::booted() saving guard, which only checks row EXISTENCE (now meaningfully true only once the user has added at least one row, since rows are no longer pre-created)",
+    "availableTimeSlotOptions() compares slots by their index in canonicalTimeSlots() rather than a raw hour number (since slots wrap starting at 07:00, not 0-23) -- the one structural difference from Cages Tipped Time's availableHourOptions(), otherwise the floor/exclusion logic is identical",
+    "Every FormField id in the grid is set explicitly (e.g. ffb-throughput-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) e2e spec (mobile/tests/e2e/form-threshing.spec.ts) was authored but could not be executed in this sandboxed environment -- verified only by static review.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T07:16:25Z",
+      "passed": 21,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

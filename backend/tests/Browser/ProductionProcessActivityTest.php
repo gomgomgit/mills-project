@@ -27,7 +27,6 @@ async function login(page, username, businessUnitName = LOGIN_BUSINESS_UNIT_NAME
   await page.goto(`${BASE_URL}${LOGIN_PATH}`);
   await page.locator('#username').fill(username);
   await page.locator('#password').fill(PASSWORD);
-  await page.locator('#business_area').selectOption({ label: businessUnitName });
   await page.locator('button[type="submit"]').click();
   await page.waitForURL(`${BASE_URL}/dashboard`);
 }

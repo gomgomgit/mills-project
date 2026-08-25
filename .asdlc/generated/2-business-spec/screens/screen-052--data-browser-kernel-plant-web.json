@@ -1,0 +1,89 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "ver": 2,
+  "id": "screen-052--data-browser-kernel-plant-web",
+  "name": "Data Browser Kernel Plant (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman web untuk menelusuri, memfilter, dan mengekspor seluruh record Kernel Plant (gabungan input web maupun — di masa depan — sinkronisasi mobile) dengan pagination — mengikuti pola Data Browser Depricarping (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Tap tile Kernel Plant dari Production Process Activity (Web)"
+  ],
+  "information_displayed": [
+    "Tabel record: Kernel Plant ID, Tanggal, Jumlah Baris Terisi (dari 24), Status",
+    "Filter: Tanggal Dari, Tanggal Sampai, Business Unit",
+    "Pagination dengan info halaman saat ini dari total",
+    "Tombol Tambah Data, Ekspor CSV, Ekspor Excel"
+  ],
+  "available_actions": [
+    {
+      "action": "Terapkan filter",
+      "description": "Menyaring tabel berdasarkan rentang tanggal dan/atau Business Unit",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Klik baris",
+      "description": "Membuka halaman Detail Kernel Plant (Web) untuk record tersebut",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah Data",
+      "description": "Membuka Form Kernel Plant (Web) mode tambah",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor CSV/Excel",
+      "description": "Mengunduh seluruh data terfilter (tanpa pagination) sebagai berkas CSV atau Excel",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Navigasi halaman",
+      "description": "Berpindah antar halaman hasil pencarian",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Rentang tanggal filter harus valid (Tanggal Dari <= Tanggal Sampai)",
+    "Jumlah Baris Terisi dihitung dari baris grid yang punya minimal satu dari 9 kolom bacaan terisi, ditampilkan sebagai pecahan dari 24 (revisi 2026-08-24: sejak baris Kernel Plant Detail tidak lagi di-pre-generate 24 sekaligus di mobile maupun web, sebuah record bisa saja hanya punya sedikit baris total; metrik ini tetap berarti 'baris terisi', bukan 'total baris pada record', dan bisa lebih kecil dari jumlah baris yang benar-benar ada pada record jika ada baris yang ditambahkan tapi belum diisi kolom bacaan apapun — 24 tetap jadi penyebut karena itu jumlah slot kanonis maksimum yang mungkin ada)",
+    "Ekspor dibatasi jumlah baris maksimum; melebihi batas menampilkan pesan gagal ekspor",
+    "Operator TIDAK dapat mengakses halaman ini dari web (akses web dibatasi Supervisor/Mill Management/Admin)"
+  ],
+  "usecase_ids": [
+    "usecase-052--data-browser-kernel-plant-web"
+  ],
+  "edge_cases": [
+    "Tidak ada data sesuai filter — tabel menampilkan pesan tidak ada data",
+    "Rentang tanggal tidak valid — pesan validasi ditampilkan, filter tidak diterapkan",
+    "Dataset terfilter melebihi batas baris ekspor — ekspor gagal dengan pesan error",
+    "User dengan role Operator mencoba mengakses — ditolak (403)"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

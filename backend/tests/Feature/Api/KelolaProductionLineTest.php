@@ -13,8 +13,8 @@
  * chain against the sqlite in-memory testing DB. Mirrors tests/Feature/Api/
  * KelolaMachineryGroupTest.php's structure.
  *
- * create() auto-provisions the 15 canonical DEFAULT_STATIONS rows (3
- * active + 12 placeholder) — covered here by asserting station_count and
+ * create() auto-provisions the 15 canonical DEFAULT_STATIONS rows (7
+ * active + 8 placeholder) — covered here by asserting station_count and
  * a direct Station::where('production_line_id', ...) count.
  */
 
@@ -59,7 +59,7 @@ it('berhasil: loads business unit options then creates a production line, auto-p
     $productionLine = ProductionLine::where('code', 'PL-API-001')->firstOrFail();
     expect(Station::where('production_line_id', $productionLine->id)->count())->toBe(15);
     expect(Station::where('production_line_id', $productionLine->id)->where('type', 'weighbridge')->where('is_active', true)->count())->toBe(1);
-    expect(Station::where('production_line_id', $productionLine->id)->where('is_active', false)->count())->toBe(12);
+    expect(Station::where('production_line_id', $productionLine->id)->where('is_active', false)->count())->toBe(8);
 });
 
 it('Edit: updates name/code/description, returns 200 with the updated row', function () {

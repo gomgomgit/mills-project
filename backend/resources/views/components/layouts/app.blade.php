@@ -99,9 +99,31 @@
             font-weight: 700;
         }
 
+        .shell-header__user-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
         .shell-header__user {
             font-size: 14px;
             color: var(--color-text-muted);
+        }
+
+        .shell-header__logout {
+            padding: 6px 14px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-input);
+            background: #fff;
+            color: var(--color-text);
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+        }
+
+        .shell-header__logout:hover {
+            background: #f3f4f6;
         }
 
         .shell-body {
@@ -135,7 +157,13 @@
         <header class="shell-header">
             <h1 class="shell-header__title">{{ $heading ?? $title }}</h1>
             @auth
-                <span class="shell-header__user">{{ auth()->user()->name }}</span>
+                <div class="shell-header__user-area">
+                    <span class="shell-header__user">{{ auth()->user()->name }}</span>
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit" class="shell-header__logout" data-testid="logout-button">Logout</button>
+                    </form>
+                </div>
             @endauth
         </header>
 
@@ -143,6 +171,8 @@
             {{ $slot }}
         </main>
     </div>
+
+    <x-chatbot-widget />
 
     @livewireScripts
 </body>

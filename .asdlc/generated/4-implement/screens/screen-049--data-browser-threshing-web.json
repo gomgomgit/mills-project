@@ -1,0 +1,76 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-049--data-browser-threshing-web",
+  "name": "Data Browser Threshing (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/ThreshingRecordService.php",
+    "backend/app/Http/Controllers/Api/ThreshingRecordController.php",
+    "backend/app/Exceptions/NoActiveThreshingStationException.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/seeders/ThreshingOperationalTargetSeeder.php",
+    "backend/database/seeders/DatabaseSeeder.php",
+    "backend/database/factories/ThreshingRecordFactory.php",
+    "backend/database/factories/ThreshingDetailFactory.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/database/migrations/2026_08_23_000001_widen_station_type_enum.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/ThreshingRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserThreshingTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserThreshingTest.php",
+    "backend/tests/Browser/DataBrowserThreshingTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserThreshing.php",
+    "backend/resources/views/data/threshing.blade.php",
+    "backend/resources/views/livewire/data/data-browser-threshing.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "ThreshingRecordService/Controller/routes/seeder/factories are shared infrastructure for all 3 web Threshing screens (049/053/057), mirroring CagesTrackRecordService's precedent (screen-018) -- reported under this screen since it is first in the implementation sequence",
+    "PRE-EXISTING BUG FIXED (outside this screen's literal scope, but blocking): backend/database/migrations/2026_08_23_000001_widen_station_type_enum.php (written by an earlier impl-1-core/entity-models pass, before this task) used raw MySQL 'ALTER TABLE ... MODIFY ... ENUM(...)' syntax, which is invalid on SQLite (the local dev DB_CONNECTION). This blocked `php artisan migrate` entirely for ALL 4 new stations (Threshing, Pressing, Depricarping, Kernel Plant), not just Threshing. Fixed by guarding the statement behind `DB::getDriverName() !== 'mysql'` -- SQLite's `type` column has no real CHECK constraint (Laravel's enum() schema builder call maps to plain varchar there), so the widen is a genuine no-op on SQLite and only needed for MySQL production. Flagged explicitly since it is infra shared with the Pressing/Depricarping/Kernel Plant agent runs.",
+    "filled_slot_count computed via withCount() with an inner OR-whereNotNull constraint across the 6 reading columns (mirrors CagesTrackRecordService's tipped_time_count pattern) -- 'filled' means a NON-NULL reading, not row existence; UNCHANGED by the 2026-08-24 dynamic-add-row revision (ThreshingRecordService::create()/update() now insert/upsert only the given rows instead of forcing 24, but this withCount() logic already correctly counted only filled rows regardless of total row count, exactly like Cages Track's own variable-row-count design)",
+    "Ran `php artisan migrate` and `php artisan db:seed --class=ThreshingOperationalTargetSeeder` against the actual dev database.sqlite as part of this implementation pass, so the seeded reference table exists for both the web Livewire components and any future manual QA against this dev DB, not only the test suite's RefreshDatabase-seeded rows"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Production Process Activity (Web) (screen-035, out of this 6-screen task's scope) still only renders 3 active station tiles (Weighbridge/Grading/Cages Track) -- it has not been updated to add a Threshing tile linking to /data/threshing. This screen is reachable directly by URL/route but not yet from that entry-point grid. Needs a separate revision of screen-035 (shared across all 4 new-station agent runs, not owned by any single one).",
+      "severity": "major"
+    },
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserThreshingTest.php) was authored following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-24T07:20:00Z",
+      "passed": 30,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-24T00:20:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T00:20:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-23"
+  },
+  "id": "usecase-037--monitor-threshing",
+  "name": "Monitor Threshing",
+  "description": "Operator atau Supervisor membuka ringkasan progress Threshing untuk melihat counter hari ini, melanjutkan draft/pause yang sedang berjalan, membuat data baru, atau menelusuri data tersimpan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login di aplikasi mobile",
+    "User sudah memilih Production Line dan menekan Threshing dari Station List"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan counter hari ini (Jumlah Threshing Record, Jumlah Baris Time-Slot Terisi) dan list draft/pause milik user"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'New Data'"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Membuat draft baru berikut 24 baris time-slot kosong (07:00-06:00) sekaligus, lalu membuka Form Threshing untuk draft tersebut"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Lanjutkan draft/pause",
+      "trigger": "Pada step 1, user menekan salah satu item di list draft/pause",
+      "steps": [
+        "System membuka Form Threshing dengan data draft/pause yang dipilih, tanpa mengubah statusnya"
+      ]
+    },
+    {
+      "name": "Load Data",
+      "trigger": "Pada step 1, user menekan 'Load Data'",
+      "steps": [
+        "System membuka Data Preview Threshing mode list, menampilkan seluruh record dengan filter tanggal dan pencarian"
+      ]
+    },
+    {
+      "name": "Belum ada draft/pause",
+      "trigger": "Pada step 1, user belum punya draft/pause sama sekali",
+      "steps": [
+        "System menampilkan pesan/empty state pada area list",
+        "Tombol New Data tetap aktif"
+      ]
+    },
+    {
+      "name": "Belum ada data hari ini",
+      "trigger": "Pada step 1, belum ada record dengan tanggal hari ini",
+      "steps": [
+        "System menampilkan kedua card counter dengan nilai 0"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User berada di Form Threshing (draft baru atau lanjutan), atau di Data Preview Threshing mode list"
+  ],
+  "business_rules": [
+    "Ongoing dan paused digabung sebagai satu istilah 'Pause' secara tampilan",
+    "24 baris time-slot dibuat sekaligus bersama header saat New Data, bukan ditambah satu per satu",
+    "Counter hari ini dihitung dari seluruh record (status apapun) bertanggal hari ini"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Monitor Threshing — success",
+      "given": "User sudah login di aplikasi mobile dan sudah memilih Production Line serta menekan Threshing dari Station List",
+      "when": "Operator melihat ringkasan counter hari ini pada Threshing dan menekan 'New Data'",
+      "then": "System membuat draft baru beserta 24 baris time-slot kosong (07:00-06:00) sekaligus, lalu membuka Form Threshing untuk draft tersebut"
+    },
+    {
+      "scenario": "Monitor Threshing — Lanjutkan draft/pause",
+      "given": "User sudah login di aplikasi mobile dan sudah memilih Production Line serta menekan Threshing dari Station List",
+      "when": "Pada ringkasan progress Threshing, user menekan salah satu item di list draft/pause",
+      "then": "System membuka Form Threshing dengan data draft/pause yang dipilih, tanpa mengubah statusnya"
+    },
+    {
+      "scenario": "Monitor Threshing — Load Data",
+      "given": "User sudah login di aplikasi mobile dan sudah memilih Production Line serta menekan Threshing dari Station List",
+      "when": "User menekan 'Load Data' pada ringkasan progress Threshing",
+      "then": "System membuka Data Preview Threshing mode list, menampilkan seluruh record dengan filter tanggal dan pencarian"
+    },
+    {
+      "scenario": "Monitor Threshing — Belum ada draft/pause",
+      "given": "User sudah login di aplikasi mobile dan sudah memilih Production Line serta menekan Threshing dari Station List",
+      "when": "User membuka ringkasan progress Threshing namun belum punya draft/pause sama sekali",
+      "then": "System menampilkan pesan/empty state pada area list, dan tombol New Data tetap aktif"
+    },
+    {
+      "scenario": "Monitor Threshing — Belum ada data hari ini",
+      "given": "User sudah login di aplikasi mobile dan sudah memilih Production Line serta menekan Threshing dari Station List",
+      "when": "User membuka ringkasan progress Threshing dan belum ada record bertanggal hari ini",
+      "then": "System menampilkan kedua card counter (Jumlah Threshing Record, Jumlah Baris Time-Slot Terisi) dengan nilai 0"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-037--monitor-threshing"
+  ]
+}

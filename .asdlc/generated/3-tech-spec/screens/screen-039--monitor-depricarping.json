@@ -1,0 +1,241 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-039--monitor-depricarping",
+  "name": "Monitor Depricarping",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/depricarping/monitor",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-039--monitor-depricarping",
+      "usecase_name": "Monitor Depricarping",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load counter hari ini: COUNT local depricarping_record milik user WHERE date(date) = hari ini (status apapun), dan COUNT depricarping_detail rows milik record-record tersebut (REVISI 2026-08-24: plain COUNT(*), TIDAK LAGI difilter 'punya minimal satu kolom bacaan terisi' — sejak rows tidak lagi di-pre-generate, keberadaan baris itu sendiri sudah berarti user sengaja menambahkannya)",
+        "2. Load list of local depricarping_record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC → each item labeled uniformly 'Pause'",
+        "3. Render 2 card counter sebaris (Jumlah Depricarping Record, Jumlah Baris Time-Slot Tercatat) di atas list draft/pause",
+        "4. Render breadcrumb (Home > Production Process Activity > Depricarping, tappable) dan header dengan 'Mill Smart Log' + hamburger",
+        "5. On 'New Data' → INSERT new local depricarping_record dengan status=draft_ongoing, created_by=current user, date=waktu saat ini SAJA — REVISI 2026-08-24 (menggantikan desain awal yang ditolak user): TIDAK LAGI sekaligus INSERT 24 depricarping_detail rows kosong; grid Depricarping Detail dimulai kosong, baris ditambahkan satu per satu oleh user di Form Depricarping via 'Tambah baris'; navigasi ke Form Depricarping dengan id draft baru",
+        "6. On tap item list → navigasi ke Form Depricarping dengan id draft tersebut (tanpa transisi status)",
+        "7. On 'Load Data' → navigasi ke Data Preview Depricarping mode list (tanpa id param)",
+        "8. On tap breadcrumb segment → navigasi ke route terkait",
+        "9. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "depricarping-record",
+          "operation": "SELECT",
+          "description": "SELECT record-record milik user WHERE date(date) = hari ini, status apapun, untuk hitung COUNT"
+        },
+        {
+          "entity_id": "depricarping-detail",
+          "operation": "SELECT",
+          "description": "SELECT COUNT seluruh baris milik record-record hari ini tersebut (plain row count, tidak difilter 'terisi')"
+        },
+        {
+          "entity_id": "depricarping-record",
+          "operation": "SELECT",
+          "description": "SELECT list local record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC"
+        },
+        {
+          "entity_id": "depricarping-record",
+          "operation": "INSERT",
+          "description": "INSERT new local draft record on New Data, status=draft_ongoing, date=now — HANYA header, tanpa depricarping_detail rows"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Belum ada draft/pause sama sekali",
+          "handling": "List kosong/empty state ditampilkan, tombol New Data tetap aktif"
+        },
+        {
+          "condition": "Banyak draft/pause menumpuk",
+          "handling": "List perlu scroll agar semua tetap dapat diakses"
+        },
+        {
+          "condition": "Belum ada data (status apapun) dengan date = hari ini",
+          "handling": "Kedua card counter menampilkan 0"
+        },
+        {
+          "condition": "Draft baru dibuat tapi belum ada satu baris pun ditambahkan",
+          "handling": "Jumlah Baris Time-Slot Tercatat tetap 0 untuk record tersebut sampai user menekan 'Tambah baris' di Form Depricarping"
+        }
+      ],
+      "business_rules_applied": [
+        "User bisa punya beberapa draft/pause berjalan bersamaan, semua tampil di list",
+        "Ongoing dan paused digabung sebagai satu istilah Pause secara tampilan",
+        "REVISI 2026-08-24: New Data hanya membuat header — depricarping_detail rows TIDAK lagi dibuat sekaligus, ditambahkan satu per satu oleh user di Form Depricarping",
+        "Counter hari ini dihitung dari seluruh record (status apapun) dengan tanggal Date = hari ini; Jumlah Baris Time-Slot Tercatat = plain COUNT seluruh baris depricarping_detail milik record-record tersebut (tidak lagi difilter 'terisi', karena baris hanya ada jika user sengaja menambahkannya)"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads screen data successfully with populated list when local records exist",
+          "given": "depricarpingRecordRepo.getDrafts() returns non-empty draft/pause records",
+          "expect": "return screen state { list: [...], isEmpty: false }"
+        },
+        {
+          "description": "returns empty-state list when no draft/pause records exist for current user",
+          "given": "depricarpingRecordRepo.getDrafts(userId) returns []",
+          "expect": "return screen state { list: [], isEmpty: true }, New Data action remains enabled"
+        },
+        {
+          "description": "returns draft/pause list with uniform 'Pause' label ordered by updated_at DESC regardless of underlying status",
+          "given": "depricarpingRecordRepo.getDrafts() returns mixed records with status draft_ongoing and draft_paused at different updated_at timestamps",
+          "expect": "return list mapped with label='Pause' for every item, sorted by updated_at descending"
+        },
+        {
+          "description": "creates a new draft record with ZERO depricarping_detail rows and navigates to Form Depricarping when New Data is pressed",
+          "given": "depricarpingRecordRepo.createDraft() succeeds and returns a new record id with no depricarping_detail rows inserted",
+          "expect": "call navigate(FormDepricarping, { id: newRecord.id }) and depricarpingRecordRepo.createDraft() called with { status: 'draft_ongoing', created_by: currentUser, date: <now> }, resulting in zero detail rows"
+        },
+        {
+          "description": "navigates to Form Depricarping with selected draft id and does not change its status when a list item is tapped",
+          "given": "an existing draft/pause record with status=draft_paused is present in the loaded list",
+          "expect": "call navigate(FormDepricarping, { id: tappedRecord.id }); depricarpingRecordRepo.update() is NOT called"
+        },
+        {
+          "description": "navigates to Data Preview Depricarping in list mode with no id param when Load Data is pressed",
+          "given": "user triggers the Load Data action",
+          "expect": "call navigate(DataPreviewDepricarping, { mode: 'list', id: null })"
+        },
+        {
+          "description": "computes today's counter (count records, plain count of detail rows added) from records with date = today, any status",
+          "given": "depricarpingRecordRepo returns 2 records dated today, one with 2 depricarping_detail rows and one with 1, mixed statuses (draft_ongoing, saved)",
+          "expect": "counter = { countDepricarpingRecord: 2, detailRowCount: 3 }"
+        },
+        {
+          "description": "excludes records with date not equal to today from the counter",
+          "given": "depricarpingRecordRepo returns records dated yesterday and today",
+          "expect": "counter only reflects today's records, yesterday's excluded"
+        },
+        {
+          "description": "returns zero counter values when no records match today's date",
+          "given": "depricarpingRecordRepo returns no records dated today",
+          "expect": "counter = { countDepricarpingRecord: 0, detailRowCount: 0 }"
+        },
+        {
+          "description": "counts a row toward detailRowCount regardless of whether any reading column is filled",
+          "given": "a depricarping_detail row for today's record has every reading column null (just added, not yet filled)",
+          "expect": "that row still counts toward detailRowCount, since the counter is a plain row count, not a filled-row filter"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Asal navigasi ke Monitor Depricarping, dan tujuan breadcrumb/back"
+    },
+    {
+      "screen_id": "screen-043--form-depricarping",
+      "reason": "New Data / tap list item membuka Form Depricarping"
+    },
+    {
+      "screen_id": "screen-047--data-preview-depricarping",
+      "reason": "Load Data membuka Data Preview Depricarping mode list"
+    }
+  ],
+  "implementation_notes": [
+    "Semua operasi dilakukan lokal di SQLite, tidak ada panggilan API",
+    "Tabel lokal depricarping_record + depricarping_detail di localSchema.ts TIDAK berubah struktur oleh revisi ini (unique constraint dan kolom tetap sama, termasuk downtime_minutes integer + findings teks terpisah) — hanya pola pengisiannya yang berubah (lihat depricarpingRecordRepo.ts)",
+    "REVISI 2026-08-24 (entity-catalog v12, menggantikan desain grid statis 24 baris yang ditolak user): depricarpingRecordRepo.ts's createDraft(userId) sekarang HANYA INSERT header — tidak lagi INSERT 24 depricarping_detail rows sekaligus. Baris ditambahkan satu per satu oleh user di Form Depricarping (screen-043) via 'Tambah baris', persis pola pressingRecordRepo.ts/threshingRecordRepo.ts/cagesTrackRecordRepo.ts",
+    "24 time slot kanonis (canonicalTimeSlots(), dihitung sebagai deret jam mulai 7: for i in 0..23 -> hour = (7 + i) % 24, format 'HH:00') DIPERTAHANKAN — tidak lagi dipakai untuk pre-generate baris saat New Data, tetap dipakai Form Depricarping untuk urutan opsi dropdown Time-Slot",
+    "'Jumlah Baris Time-Slot Tercatat' sekarang plain COUNT(*) depricarping_detail rows milik record-record hari ini (satu query SQL COUNT, bukan lagi query-semua-lalu-filter-di-JS) — lebih sederhana dari sebelumnya karena tidak perlu lagi menginspeksi 8 kolom bacaan per baris untuk counter Monitor ini (validasi 'minimal satu kolom bacaan terisi ATAU downtime_minutes ATAU findings' tetap ada, tapi sekarang murni tanggung jawab Form Depricarping's required-row gate saat Simpan, bukan counter Monitor ini)",
+    "Breadcrumb & hamburger mengikuti pola yang sama dengan Monitor Weighbridge/Grading/Cages Track/Threshing/Pressing",
+    "Router: route name 'monitor-depricarping' — StationListView.vue (screen-006, di luar scope task ini) BELUM diperbarui untuk link ke sini; dicatat sebagai known_issue, sama seperti Threshing/Pressing"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Monitor Depricarping — success",
+      "usecase_id": "usecase-039--monitor-depricarping",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorDepricarpingView",
+        "action": "render screen with draft/pause list, tap the 'New Data' button",
+        "assert": "createNewDraft handler invoked (zero detail rows created); router push to Form Depricarping route called with the newly created draft id"
+      },
+      "browser_test": {
+        "route": "/stations/depricarping/monitor",
+        "action": "login, navigate to Depricarping from Station List, on Monitor Depricarping tap 'New Data' button",
+        "assert": "browser navigates to Form Depricarping URL for the newly created draft record, with the Depricarping Detail grid starting empty"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Depricarping — Lanjutkan Draft/Pause",
+      "usecase_id": "usecase-039--monitor-depricarping",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorDepricarpingView",
+        "action": "render screen with a draft/pause list containing at least one item, tap the first list item",
+        "assert": "router push to Form Depricarping route called with the tapped item's draft id; no status-update handler invoked"
+      },
+      "browser_test": {
+        "route": "/stations/depricarping/monitor",
+        "action": "with an existing draft/pause present in the list, tap the draft/pause list item",
+        "assert": "browser navigates to Form Depricarping URL pre-filled with the selected draft's data"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Depricarping — Load Data",
+      "usecase_id": "usecase-039--monitor-depricarping",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorDepricarpingView",
+        "action": "tap the 'Load Data' button",
+        "assert": "router push to Data Preview Depricarping route called in list mode with no id param"
+      },
+      "browser_test": {
+        "route": "/stations/depricarping/monitor",
+        "action": "tap the 'Load Data' button on Monitor Depricarping screen",
+        "assert": "browser navigates to Data Preview Depricarping screen, showing all records (saved and draft) with date and search filters visible"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Depricarping — Belum Ada Draft",
+      "usecase_id": "usecase-039--monitor-depricarping",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorDepricarpingView",
+        "action": "render screen when the draft/pause list is empty",
+        "assert": "empty-state message shown in list area; 'New Data' button remains enabled/interactive"
+      },
+      "browser_test": {
+        "route": "/stations/depricarping/monitor",
+        "action": "open Monitor Depricarping screen with no existing draft/pause records",
+        "assert": "list area shows empty state; 'New Data' button is visible and enabled"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Depricarping — Belum Ada Data Hari Ini",
+      "usecase_id": "usecase-039--monitor-depricarping",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorDepricarpingView",
+        "action": "render screen with today's counter data all zero",
+        "assert": "2 counter cards render 0"
+      },
+      "browser_test": {
+        "route": "/stations/depricarping/monitor",
+        "action": "ensure no depricarping_record rows dated today exist for the logged-in user, navigate to Monitor Depricarping",
+        "assert": "the 2 counter cards show 0"
+      }
+    }
+  ]
+}

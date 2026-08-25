@@ -1,0 +1,86 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "ver": 2,
+  "id": "screen-048--data-preview-kernel-plant",
+  "name": "Data Preview Kernel Plant",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar dual-mode untuk menelusuri seluruh data Kernel Plant tersimpan lokal milik user (mode list, dengan filter tanggal dan pencarian) dan melihat detail satu record secara read-only (mode detail, termasuk grid Kernel Plant Detail yang menampilkan seluruh baris yang ada pada record tersebut, berapapun jumlahnya — tidak lagi selalu 24 baris sejak revisi 2026-08-24 — dan tabel referensi Target Operasional) — mengikuti pola Data Preview Depricarping.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "'Load Data' dari Monitor Kernel Plant (mode list, tanpa id)",
+    "Tap item saved/synced dari list mode-nya sendiri (transisi ke mode detail)"
+  ],
+  "information_displayed": [
+    "Mode List: filter Tanggal (default hari ini) dan Cari (Kernel Plant ID), daftar seluruh record Kernel Plant milik user dengan badge status (Pause untuk draft_ongoing/draft_paused, Tersimpan untuk saved, Tersinkron untuk synced)",
+    "Mode Detail: header lengkap (Kernel Plant ID, Tanggal, Inputted By, Checked By, Acknowledged By, Catatan) read-only, grid Kernel Plant Detail read-only (seluruh 9 kolom bacaan) — menampilkan persis sebanyak baris yang tersimpan pada record tersebut (bisa kurang dari 24, sesuai berapa baris yang ditambahkan user saat input via 'Tambah baris'), tabel referensi Target Operasional read-only 6 baris x 3 kolom",
+    "Badge status pada mode detail membedakan Sedang Berlangsung (draft_ongoing) vs Dijeda (draft_paused) secara visual, berbeda dari mode list yang menyamakan keduanya sebagai 'Pause'",
+    "Header 'Mill Smart Log' + breadcrumb (Home > Production Process Activity > Kernel Plant > Load Data) + ikon hamburger menu"
+  ],
+  "available_actions": [
+    {
+      "action": "Ubah filter Tanggal/Cari",
+      "description": "Menyaring list berdasarkan tanggal record dan/atau substring Kernel Plant ID",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Reset Filter",
+      "description": "Mengosongkan filter tanggal dan pencarian yang aktif ketika hasil filter kosong",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap item list",
+      "description": "Untuk draft/pause: masuk ke Form Kernel Plant untuk melanjutkan. Untuk saved/synced: masuk ke mode detail layar ini sendiri",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back (mode list)",
+      "description": "Kembali ke Monitor Kernel Plant",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back (mode detail)",
+      "description": "Kembali ke mode list layar ini sendiri (bukan ke Monitor Kernel Plant)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Filter Tanggal default ke hari ini saat mode list dimuat",
+    "Pencarian dilakukan case-insensitive terhadap substring Kernel Plant ID",
+    "Item berstatus draft_ongoing/draft_paused mengarah ke Form Kernel Plant (lanjutkan); item berstatus saved/synced mengarah ke mode detail layar ini sendiri",
+    "Mode detail selalu read-only, tidak ada aksi edit dari layar ini",
+    "Checked By dan Acknowledged By ditampilkan apa adanya tanpa pembatasan role untuk MELIHAT (berbeda dari Form Kernel Plant yang membatasi siapa yang dapat MENGISI)",
+    "REVISI 2026-08-24: grid Kernel Plant Detail pada mode detail menampilkan persis baris yang tersimpan pada record (TIDAK lagi selalu 24 baris — mengikuti jumlah baris yang ditambahkan user via Form Kernel Plant), termasuk kemungkinan tampil kosong jika record disimpan tanpa baris apapun; baris dirender langsung dari kolom tersimpan, tanpa perhitungan ulang — ini data historis"
+  ],
+  "usecase_ids": [
+    "usecase-048--data-preview-kernel-plant"
+  ],
+  "edge_cases": [
+    "Belum ada data Kernel Plant sama sekali — mode list menampilkan empty state",
+    "Filter aktif tidak menghasilkan data yang cocok — pesan 'tidak ada data cocok filter' beserta tombol Reset Filter",
+    "Navigasi langsung ke id yang tidak valid/tidak ada — mode detail menampilkan pesan 'data tidak ditemukan'",
+    "Record ditampilkan di mode DETAIL dengan grid Kernel Plant Detail kosong (kasus tepi: record tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

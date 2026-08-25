@@ -61,7 +61,6 @@ async function login(page, username, password) {
   await page.goto(`${BASE_URL}${LOGIN_PATH}`);
   await page.locator('#username').fill(username);
   await page.locator('#password').fill(password);
-  await page.locator('#business_unit_id').selectOption({ label: BUSINESS_UNIT_NAME });
   await page.locator('button[type="submit"]').click();
   // Redirected away from /login once the session is established.
   await page.waitForURL((url) => !url.pathname.startsWith(LOGIN_PATH));
@@ -71,6 +70,15 @@ async function gotoCompanies(page) {
   await page.goto(`${BASE_URL}${COMPANIES_PATH}`);
 }
 
+// Interacts with the x-searchable-select combobox (see
+// resources/views/components/searchable-select.blade.php) that replaced
+// this screen's #corporate_id <select>.
+async function selectSearchable(page, id, label) {
+  await page.locator(`#${id}`).click();
+  await page.locator(`#${id}`).fill(label);
+  await page.locator(`#${id}-listbox`).getByRole('option', { name: label, exact: true }).click();
+}
+
 test.describe('Kelola Company', () => {
   // Scenario 1: "Kelola Company — success"
   test('menambah company baru dengan memilih corporate dan menampilkannya di tabel', async ({ page }) => {
@@ -78,7 +86,7 @@ test.describe('Kelola Company', () => {
     await gotoCompanies(page);
 
     await page.locator('button', { hasText: 'Tambah Company' }).click();
-    await page.locator('#corporate_id').selectOption({ label: 'PT Induk Baru' });
+    await selectSearchable(page, 'corporate_id', 'PT Induk Baru');
 
     const uniqueName = `PT Anak Baru ${Date.now()}`;
     await page.locator('#name').fill(uniqueName);
@@ -98,7 +106,7 @@ test.describe('Kelola Company', () => {
     const row = page.locator('.kc-table__row', { hasText: 'PT Sebelum Edit' });
     await row.locator('button', { hasText: 'Edit' }).click();
 
-    await page.locator('#corporate_id').selectOption({ label: 'PT Tujuan Edit' });
+    await selectSearchable(page, 'corporate_id', 'PT Tujuan Edit');
     const newName = `PT Sesudah Edit ${Date.now()}`;
     await page.locator('#name').fill(newName);
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
@@ -140,7 +148,7 @@ test.describe('Kelola Company', () => {
     await gotoCompanies(page);
 
     await page.locator('button', { hasText: 'Tambah Company' }).click();
-    await page.locator('#corporate_id').selectOption({ label: 'PT Sama Corporate' });
+    await selectSearchable(page, 'corporate_id', 'PT Sama Corporate');
     await page.locator('#name').fill('PT Nama Duplikat');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
@@ -153,25 +161,26 @@ test.describe('Kelola Company', () => {
 
   // Scenario 6: "Kelola Company — Belum ada Corporate"
   //
-  // Implementation note: the current markup (resources/views/livewire/
-  // master-data/kelola-company.blade.php) renders only the placeholder
-  // "-- Pilih Corporate --" <option> when corporateOptions is empty --
-  // there is no distinct `disabled` attribute or dedicated "create a
-  // Corporate first" guidance copy. This test asserts the actual
-  // observable behavior instead of a guidance message that does not exist
-  // in the implementation (see the equivalent note in tests/Feature/
-  // Livewire/KelolaCompanyTest.php's file-level docblock, and this agent's
-  // known_issues in its final report).
+  // Implementation note: the current markup (resources/views/components/
+  // searchable-select.blade.php, used for #corporate_id) renders an
+  // empty-hint paragraph below the input (empty-message prop) and, once
+  // opened, a "Tidak ada hasil." listbox row when corporateOptions is
+  // empty — there is no `disabled` attribute or dedicated modal-level
+  // guidance copy. This test asserts the actual observable behavior (see
+  // the equivalent note in tests/Feature/Livewire/KelolaCompanyTest.php's
+  // file-level docblock, and this agent's known_issues in its final
+  // report).
   test('menampilkan dropdown corporate kosong saat belum ada Corporate sama sekali', async ({ page }) => {
     await login(page, 'comptest-admin01', PASSWORD);
     await gotoCompanies(page);
 
     await page.locator('button', { hasText: 'Tambah Company' }).click();
 
-    // Only the placeholder option is present — no real Corporate to pick.
-    const corporateSelect = page.locator('#corporate_id');
-    await expect(corporateSelect.locator('option')).toHaveCount(1);
-    await expect(corporateSelect.locator('option').first()).toHaveText('-- Pilih Corporate --');
+    // No real Corporate to pick — the empty-message hint is shown, and
+    // opening the listbox shows only the "no results" row.
+    await expect(page.locator('.ss-combobox__empty-hint')).toContainText('Belum ada Corporate');
+    await page.locator('#corporate_id').click();
+    await expect(page.locator('#corporate_id-listbox')).toContainText('Tidak ada hasil.');
   });
 
   // Scenario 7: "Kelola Company — akses ditolak untuk non-Admin"

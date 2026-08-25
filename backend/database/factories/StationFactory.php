@@ -74,6 +74,53 @@ class StationFactory extends Factory
         return $this->state(fn () => ['type' => StationType::CagesTrack]);
     }
 
+    /**
+     * `type = threshing` — added additively for
+     * screen-057--form-threshing-web's test suite (ThreshingRecordServiceTest
+     * / FormThreshingTest), mirroring `weighbridge()`/`grading()`/
+     * `cagesTrack()` above exactly.
+     */
+    public function threshing(): self
+    {
+        return $this->state(fn () => ['type' => StationType::Threshing]);
+    }
+
+    /**
+     * `type = pressing` — added additively for
+     * screen-058--form-pressing-web's test suite (PressingRecordServiceTest
+     * / FormPressingTest), mirroring
+     * `weighbridge()`/`grading()`/`cagesTrack()`/`threshing()` above
+     * exactly.
+     */
+    public function pressing(): self
+    {
+        return $this->state(fn () => ['type' => StationType::Pressing]);
+    }
+
+    /**
+     * `type = depricarping` — added additively for
+     * screen-059--form-depricarping-web's test suite
+     * (DepricarpingRecordServiceTest / FormDepricarpingTest), mirroring
+     * `weighbridge()`/`grading()`/`cagesTrack()`/`threshing()`/`pressing()`
+     * above exactly.
+     */
+    public function depricarping(): self
+    {
+        return $this->state(fn () => ['type' => StationType::Depricarping]);
+    }
+
+    /**
+     * `type = kernel-plant` — added additively for
+     * screen-060--form-kernel-plant-web's test suite
+     * (KernelPlantRecordServiceTest / FormKernelPlantTest), mirroring
+     * `weighbridge()`/`grading()`/`cagesTrack()`/`threshing()`/`pressing()`/
+     * `depricarping()` above exactly.
+     */
+    public function kernelPlant(): self
+    {
+        return $this->state(fn () => ['type' => StationType::KernelPlant]);
+    }
+
     public function forBusinessUnit(BusinessUnit|string $businessUnit): self
     {
         return $this->state(function () use ($businessUnit) {

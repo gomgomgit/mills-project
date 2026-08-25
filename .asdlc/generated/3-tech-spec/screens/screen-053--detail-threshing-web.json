@@ -1,0 +1,321 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-053--detail-threshing-web",
+  "name": "Detail Threshing (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/threshing/{id}",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-053--detail-threshing-web",
+      "usecase_name": "Lihat Detail Threshing (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/threshing-records/{id}",
+          "description": "Ambil 1 record Threshing lengkap beserta seluruh baris Threshing Detail-nya (berapapun jumlahnya), station_name, dan nama user (Inputted By/Checked By/Acknowledged By)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "required": true,
+                "description": "ID record Threshing"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "thresher_id": "string",
+              "date": "date",
+              "note": "string|null",
+              "created_by_name": "string",
+              "checked_by_name": "string|null",
+              "acknowledged_by_name": "string|null",
+              "status": "string",
+              "created_at": "timestamp",
+              "updated_at": "timestamp",
+              "details": [
+                {
+                  "id": "uuid",
+                  "time_slot": "string",
+                  "ffb_throughput_mt_hour": "float|null",
+                  "thresher_drum_speed_rpm": "float|null",
+                  "motor_current_amps": "float|null",
+                  "unstripped_bunch_count_percent": "float|null",
+                  "empty_bunch_oil_loss_percent": "float|null",
+                  "downtime_reason": "string|null"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate id ada di threshing-record -> 404 RECORD_NOT_FOUND jika tidak ditemukan",
+        "2. SELECT threshing-record by id, JOIN station untuk station_name, JOIN user untuk created_by_name/checked_by_name/acknowledged_by_name (null jika belum diisi, kecuali created_by_name yang selalu ada)",
+        "3. SELECT seluruh threshing-detail by threshing_record_id (berapapun jumlahnya, termasuk nol), ordered by urutan kanonis time_slot, langsung dari kolom tersimpan tanpa hitung ulang",
+        "4. Return full record + details array",
+        "5. FE (Livewire component's render()) TERPISAH memuat ThreshingOperationalTarget::orderBy('sort_order')->get() secara langsung (bukan lewat endpoint ini) untuk ditampilkan sebagai tabel referensi read-only di bawah grid Threshing Detail -- mengikuti arahan eksplisit task: sourced from ThreshingOperationalTarget::orderBy('sort_order')->get()",
+        "6. FE render field per section (Identitas Threshing, Threshing Detail grid dengan seluruh baris yang ada, Target Operasional referensi, Verifikasi) read-only",
+        "7. On klik Back: navigasi client-side ke /data/threshing, tanpa panggilan API tambahan",
+        "8. On klik Edit: navigasi client-side ke /data/threshing/{id}/edit"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "threshing-record",
+          "operation": "SELECT",
+          "description": "SELECT 1 record by id"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve station_name"
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve created_by_name/checked_by_name/acknowledged_by_name"
+        },
+        {
+          "entity_id": "threshing-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris (berapapun jumlahnya) by threshing_record_id, ordered by urutan kanonis time_slot"
+        },
+        {
+          "entity_id": "threshing-operational-target",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris ordered by sort_order, dipanggil langsung dari Livewire component (bukan lewat REST endpoint), untuk tabel referensi read-only"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "id tidak ditemukan",
+          "handling": "Return 404 RECORD_NOT_FOUND, FE tampilkan pesan error + tombol Back"
+        },
+        {
+          "condition": "checked_by/acknowledged_by belum diisi",
+          "handling": "checked_by_name/acknowledged_by_name null, FE tampilkan '-'"
+        },
+        {
+          "condition": "Record memiliki nol baris Threshing Detail",
+          "handling": "details array kosong dikembalikan, FE tampilkan grid kosong/empty-state, bukan error"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh field read-only",
+        "Checked By dan Acknowledged By keduanya ditampilkan",
+        "Grid Threshing Detail ditampilkan langsung dari data tersimpan, menampilkan persis baris yang ada (tidak lagi selalu 24)",
+        "Tabel Target Operasional murni referensi, tidak pernah menjadi bagian dari record"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 RECORD_NOT_FOUND when id does not exist",
+          "given": "id tidak ada di threshing-record",
+          "expect": "return 404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "returns full record with resolved station_name when id exists",
+          "given": "valid id, station terkait ada",
+          "expect": "return 200 dengan station_name terisi"
+        },
+        {
+          "description": "returns details array ordered by canonical time-slot regardless of how many rows exist",
+          "given": "record dengan 3 threshing-detail rows, time_slot tidak berurutan saat disimpan",
+          "expect": "response.details terurut naik berdasarkan urutan kanonis time_slot (bukan alfabetis), berisi persis 3 entri"
+        },
+        {
+          "description": "returns an empty details array when the record has zero threshing-detail rows",
+          "given": "record tanpa threshing-detail rows sama sekali",
+          "expect": "response.details = []"
+        },
+        {
+          "description": "returns null checked_by_name and acknowledged_by_name when not set",
+          "given": "record dengan checked_by dan acknowledged_by null",
+          "expect": "response.checked_by_name dan response.acknowledged_by_name adalah null"
+        },
+        {
+          "description": "resolves created_by_name, checked_by_name, acknowledged_by_name to user names when present",
+          "given": "record dengan created_by/checked_by/acknowledged_by terisi uuid user valid",
+          "expect": "response berisi nama user yang sesuai untuk ketiganya, bukan uuid"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "threshing-operational-target",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-049--data-browser-threshing-web",
+      "reason": "Entry point - klik baris membuka detail ini"
+    },
+    {
+      "screen_id": "screen-057--form-threshing-web",
+      "reason": "Koreksi data / tombol Edit membuka form ini"
+    }
+  ],
+  "implementation_notes": [
+    "Response resolve created_by/checked_by/acknowledged_by ke nama user via join, mengikuti pola screen-019/020/021 persis",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-019/020/021",
+    "Field grouping & urutan field di blade view MENIRU PERSIS mobile/src/views/DataPreviewThreshingView.vue mode detail (Thresher ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Threshing Detail dengan seluruh baris yang ada, tabel Target Operasional) per arahan eksplisit: web station screens mengikuti flow/UX mobile -- REVISI 2026-08-24: grid TIDAK LAGI diasumsikan 24 baris tetap, mengikuti revisi mobile-nya",
+    "Route /threshing-records/{id} didaftarkan SETELAH /threshing-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}, sama pola dengan screen-018/021",
+    "Tabel Target Operasional di-query langsung oleh DetailThreshing Livewire component's render(), TIDAK lewat endpoint /api/threshing-records/{id} -- konsisten dengan pola query-langsung BusinessUnit di FormCagesTrack"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Detail Threshing - berhasil",
+      "usecase_id": "usecase-053--detail-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-records/{id}"
+          },
+          "request_example": {
+            "id": "{{threshing_record_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailThreshing",
+        "action": "render dengan data record lengkap dari API termasuk seluruh baris details yang ada, dan tabel Target Operasional dari query langsung",
+        "assert": "seluruh field header tampil read-only per section, grid Threshing Detail menampilkan persis baris yang ada pada record, tabel Target Operasional menampilkan 6 baris referensi"
+      },
+      "browser_test": {
+        "route": "/data/threshing/{id}",
+        "action": "klik baris di Data Browser Threshing, tunggu halaman detail termuat",
+        "assert": "halaman detail menampilkan seluruh field record beserta grid Threshing Detail (baris sesuai yang tersimpan) dan tabel Target Operasional"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Threshing - Record Tidak Ditemukan",
+      "usecase_id": "usecase-053--detail-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000"
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DetailThreshing",
+        "action": "render dengan API mengembalikan 404",
+        "assert": "pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back"
+      },
+      "browser_test": {
+        "route": "/data/threshing/00000000-0000-0000-0000-000000000000",
+        "action": "navigasi langsung ke id yang tidak valid",
+        "assert": "halaman menampilkan pesan error dan tombol Back yang berfungsi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Threshing - Checked By/Acknowledged By Belum Diisi",
+      "usecase_id": "usecase-053--detail-threshing-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/threshing-records/{id}"
+          },
+          "request_example": {
+            "id": "{{threshing_record_uuid_no_verification}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailThreshing",
+        "action": "render dengan checked_by_name dan acknowledged_by_name null",
+        "assert": "field Checked By dan Acknowledged By menampilkan '-'"
+      },
+      "browser_test": {
+        "route": "/data/threshing/{id}",
+        "action": "buka detail record yang belum diperiksa/dikonfirmasi",
+        "assert": "field Checked By dan Acknowledged By menampilkan '-'"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Threshing - Edit",
+      "usecase_id": "usecase-053--detail-threshing-web",
+      "api_test": [],
+      "component_test": {
+        "component": "DetailThreshing",
+        "action": "klik tombol Edit",
+        "assert": "navigasi client-side ke /data/threshing/{id}/edit dipicu"
+      },
+      "browser_test": {
+        "route": "/data/threshing/{id}",
+        "action": "klik tombol Edit pada halaman detail",
+        "assert": "browser menampilkan Form Threshing (Web) mode ubah untuk record tersebut"
+      }
+    }
+  ]
+}

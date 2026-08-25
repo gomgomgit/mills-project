@@ -1,0 +1,462 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-042--form-pressing",
+  "name": "Form Pressing",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/pressing/form/:id",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-042--form-pressing",
+      "usecase_name": "Input Data Pressing",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load draft pressing_record by id (route param) beserta seluruh pressing_detail turunannya ke form state (bisa nol baris untuk draft baru), diurutkan berdasarkan time_slot dalam urutan kanonis (07:00..06:00, BUKAN alfabetis)",
+        "2. Auto-set Tanggal (date) = waktu saat ini HANYA jika draft baru (masih kosong); jika draft dilanjutkan, pertahankan nilai tersimpan (defensive fallback, createDraft() sudah mengisinya)",
+        "3. Render field dikelompokkan per section: Identitas Pressing (Presser ID, Tanggal), Verifikasi (Inputted By read-only, Checked By, Acknowledged By, Note), Pressing Detail (grid dinamis), Target Operasional (tabel referensi read-only, sumber data statis lihat implementation_notes)",
+        "4. Render breadcrumb (Home > Production Process Activity > Pressing > Form, tappable) dan header dengan hamburger",
+        "5. REVISI 2026-08-24 (dari desain awal grid statis 24 baris): grid Pressing Detail TIDAK di-pre-generate — dimulai kosong untuk draft baru, mengikuti pola persis Threshing Detail (screen-041)/Cages Tipped Time (screen-012)",
+        "6. On Tambah baris Pressing Detail: tambah 1 baris baru (tanpa id) ke grid, Time-Slot belum dipilih, seluruh kolom bacaan kosong",
+        "7. Opsi dropdown Time-Slot per baris = 24 slot kanonis (07:00..06:00) DIKURANGI (slot yang sudah dipakai baris manapun pada record ini) DAN (slot dengan index kanonis <= index slot TERTINGGI yang sudah dipilih baris lain) — dihitung ulang reaktif setiap kali baris manapun berubah/ditambah/dihapus, sama seperti availableTimeSlotOptions() Threshing Detail namun dibandingkan lewat index array canonicalTimeSlots(), bukan angka jam mentah",
+        "8. On isi kolom bacaan pada baris: update field terkait pada baris tersebut di form state (5 kolom numerik + 1 kolom teks Downtime Reason)",
+        "9. On Hapus baris Pressing Detail: hapus baris dari form state; jika baris punya id (sudah tersimpan sebelumnya), tandai untuk DELETE saat Simpan/Pause berikutnya; Time-Slot yang dipakai baris tersebut otomatis kembali tersedia di dropdown baris lain (langkah 7 dihitung ulang)",
+        "10. Checked By hanya dapat diisi/diedit jika role user saat ini = supervisor, disabled untuk role lain",
+        "11. Acknowledged By hanya dapat diisi/diedit jika role user saat ini = mill_management, disabled untuk role lain",
+        "12. On Simpan: validasi Presser ID terisi DAN minimal 1 baris Pressing Detail valid (Time-Slot terpilih DAN minimal 1 dari 6 kolom bacaan terisi) -> jika lengkap: UPDATE pressing_record (semua field header, status=saved) -> upsert pressing_detail (baris tanpa id: INSERT baru; baris dengan id: UPDATE; baris ditandai dihapus: DELETE) -> navigasi ke Monitor Pressing",
+        "13. On Pause: UPDATE pressing_record (field form apa adanya, status=draft_paused, TANPA validasi field wajib), pressing_detail rows di-upsert/delete apa adanya juga -> navigasi ke Monitor Pressing",
+        "14. On Clear: tampilkan dialog konfirmasi -> jika dikonfirmasi: DELETE seluruh pressing_detail milik record lalu DELETE pressing_record -> navigasi ke Monitor; jika dibatalkan: tidak ada perubahan",
+        "15. On Back: jika form dirty (header, salah satu baris, atau ada baris ditandai untuk dihapus berubah dari snapshot saat load): tampilkan dialog konfirmasi -> jika dikonfirmasi, buang perubahan di memori, navigasi ke Monitor; jika tidak dirty, navigasi langsung",
+        "16. On tap breadcrumb segment -> navigasi ke route terkait",
+        "17. On tap hamburger -> buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "pressing-record",
+          "operation": "SELECT",
+          "description": "SELECT record by id untuk load form state"
+        },
+        {
+          "entity_id": "pressing-detail",
+          "operation": "SELECT",
+          "description": "SELECT semua baris (berapapun jumlahnya) by pressing_record_id, ORDER BY urutan kanonis time_slot"
+        },
+        {
+          "entity_id": "pressing-record",
+          "operation": "UPDATE",
+          "description": "UPDATE semua field header + status=saved pada Simpan, atau field apa adanya + status=draft_paused pada Pause"
+        },
+        {
+          "entity_id": "pressing-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru (tanpa id sebelumnya) pada Simpan/Pause"
+        },
+        {
+          "entity_id": "pressing-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris yang sudah punya id pada Simpan/Pause"
+        },
+        {
+          "entity_id": "pressing-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris yang dihapus user dari grid, pada Simpan/Pause berikutnya; atau seluruh baris pada Clear"
+        },
+        {
+          "entity_id": "pressing-record",
+          "operation": "DELETE",
+          "description": "DELETE record pada Clear yang dikonfirmasi"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Presser ID belum diisi saat Simpan",
+          "handling": "Tampilkan error inline pada field Presser ID, record tidak tersimpan"
+        },
+        {
+          "condition": "Belum ada satu pun baris Pressing Detail valid (Time-Slot terpilih + minimal 1 kolom bacaan terisi) saat Simpan",
+          "handling": "Tampilkan pesan error khusus pada grid, record tidak tersimpan"
+        },
+        {
+          "condition": "User membuka dropdown Time-Slot pada baris ketika slot tertentu sudah dipakai baris lain atau <= slot tertinggi baris lain",
+          "handling": "Slot tersebut tidak ditampilkan sebagai opsi"
+        },
+        {
+          "condition": "User menghapus baris Pressing Detail yang sudah ada (punya id)",
+          "handling": "Baris hilang dari grid; ditandai untuk DELETE eksplisit; Time-Slot yang dipakainya kembali tersedia di dropdown baris lain"
+        },
+        {
+          "condition": "Operator mencoba mengisi/mengedit Checked By",
+          "handling": "Field disabled/read-only untuk role selain supervisor"
+        },
+        {
+          "condition": "Non-mill_management mencoba mengisi/mengedit Acknowledged By",
+          "handling": "Field disabled/read-only untuk role selain mill_management"
+        },
+        {
+          "condition": "Draft di-Pause lalu dilanjutkan",
+          "handling": "Baris yang sudah ditambahkan beserta bacaan yang sudah terisi tetap utuh, di-load ulang dari DB; opsi dropdown Time-Slot tiap baris otomatis mengecualikan slot yang sudah terpakai sejak awal render"
+        },
+        {
+          "condition": "Back dengan perubahan belum tersimpan",
+          "handling": "Tampilkan dialog konfirmasi sebelum keluar"
+        },
+        {
+          "condition": "Clear ditekan",
+          "handling": "Tampilkan dialog konfirmasi wajib sebelum DELETE dieksekusi"
+        },
+        {
+          "condition": "User mengisi Downtime Reason tanpa mengisi kolom numerik apapun pada baris yang sama",
+          "handling": "Baris tetap dianggap terisi (valid) untuk keperluan validasi minimal-1-baris"
+        }
+      ],
+      "business_rules_applied": [
+        "Tanggal otomatis sekali saat draft baru dibuat",
+        "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Grid Pressing Detail TIDAK di-pre-generate — baris ditambahkan satu per satu via Tambah baris, dapat dihapus via Hapus baris, mengikuti pola persis Threshing Detail/Cages Tipped Time",
+        "Time-Slot tiap baris harus lebih lambat (index kanonis lebih besar) dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
+        "Setiap kolom bacaan opsional per baris; minimal satu baris valid (Time-Slot terpilih + minimal satu kolom terisi) sebelum Simpan",
+        "Presser ID wajib diisi sebelum Simpan",
+        "Tabel Target Operasional murni referensi, tidak pernah ikut tersimpan"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads existing pressing_detail rows (however many) ordered by canonical time-slot on mount",
+          "given": "loaded draft has 2 pressing_detail rows with time_slot 09:00 and 07:00 in DB insertion order",
+          "expect": "form state's detail rows array has exactly 2 entries ordered 07:00, 09:00"
+        },
+        {
+          "description": "renders zero detail rows for a brand-new draft (no pre-created rows)",
+          "given": "a brand-new draft with no pressing_detail rows",
+          "expect": "form state's detail rows array is empty"
+        },
+        {
+          "description": "sets date to current time when draft is new (empty)",
+          "given": "loaded draft record has date = null",
+          "expect": "date set to current timestamp (now) exactly once on mount"
+        },
+        {
+          "description": "preserves stored date when resuming a paused draft",
+          "given": "loaded draft record has date already set",
+          "expect": "date remains unchanged, not overwritten"
+        },
+        {
+          "description": "adds one row at a time via Tambah baris, with Time-Slot unset and all reading columns empty",
+          "given": "grid has 0 rows",
+          "expect": "each Tambah baris click appends exactly one row with time_slot=null and all reading columns null"
+        },
+        {
+          "description": "excludes a time-slot already used by another row from a row's Time-Slot dropdown options",
+          "given": "row 1 has time_slot='07:00' selected; computing available slots for row 2",
+          "expect": "row 2's available slot options do NOT include '07:00'"
+        },
+        {
+          "description": "excludes slots at-or-before the most-recently-added row's slot from the next row's Time-Slot dropdown options",
+          "given": "row 1 (most recently added) has time_slot='09:00' selected; computing available slots for a new row 2",
+          "expect": "row 2's available slot options only include slots after 09:00 in canonical order (10:00 onward), not 07:00-09:00"
+        },
+        {
+          "description": "frees a previously-used time-slot for other rows once the row using it is removed",
+          "given": "row 1 (time_slot='07:00') is removed while row 2 exists",
+          "expect": "'07:00' becomes available again in row 2's Time-Slot dropdown options"
+        },
+        {
+          "description": "queues an existing (has-id) row for deletion on Hapus baris rather than deleting immediately",
+          "given": "a loaded draft has 2 existing detail rows; Hapus baris pressed on the first",
+          "expect": "the row disappears from the grid; no repo delete call happens yet; the row's id is queued for deletion at the next Simpan/Pause"
+        },
+        {
+          "description": "disables Tambah baris once 24 rows already exist (all canonical slots used)",
+          "given": "grid already has 24 rows",
+          "expect": "Tambah baris control is disabled"
+        },
+        {
+          "description": "updates only the edited reading column on the targeted row without affecting other rows",
+          "given": "row for time_slot 09:00 has digester_temp_c=null; user enters 92 into that field",
+          "expect": "row 09:00's digester_temp_c becomes 92; other rows remain unchanged"
+        },
+        {
+          "description": "disables the Checked By field for a non-supervisor user",
+          "given": "current user role = 'operator'",
+          "expect": "Checked By field rendered disabled/read-only"
+        },
+        {
+          "description": "enables the Checked By field for a supervisor user",
+          "given": "current user role = 'supervisor'",
+          "expect": "Checked By field rendered enabled/editable"
+        },
+        {
+          "description": "disables the Acknowledged By field for a non-mill_management user",
+          "given": "current user role = 'operator' or 'supervisor'",
+          "expect": "Acknowledged By field rendered disabled/read-only"
+        },
+        {
+          "description": "returns validation error and does not save when Presser ID is empty on Simpan",
+          "given": "presser_id empty, Simpan triggered",
+          "expect": "validation fails, inline error returned, pressingRecordRepo.saveDraft() not called"
+        },
+        {
+          "description": "returns validation error and does not save when there are zero valid detail rows on Simpan",
+          "given": "grid is empty, or every row lacks a selected Time-Slot or has zero reading columns filled, Simpan triggered",
+          "expect": "validation fails with grid-specific error, pressingRecordRepo.saveDraft() not called"
+        },
+        {
+          "description": "treats a row with only downtime_reason non-empty as a valid/filled row for the minimum-one-row check",
+          "given": "exactly one row has time_slot selected and downtime_reason='Breakdown' with every numeric column null, Simpan triggered",
+          "expect": "validation passes (row counts as valid), pressingRecordRepo.saveDraft() called"
+        },
+        {
+          "description": "saves with status=saved and navigates to Monitor Pressing when Simpan succeeds",
+          "given": "presser_id filled, at least 1 valid detail row, Simpan triggered",
+          "expect": "pressingRecordRepo.saveDraft() called with status='saved' and the queued deletion ids list; navigation to Monitor Pressing triggered"
+        },
+        {
+          "description": "updates record with status=draft_paused without validating required fields on Pause",
+          "given": "presser_id empty, Pause triggered",
+          "expect": "pressingRecordRepo.pauseDraftWithFormData() called with current field values as-is, status='draft_paused', no validation errors; navigation to Monitor Pressing triggered"
+        },
+        {
+          "description": "shows confirmation dialog before deleting on Clear",
+          "given": "Clear button pressed",
+          "expect": "confirmation dialog displayed; delete not yet called"
+        },
+        {
+          "description": "deletes record and all of its detail rows, then navigates to Monitor when Clear is confirmed",
+          "given": "Clear confirmation dialog confirmed",
+          "expect": "pressing_detail rows deleted, pressing_record deleted; navigation to Monitor Pressing triggered"
+        },
+        {
+          "description": "shows confirmation dialog on Back when form is dirty",
+          "given": "form state isDirty = true (a header field, a detail row, or a queued deletion changed), Back pressed",
+          "expect": "confirmation dialog displayed before navigation"
+        },
+        {
+          "description": "navigates directly on Back when form is not dirty",
+          "given": "form state isDirty = false, Back pressed",
+          "expect": "navigates to Monitor Pressing immediately, no dialog shown"
+        },
+        {
+          "description": "renders the Target Operasional reference table with 7 rows read-only, not editable and not part of saveDraft() payload",
+          "given": "form is rendered",
+          "expect": "7 reference rows displayed (Parameter/Metric, Target Operating Range, Critical Trigger/Action Limit), no input controls on them, pressingRecordRepo.saveDraft() payload contains no operational-target data"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-038--monitor-pressing",
+      "reason": "Asal & tujuan kembali setelah Simpan/Pause/Clear/Back"
+    },
+    {
+      "screen_id": "screen-046--data-preview-pressing",
+      "reason": "Referensi tampilan data setelah tersimpan"
+    }
+  ],
+  "implementation_notes": [
+    "Simpan/Pause/Clear bersifat lokal (SQLite); sync ke server terjadi lewat mekanisme sync manual terpisah, di luar scope screen ini",
+    "REVISI 2026-08-24 (entity-catalog v12, menggantikan desain grid statis 24 baris yang ditolak user): pressingRecordRepo.ts mengikuti pola threshingRecordRepo.ts/cagesTrackRecordRepo.ts persis — getDraftWithDetails(id), createDraft(userId) (INSERT header SAJA, tanpa detail rows), saveDraft(recordId, headerData, details, detailIdsToDelete, role), pauseDraftWithFormData(...), applyDetailRowChanges() (upsert + delete, mirip applyDetailRowChanges() Threshing), deleteDraft()",
+    "canonicalTimeSlots() DIPERTAHANKAN — tidak lagi dipakai untuk pre-generate baris, tetap jadi sumber urutan kanonis untuk opsi dropdown Time-Slot (availableTimeSlotOptions(), floor dihitung lewat index array, bukan angka jam mentah) dan untuk ORDER BY hasil SELECT",
+    "Tabel referensi Target Operasional (7 baris) diimplementasikan sebagai KONSTANTA STATIS di kode mobile (bukan tabel lokal SQLite yang disinkron) — tidak berubah oleh revisi ini, lihat known_issue/deferred sebelumnya",
+    "Constraint model server PressingRecord::booted() (minimal 1 pressing-detail row exists) sekarang benar-benar berarti apa adanya (baris hanya ada jika user menambahkannya) — validasi 'minimal 1 baris VALID (Time-Slot + kolom bacaan terisi)' pada layar ini tetap ditegakkan di level FE + repo mobile (localDb), bukan constraint DB",
+    "Breadcrumb & hamburger mengikuti pola yang sama dengan Form Weighbridge/Grading/Cages Track/Threshing",
+    "FormPressingView.vue: SearchableSelect.vue dipakai untuk Time-Slot per baris (menggantikan label read-only lama), mirip FormThreshingView.vue"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Input Data Pressing — success as Station Operator",
+      "usecase_id": "usecase-042--form-pressing",
+      "api_test": [],
+      "component_test": {
+        "component": "FormPressingView",
+        "action": "fill Presser ID, add a detail row, select a Time-Slot, fill Digester Temp, click Simpan as an operator user",
+        "assert": "record saved with status=saved, Checked By/Acknowledged By remain empty/disabled for operator"
+      },
+      "browser_test": {
+        "route": "/stations/pressing/form/:id",
+        "action": "login as operator, buka Form Pressing draft baru dari Monitor, isi Presser ID, tambah 1 baris Pressing Detail lengkap (Time-Slot + 1 kolom bacaan), klik Simpan",
+        "assert": "navigasi ke Monitor Pressing, record baru berstatus tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Pressing — success as Supervisor",
+      "usecase_id": "usecase-042--form-pressing",
+      "api_test": [],
+      "component_test": {
+        "component": "FormPressingView",
+        "action": "as a supervisor user, fill Presser ID, add a valid detail row, fill Checked By, click Simpan",
+        "assert": "record saved including checked_by set to the supervisor's id"
+      },
+      "browser_test": {
+        "route": "/stations/pressing/form/:id",
+        "action": "login as supervisor, buka Form Pressing, isi Presser ID termasuk Checked By, tambah 1 baris lengkap, klik Simpan",
+        "assert": "record tersimpan dengan Checked By terisi"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Pressing — Presser ID Belum Lengkap",
+      "usecase_id": "usecase-042--form-pressing",
+      "api_test": [],
+      "component_test": {
+        "component": "FormPressingView",
+        "action": "leave Presser ID empty, click Simpan",
+        "assert": "inline error shown, save handler not invoked"
+      },
+      "browser_test": {
+        "route": "/stations/pressing/form/:id",
+        "action": "buka Form Pressing, jangan isi Presser ID, klik Simpan",
+        "assert": "pesan error inline muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Pressing — Belum Ada Baris Valid",
+      "usecase_id": "usecase-042--form-pressing",
+      "api_test": [],
+      "component_test": {
+        "component": "FormPressingView",
+        "action": "fill Presser ID, leave the Pressing Detail grid empty (no rows added), click Simpan",
+        "assert": "grid-specific error shown, save handler not invoked"
+      },
+      "browser_test": {
+        "route": "/stations/pressing/form/:id",
+        "action": "isi Presser ID, jangan tambah baris Pressing Detail, klik Simpan",
+        "assert": "pesan error khusus muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Pressing — Tambah/Hapus Baris dan Urutan Time-Slot",
+      "usecase_id": "usecase-042--form-pressing",
+      "api_test": [],
+      "component_test": {
+        "component": "FormPressingView",
+        "action": "add a row and select 09:00, add a second row, then remove the first (09:00) row",
+        "assert": "row 2's dropdown excludes 07:00-09:00 while row 1 exists; after removal, 09:00 becomes available again"
+      },
+      "browser_test": {
+        "route": "/stations/pressing/form/:id",
+        "action": "tambah baris pilih Time-Slot 09:00, tambah baris kedua, hapus baris pertama",
+        "assert": "opsi Time-Slot baris kedua sempat mengecualikan 07:00-09:00, lalu 09:00 tersedia kembali setelah baris pertama dihapus"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Pressing — Checked By Khusus Supervisor",
+      "usecase_id": "usecase-042--form-pressing",
+      "api_test": [],
+      "component_test": {
+        "component": "FormPressingView",
+        "action": "render the form for an operator user",
+        "assert": "Checked By field rendered disabled"
+      },
+      "browser_test": {
+        "route": "/stations/pressing/form/:id",
+        "action": "buka Form Pressing sebagai Operator",
+        "assert": "field Checked By tidak dapat diisi/diedit"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Pressing — Acknowledged By Khusus Mill Management",
+      "usecase_id": "usecase-042--form-pressing",
+      "api_test": [],
+      "component_test": {
+        "component": "FormPressingView",
+        "action": "render the form for a supervisor user (not mill_management)",
+        "assert": "Acknowledged By field rendered disabled"
+      },
+      "browser_test": {
+        "route": "/stations/pressing/form/:id",
+        "action": "buka Form Pressing sebagai Supervisor",
+        "assert": "field Acknowledged By tidak dapat diisi/diedit"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Pressing — Lanjutkan Draft Paused",
+      "usecase_id": "usecase-042--form-pressing",
+      "api_test": [],
+      "component_test": {
+        "component": "FormPressingView",
+        "action": "mount form with an existing draft_paused record and a handful of detail rows (some filled) loaded",
+        "assert": "all header fields and the existing rows populated from the saved draft"
+      },
+      "browser_test": {
+        "route": "/stations/pressing/form/:id",
+        "action": "dari Monitor Pressing, tap draft paused sebelumnya untuk dilanjutkan",
+        "assert": "semua field dan baris Pressing Detail yang sudah ada terisi sesuai draft tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Pressing — Back Dengan Perubahan Belum Tersimpan",
+      "usecase_id": "usecase-042--form-pressing",
+      "api_test": [],
+      "component_test": {
+        "component": "FormPressingView",
+        "action": "modify a reading field to make the form dirty, trigger back action",
+        "assert": "confirmation dialog rendered before navigation occurs"
+      },
+      "browser_test": {
+        "route": "/stations/pressing/form/:id",
+        "action": "ubah salah satu kolom bacaan, tekan tombol Back sebelum Simpan",
+        "assert": "dialog konfirmasi keluar ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Pressing — Pause Progress",
+      "usecase_id": "usecase-042--form-pressing",
+      "api_test": [],
+      "component_test": {
+        "component": "FormPressingView",
+        "action": "leave Presser ID empty, click Pause",
+        "assert": "update invoked with status=draft_paused and current field values, no validation errors shown, navigation to Monitor triggered"
+      },
+      "browser_test": {
+        "route": "/stations/pressing/form/:id",
+        "action": "jangan isi Presser ID, tekan tombol Pause",
+        "assert": "tidak ada error validasi, navigasi kembali ke Monitor Pressing, draft tersimpan dengan status paused"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Pressing — Clear Draft",
+      "usecase_id": "usecase-042--form-pressing",
+      "api_test": [],
+      "component_test": {
+        "component": "FormPressingView",
+        "action": "click Clear then confirm the dialog; repeat and cancel the dialog",
+        "assert": "on confirm: delete invoked and navigation to Monitor triggered; on cancel: no delete call, form state unchanged"
+      },
+      "browser_test": {
+        "route": "/stations/pressing/form/:id",
+        "action": "tekan tombol Clear lalu konfirmasi hapus; ulangi dan batalkan konfirmasi",
+        "assert": "saat dikonfirmasi: draft terhapus permanen dan navigasi ke Monitor; saat dibatalkan: tidak ada perubahan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Pressing — Tabel Target Operasional Read-Only",
+      "usecase_id": "usecase-042--form-pressing",
+      "api_test": [],
+      "component_test": {
+        "component": "FormPressingView",
+        "action": "render form and inspect the Target Operasional reference table",
+        "assert": "7 rows rendered read-only (Parameter/Metric, Target Operating Range, Critical Trigger/Action Limit), no editable inputs present"
+      },
+      "browser_test": {
+        "route": "/stations/pressing/form/:id",
+        "action": "buka Form Pressing, gulir ke tabel Target Operasional di bawah grid",
+        "assert": "tabel menampilkan 7 baris referensi, tidak ada elemen input yang dapat diedit"
+      }
+    }
+  ]
+}

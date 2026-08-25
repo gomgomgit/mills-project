@@ -1,0 +1,258 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-056--detail-kernel-plant-web",
+  "name": "Detail Kernel Plant (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/kernel-plant/{id}",
+  "auth_requirement": "role: supervisor,mill_management,admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-056--detail-kernel-plant-web",
+      "usecase_name": "Lihat Detail Kernel Plant (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/kernel-plant-records/{id}",
+          "description": "Ambil 1 record Kernel Plant lengkap beserta seluruh baris Kernel Plant Detail-nya (berapapun jumlahnya, tidak lagi selalu 24 sejak revisi 2026-08-24), station_name, dan nama user (Inputted By/Checked By/Acknowledged By) untuk halaman Detail",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID record Kernel Plant"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "kernel_plant_id": "string",
+              "date": "date",
+              "note": "string|null",
+              "created_by_name": "string",
+              "checked_by_name": "string|null",
+              "acknowledged_by_name": "string|null",
+              "status": "enum",
+              "created_at": "iso8601",
+              "updated_at": "iso8601",
+              "details": [
+                {
+                  "id": "uuid",
+                  "time_slot": "string",
+                  "ripple_mill_1_amps": "float|null",
+                  "ripple_mill_2_amps": "float|null",
+                  "claybath_hydro_sg": "float|null",
+                  "kernel_silo_1_temp_c": "float|null",
+                  "kernel_silo_2_temp_c": "float|null",
+                  "kernel_moisture_percent": "float|null",
+                  "shell_loss_percent": "float|null",
+                  "downtime_minutes": "integer|null",
+                  "findings": "string|null"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada session"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "role Operator"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. findOrFail(id) → if not found: return 404 RECORD_NOT_FOUND (via ModelNotFoundException)",
+        "2. Eager-load station, createdBy, checkedBy, acknowledgedBy, kernelPlantDetails",
+        "3. Map kernelPlantDetails (berapapun jumlahnya, termasuk nol) ke urutan canonical time-slot (bukan urutan insert), resolve nama-nama user",
+        "4. Return full detail row shape"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "kernel-plant-record",
+          "operation": "SELECT",
+          "description": "findOrFail by id dengan eager-load relasi"
+        },
+        {
+          "entity_id": "kernel-plant-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris (berapapun jumlahnya) terkait record, di-sort ke urutan canonical time-slot"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "id tidak ditemukan",
+          "handling": "ModelNotFoundException → 404 RECORD_NOT_FOUND, Livewire component set notFound=true"
+        },
+        {
+          "condition": "checked_by/acknowledged_by kosong",
+          "handling": "checked_by_name/acknowledged_by_name bernilai null, ditampilkan sebagai '-' di Blade"
+        },
+        {
+          "condition": "Role Operator mengakses",
+          "handling": "Route middleware role: gate menolak dengan 403"
+        },
+        {
+          "condition": "Record memiliki nol baris Kernel Plant Detail",
+          "handling": "details array kosong dikembalikan, FE tampilkan grid kosong/empty-state, bukan error"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh field ditampilkan read-only",
+        "Hanya Supervisor/Mill Management/Admin yang dapat mengakses",
+        "Grid Kernel Plant Detail ditampilkan langsung dari data tersimpan, menampilkan persis baris yang ada (revisi 2026-08-24: tidak lagi selalu 24)"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "throws ModelNotFoundException when getDetail id does not exist",
+          "given": "a random uuid not in the database",
+          "expect": "throw ModelNotFoundException"
+        },
+        {
+          "description": "returns the full record with resolved station_name when id exists",
+          "given": "an existing KernelPlantRecord",
+          "expect": "result.id matches, result.station_name matches the station's name"
+        },
+        {
+          "description": "returns details array sorted into canonical time-slot order, not alphabetical, regardless of how many rows exist",
+          "given": "detail rows created out of canonical order (14:00, 08:00, 00:00)",
+          "expect": "details sorted as [08:00, 14:00, 00:00] per canonical index"
+        },
+        {
+          "description": "returns an empty details array when the record has zero kernel-plant-detail rows",
+          "given": "record tanpa kernel-plant-detail rows sama sekali",
+          "expect": "result.details = []"
+        },
+        {
+          "description": "returns null checked_by_name and acknowledged_by_name when not set",
+          "given": "record with checked_by=null, acknowledged_by=null",
+          "expect": "checked_by_name=null, acknowledged_by_name=null"
+        },
+        {
+          "description": "resolves created_by_name, checked_by_name, acknowledged_by_name to user names when present",
+          "given": "record with all 3 user FKs set",
+          "expect": "all 3 name fields resolved to the corresponding users' names"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "kernel-plant-record",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-052--data-browser-kernel-plant-web",
+      "reason": "Entry point (klik baris) dan tujuan Back"
+    },
+    {
+      "screen_id": "screen-060--form-kernel-plant-web",
+      "reason": "Tombol Edit membuka Form Kernel Plant (Web) mode ubah"
+    }
+  ],
+  "implementation_notes": [
+    "Reuses KernelPlantRecordService::getDetail() (BE service shared with screen-052, see that screen's implement artifact for the service/controller/route files)",
+    "Target Operasional table queried DIRECTLY by DetailKernelPlant::render() (KernelPlantOperationalTarget::orderBy('sort_order')->get()) -- NOT part of the GET /api/kernel-plant-records/{id} response -- per this screen's tech-spec direction, mirrors DetailThreshing/DetailPressing exactly, with 3 columns (equipment_parameter/target_benchmark/corrective_action_plan) like Threshing/Pressing, not 4 like Depricarping -- UNTOUCHED by this revision",
+    "Field grouping/order in the Blade view mirrors mobile/src/views/DataPreviewKernelPlantView.vue's detail mode exactly (Kernel Plant ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid, Target Operasional table), per explicit product direction that web station screens mirror mobile flow/UX",
+    "Route /data/kernel-plant/{id} registered after /data/kernel-plant/create (screen-060) so the literal 'create' segment is not swallowed by {id}",
+    "REVISI 2026-08-24 (entity-catalog v12): grid Kernel Plant Detail pada Blade view ini TIDAK PERNAH mengasumsikan 24 baris tetap -- sudah sejak awal me-render `@foreach ($record['details'] as $row)` langsung dari array details, tanpa literal '24' di manapun (dikonfirmasi via grep) -- TIDAK ADA perubahan fungsional pada layar ini akibat revisi grid dinamis di Form Kernel Plant (screen-060)/mobile (screen-044), hanya doc comment/wording di artifact ini yang diperbarui"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Detail Kernel Plant - berhasil",
+      "usecase_id": "usecase-056--detail-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-records/{id}"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailKernelPlant",
+        "action": "mount with an existing record id",
+        "assert": "renders kernel_plant_id, the Kernel Plant Detail grid with however many rows the record has, and the 3-column operational target table"
+      },
+      "browser_test": {
+        "route": "/data/kernel-plant/{id}",
+        "action": "click a row in Data Browser Kernel Plant, land on detail page",
+        "assert": "all header fields, the Kernel Plant Detail grid (rows matching what is actually stored, a full 24 when all canonical slots were added), and Target Operasional table (6 rows, 3 columns) are visible"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Kernel Plant - Record Tidak Ditemukan",
+      "usecase_id": "usecase-056--detail-kernel-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/kernel-plant-records/{id}"
+          },
+          "request_example": {},
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DetailKernelPlant",
+        "action": "mount with a non-existent id",
+        "assert": "notFound=true, 'Record tidak ditemukan' shown with a Back button"
+      },
+      "browser_test": {
+        "route": "/data/kernel-plant/00000000-0000-0000-0000-000000000000",
+        "action": "navigate directly to a non-existent id",
+        "assert": "'Record tidak ditemukan' message and Back button visible"
+      }
+    }
+  ]
+}

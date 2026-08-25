@@ -1,0 +1,173 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "usecase-042--form-pressing",
+  "name": "Input Data Pressing",
+  "description": "Operator atau Supervisor mengisi data header Pressing (Presser ID, verifikasi) dan mengisi kolom bacaan pada baris-baris grid Pressing Detail yang sudah tersedia (24 baris time-slot per jam), lalu menyimpan, menjeda (Pause), atau membatalkan (Clear) data tersebut.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login di aplikasi mobile",
+    "Draft Pressing sudah dibuat (baru atau lanjutan) berikut 24 baris time-slot kosong"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan form dengan header (Presser ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note), grid 24 baris Pressing Detail, dan tabel referensi Target Operasional read-only di bawahnya"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Mengisi Presser ID dan kolom bacaan pada satu atau lebih baris Pressing Detail"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Menekan Simpan"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Memvalidasi Presser ID terisi dan minimal satu baris Pressing Detail punya minimal satu kolom bacaan terisi, lalu menyimpan record secara final dan kembali ke Monitor Pressing"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Isi Checked By (Supervisor)",
+      "trigger": "Pada step 2, user berperan Supervisor mengisi Checked By",
+      "steps": [
+        "System menyimpan Checked By sebagai user Supervisor yang login"
+      ]
+    },
+    {
+      "name": "Isi Acknowledged By (Mill Management)",
+      "trigger": "Pada step 2, user berperan Mill Management mengisi Acknowledged By",
+      "steps": [
+        "System menyimpan Acknowledged By sebagai user Mill Management yang login"
+      ]
+    },
+    {
+      "name": "Presser ID belum diisi",
+      "trigger": "Pada step 3, Presser ID masih kosong",
+      "steps": [
+        "System menampilkan error inline pada field Presser ID",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum ada baris terisi",
+      "trigger": "Pada step 3, tidak ada satu pun dari 24 baris Pressing Detail yang punya kolom bacaan terisi",
+      "steps": [
+        "System menampilkan pesan error khusus pada grid",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Operator mencoba isi Checked By/Acknowledged By",
+      "trigger": "Pada step 2, user bukan Supervisor mencoba mengisi Checked By, atau bukan Mill Management mencoba mengisi Acknowledged By",
+      "steps": [
+        "Field ditampilkan nonaktif/disabled untuk role tersebut, tidak dapat diisi"
+      ]
+    },
+    {
+      "name": "Pause",
+      "trigger": "Pada step 2 atau 3, user menekan Pause alih-alih Simpan",
+      "steps": [
+        "System menyimpan progres saat ini sebagai draft berstatus paused tanpa validasi field wajib",
+        "System kembali ke Monitor Pressing"
+      ]
+    },
+    {
+      "name": "Clear",
+      "trigger": "Pada step 2 atau 3, user menekan Clear",
+      "steps": [
+        "System menampilkan dialog konfirmasi",
+        "Jika dikonfirmasi: System menghapus draft beserta 24 barisnya secara permanen dan kembali ke Monitor Pressing",
+        "Jika dibatalkan: tidak ada perubahan"
+      ]
+    },
+    {
+      "name": "Back dengan perubahan belum tersimpan",
+      "trigger": "Pada step 2 atau 3, user menekan Back",
+      "steps": [
+        "Jika ada perubahan belum tersimpan: System menampilkan dialog konfirmasi sebelum keluar",
+        "Jika tidak ada perubahan: System langsung kembali ke Monitor Pressing"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Pressing tersimpan dengan status saved (Simpan), atau draft_paused (Pause), atau dihapus permanen (Clear dikonfirmasi)"
+  ],
+  "business_rules": [
+    "Tanggal dan Inputted By tidak dapat diedit manual",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "24 baris Pressing Detail tetap, tidak bisa ditambah/dihapus",
+    "Setiap kolom bacaan pada baris opsional, minimal satu baris harus punya minimal satu kolom terisi sebelum Simpan",
+    "Pause tidak memvalidasi field wajib"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data Pressing — success",
+      "given": "Operator sudah login di aplikasi mobile dan draft Pressing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "Operator mengisi Presser ID dan kolom bacaan pada satu atau lebih baris Pressing Detail, lalu menekan Simpan",
+      "then": "System memvalidasi Presser ID dan minimal satu baris terisi, menyimpan record Pressing secara final dengan status saved, dan kembali ke Monitor Pressing"
+    },
+    {
+      "scenario": "Input Data Pressing — Isi Checked By (Supervisor)",
+      "given": "Operator sudah login di aplikasi mobile dan draft Pressing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "Supervisor yang login mengisi field Checked By pada form Pressing",
+      "then": "System menyimpan Checked By sebagai user Supervisor yang login"
+    },
+    {
+      "scenario": "Input Data Pressing — Isi Acknowledged By (Mill Management)",
+      "given": "Operator sudah login di aplikasi mobile dan draft Pressing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User berperan Mill Management yang login mengisi field Acknowledged By pada form Pressing",
+      "then": "System menyimpan Acknowledged By sebagai user Mill Management yang login"
+    },
+    {
+      "scenario": "Input Data Pressing — Presser ID belum diisi",
+      "given": "Operator sudah login di aplikasi mobile dan draft Pressing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User menekan Simpan padahal field Presser ID masih kosong",
+      "then": "System menampilkan error inline pada field Presser ID dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Pressing — Belum ada baris terisi",
+      "given": "Operator sudah login di aplikasi mobile dan draft Pressing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User menekan Simpan padahal tidak ada satu pun dari 24 baris Pressing Detail yang punya kolom bacaan terisi",
+      "then": "System menampilkan pesan error khusus pada grid dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Pressing — Operator mencoba isi Checked By/Acknowledged By",
+      "given": "Operator sudah login di aplikasi mobile dan draft Pressing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User yang bukan Supervisor mencoba mengisi field Checked By, atau user yang bukan Mill Management mencoba mengisi field Acknowledged By",
+      "then": "Field ditampilkan nonaktif/disabled untuk role tersebut sehingga tidak dapat diisi"
+    },
+    {
+      "scenario": "Input Data Pressing — Pause",
+      "given": "Operator sudah login di aplikasi mobile dan draft Pressing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User menekan Pause alih-alih Simpan saat mengisi header atau grid Pressing Detail",
+      "then": "System menyimpan progres saat ini sebagai draft berstatus paused tanpa memvalidasi field wajib, lalu kembali ke Monitor Pressing"
+    },
+    {
+      "scenario": "Input Data Pressing — Clear",
+      "given": "Operator sudah login di aplikasi mobile dan draft Pressing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User menekan Clear saat mengisi header atau grid Pressing Detail",
+      "then": "System menampilkan dialog konfirmasi; jika dikonfirmasi, draft beserta 24 barisnya dihapus permanen dan kembali ke Monitor Pressing; jika dibatalkan, tidak ada perubahan"
+    },
+    {
+      "scenario": "Input Data Pressing — Back dengan perubahan belum tersimpan",
+      "given": "Operator sudah login di aplikasi mobile dan draft Pressing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User menekan Back saat mengisi header atau grid Pressing Detail",
+      "then": "Jika ada perubahan belum tersimpan, System menampilkan dialog konfirmasi sebelum keluar; jika tidak ada perubahan, System langsung kembali ke Monitor Pressing"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-042--form-pressing"
+  ]
+}

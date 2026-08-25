@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-08-23"
   },
   "design_system": {
     "color_palette": [
@@ -354,7 +354,7 @@
       "description": "Saved data browser web (dengan filter tanggal/business unit/stasiun) untuk Supervisor/Mill Management/Admin; station selector grid dan daftar draft/paused record di mobile untuk Operator/Supervisor.",
       "layout": "Web: data-table dengan filter bar di atas, pagination di bawah. Mobile: grid 3-kolom tombol stasiun (ikon Lucide + label, lihat component_patterns 'station-tile') untuk station selector; list vertikal untuk draft/record.",
       "header_area": "Web: judul + filter (date range, business unit, stasiun) + tombol export CSV/Excel. Mobile: breadcrumb chip + judul halaman saja — TANPA placeholder gambar generik tanpa makna. Gambar referensi stasiun hanya ditambahkan jika asset final tersedia dari desain; bukan requirement wajib.",
-      "body_area": "Web: tabel data dengan kolom sesuai stasiun, klik row membuka Detail. Mobile: grid station-tile (lihat component_patterns) dengan urutan TETAP — 3 stasiun aktif MVP tampil pertama dalam urutan Weighbridge, Grading, Cages Track, baru diikuti 12 slot placeholder (urutan apa adanya, bukan diurutkan alfabetis by name); atau list draft dengan status-badge (tidak ada input/ongoing/paused).",
+      "body_area": "Web: tabel data dengan kolom sesuai stasiun, klik row membuka Detail. Mobile: grid station-tile (lihat component_patterns) dengan urutan TETAP — 7 stasiun aktif MVP tampil pertama dalam urutan Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant (sejak 2026-08-23), baru diikuti 8 slot placeholder (urutan apa adanya, bukan diurutkan alfabetis by name); atau list draft dengan status-badge (tidak ada input/ongoing/paused).",
       "footer_area": "Web: pagination. Mobile: none atau tombol Add jika relevan.",
       "states": [
         {
@@ -377,10 +377,10 @@
     },
     {
       "type": "form",
-      "description": "Form input Weighbridge, Grading, Cages Track (header + detail grid) di web dan mobile; form master data (Corporate, Company, Business Unit, Station, Machinery, dst) di web.",
+      "description": "Form input Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant (header + detail grid) di web dan mobile; form master data (Corporate, Company, Business Unit, Station, Machinery, dst) di web.",
       "layout": "Web: form vertikal dalam card, grid 2-kolom untuk field pendek. Mobile: form vertikal full-page, scroll panjang.",
       "header_area": "Breadcrumb/back + judul form (mis. 'WB New | WB Load Data').",
-      "body_area": "Field header (WB ID, Date, dst) diikuti grid/detail rows (mis. Cages Tipped Time, Grading Detail) dengan aksi Add/Edit per baris. Field Checked By hanya muncul/aktif untuk role Supervisor, Acknowledged By hanya untuk Mill Management.",
+      "body_area": "Field header (WB ID, Date, dst) diikuti grid/detail rows (mis. Cages Tipped Time, Grading Detail, atau grid time-slot 24 baris untuk Threshing/Pressing/Depricarping/Kernel Plant) dengan aksi Add/Edit per baris. Field Checked By hanya muncul/aktif untuk role Supervisor, Acknowledged By hanya untuk Mill Management.",
       "footer_area": "Action row: Save, Clear, Delete (jika ada), Pause, Back — besar dan mudah dijangkau (touch target ≥44px di mobile).",
       "states": [
         {
@@ -407,7 +407,7 @@
     },
     {
       "type": "detail",
-      "description": "Data Preview untuk record tersimpan (Weighbridge/Grading/Cages Track) di web dan mobile — read-only.",
+      "description": "Data Preview untuk record tersimpan (Weighbridge/Grading/Cages Track/Threshing/Pressing/Depricarping/Kernel Plant) di web dan mobile — read-only.",
       "layout": "Web: split-view (ringkasan header di kiri/atas, detail grid di kanan/bawah) dalam shell sidebar+header. Mobile: full-page read-only, mengikuti struktur form tapi non-editable.",
       "header_area": "Judul record (mis. nomor WB Card) + status badge (saved/synced/paused).",
       "body_area": "Seluruh field header & detail ditampilkan read-only, dikelompokkan sesuai struktur form aslinya.",
@@ -481,7 +481,7 @@
     },
     {
       "component": "station-tile",
-      "notes": "Tile grid 3-kolom untuk station selector mobile (screen-006 dan layar sejenis). Aktif: background Station/Status Red (#D20000), ikon Lucide 20px putih (stroke 1.5) sesuai jenis stasiun (mis. Gauge untuk Weighbridge, Layers untuk Grading, Package untuk Cages Track) ditampilkan di atas label nama, shadow token 'card' (0 1px 2px rgba(0,0,0,0.06)) supaya tile tidak terasa flat, radius 'card' (12px). Disabled/placeholder: background Surface (#F7F7F7), ikon+teks Text Muted, label kecil 'Belum tersedia' di bawah nama — tetap tappable via aria-disabled (bukan atribut disabled native) agar tap tetap memicu info singkat. Urutan grid TETAP (bukan alfabetis by name) — lihat screen_type_patterns[type=list].body_area. Min touch target 44px pada seluruh tile."
+      "notes": "Tile grid 3-kolom untuk station selector mobile (screen-006 dan layar sejenis). Aktif: background Station/Status Red (#D20000), ikon Lucide 20px putih (stroke 1.5) sesuai jenis stasiun (mis. Gauge untuk Weighbridge, Layers untuk Grading, Package untuk Cages Track, dan ikon default masing-masing untuk Threshing/Pressing/Depricarping/Kernel Plant sejak 2026-08-23) ditampilkan di atas label nama, shadow token 'card' (0 1px 2px rgba(0,0,0,0.06)) supaya tile tidak terasa flat, radius 'card' (12px). Disabled/placeholder: background Surface (#F7F7F7), ikon+teks Text Muted, label kecil 'Belum tersedia' di bawah nama — tetap tappable via aria-disabled (bukan atribut disabled native) agar tap tetap memicu info singkat. Urutan grid TETAP (bukan alfabetis by name) — lihat screen_type_patterns[type=list].body_area (7 aktif + 8 placeholder sejak 2026-08-23). Min touch target 44px pada seluruh tile."
     },
     {
       "component": "web-form-input",
@@ -514,5 +514,5 @@
       "images_and_media": "Gambar referensi stasiun/mesin disertai teks deskriptif singkat (nama stasiun/mesin)"
     }
   },
-  "design_notes": "Warna merah #D20000 dipakai ganda — sebagai warna default tombol grid stasiun (Figma) dan sebagai indikator status 'sedang berlangsung'/'paused' (section 6.2 PRD) — dibedakan lewat ikon dan teks label, bukan varian warna, sesuai keputusan mengikuti dokumen sumber. Dark mode berada di luar scope MVP. Level aksesibilitas Basic dipilih karena ini internal tool untuk operator lapangan, bukan aplikasi publik. Revisi 2026-08-18 (screen-006 terlihat 'jelek' — tile solid tanpa ikon, urutan alfabetis, reference-image placeholder tak bermakna): pattern 'list' tipe mobile diperjelas dengan ikon per-tile, shadow elevation, urutan grid tetap, dan reference-image dijadikan opsional bukan wajib — lihat screen_type_patterns[type=list] dan component_patterns 'station-tile'. Revisi 2026-08-19: ditambahkan component_patterns 'web-form-input' — konvensi baru bahwa input form web tidak boleh disabled/readonly (termasuk field computed), dan field date/datetime web wajib mendukung input manual + picker sekaligus."
+  "design_notes": "Warna merah #D20000 dipakai ganda — sebagai warna default tombol grid stasiun (Figma) dan sebagai indikator status 'sedang berlangsung'/'paused' (section 6.2 PRD) — dibedakan lewat ikon dan teks label, bukan varian warna, sesuai keputusan mengikuti dokumen sumber. Dark mode berada di luar scope MVP. Level aksesibilitas Basic dipilih karena ini internal tool untuk operator lapangan, bukan aplikasi publik. Revisi 2026-08-18 (screen-006 terlihat 'jelek' — tile solid tanpa ikon, urutan alfabetis, reference-image placeholder tak bermakna): pattern 'list' tipe mobile diperjelas dengan ikon per-tile, shadow elevation, urutan grid tetap, dan reference-image dijadikan opsional bukan wajib — lihat screen_type_patterns[type=list] dan component_patterns 'station-tile'. Revisi 2026-08-19: ditambahkan component_patterns 'web-form-input' — konvensi baru bahwa input form web tidak boleh disabled/readonly (termasuk field computed), dan field date/datetime web wajib mendukung input manual + picker sekaligus. Revisi 2026-08-23: Threshing/Pressing/Depricarping/Kernel Plant dipromosikan dari placeholder ke stasiun aktif MVP (7 aktif + 8 placeholder, dari sebelumnya 3 aktif + 12 placeholder) — screen_type_patterns[type=list/form/detail] dan component_patterns 'station-tile' diperbarui untuk mencerminkan hal ini; tidak ada type-pattern baru yang dibutuhkan, keempat stasiun baru mengikuti pola form/detail/list yang sama persis."
 }

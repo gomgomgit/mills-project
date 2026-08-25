@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "ver": 1,
+  "id": "usecase-055--detail-depricarping-web",
+  "name": "Lihat Detail Depricarping (Web)",
+  "description": "Supervisor, Mill Management, atau Admin melihat satu record Depricarping secara lengkap read-only dari web.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login di web dengan role Supervisor/Mill Management/Admin"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Menekan salah satu baris pada Data Browser Depricarping (Web)"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan halaman Detail Depricarping (Web) untuk record tersebut: identitas, grid 24 baris, tabel Target Operasional, info verifikasi"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Record tidak ditemukan",
+      "trigger": "User menavigasi langsung dengan id yang tidak ada",
+      "steps": [
+        "System menampilkan pesan 'Record tidak ditemukan' beserta tombol Back"
+      ]
+    },
+    {
+      "name": "Klik Edit",
+      "trigger": "Pada step 2, user menekan tombol Edit",
+      "steps": [
+        "System membuka Form Depricarping (Web) mode ubah untuk record ini"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail record Depricarping secara lengkap read-only, atau berada di Form Depricarping (Web) mode ubah"
+  ],
+  "business_rules": [
+    "Seluruh field read-only, tidak ada edit inline",
+    "Hanya Supervisor/Mill Management/Admin yang dapat mengakses"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Detail Depricarping - berhasil",
+      "given": "User login sebagai Supervisor/Mill Management/Admin dan berada di Data Browser Depricarping (Web)",
+      "when": "User menekan salah satu baris record",
+      "then": "System menampilkan halaman detail lengkap record tersebut, termasuk grid 24 baris dan tabel Target Operasional 4 kolom"
+    },
+    {
+      "scenario": "Lihat Detail Depricarping - Record Tidak Ditemukan",
+      "given": "User menavigasi langsung ke id yang tidak ada",
+      "when": "Halaman detail dimuat",
+      "then": "System menampilkan pesan Record tidak ditemukan beserta tombol Back"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-055--detail-depricarping-web"
+  ]
+}

@@ -7,6 +7,28 @@
  * Playwright spec, one test per test_scenarios' browser_test step. Mirrors
  * the convention established by tests/Browser/KelolaBusinessUnitTest.php.
  *
+ * REWRITTEN: two staleness/logic issues fixed against the current
+ * implementation.
+ *   1. #role and #business_unit_id are the x-searchable-select combobox
+ *      (resources/views/components/searchable-select.blade.php), not a
+ *      native <select> — .selectOption() never worked against them.
+ *      Replaced with click+fill+click-option via the selectSearchable()/
+ *      selectSearchableFirst() helpers below (same pattern as
+ *      KelolaBusinessUnitTest.php et al).
+ *   2. #business_unit_id only renders once `form.role` is anything other
+ *      than 'admin' (`wire:model.live="form.role"` on #role, `@if
+ *      ($form['role'] !== 'admin')` around the Business Unit field — see
+ *      resources/views/livewire/user-management/kelola-user-role.blade.php)
+ *      and is required for every non-admin role. The old file picked
+ *      "Supervisor"/"Mill management" in scenarios 1-3 without ever
+ *      selecting a Business Unit, which the real business rule (scenario
+ *      4's own "Business Unit wajib untuk role non-Admin") would reject —
+ *      those scenarios were asserting a "berhasil"/"sudah digunakan"
+ *      outcome that could never actually happen. Fixed by selecting a
+ *      Business Unit right after picking a non-admin role wherever the
+ *      scenario's own intent isn't specifically to test the missing-BU
+ *      validation (scenario 4 deliberately still skips it).
+ *
  * GENERATED BUT NOT EXECUTED IN THIS ENVIRONMENT: there is no dev server or
  * browser available in this sandbox. This file is written to be complete
  * and correct, to be run later via `playwright test` per
@@ -14,15 +36,16 @@
  *
  * Test data assumption (mirrors KelolaBusinessUnitTest.php's approach):
  * each scenario logs in via /login first, then navigates to /users.
- *   - business unit: "Mill A" (login form's Business Area picker)
  *   - urtest-admin01 / Passw0rd! (role: admin) — scenarios 1-7
  *   - urtest-nonadmin01 / Passw0rd! (role: supervisor) — scenario 7
  * Scenario 2 assumes a user "urtest-existing01" already exists to edit.
  * Scenario 3 assumes a user with username "urtest-duplicate01" already
  * exists. Scenario 6 assumes a second user "urtest-other01" (not the
- * logged-in admin) exists to deactivate. Adjust the USERNAME/fixture-name
- * constants below to match whatever seeder provisions the target
- * environment.
+ * logged-in admin) exists to deactivate. Scenarios 1-3 assume at least one
+ * Business Unit row exists (picked via selectSearchableFirst, any Business
+ * Unit satisfies the required-field rule). Adjust the USERNAME/
+ * fixture-name constants below to match whatever seeder provisions the
+ * target environment.
  */
 
 import { test, expect } from '@playwright/test';
@@ -30,20 +53,29 @@ import { test, expect } from '@playwright/test';
 const BASE_URL = 'http://localhost:8000';
 const LOGIN_PATH = '/login';
 const USERS_PATH = '/users';
-const BUSINESS_UNIT_NAME = 'Mill A';
 const PASSWORD = 'Passw0rd!';
 
 async function login(page, username, password) {
   await page.goto(`${BASE_URL}${LOGIN_PATH}`);
   await page.locator('#username').fill(username);
   await page.locator('#password').fill(password);
-  await page.locator('#business_unit_id').selectOption({ label: BUSINESS_UNIT_NAME });
   await page.locator('button[type="submit"]').click();
   await page.waitForURL((url) => !url.pathname.startsWith(LOGIN_PATH));
 }
 
 async function gotoUsers(page) {
   await page.goto(`${BASE_URL}${USERS_PATH}`);
+}
+
+async function selectSearchable(page, id, label) {
+  await page.locator(`#${id}`).click();
+  await page.locator(`#${id}`).fill(label);
+  await page.locator(`#${id}-listbox`).getByRole('option', { name: label, exact: true }).click();
+}
+
+async function selectSearchableFirst(page, id) {
+  await page.locator(`#${id}`).click();
+  await page.locator(`#${id}-listbox`).getByRole('option').nth(1).click();
 }
 
 test.describe('Kelola User & Role', () => {
@@ -58,8 +90,8 @@ test.describe('Kelola User & Role', () => {
     const username = `urtest-new-${uniqueSuffix}`;
     await page.locator('#username').fill(username);
     await page.locator('#name').fill('Andi Wijaya');
-    await page.locator('#role').selectOption({ label: 'Supervisor' });
-    await page.locator('#business_unit_id').selectOption({ label: BUSINESS_UNIT_NAME });
+    await selectSearchable(page, 'role', 'Supervisor');
+    await selectSearchableFirst(page, 'business_unit_id');
     await page.locator('#password').fill(PASSWORD);
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
@@ -78,7 +110,8 @@ test.describe('Kelola User & Role', () => {
 
     const newName = `Nama Sesudah Edit ${Date.now()}`;
     await page.locator('#name').fill(newName);
-    await page.locator('#role').selectOption({ label: 'Mill management' });
+    await selectSearchable(page, 'role', 'Mill management');
+    await selectSearchableFirst(page, 'business_unit_id');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
     const updatedRow = page.locator('.kc-table__row', { hasText: 'urtest-existing01' });
@@ -93,8 +126,8 @@ test.describe('Kelola User & Role', () => {
     await page.locator('button', { hasText: 'Tambah User' }).click();
     await page.locator('#username').fill('urtest-duplicate01');
     await page.locator('#name').fill('User Lain');
-    await page.locator('#role').selectOption({ label: 'Supervisor' });
-    await page.locator('#business_unit_id').selectOption({ label: BUSINESS_UNIT_NAME });
+    await selectSearchable(page, 'role', 'Supervisor');
+    await selectSearchableFirst(page, 'business_unit_id');
     await page.locator('#password').fill(PASSWORD);
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
@@ -109,7 +142,7 @@ test.describe('Kelola User & Role', () => {
     await page.locator('button', { hasText: 'Tambah User' }).click();
     await page.locator('#username').fill(`urtest-nobu-${Date.now()}`);
     await page.locator('#name').fill('Operator Baru');
-    await page.locator('#role').selectOption({ label: 'Operator' });
+    await selectSearchable(page, 'role', 'Operator');
     await page.locator('#password').fill(PASSWORD);
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 

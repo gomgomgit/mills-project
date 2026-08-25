@@ -1,0 +1,59 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-043--form-depricarping",
+  "name": "Form Depricarping",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/FormDepricarpingView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/FormDepricarpingView.spec.ts",
+    "mobile/tests/e2e/form-depricarping.spec.ts"
+  ],
+  "implementation_notes": [
+    "REVISED 2026-08-24 (entity-catalog v12, replacing the original fixed 24-row design the user explicitly rejected as wasting screen space): Depricarping Detail grid now renders whatever rows exist (0..24) loaded from depricarpingRecordRepo.getDraftWithDetails(), with Tambah baris/Hapus baris controls -- the exact same dynamic add-row/remove-row pattern as Pressing Detail (screen-042, just fixed)/Threshing Detail (screen-041)/Cages Tipped Time (screen-012), no longer a structural difference from those grids",
+    "STRUCTURAL DIFFERENCE handled explicitly, UNAFFECTED by this revision: 8 reading columns per row (7 numeric + Downtime (Mins) as a separate numeric field + Findings as a separate free-text field), instead of Threshing's/Pressing's single free-text 'Downtime Reason' column -- isRowFilled()/validateDetailRows() in both the repo and this view check all 8 columns, with downtime_minutes and findings each independently sufficient to satisfy the minimum-one-row rule (which now also requires a selected Time-Slot, same as Pressing/Threshing)",
+    "Target Operasional reference table sourced from a STATIC constant (mobile/src/data/depricarpingOperationalTargets.ts, created under screen-039) rather than a synced local reference table -- UNTOUCHED by this revision, same judgment call already documented for Threshing/Pressing; STRUCTURAL DIFFERENCE: this table renders 4 columns (Parameter/Metric, Target Range, Critical Limit, Operational Consequence/Justification) instead of Threshing's/Pressing's 3 columns, matching the entity-catalog's own 4-field shape for this station",
+    "'Minimal 1 baris valid' (Time-Slot terpilih + minimal 1 dari 8 kolom bacaan terisi) validated at FE + repo level (depricarpingRecordRepo.saveDraft() throws DepricarpingDetailRequiredError) -- NOT enforced by the server model's DepricarpingRecord::booted() saving guard, which only checks row EXISTENCE (now meaningfully true only once the user has added at least one row, since rows are no longer pre-created), same pattern already fixed for Threshing/Pressing",
+    "availableTimeSlotOptions() compares slots by their index in canonicalTimeSlots() rather than a raw hour number (since slots wrap starting at 07:00, not 0-23) -- the one structural difference from Cages Tipped Time's availableHourOptions(), otherwise the floor/exclusion logic is identical to Pressing's/Threshing's just-fixed version",
+    "Every FormField id in the grid is set explicitly (e.g. fan-static-pressure-{index}, downtime-minutes-{index}, findings-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide",
+    "Time-Slot per row is now a SearchableSelect.vue instance (was a read-only label) -- mirrors FormPressingView.vue exactly, WITH pendingDeletionIds for existing (has-id) rows removed via Hapus baris"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) e2e spec (mobile/tests/e2e/form-depricarping.spec.ts) was originally authored for the fixed-24-row design, then REVISED 2026-08-24 alongside this fix to exercise Tambah baris/Hapus baris and the Time-Slot <select> -- still could not be executed in this sandboxed environment against a running dev server + seeded backend, verified only by static review (syntax confirmed via `playwright test --list`).",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T08:19:46Z",
+      "passed": 23,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

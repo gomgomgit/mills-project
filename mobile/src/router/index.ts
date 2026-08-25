@@ -254,6 +254,154 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/DataPreviewCagesTrackView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-037--monitor-threshing / usecase-037--monitor-threshing
+    // "Monitor Threshing". meta.public is deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor). NOTE: StationListView.vue (screen-006, out of this
+    // task's scope) has NOT yet been updated to link to this route name —
+    // reachable directly by URL / by a future revision of screen-006.
+    path: '/stations/threshing/monitor',
+    name: 'monitor-threshing',
+    component: () => import('@/views/MonitorThreshingView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-041--form-threshing / usecase-041--form-threshing "Form
+    // Threshing". meta.public is deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor). `:id` route param carries the draft record's id,
+    // matching MonitorThreshingView.vue's `router.push({ name:
+    // 'threshing-form', params: { id } })` calls, same `/:id` param
+    // convention as `cages-track-form` above.
+    path: '/stations/threshing/form/:id',
+    name: 'threshing-form',
+    component: () => import('@/views/FormThreshingView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-045--data-preview-threshing /
+    // usecase-045--data-preview-threshing "Data Preview Threshing".
+    // meta.public is deliberately false. `:id?` optional trailing param,
+    // same convention as `data-preview-cages-track` above.
+    path: '/stations/threshing/preview/:id?',
+    name: 'data-preview-threshing',
+    component: () => import('@/views/DataPreviewThreshingView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-038--monitor-pressing / usecase-038--monitor-pressing
+    // "Monitor Pressing". meta.public is deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor). Mirrors 'monitor-threshing' exactly — Pressing's
+    // structural sibling. NOTE: StationListView.vue (screen-006, out of
+    // this task's scope) has NOT yet been updated to link to this route
+    // name — reachable directly by URL / by a future revision of
+    // screen-006 (same known issue already documented for Threshing).
+    path: '/stations/pressing/monitor',
+    name: 'monitor-pressing',
+    component: () => import('@/views/MonitorPressingView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-042--form-pressing / usecase-042--form-pressing "Form
+    // Pressing". meta.public is deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor). `:id` route param carries the draft record's id,
+    // matching MonitorPressingView.vue's `router.push({ name:
+    // 'pressing-form', params: { id } })` calls, same `/:id` param
+    // convention as `threshing-form` above.
+    path: '/stations/pressing/form/:id',
+    name: 'pressing-form',
+    component: () => import('@/views/FormPressingView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-046--data-preview-pressing /
+    // usecase-046--data-preview-pressing "Data Preview Pressing".
+    // meta.public is deliberately false. `:id?` optional trailing param,
+    // same convention as `data-preview-threshing` above.
+    path: '/stations/pressing/preview/:id?',
+    name: 'data-preview-pressing',
+    component: () => import('@/views/DataPreviewPressingView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-039--monitor-depricarping / usecase-039--monitor-depricarping
+    // "Monitor Depricarping". meta.public is deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor). Mirrors 'monitor-pressing' exactly — Depricarping's
+    // structural sibling. NOTE: StationListView.vue (screen-006, out of
+    // this task's scope) has NOT yet been updated to link to this route
+    // name — reachable directly by URL / by a future revision of
+    // screen-006 (same known issue already documented for Threshing/
+    // Pressing).
+    path: '/stations/depricarping/monitor',
+    name: 'monitor-depricarping',
+    component: () => import('@/views/MonitorDepricarpingView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-043--form-depricarping / usecase-043--form-depricarping "Form
+    // Depricarping". meta.public is deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor). `:id` route param carries the draft record's id,
+    // matching MonitorDepricarpingView.vue's `router.push({ name:
+    // 'depricarping-form', params: { id } })` calls, same `/:id` param
+    // convention as `pressing-form` above.
+    path: '/stations/depricarping/form/:id',
+    name: 'depricarping-form',
+    component: () => import('@/views/FormDepricarpingView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-047--data-preview-depricarping /
+    // usecase-047--data-preview-depricarping "Data Preview Depricarping".
+    // meta.public is deliberately false. `:id?` optional trailing param,
+    // same convention as `data-preview-pressing` above.
+    path: '/stations/depricarping/preview/:id?',
+    name: 'data-preview-depricarping',
+    component: () => import('@/views/DataPreviewDepricarpingView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-040--monitor-kernel-plant / usecase-040--monitor-kernel-plant
+    // "Monitor Kernel Plant". meta.public is deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor). Mirrors 'monitor-depricarping' exactly — Kernel Plant's
+    // structural sibling. NOTE: StationListView.vue (screen-006, out of
+    // this task's scope) has NOT yet been updated to link to this route
+    // name — reachable directly by URL / by a future revision of
+    // screen-006 (same known issue already documented for Threshing/
+    // Pressing/Depricarping).
+    path: '/stations/kernel-plant/monitor',
+    name: 'monitor-kernel-plant',
+    component: () => import('@/views/MonitorKernelPlantView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-044--form-kernel-plant / usecase-044--form-kernel-plant "Form
+    // Kernel Plant". meta.public is deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor). `:id` route param carries the draft record's id,
+    // matching MonitorKernelPlantView.vue's `router.push({ name:
+    // 'kernel-plant-form', params: { id } })` calls, same `/:id` param
+    // convention as `depricarping-form` above.
+    path: '/stations/kernel-plant/form/:id',
+    name: 'kernel-plant-form',
+    component: () => import('@/views/FormKernelPlantView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-048--data-preview-kernel-plant /
+    // usecase-048--data-preview-kernel-plant "Data Preview Kernel Plant".
+    // meta.public is deliberately false. `:id?` optional trailing param,
+    // same convention as `data-preview-depricarping` above.
+    path: '/stations/kernel-plant/preview/:id?',
+    name: 'data-preview-kernel-plant',
+    component: () => import('@/views/DataPreviewKernelPlantView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

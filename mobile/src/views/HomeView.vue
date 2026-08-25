@@ -52,12 +52,14 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useFloatingClockStore } from '@/stores/floatingClock'
+import { useAiAssistantStore } from '@/stores/aiAssistant'
 import { getMillSetting } from '@/services/millSettingRepo'
 import staticHeroImage from '@/assets/home-hero-mill.jpg'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const floatingClockStore = useFloatingClockStore()
+const aiAssistantStore = useAiAssistantStore()
 
 /**
  * business_logic step 3/5 — read once on mount from the local mill_setting
@@ -94,6 +96,11 @@ function toggleNavMenu() {
 
 function closeNavMenu() {
   isNavMenuOpen.value = false
+}
+
+function openAiAssistant() {
+  closeNavMenu()
+  aiAssistantStore.open()
 }
 
 function goToChangePassword() {
@@ -196,14 +203,18 @@ const MENU_ICONS: Record<string, string> = {
       <button
         type="button"
         class="hamburger-button"
-        aria-label="Buka menu navigasi"
+        :aria-label="isNavMenuOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'"
         data-testid="hamburger-button"
         @click="toggleNavMenu"
       >
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+        <svg v-if="!isNavMenuOpen" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
           <line x1="3" y1="6" x2="21" y2="6" />
           <line x1="3" y1="12" x2="21" y2="12" />
           <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+        <svg v-else viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
       </button>
 
@@ -212,6 +223,8 @@ const MENU_ICONS: Record<string, string> = {
           Ganti Password
         </button>
         <button type="button" class="nav-menu-item" data-testid="nav-menu-toggle-floating-clock" @click="floatingClockStore.toggle()">{{ floatingClockStore.enabled ? 'Nonaktifkan Jam Mengambang' : 'Aktifkan Jam Mengambang' }}</button>
+        <button type="button" class="nav-menu-item" data-testid="nav-menu-toggle-ai-bubble" @click="aiAssistantStore.toggleBubble()">{{ aiAssistantStore.bubbleEnabled ? 'Nonaktifkan Bubble Chat AI' : 'Aktifkan Bubble Chat AI' }}</button>
+        <button type="button" class="nav-menu-item" data-testid="nav-menu-ai-assistant" @click="openAiAssistant">Bantuan AI</button>
         <button type="button" class="nav-menu-item" data-testid="nav-menu-logout" @click="onLogout">Logout</button>
       </div>
     </header>

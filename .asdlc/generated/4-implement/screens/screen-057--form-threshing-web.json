@@ -1,0 +1,61 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-057--form-threshing-web",
+  "name": "Form Threshing (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/FormThreshingTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormThreshing.php",
+    "backend/resources/views/data/threshing-form.blade.php",
+    "backend/resources/views/livewire/data/form-threshing.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormThreshingTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses ThreshingRecordService::create()/update() (BE service shared with screen-049)",
+    "REVISED 2026-08-24 (entity-catalog v12, correcting the original design the user explicitly rejected): the Threshing Detail grid is now DYNAMIC -- addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions() now exist on FormThreshing.php, exactly mirroring FormCagesTrack's Cages Tipped Time grid. Grid starts empty on create mode (was: built from ThreshingRecordService::canonicalTimeSlots() into 24 rows on mount); edit mode still loads existing rows verbatim with each row's id",
+    "All 6 reading-column inputs per row are genuinely editable number/text fields, never disabled -- unlike Form Cages Track Web's Total Cages/Cages Remain (computed, disabled as a documented uiux-spec exception), Threshing has no computed detail-grid fields, so the 'no disabled web inputs' rule applies with zero exceptions in this screen's detail grid",
+    "Target Operasional table queried directly by FormThreshing::render(), never sent as part of the create/update payload",
+    "Route /data/threshing/create registered BEFORE /data/threshing/{id} (screen-053) so the literal 'create' segment is not swallowed by {id}",
+    "checked/acknowledged self-attestation checkboxes mirror FormCagesTrack's dual-checkbox pattern (both Checked By AND Acknowledged By, unlike Form Weighbridge/Grading Web which only have Acknowledged)"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/FormThreshingTest.php) was authored but could not be executed in this sandboxed environment -- verified only by static review.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-24T07:20:00Z",
+      "passed": 14,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T07:20:00Z",
+      "passed": 19,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "ver": 1,
+  "id": "usecase-060--form-kernel-plant-web",
+  "name": "Input Data Kernel Plant (Web)",
+  "description": "Supervisor, Mill Management, atau Admin menambah atau mengubah data Kernel Plant dari web, mengisi header dan grid detail 24 baris.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login di web dengan role Supervisor/Mill Management/Admin"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Menekan 'Tambah Data' dari Data Browser Kernel Plant (Web)"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan Form Kernel Plant (Web) mode tambah dengan 24 baris kosong dan Tanggal default hari ini"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Memilih Production Line, mengisi Kernel Plant ID, dan minimal 1 kolom bacaan pada grid"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Menekan 'Simpan'"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Meresolve station dari Production Line, menyimpan record baru dengan status=saved, lalu menuju halaman Detail Kernel Plant (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field wajib belum lengkap",
+      "trigger": "Pada step 5, Production Line/Kernel Plant ID/Tanggal kosong",
+      "steps": [
+        "System menampilkan error inline per field",
+        "Record tidak disimpan"
+      ]
+    },
+    {
+      "name": "Belum ada baris terisi",
+      "trigger": "Pada step 5, seluruh 24 baris tidak punya kolom bacaan terisi",
+      "steps": [
+        "System menampilkan pesan error khusus pada grid",
+        "Record tidak disimpan"
+      ]
+    },
+    {
+      "name": "Production Line tanpa station aktif",
+      "trigger": "Pada step 5, Production Line terpilih tidak memiliki station Kernel Plant aktif",
+      "steps": [
+        "System menampilkan pesan error umum",
+        "Record tidak disimpan"
+      ]
+    },
+    {
+      "name": "Mode ubah",
+      "trigger": "User menekan 'Edit' dari Detail Kernel Plant (Web) alih-alih 'Tambah Data'",
+      "steps": [
+        "System menampilkan Form Kernel Plant (Web) mode ubah dengan data record terisi, Station read-only",
+        "Simpan memperbarui record yang sama, bukan membuat baru"
+      ]
+    },
+    {
+      "name": "Record tidak ditemukan (mode ubah)",
+      "trigger": "User menavigasi langsung ke url edit dengan id yang tidak ada",
+      "steps": [
+        "System menampilkan pesan 'Record tidak ditemukan'"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Kernel Plant baru dibuat atau record yang sudah ada diperbarui dengan status=saved, user berada di halaman Detail Kernel Plant (Web)"
+  ],
+  "business_rules": [
+    "Production Line wajib pada mode tambah, tidak dapat diubah pada mode ubah",
+    "Grid selalu tepat 24 baris, minimal 1 baris terisi",
+    "Simpan selalu menghasilkan status=saved",
+    "Checked hanya Supervisor, Acknowledged hanya Mill Management"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "berhasil",
+      "given": "User login sebagai Supervisor dan berada di Form Kernel Plant (Web) mode tambah",
+      "when": "User memilih Production Line, mengisi Kernel Plant ID dan 1 kolom bacaan, menekan Simpan",
+      "then": "System menyimpan record baru dengan status=saved dan menuju halaman Detail yang menampilkan record tersebut"
+    },
+    {
+      "scenario": "Field Wajib Belum Lengkap",
+      "given": "User berada di Form Kernel Plant (Web) mode tambah",
+      "when": "User menekan Simpan tanpa mengisi Kernel Plant ID",
+      "then": "System menampilkan error inline pada field Kernel Plant ID"
+    },
+    {
+      "scenario": "Belum Ada Baris Terisi",
+      "given": "User telah mengisi Production Line dan Kernel Plant ID",
+      "when": "User menekan Simpan tanpa mengisi satu pun kolom bacaan",
+      "then": "System menampilkan pesan error khusus pada grid"
+    },
+    {
+      "scenario": "Production Line Tanpa Station Kernel Plant Aktif",
+      "given": "User memilih Production Line yang tidak memiliki station Kernel Plant aktif",
+      "when": "User menekan Simpan",
+      "then": "System menampilkan pesan error umum, record tidak disimpan"
+    },
+    {
+      "scenario": "Grid Selalu 24 Baris Tanpa Tambah/Hapus",
+      "given": "User membuka Form Kernel Plant (Web) mode tambah",
+      "when": "Grid Kernel Plant Detail ditampilkan",
+      "then": "Grid selalu berisi tepat 24 baris tanpa kontrol tambah/hapus baris"
+    },
+    {
+      "scenario": "Edit Record Kernel Plant — berhasil",
+      "given": "User menekan Edit dari Detail Kernel Plant (Web) untuk record yang sudah ada",
+      "when": "User mengubah salah satu field dan menekan Simpan",
+      "then": "System memperbarui record yang sama dan halaman Detail menampilkan nilai baru"
+    },
+    {
+      "scenario": "Record Tidak Ditemukan (mode edit)",
+      "given": "User menavigasi langsung ke url edit dengan id yang tidak ada",
+      "when": "Halaman dimuat",
+      "then": "System menampilkan pesan Record tidak ditemukan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-060--form-kernel-plant-web"
+  ]
+}

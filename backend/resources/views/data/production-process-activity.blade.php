@@ -73,9 +73,15 @@
     </x-slot:styles>
 
     {{--
-        15 canonical station tiles (3 active + 12 placeholder), hardcoded
+        15 canonical station tiles (7 active + 8 placeholder), hardcoded
         per tech-spec v1 implementation_notes — mirrors mobile's
         DEFAULT_STATIONS in localSchema.ts, not a database query.
+
+        2026-08-23 — 4 of the former 12 placeholders (Thresher/Press/
+        Digester/Kernel Plant) promoted to active MVP stations
+        (Threshing/Pressing/Depricarping/Kernel Plant), mirroring
+        StationGrid.vue's ACTIVE_ICONS SVG paths exactly for visual
+        consistency between mobile and web.
     --}}
     <div class="station-grid">
         <a href="{{ route('data.weighbridge') }}" class="station-tile active">
@@ -90,9 +96,35 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="18" height="13" rx="1"></rect><path d="M3 11h18"></path><path d="M8 7V4h8v3"></path></svg>
             Cages Track
         </a>
+        <a href="{{ route('data.threshing') }}" class="station-tile active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            Threshing
+        </a>
+        <a href="{{ route('data.pressing') }}" class="station-tile active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 20V10l8-6 8 6v10"></path><line x1="12" y1="14" x2="12" y2="20"></line></svg>
+            Pressing
+        </a>
+        {{--
+            TEMPORARY (2026-08-24, narrowed 2026-08-25) — Depricarping/Kernel
+            Plant are fully built and tested but not yet ready to expose to
+            users; product decision is to hide these 2 tiles for now.
+            Threshing/Pressing were re-enabled 2026-08-25 (see above, now
+            live tiles). Routes/controllers/backend are untouched. To
+            re-enable: delete this comment block markers and un-comment the
+            2 <a> tiles below.
+
+            <a href="{{ route('data.depricarping') }}" class="station-tile active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="8"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                Depricarping
+            </a>
+            <a href="{{ route('data.kernel-plant') }}" class="station-tile active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="3" width="14" height="18" rx="1"></rect><line x1="9" y1="8" x2="15" y2="8"></line><line x1="9" y1="12" x2="15" y2="12"></line></svg>
+                Kernel Plant
+            </a>
+        --}}
         @foreach ([
-            'Sterilizer', 'Thresher', 'Press', 'Clarification', 'Kernel Plant',
-            'Boiler', 'Effluent Treatment', 'Loading Ramp', 'Digester',
+            'Sterilizer', 'Clarification',
+            'Boiler', 'Effluent Treatment', 'Loading Ramp',
             'Engine Room', 'Water Treatment', 'Bulking Storage',
         ] as $placeholder)
             <div class="station-tile disabled" aria-disabled="true">

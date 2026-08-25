@@ -1,0 +1,130 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "ver": 2,
+  "id": "screen-060--form-kernel-plant-web",
+  "name": "Form Kernel Plant (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman web untuk menambah dan mengubah data Kernel Plant, mengikuti pola field yang sama seperti Form Kernel Plant mobile (header + grid Kernel Plant Detail dinamis, baris ditambahkan satu per satu oleh user via 'Tambah Baris' — revisi 2026-08-24, sama seperti Depricarping Detail Web — + tabel referensi Target Operasional read-only), dengan dua perbedaan sengaja dari mobile: Tanggal tetap dapat diedit (tidak dikunci), dan record tersimpan tetap dapat diedit kembali (tidak ada konsep draft/pause/Clear di web) — mengikuti pola Form Depricarping (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Tombol 'Tambah Data' dari Data Browser Kernel Plant (Web) (mode tambah)",
+    "Tombol 'Edit' dari Detail Kernel Plant (Web) (mode ubah)"
+  ],
+  "information_displayed": [
+    "Mode Tambah: dropdown Production Line (wajib), Kernel Plant ID (wajib), Tanggal (default hari ini, dapat diedit), Note",
+    "Mode Ubah: Station ditampilkan read-only (tidak dapat diubah setelah dibuat), field lain sama seperti mode tambah",
+    "Grid Kernel Plant Detail: baris ditambahkan satu per satu (Tambah Baris), Time-Slot per baris dipilih dari dropdown (opsi = 24 slot kanonis 07:00-06:00 DIKURANGI yang sudah dipakai baris lain dan yang lebih awal-atau-sama dengan slot tertinggi yang sudah dipilih baris lain), 9 kolom bacaan per baris (Ripple Mill 1/2, Claybath/Hydro SG, Kernel Silo 1/2 Temp, Kernel Moisture, Shell Loss, Downtime (Mins), Findings) — seluruhnya opsional per baris, baris dapat dihapus",
+    "Tabel Target Operasional read-only 6 baris x 3 kolom di bawah grid, bukan bagian dari payload simpan",
+    "Checkbox Checked (khusus Supervisor) dan Acknowledged (khusus Mill Management)"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan station Kernel Plant tujuan record baru (hanya mode tambah)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah baris Kernel Plant Detail",
+      "description": "Menambah satu baris time-slot kosong ke grid",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus baris Kernel Plant Detail",
+      "description": "Menghapus satu baris dari grid; Time-Slot yang dipakainya kembali tersedia untuk baris lain",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Time-Slot per baris",
+      "description": "Memilih slot jam untuk baris tersebut dari slot kanonis yang tersedia (belum dipakai baris lain, lebih lambat dari slot tertinggi yang sudah dipilih baris lain)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Isi kolom bacaan pada baris Kernel Plant Detail",
+      "description": "Mengisi salah satu atau lebih dari 9 kolom bacaan pada baris manapun yang sudah ditambahkan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Validasi field wajib dan minimal 1 baris Kernel Plant Detail valid (Time-Slot terpilih + minimal 1 dari 9 kolom bacaan terisi), lalu membuat/memperbarui record dengan status 'saved' dan menuju halaman Detail — tidak ada draft/pause seperti mobile",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Batal",
+      "description": "Kembali ke Data Browser Kernel Plant (mode tambah) atau Detail Kernel Plant (mode ubah) tanpa menyimpan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tandai Checked",
+      "description": "Menandai record sudah diperiksa, mengisi Checked By dengan user yang login",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tandai Acknowledged",
+      "description": "Menandai record sudah dikonfirmasi, mengisi Acknowledged By dengan user yang login",
+      "actor_ids": [
+        "actor-mill-management"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Production Line wajib dipilih pada mode tambah; tidak dapat diubah pada mode ubah",
+    "Kernel Plant ID dan Tanggal wajib diisi",
+    "REVISI 2026-08-24 (menggantikan desain awal yang ditolak user): Grid Kernel Plant Detail TIDAK di-pre-generate — baris ditambahkan satu per satu via 'Tambah Baris', dapat dihapus via 'Hapus', sama seperti mobile dan Depricarping Detail Web",
+    "Time-Slot tiap baris wajib lebih lambat (index kanonis lebih besar) dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
+    "Setiap kolom bacaan pada baris opsional; minimal satu baris valid (Time-Slot terpilih + minimal 1 dari 9 kolom bacaan terisi) harus ada sebelum Simpan",
+    "Production Line yang dipilih harus memiliki station Kernel Plant aktif, jika tidak Simpan gagal dengan pesan error",
+    "Simpan selalu menghasilkan status=saved (tidak ada draft/pause di web)",
+    "Checked hanya oleh Supervisor, Acknowledged hanya oleh Mill Management",
+    "Semua input web (kecuali field yang dibatasi role) harus tetap dapat diisi, tidak ada input yang disabled/readonly di luar pembatasan role",
+    "Tabel Target Operasional murni referensi read-only 3 kolom, tidak pernah dikirim sebagai bagian dari payload simpan record"
+  ],
+  "usecase_ids": [
+    "usecase-060--form-kernel-plant-web"
+  ],
+  "edge_cases": [
+    "Field wajib kosong saat Simpan — error inline per field",
+    "Belum ada satu pun baris Kernel Plant Detail valid (Time-Slot terpilih + minimal 1 dari 9 kolom bacaan terisi) saat Simpan ditekan — pesan error khusus pada grid",
+    "User memilih Time-Slot yang sudah dipakai baris lain atau lebih awal dari baris terakhir — opsi tidak tersedia di dropdown",
+    "Production Line tanpa station Kernel Plant aktif — pesan error umum",
+    "Navigasi ke id yang tidak ada (mode ubah) — pesan 'Record tidak ditemukan'"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

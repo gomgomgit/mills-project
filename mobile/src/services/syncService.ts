@@ -3,14 +3,29 @@ import { query, run } from '@/services/localDb'
 import { useAuthStore } from '@/stores/auth'
 
 /**
- * syncService — TEMPORARY/pragmatic bridge (2026-08-20) so Weighbridge/
- * Grading/Cages Track records entered on mobile (offline-first, local
- * SQLite only) become visible on the web app (backend DB). Not the final
- * sync architecture (no conflict resolution, no background/periodic sync,
- * no retry queue) — a manual "Sinkronisasi" button the user triggers from
- * Station List (screen-006), per explicit request.
+ * syncService — TEMPORARY/pragmatic bridge (2026-08-20) so records entered
+ * on mobile (offline-first, local SQLite only) become visible on the web
+ * app (backend DB). Not the final sync architecture (no conflict
+ * resolution, no background/periodic sync, no retry queue) — a manual
+ * "Sinkronisasi" button the user triggers from Station List (screen-006),
+ * per explicit request.
  *
- * Order matters: Weighbridge MUST sync before Grading, because
+ * EXTENDED (2026-08-24): originally only Weighbridge/Grading/Cages Track
+ * (the 3 original MVP stations) — Threshing/Pressing/Depricarping/Kernel
+ * Plant (promoted to active 2026-08-23) were deliberately left out of
+ * scope at the time (see routes/api.php's now-stale "no sync UI wiring was
+ * added here" comments on those 4 stations' POST endpoints — the endpoint
+ * contracts, including the `role:...,operator` grant, were already put in
+ * place in anticipation of this). Root cause of the bug this fixes: an
+ * Operator's Threshing/Pressing/Depricarping/Kernel Plant record saved on
+ * mobile was reachable by NO ONE else — not the web app (never synced) and
+ * not even a Supervisor's own mobile session (every local read in
+ * {station}RecordRepo.ts is `WHERE created_by = ?`-scoped to the logged-in
+ * user, same as Weighbridge/Grading/Cages Track always were). All 4 new
+ * stations are standalone (no cross-reference dependency, like Cages
+ * Track) and sync independently of each other and of the original 3.
+ *
+ * Order matters for the original 3: Weighbridge MUST sync before Grading, because
  * POST /api/grading-records' `weighbridge_record_id` validates
  * `exists:weighbridge_records,id` against a REAL backend id — and the
  * backend always assigns its own new UUID on create (WeighbridgeRecord
@@ -59,6 +74,10 @@ export interface SyncSummary {
   weighbridge: SyncItemResult[]
   grading: SyncItemResult[]
   cagesTrack: SyncItemResult[]
+  threshing: SyncItemResult[]
+  pressing: SyncItemResult[]
+  depricarping: SyncItemResult[]
+  kernelPlant: SyncItemResult[]
   syncedCount: number
   failedCount: number
 }
@@ -121,6 +140,92 @@ interface LocalCagesTrackRow {
 interface LocalCagesTippedTimeRow {
   tipped_hour: number | null
   checked_cage_numbers: string | null
+}
+
+interface LocalThreshingRow {
+  id: string
+  thresher_id: string | null
+  date: string | null
+  note: string | null
+  checked_by: string | null
+  acknowledged_by: string | null
+  server_id: string | null
+}
+
+interface LocalThreshingDetailRow {
+  time_slot: string
+  ffb_throughput_mt_hour: number | null
+  thresher_drum_speed_rpm: number | null
+  motor_current_amps: number | null
+  unstripped_bunch_count_percent: number | null
+  empty_bunch_oil_loss_percent: number | null
+  downtime_reason: string | null
+}
+
+interface LocalPressingRow {
+  id: string
+  presser_id: string | null
+  date: string | null
+  note: string | null
+  checked_by: string | null
+  acknowledged_by: string | null
+  server_id: string | null
+}
+
+interface LocalPressingDetailRow {
+  time_slot: string
+  digester_temp_c: number | null
+  digester_level_percent: number | null
+  press_motor_current_amps: number | null
+  cone_hydraulic_pressure_bar: number | null
+  dilution_water_temp_c: number | null
+  downtime_reason: string | null
+}
+
+interface LocalDepricarpingRow {
+  id: string
+  presser_id: string | null
+  date: string | null
+  note: string | null
+  checked_by: string | null
+  acknowledged_by: string | null
+  server_id: string | null
+}
+
+interface LocalDepricarpingDetailRow {
+  time_slot: string
+  fan_static_pressure_mmh2o: number | null
+  polishing_drum_speed_rpm: number | null
+  air_velocity_ms: number | null
+  fibre_moisture_percent: number | null
+  kernel_recovery_in_fibre_percent: number | null
+  nut_silo_1_temp_c: number | null
+  nut_silo_2_temp_c: number | null
+  downtime_minutes: number | null
+  findings: string | null
+}
+
+interface LocalKernelPlantRow {
+  id: string
+  kernel_plant_id: string | null
+  date: string | null
+  note: string | null
+  checked_by: string | null
+  acknowledged_by: string | null
+  server_id: string | null
+}
+
+interface LocalKernelPlantDetailRow {
+  time_slot: string
+  ripple_mill_1_amps: number | null
+  ripple_mill_2_amps: number | null
+  claybath_hydro_sg: number | null
+  kernel_silo_1_temp_c: number | null
+  kernel_silo_2_temp_c: number | null
+  kernel_moisture_percent: number | null
+  shell_loss_percent: number | null
+  downtime_minutes: number | null
+  findings: string | null
 }
 
 function extractErrorMessage(error: unknown): string {
@@ -284,12 +389,167 @@ async function syncCagesTrackRecords(productionLineId: string, userId: string): 
   return results
 }
 
+async function syncThreshingRecords(productionLineId: string, userId: string): Promise<SyncItemResult[]> {
+  const rows = await query<LocalThreshingRow>(
+    `SELECT * FROM threshing_record WHERE status = 'saved' AND created_by = ?`,
+    [userId],
+  )
+
+  const results: SyncItemResult[] = []
+
+  for (const row of rows) {
+    const label = row.thresher_id ?? row.id
+
+    const details = await query<LocalThreshingDetailRow>(
+      `SELECT time_slot, ffb_throughput_mt_hour, thresher_drum_speed_rpm, motor_current_amps, unstripped_bunch_count_percent, empty_bunch_oil_loss_percent, downtime_reason FROM threshing_detail WHERE threshing_record_id = ? ORDER BY time_slot`,
+      [row.id],
+    )
+
+    try {
+      const response = await apiClient.post('/api/threshing-records', {
+        production_line_id: productionLineId,
+        thresher_id: row.thresher_id,
+        date: row.date,
+        note: row.note,
+        checked: Boolean(row.checked_by),
+        acknowledged: Boolean(row.acknowledged_by),
+        details,
+      })
+
+      const serverId = response.data?.id as string
+      await run(`UPDATE threshing_record SET status = 'synced', server_id = ? WHERE id = ?`, [serverId, row.id])
+      results.push({ id: row.id, label, ok: true })
+    } catch (error) {
+      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error) })
+    }
+  }
+
+  return results
+}
+
+async function syncPressingRecords(productionLineId: string, userId: string): Promise<SyncItemResult[]> {
+  const rows = await query<LocalPressingRow>(
+    `SELECT * FROM pressing_record WHERE status = 'saved' AND created_by = ?`,
+    [userId],
+  )
+
+  const results: SyncItemResult[] = []
+
+  for (const row of rows) {
+    const label = row.presser_id ?? row.id
+
+    const details = await query<LocalPressingDetailRow>(
+      `SELECT time_slot, digester_temp_c, digester_level_percent, press_motor_current_amps, cone_hydraulic_pressure_bar, dilution_water_temp_c, downtime_reason FROM pressing_detail WHERE pressing_record_id = ? ORDER BY time_slot`,
+      [row.id],
+    )
+
+    try {
+      const response = await apiClient.post('/api/pressing-records', {
+        production_line_id: productionLineId,
+        presser_id: row.presser_id,
+        date: row.date,
+        note: row.note,
+        checked: Boolean(row.checked_by),
+        acknowledged: Boolean(row.acknowledged_by),
+        details,
+      })
+
+      const serverId = response.data?.id as string
+      await run(`UPDATE pressing_record SET status = 'synced', server_id = ? WHERE id = ?`, [serverId, row.id])
+      results.push({ id: row.id, label, ok: true })
+    } catch (error) {
+      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error) })
+    }
+  }
+
+  return results
+}
+
+async function syncDepricarpingRecords(productionLineId: string, userId: string): Promise<SyncItemResult[]> {
+  const rows = await query<LocalDepricarpingRow>(
+    `SELECT * FROM depricarping_record WHERE status = 'saved' AND created_by = ?`,
+    [userId],
+  )
+
+  const results: SyncItemResult[] = []
+
+  for (const row of rows) {
+    const label = row.presser_id ?? row.id
+
+    const details = await query<LocalDepricarpingDetailRow>(
+      `SELECT time_slot, fan_static_pressure_mmh2o, polishing_drum_speed_rpm, air_velocity_ms, fibre_moisture_percent, kernel_recovery_in_fibre_percent, nut_silo_1_temp_c, nut_silo_2_temp_c, downtime_minutes, findings FROM depricarping_detail WHERE depricarping_record_id = ? ORDER BY time_slot`,
+      [row.id],
+    )
+
+    try {
+      const response = await apiClient.post('/api/depricarping-records', {
+        production_line_id: productionLineId,
+        presser_id: row.presser_id,
+        date: row.date,
+        note: row.note,
+        checked: Boolean(row.checked_by),
+        acknowledged: Boolean(row.acknowledged_by),
+        details,
+      })
+
+      const serverId = response.data?.id as string
+      await run(`UPDATE depricarping_record SET status = 'synced', server_id = ? WHERE id = ?`, [serverId, row.id])
+      results.push({ id: row.id, label, ok: true })
+    } catch (error) {
+      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error) })
+    }
+  }
+
+  return results
+}
+
+async function syncKernelPlantRecords(productionLineId: string, userId: string): Promise<SyncItemResult[]> {
+  const rows = await query<LocalKernelPlantRow>(
+    `SELECT * FROM kernel_plant_record WHERE status = 'saved' AND created_by = ?`,
+    [userId],
+  )
+
+  const results: SyncItemResult[] = []
+
+  for (const row of rows) {
+    const label = row.kernel_plant_id ?? row.id
+
+    const details = await query<LocalKernelPlantDetailRow>(
+      `SELECT time_slot, ripple_mill_1_amps, ripple_mill_2_amps, claybath_hydro_sg, kernel_silo_1_temp_c, kernel_silo_2_temp_c, kernel_moisture_percent, shell_loss_percent, downtime_minutes, findings FROM kernel_plant_detail WHERE kernel_plant_record_id = ? ORDER BY time_slot`,
+      [row.id],
+    )
+
+    try {
+      const response = await apiClient.post('/api/kernel-plant-records', {
+        production_line_id: productionLineId,
+        kernel_plant_id: row.kernel_plant_id,
+        date: row.date,
+        note: row.note,
+        checked: Boolean(row.checked_by),
+        acknowledged: Boolean(row.acknowledged_by),
+        details,
+      })
+
+      const serverId = response.data?.id as string
+      await run(`UPDATE kernel_plant_record SET status = 'synced', server_id = ? WHERE id = ?`, [serverId, row.id])
+      results.push({ id: row.id, label, ok: true })
+    } catch (error) {
+      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error) })
+    }
+  }
+
+  return results
+}
+
 /**
- * Runs all 3 record types' sync in order (Weighbridge, then Grading — see
- * this file's doc comment for why order matters —, then Cages Track).
- * `productionLineId` is the Production Line selected on Station List's
- * picker step (StationListView.vue's own local state, unlike `userId` —
- * read from the auth store since it IS a property of the logged-in user).
+ * Runs all 7 record types' sync in order (Weighbridge, then Grading — see
+ * this file's doc comment for why order matters —, then Cages Track,
+ * Threshing, Pressing, Depricarping, Kernel Plant — the latter 4 have no
+ * cross-reference dependency on each other or on the original 3, so their
+ * relative order doesn't matter). `productionLineId` is the Production
+ * Line selected on Station List's picker step (StationListView.vue's own
+ * local state, unlike `userId` — read from the auth store since it IS a
+ * property of the logged-in user).
  */
 export async function syncAllRecords(productionLineId: string | null | undefined): Promise<SyncSummary> {
   const authStore = useAuthStore()
@@ -302,13 +562,21 @@ export async function syncAllRecords(productionLineId: string | null | undefined
   const weighbridge = await syncWeighbridgeRecords(productionLineId, userId)
   const grading = await syncGradingRecords(productionLineId, userId)
   const cagesTrack = await syncCagesTrackRecords(productionLineId, userId)
+  const threshing = await syncThreshingRecords(productionLineId, userId)
+  const pressing = await syncPressingRecords(productionLineId, userId)
+  const depricarping = await syncDepricarpingRecords(productionLineId, userId)
+  const kernelPlant = await syncKernelPlantRecords(productionLineId, userId)
 
-  const all = [...weighbridge, ...grading, ...cagesTrack]
+  const all = [...weighbridge, ...grading, ...cagesTrack, ...threshing, ...pressing, ...depricarping, ...kernelPlant]
 
   return {
     weighbridge,
     grading,
     cagesTrack,
+    threshing,
+    pressing,
+    depricarping,
+    kernelPlant,
     syncedCount: all.filter((item) => item.ok).length,
     failedCount: all.filter((item) => !item.ok).length,
   }

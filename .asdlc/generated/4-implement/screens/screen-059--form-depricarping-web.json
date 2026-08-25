@@ -1,0 +1,62 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-059--form-depricarping-web",
+  "name": "Form Depricarping (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/FormDepricarpingTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormDepricarping.php",
+    "backend/resources/views/data/depricarping-form.blade.php",
+    "backend/resources/views/livewire/data/form-depricarping.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormDepricarpingTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses DepricarpingRecordService::create()/update() (BE service shared with screen-051)",
+    "REVISED 2026-08-24 (entity-catalog v12, correcting the original design the user explicitly rejected): the Depricarping Detail grid is now DYNAMIC -- addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions() now exist on FormDepricarping.php, exactly mirroring FormPressing's just-fixed Pressing Detail grid (screen-058)/FormThreshing's Threshing Detail grid (screen-057) and FormCagesTrack's Cages Tipped Time grid. Grid starts empty on create mode (was: built from DepricarpingRecordService::canonicalTimeSlots() into 24 rows on mount); edit mode still loads existing rows verbatim with each row's id",
+    "All 8 reading-column inputs per row are genuinely editable number/text fields, never disabled -- unlike Form Cages Track Web's computed fields (a documented uiux-spec exception), Depricarping has no computed detail-grid fields, so the 'no disabled web inputs' rule applies with zero exceptions in this screen's detail grid; Downtime (Mins) is a plain number input and Findings a plain text input, both freely editable like the other 6 numeric columns -- UNAFFECTED by the dynamic-grid revision, a row simply counts as filled when EITHER is set, same as any other reading column",
+    "Target Operasional table queried directly by FormDepricarping::render(), never sent as part of the create/update payload; renders 4 columns (one more than Threshing/Pressing's 3) matching the entity-catalog's own shape for this station -- UNTOUCHED by this revision",
+    "Route /data/depricarping/create registered BEFORE /data/depricarping/{id} (screen-055) so the literal 'create' segment is not swallowed by {id}",
+    "checked/acknowledged self-attestation checkboxes mirror FormPressing's dual-checkbox pattern (both Checked By AND Acknowledged By, unlike Form Weighbridge/Grading Web which only have Acknowledged)",
+    "Ran the full backend Pest suite as the final step of this 6-screen pass: 1287/1287 passing (up from the pre-fix baseline of 1275/1275), confirming zero regressions across Threshing/Pressing/Depricarping and every other station"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/FormDepricarpingTest.php) was originally authored for the fixed-24-row design, then REVISED 2026-08-24 alongside this fix to exercise Tambah Baris/Hapus Baris and the Time-Slot <select> -- still could not be executed in this sandboxed environment, verified only by static review.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-24T08:21:58Z",
+      "passed": 16,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T08:21:58Z",
+      "passed": 20,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

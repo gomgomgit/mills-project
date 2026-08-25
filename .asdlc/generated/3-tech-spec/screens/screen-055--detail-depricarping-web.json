@@ -1,0 +1,258 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-055--detail-depricarping-web",
+  "name": "Detail Depricarping (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/depricarping/{id}",
+  "auth_requirement": "role: supervisor,mill_management,admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-055--detail-depricarping-web",
+      "usecase_name": "Lihat Detail Depricarping (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/depricarping-records/{id}",
+          "description": "Ambil 1 record Depricarping lengkap beserta seluruh baris Depricarping Detail-nya (berapapun jumlahnya, tidak lagi selalu 24 sejak revisi 2026-08-24), station_name, dan nama user (Inputted By/Checked By/Acknowledged By) untuk halaman Detail",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID record Depricarping"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "presser_id": "string",
+              "date": "date",
+              "note": "string|null",
+              "created_by_name": "string",
+              "checked_by_name": "string|null",
+              "acknowledged_by_name": "string|null",
+              "status": "enum",
+              "created_at": "iso8601",
+              "updated_at": "iso8601",
+              "details": [
+                {
+                  "id": "uuid",
+                  "time_slot": "string",
+                  "fan_static_pressure_mmh2o": "float|null",
+                  "polishing_drum_speed_rpm": "float|null",
+                  "air_velocity_ms": "float|null",
+                  "fibre_moisture_percent": "float|null",
+                  "kernel_recovery_in_fibre_percent": "float|null",
+                  "nut_silo_1_temp_c": "float|null",
+                  "nut_silo_2_temp_c": "float|null",
+                  "downtime_minutes": "integer|null",
+                  "findings": "string|null"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada session"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "role Operator"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "1. findOrFail(id) → if not found: return 404 RECORD_NOT_FOUND (via ModelNotFoundException)",
+        "2. Eager-load station, createdBy, checkedBy, acknowledgedBy, depricarpingDetails",
+        "3. Map depricarpingDetails (berapapun jumlahnya, termasuk nol) ke urutan canonical time-slot (bukan urutan insert), resolve nama-nama user",
+        "4. Return full detail row shape"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "depricarping-record",
+          "operation": "SELECT",
+          "description": "findOrFail by id dengan eager-load relasi"
+        },
+        {
+          "entity_id": "depricarping-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris (berapapun jumlahnya) terkait record, di-sort ke urutan canonical time-slot"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "id tidak ditemukan",
+          "handling": "ModelNotFoundException → 404 RECORD_NOT_FOUND, Livewire component set notFound=true"
+        },
+        {
+          "condition": "checked_by/acknowledged_by kosong",
+          "handling": "checked_by_name/acknowledged_by_name bernilai null, ditampilkan sebagai '-' di Blade"
+        },
+        {
+          "condition": "Role Operator mengakses",
+          "handling": "Route middleware role: gate menolak dengan 403"
+        },
+        {
+          "condition": "Record memiliki nol baris Depricarping Detail",
+          "handling": "details array kosong dikembalikan, FE tampilkan grid kosong/empty-state, bukan error"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh field ditampilkan read-only",
+        "Hanya Supervisor/Mill Management/Admin yang dapat mengakses",
+        "Grid Depricarping Detail ditampilkan langsung dari data tersimpan, menampilkan persis baris yang ada (revisi 2026-08-24: tidak lagi selalu 24)"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "throws ModelNotFoundException when getDetail id does not exist",
+          "given": "a random uuid not in the database",
+          "expect": "throw ModelNotFoundException"
+        },
+        {
+          "description": "returns the full record with resolved station_name when id exists",
+          "given": "an existing DepricarpingRecord",
+          "expect": "result.id matches, result.station_name matches the station's name"
+        },
+        {
+          "description": "returns details array sorted into canonical time-slot order, not alphabetical, regardless of how many rows exist",
+          "given": "detail rows created out of canonical order (14:00, 08:00, 00:00)",
+          "expect": "details sorted as [08:00, 14:00, 00:00] per canonical index"
+        },
+        {
+          "description": "returns an empty details array when the record has zero depricarping-detail rows",
+          "given": "record tanpa depricarping-detail rows sama sekali",
+          "expect": "result.details = []"
+        },
+        {
+          "description": "returns null checked_by_name and acknowledged_by_name when not set",
+          "given": "record with checked_by=null, acknowledged_by=null",
+          "expect": "checked_by_name=null, acknowledged_by_name=null"
+        },
+        {
+          "description": "resolves created_by_name, checked_by_name, acknowledged_by_name to user names when present",
+          "given": "record with all 3 user FKs set",
+          "expect": "all 3 name fields resolved to the corresponding users' names"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "depricarping-record",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-051--data-browser-depricarping-web",
+      "reason": "Entry point (klik baris) dan tujuan Back"
+    },
+    {
+      "screen_id": "screen-059--form-depricarping-web",
+      "reason": "Tombol Edit membuka Form Depricarping (Web) mode ubah"
+    }
+  ],
+  "implementation_notes": [
+    "Reuses DepricarpingRecordService::getDetail() (BE service shared with screen-051, see that screen's implement artifact for the service/controller/route files)",
+    "Target Operasional table queried DIRECTLY by DetailDepricarping::render() (DepricarpingOperationalTarget::orderBy('sort_order')->get()) -- NOT part of the GET /api/depricarping-records/{id} response -- per this screen's tech-spec direction, mirrors DetailPressing (screen-054) exactly, with 4 columns instead of 3",
+    "Field grouping/order in the Blade view mirrors mobile/src/views/DataPreviewDepricarpingView.vue's detail mode exactly (Presser ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid, Target Operasional table), per explicit product direction that web station screens mirror mobile flow/UX",
+    "Route /data/depricarping/{id} registered after /data/depricarping/create (screen-059) so the literal 'create' segment is not swallowed by {id}",
+    "REVISI 2026-08-24 (entity-catalog v12): grid Depricarping Detail pada Blade view ini TIDAK PERNAH mengasumsikan 24 baris tetap -- sudah sejak awal me-render `@foreach ($record['details'] as $row)` langsung dari array details, tanpa literal '24' di manapun (dikonfirmasi via grep) -- TIDAK ADA perubahan fungsional pada layar ini akibat revisi grid dinamis di Form Depricarping (screen-059)/mobile (screen-043), hanya doc comment/wording di artifact ini yang diperbarui"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Detail Depricarping - berhasil",
+      "usecase_id": "usecase-055--detail-depricarping-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-records/{id}"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailDepricarping",
+        "action": "mount with an existing record id",
+        "assert": "renders presser_id, the Depricarping Detail grid with however many rows the record has, and the 4-column operational target table"
+      },
+      "browser_test": {
+        "route": "/data/depricarping/{id}",
+        "action": "click a row in Data Browser Depricarping, land on detail page",
+        "assert": "all header fields, the Depricarping Detail grid (rows matching what is actually stored, a full 24 when all canonical slots were added), and Target Operasional table (6 rows, 4 columns) are visible"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Depricarping - Record Tidak Ditemukan",
+      "usecase_id": "usecase-055--detail-depricarping-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/depricarping-records/{id}"
+          },
+          "request_example": {},
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DetailDepricarping",
+        "action": "mount with a non-existent id",
+        "assert": "notFound=true, 'Record tidak ditemukan' shown with a Back button"
+      },
+      "browser_test": {
+        "route": "/data/depricarping/00000000-0000-0000-0000-000000000000",
+        "action": "navigate directly to a non-existent id",
+        "assert": "'Record tidak ditemukan' message and Back button visible"
+      }
+    }
+  ]
+}

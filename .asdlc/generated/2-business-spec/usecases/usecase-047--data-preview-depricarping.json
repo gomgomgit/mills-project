@@ -1,0 +1,110 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "ver": 1,
+  "id": "usecase-047--data-preview-depricarping",
+  "name": "Lihat Data Depricarping Tersimpan",
+  "description": "Operator atau Supervisor menelusuri seluruh data Depricarping tersimpan lokal (mode list dengan filter tanggal/pencarian), dan melihat satu record secara lengkap read-only (mode detail).",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login di aplikasi mobile",
+    "User membuka layar ini dari 'Load Data' di Monitor Depricarping, atau menavigasi langsung dengan id record tertentu"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Mode list: memuat seluruh record Depricarping milik user, menerapkan filter tanggal (default hari ini) dan pencarian Presser ID"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Menekan salah satu item pada list"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Jika item berstatus saved/synced, menampilkan mode detail record tersebut (header lengkap, grid 24 baris, tabel Target Operasional) secara read-only"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Item draft/pause ditekan",
+      "trigger": "Pada step 2, item yang ditekan berstatus draft_ongoing atau draft_paused",
+      "steps": [
+        "System membuka Form Depricarping untuk melanjutkan draft tersebut, bukan mode detail read-only"
+      ]
+    },
+    {
+      "name": "Filter mengubah hasil",
+      "trigger": "User mengubah field Tanggal atau Cari pada mode list",
+      "steps": [
+        "System menyaring ulang list secara langsung berdasarkan filter aktif"
+      ]
+    },
+    {
+      "name": "Tidak ada data cocok filter",
+      "trigger": "Filter aktif tidak menghasilkan satu pun record yang cocok",
+      "steps": [
+        "System menampilkan pesan tidak ada data cocok filter beserta tombol Reset Filter"
+      ]
+    },
+    {
+      "name": "Record tidak ditemukan",
+      "trigger": "User menavigasi langsung ke id yang tidak ada di local storage",
+      "steps": [
+        "System menampilkan pesan 'data tidak ditemukan' pada mode detail"
+      ]
+    },
+    {
+      "name": "Back dari mode detail",
+      "trigger": "User menekan Back saat berada di mode detail",
+      "steps": [
+        "System kembali ke mode list layar ini sendiri, bukan ke Monitor Depricarping"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat mode list yang tersaring, atau mode detail satu record Depricarping secara read-only"
+  ],
+  "business_rules": [
+    "Filter tanggal default ke hari ini",
+    "Pencarian case-insensitive pada substring Presser ID",
+    "Status draft mengarah ke Form Depricarping; status saved/synced mengarah ke mode detail read-only pada layar ini sendiri",
+    "Mode detail tidak menyediakan aksi edit apa pun"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Data Depricarping Tersimpan — success",
+      "given": "User berada di mode list Data Preview Depricarping dengan minimal satu record saved/synced",
+      "when": "User menekan salah satu item record tersebut",
+      "then": "System menampilkan mode detail record tersebut secara lengkap read-only, termasuk grid 24 baris dan tabel Target Operasional"
+    },
+    {
+      "scenario": "Lihat Data Depricarping Tersimpan — Record Tidak Ditemukan",
+      "given": "User menavigasi langsung dengan id yang tidak ada di local storage",
+      "when": "Layar mode detail dimuat",
+      "then": "System menampilkan pesan data tidak ditemukan"
+    },
+    {
+      "scenario": "Lihat Data Depricarping Tersimpan — List Kosong",
+      "given": "User belum memiliki data Depricarping tersimpan sama sekali",
+      "when": "Mode list dimuat",
+      "then": "System menampilkan empty state pada area list"
+    },
+    {
+      "scenario": "Lihat Data Depricarping Tersimpan — Back dari Mode Detail",
+      "given": "User berada di mode detail Data Preview Depricarping",
+      "when": "User menekan Back",
+      "then": "System kembali ke mode list layar ini sendiri, bukan ke Monitor Depricarping"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-047--data-preview-depricarping"
+  ]
+}

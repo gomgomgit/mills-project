@@ -1,0 +1,64 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-053--detail-threshing-web",
+  "name": "Detail Threshing (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman detail read-only untuk melihat 1 record Threshing tersimpan secara lengkap beserta grid Threshing Detail (menampilkan seluruh baris yang ada pada record tersebut, berapapun jumlahnya — tidak lagi selalu 24 baris tetap sejak revisi 2026-08-24) dan tabel referensi Target Operasional, diakses dari klik baris di Data Browser Threshing (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Klik baris di Data Browser Threshing (Web)"
+  ],
+  "information_displayed": [
+    "Identitas Threshing: Thresher ID, Tanggal",
+    "Verifikasi: Inputted By, Checked By, Acknowledged By, Note",
+    "Grid Threshing Detail: menampilkan persis baris yang tersimpan pada record (Time-Slot, FFB Throughput, Thresher Drum Speed, Motor Current, Unstripped Bunch Count, Empty Bunch Oil Loss, Downtime Reason)",
+    "Tabel Referensi Target Operasional: read-only, kolom Parameter / Standard Operational Target / Action Plan on Deviation, ditampilkan di bawah grid detail",
+    "Status record (saved/synced)",
+    "Tombol Back kembali ke Data Browser Threshing"
+  ],
+  "available_actions": [
+    {
+      "action": "Back",
+      "description": "Kembali ke Data Browser Threshing (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit",
+      "description": "Masuk ke Form Threshing (Web) mode ubah untuk record ini",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Seluruh field ditampilkan read-only — tidak ada aksi edit langsung dari layar ini selain tombol Edit yang membuka Form Threshing Web",
+    "Checked By DAN Acknowledged By keduanya ditampilkan apa adanya, tanpa pembatasan role untuk melihat, konsisten dengan Data Preview Threshing mobile (screen-045)",
+    "Grid Threshing Detail ditampilkan langsung dari data tersimpan (historical), tidak dihitung ulang, dan menampilkan persis jumlah baris yang tersimpan pada record (revisi 2026-08-24: tidak lagi selalu 24 baris tetap)",
+    "Tabel Target Operasional murni referensi, tidak pernah menjadi bagian dari data record yang ditampilkan",
+    "Field dikelompokkan sesuai struktur Form Threshing (Identitas, Verifikasi, Grid Detail, Target Operasional)"
+  ],
+  "usecase_ids": [
+    "usecase-053--detail-threshing-web"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
+    "Checked By/Acknowledged By belum diisi — tampilkan '-'",
+    "Record memiliki nol baris Threshing Detail (kasus tepi: tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

@@ -1,0 +1,96 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-23"
+  },
+  "id": "usecase-053--detail-threshing-web",
+  "name": "Lihat Detail Threshing (Web)",
+  "description": "Supervisor, Mill Management, atau Admin melihat 1 record Threshing secara lengkap read-only lewat web, termasuk grid 24 baris Threshing Detail dan tabel referensi Target Operasional, setelah mengklik baris di Data Browser Threshing (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login di web",
+    "User mengklik salah satu baris di Data Browser Threshing (Web)"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Memuat record Threshing berdasarkan id dan menampilkan seluruh field header, grid 24 baris Threshing Detail, dan tabel referensi Target Operasional secara read-only"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Menekan Back"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Kembali ke Data Browser Threshing (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Record tidak ditemukan",
+      "trigger": "Pada step 1, id record tidak valid/tidak ditemukan",
+      "steps": [
+        "System menampilkan pesan error dengan tombol Back"
+      ]
+    },
+    {
+      "name": "Checked By/Acknowledged By belum diisi",
+      "trigger": "Pada step 1, Checked By atau Acknowledged By belum diisi",
+      "steps": [
+        "System menampilkan '-' pada field tersebut"
+      ]
+    },
+    {
+      "name": "Edit",
+      "trigger": "Pada step 1, user menekan tombol Edit",
+      "steps": [
+        "System membuka Form Threshing (Web) mode ubah untuk record tersebut"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail lengkap record Threshing, atau kembali ke Data Browser Threshing (Web)"
+  ],
+  "business_rules": [
+    "Seluruh field read-only",
+    "Checked By dan Acknowledged By keduanya ditampilkan tanpa pembatasan role",
+    "Grid Threshing Detail ditampilkan langsung dari data tersimpan"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Detail Threshing (Web) — success",
+      "given": "User sudah login di web dan telah mengklik salah satu baris di Data Browser Threshing (Web)",
+      "when": "System memuat record Threshing berdasarkan id yang dipilih",
+      "then": "User melihat seluruh field header, grid 24 baris Threshing Detail, dan tabel referensi Target Operasional secara lengkap dan read-only, dan dapat kembali ke Data Browser Threshing (Web) dengan menekan Back"
+    },
+    {
+      "scenario": "Lihat Detail Threshing (Web) — Record tidak ditemukan",
+      "given": "User sudah login di web dan telah mengklik salah satu baris di Data Browser Threshing (Web)",
+      "when": "Id record yang diakses tidak valid atau tidak ditemukan",
+      "then": "System menampilkan pesan error dengan tombol Back"
+    },
+    {
+      "scenario": "Lihat Detail Threshing (Web) — Checked By/Acknowledged By belum diisi",
+      "given": "User sudah login di web dan telah mengklik salah satu baris di Data Browser Threshing (Web)",
+      "when": "Record yang ditampilkan memiliki field Checked By atau Acknowledged By yang belum diisi",
+      "then": "System menampilkan '-' pada field Checked By dan/atau Acknowledged By yang kosong"
+    },
+    {
+      "scenario": "Lihat Detail Threshing (Web) — Edit",
+      "given": "User sudah login di web dan telah mengklik salah satu baris di Data Browser Threshing (Web)",
+      "when": "User menekan tombol Edit pada halaman detail",
+      "then": "System membuka Form Threshing (Web) dalam mode ubah untuk record tersebut"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-053--detail-threshing-web"
+  ]
+}

@@ -11,8 +11,12 @@ use App\Http\Controllers\Api\MachineryController;
 use App\Http\Controllers\Api\MachineryGroupController;
 use App\Http\Controllers\Api\ManagementReportController;
 use App\Http\Controllers\Api\MillSettingController;
+use App\Http\Controllers\Api\PressingRecordController;
+use App\Http\Controllers\Api\DepricarpingRecordController;
+use App\Http\Controllers\Api\KernelPlantRecordController;
 use App\Http\Controllers\Api\ProductionLineController;
 use App\Http\Controllers\Api\StationController;
+use App\Http\Controllers\Api\ThreshingRecordController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WeighbridgeRecordController;
 use Illuminate\Support\Facades\Route;
@@ -428,5 +432,113 @@ Route::middleware(['auth:web', 'role:admin'])->group(function () {
     Route::patch('/users/{id}', [UserController::class, 'update']);
     Route::patch('/users/{id}/status', [UserController::class, 'setStatus']);
 });
+
+// screen-049--data-browser-threshing-web
+// Session-guarded ('auth:web' — this screen is web-only, no mobile
+// counterpart exists for it yet) + role-guarded (supervisor,
+// mill_management, admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-018--data-browser-cages-track-web's registration pattern exactly.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/threshing-records', [ThreshingRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/threshing-records/export', [ThreshingRecordController::class, 'export']);
+
+// screen-053--detail-threshing-web
+// IMPORTANT — registered AFTER /threshing-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-021's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/threshing-records/{id}', [ThreshingRecordController::class, 'show']);
+
+// screen-057--form-threshing-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) mirrors
+// screen-024--form-cages-track-web's routes. UPDATE (2026-08-24): the
+// mobile "Sinkronisasi" button (Station List, screen-006) now calls this
+// endpoint — see mobile/src/services/syncService.ts's syncThreshingRecords().
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/threshing-records', [ThreshingRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/threshing-records/{id}', [ThreshingRecordController::class, 'update']);
+
+// screen-050--data-browser-pressing-web
+// Session-guarded ('auth:web' — this screen is web-only, no mobile
+// counterpart exists for it yet) + role-guarded (supervisor,
+// mill_management, admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-049--data-browser-threshing-web's registration pattern exactly.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/pressing-records', [PressingRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/pressing-records/export', [PressingRecordController::class, 'export']);
+
+// screen-054--detail-pressing-web
+// IMPORTANT — registered AFTER /pressing-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-053's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/pressing-records/{id}', [PressingRecordController::class, 'show']);
+
+// screen-058--form-pressing-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) mirrors
+// screen-057--form-threshing-web's routes. UPDATE (2026-08-24): the mobile
+// "Sinkronisasi" button (Station List, screen-006) now calls this
+// endpoint — see mobile/src/services/syncService.ts's syncPressingRecords().
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/pressing-records', [PressingRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/pressing-records/{id}', [PressingRecordController::class, 'update']);
+
+// screen-051--data-browser-depricarping-web
+// Session-guarded ('auth:web' — this screen is web-only, no mobile
+// counterpart exists for it yet) + role-guarded (supervisor,
+// mill_management, admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-050--data-browser-pressing-web's registration pattern exactly.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/depricarping-records', [DepricarpingRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/depricarping-records/export', [DepricarpingRecordController::class, 'export']);
+
+// screen-055--detail-depricarping-web
+// IMPORTANT — registered AFTER /depricarping-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-054's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/depricarping-records/{id}', [DepricarpingRecordController::class, 'show']);
+
+// screen-059--form-depricarping-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) mirrors
+// screen-058--form-pressing-web's routes. UPDATE (2026-08-24): the mobile
+// "Sinkronisasi" button (Station List, screen-006) now calls this
+// endpoint — see mobile/src/services/syncService.ts's syncDepricarpingRecords().
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/depricarping-records', [DepricarpingRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/depricarping-records/{id}', [DepricarpingRecordController::class, 'update']);
+
+// screen-052--data-browser-kernel-plant-web
+// Session-guarded ('auth:web' — this screen is web-only, no mobile
+// counterpart exists for it yet) + role-guarded (supervisor,
+// mill_management, admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-051--data-browser-depricarping-web's registration pattern exactly.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/kernel-plant-records', [KernelPlantRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/kernel-plant-records/export', [KernelPlantRecordController::class, 'export']);
+
+// screen-056--detail-kernel-plant-web
+// IMPORTANT — registered AFTER /kernel-plant-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-055's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/kernel-plant-records/{id}', [KernelPlantRecordController::class, 'show']);
+
+// screen-060--form-kernel-plant-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) mirrors
+// screen-059--form-depricarping-web's routes. UPDATE (2026-08-24): the
+// mobile "Sinkronisasi" button (Station List, screen-006) now calls this
+// endpoint — see mobile/src/services/syncService.ts's syncKernelPlantRecords().
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/kernel-plant-records', [KernelPlantRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/kernel-plant-records/{id}', [KernelPlantRecordController::class, 'update']);
 
 // === ASDLC_ROUTES_END ===

@@ -1,0 +1,181 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "usecase-058--form-pressing-web",
+  "name": "Input Data Pressing (Web)",
+  "description": "Supervisor, Mill Management, atau Admin membuat record Pressing baru atau mengubah record tersimpan lewat web, mengisi header dan grid 24 baris Pressing Detail, lalu menyimpan.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login di web",
+    "User menekan 'Tambah Data' dari Data Browser Pressing (Web) atau 'Edit' dari Detail Pressing (Web)"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan form dengan Production Line (mode buat baru), Presser ID, Tanggal, Note, grid 24 baris Pressing Detail, dan tabel referensi Target Operasional read-only"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Mengisi/mengubah Presser ID dan kolom bacaan pada baris Pressing Detail"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Menekan Simpan"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Memvalidasi field wajib dan minimal satu baris terisi, menyimpan record dengan status saved, lalu menampilkan Detail Pressing (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Pilih Production Line",
+      "trigger": "Pada step 1, mode buat baru, user memilih Production Line",
+      "steps": [
+        "System menentukan station Pressing tujuan record dari Production Line yang dipilih"
+      ]
+    },
+    {
+      "name": "Tandai Checked (Supervisor)",
+      "trigger": "Pada step 2, user Supervisor mencentang 'Tandai sudah diperiksa'",
+      "steps": [
+        "System mengisi Checked By dengan user Supervisor yang login"
+      ]
+    },
+    {
+      "name": "Tandai Acknowledged (Mill Management)",
+      "trigger": "Pada step 2, user Mill Management mencentang 'Tandai sudah dikonfirmasi'",
+      "steps": [
+        "System mengisi Acknowledged By dengan user Mill Management yang login"
+      ]
+    },
+    {
+      "name": "Field wajib belum lengkap",
+      "trigger": "Pada step 3, field wajib (mis. Presser ID) masih kosong",
+      "steps": [
+        "System menampilkan error inline, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum ada baris terisi",
+      "trigger": "Pada step 3, tidak ada satu pun dari 24 baris yang punya kolom bacaan terisi",
+      "steps": [
+        "System menampilkan pesan error khusus, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Production Line tanpa station Pressing aktif",
+      "trigger": "Pada step 3, mode buat baru, Production Line terpilih tidak punya station Pressing aktif",
+      "steps": [
+        "System menolak Simpan dengan pesan error"
+      ]
+    },
+    {
+      "name": "Record tidak ditemukan (mode edit)",
+      "trigger": "Pada step 1, mode edit dibuka dengan id tidak valid",
+      "steps": [
+        "System menampilkan pesan error"
+      ]
+    },
+    {
+      "name": "Batal dengan perubahan belum tersimpan",
+      "trigger": "Pada step 2 atau 3, user menekan Batal",
+      "steps": [
+        "Jika ada perubahan belum tersimpan: System menampilkan dialog konfirmasi sebelum keluar",
+        "Jika tidak ada perubahan: System langsung kembali"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Pressing tersimpan (baru atau diperbarui) dengan status saved, atau user kembali tanpa perubahan"
+  ],
+  "business_rules": [
+    "Tidak ada draft/pause/Clear di web, Simpan langsung status saved",
+    "Production Line tidak dapat diubah setelah record dibuat",
+    "Grid Pressing Detail selalu 24 baris tetap",
+    "Minimal satu baris harus terisi sebelum Simpan",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data Pressing (Web) — berhasil",
+      "given": "User (Supervisor, Mill Management, atau Admin) sudah login di web dan menekan 'Tambah Data' dari Data Browser Pressing (Web) atau 'Edit' dari Detail Pressing (Web)",
+      "when": "User mengisi Production Line (mode buat baru), Presser ID, Tanggal, Note, dan minimal satu baris pada grid 24 baris Pressing Detail, lalu menekan Simpan",
+      "then": "System memvalidasi field wajib dan minimal satu baris terisi, menyimpan record Pressing dengan status saved, lalu menampilkan Detail Pressing (Web)"
+    },
+    {
+      "scenario": "Input Data Pressing (Web) — Pilih Production Line",
+      "given": "User sudah login di web dan berada di form mode buat baru",
+      "when": "User memilih Production Line pada form",
+      "then": "System menentukan station Pressing tujuan record berdasarkan Production Line yang dipilih"
+    },
+    {
+      "scenario": "Input Data Pressing (Web) — Tandai Checked (Supervisor)",
+      "given": "User Supervisor sudah login di web dan berada di form Pressing",
+      "when": "User Supervisor mencentang 'Tandai sudah diperiksa' pada form",
+      "then": "System mengisi Checked By dengan user Supervisor yang sedang login"
+    },
+    {
+      "scenario": "Input Data Pressing (Web) — Tandai Acknowledged (Mill Management)",
+      "given": "User Mill Management sudah login di web dan berada di form Pressing",
+      "when": "User Mill Management mencentang 'Tandai sudah dikonfirmasi' pada form",
+      "then": "System mengisi Acknowledged By dengan user Mill Management yang sedang login"
+    },
+    {
+      "scenario": "Input Data Pressing (Web) — Field wajib belum lengkap",
+      "given": "User sudah login di web dan berada di form Pressing",
+      "when": "User menekan Simpan padahal field wajib seperti Presser ID masih kosong",
+      "then": "System menampilkan error inline pada field terkait dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Pressing (Web) — Belum ada baris terisi",
+      "given": "User sudah login di web dan berada di form Pressing",
+      "when": "User menekan Simpan padahal tidak ada satu pun dari 24 baris Pressing Detail yang punya kolom bacaan terisi",
+      "then": "System menampilkan pesan error khusus dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Pressing (Web) — Production Line tanpa station Pressing aktif",
+      "given": "User sudah login di web dan berada di form mode buat baru",
+      "when": "User menekan Simpan setelah memilih Production Line yang tidak punya station Pressing aktif",
+      "then": "System menolak Simpan dan menampilkan pesan error"
+    },
+    {
+      "scenario": "Input Data Pressing (Web) — Record tidak ditemukan (mode edit)",
+      "given": "User sudah login di web dan membuka form dalam mode edit dengan id record yang tidak valid",
+      "when": "System memuat form mode edit dengan id yang tidak valid",
+      "then": "System menampilkan pesan error"
+    },
+    {
+      "scenario": "Input Data Pressing (Web) — Batal dengan perubahan belum tersimpan",
+      "given": "User sudah login di web dan berada di form Pressing",
+      "when": "User menekan Batal setelah mengubah data pada form",
+      "then": "Jika ada perubahan belum tersimpan, System menampilkan dialog konfirmasi sebelum keluar; jika tidak ada perubahan, System langsung kembali"
+    },
+    {
+      "scenario": "Input Data Pressing (Web) — Production Line terkunci pada mode edit",
+      "given": "User sudah login di web dan membuka mode edit record Pressing yang sudah tersimpan sebelumnya",
+      "when": "User mencoba mengubah Production Line pada form edit",
+      "then": "System tidak mengizinkan perubahan Production Line; field tersebut tetap terkunci sesuai nilai saat record dibuat"
+    },
+    {
+      "scenario": "Input Data Pressing (Web) — Checked By dan Acknowledged By dibatasi sesuai role",
+      "given": "User sudah login di web dan berada di form Pressing",
+      "when": "User yang bukan Supervisor mencoba mengisi Checked By, atau user yang bukan Mill Management mencoba mengisi Acknowledged By",
+      "then": "System tidak mengizinkan; Checked By hanya dapat diisi oleh Supervisor dan Acknowledged By hanya oleh Mill Management"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-058--form-pressing-web"
+  ]
+}

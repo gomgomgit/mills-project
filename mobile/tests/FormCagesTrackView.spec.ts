@@ -73,6 +73,21 @@ vi.mock('@/stores/floatingClock', () => ({
   useFloatingClockStore: () => ({ enabled: false, toggle: vi.fn() }),
 }))
 
+const { aiAssistantOpenMock, aiAssistantToggleBubbleMock } = vi.hoisted(() => ({
+  aiAssistantOpenMock: vi.fn(),
+  aiAssistantToggleBubbleMock: vi.fn(),
+}))
+
+vi.mock('@/stores/aiAssistant', () => ({
+  useAiAssistantStore: () => ({
+    isOpen: false,
+    bubbleEnabled: true,
+    open: aiAssistantOpenMock,
+    close: vi.fn(),
+    toggleBubble: aiAssistantToggleBubbleMock,
+  }),
+}))
+
 const { getDraftWithTippedTimesMock, saveDraftMock, pauseDraftWithFormDataMock, deleteDraftMock } = vi.hoisted(
   () => ({
     getDraftWithTippedTimesMock: vi.fn(),
@@ -729,6 +744,33 @@ describe('FormCagesTrackView', () => {
 
     expect(wrapper.find('[data-testid="nav-menu"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="nav-menu-change-password"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="nav-menu-toggle-ai-bubble"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="nav-menu-ai-assistant"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="nav-menu-logout"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="hamburger-button"]').attributes('aria-label')).toBe('Tutup menu navigasi')
+  })
+
+  it("opens the AI assistant panel when the 'Bantuan AI' nav menu item is tapped", async () => {
+    getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
+
+    const wrapper = mount(FormCagesTrackView)
+    await flushPromises()
+
+    await wrapper.find('[data-testid="hamburger-button"]').trigger('click')
+    await wrapper.find('[data-testid="nav-menu-ai-assistant"]').trigger('click')
+
+    expect(aiAssistantOpenMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("toggles the AI bubble via the 'Aktifkan/Nonaktifkan Bubble Chat AI' nav menu item", async () => {
+    getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
+
+    const wrapper = mount(FormCagesTrackView)
+    await flushPromises()
+
+    await wrapper.find('[data-testid="hamburger-button"]').trigger('click')
+    await wrapper.find('[data-testid="nav-menu-toggle-ai-bubble"]').trigger('click')
+
+    expect(aiAssistantToggleBubbleMock).toHaveBeenCalledTimes(1)
   })
 })

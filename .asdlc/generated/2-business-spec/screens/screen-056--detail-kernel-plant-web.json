@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "ver": 2,
+  "id": "screen-056--detail-kernel-plant-web",
+  "name": "Detail Kernel Plant (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman web read-only untuk melihat satu record Kernel Plant secara lengkap: identitas, grid Kernel Plant Detail (menampilkan seluruh baris yang ada pada record tersebut, berapapun jumlahnya — tidak lagi selalu 24 baris tetap sejak revisi 2026-08-24), tabel referensi Target Operasional, dan info verifikasi — mengikuti pola Detail Depricarping (Web), field/urutan mengikuti mode detail Data Preview Kernel Plant mobile.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Klik baris pada Data Browser Kernel Plant (Web)"
+  ],
+  "information_displayed": [
+    "Identitas Kernel Plant: Kernel Plant ID, Tanggal, Station, Note",
+    "Kernel Plant Detail: grid read-only, seluruh 9 kolom bacaan (Ripple Mill 1, Ripple Mill 2, Claybath/Hydro SG, Kernel Silo 1/2 Temp, Kernel Moisture, Shell Loss, Downtime Mins, Findings) — menampilkan persis baris yang tersimpan pada record (revisi 2026-08-24: tidak lagi selalu 24 baris)",
+    "Target Operasional: tabel referensi read-only 6 baris x 3 kolom",
+    "Verifikasi: Inputted By, Checked By, Acknowledged By, Status"
+  ],
+  "available_actions": [
+    {
+      "action": "Edit",
+      "description": "Membuka Form Kernel Plant (Web) mode ubah untuk record ini",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Data Browser Kernel Plant (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Seluruh field ditampilkan read-only, tidak ada edit inline dari layar ini",
+    "Checked By/Acknowledged By kosong ditampilkan sebagai '-'",
+    "Operator TIDAK dapat mengakses halaman ini dari web",
+    "Grid Kernel Plant Detail ditampilkan langsung dari data tersimpan (historical), tidak dihitung ulang, dan menampilkan persis jumlah baris yang tersimpan pada record (revisi 2026-08-24: tidak lagi selalu 24 baris tetap)"
+  ],
+  "usecase_ids": [
+    "usecase-056--detail-kernel-plant-web"
+  ],
+  "edge_cases": [
+    "Navigasi langsung ke id yang tidak ada — pesan 'Record tidak ditemukan' beserta tombol Back",
+    "User dengan role Operator mencoba mengakses — ditolak (403)",
+    "Record memiliki nol baris Kernel Plant Detail (kasus tepi: tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error"
+  ],
+  "test_priority": "low",
+  "open_questions": []
+}

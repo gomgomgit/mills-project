@@ -64,7 +64,6 @@ async function login(page, username, password) {
   await page.goto(`${BASE_URL}${LOGIN_PATH}`);
   await page.locator('#username').fill(username);
   await page.locator('#password').fill(password);
-  await page.locator('#business_unit_id').selectOption({ label: BUSINESS_UNIT_NAME });
   await page.locator('button[type="submit"]').click();
   // Redirected away from /login once the session is established.
   await page.waitForURL((url) => !url.pathname.startsWith(LOGIN_PATH));
@@ -74,6 +73,24 @@ async function gotoBusinessUnits(page) {
   await page.goto(`${BASE_URL}${BUSINESS_UNITS_PATH}`);
 }
 
+// Interacts with the x-searchable-select combobox (see
+// resources/views/components/searchable-select.blade.php) that replaced
+// this screen's #company_id <select> — click opens the listbox, fill
+// filters it, then the matching option (scoped to this combobox's own
+// listbox via its aria-controls id) is clicked.
+async function selectSearchable(page, id, label) {
+  await page.locator(`#${id}`).click();
+  await page.locator(`#${id}`).fill(label);
+  await page.locator(`#${id}-listbox`).getByRole('option', { name: label, exact: true }).click();
+}
+
+// Picks the first real option (skips the "-- Pilih ... --" placeholder,
+// which is always listbox index 0) — mirrors the old selectOption({ index: 1 }).
+async function selectSearchableFirst(page, id) {
+  await page.locator(`#${id}`).click();
+  await page.locator(`#${id}-listbox`).getByRole('option').nth(1).click();
+}
+
 test.describe('Kelola Business Unit', () => {
   // Scenario: "Kelola Business Unit — success"
   test('menambah business unit baru dengan memilih company dan menampilkannya di tabel', async ({ page }) => {
@@ -81,7 +98,7 @@ test.describe('Kelola Business Unit', () => {
     await gotoBusinessUnits(page);
 
     await page.locator('button', { hasText: 'Tambah Business Unit' }).click();
-    await page.locator('#company_id').selectOption({ label: 'PT Company Baru' });
+    await selectSearchable(page, 'company_id', 'PT Company Baru');
 
     const uniqueSuffix = Date.now();
     await page.locator('#code').fill(`BU-BROWSER-${uniqueSuffix}`);
@@ -103,7 +120,7 @@ test.describe('Kelola Business Unit', () => {
     const row = page.locator('.kc-table__row', { hasText: 'Mill Sebelum Edit' });
     await row.locator('button', { hasText: 'Edit' }).click();
 
-    await page.locator('#company_id').selectOption({ label: 'PT Company Tujuan Edit' });
+    await selectSearchable(page, 'company_id', 'PT Company Tujuan Edit');
     const uniqueSuffix = Date.now();
     await page.locator('#code').fill(`BU-BROWSER-EDIT-${uniqueSuffix}`);
     const newName = `Mill Sesudah Edit ${uniqueSuffix}`;
@@ -147,7 +164,7 @@ test.describe('Kelola Business Unit', () => {
     await gotoBusinessUnits(page);
 
     await page.locator('button', { hasText: 'Tambah Business Unit' }).click();
-    await page.locator('#company_id').selectOption({ index: 1 });
+    await selectSearchableFirst(page, 'company_id');
     await page.locator('#code').fill('BU-DUP-01');
     await page.locator('#name').fill('Mill Kode Duplikat');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
@@ -161,25 +178,26 @@ test.describe('Kelola Business Unit', () => {
 
   // Scenario: "Kelola Business Unit — Belum ada Company"
   //
-  // Implementation note: the current markup (resources/views/livewire/
-  // master-data/kelola-business-unit.blade.php) renders only the
-  // placeholder "-- Pilih Company --" <option> when companyOptions is
-  // empty — there is no distinct `disabled` attribute or dedicated
-  // "create a Company first" guidance copy. This test asserts the actual
-  // observable behavior instead of a guidance message that does not exist
-  // in the implementation (see the equivalent note in tests/Feature/
-  // Livewire/KelolaBusinessUnitTest.php's file-level docblock, and this
-  // agent's known_issues in its final report).
+  // Implementation note: the current markup (resources/views/components/
+  // searchable-select.blade.php, used for #company_id) renders an
+  // empty-hint paragraph below the input (empty-message prop) and, once
+  // opened, an "Tidak ada hasil." listbox row when companyOptions is empty
+  // — there is no `disabled` attribute or dedicated modal-level guidance
+  // copy. This test asserts the actual observable behavior (see the
+  // equivalent note in tests/Feature/Livewire/KelolaBusinessUnitTest.php's
+  // file-level docblock, and this agent's known_issues in its final
+  // report).
   test('menampilkan dropdown company kosong saat belum ada Company sama sekali', async ({ page }) => {
     await login(page, 'butest-admin01', PASSWORD);
     await gotoBusinessUnits(page);
 
     await page.locator('button', { hasText: 'Tambah Business Unit' }).click();
 
-    // Only the placeholder option is present — no real Company to pick.
-    const companySelect = page.locator('#company_id');
-    await expect(companySelect.locator('option')).toHaveCount(1);
-    await expect(companySelect.locator('option').first()).toHaveText('-- Pilih Company --');
+    // No real Company to pick — the empty-message hint is shown, and
+    // opening the listbox shows only the "no results" row.
+    await expect(page.locator('.ss-combobox__empty-hint')).toContainText('Belum ada Company');
+    await page.locator('#company_id').click();
+    await expect(page.locator('#company_id-listbox')).toContainText('Tidak ada hasil.');
   });
 
   // Scenario: "Kelola Business Unit — Akses ditolak untuk non-Admin"

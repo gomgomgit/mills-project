@@ -1,0 +1,173 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-23"
+  },
+  "id": "usecase-041--form-threshing",
+  "name": "Input Data Threshing",
+  "description": "Operator atau Supervisor mengisi data header Threshing (Thresher ID, verifikasi) dan mengisi kolom bacaan pada baris-baris grid Threshing Detail yang sudah tersedia (24 baris time-slot per jam), lalu menyimpan, menjeda (Pause), atau membatalkan (Clear) data tersebut.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login di aplikasi mobile",
+    "Draft Threshing sudah dibuat (baru atau lanjutan) berikut 24 baris time-slot kosong"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan form dengan header (Thresher ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note), grid 24 baris Threshing Detail, dan tabel referensi Target Operasional read-only di bawahnya"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Mengisi Thresher ID dan kolom bacaan pada satu atau lebih baris Threshing Detail"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Menekan Simpan"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Memvalidasi Thresher ID terisi dan minimal satu baris Threshing Detail punya minimal satu kolom bacaan terisi, lalu menyimpan record secara final dan kembali ke Monitor Threshing"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Isi Checked By (Supervisor)",
+      "trigger": "Pada step 2, user berperan Supervisor mengisi Checked By",
+      "steps": [
+        "System menyimpan Checked By sebagai user Supervisor yang login"
+      ]
+    },
+    {
+      "name": "Isi Acknowledged By (Mill Management)",
+      "trigger": "Pada step 2, user berperan Mill Management mengisi Acknowledged By",
+      "steps": [
+        "System menyimpan Acknowledged By sebagai user Mill Management yang login"
+      ]
+    },
+    {
+      "name": "Thresher ID belum diisi",
+      "trigger": "Pada step 3, Thresher ID masih kosong",
+      "steps": [
+        "System menampilkan error inline pada field Thresher ID",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum ada baris terisi",
+      "trigger": "Pada step 3, tidak ada satu pun dari 24 baris Threshing Detail yang punya kolom bacaan terisi",
+      "steps": [
+        "System menampilkan pesan error khusus pada grid",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Operator mencoba isi Checked By/Acknowledged By",
+      "trigger": "Pada step 2, user bukan Supervisor mencoba mengisi Checked By, atau bukan Mill Management mencoba mengisi Acknowledged By",
+      "steps": [
+        "Field ditampilkan nonaktif/disabled untuk role tersebut, tidak dapat diisi"
+      ]
+    },
+    {
+      "name": "Pause",
+      "trigger": "Pada step 2 atau 3, user menekan Pause alih-alih Simpan",
+      "steps": [
+        "System menyimpan progres saat ini sebagai draft berstatus paused tanpa validasi field wajib",
+        "System kembali ke Monitor Threshing"
+      ]
+    },
+    {
+      "name": "Clear",
+      "trigger": "Pada step 2 atau 3, user menekan Clear",
+      "steps": [
+        "System menampilkan dialog konfirmasi",
+        "Jika dikonfirmasi: System menghapus draft beserta 24 barisnya secara permanen dan kembali ke Monitor Threshing",
+        "Jika dibatalkan: tidak ada perubahan"
+      ]
+    },
+    {
+      "name": "Back dengan perubahan belum tersimpan",
+      "trigger": "Pada step 2 atau 3, user menekan Back",
+      "steps": [
+        "Jika ada perubahan belum tersimpan: System menampilkan dialog konfirmasi sebelum keluar",
+        "Jika tidak ada perubahan: System langsung kembali ke Monitor Threshing"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Threshing tersimpan dengan status saved (Simpan), atau draft_paused (Pause), atau dihapus permanen (Clear dikonfirmasi)"
+  ],
+  "business_rules": [
+    "Tanggal dan Inputted By tidak dapat diedit manual",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "24 baris Threshing Detail tetap, tidak bisa ditambah/dihapus",
+    "Setiap kolom bacaan pada baris opsional, minimal satu baris harus punya minimal satu kolom terisi sebelum Simpan",
+    "Pause tidak memvalidasi field wajib"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data Threshing — success",
+      "given": "Operator sudah login di aplikasi mobile dan draft Threshing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "Operator mengisi Thresher ID dan kolom bacaan pada satu atau lebih baris Threshing Detail, lalu menekan Simpan",
+      "then": "System memvalidasi Thresher ID dan minimal satu baris terisi, menyimpan record Threshing secara final dengan status saved, dan kembali ke Monitor Threshing"
+    },
+    {
+      "scenario": "Input Data Threshing — Isi Checked By (Supervisor)",
+      "given": "Operator sudah login di aplikasi mobile dan draft Threshing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "Supervisor yang login mengisi field Checked By pada form Threshing",
+      "then": "System menyimpan Checked By sebagai user Supervisor yang login"
+    },
+    {
+      "scenario": "Input Data Threshing — Isi Acknowledged By (Mill Management)",
+      "given": "Operator sudah login di aplikasi mobile dan draft Threshing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User berperan Mill Management yang login mengisi field Acknowledged By pada form Threshing",
+      "then": "System menyimpan Acknowledged By sebagai user Mill Management yang login"
+    },
+    {
+      "scenario": "Input Data Threshing — Thresher ID belum diisi",
+      "given": "Operator sudah login di aplikasi mobile dan draft Threshing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User menekan Simpan padahal field Thresher ID masih kosong",
+      "then": "System menampilkan error inline pada field Thresher ID dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Threshing — Belum ada baris terisi",
+      "given": "Operator sudah login di aplikasi mobile dan draft Threshing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User menekan Simpan padahal tidak ada satu pun dari 24 baris Threshing Detail yang punya kolom bacaan terisi",
+      "then": "System menampilkan pesan error khusus pada grid dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Threshing — Operator mencoba isi Checked By/Acknowledged By",
+      "given": "Operator sudah login di aplikasi mobile dan draft Threshing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User yang bukan Supervisor mencoba mengisi field Checked By, atau user yang bukan Mill Management mencoba mengisi field Acknowledged By",
+      "then": "Field ditampilkan nonaktif/disabled untuk role tersebut sehingga tidak dapat diisi"
+    },
+    {
+      "scenario": "Input Data Threshing — Pause",
+      "given": "Operator sudah login di aplikasi mobile dan draft Threshing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User menekan Pause alih-alih Simpan saat mengisi header atau grid Threshing Detail",
+      "then": "System menyimpan progres saat ini sebagai draft berstatus paused tanpa memvalidasi field wajib, lalu kembali ke Monitor Threshing"
+    },
+    {
+      "scenario": "Input Data Threshing — Clear",
+      "given": "Operator sudah login di aplikasi mobile dan draft Threshing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User menekan Clear saat mengisi header atau grid Threshing Detail",
+      "then": "System menampilkan dialog konfirmasi; jika dikonfirmasi, draft beserta 24 barisnya dihapus permanen dan kembali ke Monitor Threshing; jika dibatalkan, tidak ada perubahan"
+    },
+    {
+      "scenario": "Input Data Threshing — Back dengan perubahan belum tersimpan",
+      "given": "Operator sudah login di aplikasi mobile dan draft Threshing (baru atau lanjutan) sudah dibuat berikut 24 baris time-slot kosong",
+      "when": "User menekan Back saat mengisi header atau grid Threshing Detail",
+      "then": "Jika ada perubahan belum tersimpan, System menampilkan dialog konfirmasi sebelum keluar; jika tidak ada perubahan, System langsung kembali ke Monitor Threshing"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-041--form-threshing"
+  ]
+}

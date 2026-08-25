@@ -1,0 +1,152 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "ver": 1,
+  "id": "usecase-044--form-kernel-plant",
+  "name": "Input Data Kernel Plant",
+  "description": "Operator atau Supervisor mengisi header dan grid detail time-slot Kernel Plant (24 baris tetap), lalu menyimpan sebagai data final atau checkpoint sementara (Pause), atau menghapusnya (Clear).",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login di aplikasi mobile",
+    "User berada di Form Kernel Plant baik dari 'New Data' (draft baru dengan 24 baris kosong) maupun melanjutkan draft/pause yang sudah ada"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Memuat header dan 24 baris Kernel Plant Detail (dari draft baru atau draft/pause yang dilanjutkan), ditampilkan dalam form"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Mengisi Kernel Plant ID dan kolom bacaan pada baris time-slot yang relevan"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "(Opsional, khusus Supervisor) Menandai toggle 'Saya verifikasi data ini' (Checked By)"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'Simpan'"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi Kernel Plant ID wajib diisi dan minimal 1 baris punya minimal 1 kolom bacaan terisi; jika valid, menyimpan record dengan status=saved dan kembali ke Monitor Kernel Plant"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Kernel Plant ID belum diisi",
+      "trigger": "Pada step 5, Kernel Plant ID kosong saat Simpan ditekan",
+      "steps": [
+        "System menampilkan error inline pada field Kernel Plant ID",
+        "Record tidak disimpan"
+      ]
+    },
+    {
+      "name": "Belum ada baris terisi",
+      "trigger": "Pada step 5, seluruh 24 baris tidak punya satu pun kolom bacaan terisi saat Simpan ditekan",
+      "steps": [
+        "System menampilkan pesan error khusus pada area grid Kernel Plant Detail",
+        "Record tidak disimpan"
+      ]
+    },
+    {
+      "name": "Pause",
+      "trigger": "User menekan 'Pause' alih-alih 'Simpan'",
+      "steps": [
+        "System menyimpan header dan seluruh baris apa adanya tanpa validasi apa pun, dengan status=draft_paused",
+        "System kembali ke Monitor Kernel Plant"
+      ]
+    },
+    {
+      "name": "Clear",
+      "trigger": "User menekan 'Clear'",
+      "steps": [
+        "System menampilkan dialog konfirmasi penghapusan",
+        "Jika dikonfirmasi, System menghapus record beserta seluruh 24 baris terkait secara permanen dan kembali ke Monitor Kernel Plant",
+        "Jika dibatalkan, tidak ada perubahan"
+      ]
+    },
+    {
+      "name": "Back dengan perubahan belum tersimpan",
+      "trigger": "User menekan 'Back' setelah mengubah header atau grid dari kondisi saat dimuat",
+      "steps": [
+        "System menampilkan dialog konfirmasi keluar tanpa menyimpan",
+        "Jika dikonfirmasi, System kembali ke Monitor Kernel Plant tanpa menyimpan perubahan",
+        "Jika dibatalkan, tetap di Form Kernel Plant"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Kernel Plant tersimpan dengan status=saved (Simpan berhasil), status=draft_paused (Pause), atau dihapus (Clear), dan user kembali ke Monitor Kernel Plant"
+  ],
+  "business_rules": [
+    "Grid Kernel Plant Detail selalu tepat 24 baris, tidak ada tambah/hapus baris manual",
+    "Minimal 1 dari 24 baris harus terisi minimal 1 kolom bacaan sebelum Simpan berhasil",
+    "Downtime (Mins) dan Findings dihitung sebagai kolom bacaan yang sah untuk memenuhi syarat 'baris terisi', sama seperti 7 kolom numerik lainnya",
+    "Checked By hanya oleh Supervisor, Acknowledged By hanya oleh Mill Management",
+    "Pause tidak memvalidasi apa pun"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data Kernel Plant — berhasil",
+      "given": "User berada di Form Kernel Plant dengan draft baru (24 baris kosong)",
+      "when": "User mengisi Kernel Plant ID dan minimal 1 kolom bacaan pada salah satu baris, lalu menekan Simpan",
+      "then": "System menyimpan record dengan status=saved dan kembali ke Monitor Kernel Plant"
+    },
+    {
+      "scenario": "Input Data Kernel Plant — Kernel Plant ID Belum Lengkap",
+      "given": "User berada di Form Kernel Plant",
+      "when": "User menekan Simpan tanpa mengisi Kernel Plant ID",
+      "then": "System menampilkan error inline pada field Kernel Plant ID dan tidak menyimpan"
+    },
+    {
+      "scenario": "Input Data Kernel Plant — Belum Ada Baris Terisi",
+      "given": "User berada di Form Kernel Plant dengan Kernel Plant ID sudah diisi",
+      "when": "User menekan Simpan tanpa mengisi satu pun kolom bacaan pada 24 baris",
+      "then": "System menampilkan pesan error khusus pada grid Kernel Plant Detail dan tidak menyimpan"
+    },
+    {
+      "scenario": "Input Data Kernel Plant — Baris Terisi via Downtime atau Findings Saja",
+      "given": "User berada di Form Kernel Plant dengan Kernel Plant ID sudah diisi",
+      "when": "User mengisi hanya kolom Findings (atau hanya Downtime Mins) pada satu baris, lalu menekan Simpan",
+      "then": "System menganggap baris tersebut terisi dan menyimpan record dengan status=saved"
+    },
+    {
+      "scenario": "Input Data Kernel Plant — Pause Progress",
+      "given": "User berada di Form Kernel Plant",
+      "when": "User menekan Pause tanpa mengisi field apa pun",
+      "then": "System menyimpan progress apa adanya dengan status=draft_paused dan kembali ke Monitor Kernel Plant"
+    },
+    {
+      "scenario": "Input Data Kernel Plant — Clear Draft",
+      "given": "User berada di Form Kernel Plant untuk sebuah draft",
+      "when": "User menekan Clear dan mengonfirmasi penghapusan",
+      "then": "System menghapus draft beserta seluruh 24 barisnya secara permanen dan kembali ke Monitor Kernel Plant"
+    },
+    {
+      "scenario": "Input Data Kernel Plant — Back Dengan Perubahan Belum Tersimpan",
+      "given": "User telah mengubah salah satu field header atau grid",
+      "when": "User menekan Back",
+      "then": "System menampilkan dialog konfirmasi keluar tanpa menyimpan sebelum benar-benar kembali ke Monitor Kernel Plant"
+    },
+    {
+      "scenario": "Input Data Kernel Plant — Checked By Khusus Supervisor",
+      "given": "User yang login berperan Operator (bukan Supervisor)",
+      "when": "User membuka Form Kernel Plant",
+      "then": "Toggle Checked By ditampilkan namun tidak dapat ditekan/nonaktif"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-044--form-kernel-plant"
+  ]
+}

@@ -65,7 +65,6 @@ async function login(page, username, password) {
   await page.goto(`${BASE_URL}${LOGIN_PATH}`);
   await page.locator('#username').fill(username);
   await page.locator('#password').fill(password);
-  await page.locator('#business_unit_id').selectOption({ label: BUSINESS_UNIT_NAME });
   await page.locator('button[type="submit"]').click();
   // Redirected away from /login once the session is established.
   await page.waitForURL((url) => !url.pathname.startsWith(LOGIN_PATH));
@@ -75,6 +74,20 @@ async function gotoMachineryGroups(page) {
   await page.goto(`${BASE_URL}${MACHINERY_GROUPS_PATH}`);
 }
 
+// Interacts with the x-searchable-select combobox (see
+// resources/views/components/searchable-select.blade.php) that replaced
+// this screen's #station_id / #filterStationId <select>s.
+async function selectSearchable(page, id, label) {
+  await page.locator(`#${id}`).click();
+  await page.locator(`#${id}`).fill(label);
+  await page.locator(`#${id}-listbox`).getByRole('option', { name: label, exact: true }).click();
+}
+
+async function selectSearchableFirst(page, id) {
+  await page.locator(`#${id}`).click();
+  await page.locator(`#${id}-listbox`).getByRole('option').nth(1).click();
+}
+
 test.describe('Kelola Machinery Group', () => {
   // Scenario: "Kelola Machinery Group — success"
   test('menambah machinery group baru dengan memilih station, production line terisi otomatis, dan menampilkannya di tabel', async ({ page }) => {
@@ -82,7 +95,7 @@ test.describe('Kelola Machinery Group', () => {
     await gotoMachineryGroups(page);
 
     await page.locator('button', { hasText: 'Tambah Machinery Group' }).click();
-    await page.locator('#station_id').selectOption({ label: 'Mill Machinery Group Station Baru' });
+    await selectSearchable(page, 'station_id', 'Mill Machinery Group Station Baru');
 
     // The Production Line field is read-only and auto-populated from the
     // selected Station — never independently typed by the admin.
@@ -110,7 +123,7 @@ test.describe('Kelola Machinery Group', () => {
     const row = page.locator('.kc-table__row', { hasText: 'MG-BROWSER-SEBELUM-EDIT' });
     await row.locator('button', { hasText: 'Edit' }).click();
 
-    await page.locator('#station_id').selectOption({ label: 'Mill Machinery Group Station Tujuan Edit' });
+    await selectSearchable(page, 'station_id', 'Mill Machinery Group Station Tujuan Edit');
     const uniqueSuffix = Date.now();
     const newCode = `MG-BROWSER-SESUDAH-EDIT-${uniqueSuffix}`;
     await page.locator('#group_code').fill(newCode);
@@ -153,7 +166,7 @@ test.describe('Kelola Machinery Group', () => {
     await gotoMachineryGroups(page);
 
     await page.locator('button', { hasText: 'Tambah Machinery Group' }).click();
-    await page.locator('#station_id').selectOption({ index: 1 });
+    await selectSearchableFirst(page, 'station_id');
     await page.locator('#group_code').fill('MG-DUP-01');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
@@ -192,7 +205,7 @@ test.describe('Kelola Machinery Group', () => {
     await login(page, 'mgtest-admin01', PASSWORD);
     await gotoMachineryGroups(page);
 
-    await page.locator('#filterStationId').selectOption({ index: 1 });
+    await selectSearchableFirst(page, 'filterStationId');
 
     // Every visible row (if any) belongs to the selected Station —
     // asserted structurally rather than against a specific row count,

@@ -54,7 +54,6 @@ async function login(page, username, password) {
   await page.goto(`${BASE_URL}${LOGIN_PATH}`);
   await page.locator('#username').fill(username);
   await page.locator('#password').fill(password);
-  await page.locator('#business_unit_id').selectOption({ label: BUSINESS_UNIT_NAME });
   await page.locator('button[type="submit"]').click();
   // Redirected away from /login once the session is established.
   await page.waitForURL((url) => !url.pathname.startsWith(LOGIN_PATH));

@@ -257,4 +257,57 @@ describe('StationGrid', () => {
       expect(iconHtml).not.toContain('cy="19"')
     })
   })
+
+  // TEMPORARY (2026-08-24, narrowed 2026-08-25) — Depricarping/Kernel Plant
+  // are fully built/tested but hidden from this grid again by product
+  // decision (not ready to expose yet). Threshing/Pressing were
+  // re-enabled 2026-08-25 (product wants them live now), so they now
+  // render normally like the original 3 stations — no longer part of this
+  // describe block. `TEMPORARILY_HIDDEN_TYPES` in StationGrid.vue excludes
+  // the remaining 2 even when `isActive: true`, without touching the
+  // underlying `isActive` data. Remove this describe block (and the Set in
+  // StationGrid.vue) when those 2 are re-enabled too.
+  describe('temporarily hidden stations (2026-08-24, narrowed 2026-08-25)', () => {
+    it('does not render a tile for an active station whose type is temporarily hidden', () => {
+      const hidden: StationSlot[] = [
+        makeStation({ id: 'station-depricarping', name: 'Depricarping', type: 'depricarping', isActive: true }),
+        makeStation({ id: 'station-kernel-plant', name: 'Kernel Plant', type: 'kernel-plant', isActive: true }),
+      ]
+      const wrapper = mount(StationGrid, { props: { stations: hidden } })
+
+      expect(wrapper.findAll('[role="listitem"]')).toHaveLength(0)
+      for (const station of hidden) {
+        expect(wrapper.find(`[data-testid="station-tile-${station.id}"]`).exists()).toBe(false)
+      }
+    })
+
+    it('still renders the original 3 active stations normally alongside hidden ones', async () => {
+      const stations: StationSlot[] = [
+        makeStation({ id: 'station-weighbridge', name: 'Weighbridge', type: 'weighbridge', isActive: true }),
+        makeStation({ id: 'station-depricarping', name: 'Depricarping', type: 'depricarping', isActive: true }),
+      ]
+      const wrapper = mount(StationGrid, { props: { stations } })
+
+      expect(wrapper.findAll('[role="listitem"]')).toHaveLength(1)
+      const tile = wrapper.get('[data-testid="station-tile-station-weighbridge"]')
+      expect(tile.attributes('aria-disabled')).toBe('false')
+
+      await tile.trigger('click')
+      expect(wrapper.emitted('navigate')).toEqual([['weighbridge']])
+    })
+
+    it('renders Threshing and Pressing tiles normally now that they are re-enabled', async () => {
+      const stations: StationSlot[] = [
+        makeStation({ id: 'station-threshing', name: 'Threshing', type: 'threshing', isActive: true }),
+        makeStation({ id: 'station-pressing', name: 'Pressing', type: 'pressing', isActive: true }),
+      ]
+      const wrapper = mount(StationGrid, { props: { stations } })
+
+      expect(wrapper.findAll('[role="listitem"]')).toHaveLength(2)
+
+      const threshingTile = wrapper.get('[data-testid="station-tile-station-threshing"]')
+      await threshingTile.trigger('click')
+      expect(wrapper.emitted('navigate')).toEqual([['threshing']])
+    })
+  })
 })

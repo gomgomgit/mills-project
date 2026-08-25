@@ -48,12 +48,17 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useFloatingClockStore } from '@/stores/floatingClock'
+import { useAiAssistantStore } from '@/stores/aiAssistant'
 import { stationRepo, type StationSlot, type StationType } from '@/services/stationRepo'
 import { productionLineRepo, type ProductionLineOption } from '@/services/productionLineRepo'
 import { seedDefaultStationsIfNeeded } from '@/services/localSchema'
 import { weighbridgeRecordRepo } from '@/services/weighbridgeRecordRepo'
 import { gradingRecordRepo } from '@/services/gradingRecordRepo'
 import { cagesTrackRecordRepo } from '@/services/cagesTrackRecordRepo'
+import { threshingRecordRepo } from '@/services/threshingRecordRepo'
+import { pressingRecordRepo } from '@/services/pressingRecordRepo'
+import { depricarpingRecordRepo } from '@/services/depricarpingRecordRepo'
+import { kernelPlantRecordRepo } from '@/services/kernelPlantRecordRepo'
 import { syncAllRecords, type SyncSummary } from '@/services/syncService'
 import StationGrid from '@/components/StationGrid.vue'
 import SyncResultDialog from '@/components/SyncResultDialog.vue'
@@ -61,6 +66,7 @@ import SyncResultDialog from '@/components/SyncResultDialog.vue'
 const router = useRouter()
 const authStore = useAuthStore()
 const floatingClockStore = useFloatingClockStore()
+const aiAssistantStore = useAiAssistantStore()
 
 const stations = ref<StationSlot[]>([])
 const loading = ref(false)
@@ -88,16 +94,24 @@ const selectedProductionLineId = ref<string | null>(null)
 const showProductionLinePicker = ref(false)
 
 /**
- * Maps an active station's type to the (not-yet-registered) monitor
- * screen route name it should navigate to — business_logic step 3.
- * `other` never appears as an active tile in practice (only weighbridge /
- * grading / cages-track are real, implemented station types per this
- * screen's spec) but is handled defensively rather than assumed away.
+ * Maps an active station's type to its monitor screen route name —
+ * business_logic step 3. `other` never appears as an active tile in
+ * practice (only the 7 MVP station types below are real, implemented
+ * station types per this screen's spec) but is handled defensively rather
+ * than assumed away.
+ *
+ * 2026-08-23 — extended with the 4 newly-promoted MVP stations (Threshing,
+ * Pressing, Depricarping, Kernel Plant); all 4 route names are already
+ * registered in router/index.ts by their own screen implementations.
  */
 const MONITOR_ROUTE_NAMES: Partial<Record<StationType, string>> = {
   weighbridge: 'monitor-weighbridge',
   grading: 'monitor-grading',
   'cages-track': 'monitor-cages-track',
+  threshing: 'monitor-threshing',
+  pressing: 'monitor-pressing',
+  depricarping: 'monitor-depricarping',
+  'kernel-plant': 'monitor-kernel-plant',
 }
 
 onMounted(async () => {
@@ -209,7 +223,15 @@ async function onSelectProductionLine(line: ProductionLineOption): Promise<void>
  * business_logic step 2 — hasDraft per active station type, for the
  * current user. Best-effort per repo call: any single repo's rejection is
  * caught individually so one failing lookup does not blank out the other
- * two already-successful ones.
+ * already-successful ones.
+ *
+ * 2026-08-23 — extended with the 4 newly-promoted MVP stations. Their repos
+ * (threshingRecordRepo etc.) expose `getDrafts(userId)` — a list of
+ * draft_ongoing/draft_paused records — rather than the older 3 stations'
+ * `getSummary()`/`getProgressSummary()` single-`currentDraft` shape; both
+ * are equivalent for this screen's purpose (hasDraft = at least one
+ * ongoing/paused record exists), so the new 4 are reduced to a boolean via
+ * `.length > 0` instead.
  */
 async function loadDraftStatusByType() {
   const userId = authStore.currentUser?.id
@@ -218,16 +240,24 @@ async function loadDraftStatusByType() {
     return
   }
 
-  const [weighbridge, grading, cagesTrack] = await Promise.all([
+  const [weighbridge, grading, cagesTrack, threshing, pressing, depricarping, kernelPlant] = await Promise.all([
     weighbridgeRecordRepo.getSummary(userId).catch(() => null),
     gradingRecordRepo.getProgressSummary(userId).catch(() => null),
     cagesTrackRecordRepo.getProgressSummary(userId).catch(() => null),
+    threshingRecordRepo.getDrafts(userId).catch(() => []),
+    pressingRecordRepo.getDrafts(userId).catch(() => []),
+    depricarpingRecordRepo.getDrafts(userId).catch(() => []),
+    kernelPlantRecordRepo.getDrafts(userId).catch(() => []),
   ])
 
   draftStatusByType.value = {
     weighbridge: weighbridge?.currentDraft !== null && weighbridge?.currentDraft !== undefined,
     grading: grading?.currentDraft !== null && grading?.currentDraft !== undefined,
     'cages-track': cagesTrack?.currentDraft !== null && cagesTrack?.currentDraft !== undefined,
+    threshing: threshing.length > 0,
+    pressing: pressing.length > 0,
+    depricarping: depricarping.length > 0,
+    'kernel-plant': kernelPlant.length > 0,
   }
 }
 
@@ -249,6 +279,11 @@ function toggleNavMenu() {
 
 function closeNavMenu() {
   isNavMenuOpen.value = false
+}
+
+function openAiAssistant() {
+  closeNavMenu()
+  aiAssistantStore.open()
 }
 
 function goToChangePassword() {
@@ -329,14 +364,18 @@ function closeSyncDialog() {
       <button
         type="button"
         class="hamburger-button"
-        aria-label="Buka menu navigasi"
+        :aria-label="isNavMenuOpen ? 'Tutup menu navigasi' : 'Buka menu navigasi'"
         data-testid="hamburger-button"
         @click="toggleNavMenu"
       >
-        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+        <svg v-if="!isNavMenuOpen" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
           <line x1="3" y1="6" x2="21" y2="6" />
           <line x1="3" y1="12" x2="21" y2="12" />
           <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+        <svg v-else viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
       </button>
 
@@ -345,6 +384,8 @@ function closeSyncDialog() {
           Ganti Password
         </button>
         <button type="button" class="nav-menu-item" data-testid="nav-menu-toggle-floating-clock" @click="floatingClockStore.toggle()">{{ floatingClockStore.enabled ? 'Nonaktifkan Jam Mengambang' : 'Aktifkan Jam Mengambang' }}</button>
+        <button type="button" class="nav-menu-item" data-testid="nav-menu-toggle-ai-bubble" @click="aiAssistantStore.toggleBubble()">{{ aiAssistantStore.bubbleEnabled ? 'Nonaktifkan Bubble Chat AI' : 'Aktifkan Bubble Chat AI' }}</button>
+        <button type="button" class="nav-menu-item" data-testid="nav-menu-ai-assistant" @click="openAiAssistant">Bantuan AI</button>
         <button type="button" class="nav-menu-item" data-testid="nav-menu-logout" @click="onLogout">Logout</button>
       </div>
     </header>

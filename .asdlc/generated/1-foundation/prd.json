@@ -1,14 +1,14 @@
 {
-  "ver": 1,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-14"
+    "updated_at": "2026-08-24"
   },
   "overview": "Mill Smart Log adalah sistem manajemen operasional pabrik CPO (mill) yang mendigitalisasi log sheet stasiun produksi — Operator menginput data melalui aplikasi mobile offline-first, sementara Supervisor, Mill Management, dan Admin mengelola, memonitor, dan turut menginput data stasiun melalui web (dan mobile untuk Supervisor), menggantikan pencatatan manual berbasis kertas.",
   "problem_statement": "Pencatatan log stasiun pabrik CPO secara manual (kertas) menyebabkan keterlambatan pelaporan, risiko kesalahan input, kesulitan konsolidasi data lintas stasiun, dan tidak adanya jalur input cadangan saat operator lapangan tidak dapat mengakses perangkat mobile.",
   "goals": [
     {
-      "item": "Mendigitalisasi log sheet tiga stasiun MVP (Weighbridge, Grading, Cages & Track) dari kertas ke aplikasi mobile offline-first",
+      "item": "Mendigitalisasi log sheet tujuh stasiun MVP (Weighbridge, Grading, Cages & Track, Threshing, Pressing, Depricarping, Kernel Plant) dari kertas ke aplikasi mobile offline-first",
       "reason": "Mengurangi kesalahan input manual dan keterlambatan pelaporan"
     },
     {
@@ -24,7 +24,7 @@
       "reason": "Memungkinkan integrasi sinkronisasi dan ERP tanpa migrasi skema besar nantinya"
     },
     {
-      "item": "Menyediakan basis data skalabel untuk 15 stasiun desain masa depan tanpa mengimplementasikan layar operasionalnya di MVP",
+      "item": "Menyediakan basis data skalabel untuk 8 stasiun desain masa depan (Sterilization, Clarification, Boiler, Effluent Treatment, Loading Ramp, Engine Room, Water Treatment, Bulking Storage) tanpa mengimplementasikan layar operasionalnya di MVP",
       "reason": "Mempersiapkan ekspansi tanpa menambah kompleksitas MVP"
     },
     {
@@ -36,7 +36,7 @@
       "reason": "Menjaga akuntabilitas verifikasi tanpa mengubah alur menjadi approval formal (record tetap langsung tersimpan)"
     },
     {
-      "item": "Menyediakan aksi Pause pada flow Monitor untuk tiga stasiun MVP (Weighbridge, Grading, Cages Track)",
+      "item": "Menyediakan aksi Pause pada flow Monitor untuk tujuh stasiun MVP (Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant)",
       "reason": "Memungkinkan Operator/Supervisor menghentikan sementara progress monitoring yang sedang berjalan"
     },
     {
@@ -46,6 +46,10 @@
     {
       "item": "Menyediakan indikator visual/flag yang membedakan status data: tidak ada input / sedang berlangsung / paused (belum selesai)",
       "reason": "Agar Operator/Supervisor mudah mengenali data yang masih perlu dilanjutkan, baik di level Home maupun daftar record per stasiun"
+    },
+    {
+      "item": "Menyediakan tabel referensi target operasional (read-only) pada form Threshing, Pressing, Depricarping, dan Kernel Plant — parameter/metric, target/range, dan action plan/critical limit sesuai log sheet kertas asli",
+      "reason": "Operator/Supervisor butuh acuan standar operasional saat menginput data time-slot tanpa membuka dokumen kertas terpisah"
     }
   ],
   "non_goals": [
@@ -78,8 +82,8 @@
       "reason": "Pelaporan MVP cukup dashboard, data browser, ekspor CSV/Excel dasar"
     },
     {
-      "item": "Implementasi 15 stasiun desain masa depan sebagai layar mobile/web",
-      "reason": "Tetap di level skema data saja untuk MVP"
+      "item": "Implementasi 8 stasiun desain masa depan sisanya (Sterilization, Clarification, Boiler, Effluent Treatment, Loading Ramp, Engine Room, Water Treatment, Bulking Storage) sebagai layar mobile/web",
+      "reason": "Tetap di level skema data saja untuk MVP — hanya Threshing, Pressing, Depricarping, dan Kernel Plant yang dipromosikan menjadi stasiun aktif pada revisi ini"
     }
   ],
   "initial_actors": [
@@ -100,6 +104,10 @@
     {
       "assumption": "Master data (Station, Machinery, dst) dikelola sepenuhnya oleh Admin via web, mobile hanya read-only",
       "status": "confirmed"
+    },
+    {
+      "assumption": "Tabel referensi target operasional (Threshing/Pressing/Depricarping/Kernel Plant) diseed oleh Admin dan ditampilkan read-only di form — bukan bagian dari payload create/update record time-slot",
+      "status": "confirmed"
     }
   ],
   "constraints": [
@@ -113,7 +121,7 @@
     },
     {
       "type": "technical",
-      "description": "Offline-first di mobile dengan SQLite lokal untuk Weighbridge, Grading, Cages Track"
+      "description": "Offline-first di mobile dengan SQLite lokal untuk Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant"
     },
     {
       "type": "technical",
@@ -146,15 +154,20 @@
     {
       "type": "business",
       "description": "Field Checked By dan Acknowledged By pada form stasiun dibatasi per-role (Supervisor / Mill Management) di level aplikasi, bukan sekadar teks bebas"
+    },
+    {
+      "type": "technical",
+      "description": "Detail time-slot Threshing/Pressing/Depricarping/Kernel Plant memakai tabel detail khusus per stasiun (bukan tabel measurement generik). Baris ditambahkan MANUAL oleh user satu per satu (aksi 'Tambah baris' + pilih jam dari dropdown sisa slot kanonis 07:00–06:00, urutan menaik), BUKAN grid statis 24 baris pre-generated — mengikuti pola persis Cages Track (cages_tipped_time), direvisi 2026-08-24 dari desain awal agar form tidak memakan banyak ruang dan tidak memaksa isi tiap jam."
     }
   ],
   "success_metrics": [
-    "Operator/Supervisor bisa login dan menyimpan data Weighbridge/Grading/Cages Track secara offline tanpa kehilangan data saat app ditutup/koneksi putus/device restart",
+    "Operator/Supervisor bisa login dan menyimpan data Weighbridge/Grading/Cages Track/Threshing/Pressing/Depricarping/Kernel Plant secara offline tanpa kehilangan data saat app ditutup/koneksi putus/device restart",
     "Data tersimpan lokal tampil di web dashboard & data preview setelah sync manual berhasil",
     "Station list & saved records termuat ≤ 2 detik untuk dataset normal",
     "Supervisor/Mill Management bisa memfilter (tanggal, business unit/mill, stasiun) dan mengekspor data ke CSV/Excel",
     "Tampilan mobile sesuai arahan visual Figma untuk layar MVP yang diimplementasikan",
     "Field Checked By/Acknowledged By tidak bisa diisi oleh role yang tidak berwenang (tervalidasi di level aplikasi)",
-    "Operator dapat mem-pause satu input, memulai input baru, dan kembali melanjutkan input yang di-pause tanpa kehilangan data — status setiap draft (ongoing/paused) terlihat jelas di UI"
+    "Operator dapat mem-pause satu input, memulai input baru, dan kembali melanjutkan input yang di-pause tanpa kehilangan data — status setiap draft (ongoing/paused) terlihat jelas di UI",
+    "Tabel referensi target operasional tampil read-only dan konsisten pada form Threshing/Pressing/Depricarping/Kernel Plant di mobile maupun web"
   ]
 }

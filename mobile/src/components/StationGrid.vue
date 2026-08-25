@@ -78,15 +78,43 @@ const emit = defineEmits<{
   navigate: [type: StationType]
 }>()
 
-const activeStations = computed(() => props.stations.filter((station) => station.isActive))
+/**
+ * TEMPORARY (2026-08-24, narrowed 2026-08-25) — Depricarping/Kernel Plant
+ * are fully built and tested but not yet ready to expose to users; product
+ * decision is to hide their tiles from this grid for now while keeping all
+ * underlying code (repos, routes, backend, is_active=true in the DB) fully
+ * intact. Threshing/Pressing were re-enabled 2026-08-25 (product wants them
+ * live now). To re-enable the remaining two: delete this Set (or remove
+ * entries from it) — no other change needed, since `isActive` itself is
+ * untouched and everything downstream (draft-status lookups, navigation)
+ * is already wired.
+ */
+const TEMPORARILY_HIDDEN_TYPES = new Set<StationType>(['depricarping', 'kernel-plant'])
+
+const activeStations = computed(() =>
+  props.stations.filter((station) => station.isActive && !TEMPORARILY_HIDDEN_TYPES.has(station.type)),
+)
 const placeholderStations = computed(() => props.stations.filter((station) => !station.isActive))
 
-const ACTIVE_ICONS: Record<'weighbridge' | 'grading' | 'cages-track', string> = {
+const ACTIVE_ICONS: Record<
+  'weighbridge' | 'grading' | 'cages-track' | 'threshing' | 'pressing' | 'depricarping' | 'kernel-plant',
+  string
+> = {
   weighbridge:
     '<rect x="2" y="7" width="20" height="10" rx="1"/><path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/><line x1="6" y1="17" x2="6" y2="20"/><line x1="18" y1="17" x2="18" y2="20"/>',
   grading: '<circle cx="12" cy="12" r="9"/><line x1="12" y1="7" x2="12" y2="12"/><line x1="12" y1="12" x2="16" y2="14"/>',
   'cages-track':
     '<rect x="3" y="4" width="7" height="16" rx="1"/><rect x="14" y="4" width="7" height="16" rx="1"/><line x1="10" y1="12" x2="14" y2="12"/>',
+  // 2026-08-23 — 4 newly-promoted MVP stations reuse the exact SVG path
+  // data their former PLACEHOLDER_ICONS entry already had below (thresher/
+  // press/'kernel plant' matched by name already; depricarping had no
+  // exact placeholder-name match among the original 12, so it reuses
+  // 'digester' — the closest conceptually-adjacent placeholder glyph and
+  // the one repurposed into this active station, see ProductionLineService.php).
+  threshing: '<circle cx="12" cy="12" r="9"/><line x1="8" y1="12" x2="16" y2="12"/>',
+  pressing: '<path d="M4 20V10l8-6 8 6v10"/><line x1="12" y1="14" x2="12" y2="20"/>',
+  depricarping: '<rect x="4" y="4" width="16" height="16" rx="8"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>',
+  'kernel-plant': '<rect x="5" y="3" width="14" height="18" rx="1"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/>',
 }
 
 const PLACEHOLDER_ICONS: Record<string, string> = {

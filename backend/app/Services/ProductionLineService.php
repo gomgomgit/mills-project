@@ -40,29 +40,41 @@ class ProductionLineService
 {
     /**
      * The 15 canonical stations every Production Line is auto-provisioned
-     * with on create() — 3 MVP-functional (weighbridge/grading/
-     * cages-track, `is_active` true) + 12 `other`-typed placeholders for
-     * future station schemas (`is_active` false). Identical list to the
-     * one formerly on BusinessUnitService::DEFAULT_STATIONS (moved here
-     * verbatim, not duplicated — BusinessUnitService no longer has its own
-     * copy) and to mobile's `DEFAULT_STATIONS`
-     * (mobile/src/services/localSchema.ts). `code` is intentionally left
-     * null for every row — nullable+unique at the DB layer, multiple null
-     * `code`s across many production lines never collide.
+     * with on create() — 7 MVP-functional (weighbridge/grading/
+     * cages-track/threshing/pressing/depricarping/kernel-plant, `is_active`
+     * true) + 8 `other`-typed placeholders for future station schemas
+     * (`is_active` false). Identical list to the one formerly on
+     * BusinessUnitService::DEFAULT_STATIONS (moved here verbatim, not
+     * duplicated — BusinessUnitService no longer has its own copy) and to
+     * mobile's `DEFAULT_STATIONS` (mobile/src/services/localSchema.ts).
+     * `code` is intentionally left null for every row — nullable+unique at
+     * the DB layer, multiple null `code`s across many production lines
+     * never collide.
+     *
+     * 2026-08-23 — 4 of the former 12 `other` placeholders promoted to
+     * active MVP stations: 'Thresher' → 'Threshing' (type threshing),
+     * 'Press' → 'Pressing' (type pressing), 'Digester' → 'Depricarping'
+     * (type depricarping — the closest conceptually-adjacent placeholder
+     * name among the original 12, since none of them was literally
+     * "Depricarping"), 'Kernel Plant' stays same name (type kernel-plant).
+     * Existing Production Lines created before this change are backfilled
+     * by migration 2026_08_23_000014_activate_4_new_stations_on_existing_production_lines.php
+     * rather than left stale — this constant only governs NEW Production
+     * Lines going forward.
      */
     protected const DEFAULT_STATIONS = [
         ['name' => 'Weighbridge', 'type' => 'weighbridge', 'is_active' => true],
         ['name' => 'Grading', 'type' => 'grading', 'is_active' => true],
         ['name' => 'Cages Track', 'type' => 'cages-track', 'is_active' => true],
         ['name' => 'Sterilizer', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Thresher', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Press', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Threshing', 'type' => 'threshing', 'is_active' => true],
+        ['name' => 'Pressing', 'type' => 'pressing', 'is_active' => true],
         ['name' => 'Clarification', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Kernel Plant', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Kernel Plant', 'type' => 'kernel-plant', 'is_active' => true],
         ['name' => 'Boiler', 'type' => 'other', 'is_active' => false],
         ['name' => 'Effluent Treatment', 'type' => 'other', 'is_active' => false],
         ['name' => 'Loading Ramp', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Digester', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Depricarping', 'type' => 'depricarping', 'is_active' => true],
         ['name' => 'Engine Room', 'type' => 'other', 'is_active' => false],
         ['name' => 'Water Treatment', 'type' => 'other', 'is_active' => false],
         ['name' => 'Bulking Storage', 'type' => 'other', 'is_active' => false],

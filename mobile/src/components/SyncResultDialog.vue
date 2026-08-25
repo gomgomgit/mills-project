@@ -29,7 +29,15 @@ const emit = defineEmits<{
 }>()
 
 function failedItems(summary: SyncSummary) {
-  return [...summary.weighbridge, ...summary.grading, ...summary.cagesTrack].filter((item) => !item.ok)
+  return [
+    ...summary.weighbridge,
+    ...summary.grading,
+    ...summary.cagesTrack,
+    ...summary.threshing,
+    ...summary.pressing,
+    ...summary.depricarping,
+    ...summary.kernelPlant,
+  ].filter((item) => !item.ok)
 }
 </script>
 

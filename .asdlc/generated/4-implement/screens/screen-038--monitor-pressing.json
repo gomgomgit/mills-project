@@ -1,0 +1,66 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-038--monitor-pressing",
+  "name": "Monitor Pressing",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/localSchema.ts",
+    "mobile/src/services/pressingRecordRepo.ts",
+    "mobile/src/data/pressingOperationalTargets.ts",
+    "mobile/src/views/MonitorPressingView.vue",
+    "mobile/src/router/index.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/pressingRecordRepo.spec.ts",
+    "mobile/tests/MonitorPressingView.spec.ts",
+    "mobile/tests/e2e/monitor-pressing.spec.ts"
+  ],
+  "implementation_notes": [
+    "pressing_record/pressing_detail local SQLite tables in localSchema.ts unchanged by this revision (same columns/unique constraint) -- only the row-population pattern changed",
+    "pressingRecordRepo.ts covers all 3 mobile Pressing screens (038/042/046) in one file, same convention as threshingRecordRepo.ts covering screens 037/041/045",
+    "REVISED 2026-08-24 (entity-catalog v12, correcting the original design the user explicitly rejected): createDraft() now inserts ONLY the header row -- the 24 pre-created pressing_detail rows were a literal reading of the paper log-sheet mockup that wasted screen space; rows are now added one at a time by the user in Form Pressing via 'Tambah baris', exactly mirroring threshingRecordRepo.ts's just-fixed pattern (itself mirroring cagesTrackRecordRepo.ts's cages_tipped_time pattern)",
+    "'Jumlah Baris Time-Slot Tercatat' counter redefined as a plain COUNT(*) of pressing_detail rows belonging to today's records -- no longer filtered by 'has >=1 reading column filled', since row existence itself is now the meaningful signal (a row only exists because the user explicitly added it); MonitorPressingView.vue's counter field renamed from filledSlotCount/counter-filled-slot-count to detailRowCount/counter-detail-row-count",
+    "Router: route name 'monitor-pressing' registered in router/index.ts, but StationListView.vue (screen-006, explicitly out of this task's scope) has NOT been updated to link to it -- see known_issues"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "StationListView.vue (screen-006, out of this 6-screen task's scope) has not been updated to add a Pressing tile/link to 'monitor-pressing' -- this screen is reachable directly by route/URL but not yet from the Station List grid. Needs a separate revision of screen-006.",
+      "severity": "major"
+    },
+    {
+      "description": "Browser (Playwright) e2e spec (mobile/tests/e2e/monitor-pressing.spec.ts) was authored/revised following the exact pattern of Threshing's e2e specs, but could not be executed in this sandboxed environment against a running dev server + seeded backend -- verified only by static review, not a live run.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-24T08:05:00Z",
+      "passed": 28,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T08:06:00Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

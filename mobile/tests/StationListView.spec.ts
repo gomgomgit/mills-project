@@ -51,6 +51,21 @@ vi.mock('@/stores/floatingClock', () => ({
   useFloatingClockStore: () => ({ enabled: false, toggle: vi.fn() }),
 }))
 
+const { aiAssistantOpenMock, aiAssistantToggleBubbleMock } = vi.hoisted(() => ({
+  aiAssistantOpenMock: vi.fn(),
+  aiAssistantToggleBubbleMock: vi.fn(),
+}))
+
+vi.mock('@/stores/aiAssistant', () => ({
+  useAiAssistantStore: () => ({
+    isOpen: false,
+    bubbleEnabled: true,
+    open: aiAssistantOpenMock,
+    close: vi.fn(),
+    toggleBubble: aiAssistantToggleBubbleMock,
+  }),
+}))
+
 const { getActiveAndPlaceholderStationsMock, getActiveAndPlaceholderStationsForProductionLineMock } = vi.hoisted(() => ({
   getActiveAndPlaceholderStationsMock: vi.fn(),
   getActiveAndPlaceholderStationsForProductionLineMock: vi.fn(),
@@ -125,6 +140,39 @@ vi.mock('@/services/cagesTrackRecordRepo', () => ({
   cagesTrackRecordRepo: { getProgressSummary: getCagesTrackProgressSummaryMock },
 }))
 
+// 2026-08-23 — the 4 newly-promoted MVP stations (Threshing/Pressing/
+// Depricarping/Kernel Plant) expose `getDrafts(userId)` (a list of
+// draft_ongoing/draft_paused records) rather than the older 3 stations'
+// single-`currentDraft` summary shape; StationListView.vue reduces each to
+// a boolean via `.length > 0`. Mocked the same way as the repos above.
+const {
+  getThreshingDraftsMock,
+  getPressingDraftsMock,
+  getDepricarpingDraftsMock,
+  getKernelPlantDraftsMock,
+} = vi.hoisted(() => ({
+  getThreshingDraftsMock: vi.fn(),
+  getPressingDraftsMock: vi.fn(),
+  getDepricarpingDraftsMock: vi.fn(),
+  getKernelPlantDraftsMock: vi.fn(),
+}))
+
+vi.mock('@/services/threshingRecordRepo', () => ({
+  threshingRecordRepo: { getDrafts: getThreshingDraftsMock },
+}))
+
+vi.mock('@/services/pressingRecordRepo', () => ({
+  pressingRecordRepo: { getDrafts: getPressingDraftsMock },
+}))
+
+vi.mock('@/services/depricarpingRecordRepo', () => ({
+  depricarpingRecordRepo: { getDrafts: getDepricarpingDraftsMock },
+}))
+
+vi.mock('@/services/kernelPlantRecordRepo', () => ({
+  kernelPlantRecordRepo: { getDrafts: getKernelPlantDraftsMock },
+}))
+
 // TEMPORARY (2026-08-20) — manual "Sinkronisasi" button (syncService.ts).
 // Mocked at module level, same convention as the record-repo mocks above:
 // this file asserts StationListView.vue's own button-click wiring
@@ -167,6 +215,10 @@ describe('StationListView — "Pilih Stasiun"', () => {
     getSummaryMock.mockResolvedValue({ sumWbCard: 0, sumNetWeight: 0, sumQuantity: 0, currentDraft: null })
     getGradingProgressSummaryMock.mockResolvedValue({ currentDraft: null })
     getCagesTrackProgressSummaryMock.mockResolvedValue({ currentDraft: null })
+    getThreshingDraftsMock.mockResolvedValue([])
+    getPressingDraftsMock.mockResolvedValue([])
+    getDepricarpingDraftsMock.mockResolvedValue([])
+    getKernelPlantDraftsMock.mockResolvedValue([])
   })
 
   it('loads stations for the current user\'s business unit on mount and renders StationGrid with them', async () => {
@@ -247,6 +299,10 @@ describe('StationListView — breadcrumb', () => {
     getSummaryMock.mockResolvedValue({ sumWbCard: 0, sumNetWeight: 0, sumQuantity: 0, currentDraft: null })
     getGradingProgressSummaryMock.mockResolvedValue({ currentDraft: null })
     getCagesTrackProgressSummaryMock.mockResolvedValue({ currentDraft: null })
+    getThreshingDraftsMock.mockResolvedValue([])
+    getPressingDraftsMock.mockResolvedValue([])
+    getDepricarpingDraftsMock.mockResolvedValue([])
+    getKernelPlantDraftsMock.mockResolvedValue([])
   })
 
   it("navigates to 'home' when the 'Home' breadcrumb segment is tapped", async () => {
@@ -292,6 +348,10 @@ describe('StationListView — menu navigasi (hamburger)', () => {
     getSummaryMock.mockResolvedValue({ sumWbCard: 0, sumNetWeight: 0, sumQuantity: 0, currentDraft: null })
     getGradingProgressSummaryMock.mockResolvedValue({ currentDraft: null })
     getCagesTrackProgressSummaryMock.mockResolvedValue({ currentDraft: null })
+    getThreshingDraftsMock.mockResolvedValue([])
+    getPressingDraftsMock.mockResolvedValue([])
+    getDepricarpingDraftsMock.mockResolvedValue([])
+    getKernelPlantDraftsMock.mockResolvedValue([])
   })
 
   it('opens the nav menu (Ganti Password, Logout) when the hamburger icon is tapped', async () => {
@@ -305,6 +365,7 @@ describe('StationListView — menu navigasi (hamburger)', () => {
     const navMenu = wrapper.get('[data-testid="nav-menu"]')
     expect(navMenu.text()).toContain('Ganti Password')
     expect(navMenu.text()).toContain('Logout')
+    expect(wrapper.get('[data-testid="hamburger-button"]').attributes('aria-label')).toBe('Tutup menu navigasi')
   })
 
   it("navigates to 'change-password' when the 'Ganti Password' nav menu item is tapped", async () => {
@@ -315,6 +376,26 @@ describe('StationListView — menu navigasi (hamburger)', () => {
     await wrapper.get('[data-testid="nav-menu-change-password"]').trigger('click')
 
     expect(pushMock).toHaveBeenCalledWith({ name: 'change-password' })
+  })
+
+  it("opens the AI assistant panel when the 'Bantuan AI' nav menu item is tapped", async () => {
+    const wrapper = mount(StationListView)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="hamburger-button"]').trigger('click')
+    await wrapper.get('[data-testid="nav-menu-ai-assistant"]').trigger('click')
+
+    expect(aiAssistantOpenMock).toHaveBeenCalledTimes(1)
+  })
+
+  it("toggles the AI bubble via the 'Aktifkan/Nonaktifkan Bubble Chat AI' nav menu item", async () => {
+    const wrapper = mount(StationListView)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="hamburger-button"]').trigger('click')
+    await wrapper.get('[data-testid="nav-menu-toggle-ai-bubble"]').trigger('click')
+
+    expect(aiAssistantToggleBubbleMock).toHaveBeenCalledTimes(1)
   })
 
   it("logs out and navigates to 'login' when the 'Logout' nav menu item is tapped", async () => {
@@ -358,6 +439,10 @@ describe('StationListView — draft-status-by-type detection', () => {
     getSummaryMock.mockResolvedValue({ sumWbCard: 0, sumNetWeight: 0, sumQuantity: 0, currentDraft: null })
     getGradingProgressSummaryMock.mockResolvedValue({ currentDraft: null })
     getCagesTrackProgressSummaryMock.mockResolvedValue({ currentDraft: null })
+    getThreshingDraftsMock.mockResolvedValue([])
+    getPressingDraftsMock.mockResolvedValue([])
+    getDepricarpingDraftsMock.mockResolvedValue([])
+    getKernelPlantDraftsMock.mockResolvedValue([])
 
     mount(StationListView)
     await flushPromises()
@@ -365,6 +450,10 @@ describe('StationListView — draft-status-by-type detection', () => {
     expect(getSummaryMock).toHaveBeenCalledWith('user-1')
     expect(getGradingProgressSummaryMock).toHaveBeenCalledWith('user-1')
     expect(getCagesTrackProgressSummaryMock).toHaveBeenCalledWith('user-1')
+    expect(getThreshingDraftsMock).toHaveBeenCalledWith('user-1')
+    expect(getPressingDraftsMock).toHaveBeenCalledWith('user-1')
+    expect(getDepricarpingDraftsMock).toHaveBeenCalledWith('user-1')
+    expect(getKernelPlantDraftsMock).toHaveBeenCalledWith('user-1')
   })
 
   it('passes the resulting draftStatusByType (hasDraft per type) to StationGrid as draft-status-by-type', async () => {
@@ -376,6 +465,10 @@ describe('StationListView — draft-status-by-type detection', () => {
     })
     getGradingProgressSummaryMock.mockResolvedValue({ currentDraft: null })
     getCagesTrackProgressSummaryMock.mockResolvedValue({ currentDraft: { id: 'ct-1', status: 'draft_paused' } })
+    getThreshingDraftsMock.mockResolvedValue([{ id: 'thr-1', status: 'draft_ongoing', thresher_id: 'TH-01', updated_at: '2024-01-01' }])
+    getPressingDraftsMock.mockResolvedValue([])
+    getDepricarpingDraftsMock.mockResolvedValue([])
+    getKernelPlantDraftsMock.mockResolvedValue([])
 
     const wrapper = mount(StationListView)
     await flushPromises()
@@ -384,6 +477,10 @@ describe('StationListView — draft-status-by-type detection', () => {
       weighbridge: true,
       grading: false,
       'cages-track': true,
+      threshing: true,
+      pressing: false,
+      depricarping: false,
+      'kernel-plant': false,
     })
   })
 
@@ -391,6 +488,10 @@ describe('StationListView — draft-status-by-type detection', () => {
     getSummaryMock.mockRejectedValue(new Error('local db error'))
     getGradingProgressSummaryMock.mockResolvedValue({ currentDraft: { id: 'gr-1', status: 'draft_ongoing' } })
     getCagesTrackProgressSummaryMock.mockResolvedValue({ currentDraft: null })
+    getThreshingDraftsMock.mockRejectedValue(new Error('local db error'))
+    getPressingDraftsMock.mockResolvedValue([])
+    getDepricarpingDraftsMock.mockResolvedValue([])
+    getKernelPlantDraftsMock.mockResolvedValue([])
 
     const wrapper = mount(StationListView)
     await flushPromises()
@@ -399,6 +500,10 @@ describe('StationListView — draft-status-by-type detection', () => {
       weighbridge: false,
       grading: true,
       'cages-track': false,
+      threshing: false,
+      pressing: false,
+      depricarping: false,
+      'kernel-plant': false,
     })
   })
 
@@ -414,6 +519,10 @@ describe('StationListView — draft-status-by-type detection', () => {
     expect(getSummaryMock).not.toHaveBeenCalled()
     expect(getGradingProgressSummaryMock).not.toHaveBeenCalled()
     expect(getCagesTrackProgressSummaryMock).not.toHaveBeenCalled()
+    expect(getThreshingDraftsMock).not.toHaveBeenCalled()
+    expect(getPressingDraftsMock).not.toHaveBeenCalled()
+    expect(getDepricarpingDraftsMock).not.toHaveBeenCalled()
+    expect(getKernelPlantDraftsMock).not.toHaveBeenCalled()
   })
 
   describe('Sinkronisasi (temporary)', () => {
@@ -423,6 +532,10 @@ describe('StationListView — draft-status-by-type detection', () => {
         weighbridge: unknown[]
         grading: unknown[]
         cagesTrack: unknown[]
+        threshing: unknown[]
+        pressing: unknown[]
+        depricarping: unknown[]
+        kernelPlant: unknown[]
         syncedCount: number
         failedCount: number
       }) => void
@@ -443,7 +556,17 @@ describe('StationListView — draft-status-by-type detection', () => {
       expect(button.text()).toContain('Menyinkronkan')
       expect(wrapper.find('[data-testid="sync-dialog-message"]').exists()).toBe(false)
 
-      resolveSync({ weighbridge: [], grading: [], cagesTrack: [], syncedCount: 3, failedCount: 0 })
+      resolveSync({
+        weighbridge: [],
+        grading: [],
+        cagesTrack: [],
+        threshing: [],
+        pressing: [],
+        depricarping: [],
+        kernelPlant: [],
+        syncedCount: 3,
+        failedCount: 0,
+      })
       await flushPromises()
 
       expect(button.attributes('disabled')).toBeUndefined()
@@ -460,6 +583,10 @@ describe('StationListView — draft-status-by-type detection', () => {
         weighbridge: [{ id: 'wb-1', label: 'WB-001', ok: false, reason: 'Gagal terhubung ke server.' }],
         grading: [],
         cagesTrack: [],
+        threshing: [],
+        pressing: [],
+        depricarping: [],
+        kernelPlant: [],
         syncedCount: 2,
         failedCount: 1,
       })
@@ -518,6 +645,10 @@ describe('StationListView — Production Line picker step', () => {
     getSummaryMock.mockResolvedValue({ sumWbCard: 0, sumNetWeight: 0, sumQuantity: 0, currentDraft: null })
     getGradingProgressSummaryMock.mockResolvedValue({ currentDraft: null })
     getCagesTrackProgressSummaryMock.mockResolvedValue({ currentDraft: null })
+    getThreshingDraftsMock.mockResolvedValue([])
+    getPressingDraftsMock.mockResolvedValue([])
+    getDepricarpingDraftsMock.mockResolvedValue([])
+    getKernelPlantDraftsMock.mockResolvedValue([])
     fetchAndCacheStationsForProductionLineMock.mockResolvedValue(undefined)
   })
 
@@ -613,7 +744,17 @@ describe('StationListView — Production Line picker step', () => {
   it('passes the selected Production Line id through to syncAllRecords when Sinkronisasi is tapped', async () => {
     fetchCurrentProductionLinesMock.mockResolvedValue([{ id: 'pl-1', name: 'Line 01', code: null }])
     getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue([])
-    syncAllRecordsMock.mockResolvedValue({ weighbridge: [], grading: [], cagesTrack: [], syncedCount: 0, failedCount: 0 })
+    syncAllRecordsMock.mockResolvedValue({
+      weighbridge: [],
+      grading: [],
+      cagesTrack: [],
+      threshing: [],
+      pressing: [],
+      depricarping: [],
+      kernelPlant: [],
+      syncedCount: 0,
+      failedCount: 0,
+    })
 
     const wrapper = mount(StationListView)
     await flushPromises()

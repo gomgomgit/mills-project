@@ -1,0 +1,181 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-23"
+  },
+  "id": "usecase-057--form-threshing-web",
+  "name": "Input Data Threshing (Web)",
+  "description": "Supervisor, Mill Management, atau Admin membuat record Threshing baru atau mengubah record tersimpan lewat web, mengisi header dan grid 24 baris Threshing Detail, lalu menyimpan.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login di web",
+    "User menekan 'Tambah Data' dari Data Browser Threshing (Web) atau 'Edit' dari Detail Threshing (Web)"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan form dengan Production Line (mode buat baru), Thresher ID, Tanggal, Note, grid 24 baris Threshing Detail, dan tabel referensi Target Operasional read-only"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Mengisi/mengubah Thresher ID dan kolom bacaan pada baris Threshing Detail"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Menekan Simpan"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Memvalidasi field wajib dan minimal satu baris terisi, menyimpan record dengan status saved, lalu menampilkan Detail Threshing (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Pilih Production Line",
+      "trigger": "Pada step 1, mode buat baru, user memilih Production Line",
+      "steps": [
+        "System menentukan station Threshing tujuan record dari Production Line yang dipilih"
+      ]
+    },
+    {
+      "name": "Tandai Checked (Supervisor)",
+      "trigger": "Pada step 2, user Supervisor mencentang 'Tandai sudah diperiksa'",
+      "steps": [
+        "System mengisi Checked By dengan user Supervisor yang login"
+      ]
+    },
+    {
+      "name": "Tandai Acknowledged (Mill Management)",
+      "trigger": "Pada step 2, user Mill Management mencentang 'Tandai sudah dikonfirmasi'",
+      "steps": [
+        "System mengisi Acknowledged By dengan user Mill Management yang login"
+      ]
+    },
+    {
+      "name": "Field wajib belum lengkap",
+      "trigger": "Pada step 3, field wajib (mis. Thresher ID) masih kosong",
+      "steps": [
+        "System menampilkan error inline, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum ada baris terisi",
+      "trigger": "Pada step 3, tidak ada satu pun dari 24 baris yang punya kolom bacaan terisi",
+      "steps": [
+        "System menampilkan pesan error khusus, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Production Line tanpa station Threshing aktif",
+      "trigger": "Pada step 3, mode buat baru, Production Line terpilih tidak punya station Threshing aktif",
+      "steps": [
+        "System menolak Simpan dengan pesan error"
+      ]
+    },
+    {
+      "name": "Record tidak ditemukan (mode edit)",
+      "trigger": "Pada step 1, mode edit dibuka dengan id tidak valid",
+      "steps": [
+        "System menampilkan pesan error"
+      ]
+    },
+    {
+      "name": "Batal dengan perubahan belum tersimpan",
+      "trigger": "Pada step 2 atau 3, user menekan Batal",
+      "steps": [
+        "Jika ada perubahan belum tersimpan: System menampilkan dialog konfirmasi sebelum keluar",
+        "Jika tidak ada perubahan: System langsung kembali"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Threshing tersimpan (baru atau diperbarui) dengan status saved, atau user kembali tanpa perubahan"
+  ],
+  "business_rules": [
+    "Tidak ada draft/pause/Clear di web, Simpan langsung status saved",
+    "Production Line tidak dapat diubah setelah record dibuat",
+    "Grid Threshing Detail selalu 24 baris tetap",
+    "Minimal satu baris harus terisi sebelum Simpan",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data Threshing (Web) — berhasil",
+      "given": "User (Supervisor, Mill Management, atau Admin) sudah login di web dan menekan 'Tambah Data' dari Data Browser Threshing (Web) atau 'Edit' dari Detail Threshing (Web)",
+      "when": "User mengisi Production Line (mode buat baru), Thresher ID, Tanggal, Note, dan minimal satu baris pada grid 24 baris Threshing Detail, lalu menekan Simpan",
+      "then": "System memvalidasi field wajib dan minimal satu baris terisi, menyimpan record Threshing dengan status saved, lalu menampilkan Detail Threshing (Web)"
+    },
+    {
+      "scenario": "Input Data Threshing (Web) — Pilih Production Line",
+      "given": "User sudah login di web dan berada di form mode buat baru",
+      "when": "User memilih Production Line pada form",
+      "then": "System menentukan station Threshing tujuan record berdasarkan Production Line yang dipilih"
+    },
+    {
+      "scenario": "Input Data Threshing (Web) — Tandai Checked (Supervisor)",
+      "given": "User Supervisor sudah login di web dan berada di form Threshing",
+      "when": "User Supervisor mencentang 'Tandai sudah diperiksa' pada form",
+      "then": "System mengisi Checked By dengan user Supervisor yang sedang login"
+    },
+    {
+      "scenario": "Input Data Threshing (Web) — Tandai Acknowledged (Mill Management)",
+      "given": "User Mill Management sudah login di web dan berada di form Threshing",
+      "when": "User Mill Management mencentang 'Tandai sudah dikonfirmasi' pada form",
+      "then": "System mengisi Acknowledged By dengan user Mill Management yang sedang login"
+    },
+    {
+      "scenario": "Input Data Threshing (Web) — Field wajib belum lengkap",
+      "given": "User sudah login di web dan berada di form Threshing",
+      "when": "User menekan Simpan padahal field wajib seperti Thresher ID masih kosong",
+      "then": "System menampilkan error inline pada field terkait dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Threshing (Web) — Belum ada baris terisi",
+      "given": "User sudah login di web dan berada di form Threshing",
+      "when": "User menekan Simpan padahal tidak ada satu pun dari 24 baris Threshing Detail yang punya kolom bacaan terisi",
+      "then": "System menampilkan pesan error khusus dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Threshing (Web) — Production Line tanpa station Threshing aktif",
+      "given": "User sudah login di web dan berada di form mode buat baru",
+      "when": "User menekan Simpan setelah memilih Production Line yang tidak punya station Threshing aktif",
+      "then": "System menolak Simpan dan menampilkan pesan error"
+    },
+    {
+      "scenario": "Input Data Threshing (Web) — Record tidak ditemukan (mode edit)",
+      "given": "User sudah login di web dan membuka form dalam mode edit dengan id record yang tidak valid",
+      "when": "System memuat form mode edit dengan id yang tidak valid",
+      "then": "System menampilkan pesan error"
+    },
+    {
+      "scenario": "Input Data Threshing (Web) — Batal dengan perubahan belum tersimpan",
+      "given": "User sudah login di web dan berada di form Threshing",
+      "when": "User menekan Batal setelah mengubah data pada form",
+      "then": "Jika ada perubahan belum tersimpan, System menampilkan dialog konfirmasi sebelum keluar; jika tidak ada perubahan, System langsung kembali"
+    },
+    {
+      "scenario": "Input Data Threshing (Web) — Production Line terkunci pada mode edit",
+      "given": "User sudah login di web dan membuka mode edit record Threshing yang sudah tersimpan sebelumnya",
+      "when": "User mencoba mengubah Production Line pada form edit",
+      "then": "System tidak mengizinkan perubahan Production Line; field tersebut tetap terkunci sesuai nilai saat record dibuat"
+    },
+    {
+      "scenario": "Input Data Threshing (Web) — Checked By dan Acknowledged By dibatasi sesuai role",
+      "given": "User sudah login di web dan berada di form Threshing",
+      "when": "User yang bukan Supervisor mencoba mengisi Checked By, atau user yang bukan Mill Management mencoba mengisi Acknowledged By",
+      "then": "System tidak mengizinkan; Checked By hanya dapat diisi oleh Supervisor dan Acknowledged By hanya oleh Mill Management"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-057--form-threshing-web"
+  ]
+}

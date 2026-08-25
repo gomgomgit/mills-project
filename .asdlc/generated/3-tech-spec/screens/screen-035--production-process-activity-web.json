@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-08-23"
   },
-  "ver": 1,
+  "ver": 2,
   "id": "screen-035--production-process-activity-web",
   "name": "Production Process Activity (Web)",
   "module_id": "module-web-station-data",
@@ -32,7 +32,7 @@
       "usecase_name": "Pilih Stasiun (Web)",
       "endpoints": [],
       "business_logic": [
-        "1. Render grid berisi 15 station tile: 3 aktif (Weighbridge, Grading, Cages Track) dengan link ke route Data Browser masing-masing (data.weighbridge, data.grading, data.cages-track), 12 placeholder nonaktif dengan atribut disabled",
+        "1. Render grid berisi 15 station tile: 7 aktif (Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant) dengan link ke route Data Browser masing-masing (data.weighbridge, data.grading, data.cages-track, data.threshing, data.pressing, data.depricarping, data.kernel-plant), 8 placeholder nonaktif dengan atribut disabled",
         "2. On click tile aktif -> navigasi (redirect biasa, bukan Livewire) ke route Data Browser stasiun terkait",
         "3. On click tile disabled -> tidak melakukan aksi apapun (tidak ada handler navigasi terpasang)"
       ],
@@ -44,7 +44,7 @@
         }
       ],
       "business_rules_applied": [
-        "Hanya 3 stasiun MVP yang aktif secara fungsional; 12 lainnya adalah placeholder skema data untuk fase mendatang",
+        "7 stasiun MVP aktif secara fungsional sejak 2026-08-23; 8 lainnya adalah placeholder skema data untuk fase mendatang",
         "Menggantikan link sidebar terpisah per stasiun dengan satu pintu masuk tunggal"
       ],
       "unit_test_cases": []
@@ -63,12 +63,29 @@
     {
       "screen_id": "screen-018--data-browser-cages-track-web",
       "reason": "Tile Cages Track aktif menavigasi ke sini"
+    },
+    {
+      "screen_id": "screen-049--data-browser-threshing-web",
+      "reason": "Tile Threshing aktif menavigasi ke sini (2026-08-23)"
+    },
+    {
+      "screen_id": "screen-050--data-browser-pressing-web",
+      "reason": "Tile Pressing aktif menavigasi ke sini (2026-08-23)"
+    },
+    {
+      "screen_id": "screen-051--data-browser-depricarping-web",
+      "reason": "Tile Depricarping aktif menavigasi ke sini (2026-08-23)"
+    },
+    {
+      "screen_id": "screen-052--data-browser-kernel-plant-web",
+      "reason": "Tile Kernel Plant aktif menavigasi ke sini (2026-08-23)"
     }
   ],
   "implementation_notes": [
     "Halaman statis murni (Blade view, tanpa Livewire component/service, tanpa endpoint API) - daftar 15 station tile di-hardcode di view, mengikuti pola DEFAULT_STATIONS di mobile localSchema.ts, bukan hasil query database",
-    "Styling/layout tile mengikuti pola component_patterns 'station-tile' di uiux-spec (icon Gauge/Layers/Package, radius card, shadow)",
-    "Setelah screen ini diimplementasikan, 6 link sidebar individual (Data Browser + Input Weighbridge/Grading/Cages Track) di semua shell-sidebar view diganti dengan 1 link 'Production Process Activity' mengarah ke route ini"
+    "Styling/layout tile mengikuti pola component_patterns 'station-tile' di uiux-spec",
+    "Setelah screen ini diimplementasikan, link sidebar individual per-stasiun diganti dengan 1 link 'Production Process Activity' mengarah ke route ini",
+    "2026-08-23: 4 tile baru (Threshing/Pressing/Depricarping/Kernel Plant) ditambahkan sebagai aktif di production-process-activity.blade.php, memakai SVG path yang identik dengan StationGrid.vue's ACTIVE_ICONS (mobile) untuk konsistensi visual. 8 placeholder sisanya (Sterilizer/Clarification/Boiler/Effluent Treatment/Loading Ramp/Engine Room/Water Treatment/Bulking Storage) tidak berubah. Test Feature/ProductionProcessActivityTest.php diperbarui (7 active tiles assertion, 8 placeholder assertion)."
   ],
   "test_scenarios": [
     {

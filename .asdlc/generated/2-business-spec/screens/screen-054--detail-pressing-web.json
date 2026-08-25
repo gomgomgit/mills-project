@@ -1,0 +1,64 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-054--detail-pressing-web",
+  "name": "Detail Pressing (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman detail read-only untuk melihat 1 record Pressing tersimpan secara lengkap beserta grid Pressing Detail (menampilkan seluruh baris yang ada pada record tersebut, berapapun jumlahnya — tidak lagi selalu 24 baris tetap sejak revisi 2026-08-24) dan tabel referensi Target Operasional, diakses dari klik baris di Data Browser Pressing (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Klik baris di Data Browser Pressing (Web)"
+  ],
+  "information_displayed": [
+    "Identitas Pressing: Presser ID, Tanggal",
+    "Verifikasi: Inputted By, Checked By, Acknowledged By, Note",
+    "Grid Pressing Detail: menampilkan persis baris yang tersimpan pada record (Time-Slot, Digester Temp, Digester Level, Press Motor Current, Cone Hydraulic Pressure, Dilution Water Temp, Downtime Reason)",
+    "Tabel Referensi Target Operasional: read-only, kolom Parameter/Metric / Target Operating Range / Critical Trigger / Action Limit, ditampilkan di bawah grid detail",
+    "Status record (saved/synced)",
+    "Tombol Back kembali ke Data Browser Pressing"
+  ],
+  "available_actions": [
+    {
+      "action": "Back",
+      "description": "Kembali ke Data Browser Pressing (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit",
+      "description": "Masuk ke Form Pressing (Web) mode ubah untuk record ini",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Seluruh field ditampilkan read-only — tidak ada aksi edit langsung dari layar ini selain tombol Edit yang membuka Form Pressing Web",
+    "Checked By DAN Acknowledged By keduanya ditampilkan apa adanya, tanpa pembatasan role untuk melihat, konsisten dengan Data Preview Pressing mobile (screen-046)",
+    "Grid Pressing Detail ditampilkan langsung dari data tersimpan (historical), tidak dihitung ulang, dan menampilkan persis jumlah baris yang tersimpan pada record (revisi 2026-08-24: tidak lagi selalu 24 baris tetap)",
+    "Tabel Target Operasional murni referensi, tidak pernah menjadi bagian dari data record yang ditampilkan",
+    "Field dikelompokkan sesuai struktur Form Pressing (Identitas, Verifikasi, Grid Detail, Target Operasional)"
+  ],
+  "usecase_ids": [
+    "usecase-054--detail-pressing-web"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
+    "Checked By/Acknowledged By belum diisi — tampilkan '-'",
+    "Record memiliki nol baris Pressing Detail (kasus tepi: tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

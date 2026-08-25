@@ -1,0 +1,75 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-050--data-browser-pressing-web",
+  "name": "Data Browser Pressing (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/PressingRecordService.php",
+    "backend/app/Http/Controllers/Api/PressingRecordController.php",
+    "backend/app/Exceptions/NoActivePressingStationException.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/seeders/PressingOperationalTargetSeeder.php",
+    "backend/database/seeders/DatabaseSeeder.php",
+    "backend/database/factories/PressingRecordFactory.php",
+    "backend/database/factories/PressingDetailFactory.php",
+    "backend/database/factories/StationFactory.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/PressingRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserPressingTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserPressingTest.php",
+    "backend/tests/Browser/DataBrowserPressingTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserPressing.php",
+    "backend/resources/views/data/pressing.blade.php",
+    "backend/resources/views/livewire/data/data-browser-pressing.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "PressingRecordService/Controller/routes/seeder/factories are shared infrastructure for all 3 web Pressing screens (050/054/058), mirroring ThreshingRecordService's precedent (screen-049) -- reported under this screen since it is first in the implementation sequence",
+    "PressingRecord/PressingDetail/PressingOperationalTarget Eloquent models and their 3 migrations already existed prior to this task -- unchanged by the 2026-08-24 dynamic-row revision (schema itself never needed to change, only PressingRecordService::create()/update()'s row-population logic, mirroring ThreshingRecordService's just-fixed pattern exactly: create() now inserts only the given detail rows instead of forcing exactly 24, update() upserts by id instead of UPDATE-only)",
+    "filled_slot_count computed via withCount() with an inner OR-whereNotNull constraint across the 6 reading columns (mirrors ThreshingRecordService's filled_slot_count pattern exactly, adapted for Pressing's own column names: digester_temp_c, digester_level_percent, press_motor_current_amps, cone_hydraulic_pressure_bar, dilution_water_temp_c, downtime_reason) -- UNCHANGED by this revision, it already correctly counted only filled rows regardless of total row count",
+    "PressingRecordServiceTest.php rewritten to mirror ThreshingRecordServiceTest.php's dynamic-row test shape (create() with 1..N rows instead of always-24, update() upsert semantics including delete-on-removal) -- 30 tests total, up from 27"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Production Process Activity (Web) (screen-035, out of this 6-screen task's scope) still only renders 3 active station tiles (Weighbridge/Grading/Cages Track) -- confirmed still true after this pass. It has not been updated to add a Pressing tile linking to /data/pressing. Needs a separate revision of screen-035 (shared across all 4 new-station agent runs).",
+      "severity": "major"
+    },
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserPressingTest.php) was authored following this codebase's established convention but could not be executed in this sandboxed environment -- verified only by static review.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-24T08:20:00Z",
+      "passed": 30,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-24T08:20:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T08:20:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-040--monitor-kernel-plant",
+  "name": "Monitor Kernel Plant",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/localSchema.ts",
+    "mobile/src/services/kernelPlantRecordRepo.ts",
+    "mobile/src/data/kernelPlantOperationalTargets.ts",
+    "mobile/src/views/MonitorKernelPlantView.vue",
+    "mobile/src/router/index.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/kernelPlantRecordRepo.spec.ts",
+    "mobile/tests/MonitorKernelPlantView.spec.ts",
+    "mobile/tests/e2e/monitor-kernel-plant.spec.ts"
+  ],
+  "implementation_notes": [
+    "kernel_plant_record/kernel_plant_detail local SQLite tables in localSchema.ts unchanged by this revision (same columns/unique constraint, including downtime_minutes integer + findings free-text kept as two distinct columns) -- only the row-population pattern changed, and the Kernel Plant-specific comment blocks were updated to describe the dynamic design (Threshing's/Depricarping's own comment blocks in the same file were left as stale 'FIXED 24-row' documentation by their sibling fixes -- not this agent's files to touch)",
+    "kernelPlantRecordRepo.ts covers all 3 mobile Kernel Plant screens (040/044/048) in one file, same convention as depricarpingRecordRepo.ts covering screens 039/043/047; its full unit test coverage (kernelPlantRecordRepo.spec.ts, 29 tests) is reported under this screen since it was authored first in sequence",
+    "REVISED 2026-08-24 (entity-catalog v12, correcting the original design the user explicitly rejected): createDraft() now inserts ONLY the header row -- the 24 pre-created kernel_plant_detail rows were a literal reading of the paper log-sheet mockup that wasted screen space; rows are now added one at a time by the user in Form Kernel Plant via 'Tambah baris', exactly mirroring depricarpingRecordRepo.ts's/pressingRecordRepo.ts's/threshingRecordRepo.ts's fixed pattern (itself mirroring cagesTrackRecordRepo.ts's cages_tipped_time pattern) -- Kernel Plant is the LAST of the 4 stations to receive this fix",
+    "'Jumlah Baris Time-Slot Terisi' counter redefined as a plain COUNT(*) of kernel_plant_detail rows belonging to today's records -- no longer filtered by 'has >=1 of 9 reading columns filled', since row existence itself is now the meaningful signal (a row only exists because the user explicitly added it); MonitorKernelPlantView.vue's counter field renamed from filledSlotCount/counter-filled-slot-count to detailRowCount/counter-detail-row-count, mirroring MonitorDepricarpingView.vue's already-renamed shape",
+    "kernelPlantOperationalTargets.ts uses a 3-column shape (equipment_parameter/target_benchmark/corrective_action_plan) matching Threshing's/Pressing's shape, NOT Depricarping's 4-column shape -- UNTOUCHED by this revision",
+    "Router: route name 'monitor-kernel-plant' registered in router/index.ts, but StationListView.vue (screen-006, out of this 6-screen task's scope) has NOT been updated to link to it -- see known_issues, same known issue already documented for Threshing/Pressing/Depricarping",
+    "Kernel Plant is genuinely unique among the 4 new stations: it combines Depricarping's split downtime_minutes(integer)+findings(text) reading-column shape with Threshing's/Pressing's 3-column Operational Target reference table shape -- this combination required cross-referencing both sibling fixes rather than mirroring a single one wholesale; the 3-column target table itself was left completely untouched by this row-mechanics revision, per the task's explicit instruction."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "StationListView.vue (screen-006, out of this 6-screen task's scope) has not been updated to add a Kernel Plant tile/link to 'monitor-kernel-plant' -- this screen is reachable directly by route/URL but not yet from the Station List grid. Needs a separate revision of screen-006 (shared across all 4 new-station agent runs, not owned by any single one -- Threshing's/Pressing's/Depricarping's implement artifacts document the identical gap; this is the cross-cutting cleanup the coordinating session will perform now that all 4 stations are done).",
+      "severity": "major"
+    },
+    {
+      "description": "Browser (Playwright) e2e spec (mobile/tests/e2e/monitor-kernel-plant.spec.ts) was originally authored and executed against a live dev server for the fixed-24-row design, then REVISED 2026-08-24 alongside this fix to exercise the New-Data-creates-zero-rows flow and the renamed detailRowCount counter -- could not be re-executed in this sandboxed environment against a running dev server + seeded backend after the revision, verified only by static review (syntax confirmed via `playwright test --list`), same verification depth now used by all 4 sibling stations' revised e2e specs.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-24T09:00:00Z",
+      "passed": 29,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T09:00:00Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

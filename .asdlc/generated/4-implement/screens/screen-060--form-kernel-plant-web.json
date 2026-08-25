@@ -1,0 +1,63 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-24"
+  },
+  "id": "screen-060--form-kernel-plant-web",
+  "name": "Form Kernel Plant (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/FormKernelPlantTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormKernelPlant.php",
+    "backend/resources/views/data/kernel-plant-form.blade.php",
+    "backend/resources/views/livewire/data/form-kernel-plant.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormKernelPlantTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses KernelPlantRecordService::create()/update() (BE service shared with screen-052)",
+    "REVISED 2026-08-24 (entity-catalog v12, correcting the original design the user explicitly rejected): the Kernel Plant Detail grid is now DYNAMIC -- addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions() now exist on FormKernelPlant.php, exactly mirroring FormDepricarping's Depricarping Detail grid (screen-059, fixed moments earlier)/FormPressing's Pressing Detail grid (screen-058)/FormThreshing's Threshing Detail grid (screen-057) and FormCagesTrack's Cages Tipped Time grid. Grid starts empty on create mode (was: built from KernelPlantRecordService::canonicalTimeSlots() into 24 rows on mount); edit mode still loads existing rows verbatim with each row's id",
+    "All 9 reading-column inputs per row are genuinely editable number/text fields, never disabled -- unlike Form Cages Track Web's computed fields (a documented uiux-spec exception), Kernel Plant has no computed detail-grid fields, so the 'no disabled web inputs' rule applies with zero exceptions in this screen's detail grid; Downtime (Mins) is a plain number input and Findings a plain text input, both freely editable like the other 7 numeric columns -- UNAFFECTED by the dynamic-grid revision, a row simply counts as filled when EITHER is set, same as any other reading column",
+    "Target Operasional table queried directly by FormKernelPlant::render(), never sent as part of the create/update payload; renders 3 columns (Equipment / Parameter, Target Benchmark, Corrective Action Plan) matching Threshing's/Pressing's shape, NOT Depricarping's 4-column shape -- UNTOUCHED by this revision",
+    "Route /data/kernel-plant/create registered BEFORE /data/kernel-plant/{id} (screen-056) so the literal 'create' segment is not swallowed by {id}",
+    "checked/acknowledged self-attestation checkboxes mirror FormDepricarping's dual-checkbox pattern (both Checked By AND Acknowledged By, unlike Form Weighbridge/Grading Web which only have Acknowledged)",
+    "Ran the full backend Pest suite as the final step of this 6-screen pass (Kernel Plant is the LAST of the 4 new stations to receive this fix): 1299/1299 passing (up from the baseline of 1287/1287 before this fix), confirming zero regressions across Threshing/Pressing/Depricarping/Kernel Plant and every other station.",
+    "Detail upsert (insert/update/delete) dijalankan dalam DB transaction agar konsisten, sama pola dengan Depricarping/Pressing/Threshing/Cages Track/Grading Detail."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/FormKernelPlantTest.php) was originally authored for the fixed-24-row design, then REVISED 2026-08-24 alongside this fix to exercise Tambah Baris/Hapus Baris and the Time-Slot <select> -- still could not be executed in this sandboxed environment (no running Laravel app + backing DB for Playwright to drive), verified only by static review, consistent with every other backend Browser/* spec in this codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-24T09:00:00Z",
+      "passed": 16,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-24T09:00:00Z",
+      "passed": 21,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -78,21 +78,8 @@ const emit = defineEmits<{
   navigate: [type: StationType]
 }>()
 
-/**
- * TEMPORARY (2026-08-24, narrowed 2026-08-25) — Depricarping/Kernel Plant
- * are fully built and tested but not yet ready to expose to users; product
- * decision is to hide their tiles from this grid for now while keeping all
- * underlying code (repos, routes, backend, is_active=true in the DB) fully
- * intact. Threshing/Pressing were re-enabled 2026-08-25 (product wants them
- * live now). To re-enable the remaining two: delete this Set (or remove
- * entries from it) — no other change needed, since `isActive` itself is
- * untouched and everything downstream (draft-status lookups, navigation)
- * is already wired.
- */
-const TEMPORARILY_HIDDEN_TYPES = new Set<StationType>(['depricarping', 'kernel-plant'])
-
 const activeStations = computed(() =>
-  props.stations.filter((station) => station.isActive && !TEMPORARILY_HIDDEN_TYPES.has(station.type)),
+  props.stations.filter((station) => station.isActive),
 )
 const placeholderStations = computed(() => props.stations.filter((station) => !station.isActive))
 

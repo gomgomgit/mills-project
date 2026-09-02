@@ -1,0 +1,121 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-120--form-process-quality-control-web",
+  "name": "Input Data Process Quality Control (Web)",
+  "description": "Supervisor, Mill Management, atau Admin membuat record Process Quality Control baru atau mengubah record tersimpan dari web.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web dengan role Supervisor/Mill Management/Admin"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Membuka Form Process Quality Control dari 'Tambah Data' (mode buat) atau 'Edit' (mode ubah)"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Pada mode buat: memilih Production Line; mengisi Process QC ID, Tanggal, Note"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Menekan 'Tambah Baris' untuk menambah baris Process Quality Control Detail, memilih Time-Slot, mengisi kolom Shift, kelompok Fruit Press, Purifier & Clarification Balance, Vacuum Drying Station, Decanter/Centrifuge Separation, Final Storage Tank Product Quality, dan QC Accountability"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Menekan Simpan"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi field wajib dan minimal satu baris valid, lalu menyimpan record berstatus 'saved' dan menavigasikan ke Detail Process Quality Control (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field Wajib Belum Lengkap",
+      "trigger": "Field wajib kosong saat Simpan",
+      "steps": [
+        "System menampilkan error inline, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum Ada Baris Valid",
+      "trigger": "Tidak ada baris Process Quality Control Detail valid saat Simpan",
+      "steps": [
+        "System menampilkan pesan error khusus, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Production Line Tanpa Station Process Quality Control Aktif",
+      "trigger": "Production Line terpilih tidak memiliki station Process Quality Control aktif",
+      "steps": [
+        "System menolak Simpan dengan pesan error"
+      ]
+    },
+    {
+      "name": "Record Tidak Ditemukan (mode edit)",
+      "trigger": "id record pada mode edit tidak valid",
+      "steps": [
+        "System menampilkan pesan error"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Untuk Simpan sukses (create): record baru berstatus 'saved' tersimpan beserta baris Process Quality Control Detail-nya",
+    "Untuk Simpan sukses (update): record dan baris Process Quality Control Detail-nya diperbarui (upsert/delete sesuai payload)"
+  ],
+  "business_rules": [
+    "Tidak ada draft/pause/Clear di web — Simpan langsung berstatus 'saved'",
+    "Tanggal default hari ini, tetap dapat diedit",
+    "Grid Process Quality Control Detail dinamis, baris ditambahkan/dihapus satu per satu",
+    "Production Line tidak dapat diubah setelah record dibuat",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Buat Record Process Quality Control Baru — berhasil",
+      "given": "Production Line, Process QC ID, dan minimal 1 baris valid terisi",
+      "when": "User menekan Simpan",
+      "then": "Record baru tersimpan, navigasi ke Detail Process Quality Control (Web)"
+    },
+    {
+      "scenario": "Edit Record Process Quality Control — berhasil",
+      "given": "User membuka mode edit dan mengubah data",
+      "when": "User menekan Simpan",
+      "then": "Perubahan tersimpan pada record yang sama"
+    },
+    {
+      "scenario": "Field Wajib Belum Lengkap",
+      "given": "Field wajib kosong",
+      "when": "User menekan Simpan",
+      "then": "Error inline muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Belum Ada Baris Valid",
+      "given": "Grid Process Quality Control Detail kosong",
+      "when": "User menekan Simpan",
+      "then": "Pesan error khusus muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Production Line Tanpa Station Process Quality Control Aktif",
+      "given": "Production Line terpilih tidak memiliki station Process Quality Control aktif",
+      "when": "User menekan Simpan",
+      "then": "Sistem menampilkan error dan record tidak tersimpan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-120--form-process-quality-control-web"
+  ]
+}

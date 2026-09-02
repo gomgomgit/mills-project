@@ -1,0 +1,93 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-065--monitor-effluent-plant",
+  "name": "Monitor Effluent Plant",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar yang menampilkan counter ringkasan data hari ini (Jumlah Effluent Plant Record, Jumlah Baris Time-Slot Tercatat), list draft/pause milik user (bisa lebih dari satu berjalan bersamaan), serta akses ke pembuatan data baru dan penelusuran data tersimpan — mengikuti pola persis Monitor Process Water, termasuk untuk struktur grid Effluent Plant Detail-nya yang dinamis (baris ditambahkan satu per satu oleh user, bukan grid 24 baris tetap).",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap Effluent Plant di Station List"
+  ],
+  "information_displayed": [
+    "Counter data hari ini: 2 card sebaris (Jumlah Effluent Plant Record, Jumlah Baris Time-Slot Tercatat), di atas list draft/pause",
+    "List draft/pause Effluent Plant milik user (bisa lebih dari satu), masing-masing berlabel 'Pause' (ongoing dan paused tidak dibedakan secara tampilan)",
+    "Breadcrumb navigasi (Home > Production Process Activity > Effluent Plant) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu (konsisten dengan Monitor Process Water/Threshing/Pressing/Depricarping/Kernel Plant)"
+  ],
+  "available_actions": [
+    {
+      "action": "Tap item draft di list",
+      "description": "Masuk ke Form Effluent Plant dengan data draft/pause tersebut untuk dilanjutkan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "New Data",
+      "description": "Membuat draft baru (header saja, grid Effluent Plant Detail dimulai kosong) dan masuk ke Form Effluent Plant — baris time-slot ditambahkan satu per satu di Form Effluent Plant via 'Tambah baris', persis seperti Process Water",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Load Data",
+      "description": "Membuka daftar seluruh record Effluent Plant (tersimpan maupun masih draft/pause) dengan filter tanggal dan pencarian",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Station List",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Status draft ongoing dan paused digabung secara tampilan sebagai satu istilah: 'Pause' — tidak dibedakan lagi di UI",
+    "User bisa punya beberapa draft/pause berjalan bersamaan per stasiun, semua tampil di list",
+    "Saat New Data dibuat, HANYA header yang dibuat — grid Effluent Plant Detail dimulai kosong, baris time-slot ditambahkan satu per satu oleh user di Form Effluent Plant via 'Tambah baris'",
+    "Pause dan Clear dilakukan dari Form Effluent Plant, bukan tombol terpisah di Monitor",
+    "Breadcrumb harus dapat dinavigasi, bukan sekadar label statis",
+    "Counter 'hari ini' (Jumlah Effluent Plant Record, Jumlah Baris Time-Slot Tercatat) dihitung dari seluruh record milik user dengan tanggal Date = hari ini, status apapun — Jumlah Baris Time-Slot Tercatat adalah COUNT sederhana seluruh baris effluent_plant_detail milik record-record tersebut (setiap baris yang ada sudah pasti ditambahkan sengaja oleh user via 'Tambah baris')"
+  ],
+  "usecase_ids": [
+    "usecase-085--monitor-effluent-plant"
+  ],
+  "edge_cases": [
+    "Belum ada draft/pause sama sekali — list kosong, tampilkan pesan/empty state, tombol New Data tetap aktif",
+    "Banyak draft/pause menumpuk — list perlu scroll agar semua tetap dapat diakses",
+    "Belum ada data hari ini — kedua card counter menampilkan 0",
+    "Draft baru dibuat tapi belum ada satu baris pun ditambahkan — Jumlah Baris Time-Slot Tercatat tetap 0 untuk record tersebut sampai user menekan 'Tambah baris' di Form Effluent Plant"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

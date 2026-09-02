@@ -173,6 +173,140 @@ vi.mock('@/services/kernelPlantRecordRepo', () => ({
   kernelPlantRecordRepo: { getDrafts: getKernelPlantDraftsMock },
 }))
 
+// 2026-08-31 — Solid Waste Disposal (screen-061) exposes the same
+// `getDrafts(userId)` shape as Threshing/Pressing/Depricarping/Kernel
+// Plant above. Mocked the same way.
+const { getSolidWasteDisposalDraftsMock } = vi.hoisted(() => ({
+  getSolidWasteDisposalDraftsMock: vi.fn(),
+}))
+
+vi.mock('@/services/solidWasteDisposalRecordRepo', () => ({
+  solidWasteDisposalRecordRepo: { getDrafts: getSolidWasteDisposalDraftsMock },
+}))
+
+// 2026-08-31 — Process Water (screen-062) exposes the same
+// `getDrafts(userId)` shape as Threshing/Pressing/Depricarping/Kernel
+// Plant/Solid Waste Disposal above. Mocked the same way.
+const { getProcessWaterDraftsMock } = vi.hoisted(() => ({
+  getProcessWaterDraftsMock: vi.fn(),
+}))
+
+vi.mock('@/services/processWaterRecordRepo', () => ({
+  processWaterRecordRepo: { getDrafts: getProcessWaterDraftsMock },
+}))
+
+// 2026-08-31 — Kernel Dispatch (screen-063) exposes the same
+// `getDrafts(userId)` shape as Threshing/Pressing/Depricarping/Kernel
+// Plant/Solid Waste Disposal/Process Water above. Mocked the same way.
+const { getKernelDispatchDraftsMock } = vi.hoisted(() => ({
+  getKernelDispatchDraftsMock: vi.fn(),
+}))
+
+vi.mock('@/services/kernelDispatchRecordRepo', () => ({
+  kernelDispatchRecordRepo: { getDrafts: getKernelDispatchDraftsMock },
+}))
+
+// 2026-09-01 — CPO Dispatch (screen-064) exposes the same
+// `getDrafts(userId)` shape as Threshing/Pressing/Depricarping/Kernel
+// Plant/Solid Waste Disposal/Process Water/Kernel Dispatch above. Mocked
+// the same way.
+const { getCpoDispatchDraftsMock } = vi.hoisted(() => ({
+  getCpoDispatchDraftsMock: vi.fn(),
+}))
+
+vi.mock('@/services/cpoDispatchRecordRepo', () => ({
+  cpoDispatchRecordRepo: { getDrafts: getCpoDispatchDraftsMock },
+}))
+
+// 2026-09-01 — Effluent Plant (screen-065) exposes the same
+// `getDrafts(userId)` shape as Threshing/Pressing/Depricarping/Kernel
+// Plant/Solid Waste Disposal/Process Water/Kernel Dispatch/CPO Dispatch
+// above. Mocked the same way.
+const { getEffluentPlantDraftsMock } = vi.hoisted(() => ({
+  getEffluentPlantDraftsMock: vi.fn(),
+}))
+
+vi.mock('@/services/effluentPlantRecordRepo', () => ({
+  effluentPlantRecordRepo: { getDrafts: getEffluentPlantDraftsMock },
+}))
+
+// 2026-09-01 — Storage Tank (screen-066) exposes the same
+// `getDrafts(userId)` shape as Effluent Plant/Threshing/Pressing/
+// Depricarping/Kernel Plant/Solid Waste Disposal/Process Water/Kernel
+// Dispatch/CPO Dispatch above. Mocked the same way.
+const { getStorageTankDraftsMock } = vi.hoisted(() => ({
+  getStorageTankDraftsMock: vi.fn(),
+}))
+
+vi.mock('@/services/storageTankRecordRepo', () => ({
+  storageTankRecordRepo: { getDrafts: getStorageTankDraftsMock },
+}))
+
+// 2026-09-01 — Engine Room (screen-067) exposes the same
+// `getDrafts(userId)` shape as Storage Tank/Effluent Plant/Threshing/
+// Pressing/Depricarping/Kernel Plant/Solid Waste Disposal/Process Water/
+// Kernel Dispatch/CPO Dispatch above. Mocked the same way.
+const { getEngineRoomDraftsMock } = vi.hoisted(() => ({
+  getEngineRoomDraftsMock: vi.fn(),
+}))
+
+vi.mock('@/services/engineRoomRecordRepo', () => ({
+  engineRoomRecordRepo: { getDrafts: getEngineRoomDraftsMock },
+}))
+
+// 2026-09-01 — Boiler Room (screen-068) exposes the same
+// `getDrafts(userId)` shape as Engine Room/Storage Tank/Effluent Plant/
+// Threshing/Pressing/Depricarping/Kernel Plant/Solid Waste Disposal/
+// Process Water/Kernel Dispatch/CPO Dispatch above. Mocked the same way.
+const { getBoilerRoomDraftsMock } = vi.hoisted(() => ({
+  getBoilerRoomDraftsMock: vi.fn(),
+}))
+
+vi.mock('@/services/boilerRoomRecordRepo', () => ({
+  boilerRoomRecordRepo: { getDrafts: getBoilerRoomDraftsMock },
+}))
+
+// 2026-09-01 — Clarification (screen-069) exposes the same
+// `getDrafts(userId)` shape as Boiler Room/Engine Room/Storage Tank/
+// Effluent Plant/Threshing/Pressing/Depricarping/Kernel Plant/Solid Waste
+// Disposal/Process Water/Kernel Dispatch/CPO Dispatch above. Mocked the
+// same way.
+const { getClarificationDraftsMock } = vi.hoisted(() => ({
+  getClarificationDraftsMock: vi.fn(),
+}))
+
+vi.mock('@/services/clarificationRecordRepo', () => ({
+  clarificationRecordRepo: { getDrafts: getClarificationDraftsMock },
+}))
+
+// 2026-09-01 — Process Quality Control (screen-070), the FINAL of the
+// 2026-08-31 batch, exposes the same `getDrafts(userId)` shape as
+// Clarification/Boiler Room/Engine Room/Storage Tank/Effluent
+// Plant/Threshing/Pressing/Depricarping/Kernel Plant/Solid Waste
+// Disposal/Process Water/Kernel Dispatch/CPO Dispatch above. Mocked the
+// same way.
+const { getProcessQualityControlDraftsMock } = vi.hoisted(() => ({
+  getProcessQualityControlDraftsMock: vi.fn(),
+}))
+
+vi.mock('@/services/processQualityControlRecordRepo', () => ({
+  processQualityControlRecordRepo: { getDrafts: getProcessQualityControlDraftsMock },
+}))
+
+// 2026-09-01 — Sterilizer (screen-121), the FINAL station of this project
+// (the 18th and last of the 18 canonical stations), exposes the same
+// `getDrafts(userId)` shape as every station above. Mocked the same way —
+// registering this mock is REQUIRED or StationListView.vue's
+// `Promise.all(...)` in loadDraftStatusByType() silently breaks (a past
+// station's agent this session forgot this exact step).
+const { getSterilizerDraftsMock } = vi.hoisted(() => ({
+  getSterilizerDraftsMock: vi.fn(),
+}))
+
+vi.mock('@/services/sterilizerRecordRepo', () => ({
+  sterilizerRecordRepo: { getDrafts: getSterilizerDraftsMock },
+}))
+
 // TEMPORARY (2026-08-20) — manual "Sinkronisasi" button (syncService.ts).
 // Mocked at module level, same convention as the record-repo mocks above:
 // this file asserts StationListView.vue's own button-click wiring
@@ -219,6 +353,17 @@ describe('StationListView — "Pilih Stasiun"', () => {
     getPressingDraftsMock.mockResolvedValue([])
     getDepricarpingDraftsMock.mockResolvedValue([])
     getKernelPlantDraftsMock.mockResolvedValue([])
+    getSolidWasteDisposalDraftsMock.mockResolvedValue([])
+    getProcessWaterDraftsMock.mockResolvedValue([])
+    getKernelDispatchDraftsMock.mockResolvedValue([])
+    getCpoDispatchDraftsMock.mockResolvedValue([])
+    getEffluentPlantDraftsMock.mockResolvedValue([])
+    getStorageTankDraftsMock.mockResolvedValue([])
+    getEngineRoomDraftsMock.mockResolvedValue([])
+    getBoilerRoomDraftsMock.mockResolvedValue([])
+    getClarificationDraftsMock.mockResolvedValue([])
+    getProcessQualityControlDraftsMock.mockResolvedValue([])
+    getSterilizerDraftsMock.mockResolvedValue([])
   })
 
   it('loads stations for the current user\'s business unit on mount and renders StationGrid with them', async () => {
@@ -303,6 +448,17 @@ describe('StationListView — breadcrumb', () => {
     getPressingDraftsMock.mockResolvedValue([])
     getDepricarpingDraftsMock.mockResolvedValue([])
     getKernelPlantDraftsMock.mockResolvedValue([])
+    getSolidWasteDisposalDraftsMock.mockResolvedValue([])
+    getProcessWaterDraftsMock.mockResolvedValue([])
+    getKernelDispatchDraftsMock.mockResolvedValue([])
+    getCpoDispatchDraftsMock.mockResolvedValue([])
+    getEffluentPlantDraftsMock.mockResolvedValue([])
+    getStorageTankDraftsMock.mockResolvedValue([])
+    getEngineRoomDraftsMock.mockResolvedValue([])
+    getBoilerRoomDraftsMock.mockResolvedValue([])
+    getClarificationDraftsMock.mockResolvedValue([])
+    getProcessQualityControlDraftsMock.mockResolvedValue([])
+    getSterilizerDraftsMock.mockResolvedValue([])
   })
 
   it("navigates to 'home' when the 'Home' breadcrumb segment is tapped", async () => {
@@ -352,6 +508,17 @@ describe('StationListView — menu navigasi (hamburger)', () => {
     getPressingDraftsMock.mockResolvedValue([])
     getDepricarpingDraftsMock.mockResolvedValue([])
     getKernelPlantDraftsMock.mockResolvedValue([])
+    getSolidWasteDisposalDraftsMock.mockResolvedValue([])
+    getProcessWaterDraftsMock.mockResolvedValue([])
+    getKernelDispatchDraftsMock.mockResolvedValue([])
+    getCpoDispatchDraftsMock.mockResolvedValue([])
+    getEffluentPlantDraftsMock.mockResolvedValue([])
+    getStorageTankDraftsMock.mockResolvedValue([])
+    getEngineRoomDraftsMock.mockResolvedValue([])
+    getBoilerRoomDraftsMock.mockResolvedValue([])
+    getClarificationDraftsMock.mockResolvedValue([])
+    getProcessQualityControlDraftsMock.mockResolvedValue([])
+    getSterilizerDraftsMock.mockResolvedValue([])
   })
 
   it('opens the nav menu (Ganti Password, Logout) when the hamburger icon is tapped', async () => {
@@ -443,6 +610,17 @@ describe('StationListView — draft-status-by-type detection', () => {
     getPressingDraftsMock.mockResolvedValue([])
     getDepricarpingDraftsMock.mockResolvedValue([])
     getKernelPlantDraftsMock.mockResolvedValue([])
+    getSolidWasteDisposalDraftsMock.mockResolvedValue([])
+    getProcessWaterDraftsMock.mockResolvedValue([])
+    getKernelDispatchDraftsMock.mockResolvedValue([])
+    getCpoDispatchDraftsMock.mockResolvedValue([])
+    getEffluentPlantDraftsMock.mockResolvedValue([])
+    getStorageTankDraftsMock.mockResolvedValue([])
+    getEngineRoomDraftsMock.mockResolvedValue([])
+    getBoilerRoomDraftsMock.mockResolvedValue([])
+    getClarificationDraftsMock.mockResolvedValue([])
+    getProcessQualityControlDraftsMock.mockResolvedValue([])
+    getSterilizerDraftsMock.mockResolvedValue([])
 
     mount(StationListView)
     await flushPromises()
@@ -469,6 +647,17 @@ describe('StationListView — draft-status-by-type detection', () => {
     getPressingDraftsMock.mockResolvedValue([])
     getDepricarpingDraftsMock.mockResolvedValue([])
     getKernelPlantDraftsMock.mockResolvedValue([])
+    getSolidWasteDisposalDraftsMock.mockResolvedValue([])
+    getProcessWaterDraftsMock.mockResolvedValue([])
+    getKernelDispatchDraftsMock.mockResolvedValue([])
+    getCpoDispatchDraftsMock.mockResolvedValue([])
+    getEffluentPlantDraftsMock.mockResolvedValue([])
+    getStorageTankDraftsMock.mockResolvedValue([])
+    getEngineRoomDraftsMock.mockResolvedValue([])
+    getBoilerRoomDraftsMock.mockResolvedValue([])
+    getClarificationDraftsMock.mockResolvedValue([])
+    getProcessQualityControlDraftsMock.mockResolvedValue([])
+    getSterilizerDraftsMock.mockResolvedValue([])
 
     const wrapper = mount(StationListView)
     await flushPromises()
@@ -481,6 +670,17 @@ describe('StationListView — draft-status-by-type detection', () => {
       pressing: false,
       depricarping: false,
       'kernel-plant': false,
+      'solid-waste-disposal': false,
+      'process-water': false,
+      'kernel-dispatch': false,
+      'cpo-dispatch': false,
+      'effluent-plant': false,
+      'storage-tank': false,
+      'engine-room': false,
+      'boiler-room': false,
+      clarification: false,
+      'process-quality-control': false,
+      sterilizer: false,
     })
   })
 
@@ -492,6 +692,17 @@ describe('StationListView — draft-status-by-type detection', () => {
     getPressingDraftsMock.mockResolvedValue([])
     getDepricarpingDraftsMock.mockResolvedValue([])
     getKernelPlantDraftsMock.mockResolvedValue([])
+    getSolidWasteDisposalDraftsMock.mockResolvedValue([])
+    getProcessWaterDraftsMock.mockResolvedValue([])
+    getKernelDispatchDraftsMock.mockResolvedValue([])
+    getCpoDispatchDraftsMock.mockResolvedValue([])
+    getEffluentPlantDraftsMock.mockResolvedValue([])
+    getStorageTankDraftsMock.mockResolvedValue([])
+    getEngineRoomDraftsMock.mockResolvedValue([])
+    getBoilerRoomDraftsMock.mockResolvedValue([])
+    getClarificationDraftsMock.mockResolvedValue([])
+    getProcessQualityControlDraftsMock.mockResolvedValue([])
+    getSterilizerDraftsMock.mockResolvedValue([])
 
     const wrapper = mount(StationListView)
     await flushPromises()
@@ -504,6 +715,17 @@ describe('StationListView — draft-status-by-type detection', () => {
       pressing: false,
       depricarping: false,
       'kernel-plant': false,
+      'solid-waste-disposal': false,
+      'process-water': false,
+      'kernel-dispatch': false,
+      'cpo-dispatch': false,
+      'effluent-plant': false,
+      'storage-tank': false,
+      'engine-room': false,
+      'boiler-room': false,
+      clarification: false,
+      'process-quality-control': false,
+      sterilizer: false,
     })
   })
 
@@ -649,6 +871,17 @@ describe('StationListView — Production Line picker step', () => {
     getPressingDraftsMock.mockResolvedValue([])
     getDepricarpingDraftsMock.mockResolvedValue([])
     getKernelPlantDraftsMock.mockResolvedValue([])
+    getSolidWasteDisposalDraftsMock.mockResolvedValue([])
+    getProcessWaterDraftsMock.mockResolvedValue([])
+    getKernelDispatchDraftsMock.mockResolvedValue([])
+    getCpoDispatchDraftsMock.mockResolvedValue([])
+    getEffluentPlantDraftsMock.mockResolvedValue([])
+    getStorageTankDraftsMock.mockResolvedValue([])
+    getEngineRoomDraftsMock.mockResolvedValue([])
+    getBoilerRoomDraftsMock.mockResolvedValue([])
+    getClarificationDraftsMock.mockResolvedValue([])
+    getProcessQualityControlDraftsMock.mockResolvedValue([])
+    getSterilizerDraftsMock.mockResolvedValue([])
     fetchAndCacheStationsForProductionLineMock.mockResolvedValue(undefined)
   })
 

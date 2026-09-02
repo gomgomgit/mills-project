@@ -1,0 +1,63 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-119--form-clarification-web",
+  "name": "Form Clarification (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/FormClarificationTest.php",
+    "backend/tests/Browser/FormClarificationTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormClarification.php",
+    "backend/resources/views/data/clarification-form.blade.php",
+    "backend/resources/views/livewire/data/form-clarification.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormClarificationTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses ClarificationRecordService::create()/update() (BE service shared with screen-099)",
+    "The Clarification Detail grid is fully dynamic -- addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions() on FormClarification.php, exactly mirroring FormBoilerRoom's grid. Grid starts empty on create mode; edit mode loads existing rows verbatim with each row's id",
+    "All 7 non-time_slot columns per row are genuinely editable, never disabled -- Clarification has no computed detail-grid fields and NO enum dropdowns at all (unlike Boiler Room's 2 Y/N selects): 6 are numeric inputs, 1 (Findings) is a plain text input",
+    "UNLIKE Form Threshing Web: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
+    "Route /data/clarification/create registered BEFORE /data/clarification/{id} (screen-109) so the literal 'create' segment is not swallowed by {id}",
+    "checked/acknowledged self-attestation checkboxes mirror FormBoilerRoom's dual-checkbox pattern (both Checked By AND Acknowledged By)",
+    "NoActiveClarificationStationException (mirrors NoActiveBoilerRoomStationException) thrown when production_line_id has no active station type=clarification"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/FormClarificationTest.php) exists following this codebase's established convention but could not be executed in this sandboxed environment -- integration (Feature/Api) and component (Feature/Livewire) coverage is complete and passing, consistent with the codebase's Browser/* convention.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 14,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 18,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

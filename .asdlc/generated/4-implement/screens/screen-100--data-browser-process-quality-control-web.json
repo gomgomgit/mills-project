@@ -1,0 +1,80 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-100--data-browser-process-quality-control-web",
+  "name": "Data Browser Process Quality Control (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/ProcessQualityControlRecordService.php",
+    "backend/app/Http/Controllers/Api/ProcessQualityControlRecordController.php",
+    "backend/app/Exceptions/NoActiveProcessQualityControlStationException.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/factories/ProcessQualityControlRecordFactory.php",
+    "backend/database/factories/ProcessQualityControlDetailFactory.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/resources/views/data/production-process-activity.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/ProcessQualityControlRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserProcessQualityControlTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserProcessQualityControlTest.php",
+    "backend/tests/Browser/DataBrowserProcessQualityControlTest.php",
+    "backend/tests/Feature/ProductionProcessActivityTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserProcessQualityControl.php",
+    "backend/resources/views/data/process-quality-control.blade.php",
+    "backend/resources/views/livewire/data/data-browser-process-quality-control.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "ProcessQualityControlRecordService/Controller/routes/factories/StationFactory state are shared infrastructure for all 3 web Process Quality Control screens (100/110/120), mirroring ClarificationRecordService's precedent -- reported under this screen since it is first in the implementation sequence. ProcessQualityControlRecord/ProcessQualityControlDetail models and migrations were already generated in an earlier (Phase 1/entity-catalog) pass per the task brief; this pass used the existing model/migration column list as ground truth for the service/factories and found them consistent, requiring no changes",
+    "Process Quality Control follows the same hourly-grid (dynamic add-row/remove-row, 1..24 rows, unique + strictly ascending canonical time_slot) pattern as Clarification/Boiler Room/Engine Room -- create()/update()/listRecords()/export()/getDetail(), plus canonicalTimeSlots() helper returning 24 'HH:00' strings starting 07:00, mirroring mobile's processQualityControlRecordRepo.ts",
+    "THE STATION WITH THE MOST NON-TIME_SLOT COLUMNS IN THE PROJECT (16): DETAIL_FIELDS = ['shift', 'qc_inspector_id', ...READING_FIELDS] with READING_FIELDS = 12 numeric readings + qc_engineering_corrective_actions + findings (14 total) -- shift and qc_inspector_id are identifying/context columns excluded from filled_slot_count/minimum-one-row validation, mirroring ProcessWaterRecordService's shift/inspector_id exclusion exactly (a new derived pattern, since Clarification itself has no identifying columns to exclude)",
+    "UNLIKE Threshing/Pressing/Depricarping/Kernel Plant: Process Quality Control has NO operational-target reference table -- no seeder, no model, no Target Operasional section anywhere in this station's 6 screens, per this task's explicit scope",
+    "The Process Quality Control tile in production-process-activity.blade.php (screen-035) was updated from a javascript:void(0) placeholder to route('data.process-quality-control') -- this was the LAST remaining unrouted tile; 0 now remain",
+    "tests/Feature/ProductionProcessActivityTest.php updated: the 'still-unrouted' test (previously asserting 1 remaining tile) was replaced -- the single 'berhasil' test now asserts all 17 active station tiles render with real route() hrefs, and a new assertDontSee('javascript:void(0)') confirms no placeholder links remain, since the scenario it used to cover became vacuous once Process Quality Control was routed",
+    "StationFactory::processQualityControl() state added additively (mirrors clarification()/boilerRoom()/engineRoom()/storageTank()/effluentPlant() exactly) for this screen's and screen-120's test suites -- this is the FINAL station-type factory state added across all 10 of the 2026-08-31 batch",
+    "Ran the full backend test suite (`php artisan test`) after implementation: 2148 passed, 0 failed. Process-Quality-Control-specific tests (`--filter=ProcessQualityControl`): 86 passed (0 failed) -- 29 unit (ProcessQualityControlRecordServiceTest, reported under this screen), 7 integration (Feature/Api/DataBrowserProcessQualityControlTest), 5 component (Feature/Livewire/DataBrowserProcessQualityControlTest); remaining 45 Process Quality Control tests reported under screen-110/screen-120 below; ProductionProcessActivityTest (5 tests, project-level not station-specific) also passes"
+  ],
+  "deferred_items": [
+    {
+      "description": "The mobile 'Sinkronisasi' button (Station List, screen-006) does not push locally-entered Process Quality Control records to POST /api/process-quality-control-records -- unlike Threshing/Pressing/Depricarping/Kernel Plant/Process Water/Kernel Dispatch/CPO Dispatch/Effluent Plant/Storage Tank/Engine Room/Boiler Room/Clarification, which each have a syncProcessQualityControlRecords()-equivalent function wired into syncService.ts's syncAllRecords().",
+      "reason": "Out of this 6-screen task's explicit scope; the most recent precedent station (Clarification) made the same deferral for the same reason. The route itself is already dual-guarded ('auth:web,sanctum' + operator role, see routes/api.php) so this is purely a mobile syncService.ts addition, not a backend change, when picked up later."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserProcessQualityControlTest.php) exists following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T06:00:00Z",
+      "passed": 29,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T06:00:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T06:00:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

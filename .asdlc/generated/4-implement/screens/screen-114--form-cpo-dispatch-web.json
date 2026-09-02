@@ -1,0 +1,82 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-114--form-cpo-dispatch-web",
+  "name": "Form CPO Dispatch (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Exceptions/NoActiveCpoDispatchStationException.php",
+    "backend/app/Services/CpoDispatchRecordService.php",
+    "backend/app/Http/Controllers/Api/CpoDispatchRecordController.php",
+    "backend/routes/api.php",
+    "backend/database/factories/StationFactory.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/CpoDispatchRecordServiceTest.php",
+    "backend/tests/Feature/Api/FormCpoDispatchTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormCpoDispatch.php",
+    "backend/resources/views/livewire/data/form-cpo-dispatch.blade.php",
+    "backend/resources/views/data/cpo-dispatch-form.blade.php",
+    "backend/routes/web.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormCpoDispatchTest.php",
+    "backend/tests/Browser/FormCpoDispatchTest.php"
+  ],
+  "implementation_notes": [
+    "Satu Livewire component (FormCpoDispatch) menangani mode create DAN edit — mode ditentukan oleh ada/tidaknya parameter $id di mount(), sama persis pola FormKernelDispatch/FormSolidWasteDisposal/FormWeighbridge/FormGrading",
+    "CpoDispatchRecordService::create()/update() dipanggil dari CpoDispatchRecordController::store()/update() (API) DAN Livewire FormCpoDispatch::save() — satu source of truth validasi/business logic",
+    "BERBEDA dari Kernel Dispatch: TIDAK ADA kolom remarks_gate_status/weighbridge_ticket_no — CPO Dispatch tidak memiliki field gate-status setara maupun weighbridge ticket number. Sebagai gantinya CPO Dispatch punya time_in/time_out (dua input type=time terpisah dari Tanggal Kejadian) dan dobi, tidak ada CHECK-constraint enum di tabel cpo_dispatch_details sama sekali (diverifikasi dari migration) sehingga tidak ada isu SQLite empty-string-vs-null seperti yang ditemukan pada Kernel Dispatch's remarks_gate_status — upsertDetails() tetap mengoersi time_in/time_out kosong ('') menjadi null sebagai praktik defensif yang sama, walau bukan untuk menghindari CHECK-constraint error",
+    "Net Weight (MT) dihitung server di CpoDispatchRecordService::upsertDetails() (= gross_weight_mt - tare_weight_mt, null jika salah satu kosong) — TIDAK menerima override dari client, dikecualikan dari konvensi web-form-input 'tidak boleh disabled' karena computed/data-integrity, sama alasan seperti Net Weight Form Weighbridge Web/Form Kernel Dispatch Web",
+    "DIVERGENSI DARI MOBILE (instruksi eksplisit): Date pada web default hari ini namun TETAP dapat diedit manual — TIDAK dikunci/dibekukan seperti mobile screen-074",
+    "DIVERGENSI DARI MOBILE (instruksi eksplisit): tidak ada draft/pause/Clear di web — Simpan langsung create/update dengan status=saved, record dapat diedit kapan saja lewat mode edit",
+    "Checked By DAN Acknowledged By keduanya ada di form ini sebagai checkbox self-attestation role-gated, konsisten dengan mobile screen-074 dan Detail CPO Dispatch Web (screen-104)",
+    "Route web /data/cpo-dispatch/create HARUS didaftarkan SEBELUM /data/cpo-dispatch/{id} (screen-104) — sama pola dengan screen-022/023/024/111/113",
+    "Ditambahkan tombol 'Tambah Data' di Data Browser (screen-094) dan tombol 'Edit' di Detail (screen-104) sebagai entry point ke screen ini",
+    "Station::factory()->cpoDispatch() state reused (ditambahkan bersama screen-094's implementation) untuk kebutuhan test suite screen ini"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV.",
+      "severity": "minor"
+    },
+    {
+      "description": "Production Line tidak dapat diubah di mode edit by design (immutable setelah create), konsisten dengan screen-022/023/024/111/113, tidak ada jalur UI untuk memindah record ke production line lain.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 12,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 13,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

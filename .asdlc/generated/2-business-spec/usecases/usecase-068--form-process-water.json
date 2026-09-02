@@ -1,0 +1,145 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "usecase-068--form-process-water",
+  "name": "Input Data Process Water",
+  "description": "Operator atau Supervisor mengisi header dan grid detail time-slot per jam untuk sebuah record Process Water, lalu menyimpan, menjeda (Pause), atau membatalkan (Clear) record tersebut.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "Sebuah record Process Water draft sudah dibuat (baru atau dilanjutkan) dari Monitor Process Water"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Memuat draft Process Water beserta seluruh baris Process Water Detail yang sudah ada (bisa nol baris untuk draft baru)"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Mengisi Process Water ID dan field header lainnya"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'Tambah baris' untuk menambah baris Process Water Detail, memilih Time-Slot, dan mengisi kolom bacaan yang relevan"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'Simpan'"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi Process Water ID terisi dan minimal satu baris Process Water Detail valid (Time-Slot terpilih + minimal satu kolom bacaan terisi)"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menyimpan record dengan status 'saved' dan kembali ke Monitor Process Water"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Process Water ID Belum Lengkap",
+      "trigger": "Pada langkah 5, Process Water ID kosong",
+      "steps": [
+        "System menampilkan error inline pada field Process Water ID",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum Ada Baris Valid",
+      "trigger": "Pada langkah 5, tidak ada baris Process Water Detail valid",
+      "steps": [
+        "System menampilkan pesan error khusus pada grid",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Pause",
+      "trigger": "User menekan 'Pause' kapan saja sebelum Simpan",
+      "steps": [
+        "System menyimpan field apa adanya tanpa validasi wajib, status menjadi draft_paused",
+        "System kembali ke Monitor Process Water"
+      ]
+    },
+    {
+      "name": "Clear",
+      "trigger": "User menekan 'Clear'",
+      "steps": [
+        "System menampilkan dialog konfirmasi",
+        "Jika dikonfirmasi: record beserta seluruh barisnya dihapus permanen, kembali ke Monitor Process Water",
+        "Jika dibatalkan: tidak ada perubahan"
+      ]
+    },
+    {
+      "name": "Back Dengan Perubahan Belum Tersimpan",
+      "trigger": "User menekan Back saat form dirty",
+      "steps": [
+        "System menampilkan dialog konfirmasi sebelum keluar"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Untuk Simpan sukses: record berstatus 'saved' dengan header dan baris Process Water Detail tersimpan",
+    "Untuk Pause: record berstatus 'draft_paused' dengan field apa adanya tersimpan sebagai checkpoint",
+    "Untuk Clear terkonfirmasi: record dan seluruh barisnya terhapus permanen"
+  ],
+  "business_rules": [
+    "Tanggal otomatis diisi sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Grid Process Water Detail tidak di-pre-generate — baris ditambahkan satu per satu via Tambah baris, dapat dihapus via Hapus baris",
+    "Time-Slot tiap baris harus lebih lambat dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
+    "Minimal satu baris valid (Time-Slot terpilih + minimal satu kolom bacaan terisi) sebelum Simpan",
+    "Process Water ID wajib diisi sebelum Simpan"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data Process Water — success",
+      "given": "Process Water ID terisi dan minimal 1 baris Process Water Detail valid",
+      "when": "User menekan Simpan",
+      "then": "Record tersimpan dengan status 'saved', navigasi ke Monitor Process Water"
+    },
+    {
+      "scenario": "Input Data Process Water — Process Water ID Belum Lengkap",
+      "given": "Process Water ID kosong",
+      "when": "User menekan Simpan",
+      "then": "Error inline ditampilkan, record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Process Water — Belum Ada Baris Valid",
+      "given": "Grid Process Water Detail kosong atau tidak ada baris valid",
+      "when": "User menekan Simpan",
+      "then": "Pesan error khusus ditampilkan pada grid, record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Process Water — Tambah/Hapus Baris dan Urutan Time-Slot",
+      "given": "User menambah beberapa baris dengan Time-Slot berurutan",
+      "when": "User menghapus salah satu baris",
+      "then": "Time-Slot yang dipakai baris tersebut kembali tersedia untuk baris lain"
+    },
+    {
+      "scenario": "Input Data Process Water — Pause Progress",
+      "given": "Field wajib belum lengkap",
+      "when": "User menekan Pause",
+      "then": "Tidak ada validasi, progress tersimpan sebagai draft_paused, navigasi ke Monitor Process Water"
+    },
+    {
+      "scenario": "Input Data Process Water — Clear Draft",
+      "given": "User menekan Clear",
+      "when": "User mengonfirmasi dialog hapus",
+      "then": "Record dan seluruh barisnya terhapus permanen, navigasi ke Monitor Process Water"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-072--form-process-water"
+  ]
+}

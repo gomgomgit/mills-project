@@ -1,0 +1,81 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-099--data-browser-clarification-web",
+  "name": "Data Browser Clarification (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/ClarificationRecordService.php",
+    "backend/app/Http/Controllers/Api/ClarificationRecordController.php",
+    "backend/app/Exceptions/NoActiveClarificationStationException.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/factories/ClarificationRecordFactory.php",
+    "backend/database/factories/ClarificationDetailFactory.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/resources/views/data/production-process-activity.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/ClarificationRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserClarificationTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserClarificationTest.php",
+    "backend/tests/Browser/DataBrowserClarificationTest.php",
+    "backend/tests/Feature/ProductionProcessActivityTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserClarification.php",
+    "backend/resources/views/data/clarification.blade.php",
+    "backend/resources/views/livewire/data/data-browser-clarification.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "ClarificationRecordService/Controller/routes/factories/StationFactory state are shared infrastructure for all 3 web Clarification screens (099/109/119), mirroring BoilerRoomRecordService's precedent -- reported under this screen since it is first in the implementation sequence. ClarificationRecord/ClarificationDetail models and migrations were already generated in an earlier (Phase 1/entity-catalog) pass per the task brief; this pass used the existing model/migration column list as ground truth for the service/factories and found them consistent, requiring no changes",
+    "Clarification follows the same hourly-grid (dynamic add-row/remove-row, 1..24 rows, unique + strictly ascending canonical time_slot) pattern as Boiler Room/Engine Room -- create()/update()/listRecords()/export()/getDetail(), plus canonicalTimeSlots() helper returning 24 'HH:00' strings starting 07:00, mirroring mobile's clarificationRecordRepo.ts",
+    "filled_slot_count computed via withCount() with an inner OR-whereNotNull constraint across all 7 non-time_slot columns -- mirrors BoilerRoomRecordService's filled_slot_count pattern; this station has NO identifying/context columns to exclude, so all 7 columns participate",
+    "THE SIMPLEST STATION IN THE PROJECT: all 6 reading columns (clarification_tank_temp_c, oil_tank_temperature_c, sludge_tank_temp_c, buffer_tank_level_percent, pure_oil_production_rate_ton_hour, downtime_mins) are genuinely numeric floats, the 7th (findings) is free text -- there are NO enum/status columns at all, so unlike Boiler Room/Engine Room/Kernel Dispatch/Effluent Plant/Storage Tank there is no empty-string-to-null enum coercion needed anywhere in this service",
+    "UNLIKE Threshing/Pressing/Depricarping/Kernel Plant: Clarification has NO operational-target reference table -- no seeder, no model, no Target Operasional section anywhere in this station's 6 screens, per this task's explicit scope",
+    "The Clarification tile in production-process-activity.blade.php (screen-035) was updated from a javascript:void(0) placeholder to route('data.clarification') -- only Process Quality Control now remains unrouted, decremented from 2",
+    "tests/Feature/ProductionProcessActivityTest.php updated: Clarification moved from the 'still-unrouted' test (renamed to 'renders the 1 still-unrouted...') into the routed-tiles test (renamed to 'renders the 12 active station tiles...')",
+    "StationFactory::clarification() state added additively (mirrors boilerRoom()/engineRoom()/storageTank()/effluentPlant() exactly) for this screen's and screen-119's test suites",
+    "Ran the full backend test suite (`php artisan test`) after implementation: 2062 passed, 0 failed. Clarification-specific tests (`--filter=Clarification`): 87 passed (0 failed) -- 30 unit (ClarificationRecordServiceTest, reported under this screen), 7 integration (Feature/Api/DataBrowserClarificationTest), 5 component (Feature/Livewire/DataBrowserClarificationTest); remaining 45 Clarification tests reported under screen-109/screen-119 below"
+  ],
+  "deferred_items": [
+    {
+      "description": "The mobile 'Sinkronisasi' button (Station List, screen-006) does not push locally-entered Clarification records to POST /api/clarification-records -- unlike Threshing/Pressing/Depricarping/Kernel Plant/Process Water/Kernel Dispatch/CPO Dispatch/Effluent Plant/Storage Tank/Engine Room/Boiler Room, which each have a syncClarificationRecords()-equivalent function wired into syncService.ts's syncAllRecords().",
+      "reason": "Out of this 6-screen task's explicit scope; the most recent precedent station (Boiler Room) made the same deferral for the same reason. The route itself is already dual-guarded ('auth:web,sanctum' + operator role, see routes/api.php) so this is purely a mobile syncService.ts addition, not a backend change, when picked up later."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserClarificationTest.php) exists following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 30,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

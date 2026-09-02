@@ -1,0 +1,467 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-075--form-effluent-plant",
+  "name": "Form Effluent Plant",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/effluent-plant/form/:id",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "usecase_name": "Input Data Effluent Plant",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load draft effluent_plant_record by id (route param) beserta seluruh effluent_plant_detail turunannya ke form state (bisa nol baris untuk draft baru), diurutkan berdasarkan time_slot dalam urutan kanonis (07:00..06:00, BUKAN alfabetis)",
+        "2. Auto-set Tanggal (date) = waktu saat ini HANYA jika draft baru (masih kosong); jika draft dilanjutkan, pertahankan nilai tersimpan (defensive fallback, createDraft() sudah mengisinya)",
+        "3. Render field dikelompokkan per section: Identitas Effluent Plant (Effluent Plant ID, Tanggal), Verifikasi (Inputted By read-only, Checked By, Acknowledged By, Note), Effluent Plant Detail (grid dinamis)",
+        "4. Render breadcrumb (Home > Production Process Activity > Effluent Plant > Form, tappable) dan header dengan hamburger",
+        "5. Grid Effluent Plant Detail TIDAK di-pre-generate — dimulai kosong untuk draft baru, mengikuti pola persis Process Water Detail (screen-072)",
+        "6. On Tambah baris Effluent Plant Detail: tambah 1 baris baru (tanpa id) ke grid, Time-Slot belum dipilih, seluruh kolom bacaan kosong",
+        "7. Opsi dropdown Time-Slot per baris = 24 slot kanonis (07:00..06:00) DIKURANGI (slot yang sudah dipakai baris manapun pada record ini) DAN (slot dengan index kanonis <= index slot TERTINGGI yang sudah dipilih baris lain) — dihitung ulang reaktif setiap kali baris manapun berubah/ditambah/dihapus, sama seperti availableTimeSlotOptions() Process Water",
+        "8. On isi kolom bacaan pada baris: update field terkait pada baris tersebut di form state (Anaerobic Pond 1/2 pH & Temp, Cooling Pond pH & Temp, Biogas Flare Status, Biogas Flow Rate, Raw POME Feed Rate, Effluent Discharge Flow Rate, Final Discharge pH/BOD/COD/TSS, Dosing Pump 1 Status, Chemical Consumed, Sludge Dewatering Status, Remarks/Maintenance Actions, Findings)",
+        "9. On Hapus baris Effluent Plant Detail: hapus baris dari form state; jika baris punya id (sudah tersimpan sebelumnya), tandai untuk DELETE saat Simpan/Pause berikutnya; Time-Slot yang dipakai baris tersebut otomatis kembali tersedia di dropdown baris lain (langkah 7 dihitung ulang)",
+        "10. Checked By hanya dapat diisi/diedit jika role user saat ini = supervisor, disabled untuk role lain",
+        "11. Acknowledged By hanya dapat diisi/diedit jika role user saat ini = mill_management, disabled untuk role lain",
+        "12. On Simpan: validasi Effluent Plant ID terisi DAN minimal 1 baris Effluent Plant Detail valid (Time-Slot terpilih DAN minimal 1 dari kolom bacaan terisi) -> jika lengkap: UPDATE effluent_plant_record (semua field header, status=saved) -> upsert effluent_plant_detail (baris tanpa id: INSERT baru; baris dengan id: UPDATE; baris ditandai dihapus: DELETE), mengonversi string kosong ('') pada Biogas Flare Status/Dosing Pump 1 Status/Sludge Dewatering Status menjadi null sebelum disimpan (menghindari kegagalan constraint enum) -> navigasi ke Monitor Effluent Plant",
+        "13. On Pause: UPDATE effluent_plant_record (field form apa adanya, status=draft_paused, TANPA validasi field wajib), effluent_plant_detail rows di-upsert/delete apa adanya juga (dengan konversi string kosong ke null yang sama pada 3 kolom status) -> navigasi ke Monitor Effluent Plant",
+        "14. On Clear: tampilkan dialog konfirmasi -> jika dikonfirmasi: DELETE seluruh effluent_plant_detail milik record lalu DELETE effluent_plant_record -> navigasi ke Monitor; jika dibatalkan: tidak ada perubahan",
+        "15. On Back: jika form dirty (header, salah satu baris, atau ada baris ditandai untuk dihapus berubah dari snapshot saat load): tampilkan dialog konfirmasi -> jika dikonfirmasi, buang perubahan di memori, navigasi ke Monitor; jika tidak dirty, navigasi langsung",
+        "16. On tap breadcrumb segment -> navigasi ke route terkait",
+        "17. On tap hamburger -> buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "effluent-plant-record",
+          "operation": "SELECT",
+          "description": "SELECT record by id untuk load form state"
+        },
+        {
+          "entity_id": "effluent-plant-detail",
+          "operation": "SELECT",
+          "description": "SELECT semua baris (berapapun jumlahnya) by effluent_plant_record_id, ORDER BY urutan kanonis time_slot"
+        },
+        {
+          "entity_id": "effluent-plant-record",
+          "operation": "UPDATE",
+          "description": "UPDATE semua field header + status=saved pada Simpan, atau field apa adanya + status=draft_paused pada Pause"
+        },
+        {
+          "entity_id": "effluent-plant-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru (tanpa id sebelumnya) pada Simpan/Pause"
+        },
+        {
+          "entity_id": "effluent-plant-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris yang sudah punya id pada Simpan/Pause"
+        },
+        {
+          "entity_id": "effluent-plant-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris yang dihapus user dari grid, pada Simpan/Pause berikutnya; atau seluruh baris pada Clear"
+        },
+        {
+          "entity_id": "effluent-plant-record",
+          "operation": "DELETE",
+          "description": "DELETE record pada Clear yang dikonfirmasi"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Effluent Plant ID belum diisi saat Simpan",
+          "handling": "Tampilkan error inline pada field Effluent Plant ID, record tidak tersimpan"
+        },
+        {
+          "condition": "Belum ada satu pun baris Effluent Plant Detail valid (Time-Slot terpilih + minimal 1 kolom bacaan terisi) saat Simpan",
+          "handling": "Tampilkan pesan error khusus pada grid, record tidak tersimpan"
+        },
+        {
+          "condition": "User membuka dropdown Time-Slot pada baris ketika slot tertentu sudah dipakai baris lain atau <= slot tertinggi baris lain",
+          "handling": "Slot tersebut tidak ditampilkan sebagai opsi"
+        },
+        {
+          "condition": "User menghapus baris Effluent Plant Detail yang sudah ada (punya id)",
+          "handling": "Baris hilang dari grid; ditandai untuk DELETE eksplisit; Time-Slot yang dipakainya kembali tersedia di dropdown baris lain"
+        },
+        {
+          "condition": "Operator mencoba mengisi/mengedit Checked By",
+          "handling": "Field disabled/read-only untuk role selain supervisor"
+        },
+        {
+          "condition": "Non-mill_management mencoba mengisi/mengedit Acknowledged By",
+          "handling": "Field disabled/read-only untuk role selain mill_management"
+        },
+        {
+          "condition": "Draft di-Pause lalu dilanjutkan",
+          "handling": "Baris yang sudah ditambahkan beserta bacaan yang sudah terisi tetap utuh, di-load ulang dari DB; opsi dropdown Time-Slot tiap baris otomatis mengecualikan slot yang sudah terpakai sejak awal render"
+        },
+        {
+          "condition": "Back dengan perubahan belum tersimpan",
+          "handling": "Tampilkan dialog konfirmasi sebelum keluar"
+        },
+        {
+          "condition": "Clear ditekan",
+          "handling": "Tampilkan dialog konfirmasi wajib sebelum DELETE dieksekusi"
+        },
+        {
+          "condition": "User mengisi Findings atau Remarks/Maintenance Actions tanpa mengisi kolom numerik/status apapun pada baris yang sama",
+          "handling": "Baris tetap dianggap terisi (valid) untuk keperluan validasi minimal-1-baris"
+        },
+        {
+          "condition": "User memilih opsi kosong ('') pada dropdown Biogas Flare Status/Dosing Pump 1 Status/Sludge Dewatering Status lalu Simpan/Pause",
+          "handling": "String kosong dikonversi menjadi null sebelum ditulis ke SQLite, menghindari kegagalan CHECK constraint enum pada kolom tersebut"
+        }
+      ],
+      "business_rules_applied": [
+        "Tanggal otomatis sekali saat draft baru dibuat",
+        "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Grid Effluent Plant Detail TIDAK di-pre-generate — baris ditambahkan satu per satu via Tambah baris, dapat dihapus via Hapus baris, mengikuti pola persis Process Water",
+        "Time-Slot tiap baris harus lebih lambat (index kanonis lebih besar) dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
+        "Setiap kolom bacaan opsional per baris; minimal satu baris valid (Time-Slot terpilih + minimal satu kolom terisi) sebelum Simpan",
+        "Effluent Plant ID wajib diisi sebelum Simpan",
+        "Biogas Flare Status, Dosing Pump 1 Status, dan Sludge Dewatering Status adalah 3 kolom status/enum independen pada baris",
+        "Tidak ada tabel referensi target operasional pada stasiun ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads existing effluent_plant_detail rows (however many) ordered by canonical time-slot on mount",
+          "given": "loaded draft has 2 effluent_plant_detail rows with time_slot 09:00 and 07:00 in DB insertion order",
+          "expect": "form state's detail rows array has exactly 2 entries ordered 07:00, 09:00"
+        },
+        {
+          "description": "renders zero detail rows for a brand-new draft (no pre-created rows)",
+          "given": "a brand-new draft with no effluent_plant_detail rows",
+          "expect": "form state's detail rows array is empty"
+        },
+        {
+          "description": "sets date to current time when draft is new (empty)",
+          "given": "loaded draft record has date = null",
+          "expect": "date set to current timestamp (now) exactly once on mount"
+        },
+        {
+          "description": "preserves stored date when resuming a paused draft",
+          "given": "loaded draft record has date already set",
+          "expect": "date remains unchanged, not overwritten"
+        },
+        {
+          "description": "adds one row at a time via Tambah baris, with Time-Slot unset and all reading columns empty",
+          "given": "grid has 0 rows",
+          "expect": "each Tambah baris click appends exactly one row with time_slot=null and all reading columns null"
+        },
+        {
+          "description": "excludes a time-slot already used by another row from a row's Time-Slot dropdown options",
+          "given": "row 1 has time_slot='07:00' selected; computing available slots for row 2",
+          "expect": "row 2's available slot options do NOT include '07:00'"
+        },
+        {
+          "description": "excludes slots at-or-before the most-recently-added row's slot from the next row's Time-Slot dropdown options",
+          "given": "row 1 (most recently added) has time_slot='09:00' selected; computing available slots for a new row 2",
+          "expect": "row 2's available slot options only include slots after 09:00 in canonical order (10:00 onward), not 07:00-09:00"
+        },
+        {
+          "description": "frees a previously-used time-slot for other rows once the row using it is removed",
+          "given": "row 1 (time_slot='07:00') is removed while row 2 exists",
+          "expect": "'07:00' becomes available again in row 2's Time-Slot dropdown options"
+        },
+        {
+          "description": "queues an existing (has-id) row for deletion on Hapus baris rather than deleting immediately",
+          "given": "a loaded draft has 2 existing detail rows; Hapus baris pressed on the first",
+          "expect": "the row disappears from the grid; no repo delete call happens yet; the row's id is queued for deletion at the next Simpan/Pause"
+        },
+        {
+          "description": "disables Tambah baris once 24 rows already exist (all canonical slots used)",
+          "given": "grid already has 24 rows",
+          "expect": "Tambah baris control is disabled"
+        },
+        {
+          "description": "updates only the edited reading column on the targeted row without affecting other rows",
+          "given": "row for time_slot 09:00 has anaerobic_pond_1_ph=null; user enters 7.2 into that field",
+          "expect": "row 09:00's anaerobic_pond_1_ph becomes 7.2; other rows remain unchanged"
+        },
+        {
+          "description": "disables the Checked By field for a non-supervisor user",
+          "given": "current user role = 'operator'",
+          "expect": "Checked By field rendered disabled/read-only"
+        },
+        {
+          "description": "enables the Checked By field for a supervisor user",
+          "given": "current user role = 'supervisor'",
+          "expect": "Checked By field rendered enabled/editable"
+        },
+        {
+          "description": "disables the Acknowledged By field for a non-mill_management user",
+          "given": "current user role = 'operator' or 'supervisor'",
+          "expect": "Acknowledged By field rendered disabled/read-only"
+        },
+        {
+          "description": "returns validation error and does not save when Effluent Plant ID is empty on Simpan",
+          "given": "effluent_plant_id empty, Simpan triggered",
+          "expect": "validation fails, inline error returned, effluentPlantRecordRepo.saveDraft() not called"
+        },
+        {
+          "description": "returns validation error and does not save when there are zero valid detail rows on Simpan",
+          "given": "grid is empty, or every row lacks a selected Time-Slot or has zero reading columns filled, Simpan triggered",
+          "expect": "validation fails with grid-specific error, effluentPlantRecordRepo.saveDraft() not called"
+        },
+        {
+          "description": "treats a row with a selected enum status and no numeric readings as a valid/filled row for the minimum-one-row check",
+          "given": "exactly one row has time_slot selected and biogas_flare_status='fault' with every numeric column null, Simpan triggered",
+          "expect": "validation passes (row counts as valid), effluentPlantRecordRepo.saveDraft() called"
+        },
+        {
+          "description": "coerces empty-string enum values to null before persisting a row",
+          "given": "a row has biogas_flare_status='', dosing_pump_1_status='', sludge_dewatering_status='' alongside a filled numeric reading, Simpan triggered",
+          "expect": "effluentPlantRecordRepo.saveDraft() persists null (not empty string) for all 3 enum columns on that row"
+        },
+        {
+          "description": "saves with status=saved and navigates to Monitor Effluent Plant when Simpan succeeds",
+          "given": "effluent_plant_id filled, at least 1 valid detail row, Simpan triggered",
+          "expect": "effluentPlantRecordRepo.saveDraft() called with status='saved' and the queued deletion ids list; navigation to Monitor Effluent Plant triggered"
+        },
+        {
+          "description": "updates record with status=draft_paused without validating required fields on Pause",
+          "given": "effluent_plant_id empty, Pause triggered",
+          "expect": "effluentPlantRecordRepo.pauseDraftWithFormData() called with current field values as-is, status='draft_paused', no validation errors; navigation to Monitor Effluent Plant triggered"
+        },
+        {
+          "description": "shows confirmation dialog before deleting on Clear",
+          "given": "Clear button pressed",
+          "expect": "confirmation dialog displayed; delete not yet called"
+        },
+        {
+          "description": "deletes record and all of its detail rows, then navigates to Monitor when Clear is confirmed",
+          "given": "Clear confirmation dialog confirmed",
+          "expect": "effluent_plant_detail rows deleted, effluent_plant_record deleted; navigation to Monitor Effluent Plant triggered"
+        },
+        {
+          "description": "shows confirmation dialog on Back when form is dirty",
+          "given": "form state isDirty = true (a header field, a detail row, or a queued deletion changed), Back pressed",
+          "expect": "confirmation dialog displayed before navigation"
+        },
+        {
+          "description": "navigates directly on Back when form is not dirty",
+          "given": "form state isDirty = false, Back pressed",
+          "expect": "navigates to Monitor Effluent Plant immediately, no dialog shown"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-065--monitor-effluent-plant",
+      "reason": "Asal & tujuan kembali setelah Simpan/Pause/Clear/Back"
+    },
+    {
+      "screen_id": "screen-085--data-preview-effluent-plant",
+      "reason": "Referensi tampilan data setelah tersimpan"
+    }
+  ],
+  "implementation_notes": [
+    "Simpan/Pause/Clear bersifat lokal (SQLite); sync ke server terjadi lewat mekanisme sync manual terpisah, di luar scope screen ini — CATATAN: berbeda dari Threshing/Pressing/Depricarping/Kernel Plant, syncService.ts TIDAK diperluas untuk Effluent Plant pada implementasi ini (deferred, mengikuti keputusan yang sama diambil oleh stasiun Process Water/Solid Waste Disposal sebelumnya — lihat known_issues)",
+    "effluentPlantRecordRepo.ts mengikuti pola processWaterRecordRepo.ts persis — getDraftWithDetails(id), createDraft(userId) (INSERT header SAJA, tanpa detail rows), saveDraft(recordId, headerData, details, detailIdsToDelete, role), pauseDraftWithFormData(...), applyDetailRowChanges() (upsert + delete)",
+    "canonicalTimeSlots() sumber urutan kanonis untuk opsi dropdown Time-Slot (availableTimeSlotOptions(), floor dihitung lewat index array, bukan angka jam mentah) dan untuk ORDER BY hasil SELECT",
+    "Tidak ada tabel referensi Target Operasional untuk stasiun ini — berbeda dari Threshing/Pressing/Depricarping/Kernel Plant",
+    "Constraint model server EffluentPlantRecord (minimal 1 effluent-plant-detail row exists) divalidasi di level FE + repo mobile (localDb), bukan constraint DB",
+    "Breadcrumb & hamburger mengikuti pola yang sama dengan Form Process Water/Threshing/Pressing/Depricarping/Kernel Plant",
+    "3 kolom enum (biogas_flare_status, dosing_pump_1_status, sludge_dewatering_status) disimpan sebagai TEXT biasa di SQLite lokal (tidak ada CHECK constraint di localSchema.ts), sehingga isu empty-string-vs-null hanya relevan pada backend (lihat screen-095/115's tech-spec) — tetap dikonversi ke null di repo mobile untuk konsistensi payload dengan backend jika/ketika sync diaktifkan nanti"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Input Data Effluent Plant — success as Station Operator",
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "FormEffluentPlantView",
+        "action": "fill Effluent Plant ID, add a detail row, select a Time-Slot, fill Anaerobic Pond 1 pH, click Simpan as an operator user",
+        "assert": "record saved with status=saved, Checked By/Acknowledged By remain empty/disabled for operator"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/form/:id",
+        "action": "login as operator, buka Form Effluent Plant draft baru dari Monitor, isi Effluent Plant ID, tambah 1 baris Effluent Plant Detail lengkap (Time-Slot + 1 kolom bacaan), klik Simpan",
+        "assert": "navigasi ke Monitor Effluent Plant, record baru berstatus tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Effluent Plant — success as Supervisor",
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "FormEffluentPlantView",
+        "action": "as a supervisor user, fill Effluent Plant ID, add a valid detail row, fill Checked By, click Simpan",
+        "assert": "record saved including checked_by set to the supervisor's id"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/form/:id",
+        "action": "login as supervisor, buka Form Effluent Plant, isi Effluent Plant ID termasuk Checked By, tambah 1 baris lengkap, klik Simpan",
+        "assert": "record tersimpan dengan Checked By terisi"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Effluent Plant — Effluent Plant ID Belum Lengkap",
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "FormEffluentPlantView",
+        "action": "leave Effluent Plant ID empty, click Simpan",
+        "assert": "inline error shown, save handler not invoked"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/form/:id",
+        "action": "buka Form Effluent Plant, jangan isi Effluent Plant ID, klik Simpan",
+        "assert": "pesan error inline muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Effluent Plant — Belum Ada Baris Valid",
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "FormEffluentPlantView",
+        "action": "fill Effluent Plant ID, leave the Effluent Plant Detail grid empty (no rows added), click Simpan",
+        "assert": "grid-specific error shown, save handler not invoked"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/form/:id",
+        "action": "isi Effluent Plant ID, jangan tambah baris Effluent Plant Detail, klik Simpan",
+        "assert": "pesan error khusus muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Effluent Plant — Tambah/Hapus Baris dan Urutan Time-Slot",
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "FormEffluentPlantView",
+        "action": "add a row and select 09:00, add a second row, then remove the first (09:00) row",
+        "assert": "row 2's dropdown excludes 07:00-09:00 while row 1 exists; after removal, 09:00 becomes available again"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/form/:id",
+        "action": "tambah baris pilih Time-Slot 09:00, tambah baris kedua, hapus baris pertama",
+        "assert": "opsi Time-Slot baris kedua sempat mengecualikan 07:00-09:00, lalu 09:00 tersedia kembali setelah baris pertama dihapus"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Effluent Plant — Baris Valid Hanya Dari Status Enum",
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "FormEffluentPlantView",
+        "action": "add a row, select a Time-Slot, set Biogas Flare Status to 'Fault' only, leave every other column empty, click Simpan",
+        "assert": "row counts as valid, record saved"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/form/:id",
+        "action": "tambah baris, pilih Time-Slot, pilih Biogas Flare Status = Fault saja, klik Simpan",
+        "assert": "record tersimpan tanpa error validasi grid"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Effluent Plant — Checked By Khusus Supervisor",
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "FormEffluentPlantView",
+        "action": "render the form for an operator user",
+        "assert": "Checked By field rendered disabled"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/form/:id",
+        "action": "buka Form Effluent Plant sebagai Operator",
+        "assert": "field Checked By tidak dapat diisi/diedit"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Effluent Plant — Acknowledged By Khusus Mill Management",
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "FormEffluentPlantView",
+        "action": "render the form for a supervisor user (not mill_management)",
+        "assert": "Acknowledged By field rendered disabled"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/form/:id",
+        "action": "buka Form Effluent Plant sebagai Supervisor",
+        "assert": "field Acknowledged By tidak dapat diisi/diedit"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Effluent Plant — Lanjutkan Draft Paused",
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "FormEffluentPlantView",
+        "action": "mount form with an existing draft_paused record and a handful of detail rows (some filled) loaded",
+        "assert": "all header fields and the existing rows populated from the saved draft"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/form/:id",
+        "action": "dari Monitor Effluent Plant, tap draft paused sebelumnya untuk dilanjutkan",
+        "assert": "semua field dan baris Effluent Plant Detail yang sudah ada terisi sesuai draft tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Effluent Plant — Back Dengan Perubahan Belum Tersimpan",
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "FormEffluentPlantView",
+        "action": "modify a reading field to make the form dirty, trigger back action",
+        "assert": "confirmation dialog rendered before navigation occurs"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/form/:id",
+        "action": "ubah salah satu kolom bacaan, tekan tombol Back sebelum Simpan",
+        "assert": "dialog konfirmasi keluar ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Effluent Plant — Pause Progress",
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "FormEffluentPlantView",
+        "action": "leave Effluent Plant ID empty, click Pause",
+        "assert": "update invoked with status=draft_paused and current field values, no validation errors shown, navigation to Monitor triggered"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/form/:id",
+        "action": "jangan isi Effluent Plant ID, tekan tombol Pause",
+        "assert": "tidak ada error validasi, navigasi kembali ke Monitor Effluent Plant, draft tersimpan dengan status paused"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Effluent Plant — Clear Draft",
+      "usecase_id": "usecase-086--form-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "FormEffluentPlantView",
+        "action": "click Clear then confirm the dialog; repeat and cancel the dialog",
+        "assert": "on confirm: delete invoked and navigation to Monitor triggered; on cancel: no delete call, form state unchanged"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/form/:id",
+        "action": "tekan tombol Clear lalu konfirmasi hapus; ulangi dan batalkan konfirmasi",
+        "assert": "saat dikonfirmasi: draft terhapus permanen dan navigasi ke Monitor; saat dibatalkan: tidak ada perubahan"
+      }
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-082--data-preview-process-water",
+  "name": "Data Preview Process Water",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar yang menampilkan daftar seluruh record Process Water (tersimpan maupun masih draft/pause) dengan filter tanggal (default hari ini) dan pencarian, lalu menampilkan detail read-only lengkap dengan grid Process Water Detail (menampilkan seluruh baris yang ada pada record tersebut, berapapun jumlahnya) saat salah satu record tersimpan/tersinkron dipilih.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap 'Load Data' dari Monitor Process Water"
+  ],
+  "information_displayed": [
+    "Mode LIST: daftar seluruh record Process Water (draft/pause dan saved/synced) milik user, dengan filter tanggal (default terisi hari ini) & pencarian (Process Water ID), masing-masing item menampilkan label + indikator status ('Pause' untuk draft_ongoing/draft_paused, 'Tersimpan' untuk saved, 'Tersinkron' untuk synced)",
+    "Mode DETAIL: seluruh field header Process Water (Process Water ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note) dan grid Process Water Detail (Time-Slot, Shift, Inspector ID, Raw Water Flow, Clarified Water Flow, Softener Inlet pH, Softener Outlet Hardness, Alum Dosing, Polymer Dosing, Boiler Feed Tank Temp, Boiler Feed Water pH, Boiler Feed TDS, Action Taken/Status, Findings) secara read-only — menampilkan persis sebanyak baris yang tersimpan pada record tersebut, beserta status badge record",
+    "Breadcrumb navigasi (Home > Production Process Activity > Process Water > Load Data) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu"
+  ],
+  "available_actions": [
+    {
+      "action": "Tap item list berstatus Pause (draft)",
+      "description": "Membuka Form Process Water untuk melanjutkan draft tersebut",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap item list berstatus Tersimpan/Tersinkron",
+      "description": "Berpindah ke mode detail, menampilkan record tersebut secara read-only",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Ubah filter tanggal",
+      "description": "Menyaring list sesuai tanggal yang dipilih (termasuk mengosongkannya)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Masukkan kata kunci pencarian",
+      "description": "Menyaring list berdasarkan kecocokan Process Water ID",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back (mode list)",
+      "description": "Kembali ke Monitor Process Water",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back (mode detail)",
+      "description": "Kembali ke mode list (bukan langsung ke Monitor Process Water)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Detail record bersifat murni read-only; koreksi data dilakukan lewat Form Process Water, bukan dari layar ini",
+    "List menampilkan seluruh record Process Water milik user apapun statusnya",
+    "Filter tanggal & pencarian bekerja terhadap list yang sedang ditampilkan (client-side)",
+    "Filter tanggal default ke hari ini saat list pertama kali dibuka (mengacu ke field Tanggal Process Water)",
+    "Breadcrumb harus dapat dinavigasi",
+    "Checked By dan Acknowledged By ditampilkan apa adanya di detail (read-only), tidak ada pembatasan role untuk MELIHAT (hanya untuk mengisi, yang terjadi di Form)",
+    "Grid Process Water Detail pada mode DETAIL menampilkan persis baris yang tersimpan pada record, termasuk kemungkinan tampil kosong jika record disimpan tanpa baris apapun",
+    "Tidak ada tabel referensi target operasional pada stasiun ini"
+  ],
+  "usecase_ids": [
+    "usecase-069--data-preview-process-water"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan di mode detail (id tidak valid/tidak ada)",
+    "List kosong (belum ada record Process Water sama sekali untuk user ini)",
+    "Filter tanggal/pencarian (termasuk default hari ini) tidak menghasilkan record yang cocok",
+    "Record ditampilkan di mode DETAIL dengan grid Process Water Detail kosong (kasus tepi: record tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

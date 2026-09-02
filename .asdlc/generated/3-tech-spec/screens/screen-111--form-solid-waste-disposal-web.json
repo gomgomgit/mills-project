@@ -1,0 +1,513 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-111--form-solid-waste-disposal-web",
+  "name": "Form Solid Waste Disposal (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/solid-waste-disposal/create (buat baru), /data/solid-waste-disposal/{id}/edit (ubah)",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-066--form-solid-waste-disposal-web",
+      "usecase_name": "Input & Edit Data Solid Waste Disposal (Web)",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/solid-waste-disposal-records",
+          "description": "Membuat record Solid Waste Disposal baru beserta baris Log Kejadian; station diresolve dari production_line_id",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "production_line_id": "uuid, required",
+              "solid_waste_disposal_id": "string, required",
+              "date": "date, required",
+              "note": "string, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of {id?: uuid, event_date: date, shift?: string, weighbridge_ticket_no?: string, vehicle_no?: string, driver_name?: string, solid_waste_type?: string, source_station?: string, gross_weight_mt?: float, tare_weight_mt?: float, disposal_utilization_site?: string, purpose_end_use?: string, gate_pass_no?: string, security_seal_no?: string, operator_id?: string, remarks?: string, findings?: string}, required, min 1 item with event_date filled"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "solid_waste_disposal_id": "string",
+              "date": "date",
+              "status": "string",
+              "details": "array baris dengan net_weight_mt terhitung server"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong atau tidak ada baris details dengan event_date terisi"
+              },
+              {
+                "http_code": 422,
+                "error_code": "NO_ACTIVE_SOLID_WASTE_DISPOSAL_STATION",
+                "condition": "production line tanpa station Solid Waste Disposal aktif"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/solid-waste-disposal-records/{id}",
+          "description": "Memperbarui record Solid Waste Disposal tersimpan beserta baris Log Kejadian (upsert: baris tanpa id di-insert, baris dengan id di-update, baris yang dihapus dari array di-delete)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID record"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "solid_waste_disposal_id": "string, required",
+              "date": "date, required",
+              "note": "string, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of {id?: uuid, event_date: date, ...}, required, min 1 item with event_date filled"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "solid_waste_disposal_id": "string",
+              "status": "string",
+              "details": "array baris dengan net_weight_mt terhitung server"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong atau tidak ada baris details dengan event_date terisi"
+              },
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Create: validate field wajib (solid_waste_disposal_id, date) + minimal 1 baris details valid (event_date terisi) -> 422 VALIDATION_ERROR",
+        "2. Create: resolve station = Station WHERE production_line_id AND type=solid-waste-disposal AND is_active=true -> 422 NO_ACTIVE_SOLID_WASTE_DISPOSAL_STATION jika tidak ada",
+        "3. Untuk tiap baris details valid: net_weight_mt = gross_weight_mt - tare_weight_mt (dihitung server, bukan diterima dari client, null jika salah satu kosong)",
+        "4. checked=true+role=supervisor -> checked_by=requester id; acknowledged=true+role=mill_management -> acknowledged_by=requester id; role lain diabaikan diam-diam",
+        "5. Dalam transaksi DB: INSERT solid_waste_disposal_record (status=saved) lalu INSERT seluruh solid_waste_disposal_detail rows valid",
+        "6. Update: validate id -> 404 jika tidak ada -> validate field wajib + details sama seperti create -> 422 jika gagal",
+        "7. Update: production_line_id/station_id tidak diterima dari body, tidak berubah",
+        "8. Dalam transaksi DB: UPDATE solid_waste_disposal_record, lalu upsert solid_waste_disposal_detail (baris tanpa id: INSERT; baris dengan id yang masih ada di array: UPDATE; baris yang sebelumnya ada di DB tapi tidak lagi ada di array: DELETE)",
+        "9. FE: mode create tampilkan dropdown Production Line (query langsung ProductionLine di Livewire mount(), sama seperti FormCagesTrack/FormWeighbridge/FormGrading); mode edit GET /api/solid-waste-disposal-records/{id} untuk prefill, station ditampilkan read-only",
+        "10. FE: Date default hari ini pada mode create, tetap dapat diedit manual (input type=date)",
+        "11. FE: Tambah baris menambah 1 baris kosong tanpa id, TIDAK ADA batasan jumlah baris (event-log, bukan grid berkolom tetap); Hapus baris menghapus baris dari form state (jika punya id, dihapus dari array yang dikirim -> ditangani sebagai DELETE oleh backend)",
+        "12. FE: Net Weight (MT) dihitung reaktif client-side untuk preview (disabled, dikecualikan dari konvensi web-form-input sebagai computed value, sama seperti Net Weight pada Form Weighbridge Web) menggunakan rumus yang sama seperti server",
+        "13. FE: checkbox Checked hanya untuk role supervisor, Acknowledged hanya mill_management (pola sama dengan FormWeighbridge/FormCagesTrack)",
+        "14. FE: render field per section (Identitas Solid Waste Disposal, Log Kejadian, Verifikasi)",
+        "15. Simpan berhasil -> navigasi ke Detail Solid Waste Disposal (Web)",
+        "16. Batal -> kembali tanpa API call, dengan konfirmasi jika form dirty"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "solid-waste-disposal-record",
+          "operation": "INSERT",
+          "description": "INSERT record baru"
+        },
+        {
+          "entity_id": "solid-waste-disposal-record",
+          "operation": "UPDATE",
+          "description": "UPDATE record edit"
+        },
+        {
+          "entity_id": "solid-waste-disposal-record",
+          "operation": "SELECT",
+          "description": "SELECT untuk prefill edit"
+        },
+        {
+          "entity_id": "solid-waste-disposal-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru pada create/update"
+        },
+        {
+          "entity_id": "solid-waste-disposal-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris existing pada update"
+        },
+        {
+          "entity_id": "solid-waste-disposal-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris yang dihapus dari array pada update"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "Resolve station solid-waste-disposal aktif dari production_line_id"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Field wajib kosong",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Tidak ada baris details dengan event_date terisi",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Production Line tanpa station solid-waste-disposal aktif",
+          "handling": "422 NO_ACTIVE_SOLID_WASTE_DISPOSAL_STATION"
+        },
+        {
+          "condition": "id tidak ditemukan (update)",
+          "handling": "404 RECORD_NOT_FOUND"
+        },
+        {
+          "condition": "checked/acknowledged oleh role tidak berhak",
+          "handling": "diabaikan diam-diam"
+        }
+      ],
+      "business_rules_applied": [
+        "Tidak ada draft/pause di web",
+        "Net Weight dihitung server, tidak menerima override",
+        "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Production Line tidak berubah setelah dibuat",
+        "Log Kejadian tidak dibatasi jumlah barisnya"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "creates record with resolved station_id and inserted details when valid",
+          "given": "valid body dengan 1 baris details lengkap, production line punya 1 station solid-waste-disposal aktif",
+          "expect": "solid_waste_disposal_record insert dengan station_id sesuai, status=saved, 1 detail row terinsert"
+        },
+        {
+          "description": "computes net_weight_mt from gross_weight_mt and tare_weight_mt",
+          "given": "detail gross_weight_mt=10, tare_weight_mt=2",
+          "expect": "net_weight_mt=8"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when required field empty",
+          "given": "solid_waste_disposal_id kosong",
+          "expect": "ValidationException errors.solid_waste_disposal_id"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when no detail row has event_date",
+          "given": "details berisi baris tanpa event_date terisi",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 NO_ACTIVE_SOLID_WASTE_DISPOSAL_STATION when production line has no active station",
+          "given": "Station query kosong untuk production_line_id+type=solid-waste-disposal",
+          "expect": "throw NoActiveSolidWasteDisposalStationException"
+        },
+        {
+          "description": "sets checked_by when checked=true and role=supervisor",
+          "given": "checked=true, role=supervisor",
+          "expect": "checked_by=requester id"
+        },
+        {
+          "description": "ignores checked=true when role is not supervisor",
+          "given": "checked=true, role=mill_management",
+          "expect": "checked_by tetap null, tidak error"
+        },
+        {
+          "description": "sets acknowledged_by when acknowledged=true and role=mill_management",
+          "given": "acknowledged=true, role=mill_management",
+          "expect": "acknowledged_by=requester id"
+        },
+        {
+          "description": "updates record and upserts details: inserts new row, updates existing row, deletes removed row",
+          "given": "PATCH dengan 1 baris baru (tanpa id), 1 baris existing (id, field diubah), 1 baris existing sebelumnya dihilangkan dari array",
+          "expect": "1 detail row terinsert baru, 1 ter-update, 1 row lama terhapus"
+        },
+        {
+          "description": "updates record without accepting production_line_id change",
+          "given": "PATCH tanpa production_line_id",
+          "expect": "station_id tidak berubah"
+        },
+        {
+          "description": "404 RECORD_NOT_FOUND when updating non-existent id",
+          "given": "findOrFail throws",
+          "expect": "404 RECORD_NOT_FOUND"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-091--data-browser-solid-waste-disposal-web",
+      "reason": "Entry point mode create"
+    },
+    {
+      "screen_id": "screen-101--detail-solid-waste-disposal-web",
+      "reason": "Entry point mode edit dan tujuan navigasi setelah Simpan"
+    }
+  ],
+  "implementation_notes": [
+    "DIVERGENSI DARI MOBILE: Date pada web default hari ini namun TETAP dapat diedit manual, berbeda dari mobile (screen-071) yang menguncinya",
+    "DIVERGENSI DARI MOBILE: data web dapat diedit setelah tersimpan (mode edit penuh), tidak ada draft/pause/Clear - status langsung saved",
+    "PENGECUALIAN konvensi web-form-input: Net Weight tetap disabled - computed server-side, sama alasan seperti Net Weight Form Weighbridge Web",
+    "Production Line dropdown reuse query langsung Eloquent di Livewire mount(), mengikuti pola screen-024/057/058/059/060",
+    "Mode edit prefill reuse GET /api/solid-waste-disposal-records/{id} (screen-101)",
+    "Route web /data/solid-waste-disposal/create HARUS didaftarkan SEBELUM /data/solid-waste-disposal/{id} agar tidak tertangkap sebagai {id} - sama pola dengan screen-022/023/024, sudah diimplementasikan",
+    "Detail upsert (insert/update/delete baris) dijalankan dalam DB transaction agar konsisten, sama pola dengan Cages Track",
+    "Sudah diimplementasikan: app/Livewire/Data/FormSolidWasteDisposal.php, app/Services/SolidWasteDisposalRecordService.php, app/Http/Controllers/Api/SolidWasteDisposalRecordController.php"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Buat Record Solid Waste Disposal Baru — berhasil",
+      "usecase_id": "usecase-066--form-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/solid-waste-disposal-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}",
+            "solid_waste_disposal_id": "SWD-WEB-001",
+            "date": "2026-08-31",
+            "details": [
+              {
+                "event_date": "2026-08-31",
+                "gross_weight_mt": 10,
+                "tare_weight_mt": 2
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormSolidWasteDisposal",
+        "action": "pilih Production Line, isi field wajib, tambah 1 baris Log Kejadian, klik Simpan",
+        "assert": "record tersimpan, navigasi ke Detail Solid Waste Disposal"
+      },
+      "browser_test": {
+        "route": "/data/solid-waste-disposal/create",
+        "action": "klik Tambah Data, isi form lengkap termasuk 1 baris Log Kejadian, klik Simpan",
+        "assert": "halaman Detail menampilkan record baru beserta Log Kejadian"
+      }
+    },
+    {
+      "scenario_ref": "Edit Record Solid Waste Disposal — berhasil",
+      "usecase_id": "usecase-066--form-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/solid-waste-disposal-records/{id}"
+          },
+          "request_example": {
+            "id": "{{record_uuid}}",
+            "solid_waste_disposal_id": "SWD-WEB-001-EDIT",
+            "date": "2026-08-31",
+            "details": [
+              {
+                "id": "{{detail_uuid}}",
+                "event_date": "2026-08-31",
+                "gross_weight_mt": 12,
+                "tare_weight_mt": 2
+              }
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormSolidWasteDisposal",
+        "action": "buka mode edit, ubah field, klik Simpan",
+        "assert": "perubahan tersimpan"
+      },
+      "browser_test": {
+        "route": "/data/solid-waste-disposal/{id}/edit",
+        "action": "klik Edit dari Detail, ubah field, klik Simpan",
+        "assert": "Detail menampilkan nilai baru"
+      }
+    },
+    {
+      "scenario_ref": "Field Wajib Belum Lengkap",
+      "usecase_id": "usecase-066--form-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/solid-waste-disposal-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormSolidWasteDisposal",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      },
+      "browser_test": {
+        "route": "/data/solid-waste-disposal/create",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      }
+    },
+    {
+      "scenario_ref": "Belum Ada Baris Log Kejadian Valid",
+      "usecase_id": "usecase-066--form-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/solid-waste-disposal-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}",
+            "solid_waste_disposal_id": "SWD-X",
+            "date": "2026-08-31",
+            "details": []
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormSolidWasteDisposal",
+        "action": "isi header lengkap tanpa baris Log Kejadian, klik Simpan",
+        "assert": "pesan error khusus muncul"
+      },
+      "browser_test": {
+        "route": "/data/solid-waste-disposal/create",
+        "action": "isi header lengkap tanpa baris detail, klik Simpan",
+        "assert": "pesan error khusus muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Production Line Tanpa Station Solid Waste Disposal Aktif",
+      "usecase_id": "usecase-066--form-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/solid-waste-disposal-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_tanpa_swd_uuid}}",
+            "solid_waste_disposal_id": "SWD-Y",
+            "date": "2026-08-31",
+            "details": [
+              {
+                "event_date": "2026-08-31"
+              }
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "NO_ACTIVE_SOLID_WASTE_DISPOSAL_STATION"
+        }
+      ],
+      "component_test": {
+        "component": "FormSolidWasteDisposal",
+        "action": "pilih Production Line tanpa station solid-waste-disposal aktif, klik Simpan",
+        "assert": "error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/solid-waste-disposal/create",
+        "action": "pilih Production Line tanpa station solid-waste-disposal, klik Simpan",
+        "assert": "error ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Record Tidak Ditemukan (mode edit)",
+      "usecase_id": "usecase-066--form-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/solid-waste-disposal-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "solid_waste_disposal_id": "X",
+            "date": "2026-08-31",
+            "details": [
+              {
+                "event_date": "2026-08-31"
+              }
+            ]
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "FormSolidWasteDisposal",
+        "action": "render edit dengan GET 404",
+        "assert": "pesan error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/solid-waste-disposal/00000000-0000-0000-0000-000000000000/edit",
+        "action": "navigasi ke id tidak valid",
+        "assert": "halaman menampilkan error"
+      }
+    }
+  ]
+}

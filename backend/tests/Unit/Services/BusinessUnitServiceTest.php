@@ -573,7 +573,7 @@ it('accepts, persists, and returns the optional fields when updated', function (
     expect($businessUnit->fresh()->address)->toBe('Jl. Industri No. 1');
 });
 
-// 2026-08-20 (entity-catalog v9): the 15-canonical-station
+// 2026-08-20 (entity-catalog v9): the 19-canonical-station
 // auto-provisioning behavior MOVED to ProductionLineService::create() —
 // each Production Line now gets its own full set of stations, not one
 // shared set per Business Unit. See

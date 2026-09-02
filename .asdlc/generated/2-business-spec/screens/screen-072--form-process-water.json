@@ -1,0 +1,160 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-072--form-process-water",
+  "name": "Form Process Water",
+  "module_id": "module-mobile-station-ops",
+  "description": "Form input/edit data log Process Water yang mencatat data header (Process Water ID, Tanggal otomatis, verifikasi Checked By/Acknowledged By) dan grid Process Water Detail (baris time-slot ditambahkan satu per satu oleh user via 'Tambah baris', memilih Time-Slot dari 24 slot kanonis 07:00-06:00 keesokan hari secara berurutan) — mengikuti pola persis Form Threshing. Tidak ada tabel referensi target operasional pada stasiun ini.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap 'New Data' dari Monitor Process Water (draft baru, grid Process Water Detail dimulai kosong)",
+    "Tap salah satu item draft/pause di list Monitor Process Water (lanjutkan draft)"
+  ],
+  "information_displayed": [
+    "Identitas Process Water: Process Water ID (input manual, wajib), Tanggal (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit)",
+    "Verifikasi: Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (hanya bisa diisi Supervisor), Acknowledged By (hanya bisa diisi Mill Management), Note (input manual, opsional)",
+    "Process Water Detail: grid baris time-slot yang ditambahkan satu per satu oleh user (Tambah baris), dengan kolom per baris: Time-Slot (dropdown, opsi = 24 slot kanonis jam 07:00-06:00 keesokan hari DIKURANGI yang sudah dipakai baris lain dan yang lebih awal-atau-sama dengan slot tertinggi yang sudah dipilih baris lain), Shift, Inspector ID, Raw Water Flow (m3/h), Clarified Water Flow (m3/h), Softener Inlet pH, Softener Outlet Hardness (ppm), Alum Dosing (kg/h), Polymer Dosing (g/h), Boiler Feed Tank Temp (°C), Boiler Feed Water pH, Boiler Feed TDS (ppm), Action Taken/Status, Findings — semua kolom bacaan opsional per baris, baris dapat dihapus (Hapus baris)",
+    "Breadcrumb navigasi (Home > Production Process Activity > Process Water > Form) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu",
+    "Field dikelompokkan per section: Identitas Process Water, Verifikasi, Process Water Detail"
+  ],
+  "available_actions": [
+    {
+      "action": "Isi Process Water ID",
+      "description": "Mengisi identitas Process Water ID pada header",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tambah baris Process Water Detail",
+      "description": "Menambah satu baris time-slot baru ke grid Process Water Detail",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus baris Process Water Detail",
+      "description": "Menghapus satu baris dari grid Process Water Detail",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pilih Time-Slot per baris",
+      "description": "Memilih slot jam untuk baris tersebut dari slot kanonis yang tersedia (belum dipakai baris lain, lebih lambat dari slot tertinggi yang sudah dipilih baris lain)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi kolom bacaan pada baris Process Water Detail",
+      "description": "Mengisi salah satu atau lebih kolom bacaan (Shift, Inspector ID, Raw Water Flow, Clarified Water Flow, Softener Inlet pH, Softener Outlet Hardness, Alum Dosing, Polymer Dosing, Boiler Feed Tank Temp, Boiler Feed Water pH, Boiler Feed TDS, Action Taken/Status, Findings) pada baris manapun yang sudah ditambahkan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi Checked By",
+      "description": "Mengisi field verifikasi Checked By",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi Acknowledged By",
+      "description": "Mengisi field verifikasi Acknowledged By",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record data Process Water secara final",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progress saat ini sebagai draft yang bisa dilanjutkan nanti, kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus draft ini secara permanen (dengan konfirmasi), kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor tanpa menyimpan, dengan konfirmasi jika ada perubahan belum tersimpan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tanggal diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Inputted By otomatis diambil dari user yang login, tidak dapat diedit manual",
+    "Checked By hanya bisa diisi/diedit oleh Supervisor; Acknowledged By hanya bisa diisi/diedit oleh Mill Management",
+    "Grid Process Water Detail TIDAK di-pre-generate — baris ditambahkan satu per satu oleh user via 'Tambah baris', mengikuti pola persis Threshing",
+    "Time-Slot tiap baris wajib lebih lambat (index kanonis lebih besar) dari Time-Slot baris yang terakhir ditambahkan pada record yang sama, dan tidak boleh duplikat dengan baris manapun (urutan menaik kronologis, maksimal 24 baris karena hanya ada 24 slot kanonis)",
+    "Setiap kolom bacaan pada baris Process Water Detail bersifat opsional — baris yang sebagian terisi tetap valid",
+    "Minimal satu baris Process Water Detail (dengan Time-Slot terpilih) harus punya minimal satu kolom bacaan terisi sebelum Simpan",
+    "Process Water ID wajib diisi sebelum Simpan",
+    "Record tersimpan langsung begitu Simpan ditekan (bukan approval workflow berjenjang)",
+    "Field wajib ditandai asterisk dengan validasi inline",
+    "Stasiun ini tidak memiliki tabel referensi target operasional — tidak seperti Threshing/Pressing/Depricarping/Kernel Plant"
+  ],
+  "usecase_ids": [
+    "usecase-068--form-process-water"
+  ],
+  "edge_cases": [
+    "Process Water ID belum diisi saat Simpan ditekan",
+    "Belum ada satu pun baris Process Water Detail yang punya Time-Slot terpilih dan kolom bacaan terisi saat Simpan ditekan",
+    "Operator mencoba mengisi/mengedit Checked By atau Acknowledged By",
+    "User mencoba memilih Time-Slot yang sudah dipakai baris lain atau lebih awal dari baris terakhir — opsi tersebut tidak tersedia di dropdown",
+    "User menghapus baris Process Water Detail yang sudah ada sebelumnya (bukan baru ditambah) — baris di-queue untuk dihapus, benar-benar terhapus saat Simpan/Pause berikutnya",
+    "Draft yang di-Pause lalu dilanjutkan — baris yang sudah ditambahkan beserta bacaan yang sudah terisi tetap utuh",
+    "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
+    "User menekan Clear (perlu konfirmasi sebelum hapus permanen record beserta seluruh barisnya)",
+    "User mengisi Findings tanpa mengisi kolom numerik apapun pada baris yang sama — baris tetap dianggap terisi"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

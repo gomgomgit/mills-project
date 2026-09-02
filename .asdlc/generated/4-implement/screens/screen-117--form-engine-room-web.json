@@ -1,0 +1,64 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-117--form-engine-room-web",
+  "name": "Form Engine Room (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/FormEngineRoomTest.php",
+    "backend/tests/Browser/FormEngineRoomTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormEngineRoom.php",
+    "backend/resources/views/data/engine-room-form.blade.php",
+    "backend/resources/views/livewire/data/form-engine-room.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormEngineRoomTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses EngineRoomRecordService::create()/update() (BE service shared with screen-097)",
+    "The Engine Room Detail grid is fully dynamic -- addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions() on FormEngineRoom.php, exactly mirroring FormStorageTank's grid. Grid starts empty on create mode; edit mode loads existing rows verbatim with each row's id",
+    "All 27 non-time_slot columns per row are genuinely editable, never disabled -- Engine Room has no computed detail-grid fields. 2 of them (Diesel Gen 1 Status, Diesel Gen 2 Status) render as <select> dropdowns with an empty '-- Pilih --' option (Run/Standby/Off)",
+    "IMPORTANT -- enum empty-string-vs-null: both status dropdowns submit '' when left unselected; EngineRoomRecordService::normalizeDetails() (shared with screen-097) coerces this to null before validation/persistence, avoiding a SQLite CHECK constraint violation -- verified by dedicated unit tests and a Feature/Api test",
+    "UNLIKE Form Threshing Web: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
+    "Route /data/engine-room/create registered BEFORE /data/engine-room/{id} (screen-107) so the literal 'create' segment is not swallowed by {id}",
+    "checked/acknowledged self-attestation checkboxes mirror FormStorageTank's dual-checkbox pattern (both Checked By AND Acknowledged By)",
+    "NoActiveEngineRoomStationException (mirrors NoActiveStorageTankStationException) thrown when production_line_id has no active station type=engine-room"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/FormEngineRoomTest.php) exists following this codebase's established convention but could not be executed in this sandboxed environment -- integration (Feature/Api) and component (Feature/Livewire) coverage is complete and passing, consistent with the codebase's Browser/* convention.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T04:07:00Z",
+      "passed": 14,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T04:07:00Z",
+      "passed": 18,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-070--monitor-process-quality-control",
+  "name": "Monitor Process Quality Control",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/localSchema.ts",
+    "mobile/src/services/processQualityControlRecordRepo.ts",
+    "mobile/src/views/MonitorProcessQualityControlView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/StationListView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/processQualityControlRecordRepo.spec.ts",
+    "mobile/tests/MonitorProcessQualityControlView.spec.ts",
+    "mobile/tests/StationListView.spec.ts"
+  ],
+  "implementation_notes": [
+    "process_quality_control_record/process_quality_control_detail local SQLite tables added to localSchema.ts (CREATE_PROCESS_QUALITY_CONTROL_RECORD/CREATE_PROCESS_QUALITY_CONTROL_DETAIL, appended to CREATE_TABLE_STATEMENTS) -- mirrors clarification_record/clarification_detail's shape, following the hourly-grid (dynamic add-row/remove-row) pattern. This station has the MOST non-time_slot columns of any station in the project (16: Shift, 12 numeric readings, QC Inspector ID, QC Engineering Corrective Actions, Findings), still no enum/status columns at all",
+    "processQualityControlRecordRepo.ts covers all 3 mobile Process Quality Control screens (070/080/090) in one file, same convention as clarificationRecordRepo.ts covering screens 069/079/089",
+    "createDraft() inserts ONLY the header row -- process_quality_control_detail rows are added one at a time by the user in Form Process Quality Control via 'Tambah baris', exactly mirroring clarificationRecordRepo.ts's pattern",
+    "'Jumlah Baris Time-Slot Tercatat' counter is a plain COUNT(*) of process_quality_control_detail rows belonging to today's records -- no filled-row filter, mirrors Clarification's Monitor counter exactly",
+    "Router: route name 'monitor-process-quality-control' registered in router/index.ts -- StationListView.vue (screen-006) already had this route name pre-wired in MONITOR_ROUTE_NAMES and a 'process-quality-control': false placeholder in draftStatusByType; this implementation wires the real processQualityControlRecordRepo.getDrafts() call into StationListView.vue's Promise.all, replacing that placeholder with processQualityControl.length > 0, same additive pattern Clarification used for this same pre-existing scaffolding -- this is the FINAL of the 10 MVP stations from the 2026-08-31 batch to be wired up",
+    "Added getProcessQualityControlDraftsMock hoisted mock, vi.mock() registration, and getProcessQualityControlDraftsMock.mockResolvedValue([]) call in every beforeEach block in mobile/tests/StationListView.spec.ts (mirroring the existing getClarificationDraftsMock pattern exactly), per explicit task instruction -- all 27 tests in that shared file pass"
+  ],
+  "deferred_items": [
+    {
+      "description": "syncService.ts's syncAllRecords() was NOT extended with a syncProcessQualityControlRecords() function (unlike Threshing/Pressing/Depricarping/Kernel Plant/Process Water/Effluent Plant/Storage Tank/Engine Room/Boiler Room/Clarification, which each have one calling POST /api/process-quality-control-records via the mobile 'Sinkronisasi' button)",
+      "reason": "Out of this 6-screen task's explicit scope; the most recent precedent station (Clarification) made the same deferral decision for the same reason. The web POST/PATCH routes are already dual-guarded ('auth:web,sanctum' + operator role) so wiring this up later requires no backend route change, only a syncService.ts addition."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) e2e spec was not authored for this screen in this task (mobile/tests/e2e/monitor-process-quality-control.spec.ts does not exist) -- component test coverage (MonitorProcessQualityControlView.spec.ts) is complete and passing, but there is no browser-level verification of this screen's full navigation flow in a live dev server.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T06:23:00Z",
+      "passed": 28,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T06:23:00Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

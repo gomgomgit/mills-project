@@ -1,0 +1,289 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-082--data-preview-process-water",
+  "name": "Data Preview Process Water",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/process-water/preview/:id?",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-069--data-preview-process-water",
+      "usecase_name": "Lihat Data Process Water Tersimpan",
+      "endpoints": [],
+      "business_logic": [
+        "1. List mode (tanpa id param): load SEMUA local process_water_record milik current user (status apapun), set dateFilter default ke tanggal hari ini (format YYYY-MM-DD lokal, terhadap field date), opsional difilter lebih lanjut oleh kata kunci pencarian (process_water_id)",
+        "2. Render list: setiap item tampilkan label (process_water_id atau fallback) + indikator status ('Pause' untuk draft_ongoing/draft_paused, 'Tersimpan' untuk saved, 'Tersinkron' untuk synced)",
+        "3. Render breadcrumb (Home > Production Process Activity > Process Water > Load Data, tappable) dan header dengan hamburger",
+        "4. On tap item list berstatus draft_ongoing/draft_paused -> navigasi ke Form Process Water dengan id item tersebut",
+        "5. On tap item list berstatus saved/synced -> pindah ke mode DETAIL (route dapat id param) menampilkan record tersebut read-only beserta grid Process Water Detail (menampilkan seluruh baris yang tersimpan pada record, berapapun jumlahnya)",
+        "6. On filter tanggal diubah (termasuk dikosongkan) -> saring list sesuai nilai filter yang baru",
+        "7. On kata kunci pencarian dimasukkan -> saring list berdasarkan kecocokan substring case-insensitive (process_water_id)",
+        "8. Mode DETAIL: load process_water_record by id (route param) beserta seluruh process_water_detail turunannya (berapapun jumlahnya, termasuk nol), diurutkan berdasarkan time_slot -> jika ditemukan, render semua field header (termasuk Checked By/Acknowledged By apa adanya, tanpa pembatasan role untuk melihat) + grid detail read-only (atau empty state jika nol baris); jika tidak ditemukan, tampilkan error 'record tidak ditemukan' dengan Back",
+        "9. On Back di mode LIST -> navigasi ke Monitor Process Water",
+        "10. On Back di mode DETAIL -> navigasi kembali ke mode LIST (id param dihapus dari route)",
+        "11. On tap breadcrumb segment -> navigasi ke route terkait",
+        "12. On tap hamburger -> buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "process-water-record",
+          "operation": "SELECT",
+          "description": "SELECT semua local record milik current user, status apapun, opsional difilter tanggal/search (mode list)"
+        },
+        {
+          "entity_id": "process-water-record",
+          "operation": "SELECT",
+          "description": "SELECT record by id untuk detail read-only (mode detail)"
+        },
+        {
+          "entity_id": "process-water-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris (berapapun jumlahnya) by process_water_record_id, ORDER BY urutan kanonis time_slot, untuk mode detail"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Record tidak ditemukan di mode detail (id tidak valid)",
+          "handling": "Tampilkan pesan error 'record tidak ditemukan' dengan tombol Back (kembali ke list, bukan Monitor)"
+        },
+        {
+          "condition": "List kosong (belum ada record sama sekali)",
+          "handling": "Tampilkan empty state"
+        },
+        {
+          "condition": "Filter tanggal/search tidak menghasilkan apapun (termasuk saat filter default hari ini tidak ada datanya)",
+          "handling": "Tampilkan pesan tidak ditemukan dengan opsi reset filter"
+        },
+        {
+          "condition": "Record di mode detail memiliki nol baris Process Water Detail (kasus tepi: tersimpan tanpa baris apapun)",
+          "handling": "Grid menampilkan pesan/empty state (process-water-detail-rows-empty), bukan error -- header tetap dirender normal"
+        }
+      ],
+      "business_rules_applied": [
+        "Detail record bersifat murni read-only",
+        "List menampilkan seluruh record apapun statusnya",
+        "Filter tanggal & pencarian bekerja terhadap list yang sedang ditampilkan",
+        "Breadcrumb harus dapat dinavigasi",
+        "Filter tanggal default ke hari ini saat list pertama kali dibuka",
+        "Checked By/Acknowledged By ditampilkan apa adanya di detail, tanpa pembatasan role untuk melihat",
+        "Grid Process Water Detail menampilkan persis baris yang tersimpan pada record",
+        "Tidak ada tabel referensi target operasional pada stasiun ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns empty array when user has no local process_water_record rows",
+          "given": "processWaterRecordRepo.getAllRecords(userId) returns []",
+          "expect": "loadRecords resolves to [] (triggers list empty state upstream)"
+        },
+        {
+          "description": "initializes dateFilter to today's date (YYYY-MM-DD, local) when list mode mounts",
+          "given": "component mounts in list mode",
+          "expect": "dateFilter.value equals today's local date string"
+        },
+        {
+          "description": "filters records by dateFilter's default (today) value on initial render",
+          "given": "getAllRecords returns records dated today and yesterday; dateFilter defaults to today",
+          "expect": "filteredRecords initially contains only today's record"
+        },
+        {
+          "description": "filters records by case-insensitive substring on process_water_id when search keyword applied",
+          "given": "getAllRecords returns records with process_water_id 'PW-01' and 'PW-02'; filters = { search: 'pw-02' }",
+          "expect": "loadRecords returns only the record with process_water_id 'PW-02'"
+        },
+        {
+          "description": "maps status draft_ongoing and draft_paused to 'Pause' label",
+          "given": "record.status = 'draft_ongoing' or 'draft_paused'",
+          "expect": "getStatusLabel(record) returns 'Pause' for both"
+        },
+        {
+          "description": "maps status saved to 'Tersimpan' label and synced to 'Tersinkron' label",
+          "given": "record.status = 'saved' or 'synced'",
+          "expect": "getStatusLabel(record) returns 'Tersimpan' or 'Tersinkron' respectively"
+        },
+        {
+          "description": "navigates to Form Process Water when tapped item status is draft_ongoing or draft_paused",
+          "given": "tapped item.status = 'draft_ongoing'",
+          "expect": "router navigation called toward Form Process Water route with item.id, mode does NOT switch to detail"
+        },
+        {
+          "description": "switches to detail mode when tapped item status is saved or synced",
+          "given": "tapped item.status = 'saved'",
+          "expect": "router navigation called toward preview route with id param (detail mode), Form Process Water NOT opened"
+        },
+        {
+          "description": "renders record read-only with all of its process_water_detail rows (however many) ordered by canonical time-slot when record found by id in detail mode",
+          "given": "processWaterRecordRepo.getDraftWithDetails(id) returns a valid record with 3 process_water_detail rows",
+          "expect": "detail state populated with all header fields + exactly those 3 rows ordered by canonical time-slot, readOnly flag true, no error shown"
+        },
+        {
+          "description": "shows an empty-state message (not an error) for the Process Water Detail grid when the found record has zero detail rows",
+          "given": "processWaterRecordRepo.getDraftWithDetails(id) returns a valid record with an empty details array",
+          "expect": "detail state populated with header fields, grid area renders an empty-state message"
+        },
+        {
+          "description": "shows 'record tidak ditemukan' error when record not found by id in detail mode",
+          "given": "processWaterRecordRepo.getDraftWithDetails(id) returns null",
+          "expect": "error state set to 'record tidak ditemukan' message, detail record remains null, Back action available"
+        },
+        {
+          "description": "renders Checked By and Acknowledged By values in detail mode regardless of the current user's role",
+          "given": "detail mode rendered for an operator user, record has checked_by and acknowledged_by both set",
+          "expect": "both values shown as plain read-only text, no role-based hiding"
+        },
+        {
+          "description": "navigates to Monitor Process Water when Back pressed in list mode",
+          "given": "current mode = 'list' (no id route param)",
+          "expect": "router navigation called toward Monitor Process Water route"
+        },
+        {
+          "description": "navigates to list mode (id param removed) when Back pressed in detail mode",
+          "given": "current mode = 'detail' (id route param present)",
+          "expect": "router navigation called toward preview route WITHOUT id param; Monitor Process Water route is NOT targeted"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-062--monitor-process-water",
+      "reason": "Asal navigasi (Load Data) & tujuan Back dari mode list"
+    },
+    {
+      "screen_id": "screen-072--form-process-water",
+      "reason": "Tap item draft/pause membuka Form Process Water"
+    }
+  ],
+  "implementation_notes": [
+    "Layar ini murni membaca data lokal SQLite, tidak ada panggilan API",
+    "Mode list dan detail berbagi 1 komponen/route yang sama (bedanya cuma ada/tidaknya :id param), mirror pola DataPreviewThreshingView.vue",
+    "Filter tanggal & search dilakukan client-side terhadap hasil query getAllRecords",
+    "Default dateFilter = tanggal lokal hari ini (format YYYY-MM-DD via todayLocalDateString()-style, BUKAN toISOString() yang UTC-based), diisi SEKALI saat komponen mount di mode list",
+    "processWaterRecordRepo.ts butuh fungsi getAllRecords(userId) (mirror threshingRecordRepo.ts) dan reuse getDraftWithDetails() yang sudah ditulis di screen-072 untuk mode detail",
+    "Grid Process Water Detail read-only: setiap baris tampilkan Time-Slot (format jam), Shift, Inspector ID, dan sisa kolom bacaan -- render langsung dari kolom tersimpan, tidak perlu hitung ulang (data historis); jumlah baris yang dirender sepenuhnya mengikuti `details.length` dari getDraftWithDetails()",
+    "Tidak ada tabel referensi Target Operasional untuk stasiun ini"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Data Process Water Tersimpan — Record Tidak Ditemukan",
+      "usecase_id": "usecase-069--data-preview-process-water",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewProcessWaterView",
+        "action": "mount in detail mode with an id param that does not match any local process_water_record",
+        "assert": "renders 'record tidak ditemukan' error message with a visible Back button"
+      },
+      "browser_test": {
+        "route": "/stations/process-water/preview/:id?",
+        "action": "navigate to the detail route using a non-existent record id",
+        "assert": "page shows 'record tidak ditemukan' error text and a Back button is visible"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Process Water Tersimpan — success",
+      "usecase_id": "usecase-069--data-preview-process-water",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewProcessWaterView",
+        "action": "mount in list mode (date filter defaults to today), tap a list item with status saved or synced",
+        "assert": "component switches to detail mode and renders all header fields and the Process Water Detail grid (however many rows the record has) read-only"
+      },
+      "browser_test": {
+        "route": "/stations/process-water/preview/:id?",
+        "action": "from Monitor Process Water, tap 'Load Data', confirm date filter shows today by default, then tap a list item labeled 'Tersimpan' or 'Tersinkron'",
+        "assert": "detail screen displays the full record including its Process Water Detail rows, all read-only"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Process Water Tersimpan — Tap Item Draft/Pause",
+      "usecase_id": "usecase-069--data-preview-process-water",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewProcessWaterView",
+        "action": "tap a list item with status draft_ongoing or draft_paused",
+        "assert": "triggers navigation event toward Form Process Water route carrying that item's id"
+      },
+      "browser_test": {
+        "route": "/stations/process-water/preview/:id?",
+        "action": "tap a list item labeled 'Pause'",
+        "assert": "browser navigates to the Form Process Water screen for that draft record"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Process Water Tersimpan — Filter Tanggal Default Hari Ini",
+      "usecase_id": "usecase-069--data-preview-process-water",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewProcessWaterView",
+        "action": "mount in list mode with mixed today/non-today records, without changing the filter",
+        "assert": "date filter input shows today's date on mount; list initially shows only today's records"
+      },
+      "browser_test": {
+        "route": "/stations/process-water/preview/:id?",
+        "action": "seed a record dated today and one dated yesterday, open Load Data",
+        "assert": "date filter field shows today's date; only today's record appears in the list initially"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Process Water Tersimpan — Filter Tidak Menghasilkan Apapun",
+      "usecase_id": "usecase-069--data-preview-process-water",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewProcessWaterView",
+        "action": "apply date/search filter values that match no local record",
+        "assert": "renders 'tidak ditemukan' message with a reset-filter control, list item area empty"
+      },
+      "browser_test": {
+        "route": "/stations/process-water/preview/:id?",
+        "action": "apply a date/search filter combination that has no matching record",
+        "assert": "page shows a not-found message with a visible reset filter button"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Process Water Tersimpan — List Kosong",
+      "usecase_id": "usecase-069--data-preview-process-water",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewProcessWaterView",
+        "action": "mount in list mode for a user with zero local process_water_record rows",
+        "assert": "renders empty-state placeholder instead of list items"
+      },
+      "browser_test": {
+        "route": "/stations/process-water/preview/:id?",
+        "action": "navigate to list mode as a user with no saved process water records",
+        "assert": "page displays empty-state message, no list items rendered"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Process Water Tersimpan — Back dari Mode Detail",
+      "usecase_id": "usecase-069--data-preview-process-water",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewProcessWaterView",
+        "action": "while in detail mode (id param present), trigger the Back action",
+        "assert": "component transitions back to list mode rendering (id param removed) -- no navigation to Monitor Process Water"
+      },
+      "browser_test": {
+        "route": "/stations/process-water/preview/:id?",
+        "action": "from detail mode, press the Back button",
+        "assert": "browser URL changes from /stations/process-water/preview/:id to /stations/process-water/preview (list mode); Monitor Process Water screen is NOT shown"
+      }
+    }
+  ]
+}

@@ -13,9 +13,10 @@
  * chain against the sqlite in-memory testing DB. Mirrors tests/Feature/Api/
  * KelolaMachineryGroupTest.php's structure.
  *
- * create() auto-provisions the 15 canonical DEFAULT_STATIONS rows (7
- * active + 8 placeholder) — covered here by asserting station_count and
- * a direct Station::where('production_line_id', ...) count.
+ * create() auto-provisions the 18 canonical DEFAULT_STATIONS rows, ALL 18
+ * active, 0 placeholder (Sterilizer was the last one promoted, 2026-09-01)
+ * — covered here by asserting station_count and a direct
+ * Station::where('production_line_id', ...) count.
  */
 
 use App\Enums\UserRole;
@@ -34,7 +35,7 @@ beforeEach(function () {
 });
 
 // Scenario: "Kelola Production Line — success"
-it('berhasil: loads business unit options then creates a production line, auto-provisioning 15 stations', function () {
+it('berhasil: loads business unit options then creates a production line, auto-provisioning 18 stations', function () {
     $optionsResponse = $this->actingAs($this->admin, 'web')->getJson('/api/production-lines/business-units/options');
     $optionsResponse->assertOk();
     $optionsResponse->assertJsonFragment(['name' => $this->businessUnit->name]);
@@ -53,13 +54,14 @@ it('berhasil: loads business unit options then creates a production line, auto-p
         'business_unit_id' => $this->businessUnit->id,
         'business_unit_name' => $this->businessUnit->name,
         'description' => 'Lini produksi utama',
-        'station_count' => 15,
+        'station_count' => 18,
     ]);
 
     $productionLine = ProductionLine::where('code', 'PL-API-001')->firstOrFail();
-    expect(Station::where('production_line_id', $productionLine->id)->count())->toBe(15);
+    expect(Station::where('production_line_id', $productionLine->id)->count())->toBe(18);
     expect(Station::where('production_line_id', $productionLine->id)->where('type', 'weighbridge')->where('is_active', true)->count())->toBe(1);
-    expect(Station::where('production_line_id', $productionLine->id)->where('is_active', false)->count())->toBe(8);
+    expect(Station::where('production_line_id', $productionLine->id)->where('is_active', true)->count())->toBe(18);
+    expect(Station::where('production_line_id', $productionLine->id)->where('is_active', false)->count())->toBe(0);
 });
 
 it('Edit: updates name/code/description, returns 200 with the updated row', function () {

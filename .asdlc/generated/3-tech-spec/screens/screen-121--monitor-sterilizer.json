@@ -1,0 +1,245 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-121--monitor-sterilizer",
+  "name": "Monitor Sterilizer",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/sterilizer/monitor",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-121--monitor-sterilizer",
+      "usecase_name": "Monitor Sterilizer",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load counter hari ini: COUNT sterilizer_record milik user WHERE date(date) = hari ini, status apapun; COUNT sterilizer_detail rows milik record-record tersebut",
+        "2. Load siklus terakhir: SELECT sterilizer_detail JOIN sterilizer_record WHERE created_by = current user, ORDER BY detail.created_at DESC LIMIT 1 (seluruh record, tidak dibatasi hari ini)",
+        "3. Load list of local sterilizer_record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC → each item labeled uniformly 'Pause'",
+        "4. Render 2 card counter sebaris (Jumlah Sterilizer, Jumlah Siklus Tercatat), kartu Siklus Terakhir, dan list draft/pause",
+        "5. Render breadcrumb (Home > Production Process Activity > Sterilizer, tappable) dan header dengan hamburger",
+        "6. On 'New Data' → INSERT new local sterilizer_record dengan status=draft_ongoing, created_by=current user, date=hari ini; navigasi ke Form Sterilizer dengan id draft baru",
+        "7. On tap item list → navigasi ke Form Sterilizer dengan id draft tersebut (tanpa transisi status)",
+        "8. On 'Load Data' → navigasi ke Data Preview Sterilizer mode list (tanpa id param)",
+        "9. On tap breadcrumb segment → navigasi ke route terkait",
+        "10. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "SELECT",
+          "description": "SELECT record-record milik user WHERE date(date) = hari ini, status apapun, untuk hitung COUNT"
+        },
+        {
+          "entity_id": "sterilizer-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris milik record-record hari ini tersebut untuk COUNT siklus; juga SELECT baris terbaru (created_at DESC LIMIT 1) untuk Siklus Terakhir"
+        },
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "SELECT",
+          "description": "SELECT list local record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC"
+        },
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "INSERT",
+          "description": "INSERT new local draft record on New Data, status=draft_ongoing, date=hari ini"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Belum ada draft/pause sama sekali",
+          "handling": "List kosong/empty state ditampilkan, tombol New Data tetap aktif"
+        },
+        {
+          "condition": "Belum ada data (status apapun) dengan date = hari ini",
+          "handling": "Kedua card counter menampilkan 0"
+        },
+        {
+          "condition": "Belum ada siklus tercatat sama sekali di seluruh record user",
+          "handling": "Kartu Siklus Terakhir menampilkan pesan 'Belum ada siklus tercatat'"
+        }
+      ],
+      "business_rules_applied": [
+        "User bisa punya beberapa draft/pause berjalan bersamaan, semua tampil di list",
+        "Ongoing dan paused digabung sebagai satu istilah Pause secara tampilan",
+        "Counter hari ini dihitung dari seluruh record (status apapun) dengan tanggal Date = hari ini",
+        "Siklus Terakhir dihitung dari seluruh record milik user, tidak dibatasi hari ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads screen data successfully with populated list when local records exist",
+          "given": "sterilizerRecordRepo.getDrafts() returns non-empty draft/pause records",
+          "expect": "return screen state { list: [...], isEmpty: false }"
+        },
+        {
+          "description": "returns empty-state list when no draft/pause records exist for current user",
+          "given": "sterilizerRecordRepo.getDrafts(userId) returns []",
+          "expect": "return screen state { list: [], isEmpty: true }, New Data action remains enabled"
+        },
+        {
+          "description": "creates new draft record with date set and navigates to Form Sterilizer when New Data is pressed",
+          "given": "sterilizerRecordRepo.createDraft() succeeds and returns a new record id",
+          "expect": "call navigate(FormSterilizer, { id: newRecord.id })"
+        },
+        {
+          "description": "navigates to Form Sterilizer with selected draft id and does not change its status when a list item is tapped",
+          "given": "an existing draft/pause record is present in the loaded list",
+          "expect": "call navigate(FormSterilizer, { id: tappedRecord.id }); no update call made"
+        },
+        {
+          "description": "navigates to Data Preview Sterilizer in list mode with no id param when Load Data is pressed",
+          "given": "user triggers the Load Data action",
+          "expect": "call navigate(DataPreviewSterilizer, { mode: 'list', id: null })"
+        },
+        {
+          "description": "computes today's counter (count records, count detail rows) from records with date = today, any status",
+          "given": "sterilizerRecordRepo returns 2 records dated today with a known total detail row count, mixed statuses",
+          "expect": "counter = { countRecords: 2, countCycles: <correct count> }"
+        },
+        {
+          "description": "returns zero counter values when no records match today's date",
+          "given": "sterilizerRecordRepo returns no records dated today",
+          "expect": "counter = { countRecords: 0, countCycles: 0 }"
+        },
+        {
+          "description": "returns the most recently logged cycle across all records regardless of date",
+          "given": "sterilizerRecordRepo.getLastCycleSummary() returns a detail row from a record dated in the past",
+          "expect": "last cycle card renders that row's summary"
+        },
+        {
+          "description": "returns null last cycle when no detail rows exist at all",
+          "given": "sterilizerRecordRepo.getLastCycleSummary() returns null",
+          "expect": "last cycle card renders 'Belum ada siklus tercatat'"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Asal navigasi ke Monitor Sterilizer, dan tujuan breadcrumb/back"
+    },
+    {
+      "screen_id": "screen-122--form-sterilizer",
+      "reason": "New Data / tap list item membuka Form Sterilizer"
+    },
+    {
+      "screen_id": "screen-123--data-preview-sterilizer",
+      "reason": "Load Data membuka Data Preview Sterilizer mode list"
+    }
+  ],
+  "implementation_notes": [
+    "Semua operasi dilakukan lokal di SQLite, tidak ada panggilan API",
+    "Query counter hari ini, siklus terakhir, dan list draft membutuhkan fungsi repo BARU di sterilizerRecordRepo.ts (getTodaySummary(userId), getLastCycleSummary(userId), getDrafts(userId)) — mirip pola cpoDispatchRecordRepo.ts tapi tanpa konsep grid/N-kolom dan tanpa konsep event_date per baris (seluruh baris siklus memakai Date milik header)",
+    "Siklus Terakhir (getLastCycleSummary) sengaja TIDAK dibatasi ke hari ini — berbeda dari counter — untuk menunjukkan aktivitas terbaru apapun tanggalnya. Field yang ditampilkan: sterilizer_no, close_door_time, duration_minutes",
+    "Ini adalah stasiun TERAKHIR dari 18 stasiun kanonis proyek ini (dipromosikan 2026-09-01)"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Monitor Sterilizer — menampilkan ringkasan dan list draft",
+      "usecase_id": "usecase-121--monitor-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorSterilizerView",
+        "action": "render screen with populated draft list, today summary, and last cycle",
+        "assert": "counters, last cycle card, and draft list all render matching the loaded data"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/monitor",
+        "action": "login, navigate to Sterilizer from Station List",
+        "assert": "Monitor Sterilizer renders counters, last cycle, and draft list"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Sterilizer — New Data",
+      "usecase_id": "usecase-121--monitor-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorSterilizerView",
+        "action": "tap the 'New Data' button",
+        "assert": "createDraft handler invoked; router push to Form Sterilizer route called with the newly created draft id"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/monitor",
+        "action": "tap 'New Data' button",
+        "assert": "browser navigates to Form Sterilizer URL for the newly created draft record"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Sterilizer — Lanjutkan Draft",
+      "usecase_id": "usecase-121--monitor-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorSterilizerView",
+        "action": "tap a draft/pause list item",
+        "assert": "router push to Form Sterilizer route called with the tapped item's draft id; no status-update call invoked"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/monitor",
+        "action": "tap an existing draft/pause item",
+        "assert": "browser navigates to Form Sterilizer pre-filled with the selected draft's data"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Sterilizer — Load Data",
+      "usecase_id": "usecase-121--monitor-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorSterilizerView",
+        "action": "tap the 'Load Data' button",
+        "assert": "router push to Data Preview Sterilizer route called in list mode with no id param"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/monitor",
+        "action": "tap 'Load Data' button",
+        "assert": "browser navigates to Data Preview Sterilizer showing all records with date and search filters visible"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Sterilizer — Belum Ada Draft",
+      "usecase_id": "usecase-121--monitor-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorSterilizerView",
+        "action": "render screen when the draft/pause list is empty",
+        "assert": "empty-state message shown in list area; 'New Data' button remains enabled"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/monitor",
+        "action": "open Monitor Sterilizer with no existing draft/pause records",
+        "assert": "list area shows empty state; 'New Data' button is visible and enabled"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Sterilizer — Belum Ada Siklus Tercatat",
+      "usecase_id": "usecase-121--monitor-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorSterilizerView",
+        "action": "render screen when getLastCycleSummary() resolves null",
+        "assert": "last cycle card shows 'Belum ada siklus tercatat'"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/monitor",
+        "action": "open Monitor Sterilizer for a user with zero logged cycles",
+        "assert": "last cycle card shows 'Belum ada siklus tercatat'"
+      }
+    }
+  ]
+}

@@ -1,0 +1,183 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-088--data-preview-boiler-room",
+  "name": "Data Preview Boiler Room",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/boiler-room/preview/:id?",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-105--data-preview-boiler-room",
+      "usecase_name": "Lihat Data Boiler Room Tersimpan",
+      "endpoints": [],
+      "business_logic": [
+        "1. Route-driven mode via watch() on the :id param (immediate: true) — param kosong → loadList(), param terisi → loadDetail(id)",
+        "2. loadList(): SELECT seluruh boiler_room_record milik current user, apapun statusnya, ORDER BY updated_at DESC; set dateFilter default ke tanggal lokal hari ini, searchFilter kosong",
+        "3. filteredRecords computed: filter by dateFilter (bandingkan item.date.slice(0,10)) DAN searchFilter (substring case-insensitive terhadap boiler_room_id)",
+        "4. On tap list item → jika status draft_ongoing/draft_paused: navigasi ke Form Boiler Room dengan id item; jika saved/synced: navigasi ke route ini sendiri dengan :id param diisi (transisi ke mode detail)",
+        "5. loadDetail(id): getDraftWithDetails(id) — SELECT header + seluruh boiler_room_detail rows (berapapun jumlahnya, termasuk nol), tanpa hitung ulang; not found → detailNotFound=true",
+        "6. Render mode detail: seluruh field header read-only + grid Boiler Room Detail (14 kolom bacaan per baris) langsung dari data tersimpan",
+        "7. On 'Reset Filter' (mode list, saat hasil kosong) → kosongkan dateFilter dan searchFilter",
+        "8. On 'Back' → mode detail: navigasi ke mode list (route sama, tanpa :id); mode list: navigasi ke Monitor Boiler Room"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "boiler-room-record",
+          "operation": "SELECT",
+          "description": "SELECT seluruh record milik user (mode list), atau 1 record by id (mode detail)"
+        },
+        {
+          "entity_id": "boiler-room-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris milik record yang dibuka di mode detail (berapapun jumlahnya)"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Belum ada record Boiler Room sama sekali",
+          "handling": "Mode list menampilkan empty state (record-list-empty)"
+        },
+        {
+          "condition": "Filter tidak menghasilkan apapun",
+          "handling": "Pesan tidak ditemukan + tombol Reset Filter ditampilkan"
+        },
+        {
+          "condition": "id pada mode detail tidak ditemukan",
+          "handling": "detailNotFound=true, tampilkan pesan error + tombol Back"
+        },
+        {
+          "condition": "Record memiliki nol baris Boiler Room Detail",
+          "handling": "Grid menampilkan empty-state (boiler-room-detail-rows-empty), bukan error"
+        },
+        {
+          "condition": "Item draft/pause ditekan di mode list",
+          "handling": "Navigasi ke Form Boiler Room, bukan transisi ke mode detail layar ini"
+        }
+      ],
+      "business_rules_applied": [
+        "Detail record bersifat murni read-only",
+        "List menampilkan seluruh record apapun statusnya",
+        "Filter tanggal default ke hari ini saat list pertama kali dibuka",
+        "Checked By/Acknowledged By ditampilkan apa adanya tanpa pembatasan role"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads and filters records by today's date by default",
+          "given": "boilerRoomRecordRepo.getAllRecords(userId) returns records with mixed dates including today",
+          "expect": "filteredRecords initially only includes records dated today"
+        },
+        {
+          "description": "filters records by case-insensitive boiler_room_id substring search",
+          "given": "records with boiler_room_id 'BR-01' and 'br-02', searchFilter='br-0'",
+          "expect": "both records match; searchFilter is case-insensitive"
+        },
+        {
+          "description": "navigates to Form Boiler Room (not detail mode) when a draft/pause item is tapped",
+          "given": "a list item with status='draft_paused'",
+          "expect": "router navigates to route 'boiler-room-form' with the item's id; no transition into this screen's own detail mode"
+        },
+        {
+          "description": "navigates into this screen's own detail mode when a saved/synced item is tapped",
+          "given": "a list item with status='saved'",
+          "expect": "router navigates to this screen's own route with :id set to the item's id"
+        },
+        {
+          "description": "loads full detail including all boiler_room_detail rows when a valid id param is present",
+          "given": "getDraftWithDetails(id) returns a record with 5 boiler_room_detail rows",
+          "expect": "detailRecord and detailRows are populated with all 5 rows, canonical time-slot order"
+        },
+        {
+          "description": "sets detailNotFound when the id does not match any local record",
+          "given": "getDraftWithDetails(id) returns null",
+          "expect": "detailNotFound=true; detail UI shows a not-found message with a working Back button"
+        },
+        {
+          "description": "renders an empty detail grid without error when the record has zero boiler_room_detail rows",
+          "given": "getDraftWithDetails(id) returns a record with details=[]",
+          "expect": "detailRows=[]; UI shows the empty-state message, not an error"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-068--monitor-boiler-room",
+      "reason": "Entry point (Load Data) dan tujuan Back dari mode list"
+    },
+    {
+      "screen_id": "screen-078--form-boiler-room",
+      "reason": "Tap item draft/pause di mode list membuka Form Boiler Room"
+    }
+  ],
+  "implementation_notes": [
+    "Semua operasi lokal di SQLite via boilerRoomRecordRepo.ts (getAllRecords, getDraftWithDetails), tidak ada panggilan API",
+    "Dual-mode via watch() pada route :id param (immediate: true), Vue Router reuse instance komponen ini untuk navigasi param-only pada route record yang sama",
+    "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak ada section untuk itu di mode detail",
+    "Date filter membandingkan item.date.slice(0,10) karena boiler_room_record.date adalah datetime lokal penuh (YYYY-MM-DDTHH:mm:ss)",
+    "Badge status list mode: draft_ongoing/draft_paused → 'Pause'; saved → 'Tersimpan'; synced → 'Tersinkron' (LIST_STATUS_BADGE_MAP); mode detail memakai mapping berbeda yang membedakan ongoing vs paused (DETAIL_STATUS_BADGE_MAP), mirrors DataPreviewEngineRoomView.vue persis"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Data Boiler Room Tersimpan — success",
+      "usecase_id": "usecase-105--data-preview-boiler-room",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewBoilerRoomView",
+        "action": "render list mode with a saved record, tap that record",
+        "assert": "router navigates into this screen's own detail mode with the record's id; detail view renders all header fields and the Boiler Room Detail grid"
+      },
+      "browser_test": {
+        "route": "/stations/boiler-room/preview",
+        "action": "from Monitor Boiler Room tap Load Data, then tap a Tersimpan/Tersinkron item",
+        "assert": "browser shows the read-only detail page with header fields and Boiler Room Detail grid matching the stored record"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Boiler Room Tersimpan — Record Tidak Ditemukan",
+      "usecase_id": "usecase-105--data-preview-boiler-room",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewBoilerRoomView",
+        "action": "mount detail mode with an id that does not exist locally",
+        "assert": "detailNotFound=true; not-found message and Back button rendered"
+      },
+      "browser_test": {
+        "route": "/stations/boiler-room/preview/00000000-0000-0000-0000-000000000000",
+        "action": "navigate directly to a non-existent record id",
+        "assert": "page shows a record-not-found message with a working Back button"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Boiler Room Tersimpan — List Kosong",
+      "usecase_id": "usecase-105--data-preview-boiler-room",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewBoilerRoomView",
+        "action": "render list mode when getAllRecords returns []",
+        "assert": "empty-state message shown"
+      },
+      "browser_test": {
+        "route": "/stations/boiler-room/preview",
+        "action": "open Data Preview Boiler Room list mode with no records for the user",
+        "assert": "empty-state message visible"
+      }
+    }
+  ]
+}

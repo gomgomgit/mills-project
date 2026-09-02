@@ -1,0 +1,76 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-104--detail-cpo-dispatch-web",
+  "name": "Detail CPO Dispatch (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/CpoDispatchRecordController.php",
+    "backend/app/Services/CpoDispatchRecordService.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/CpoDispatchRecordServiceTest.php",
+    "backend/tests/Feature/Api/DetailCpoDispatchTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DetailCpoDispatch.php",
+    "backend/resources/views/livewire/data/detail-cpo-dispatch.blade.php",
+    "backend/resources/views/data/cpo-dispatch-detail.blade.php",
+    "backend/routes/web.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DetailCpoDispatchTest.php",
+    "backend/tests/Browser/DetailCpoDispatchTest.php"
+  ],
+  "implementation_notes": [
+    "Dual entry point: GET /api/cpo-dispatch-records/{id} (CpoDispatchRecordController::show()) dan Livewire DetailCpoDispatch keduanya panggil CpoDispatchRecordService::getDetail() yang sama, mengikuti pola screen-103 (Detail Kernel Dispatch) persis",
+    "getDetail() eager-load station/createdBy/checkedBy/acknowledgedBy/cpoDispatchDetails dan resolve ke station_name/created_by_name/checked_by_name/acknowledged_by_name",
+    "details di-sort by event_date di service layer (toDetailRow()), bukan hanya di query, supaya urutan konsisten terlepas dari urutan insert",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-019/020/021/101/103",
+    "Field grouping & urutan field di blade view mengikuti struktur mobile/src/views/DataPreviewCpoDispatchView.vue mode detail, per arahan eksplisit: web station screens mengikuti flow/UX mobile",
+    "Route /cpo-dispatch-records/{id} didaftarkan SETELAH /cpo-dispatch-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV.",
+      "severity": "minor"
+    },
+    {
+      "description": "Response error tidak punya field error_code mesin-terbaca, hanya message (404 generik), konsisten dengan pola error_format di seluruh codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 5,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 8,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 4,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

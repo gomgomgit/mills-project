@@ -1,0 +1,121 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "usecase-072--form-process-water-web",
+  "name": "Input Data Process Water (Web)",
+  "description": "Supervisor, Mill Management, atau Admin membuat record Process Water baru atau mengubah record tersimpan dari web.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web dengan role Supervisor/Mill Management/Admin"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Membuka Form Process Water dari 'Tambah Data' (mode buat) atau 'Edit' (mode ubah)"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Pada mode buat: memilih Production Line; mengisi Process Water ID, Tanggal, Note"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Menekan 'Tambah Baris' untuk menambah baris Process Water Detail, memilih Time-Slot, mengisi kolom bacaan"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Menekan Simpan"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi field wajib dan minimal satu baris valid, lalu menyimpan record berstatus 'saved' dan menavigasikan ke Detail Process Water (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field Wajib Belum Lengkap",
+      "trigger": "Field wajib kosong saat Simpan",
+      "steps": [
+        "System menampilkan error inline, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum Ada Baris Valid",
+      "trigger": "Tidak ada baris Process Water Detail valid saat Simpan",
+      "steps": [
+        "System menampilkan pesan error khusus, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Production Line Tanpa Station Process Water Aktif",
+      "trigger": "Production Line terpilih tidak memiliki station Process Water aktif",
+      "steps": [
+        "System menolak Simpan dengan pesan error"
+      ]
+    },
+    {
+      "name": "Record Tidak Ditemukan (mode edit)",
+      "trigger": "id record pada mode edit tidak valid",
+      "steps": [
+        "System menampilkan pesan error"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Untuk Simpan sukses (create): record baru berstatus 'saved' tersimpan beserta baris Process Water Detail-nya",
+    "Untuk Simpan sukses (update): record dan baris Process Water Detail-nya diperbarui (upsert/delete sesuai payload)"
+  ],
+  "business_rules": [
+    "Tidak ada draft/pause/Clear di web — Simpan langsung berstatus 'saved'",
+    "Tanggal default hari ini, tetap dapat diedit",
+    "Grid Process Water Detail dinamis, baris ditambahkan/dihapus satu per satu",
+    "Production Line tidak dapat diubah setelah record dibuat",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Buat Record Process Water Baru — berhasil",
+      "given": "Production Line, Process Water ID, dan minimal 1 baris valid terisi",
+      "when": "User menekan Simpan",
+      "then": "Record baru tersimpan, navigasi ke Detail Process Water (Web)"
+    },
+    {
+      "scenario": "Edit Record Process Water — berhasil",
+      "given": "User membuka mode edit dan mengubah data",
+      "when": "User menekan Simpan",
+      "then": "Perubahan tersimpan pada record yang sama"
+    },
+    {
+      "scenario": "Field Wajib Belum Lengkap",
+      "given": "Field wajib kosong",
+      "when": "User menekan Simpan",
+      "then": "Error inline muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Belum Ada Baris Valid",
+      "given": "Grid Process Water Detail kosong",
+      "when": "User menekan Simpan",
+      "then": "Pesan error khusus muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Production Line Tanpa Station Process Water Aktif",
+      "given": "Production Line terpilih tidak memiliki station Process Water aktif",
+      "when": "User menekan Simpan",
+      "then": "Sistem menampilkan error dan record tidak tersimpan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-112--form-process-water-web"
+  ]
+}

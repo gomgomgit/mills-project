@@ -1,0 +1,558 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-126--form-sterilizer-web",
+  "name": "Form Sterilizer (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/sterilizer/create (buat baru), /data/sterilizer/{id}/edit (ubah)",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-126--form-sterilizer-web",
+      "usecase_name": "Input & Edit Data Sterilizer (Web)",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/sterilizer-records",
+          "description": "Membuat record Sterilizer baru beserta baris Log Siklus; station diresolve dari production_line_id",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "production_line_id": "uuid, required",
+              "sterilizer_id": "string, required",
+              "date": "date, required",
+              "note": "string, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of {id?: uuid, sterilizer_no?: string, close_door_time: time, peak_1_time?: time, exhaust_1_time?: time, peak_2_time?: time, exhaust_2_time?: time, peak_3_time?: time, exhaust_3_time?: time, open_door_time?: time, number_of_cages?: integer, cages_status?: string, checked_by_spv?: boolean, remarks?: string}, required, min 1 item with close_door_time filled"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "sterilizer_id": "string",
+              "date": "date",
+              "status": "string",
+              "details": "array baris dengan duration_minutes terhitung server"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong atau tidak ada baris details dengan close_door_time terisi"
+              },
+              {
+                "http_code": 422,
+                "error_code": "NO_ACTIVE_STERILIZER_STATION",
+                "condition": "production line tanpa station Sterilizer aktif"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/sterilizer-records/{id}",
+          "description": "Memperbarui record Sterilizer tersimpan beserta baris Log Siklus (upsert: baris tanpa id di-insert, baris dengan id di-update, baris yang dihapus dari array di-delete)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID record"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "sterilizer_id": "string, required",
+              "date": "date, required",
+              "note": "string, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of {id?: uuid, close_door_time: time, ...}, required, min 1 item with close_door_time filled"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "sterilizer_id": "string",
+              "status": "string",
+              "details": "array baris dengan duration_minutes terhitung server"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong atau tidak ada baris details dengan close_door_time terisi"
+              },
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Create: validate field wajib (sterilizer_id, date) + minimal 1 baris details valid (close_door_time terisi) -> 422 VALIDATION_ERROR",
+        "2. Create: resolve station = Station WHERE production_line_id AND type=sterilizer AND is_active=true -> 422 NO_ACTIVE_STERILIZER_STATION jika tidak ada",
+        "3. Untuk tiap baris details valid: duration_minutes = open_door_time - close_door_time dalam menit (dihitung server, bukan diterima dari client meskipun dikirim; wrap 24 jam jika open_door_time < close_door_time; null jika salah satu waktu kosong)",
+        "4. checked=true+role=supervisor -> checked_by=requester id; acknowledged=true+role=mill_management -> acknowledged_by=requester id; role lain diabaikan diam-diam",
+        "5. Dalam transaksi DB: INSERT sterilizer_record (status=saved) lalu INSERT seluruh sterilizer_detail rows valid",
+        "6. Update: validate id -> 404 jika tidak ada -> validate field wajib + details sama seperti create -> 422 jika gagal",
+        "7. Update: production_line_id/station_id tidak diterima dari body, tidak berubah",
+        "8. Dalam transaksi DB: UPDATE sterilizer_record, lalu upsert sterilizer_detail (baris tanpa id: INSERT; baris dengan id yang masih ada di array: UPDATE; baris yang sebelumnya ada di DB tapi tidak lagi ada di array: DELETE)",
+        "9. FE: mode create tampilkan dropdown Production Line (query langsung ProductionLine di Livewire mount(), sama seperti FormCpoDispatch/FormKernelDispatch/FormWeighbridge); mode edit GET /api/sterilizer-records/{id} untuk prefill, station ditampilkan read-only",
+        "10. FE: Date default hari ini pada mode create, tetap dapat diedit manual (input type=date)",
+        "11. FE: Tambah baris menambah 1 baris kosong tanpa id (checked_by_spv default false), TIDAK ADA batasan jumlah baris (event-log, bukan grid berkolom tetap); Hapus baris menghapus baris dari form state (jika punya id, dihapus dari array yang dikirim -> ditangani sebagai DELETE oleh backend)",
+        "12. FE: Duration (Minutes) dihitung reaktif client-side untuk preview (ditampilkan sebagai teks non-input, BUKAN disabled <input>, per konvensi web-form-input terbaru: tidak ada disabled/readonly input pada web form) menggunakan rumus yang sama seperti server",
+        "13. FE: checkbox Checked hanya untuk role supervisor, Acknowledged hanya mill_management (pola sama dengan FormCpoDispatch/FormKernelDispatch/FormWeighbridge); checkbox Checked by SPV per baris TIDAK role-gated",
+        "14. FE: render field per section (Identitas Sterilizer, Log Siklus, Verifikasi)",
+        "15. Simpan berhasil -> navigasi ke Detail Sterilizer (Web)",
+        "16. Batal -> kembali tanpa API call, dengan konfirmasi jika form dirty"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "INSERT",
+          "description": "INSERT record baru"
+        },
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "UPDATE",
+          "description": "UPDATE record edit"
+        },
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "SELECT",
+          "description": "SELECT untuk prefill edit"
+        },
+        {
+          "entity_id": "sterilizer-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru pada create/update"
+        },
+        {
+          "entity_id": "sterilizer-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris existing pada update"
+        },
+        {
+          "entity_id": "sterilizer-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris yang dihapus dari array pada update"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "Resolve station sterilizer aktif dari production_line_id"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Field wajib kosong",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Tidak ada baris details dengan close_door_time terisi",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Production Line tanpa station sterilizer aktif",
+          "handling": "422 NO_ACTIVE_STERILIZER_STATION"
+        },
+        {
+          "condition": "id tidak ditemukan (update)",
+          "handling": "404 RECORD_NOT_FOUND"
+        },
+        {
+          "condition": "checked/acknowledged oleh role tidak berhak",
+          "handling": "diabaikan diam-diam"
+        },
+        {
+          "condition": "Siklus melewati tengah malam (open_door_time < close_door_time)",
+          "handling": "duration_minutes dihitung dengan wrap 24 jam (menambah 1440 menit)"
+        }
+      ],
+      "business_rules_applied": [
+        "Tidak ada draft/pause di web",
+        "Duration (Minutes) dihitung server, tidak menerima override",
+        "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Production Line tidak berubah setelah dibuat",
+        "Log Siklus tidak dibatasi jumlah barisnya"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "creates record with resolved station_id and inserted details when valid",
+          "given": "valid body dengan 1 baris details lengkap, production line punya 1 station sterilizer aktif",
+          "expect": "sterilizer_record insert dengan station_id sesuai, status=saved, 1 detail row terinsert"
+        },
+        {
+          "description": "computes duration_minutes from close_door_time and open_door_time",
+          "given": "detail close_door_time='07:00', open_door_time='08:10'",
+          "expect": "duration_minutes=70"
+        },
+        {
+          "description": "ignores a client-supplied duration_minutes and always recomputes it server-side",
+          "given": "detail mengirim duration_minutes=999999 selain close_door_time/open_door_time",
+          "expect": "duration_minutes tetap dihitung dari close/open door time, bukan 999999"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when required field empty",
+          "given": "sterilizer_id kosong",
+          "expect": "ValidationException errors.sterilizer_id"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when no detail row has close_door_time",
+          "given": "details berisi baris tanpa close_door_time terisi",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 NO_ACTIVE_STERILIZER_STATION when production line has no active station",
+          "given": "Station query kosong untuk production_line_id+type=sterilizer",
+          "expect": "throw NoActiveSterilizerStationException"
+        },
+        {
+          "description": "sets checked_by when checked=true and role=supervisor",
+          "given": "checked=true, role=supervisor",
+          "expect": "checked_by=requester id"
+        },
+        {
+          "description": "ignores checked=true when role is not supervisor",
+          "given": "checked=true, role=mill_management",
+          "expect": "checked_by tetap null, tidak error"
+        },
+        {
+          "description": "sets acknowledged_by when acknowledged=true and role=mill_management",
+          "given": "acknowledged=true, role=mill_management",
+          "expect": "acknowledged_by=requester id"
+        },
+        {
+          "description": "updates record and upserts details: inserts new row, updates existing row, deletes removed row",
+          "given": "PATCH dengan 1 baris baru (tanpa id), 1 baris existing (id, field diubah), 1 baris existing sebelumnya dihilangkan dari array",
+          "expect": "1 detail row terinsert baru, 1 ter-update, 1 row lama terhapus"
+        },
+        {
+          "description": "updates record without accepting production_line_id change",
+          "given": "PATCH tanpa production_line_id",
+          "expect": "station_id tidak berubah"
+        },
+        {
+          "description": "404 RECORD_NOT_FOUND when updating non-existent id",
+          "given": "findOrFail throws",
+          "expect": "404 RECORD_NOT_FOUND"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-124--data-browser-sterilizer-web",
+      "reason": "Entry point mode create"
+    },
+    {
+      "screen_id": "screen-125--detail-sterilizer-web",
+      "reason": "Entry point mode edit dan tujuan navigasi setelah Simpan"
+    }
+  ],
+  "implementation_notes": [
+    "DIVERGENSI DARI MOBILE: Date pada web default hari ini namun TETAP dapat diedit manual, berbeda dari mobile (screen-122) yang menguncinya",
+    "DIVERGENSI DARI MOBILE: data web dapat diedit setelah tersimpan (mode edit penuh), tidak ada draft/pause/Clear - status langsung saved",
+    "PENGECUALIAN konvensi web-form-input: Duration (Minutes) tetap non-editable — computed server-side, TAPI ditampilkan sebagai teks/span biasa (BUKAN disabled <input>), berbeda dari precedent lama Net Weight Form CPO Dispatch Web yang masih memakai disabled input — penyesuaian ini mengikuti konvensi web-input terbaru proyek ('no disabled/readonly inputs on web forms') sambil tetap mengecualikan nilai computed/data-integrity dari input sama sekali (bukan hanya dari status disabled-nya)",
+    "Production Line dropdown reuse query langsung Eloquent di Livewire mount(), mengikuti pola screen-024/057/058/059/060/111/113/114",
+    "Mode edit prefill reuse GET /api/sterilizer-records/{id} (screen-125)",
+    "Route web /data/sterilizer/create HARUS didaftarkan SEBELUM /data/sterilizer/{id} agar tidak tertangkap sebagai {id} - sama pola dengan screen-022/023/024/111/113/114",
+    "Detail upsert (insert/update/delete baris) dijalankan dalam DB transaction agar konsisten, sama pola dengan CPO Dispatch/Kernel Dispatch/Solid Waste Disposal/Cages Track",
+    "BERBEDA dari CPO Dispatch Web: tidak ada kolom event_date per baris (semua baris memakai Date header); 8 kolom time (close/peak1-3/exhaust1-3/open door) disimpan sebagai kolom time (HH:MM); checked_by_spv adalah checkbox boolean sederhana per baris, tidak role-gated dan bukan referensi user, berbeda dari header Checked By/Acknowledged By",
+    "Ini adalah screen TERAKHIR dari 18 stasiun kanonis proyek ini (dipromosikan 2026-09-01) — setelah screen ini selesai bersama Part C, 0 placeholder tersisa di manapun dalam proyek"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Buat Record Sterilizer Baru — berhasil",
+      "usecase_id": "usecase-126--form-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/sterilizer-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}",
+            "sterilizer_id": "STR-WEB-001",
+            "date": "2026-09-01",
+            "details": [
+              {
+                "close_door_time": "07:00",
+                "open_door_time": "08:10"
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormSterilizer",
+        "action": "pilih Production Line, isi field wajib, tambah 1 baris Log Siklus, klik Simpan",
+        "assert": "record tersimpan, navigasi ke Detail Sterilizer"
+      },
+      "browser_test": {
+        "route": "/data/sterilizer/create",
+        "action": "klik Tambah Data, isi form lengkap termasuk 1 baris Log Siklus, klik Simpan",
+        "assert": "halaman Detail menampilkan record baru beserta Log Siklus"
+      }
+    },
+    {
+      "scenario_ref": "Edit Record Sterilizer — berhasil",
+      "usecase_id": "usecase-126--form-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/sterilizer-records/{id}"
+          },
+          "request_example": {
+            "id": "{{record_uuid}}",
+            "sterilizer_id": "STR-WEB-001-EDIT",
+            "date": "2026-09-01",
+            "details": [
+              {
+                "id": "{{detail_uuid}}",
+                "close_door_time": "07:00",
+                "open_door_time": "09:00"
+              }
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormSterilizer",
+        "action": "buka mode edit, ubah field, klik Simpan",
+        "assert": "perubahan tersimpan"
+      },
+      "browser_test": {
+        "route": "/data/sterilizer/{id}/edit",
+        "action": "klik Edit dari Detail, ubah field, klik Simpan",
+        "assert": "Detail menampilkan nilai baru"
+      }
+    },
+    {
+      "scenario_ref": "Field Wajib Belum Lengkap",
+      "usecase_id": "usecase-126--form-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/sterilizer-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormSterilizer",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      },
+      "browser_test": {
+        "route": "/data/sterilizer/create",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      }
+    },
+    {
+      "scenario_ref": "Belum Ada Baris Log Siklus Valid",
+      "usecase_id": "usecase-126--form-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/sterilizer-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}",
+            "sterilizer_id": "STR-X",
+            "date": "2026-09-01",
+            "details": []
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormSterilizer",
+        "action": "isi header lengkap tanpa baris Log Siklus, klik Simpan",
+        "assert": "pesan error khusus muncul"
+      },
+      "browser_test": {
+        "route": "/data/sterilizer/create",
+        "action": "isi header lengkap tanpa baris detail, klik Simpan",
+        "assert": "pesan error khusus muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Production Line Tanpa Station Sterilizer Aktif",
+      "usecase_id": "usecase-126--form-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/sterilizer-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_tanpa_ster_uuid}}",
+            "sterilizer_id": "STR-Y",
+            "date": "2026-09-01",
+            "details": [
+              {
+                "close_door_time": "07:00"
+              }
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "NO_ACTIVE_STERILIZER_STATION"
+        }
+      ],
+      "component_test": {
+        "component": "FormSterilizer",
+        "action": "pilih Production Line tanpa station sterilizer aktif, klik Simpan",
+        "assert": "error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/sterilizer/create",
+        "action": "pilih Production Line tanpa station sterilizer, klik Simpan",
+        "assert": "error ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Record Tidak Ditemukan (mode edit)",
+      "usecase_id": "usecase-126--form-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/sterilizer-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "sterilizer_id": "X",
+            "date": "2026-09-01",
+            "details": [
+              {
+                "close_door_time": "07:00"
+              }
+            ]
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "FormSterilizer",
+        "action": "render edit dengan GET 404",
+        "assert": "pesan error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/sterilizer/00000000-0000-0000-0000-000000000000/edit",
+        "action": "navigasi ke id tidak valid",
+        "assert": "halaman menampilkan error"
+      }
+    },
+    {
+      "scenario_ref": "Duration Dihitung Server dan Tidak Menerima Override",
+      "usecase_id": "usecase-126--form-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/sterilizer-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}",
+            "sterilizer_id": "STR-Z",
+            "date": "2026-09-01",
+            "details": [
+              {
+                "close_door_time": "07:00",
+                "open_door_time": "08:10",
+                "duration_minutes": 999999
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormSterilizer",
+        "action": "isi Close Door Time dan Open Door Time pada satu baris",
+        "assert": "Duration (Minutes) tampil sebagai teks non-input terhitung otomatis, bukan field yang bisa diisi"
+      },
+      "browser_test": {
+        "route": "/data/sterilizer/create",
+        "action": "isi Close Door Time dan Open Door Time, klik Simpan",
+        "assert": "record tersimpan dengan duration_minutes=70 (dihitung server), bukan nilai apapun yang mungkin dikirim client"
+      }
+    }
+  ]
+}

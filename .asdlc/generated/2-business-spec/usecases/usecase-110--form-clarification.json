@@ -1,0 +1,151 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-110--form-clarification",
+  "name": "Input Data Clarification",
+  "description": "Operator atau Supervisor mengisi header dan grid detail time-slot per jam untuk sebuah record Clarification, lalu menyimpan, menjeda (Pause), atau membatalkan (Clear) record tersebut.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "Sebuah record Clarification draft sudah dibuat (baru atau dilanjutkan) dari Monitor Clarification"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Memuat draft Clarification beserta seluruh baris Clarification Detail yang sudah ada (bisa nol baris untuk draft baru)"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Mengisi Clarification ID dan field header lainnya"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'Tambah baris' untuk menambah baris Clarification Detail, memilih Time-Slot, dan mengisi kolom bacaan yang relevan"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'Simpan'"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi Clarification ID terisi dan minimal satu baris Clarification Detail valid (Time-Slot terpilih + minimal satu dari 6 kolom bacaan atau Findings terisi)"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menyimpan record dengan status 'saved' dan kembali ke Monitor Clarification"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Clarification ID Belum Lengkap",
+      "trigger": "Pada langkah 5, Clarification ID kosong",
+      "steps": [
+        "System menampilkan error inline pada field Clarification ID",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum Ada Baris Valid",
+      "trigger": "Pada langkah 5, tidak ada baris Clarification Detail valid",
+      "steps": [
+        "System menampilkan pesan error khusus pada grid",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Pause",
+      "trigger": "User menekan 'Pause' kapan saja sebelum Simpan",
+      "steps": [
+        "System menyimpan field apa adanya tanpa validasi wajib, status menjadi draft_paused",
+        "System kembali ke Monitor Clarification"
+      ]
+    },
+    {
+      "name": "Clear",
+      "trigger": "User menekan 'Clear'",
+      "steps": [
+        "System menampilkan dialog konfirmasi",
+        "Jika dikonfirmasi: record beserta seluruh barisnya dihapus permanen, kembali ke Monitor Clarification",
+        "Jika dibatalkan: tidak ada perubahan"
+      ]
+    },
+    {
+      "name": "Back Dengan Perubahan Belum Tersimpan",
+      "trigger": "User menekan Back saat form dirty",
+      "steps": [
+        "System menampilkan dialog konfirmasi sebelum keluar"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Untuk Simpan sukses: record berstatus 'saved' dengan header dan baris Clarification Detail tersimpan",
+    "Untuk Pause: record berstatus 'draft_paused' dengan field apa adanya tersimpan sebagai checkpoint",
+    "Untuk Clear terkonfirmasi: record dan seluruh barisnya terhapus permanen"
+  ],
+  "business_rules": [
+    "Tanggal otomatis diisi sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Grid Clarification Detail tidak di-pre-generate — baris ditambahkan satu per satu via Tambah baris, dapat dihapus via Hapus baris",
+    "Time-Slot tiap baris harus lebih lambat dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
+    "Minimal satu baris valid (Time-Slot terpilih + minimal satu kolom bacaan atau Findings terisi) sebelum Simpan",
+    "Clarification ID wajib diisi sebelum Simpan"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data Clarification — success",
+      "given": "Clarification ID terisi dan minimal 1 baris Clarification Detail valid",
+      "when": "User menekan Simpan",
+      "then": "Record tersimpan dengan status 'saved', navigasi ke Monitor Clarification"
+    },
+    {
+      "scenario": "Input Data Clarification — Clarification ID Belum Lengkap",
+      "given": "Clarification ID kosong",
+      "when": "User menekan Simpan",
+      "then": "Error inline ditampilkan, record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Clarification — Belum Ada Baris Valid",
+      "given": "Grid Clarification Detail kosong atau tidak ada baris valid",
+      "when": "User menekan Simpan",
+      "then": "Pesan error khusus ditampilkan pada grid, record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Clarification — Tambah/Hapus Baris dan Urutan Time-Slot",
+      "given": "User menambah beberapa baris dengan Time-Slot berurutan",
+      "when": "User menghapus salah satu baris",
+      "then": "Time-Slot yang dipakai baris tersebut kembali tersedia untuk baris lain"
+    },
+    {
+      "scenario": "Input Data Clarification — Baris Valid Hanya Dari Findings",
+      "given": "Satu baris memiliki Time-Slot terpilih dan hanya Findings terisi, kolom numerik lain kosong",
+      "when": "User menekan Simpan",
+      "then": "Baris tersebut dianggap valid (terisi) dan record tersimpan"
+    },
+    {
+      "scenario": "Input Data Clarification — Pause Progress",
+      "given": "Field wajib belum lengkap",
+      "when": "User menekan Pause",
+      "then": "Tidak ada validasi, progress tersimpan sebagai draft_paused, navigasi ke Monitor Clarification"
+    },
+    {
+      "scenario": "Input Data Clarification — Clear Draft",
+      "given": "User menekan Clear",
+      "when": "User mengonfirmasi dialog hapus",
+      "then": "Record dan seluruh barisnya terhapus permanen, navigasi ke Monitor Clarification"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-079--form-clarification"
+  ]
+}

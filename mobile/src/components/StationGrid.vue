@@ -84,7 +84,24 @@ const activeStations = computed(() =>
 const placeholderStations = computed(() => props.stations.filter((station) => !station.isActive))
 
 const ACTIVE_ICONS: Record<
-  'weighbridge' | 'grading' | 'cages-track' | 'threshing' | 'pressing' | 'depricarping' | 'kernel-plant',
+  | 'weighbridge'
+  | 'grading'
+  | 'cages-track'
+  | 'threshing'
+  | 'pressing'
+  | 'depricarping'
+  | 'kernel-plant'
+  | 'solid-waste-disposal'
+  | 'process-water'
+  | 'kernel-dispatch'
+  | 'cpo-dispatch'
+  | 'effluent-plant'
+  | 'storage-tank'
+  | 'engine-room'
+  | 'boiler-room'
+  | 'clarification'
+  | 'process-quality-control'
+  | 'sterilizer',
   string
 > = {
   weighbridge:
@@ -102,10 +119,40 @@ const ACTIVE_ICONS: Record<
   pressing: '<path d="M4 20V10l8-6 8 6v10"/><line x1="12" y1="14" x2="12" y2="20"/>',
   depricarping: '<rect x="4" y="4" width="16" height="16" rx="8"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>',
   'kernel-plant': '<rect x="5" y="3" width="14" height="18" rx="1"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/>',
+  // 2026-08-31 — 10 more newly-promoted MVP stations. Six of them
+  // (process-water, effluent-plant, storage-tank, engine-room, boiler-room,
+  // clarification) reuse the exact SVG path data their former
+  // PLACEHOLDER_ICONS entry already had below ('water treatment',
+  // 'effluent treatment', 'bulking storage', 'engine room', 'boiler',
+  // 'clarification' respectively — same repurposed-glyph convention as
+  // depricarping/'digester' above). The remaining four (solid-waste-
+  // disposal, kernel-dispatch, cpo-dispatch, process-quality-control) have
+  // no former-placeholder counterpart, so a distinct Lucide-style glyph
+  // (Trash2 / PackageCheck / Fuel / ClipboardCheck) was hand-drawn for
+  // each, avoiding a duplicate of any icon already used by another active
+  // station type or ICON_OVERRIDES entry.
+  'solid-waste-disposal':
+    '<path d="M4 7h16"/><path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
+  'process-water': '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  'kernel-dispatch': '<path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5"/><path d="m9 12 2 2 4-4"/>',
+  'cpo-dispatch':
+    '<rect x="3" y="7" width="10" height="14" rx="1"/><path d="M13 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0v-6l-3-3"/><line x1="6" y1="11" x2="10" y2="11"/>',
+  'effluent-plant': '<circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/>',
+  'storage-tank': '<rect x="4" y="6" width="16" height="14" rx="1"/><path d="M8 6V4h8v2"/>',
+  'engine-room': '<rect x="6" y="2" width="12" height="20" rx="1"/><line x1="6" y1="8" x2="18" y2="8"/><line x1="6" y1="14" x2="18" y2="14"/>',
+  'boiler-room': '<path d="M6 21V9a6 6 0 0 1 12 0v12"/><line x1="6" y1="15" x2="18" y2="15"/>',
+  clarification: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
+  'process-quality-control':
+    '<rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 3v2a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V3"/><path d="m9 14 2 2 4-4"/>',
+  // 2026-09-01 — Sterilizer, the FINAL station of this project, promoted
+  // to active. Reuses the exact SVG path data its former PLACEHOLDER_ICONS
+  // entry already had (see below) — same icon, now used for the active
+  // tile, same repurposed-glyph convention as depricarping/'digester' etc.
+  // above.
+  sterilizer: '<rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/>',
 }
 
 const PLACEHOLDER_ICONS: Record<string, string> = {
-  sterilizer: '<rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/>',
   thresher: '<circle cx="12" cy="12" r="9"/><line x1="8" y1="12" x2="16" y2="12"/>',
   press: '<path d="M4 20V10l8-6 8 6v10"/><line x1="12" y1="14" x2="12" y2="20"/>',
   clarification: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',

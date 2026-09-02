@@ -14,8 +14,8 @@
  * `business_unit_id` is a bare top-level bound property
  * (`wire:model="business_unit_id"`) — every other field (name, code,
  * description) is bound via `form.<field>`. The filter dropdown property
- * is `filterBusinessUnitId`. create() auto-provisions 15 stations — the
- * "berhasil" test asserts station_count === 15 in the resulting list row.
+ * is `filterBusinessUnitId`. create() auto-provisions 18 stations — the
+ * "berhasil" test asserts station_count === 18 in the resulting list row.
  */
 
 use App\Enums\UserRole;
@@ -32,7 +32,7 @@ beforeEach(function () {
 });
 
 // Scenario "Kelola Production Line — success"
-it('berhasil: picks a Business Unit, fills the form and creates a production line that appears in the list with 15 stations', function () {
+it('berhasil: picks a Business Unit, fills the form and creates a production line that appears in the list with 18 stations', function () {
     Livewire::actingAs($this->admin)
         ->test(KelolaProductionLine::class)
         ->call('openCreateForm')
@@ -46,12 +46,12 @@ it('berhasil: picks a Business Unit, fills the form and creates a production lin
         ->assertViewHas('productionLines', fn ($rows) => collect($rows)->contains(
             fn ($r) => $r['code'] === 'PL-LW-001'
                 && $r['business_unit_name'] === $this->businessUnit->name
-                && $r['station_count'] === 15
+                && $r['station_count'] === 18
         ));
 
     $fresh = ProductionLine::where('code', 'PL-LW-001')->firstOrFail();
     expect($fresh->business_unit_id)->toBe($this->businessUnit->id);
-    expect(Station::where('production_line_id', $fresh->id)->count())->toBe(15);
+    expect(Station::where('production_line_id', $fresh->id)->count())->toBe(18);
 });
 
 // Scenario "Kelola Production Line — Edit Production Line"

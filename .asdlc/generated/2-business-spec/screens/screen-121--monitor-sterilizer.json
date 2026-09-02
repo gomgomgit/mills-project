@@ -1,0 +1,92 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-121--monitor-sterilizer",
+  "name": "Monitor Sterilizer",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar yang menampilkan ringkasan siklus sterilisasi yang tercatat hari ini (Jumlah Sterilizer, Jumlah Siklus Tercatat) beserta ringkasan siklus terakhir yang tercatat, list draft/pause milik user (bisa lebih dari satu berjalan bersamaan), serta akses ke pembuatan data baru dan penelusuran data tersimpan. Mengikuti pola CPO Dispatch/Kernel Dispatch/Solid Waste Disposal (event-log per-siklus, bukan grid statis), diadaptasi untuk semantik sterilisasi TBS (Tandan Buah Segar). Ini adalah stasiun TERAKHIR dari 18 stasiun kanonis proyek ini.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap Sterilizer di Station List"
+  ],
+  "information_displayed": [
+    "Counter data hari ini: 2 card sebaris (Jumlah Sterilizer, Jumlah Siklus Tercatat), di atas ringkasan siklus terakhir dan list draft/pause",
+    "Siklus Terakhir: ringkasan siklus sterilisasi paling akhir yang tercatat (Sterilizer No, Close Door Time, Duration dalam menit), atau pesan 'belum ada siklus tercatat' jika belum ada sama sekali",
+    "List draft/pause Sterilizer milik user (bisa lebih dari satu), masing-masing berlabel 'Pause'",
+    "Breadcrumb navigasi (Home > Production Process Activity > Sterilizer) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu (konsisten dengan Monitor CPO Dispatch/Kernel Dispatch/dst.)"
+  ],
+  "available_actions": [
+    {
+      "action": "Tap item draft di list",
+      "description": "Masuk ke Form Sterilizer dengan data draft/pause tersebut untuk dilanjutkan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "New Data",
+      "description": "Membuat draft baru dan masuk ke Form Sterilizer kosong",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Load Data",
+      "description": "Membuka daftar seluruh record Sterilizer (tersimpan maupun masih draft/pause) dengan filter tanggal dan pencarian",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Station List",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Status draft ongoing dan paused digabung secara tampilan sebagai satu istilah 'Pause', tidak dibedakan lagi di UI — konsisten dengan CPO Dispatch/Kernel Dispatch/Solid Waste Disposal",
+    "User bisa punya beberapa draft/pause berjalan bersamaan per stasiun, semua tampil di list",
+    "Pause dan Clear dilakukan dari Form Sterilizer, bukan tombol terpisah di Monitor",
+    "Counter 'hari ini' (Jumlah Sterilizer) dihitung dari seluruh record milik user dengan tanggal Date = hari ini, status apapun; Jumlah Siklus Tercatat adalah total baris log siklus pada record-record tersebut",
+    "Siklus Terakhir menampilkan siklus dari SELURUH record milik user (tidak dibatasi hari ini) — berbeda dari counter 'hari ini', karena tujuannya adalah menunjukkan aktivitas terbaru apapun tanggalnya"
+  ],
+  "usecase_ids": [
+    "usecase-121--monitor-sterilizer"
+  ],
+  "edge_cases": [
+    "Belum ada draft/pause sama sekali — list kosong, tampilkan pesan/empty state, tombol New Data tetap aktif",
+    "Belum ada data hari ini — kedua card counter menampilkan 0",
+    "Belum ada siklus tercatat sama sekali — kartu Siklus Terakhir menampilkan pesan 'Belum ada siklus tercatat'"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

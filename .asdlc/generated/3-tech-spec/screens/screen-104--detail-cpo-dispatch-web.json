@@ -1,0 +1,268 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-104--detail-cpo-dispatch-web",
+  "name": "Detail CPO Dispatch (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/cpo-dispatch/{id}",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-083--detail-cpo-dispatch-web",
+      "usecase_name": "Lihat Detail CPO Dispatch (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/cpo-dispatch-records/{id}",
+          "description": "Ambil 1 record CPO Dispatch lengkap beserta Log Kejadian, station_name, dan nama user (Inputted By/Checked By/Acknowledged By)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "required": true,
+                "description": "ID record CPO Dispatch"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "cpo_dispatch_id": "string",
+              "date": "date",
+              "note": "string|null",
+              "created_by_name": "string",
+              "checked_by_name": "string|null",
+              "acknowledged_by_name": "string|null",
+              "status": "string",
+              "created_at": "timestamp",
+              "updated_at": "timestamp",
+              "details": [
+                {
+                  "id": "uuid",
+                  "event_date": "date",
+                  "shift": "string|null",
+                  "time_in": "string|null",
+                  "time_out": "string|null",
+                  "waybill_number": "string|null",
+                  "tanker_plate_no": "string|null",
+                  "transport_company": "string|null",
+                  "driver_name": "string|null",
+                  "storage_tank_source": "string|null",
+                  "seal_no_top": "string|null",
+                  "seal_no_bottom": "string|null",
+                  "gross_weight_mt": "float|null",
+                  "tare_weight_mt": "float|null",
+                  "net_weight_mt": "float|null",
+                  "ffa_percent": "float|null",
+                  "moisture_percent": "float|null",
+                  "impurities_percent": "float|null",
+                  "dobi": "float|null",
+                  "destination_buyer": "string|null",
+                  "weighbridge_operator": "string|null",
+                  "findings": "string|null"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate id ada di cpo-dispatch-record -> 404 RECORD_NOT_FOUND jika tidak ditemukan",
+        "2. SELECT cpo-dispatch-record by id, JOIN station untuk station_name, JOIN user untuk created_by_name/checked_by_name/acknowledged_by_name (null jika belum diisi, kecuali created_by_name yang selalu ada)",
+        "3. SELECT semua cpo-dispatch-detail by cpo_dispatch_record_id, ordered by event_date, langsung dari kolom tersimpan tanpa hitung ulang",
+        "4. Return full record + details array",
+        "5. FE render field per section (Identitas, Log Kejadian, Verifikasi) read-only",
+        "6. On klik Back: navigasi client-side ke /data/cpo-dispatch, tanpa panggilan API tambahan"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "cpo-dispatch-record",
+          "operation": "SELECT",
+          "description": "SELECT 1 record by id"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve station_name"
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve created_by_name/checked_by_name/acknowledged_by_name"
+        },
+        {
+          "entity_id": "cpo-dispatch-detail",
+          "operation": "SELECT",
+          "description": "SELECT semua baris by cpo_dispatch_record_id, ordered by event_date"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "id tidak ditemukan",
+          "handling": "Return 404 RECORD_NOT_FOUND, FE tampilkan pesan error + tombol Back"
+        },
+        {
+          "condition": "checked_by/acknowledged_by belum diisi",
+          "handling": "checked_by_name/acknowledged_by_name null, FE tampilkan '-'"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh field read-only",
+        "Checked By dan Acknowledged By keduanya ditampilkan",
+        "Log Kejadian ditampilkan langsung dari data tersimpan"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 RECORD_NOT_FOUND when id does not exist",
+          "given": "id tidak ada di cpo-dispatch-record",
+          "expect": "return 404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "returns full record with resolved station_name when id exists",
+          "given": "valid id, station terkait ada",
+          "expect": "return 200 dengan station_name terisi"
+        },
+        {
+          "description": "returns details array ordered by event_date",
+          "given": "record dengan 3 cpo-dispatch-detail rows, event_date tidak berurutan saat disimpan",
+          "expect": "response.details terurut naik berdasarkan event_date"
+        },
+        {
+          "description": "returns null checked_by_name and acknowledged_by_name when not set",
+          "given": "record dengan checked_by dan acknowledged_by null",
+          "expect": "response.checked_by_name dan response.acknowledged_by_name adalah null"
+        },
+        {
+          "description": "resolves created_by_name, checked_by_name, acknowledged_by_name to user names when present",
+          "given": "record dengan created_by/checked_by/acknowledged_by terisi uuid user valid",
+          "expect": "response berisi nama user yang sesuai untuk ketiganya"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-094--data-browser-cpo-dispatch-web",
+      "reason": "Entry point - klik baris membuka detail ini"
+    },
+    {
+      "screen_id": "screen-114--form-cpo-dispatch-web",
+      "reason": "Koreksi data dilakukan lewat form ini, bukan dari layar detail"
+    }
+  ],
+  "implementation_notes": [
+    "Response resolve created_by/checked_by/acknowledged_by ke nama user via join, mengikuti pola screen-101/103 persis",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail)",
+    "Field grouping & urutan field di blade view mengikuti struktur mobile/src/views/DataPreviewCpoDispatchView.vue mode detail per arahan eksplisit: web station screens mengikuti flow/UX mobile",
+    "Route /cpo-dispatch-records/{id} didaftarkan SETELAH /cpo-dispatch-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Detail CPO Dispatch - berhasil",
+      "usecase_id": "usecase-083--detail-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-records/{id}"
+          },
+          "request_example": {
+            "id": "{{cpo_dispatch_record_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailCpoDispatch",
+        "action": "render dengan data record lengkap dari API termasuk Log Kejadian",
+        "assert": "seluruh field header tampil read-only per section, tabel Log Kejadian menampilkan seluruh baris"
+      },
+      "browser_test": {
+        "route": "/data/cpo-dispatch/{id}",
+        "action": "klik baris di Data Browser CPO Dispatch, tunggu halaman detail termuat",
+        "assert": "halaman detail menampilkan seluruh field record beserta Log Kejadian"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail CPO Dispatch - Record Tidak Ditemukan",
+      "usecase_id": "usecase-083--detail-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cpo-dispatch-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000"
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DetailCpoDispatch",
+        "action": "render dengan API mengembalikan 404",
+        "assert": "pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back"
+      },
+      "browser_test": {
+        "route": "/data/cpo-dispatch/00000000-0000-0000-0000-000000000000",
+        "action": "navigasi langsung ke id yang tidak valid",
+        "assert": "halaman menampilkan pesan error dan tombol Back yang berfungsi"
+      }
+    }
+  ]
+}

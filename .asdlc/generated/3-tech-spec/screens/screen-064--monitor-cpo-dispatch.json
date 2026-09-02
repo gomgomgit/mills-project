@@ -1,0 +1,244 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-064--monitor-cpo-dispatch",
+  "name": "Monitor CPO Dispatch",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/cpo-dispatch/monitor",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-079--monitor-cpo-dispatch",
+      "usecase_name": "Monitor CPO Dispatch",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load counter hari ini: COUNT cpo_dispatch_record milik user WHERE date(date) = hari ini, status apapun; COUNT cpo_dispatch_detail rows milik record-record tersebut",
+        "2. Load kejadian terakhir: SELECT cpo_dispatch_detail JOIN cpo_dispatch_record WHERE created_by = current user, ORDER BY detail.created_at DESC LIMIT 1 (seluruh record, tidak dibatasi hari ini)",
+        "3. Load list of local cpo_dispatch_record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC → each item labeled uniformly 'Pause'",
+        "4. Render 2 card counter sebaris (Jumlah CPO Dispatch, Jumlah Kejadian Tercatat), kartu Kejadian Terakhir, dan list draft/pause",
+        "5. Render breadcrumb (Home > Production Process Activity > CPO Dispatch, tappable) dan header dengan hamburger",
+        "6. On 'New Data' → INSERT new local cpo_dispatch_record dengan status=draft_ongoing, created_by=current user, date=hari ini; navigasi ke Form CPO Dispatch dengan id draft baru",
+        "7. On tap item list → navigasi ke Form CPO Dispatch dengan id draft tersebut (tanpa transisi status)",
+        "8. On 'Load Data' → navigasi ke Data Preview CPO Dispatch mode list (tanpa id param)",
+        "9. On tap breadcrumb segment → navigasi ke route terkait",
+        "10. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "cpo-dispatch-record",
+          "operation": "SELECT",
+          "description": "SELECT record-record milik user WHERE date(date) = hari ini, status apapun, untuk hitung COUNT"
+        },
+        {
+          "entity_id": "cpo-dispatch-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris milik record-record hari ini tersebut untuk COUNT kejadian; juga SELECT baris terbaru (created_at DESC LIMIT 1) untuk Kejadian Terakhir"
+        },
+        {
+          "entity_id": "cpo-dispatch-record",
+          "operation": "SELECT",
+          "description": "SELECT list local record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC"
+        },
+        {
+          "entity_id": "cpo-dispatch-record",
+          "operation": "INSERT",
+          "description": "INSERT new local draft record on New Data, status=draft_ongoing, date=hari ini"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Belum ada draft/pause sama sekali",
+          "handling": "List kosong/empty state ditampilkan, tombol New Data tetap aktif"
+        },
+        {
+          "condition": "Belum ada data (status apapun) dengan date = hari ini",
+          "handling": "Kedua card counter menampilkan 0"
+        },
+        {
+          "condition": "Belum ada kejadian tercatat sama sekali di seluruh record user",
+          "handling": "Kartu Kejadian Terakhir menampilkan pesan 'Belum ada kejadian tercatat'"
+        }
+      ],
+      "business_rules_applied": [
+        "User bisa punya beberapa draft/pause berjalan bersamaan, semua tampil di list",
+        "Ongoing dan paused digabung sebagai satu istilah Pause secara tampilan",
+        "Counter hari ini dihitung dari seluruh record (status apapun) dengan tanggal Date = hari ini",
+        "Kejadian Terakhir dihitung dari seluruh record milik user, tidak dibatasi hari ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads screen data successfully with populated list when local records exist",
+          "given": "cpoDispatchRecordRepo.getDrafts() returns non-empty draft/pause records",
+          "expect": "return screen state { list: [...], isEmpty: false }"
+        },
+        {
+          "description": "returns empty-state list when no draft/pause records exist for current user",
+          "given": "cpoDispatchRecordRepo.getDrafts(userId) returns []",
+          "expect": "return screen state { list: [], isEmpty: true }, New Data action remains enabled"
+        },
+        {
+          "description": "creates new draft record with date set and navigates to Form CPO Dispatch when New Data is pressed",
+          "given": "cpoDispatchRecordRepo.createDraft() succeeds and returns a new record id",
+          "expect": "call navigate(FormCpoDispatch, { id: newRecord.id })"
+        },
+        {
+          "description": "navigates to Form CPO Dispatch with selected draft id and does not change its status when a list item is tapped",
+          "given": "an existing draft/pause record is present in the loaded list",
+          "expect": "call navigate(FormCpoDispatch, { id: tappedRecord.id }); no update call made"
+        },
+        {
+          "description": "navigates to Data Preview CPO Dispatch in list mode with no id param when Load Data is pressed",
+          "given": "user triggers the Load Data action",
+          "expect": "call navigate(DataPreviewCpoDispatch, { mode: 'list', id: null })"
+        },
+        {
+          "description": "computes today's counter (count records, count detail rows) from records with date = today, any status",
+          "given": "cpoDispatchRecordRepo returns 2 records dated today with a known total detail row count, mixed statuses",
+          "expect": "counter = { countRecords: 2, countEvents: <correct count> }"
+        },
+        {
+          "description": "returns zero counter values when no records match today's date",
+          "given": "cpoDispatchRecordRepo returns no records dated today",
+          "expect": "counter = { countRecords: 0, countEvents: 0 }"
+        },
+        {
+          "description": "returns the most recently logged event across all records regardless of date",
+          "given": "cpoDispatchRecordRepo.getLastEventSummary() returns a detail row from a record dated in the past",
+          "expect": "last event card renders that row's summary"
+        },
+        {
+          "description": "returns null last event when no detail rows exist at all",
+          "given": "cpoDispatchRecordRepo.getLastEventSummary() returns null",
+          "expect": "last event card renders 'Belum ada kejadian tercatat'"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Asal navigasi ke Monitor CPO Dispatch, dan tujuan breadcrumb/back"
+    },
+    {
+      "screen_id": "screen-074--form-cpo-dispatch",
+      "reason": "New Data / tap list item membuka Form CPO Dispatch"
+    },
+    {
+      "screen_id": "screen-084--data-preview-cpo-dispatch",
+      "reason": "Load Data membuka Data Preview CPO Dispatch mode list"
+    }
+  ],
+  "implementation_notes": [
+    "Semua operasi dilakukan lokal di SQLite, tidak ada panggilan API",
+    "Query counter hari ini, kejadian terakhir, dan list draft membutuhkan fungsi repo BARU di cpoDispatchRecordRepo.ts (getTodaySummary(userId), getLastEventSummary(userId), getDrafts(userId)) — mirip pola kernelDispatchRecordRepo.ts tapi tanpa konsep grid/N-kolom",
+    "Kejadian Terakhir (getLastEventSummary) sengaja TIDAK dibatasi ke hari ini — berbeda dari counter — untuk menunjukkan aktivitas terbaru apapun tanggalnya. Field yang ditampilkan: destination_buyer, event_date, tanker_plate_no (analog dari vehicle_plate_no di Kernel Dispatch)"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Monitor CPO Dispatch — menampilkan ringkasan dan list draft",
+      "usecase_id": "usecase-079--monitor-cpo-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorCpoDispatchView",
+        "action": "render screen with populated draft list, today summary, and last event",
+        "assert": "counters, last event card, and draft list all render matching the loaded data"
+      },
+      "browser_test": {
+        "route": "/stations/cpo-dispatch/monitor",
+        "action": "login, navigate to CPO Dispatch from Station List",
+        "assert": "Monitor CPO Dispatch renders counters, last event, and draft list"
+      }
+    },
+    {
+      "scenario_ref": "Monitor CPO Dispatch — New Data",
+      "usecase_id": "usecase-079--monitor-cpo-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorCpoDispatchView",
+        "action": "tap the 'New Data' button",
+        "assert": "createDraft handler invoked; router push to Form CPO Dispatch route called with the newly created draft id"
+      },
+      "browser_test": {
+        "route": "/stations/cpo-dispatch/monitor",
+        "action": "tap 'New Data' button",
+        "assert": "browser navigates to Form CPO Dispatch URL for the newly created draft record"
+      }
+    },
+    {
+      "scenario_ref": "Monitor CPO Dispatch — Lanjutkan Draft",
+      "usecase_id": "usecase-079--monitor-cpo-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorCpoDispatchView",
+        "action": "tap a draft/pause list item",
+        "assert": "router push to Form CPO Dispatch route called with the tapped item's draft id; no status-update call invoked"
+      },
+      "browser_test": {
+        "route": "/stations/cpo-dispatch/monitor",
+        "action": "tap an existing draft/pause item",
+        "assert": "browser navigates to Form CPO Dispatch pre-filled with the selected draft's data"
+      }
+    },
+    {
+      "scenario_ref": "Monitor CPO Dispatch — Load Data",
+      "usecase_id": "usecase-079--monitor-cpo-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorCpoDispatchView",
+        "action": "tap the 'Load Data' button",
+        "assert": "router push to Data Preview CPO Dispatch route called in list mode with no id param"
+      },
+      "browser_test": {
+        "route": "/stations/cpo-dispatch/monitor",
+        "action": "tap 'Load Data' button",
+        "assert": "browser navigates to Data Preview CPO Dispatch showing all records with date and search filters visible"
+      }
+    },
+    {
+      "scenario_ref": "Monitor CPO Dispatch — Belum Ada Draft",
+      "usecase_id": "usecase-079--monitor-cpo-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorCpoDispatchView",
+        "action": "render screen when the draft/pause list is empty",
+        "assert": "empty-state message shown in list area; 'New Data' button remains enabled"
+      },
+      "browser_test": {
+        "route": "/stations/cpo-dispatch/monitor",
+        "action": "open Monitor CPO Dispatch with no existing draft/pause records",
+        "assert": "list area shows empty state; 'New Data' button is visible and enabled"
+      }
+    },
+    {
+      "scenario_ref": "Monitor CPO Dispatch — Belum Ada Kejadian Tercatat",
+      "usecase_id": "usecase-079--monitor-cpo-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorCpoDispatchView",
+        "action": "render screen when getLastEventSummary() resolves null",
+        "assert": "last event card shows 'Belum ada kejadian tercatat'"
+      },
+      "browser_test": {
+        "route": "/stations/cpo-dispatch/monitor",
+        "action": "open Monitor CPO Dispatch for a user with zero logged events",
+        "assert": "last event card shows 'Belum ada kejadian tercatat'"
+      }
+    }
+  ]
+}

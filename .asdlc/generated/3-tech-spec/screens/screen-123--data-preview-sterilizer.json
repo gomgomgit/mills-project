@@ -1,0 +1,261 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-123--data-preview-sterilizer",
+  "name": "Data Preview Sterilizer",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/sterilizer/preview/:id?",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-123--data-preview-sterilizer",
+      "usecase_name": "Lihat Data Sterilizer Tersimpan",
+      "endpoints": [],
+      "business_logic": [
+        "1. List mode (tanpa id param): load SEMUA local sterilizer_record milik current user (status apapun), set dateFilter default ke tanggal hari ini, opsional difilter lebih lanjut oleh kata kunci pencarian (sterilizer_id)",
+        "2. Render list: setiap item tampilkan label (sterilizer_id atau fallback) + indikator status ('Pause' untuk draft_ongoing/draft_paused, 'Tersimpan' untuk saved, 'Tersinkron' untuk synced)",
+        "3. Render breadcrumb (Home > Production Process Activity > Sterilizer > Load Data, tappable) dan header dengan hamburger",
+        "4. On tap item list berstatus draft_ongoing/draft_paused → navigasi ke Form Sterilizer dengan id item tersebut",
+        "5. On tap item list berstatus saved/synced → pindah ke mode DETAIL (route dapat id param) menampilkan record tersebut read-only beserta Log Siklus",
+        "6. On filter tanggal diubah (termasuk dikosongkan) → saring list sesuai nilai filter yang baru",
+        "7. On kata kunci pencarian dimasukkan → saring list berdasarkan kecocokan substring case-insensitive (sterilizer_id)",
+        "8. Mode DETAIL: load sterilizer_record by id (route param) beserta seluruh sterilizer_detail turunannya → jika ditemukan, render semua field header (termasuk Checked By/Acknowledged By apa adanya) + tabel Log Siklus read-only; jika tidak ditemukan, tampilkan error 'record tidak ditemukan' dengan Back",
+        "9. On Back di mode LIST → navigasi ke Monitor Sterilizer",
+        "10. On Back di mode DETAIL → navigasi kembali ke mode LIST (id param dihapus dari route)",
+        "11. On tap breadcrumb segment → navigasi ke route terkait",
+        "12. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "SELECT",
+          "description": "SELECT semua local record milik current user, status apapun, opsional difilter tanggal/search (mode list)"
+        },
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "SELECT",
+          "description": "SELECT record by id untuk detail read-only (mode detail)"
+        },
+        {
+          "entity_id": "sterilizer-detail",
+          "operation": "SELECT",
+          "description": "SELECT semua baris by sterilizer_record_id untuk mode detail"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Record tidak ditemukan di mode detail (id tidak valid)",
+          "handling": "Tampilkan pesan error 'record tidak ditemukan' dengan tombol Back (kembali ke list, bukan Monitor)"
+        },
+        {
+          "condition": "List kosong (belum ada record sama sekali)",
+          "handling": "Tampilkan empty state"
+        },
+        {
+          "condition": "Filter tanggal/search tidak menghasilkan apapun",
+          "handling": "Tampilkan pesan tidak ditemukan dengan opsi reset filter"
+        }
+      ],
+      "business_rules_applied": [
+        "Detail record bersifat murni read-only",
+        "List menampilkan seluruh record apapun statusnya",
+        "Filter tanggal & pencarian bekerja terhadap list yang sedang ditampilkan",
+        "Filter tanggal default ke hari ini saat list pertama kali dibuka",
+        "Checked By/Acknowledged By ditampilkan apa adanya di detail, tanpa pembatasan role untuk melihat"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns empty array when user has no local sterilizer_record rows",
+          "given": "sterilizerRecordRepo.getAllRecords(userId) returns []",
+          "expect": "loadRecords resolves to [] (triggers list empty state upstream)"
+        },
+        {
+          "description": "initializes dateFilter to today's date when list mode mounts",
+          "given": "component mounts in list mode",
+          "expect": "dateFilter.value equals today's local date string"
+        },
+        {
+          "description": "filters records by exact date match when date filter applied",
+          "given": "getAllRecords returns records dated different days; filters = { date: 'today' }",
+          "expect": "loadRecords returns only records dated 'today'"
+        },
+        {
+          "description": "filters records by case-insensitive substring on sterilizer_id when search keyword applied",
+          "given": "getAllRecords returns records with distinct sterilizer_id values; filters = { search: 'str-002' }",
+          "expect": "loadRecords returns only the matching record"
+        },
+        {
+          "description": "returns empty array when combined date and search filter match no record",
+          "given": "getAllRecords returns records none of which match",
+          "expect": "loadRecords returns []"
+        },
+        {
+          "description": "maps status draft_ongoing/draft_paused to 'Pause' label",
+          "given": "record.status = 'draft_ongoing' or 'draft_paused'",
+          "expect": "getStatusLabel(record) returns 'Pause'"
+        },
+        {
+          "description": "maps status saved to 'Tersimpan' and synced to 'Tersinkron'",
+          "given": "record.status = 'saved' or 'synced'",
+          "expect": "getStatusLabel(record) returns the corresponding label"
+        },
+        {
+          "description": "navigates to Form Sterilizer when tapped item status is draft_ongoing or draft_paused",
+          "given": "tapped item.status = 'draft_ongoing'",
+          "expect": "router navigation called toward Form Sterilizer route with item.id, mode does NOT switch to detail"
+        },
+        {
+          "description": "switches to detail mode when tapped item status is saved or synced",
+          "given": "tapped item.status = 'saved'",
+          "expect": "router navigation called toward preview route with id param (detail mode)"
+        },
+        {
+          "description": "renders record read-only with its detail rows when record found by id in detail mode",
+          "given": "sterilizerRecordRepo.getDraftWithDetails(id) returns a valid record with detail rows",
+          "expect": "detail state populated with all header fields + detail rows, readOnly flag true, no error shown"
+        },
+        {
+          "description": "shows 'record tidak ditemukan' error when record not found by id in detail mode",
+          "given": "sterilizerRecordRepo.getDraftWithDetails(id) returns null",
+          "expect": "error state set to 'record tidak ditemukan' message, Back action available"
+        },
+        {
+          "description": "navigates to Monitor Sterilizer when Back pressed in list mode",
+          "given": "current mode = 'list'",
+          "expect": "router navigation called toward Monitor Sterilizer route"
+        },
+        {
+          "description": "navigates to list mode (id param removed) when Back pressed in detail mode",
+          "given": "current mode = 'detail'",
+          "expect": "router navigation called toward preview route WITHOUT id param"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-121--monitor-sterilizer",
+      "reason": "Asal navigasi (Load Data) & tujuan Back dari mode list"
+    },
+    {
+      "screen_id": "screen-122--form-sterilizer",
+      "reason": "Tap item draft/pause membuka Form Sterilizer"
+    }
+  ],
+  "implementation_notes": [
+    "Layar ini murni membaca data lokal SQLite, tidak ada panggilan API",
+    "Mode list dan detail berbagi 1 komponen/route yang sama (bedanya cuma ada/tidaknya :id param), mirror pola DataPreviewCpoDispatchView.vue",
+    "Filter tanggal & search dilakukan client-side terhadap hasil query getAllRecords",
+    "sterilizerRecordRepo.ts butuh fungsi getAllRecords(userId) dan reuse getDraftWithDetails() untuk mode detail",
+    "Tabel Log Siklus read-only: setiap baris tampil langsung dari kolom tersimpan, tidak perlu hitung ulang (data historis, termasuk duration_minutes yang sudah final dari server). Kolom kondensat mobile: Sterilizer No, Close Door Time, Open Door Time, Duration (Minutes), Number of Cages, Cages Status, Checked by SPV (analog kolom kondensat CPO Dispatch, tanpa Peak/Exhaust Time karena kurang esensial untuk preview cepat di layar mobile)",
+    "Ini adalah stasiun TERAKHIR dari 18 stasiun kanonis proyek ini (dipromosikan 2026-09-01)"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Data Sterilizer Tersimpan — Record Tidak Ditemukan",
+      "usecase_id": "usecase-123--data-preview-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewSterilizerView",
+        "action": "mount in detail mode with an id param that does not match any local record",
+        "assert": "renders 'record tidak ditemukan' error message with a visible Back button"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/preview/:id?",
+        "action": "navigate to the detail route using a non-existent record id",
+        "assert": "page shows 'record tidak ditemukan' error text and a Back button is visible"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Sterilizer Tersimpan — success",
+      "usecase_id": "usecase-123--data-preview-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewSterilizerView",
+        "action": "mount in list mode, tap a list item with status saved or synced",
+        "assert": "component switches to detail mode and renders all header fields plus Log Siklus rows read-only"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/preview/:id?",
+        "action": "dari Monitor, tap 'Load Data', tap item berstatus 'Tersimpan' atau 'Tersinkron'",
+        "assert": "detail screen menampilkan record lengkap termasuk Log Siklus, read-only"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Sterilizer Tersimpan — Tap Item Draft/Pause",
+      "usecase_id": "usecase-123--data-preview-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewSterilizerView",
+        "action": "tap a list item with status draft_ongoing or draft_paused",
+        "assert": "triggers navigation toward Form Sterilizer route carrying that item's id"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/preview/:id?",
+        "action": "tap item berlabel 'Pause'",
+        "assert": "browser navigates to Form Sterilizer untuk draft tersebut"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Sterilizer Tersimpan — Filter Tanggal Default Hari Ini",
+      "usecase_id": "usecase-123--data-preview-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewSterilizerView",
+        "action": "mount in list mode with mixed today/non-today records, without changing the filter",
+        "assert": "date filter shows today's date on mount; list initially shows only today's records"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/preview/:id?",
+        "action": "seed record hari ini dan kemarin, buka Load Data",
+        "assert": "filter tanggal menampilkan hari ini; hanya record hari ini yang muncul"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Sterilizer Tersimpan — Filter Tidak Menghasilkan Apapun",
+      "usecase_id": "usecase-123--data-preview-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewSterilizerView",
+        "action": "apply date/search filter values that match no local record",
+        "assert": "renders 'tidak ditemukan' message with a reset-filter control"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/preview/:id?",
+        "action": "terapkan filter yang tidak cocok dengan record manapun",
+        "assert": "halaman menampilkan pesan tidak ditemukan dengan tombol reset filter"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Sterilizer Tersimpan — List Kosong",
+      "usecase_id": "usecase-123--data-preview-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewSterilizerView",
+        "action": "mount in list mode for a user with zero local records",
+        "assert": "renders empty-state placeholder instead of list items"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/preview/:id?",
+        "action": "navigate to list mode as a user with no saved records",
+        "assert": "page displays empty-state message"
+      }
+    }
+  ]
+}

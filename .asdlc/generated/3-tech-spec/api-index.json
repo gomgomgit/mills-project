@@ -1,8 +1,8 @@
 {
-  "ver": 37,
+  "ver": 47,
   "meta": {
-    "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "title": "Mills Smart Log",
+    "updated_at": "2026-09-01"
   },
   "endpoints": [
     {
@@ -286,7 +286,7 @@
     {
       "method": "GET",
       "path": "/api/business-units",
-      "description": "List Business Unit. Digabung dengan endpoint publik pra-login screen-001/002 (Business Area picker) — lihat screen-029 tech-spec ver 3",
+      "description": "List Business Unit. Digabung dengan endpoint publik pra-login screen-001/002 (Business Area picker) — lihat screen-029 tech-spec ver 5",
       "screen_id": "screen-029--kelola-business-unit",
       "usecase_id": "usecase-029--kelola-business-unit",
       "auth_required": false,
@@ -975,6 +975,656 @@
       "description": "Memperbarui record Kernel Plant tersimpan dari web beserta update 24 baris Kernel Plant Detail by id",
       "screen_id": "screen-060--form-kernel-plant-web",
       "usecase_id": "usecase-060--form-kernel-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/solid-waste-disposal-records",
+      "description": "List/filter data record Solid Waste Disposal (gabungan sync mobile & input web) dengan pagination",
+      "screen_id": "screen-091--data-browser-solid-waste-disposal-web",
+      "usecase_id": "usecase-064--data-browser-solid-waste-disposal-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/solid-waste-disposal-records/export",
+      "description": "Ekspor data Solid Waste Disposal terfilter ke CSV/Excel",
+      "screen_id": "screen-091--data-browser-solid-waste-disposal-web",
+      "usecase_id": "usecase-064--data-browser-solid-waste-disposal-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/solid-waste-disposal-records/{id}",
+      "description": "Ambil 1 record Solid Waste Disposal lengkap beserta Log Kejadian, station_name, dan nama user (Inputted By/Checked By/Acknowledged By) untuk halaman Detail",
+      "screen_id": "screen-101--detail-solid-waste-disposal-web",
+      "usecase_id": "usecase-065--detail-solid-waste-disposal-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/solid-waste-disposal-records",
+      "description": "Membuat record Solid Waste Disposal baru dari web beserta baris Log Kejadian; station diresolve otomatis dari production_line_id",
+      "screen_id": "screen-111--form-solid-waste-disposal-web",
+      "usecase_id": "usecase-066--form-solid-waste-disposal-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/solid-waste-disposal-records/{id}",
+      "description": "Memperbarui record Solid Waste Disposal tersimpan dari web beserta upsert baris Log Kejadian",
+      "screen_id": "screen-111--form-solid-waste-disposal-web",
+      "usecase_id": "usecase-066--form-solid-waste-disposal-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-water-records",
+      "description": "List/filter data record Process Water (gabungan sync mobile & input web) dengan pagination",
+      "screen_id": "screen-092--data-browser-process-water-web",
+      "usecase_id": "usecase-070--data-browser-process-water-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-water-records/export",
+      "description": "Ekspor data Process Water terfilter ke CSV/Excel",
+      "screen_id": "screen-092--data-browser-process-water-web",
+      "usecase_id": "usecase-070--data-browser-process-water-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-water-records/{id}",
+      "description": "Ambil 1 record Process Water lengkap beserta baris Process Water Detail, station_name, dan nama user (Inputted By/Checked By/Acknowledged By) untuk halaman Detail",
+      "screen_id": "screen-102--detail-process-water-web",
+      "usecase_id": "usecase-071--detail-process-water-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/process-water-records",
+      "description": "Membuat record Process Water baru dari web beserta baris Process Water Detail; station diresolve otomatis dari production_line_id",
+      "screen_id": "screen-112--form-process-water-web",
+      "usecase_id": "usecase-072--form-process-water-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/process-water-records/{id}",
+      "description": "Memperbarui record Process Water tersimpan dari web beserta upsert baris Process Water Detail",
+      "screen_id": "screen-112--form-process-water-web",
+      "usecase_id": "usecase-072--form-process-water-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/kernel-dispatch-records",
+      "description": "List/filter data record Kernel Dispatch (gabungan sync mobile & input web) dengan pagination",
+      "screen_id": "screen-093--data-browser-kernel-dispatch-web",
+      "usecase_id": "usecase-076--data-browser-kernel-dispatch-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/kernel-dispatch-records/export",
+      "description": "Ekspor data Kernel Dispatch terfilter ke CSV/Excel",
+      "screen_id": "screen-093--data-browser-kernel-dispatch-web",
+      "usecase_id": "usecase-076--data-browser-kernel-dispatch-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/kernel-dispatch-records/{id}",
+      "description": "Ambil 1 record Kernel Dispatch lengkap beserta Log Kejadian, station_name, dan nama user (Inputted By/Checked By/Acknowledged By) untuk halaman Detail",
+      "screen_id": "screen-103--detail-kernel-dispatch-web",
+      "usecase_id": "usecase-077--detail-kernel-dispatch-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/kernel-dispatch-records",
+      "description": "Membuat record Kernel Dispatch baru dari web beserta baris Log Kejadian; station diresolve otomatis dari production_line_id",
+      "screen_id": "screen-113--form-kernel-dispatch-web",
+      "usecase_id": "usecase-078--form-kernel-dispatch-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/kernel-dispatch-records/{id}",
+      "description": "Memperbarui record Kernel Dispatch tersimpan dari web beserta upsert baris Log Kejadian",
+      "screen_id": "screen-113--form-kernel-dispatch-web",
+      "usecase_id": "usecase-078--form-kernel-dispatch-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/cpo-dispatch-records",
+      "description": "List/filter data record CPO Dispatch (gabungan sync mobile & input web) dengan pagination",
+      "screen_id": "screen-094--data-browser-cpo-dispatch-web",
+      "usecase_id": "usecase-082--data-browser-cpo-dispatch-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/cpo-dispatch-records/export",
+      "description": "Ekspor data CPO Dispatch terfilter ke CSV/Excel",
+      "screen_id": "screen-094--data-browser-cpo-dispatch-web",
+      "usecase_id": "usecase-082--data-browser-cpo-dispatch-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/cpo-dispatch-records/{id}",
+      "description": "Ambil 1 record CPO Dispatch lengkap beserta Log Kejadian, station_name, dan nama user (Inputted By/Checked By/Acknowledged By) untuk halaman Detail",
+      "screen_id": "screen-104--detail-cpo-dispatch-web",
+      "usecase_id": "usecase-083--detail-cpo-dispatch-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/cpo-dispatch-records",
+      "description": "Membuat record CPO Dispatch baru dari web beserta baris Log Kejadian; station diresolve otomatis dari production_line_id",
+      "screen_id": "screen-114--form-cpo-dispatch-web",
+      "usecase_id": "usecase-084--form-cpo-dispatch-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/cpo-dispatch-records/{id}",
+      "description": "Memperbarui record CPO Dispatch tersimpan dari web beserta upsert baris Log Kejadian",
+      "screen_id": "screen-114--form-cpo-dispatch-web",
+      "usecase_id": "usecase-084--form-cpo-dispatch-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/effluent-plant-records",
+      "description": "List/filter data record Effluent Plant (gabungan sync mobile & input web) dengan pagination",
+      "screen_id": "screen-095--data-browser-effluent-plant-web",
+      "usecase_id": "usecase-088--data-browser-effluent-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/effluent-plant-records/export",
+      "description": "Ekspor data Effluent Plant terfilter ke CSV/Excel",
+      "screen_id": "screen-095--data-browser-effluent-plant-web",
+      "usecase_id": "usecase-088--data-browser-effluent-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/effluent-plant-records/{id}",
+      "description": "Ambil 1 record Effluent Plant lengkap beserta baris Effluent Plant Detail, station_name, dan nama user (Inputted By/Checked By/Acknowledged By) untuk halaman Detail",
+      "screen_id": "screen-105--detail-effluent-plant-web",
+      "usecase_id": "usecase-089--detail-effluent-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/effluent-plant-records",
+      "description": "Membuat record Effluent Plant baru dari web beserta baris Effluent Plant Detail; station diresolve otomatis dari production_line_id",
+      "screen_id": "screen-115--form-effluent-plant-web",
+      "usecase_id": "usecase-090--form-effluent-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/effluent-plant-records/{id}",
+      "description": "Memperbarui record Effluent Plant tersimpan dari web beserta upsert baris Effluent Plant Detail",
+      "screen_id": "screen-115--form-effluent-plant-web",
+      "usecase_id": "usecase-090--form-effluent-plant-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/storage-tank-records",
+      "description": "List/filter data record Storage Tank (gabungan sync mobile & input web) dengan pagination",
+      "screen_id": "screen-096--data-browser-storage-tank-web",
+      "usecase_id": "usecase-094--data-browser-storage-tank-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/storage-tank-records/export",
+      "description": "Ekspor data Storage Tank terfilter ke CSV/Excel",
+      "screen_id": "screen-096--data-browser-storage-tank-web",
+      "usecase_id": "usecase-094--data-browser-storage-tank-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/storage-tank-records/{id}",
+      "description": "Ambil 1 record Storage Tank lengkap beserta baris Storage Tank Detail, station_name, dan nama user (Inputted By/Checked By/Acknowledged By) untuk halaman Detail",
+      "screen_id": "screen-106--detail-storage-tank-web",
+      "usecase_id": "usecase-095--detail-storage-tank-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/storage-tank-records",
+      "description": "Membuat record Storage Tank baru dari web beserta baris Storage Tank Detail; station diresolve otomatis dari production_line_id",
+      "screen_id": "screen-116--form-storage-tank-web",
+      "usecase_id": "usecase-096--form-storage-tank-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/storage-tank-records/{id}",
+      "description": "Memperbarui record Storage Tank tersimpan dari web beserta upsert baris Storage Tank Detail",
+      "screen_id": "screen-116--form-storage-tank-web",
+      "usecase_id": "usecase-096--form-storage-tank-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/engine-room-records",
+      "description": "List/filter data record Engine Room (gabungan sync mobile & input web) dengan pagination",
+      "screen_id": "screen-097--data-browser-engine-room-web",
+      "usecase_id": "usecase-100--data-browser-engine-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/engine-room-records/export",
+      "description": "Ekspor data Engine Room terfilter ke CSV/Excel",
+      "screen_id": "screen-097--data-browser-engine-room-web",
+      "usecase_id": "usecase-100--data-browser-engine-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/engine-room-records/{id}",
+      "description": "Ambil 1 record Engine Room lengkap beserta baris Engine Room Detail, station_name, dan nama user (Inputted By/Checked By/Acknowledged By) untuk halaman Detail",
+      "screen_id": "screen-107--detail-engine-room-web",
+      "usecase_id": "usecase-101--detail-engine-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/engine-room-records",
+      "description": "Membuat record Engine Room baru dari web beserta baris Engine Room Detail; station diresolve otomatis dari production_line_id",
+      "screen_id": "screen-117--form-engine-room-web",
+      "usecase_id": "usecase-102--form-engine-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/engine-room-records/{id}",
+      "description": "Memperbarui record Engine Room tersimpan dari web beserta upsert baris Engine Room Detail",
+      "screen_id": "screen-117--form-engine-room-web",
+      "usecase_id": "usecase-102--form-engine-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/boiler-room-records",
+      "description": "List/filter data record Boiler Room (gabungan sync mobile & input web) dengan pagination",
+      "screen_id": "screen-098--data-browser-boiler-room-web",
+      "usecase_id": "usecase-106--data-browser-boiler-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/boiler-room-records/export",
+      "description": "Ekspor data Boiler Room terfilter ke CSV/Excel",
+      "screen_id": "screen-098--data-browser-boiler-room-web",
+      "usecase_id": "usecase-106--data-browser-boiler-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/boiler-room-records/{id}",
+      "description": "Ambil 1 record Boiler Room lengkap beserta baris Boiler Room Detail, station_name, dan nama user (Inputted By/Checked By/Acknowledged By) untuk halaman Detail",
+      "screen_id": "screen-108--detail-boiler-room-web",
+      "usecase_id": "usecase-107--detail-boiler-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/boiler-room-records",
+      "description": "Membuat record Boiler Room baru dari web beserta baris Boiler Room Detail; station diresolve otomatis dari production_line_id",
+      "screen_id": "screen-118--form-boiler-room-web",
+      "usecase_id": "usecase-108--form-boiler-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/boiler-room-records/{id}",
+      "description": "Memperbarui record Boiler Room tersimpan dari web beserta upsert baris Boiler Room Detail",
+      "screen_id": "screen-118--form-boiler-room-web",
+      "usecase_id": "usecase-108--form-boiler-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/clarification-records",
+      "description": "List/filter data record Clarification (gabungan sync mobile & input web) dengan pagination",
+      "screen_id": "screen-099--data-browser-clarification-web",
+      "usecase_id": "usecase-112--data-browser-clarification-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/clarification-records/export",
+      "description": "Ekspor data Clarification terfilter ke CSV/Excel",
+      "screen_id": "screen-099--data-browser-clarification-web",
+      "usecase_id": "usecase-112--data-browser-clarification-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/clarification-records/{id}",
+      "description": "Ambil 1 record Clarification lengkap beserta baris Clarification Detail, station_name, dan nama user (Inputted By/Checked By/Acknowledged By) untuk halaman Detail",
+      "screen_id": "screen-109--detail-clarification-web",
+      "usecase_id": "usecase-113--detail-clarification-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/clarification-records",
+      "description": "Membuat record Clarification baru dari web beserta baris Clarification Detail; station diresolve otomatis dari production_line_id",
+      "screen_id": "screen-119--form-clarification-web",
+      "usecase_id": "usecase-114--form-clarification-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/clarification-records/{id}",
+      "description": "Memperbarui record Clarification tersimpan dari web beserta upsert baris Clarification Detail",
+      "screen_id": "screen-119--form-clarification-web",
+      "usecase_id": "usecase-114--form-clarification-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-quality-control-records",
+      "description": "List/filter data record Process Quality Control (gabungan sync mobile & input web) dengan pagination",
+      "screen_id": "screen-100--data-browser-process-quality-control-web",
+      "usecase_id": "usecase-118--data-browser-process-quality-control-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-quality-control-records/export",
+      "description": "Ekspor data Process Quality Control terfilter ke CSV/Excel",
+      "screen_id": "screen-100--data-browser-process-quality-control-web",
+      "usecase_id": "usecase-118--data-browser-process-quality-control-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/process-quality-control-records/{id}",
+      "description": "Ambil 1 record Process Quality Control lengkap beserta seluruh baris Process Quality Control Detail-nya",
+      "screen_id": "screen-110--detail-process-quality-control-web",
+      "usecase_id": "usecase-119--detail-process-quality-control-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/process-quality-control-records",
+      "description": "Membuat record Process Quality Control baru beserta baris Process Quality Control Detail yang diberikan",
+      "screen_id": "screen-120--form-process-quality-control-web",
+      "usecase_id": "usecase-120--form-process-quality-control-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/process-quality-control-records/{id}",
+      "description": "Memperbarui record Process Quality Control tersimpan beserta baris Process Quality Control Detail-nya",
+      "screen_id": "screen-120--form-process-quality-control-web",
+      "usecase_id": "usecase-120--form-process-quality-control-web",
       "auth_required": true,
       "actor_ids": [
         "actor-supervisor",

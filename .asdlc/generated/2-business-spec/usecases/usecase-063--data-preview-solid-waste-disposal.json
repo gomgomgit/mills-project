@@ -1,0 +1,116 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "usecase-063--data-preview-solid-waste-disposal",
+  "name": "Lihat Data Solid Waste Disposal Tersimpan",
+  "description": "Operator atau Supervisor menelusuri daftar record Solid Waste Disposal tersimpan lokal, menyaring dengan filter tanggal/pencarian, dan melihat detail lengkap salah satu record secara read-only.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Muat seluruh record Solid Waste Disposal milik user, apapun statusnya, terurut terbaru diperbarui lebih dulu"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Terapkan filter tanggal default ke hari ini"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Melihat list, mengubah filter tanggal/pencarian sesuai kebutuhan"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Menap salah satu item pada list"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Jika item berstatus draft: navigasi ke Form Solid Waste Disposal; jika tersimpan/tersinkron: tampilkan detail read-only lengkap beserta Log Kejadian"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Record tidak ditemukan",
+      "trigger": "Step 5 — id record pada mode detail tidak valid/tidak ditemukan",
+      "steps": [
+        "Tampilkan pesan error 'record tidak ditemukan'",
+        "Sediakan tombol Back kembali ke mode list"
+      ]
+    },
+    {
+      "name": "List kosong",
+      "trigger": "Step 1 — user belum memiliki record Solid Waste Disposal sama sekali",
+      "steps": [
+        "Tampilkan pesan empty state"
+      ]
+    },
+    {
+      "name": "Filter tidak menghasilkan apapun",
+      "trigger": "Step 3 — kombinasi filter tanggal/pencarian tidak cocok dengan record manapun",
+      "steps": [
+        "Tampilkan pesan tidak ditemukan dengan opsi reset filter"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail record yang dipilih secara read-only, atau berpindah ke Form untuk melanjutkan draft"
+  ],
+  "business_rules": [
+    "Detail bersifat read-only sepenuhnya",
+    "Filter tanggal default ke hari ini saat list pertama kali dibuka"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Data Solid Waste Disposal Tersimpan — success",
+      "given": "User memiliki record tersimpan/tersinkron",
+      "when": "User menap salah satu item tersebut",
+      "then": "Detail record tampil lengkap secara read-only beserta Log Kejadian"
+    },
+    {
+      "scenario": "Lihat Data Solid Waste Disposal Tersimpan — Tap Item Draft/Pause",
+      "given": "User memiliki item berstatus draft/pause pada list",
+      "when": "User menap item tersebut",
+      "then": "Form Solid Waste Disposal terbuka untuk melanjutkan draft"
+    },
+    {
+      "scenario": "Lihat Data Solid Waste Disposal Tersimpan — Filter Tanggal Default Hari Ini",
+      "given": "List pertama kali dibuka",
+      "when": "User belum mengubah filter apapun",
+      "then": "Filter tanggal menampilkan hari ini dan list hanya menampilkan record hari ini"
+    },
+    {
+      "scenario": "Lihat Data Solid Waste Disposal Tersimpan — Record Tidak Ditemukan",
+      "given": "Mode detail dibuka dengan id yang tidak valid",
+      "when": "Sistem mencoba memuat record tersebut",
+      "then": "Pesan 'record tidak ditemukan' tampil beserta tombol Back"
+    },
+    {
+      "scenario": "Lihat Data Solid Waste Disposal Tersimpan — List Kosong",
+      "given": "User belum memiliki record Solid Waste Disposal sama sekali",
+      "when": "User membuka mode list",
+      "then": "Pesan empty state ditampilkan"
+    },
+    {
+      "scenario": "Lihat Data Solid Waste Disposal Tersimpan — Filter Tidak Menghasilkan Apapun",
+      "given": "Filter tanggal/pencarian tidak cocok dengan record manapun",
+      "when": "User menerapkan filter tersebut",
+      "then": "Pesan tidak ditemukan dengan opsi reset filter ditampilkan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-081--data-preview-solid-waste-disposal"
+  ]
+}

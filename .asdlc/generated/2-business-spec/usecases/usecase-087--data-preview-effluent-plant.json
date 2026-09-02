@@ -1,0 +1,96 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-087--data-preview-effluent-plant",
+  "name": "Lihat Data Effluent Plant Tersimpan",
+  "description": "Operator atau Supervisor menelusuri daftar seluruh record Effluent Plant dan melihat detail read-only salah satu record tersimpan/tersinkron.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login sebagai Operator atau Supervisor"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan daftar seluruh record Effluent Plant milik user (apapun statusnya), dengan filter tanggal default hari ini"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Menekan salah satu item berstatus Tersimpan/Tersinkron"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menampilkan detail record tersebut secara read-only, termasuk seluruh baris Effluent Plant Detail yang ada"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tap Item Draft/Pause",
+      "trigger": "Pada langkah 2, item yang ditekan berstatus draft_ongoing/draft_paused",
+      "steps": [
+        "System membuka Form Effluent Plant untuk melanjutkan draft tersebut, bukan mode detail"
+      ]
+    },
+    {
+      "name": "Filter Tidak Menghasilkan Apapun",
+      "trigger": "Filter tanggal/pencarian tidak menghasilkan record",
+      "steps": [
+        "System menampilkan pesan tidak ditemukan dengan opsi reset filter"
+      ]
+    },
+    {
+      "name": "List Kosong",
+      "trigger": "User belum memiliki record Effluent Plant sama sekali",
+      "steps": [
+        "System menampilkan empty state"
+      ]
+    },
+    {
+      "name": "Back dari Mode Detail",
+      "trigger": "User menekan Back saat berada di mode detail",
+      "steps": [
+        "System kembali ke mode list (bukan langsung ke Monitor Effluent Plant)"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail lengkap record Effluent Plant yang dipilih secara read-only"
+  ],
+  "business_rules": [
+    "Detail record bersifat murni read-only",
+    "List menampilkan seluruh record apapun statusnya",
+    "Filter tanggal default ke hari ini saat list pertama kali dibuka",
+    "Checked By/Acknowledged By ditampilkan apa adanya tanpa pembatasan role untuk melihat"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Data Effluent Plant Tersimpan — success",
+      "given": "Terdapat record Effluent Plant berstatus Tersimpan/Tersinkron",
+      "when": "User menekan item tersebut di list",
+      "then": "Sistem menampilkan detail record read-only lengkap dengan grid Effluent Plant Detail"
+    },
+    {
+      "scenario": "Lihat Data Effluent Plant Tersimpan — Record Tidak Ditemukan",
+      "given": "id record pada mode detail tidak valid",
+      "when": "User membuka mode detail dengan id tersebut",
+      "then": "Sistem menampilkan pesan 'record tidak ditemukan' dengan tombol Back"
+    },
+    {
+      "scenario": "Lihat Data Effluent Plant Tersimpan — List Kosong",
+      "given": "User belum memiliki record Effluent Plant",
+      "when": "User membuka Data Preview Effluent Plant",
+      "then": "Sistem menampilkan empty state"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-085--data-preview-effluent-plant"
+  ]
+}

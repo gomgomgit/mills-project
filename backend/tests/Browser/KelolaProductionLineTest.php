@@ -23,9 +23,9 @@
  * selectSearchableFirst() helpers below (same pattern as
  * KelolaBusinessUnitTest.php et al).
  *
- * create() auto-provisions 15 canonical stations for a newly created
+ * create() auto-provisions 19 canonical stations for a newly created
  * Production Line (ProductionLineService::DEFAULT_STATIONS) — the
- * "success" scenario below asserts "15" in the Jumlah Station column.
+ * "success" scenario below asserts "19" in the Jumlah Station column.
  * Fixture Production Lines used by the delete scenarios are assumed
  * seeded directly (bypassing the service, e.g. via a factory/seeder), so
  * they start with 0 stations unless the seeder deliberately attaches one —
@@ -94,7 +94,7 @@ async function selectSearchableFirst(page, id) {
 
 test.describe('Kelola Production Line', () => {
   // Scenario: "Kelola Production Line — success"
-  test('menambah production line baru dengan memilih business unit, 15 station otomatis dibuat', async ({ page }) => {
+  test('menambah production line baru dengan memilih business unit, 18 station otomatis dibuat', async ({ page }) => {
     await login(page, 'pltest-admin01', PASSWORD);
     await gotoProductionLines(page);
 
@@ -110,7 +110,7 @@ test.describe('Kelola Production Line', () => {
     const row = page.locator('.kc-table__row', { hasText: uniqueName });
     await expect(row).toBeVisible();
     await expect(row).toContainText('Mill PL Baru');
-    await expect(row).toContainText('15');
+    await expect(row).toContainText('18');
   });
 
   // Scenario: "Kelola Production Line — Edit Production Line"

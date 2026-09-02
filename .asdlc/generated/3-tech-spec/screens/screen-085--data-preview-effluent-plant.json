@@ -1,0 +1,289 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-085--data-preview-effluent-plant",
+  "name": "Data Preview Effluent Plant",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/effluent-plant/preview/:id?",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-087--data-preview-effluent-plant",
+      "usecase_name": "Lihat Data Effluent Plant Tersimpan",
+      "endpoints": [],
+      "business_logic": [
+        "1. List mode (tanpa id param): load SEMUA local effluent_plant_record milik current user (status apapun), set dateFilter default ke tanggal hari ini (format YYYY-MM-DD lokal, terhadap field date), opsional difilter lebih lanjut oleh kata kunci pencarian (effluent_plant_id)",
+        "2. Render list: setiap item tampilkan label (effluent_plant_id atau fallback) + indikator status ('Pause' untuk draft_ongoing/draft_paused, 'Tersimpan' untuk saved, 'Tersinkron' untuk synced)",
+        "3. Render breadcrumb (Home > Production Process Activity > Effluent Plant > Load Data, tappable) dan header dengan hamburger",
+        "4. On tap item list berstatus draft_ongoing/draft_paused -> navigasi ke Form Effluent Plant dengan id item tersebut",
+        "5. On tap item list berstatus saved/synced -> pindah ke mode DETAIL (route dapat id param) menampilkan record tersebut read-only beserta grid Effluent Plant Detail (menampilkan seluruh baris yang tersimpan pada record, berapapun jumlahnya)",
+        "6. On filter tanggal diubah (termasuk dikosongkan) -> saring list sesuai nilai filter yang baru",
+        "7. On kata kunci pencarian dimasukkan -> saring list berdasarkan kecocokan substring case-insensitive (effluent_plant_id)",
+        "8. Mode DETAIL: load effluent_plant_record by id (route param) beserta seluruh effluent_plant_detail turunannya (berapapun jumlahnya, termasuk nol), diurutkan berdasarkan time_slot -> jika ditemukan, render semua field header (termasuk Checked By/Acknowledged By apa adanya, tanpa pembatasan role untuk melihat) + grid detail read-only (atau empty state jika nol baris); jika tidak ditemukan, tampilkan error 'record tidak ditemukan' dengan Back",
+        "9. On Back di mode LIST -> navigasi ke Monitor Effluent Plant",
+        "10. On Back di mode DETAIL -> navigasi kembali ke mode LIST (id param dihapus dari route)",
+        "11. On tap breadcrumb segment -> navigasi ke route terkait",
+        "12. On tap hamburger -> buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "effluent-plant-record",
+          "operation": "SELECT",
+          "description": "SELECT semua local record milik current user, status apapun, opsional difilter tanggal/search (mode list)"
+        },
+        {
+          "entity_id": "effluent-plant-record",
+          "operation": "SELECT",
+          "description": "SELECT record by id untuk detail read-only (mode detail)"
+        },
+        {
+          "entity_id": "effluent-plant-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris (berapapun jumlahnya) by effluent_plant_record_id, ORDER BY urutan kanonis time_slot, untuk mode detail"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Record tidak ditemukan di mode detail (id tidak valid)",
+          "handling": "Tampilkan pesan error 'record tidak ditemukan' dengan tombol Back (kembali ke list, bukan Monitor)"
+        },
+        {
+          "condition": "List kosong (belum ada record sama sekali)",
+          "handling": "Tampilkan empty state"
+        },
+        {
+          "condition": "Filter tanggal/search tidak menghasilkan apapun (termasuk saat filter default hari ini tidak ada datanya)",
+          "handling": "Tampilkan pesan tidak ditemukan dengan opsi reset filter"
+        },
+        {
+          "condition": "Record di mode detail memiliki nol baris Effluent Plant Detail (kasus tepi: tersimpan tanpa baris apapun)",
+          "handling": "Grid menampilkan pesan/empty state (effluent-plant-detail-rows-empty), bukan error -- header tetap dirender normal"
+        }
+      ],
+      "business_rules_applied": [
+        "Detail record bersifat murni read-only",
+        "List menampilkan seluruh record apapun statusnya",
+        "Filter tanggal & pencarian bekerja terhadap list yang sedang ditampilkan",
+        "Breadcrumb harus dapat dinavigasi",
+        "Filter tanggal default ke hari ini saat list pertama kali dibuka",
+        "Checked By/Acknowledged By ditampilkan apa adanya di detail, tanpa pembatasan role untuk melihat",
+        "Grid Effluent Plant Detail menampilkan persis baris yang tersimpan pada record",
+        "Tidak ada tabel referensi target operasional pada stasiun ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns empty array when user has no local effluent_plant_record rows",
+          "given": "effluentPlantRecordRepo.getAllRecords(userId) returns []",
+          "expect": "loadRecords resolves to [] (triggers list empty state upstream)"
+        },
+        {
+          "description": "initializes dateFilter to today's date (YYYY-MM-DD, local) when list mode mounts",
+          "given": "component mounts in list mode",
+          "expect": "dateFilter.value equals today's local date string"
+        },
+        {
+          "description": "filters records by dateFilter's default (today) value on initial render",
+          "given": "getAllRecords returns records dated today and yesterday; dateFilter defaults to today",
+          "expect": "filteredRecords initially contains only today's record"
+        },
+        {
+          "description": "filters records by case-insensitive substring on effluent_plant_id when search keyword applied",
+          "given": "getAllRecords returns records with effluent_plant_id 'EP-01' and 'EP-02'; filters = { search: 'ep-02' }",
+          "expect": "loadRecords returns only the record with effluent_plant_id 'EP-02'"
+        },
+        {
+          "description": "maps status draft_ongoing and draft_paused to 'Pause' label",
+          "given": "record.status = 'draft_ongoing' or 'draft_paused'",
+          "expect": "getStatusLabel(record) returns 'Pause' for both"
+        },
+        {
+          "description": "maps status saved to 'Tersimpan' label and synced to 'Tersinkron' label",
+          "given": "record.status = 'saved' or 'synced'",
+          "expect": "getStatusLabel(record) returns 'Tersimpan' or 'Tersinkron' respectively"
+        },
+        {
+          "description": "navigates to Form Effluent Plant when tapped item status is draft_ongoing or draft_paused",
+          "given": "tapped item.status = 'draft_ongoing'",
+          "expect": "router navigation called toward Form Effluent Plant route with item.id, mode does NOT switch to detail"
+        },
+        {
+          "description": "switches to detail mode when tapped item status is saved or synced",
+          "given": "tapped item.status = 'saved'",
+          "expect": "router navigation called toward preview route with id param (detail mode), Form Effluent Plant NOT opened"
+        },
+        {
+          "description": "renders record read-only with all of its effluent_plant_detail rows (however many) ordered by canonical time-slot when record found by id in detail mode",
+          "given": "effluentPlantRecordRepo.getDraftWithDetails(id) returns a valid record with 3 effluent_plant_detail rows",
+          "expect": "detail state populated with all header fields + exactly those 3 rows ordered by canonical time-slot, readOnly flag true, no error shown"
+        },
+        {
+          "description": "shows an empty-state message (not an error) for the Effluent Plant Detail grid when the found record has zero detail rows",
+          "given": "effluentPlantRecordRepo.getDraftWithDetails(id) returns a valid record with an empty details array",
+          "expect": "detail state populated with header fields, grid area renders an empty-state message"
+        },
+        {
+          "description": "shows 'record tidak ditemukan' error when record not found by id in detail mode",
+          "given": "effluentPlantRecordRepo.getDraftWithDetails(id) returns null",
+          "expect": "error state set to 'record tidak ditemukan' message, detail record remains null, Back action available"
+        },
+        {
+          "description": "renders Checked By and Acknowledged By values in detail mode regardless of the current user's role",
+          "given": "detail mode rendered for an operator user, record has checked_by and acknowledged_by both set",
+          "expect": "both values shown as plain read-only text, no role-based hiding"
+        },
+        {
+          "description": "navigates to Monitor Effluent Plant when Back pressed in list mode",
+          "given": "current mode = 'list' (no id route param)",
+          "expect": "router navigation called toward Monitor Effluent Plant route"
+        },
+        {
+          "description": "navigates to list mode (id param removed) when Back pressed in detail mode",
+          "given": "current mode = 'detail' (id route param present)",
+          "expect": "router navigation called toward preview route WITHOUT id param; Monitor Effluent Plant route is NOT targeted"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-065--monitor-effluent-plant",
+      "reason": "Asal navigasi (Load Data) & tujuan Back dari mode list"
+    },
+    {
+      "screen_id": "screen-075--form-effluent-plant",
+      "reason": "Tap item draft/pause membuka Form Effluent Plant"
+    }
+  ],
+  "implementation_notes": [
+    "Layar ini murni membaca data lokal SQLite, tidak ada panggilan API",
+    "Mode list dan detail berbagi 1 komponen/route yang sama (bedanya cuma ada/tidaknya :id param), mirror pola DataPreviewProcessWaterView.vue",
+    "Filter tanggal & search dilakukan client-side terhadap hasil query getAllRecords",
+    "Default dateFilter = tanggal lokal hari ini (format YYYY-MM-DD via todayLocalDateString()-style, BUKAN toISOString() yang UTC-based), diisi SEKALI saat komponen mount di mode list",
+    "effluentPlantRecordRepo.ts butuh fungsi getAllRecords(userId) (mirror processWaterRecordRepo.ts) dan reuse getDraftWithDetails() yang sudah ditulis di screen-075 untuk mode detail",
+    "Grid Effluent Plant Detail read-only: setiap baris tampilkan Time-Slot (format jam) dan sisa kolom bacaan/status -- render langsung dari kolom tersimpan, tidak perlu hitung ulang (data historis); jumlah baris yang dirender sepenuhnya mengikuti `details.length` dari getDraftWithDetails()",
+    "Tidak ada tabel referensi Target Operasional untuk stasiun ini"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Data Effluent Plant Tersimpan — Record Tidak Ditemukan",
+      "usecase_id": "usecase-087--data-preview-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewEffluentPlantView",
+        "action": "mount in detail mode with an id param that does not match any local effluent_plant_record",
+        "assert": "renders 'record tidak ditemukan' error message with a visible Back button"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/preview/:id?",
+        "action": "navigate to the detail route using a non-existent record id",
+        "assert": "page shows 'record tidak ditemukan' error text and a Back button is visible"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Effluent Plant Tersimpan — success",
+      "usecase_id": "usecase-087--data-preview-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewEffluentPlantView",
+        "action": "mount in list mode (date filter defaults to today), tap a list item with status saved or synced",
+        "assert": "component switches to detail mode and renders all header fields and the Effluent Plant Detail grid (however many rows the record has) read-only"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/preview/:id?",
+        "action": "from Monitor Effluent Plant, tap 'Load Data', confirm date filter shows today by default, then tap a list item labeled 'Tersimpan' or 'Tersinkron'",
+        "assert": "detail screen displays the full record including its Effluent Plant Detail rows, all read-only"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Effluent Plant Tersimpan — Tap Item Draft/Pause",
+      "usecase_id": "usecase-087--data-preview-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewEffluentPlantView",
+        "action": "tap a list item with status draft_ongoing or draft_paused",
+        "assert": "triggers navigation event toward Form Effluent Plant route carrying that item's id"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/preview/:id?",
+        "action": "tap a list item labeled 'Pause'",
+        "assert": "browser navigates to the Form Effluent Plant screen for that draft record"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Effluent Plant Tersimpan — Filter Tanggal Default Hari Ini",
+      "usecase_id": "usecase-087--data-preview-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewEffluentPlantView",
+        "action": "mount in list mode with mixed today/non-today records, without changing the filter",
+        "assert": "date filter input shows today's date on mount; list initially shows only today's records"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/preview/:id?",
+        "action": "seed a record dated today and one dated yesterday, open Load Data",
+        "assert": "date filter field shows today's date; only today's record appears in the list initially"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Effluent Plant Tersimpan — Filter Tidak Menghasilkan Apapun",
+      "usecase_id": "usecase-087--data-preview-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewEffluentPlantView",
+        "action": "apply date/search filter values that match no local record",
+        "assert": "renders 'tidak ditemukan' message with a reset-filter control, list item area empty"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/preview/:id?",
+        "action": "apply a date/search filter combination that has no matching record",
+        "assert": "page shows a not-found message with a visible reset filter button"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Effluent Plant Tersimpan — List Kosong",
+      "usecase_id": "usecase-087--data-preview-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewEffluentPlantView",
+        "action": "mount in list mode for a user with zero local effluent_plant_record rows",
+        "assert": "renders empty-state placeholder instead of list items"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/preview/:id?",
+        "action": "navigate to list mode as a user with no saved effluent plant records",
+        "assert": "page displays empty-state message, no list items rendered"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Effluent Plant Tersimpan — Back dari Mode Detail",
+      "usecase_id": "usecase-087--data-preview-effluent-plant",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewEffluentPlantView",
+        "action": "while in detail mode (id param present), trigger the Back action",
+        "assert": "component transitions back to list mode rendering (id param removed) -- no navigation to Monitor Effluent Plant"
+      },
+      "browser_test": {
+        "route": "/stations/effluent-plant/preview/:id?",
+        "action": "from detail mode, press the Back button",
+        "assert": "browser URL changes from /stations/effluent-plant/preview/:id to /stations/effluent-plant/preview (list mode); Monitor Effluent Plant screen is NOT shown"
+      }
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-111--form-solid-waste-disposal-web",
+  "name": "Form Solid Waste Disposal (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Exceptions/NoActiveSolidWasteDisposalStationException.php",
+    "backend/app/Services/SolidWasteDisposalRecordService.php",
+    "backend/app/Http/Controllers/Api/SolidWasteDisposalRecordController.php",
+    "backend/routes/api.php",
+    "backend/database/factories/StationFactory.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/SolidWasteDisposalRecordServiceTest.php",
+    "backend/tests/Feature/Api/FormSolidWasteDisposalTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormSolidWasteDisposal.php",
+    "backend/resources/views/livewire/data/form-solid-waste-disposal.blade.php",
+    "backend/resources/views/data/solid-waste-disposal-form.blade.php",
+    "backend/routes/web.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormSolidWasteDisposalTest.php",
+    "backend/tests/Browser/FormSolidWasteDisposalTest.php"
+  ],
+  "implementation_notes": [
+    "Satu Livewire component (FormSolidWasteDisposal) menangani mode create DAN edit — mode ditentukan oleh ada/tidaknya parameter $id di mount(), sama persis pola FormCagesTrack/FormWeighbridge/FormGrading",
+    "SolidWasteDisposalRecordService::create()/update() dipanggil dari SolidWasteDisposalRecordController::store()/update() (API) DAN Livewire FormSolidWasteDisposal::save() — satu source of truth validasi/business logic",
+    "BERBEDA dari Cages Track: TIDAK ADA konsep N-kolom checklist/jam — tidak perlu MillSettingService atau resolve jumlah_cages/machinery_count sama sekali. Log Kejadian murni tabel bebas per-kejadian tanpa batasan jumlah baris atau constraint ascending pada suatu kolom",
+    "Net Weight (MT) dihitung server di SolidWasteDisposalRecordService::upsertDetails() (= gross_weight_mt - tare_weight_mt, null jika salah satu kosong) — TIDAK menerima override dari client, dikecualikan dari konvensi web-form-input 'tidak boleh disabled' karena computed/data-integrity, sama alasan seperti Net Weight Form Weighbridge Web",
+    "DIVERGENSI DARI MOBILE (instruksi eksplisit): Date pada web default hari ini namun TETAP dapat diedit manual — TIDAK dikunci/dibekukan seperti mobile screen-071",
+    "DIVERGENSI DARI MOBILE (instruksi eksplisit): tidak ada draft/pause/Clear di web — Simpan langsung create/update dengan status=saved, record dapat diedit kapan saja lewat mode edit",
+    "Checked By DAN Acknowledged By keduanya ada di form ini sebagai checkbox self-attestation role-gated, konsisten dengan mobile screen-071 dan Detail Solid Waste Disposal Web (screen-101)",
+    "Route web /data/solid-waste-disposal/create HARUS didaftarkan SEBELUM /data/solid-waste-disposal/{id} (screen-101) — sama pola dengan screen-022/023/024",
+    "Ditambahkan tombol 'Tambah Data' di Data Browser (screen-091) dan tombol 'Edit' di Detail (screen-101) sebagai entry point ke screen ini",
+    "Station::factory()->solidWasteDisposal() state reused (ditambahkan bersama screen-091's implementation) untuk kebutuhan test suite screen ini"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV.",
+      "severity": "minor"
+    },
+    {
+      "description": "Production Line tidak dapat diubah di mode edit by design (immutable setelah create), konsisten dengan screen-022/023/024, tidak ada jalur UI untuk memindah record ke production line lain.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 12,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 13,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

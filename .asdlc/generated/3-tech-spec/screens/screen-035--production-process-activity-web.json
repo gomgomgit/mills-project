@@ -1,9 +1,9 @@
 {
+  "ver": 5,
   "meta": {
-    "title": "Mill Smart Log",
-    "updated_at": "2026-08-23"
+    "title": "Mills Smart Log",
+    "updated_at": "2026-09-01"
   },
-  "ver": 2,
   "id": "screen-035--production-process-activity-web",
   "name": "Production Process Activity (Web)",
   "module_id": "module-web-station-data",
@@ -32,19 +32,13 @@
       "usecase_name": "Pilih Stasiun (Web)",
       "endpoints": [],
       "business_logic": [
-        "1. Render grid berisi 15 station tile: 7 aktif (Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant) dengan link ke route Data Browser masing-masing (data.weighbridge, data.grading, data.cages-track, data.threshing, data.pressing, data.depricarping, data.kernel-plant), 8 placeholder nonaktif dengan atribut disabled",
-        "2. On click tile aktif -> navigasi (redirect biasa, bukan Livewire) ke route Data Browser stasiun terkait",
-        "3. On click tile disabled -> tidak melakukan aksi apapun (tidak ada handler navigasi terpasang)"
+        "1. Render grid berisi 18 station tile, SEMUA aktif (Weighbridge, Grading, Cages Track, Sterilizer, Threshing, Pressing, Depricarping, Kernel Plant, Clarification, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Process Water, Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control) dengan link ke route Data Browser masing-masing — 0 placeholder",
+        "2. On click tile aktif -> navigasi (redirect biasa, bukan Livewire) ke route Data Browser stasiun terkait"
       ],
       "data_operations": [],
-      "edge_case_handling": [
-        {
-          "condition": "User klik stasiun yang disabled",
-          "handling": "Tidak ada navigasi; tile tetap non-interaktif (disabled, tanpa href), tidak memicu error"
-        }
-      ],
+      "edge_case_handling": [],
       "business_rules_applied": [
-        "7 stasiun MVP aktif secara fungsional sejak 2026-08-23; 8 lainnya adalah placeholder skema data untuk fase mendatang",
+        "18 stasiun MVP aktif secara fungsional (7 sejak 2026-08-23, 10 lagi sejak 2026-08-31, Sterilizer sejak 2026-09-01) — 0 placeholder tersisa",
         "Menggantikan link sidebar terpisah per stasiun dengan satu pintu masuk tunggal"
       ],
       "unit_test_cases": []
@@ -79,13 +73,60 @@
     {
       "screen_id": "screen-052--data-browser-kernel-plant-web",
       "reason": "Tile Kernel Plant aktif menavigasi ke sini (2026-08-23)"
+    },
+    {
+      "screen_id": "screen-091--data-browser-solid-waste-disposal-web",
+      "reason": "Tile Solid Waste Disposal aktif menavigasi ke sini (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-092--data-browser-process-water-web",
+      "reason": "Tile Process Water aktif menavigasi ke sini (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-093--data-browser-kernel-dispatch-web",
+      "reason": "Tile Kernel Dispatch aktif menavigasi ke sini (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-094--data-browser-cpo-dispatch-web",
+      "reason": "Tile CPO Dispatch aktif menavigasi ke sini (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-095--data-browser-effluent-plant-web",
+      "reason": "Tile Effluent Plant aktif menavigasi ke sini (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-096--data-browser-storage-tank-web",
+      "reason": "Tile Storage Tank aktif menavigasi ke sini (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-097--data-browser-engine-room-web",
+      "reason": "Tile Engine Room aktif menavigasi ke sini (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-098--data-browser-boiler-room-web",
+      "reason": "Tile Boiler Room aktif menavigasi ke sini (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-099--data-browser-clarification-web",
+      "reason": "Tile Clarification aktif menavigasi ke sini (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-100--data-browser-process-quality-control-web",
+      "reason": "Tile Process Quality Control aktif menavigasi ke sini (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-124--data-browser-sterilizer-web",
+      "reason": "Tile Sterilizer aktif menavigasi ke sini (2026-09-01, stasiun terakhir)"
     }
   ],
   "implementation_notes": [
-    "Halaman statis murni (Blade view, tanpa Livewire component/service, tanpa endpoint API) - daftar 15 station tile di-hardcode di view, mengikuti pola DEFAULT_STATIONS di mobile localSchema.ts, bukan hasil query database",
+    "Halaman statis murni (Blade view, tanpa Livewire component/service, tanpa endpoint API) - daftar station tile di-hardcode di view, mengikuti pola DEFAULT_STATIONS di ProductionLineService.php/mobile localSchema.ts, bukan hasil query database",
     "Styling/layout tile mengikuti pola component_patterns 'station-tile' di uiux-spec",
     "Setelah screen ini diimplementasikan, link sidebar individual per-stasiun diganti dengan 1 link 'Production Process Activity' mengarah ke route ini",
-    "2026-08-23: 4 tile baru (Threshing/Pressing/Depricarping/Kernel Plant) ditambahkan sebagai aktif di production-process-activity.blade.php, memakai SVG path yang identik dengan StationGrid.vue's ACTIVE_ICONS (mobile) untuk konsistensi visual. 8 placeholder sisanya (Sterilizer/Clarification/Boiler/Effluent Treatment/Loading Ramp/Engine Room/Water Treatment/Bulking Storage) tidak berubah. Test Feature/ProductionProcessActivityTest.php diperbarui (7 active tiles assertion, 8 placeholder assertion)."
+    "2026-08-23: 4 tile baru (Threshing/Pressing/Depricarping/Kernel Plant) ditambahkan sebagai aktif di production-process-activity.blade.php, memakai SVG path yang identik dengan StationGrid.vue's ACTIVE_ICONS (mobile) untuk konsistensi visual. Test Feature/ProductionProcessActivityTest.php diperbarui (7 active tiles assertion, 8 placeholder assertion).",
+    "KOREKSI ver 3 (2026-08-31): 10 tile baru ditambahkan sebagai aktif (Clarification, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Process Water, Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control), memakai SVG path identik dengan StationGrid.vue's ACTIVE_ICONS (mobile) untuk konsistensi visual. 2 placeholder tersisa (Sterilizer, Loading Ramp). Test Feature/ProductionProcessActivityTest.php diperbarui (17 active tiles assertion, 2 placeholder assertion).",
+    "KOREKSI ver 4 (2026-09-01): Placeholder 'Loading Ramp' dihapus sepenuhnya — ternyata nama duplikat untuk stasiun yang sama dengan Cages Track (sudah aktif), bukan stasiun terpisah. Grid sekarang 18 tile: 17 aktif + 1 placeholder (Sterilizer). Test Feature/ProductionProcessActivityTest.php diperbarui (1 placeholder assertion, assertDontSee('Loading Ramp')).",
+    "KOREKSI ver 5 (2026-09-01, promosi final): Sterilizer dipromosikan dari placeholder menjadi tile aktif, di-route ke route('data.sterilizer'), memakai SVG path identik dengan StationGrid.vue's ACTIVE_ICONS (mobile, glyph sama dengan eks-placeholder-nya). Blok @foreach placeholder di production-process-activity.blade.php DIHAPUS SELURUHNYA (array kosong) — tidak ada lagi div.station-tile.disabled di halaman ini. Grid sekarang 18 tile, SEMUA aktif, 0 placeholder. Test Feature/ProductionProcessActivityTest.php: skenario 'Klik Stasiun Disabled' DIHAPUS (bukan direpurpose menjadi assertion negatif 'tidak ada tile disabled sama sekali' — lihat test baru 'renders 0 placeholder tiles'), karena tidak ada lagi kondisi tap-disabled yang berlaku di screen ini."
   ],
   "test_scenarios": [
     {
@@ -104,7 +145,7 @@
       }
     },
     {
-      "scenario_ref": "Pilih Stasiun (Web) — Klik Stasiun Disabled",
+      "scenario_ref": "Pilih Stasiun (Web) — Sterilizer kini aktif",
       "usecase_id": "usecase-035--production-process-activity-web",
       "api_test": [],
       "component_test": {
@@ -114,8 +155,8 @@
       },
       "browser_test": {
         "route": "/production-process-activity",
-        "action": "Klik salah satu tile placeholder (mis. Sterilizer)",
-        "assert": "URL tidak berubah, tetap di /production-process-activity"
+        "action": "Klik tile Sterilizer (kini aktif, bukan lagi placeholder)",
+        "assert": "URL berubah ke /data/sterilizer (Data Browser Sterilizer); tidak ada teks 'Belum tersedia' di manapun pada halaman"
       }
     }
   ]

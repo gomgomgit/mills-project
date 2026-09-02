@@ -1,0 +1,262 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-125--detail-sterilizer-web",
+  "name": "Detail Sterilizer (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/sterilizer/{id}",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-125--detail-sterilizer-web",
+      "usecase_name": "Lihat Detail Sterilizer (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/sterilizer-records/{id}",
+          "description": "Ambil 1 record Sterilizer lengkap beserta Log Siklus, station_name, dan nama user (Inputted By/Checked By/Acknowledged By)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "required": true,
+                "description": "ID record Sterilizer"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "sterilizer_id": "string",
+              "date": "date",
+              "note": "string|null",
+              "created_by_name": "string",
+              "checked_by_name": "string|null",
+              "acknowledged_by_name": "string|null",
+              "status": "string",
+              "created_at": "timestamp",
+              "updated_at": "timestamp",
+              "details": [
+                {
+                  "id": "uuid",
+                  "sterilizer_no": "string|null",
+                  "close_door_time": "string|null",
+                  "peak_1_time": "string|null",
+                  "exhaust_1_time": "string|null",
+                  "peak_2_time": "string|null",
+                  "exhaust_2_time": "string|null",
+                  "peak_3_time": "string|null",
+                  "exhaust_3_time": "string|null",
+                  "open_door_time": "string|null",
+                  "duration_minutes": "integer|null",
+                  "number_of_cages": "integer|null",
+                  "cages_status": "string|null",
+                  "checked_by_spv": "boolean",
+                  "remarks": "string|null"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate id ada di sterilizer-record -> 404 RECORD_NOT_FOUND jika tidak ditemukan",
+        "2. SELECT sterilizer-record by id, JOIN station untuk station_name, JOIN user untuk created_by_name/checked_by_name/acknowledged_by_name (null jika belum diisi, kecuali created_by_name yang selalu ada)",
+        "3. SELECT semua sterilizer-detail by sterilizer_record_id, ordered by created_at (urutan insert, KARENA tidak ada kolom event_date per baris seperti CPO Dispatch — seluruh baris siklus memakai satu Date milik header), langsung dari kolom tersimpan tanpa hitung ulang",
+        "4. Return full record + details array",
+        "5. FE render field per section (Identitas, Log Siklus, Verifikasi) read-only",
+        "6. On klik Back: navigasi client-side ke /data/sterilizer, tanpa panggilan API tambahan"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "SELECT",
+          "description": "SELECT 1 record by id"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve station_name"
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve created_by_name/checked_by_name/acknowledged_by_name"
+        },
+        {
+          "entity_id": "sterilizer-detail",
+          "operation": "SELECT",
+          "description": "SELECT semua baris by sterilizer_record_id, ordered by created_at"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "id tidak ditemukan",
+          "handling": "Return 404 RECORD_NOT_FOUND, FE tampilkan pesan error + tombol Back"
+        },
+        {
+          "condition": "checked_by/acknowledged_by belum diisi",
+          "handling": "checked_by_name/acknowledged_by_name null, FE tampilkan '-'"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh field read-only",
+        "Checked By dan Acknowledged By keduanya ditampilkan",
+        "Log Siklus ditampilkan langsung dari data tersimpan"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 RECORD_NOT_FOUND when id does not exist",
+          "given": "id tidak ada di sterilizer-record",
+          "expect": "return 404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "returns full record with resolved station_name when id exists",
+          "given": "valid id, station terkait ada",
+          "expect": "return 200 dengan station_name terisi"
+        },
+        {
+          "description": "includes duration_minutes in the detail rows",
+          "given": "record dengan sterilizer-detail rows yang punya close_door_time/open_door_time terisi",
+          "expect": "response.details[].duration_minutes berisi nilai yang sudah final dari server"
+        },
+        {
+          "description": "returns null checked_by_name and acknowledged_by_name when not set",
+          "given": "record dengan checked_by dan acknowledged_by null",
+          "expect": "response.checked_by_name dan response.acknowledged_by_name adalah null"
+        },
+        {
+          "description": "resolves created_by_name, checked_by_name, acknowledged_by_name to user names when present",
+          "given": "record dengan created_by/checked_by/acknowledged_by terisi uuid user valid",
+          "expect": "response berisi nama user yang sesuai untuk ketiganya"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-124--data-browser-sterilizer-web",
+      "reason": "Entry point - klik baris membuka detail ini"
+    },
+    {
+      "screen_id": "screen-126--form-sterilizer-web",
+      "reason": "Koreksi data dilakukan lewat form ini, bukan dari layar detail"
+    }
+  ],
+  "implementation_notes": [
+    "Response resolve created_by/checked_by/acknowledged_by ke nama user via join, mengikuti pola screen-104 (Detail CPO Dispatch Web) persis",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail)",
+    "Field grouping & urutan field di blade view mengikuti struktur mobile/src/views/DataPreviewSterilizerView.vue mode detail per arahan eksplisit: web station screens mengikuti flow/UX mobile",
+    "Route /sterilizer-records/{id} didaftarkan SETELAH /sterilizer-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}",
+    "BERBEDA dari Detail CPO Dispatch: details TIDAK di-sort by event_date (kolom tidak ada) melainkan by created_at (urutan insert) — karena Sterilizer Detail tidak punya kolom tanggal per baris sendiri"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Detail Sterilizer - berhasil",
+      "usecase_id": "usecase-125--detail-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-records/{id}"
+          },
+          "request_example": {
+            "id": "{{sterilizer_record_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailSterilizer",
+        "action": "render dengan data record lengkap dari API termasuk Log Siklus",
+        "assert": "seluruh field header tampil read-only per section, tabel Log Siklus menampilkan seluruh baris"
+      },
+      "browser_test": {
+        "route": "/data/sterilizer/{id}",
+        "action": "klik baris di Data Browser Sterilizer, tunggu halaman detail termuat",
+        "assert": "halaman detail menampilkan seluruh field record beserta Log Siklus"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Sterilizer - Record Tidak Ditemukan",
+      "usecase_id": "usecase-125--detail-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000"
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DetailSterilizer",
+        "action": "render dengan API mengembalikan 404",
+        "assert": "pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back"
+      },
+      "browser_test": {
+        "route": "/data/sterilizer/00000000-0000-0000-0000-000000000000",
+        "action": "navigasi langsung ke id yang tidak valid",
+        "assert": "halaman menampilkan pesan error dan tombol Back yang berfungsi"
+      }
+    }
+  ]
+}

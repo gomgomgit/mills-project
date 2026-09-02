@@ -1,0 +1,77 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-091--data-browser-solid-waste-disposal-web",
+  "name": "Data Browser Solid Waste Disposal (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/SolidWasteDisposalRecordController.php",
+    "backend/app/Services/SolidWasteDisposalRecordService.php",
+    "backend/app/Exceptions/NoActiveSolidWasteDisposalStationException.php",
+    "backend/database/factories/SolidWasteDisposalRecordFactory.php",
+    "backend/database/factories/SolidWasteDisposalDetailFactory.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/SolidWasteDisposalRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserSolidWasteDisposalTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserSolidWasteDisposal.php",
+    "backend/resources/views/livewire/data/data-browser-solid-waste-disposal.blade.php",
+    "backend/resources/views/data/solid-waste-disposal.blade.php",
+    "backend/resources/views/data/production-process-activity.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DataBrowserSolidWasteDisposalTest.php",
+    "backend/tests/Browser/DataBrowserSolidWasteDisposalTest.php"
+  ],
+  "implementation_notes": [
+    "Mengikuti pola screen-018 (Data Browser Cages Track) persis — SolidWasteDisposalRecordController/Service delegasi penuh ke service layer yang sama dipakai Livewire component, reuse InvalidDateRangeException/ExportFailedException/Pagination::format() yang sudah ada di codebase, tidak diduplikasi",
+    "SolidWasteDisposalRecord::solidWasteDisposalDetails() hasMany relationship sudah ada di model (dibuat Phase 1 entity-models-agent); event_count dihitung via withCount('solidWasteDisposalDetails') di list maupun export",
+    "SolidWasteDisposalRecord TIDAK punya `saving`-guard model event (berbeda dari CagesTrackRecord) — lihat model docblock: divalidasi diserahkan ke Phase 4 (di service layer via validateDetails()), bukan model event. Karena itu factory default status = RecordStatus::Saved aman dipakai langsung (tidak perlu Synced placeholder seperti CagesTrackRecordFactory)",
+    "StationFactory gained solidWasteDisposal() state (type=solid-waste-disposal), additive, mirrors weighbridge()/grading()/cagesTrack() states yang sudah ada",
+    "production-process-activity.blade.php: tile 'Solid Waste Disposal' (sebelumnya href=\"javascript:void(0)\", styled active tapi belum di-route) sekarang di-wire ke route('data.solid-waste-disposal') karena screen ini kini terimplementasi — satu-satunya perubahan pada file bersama ini, 9 tile stasiun lain (Clarification/Boiler Room/dst.) tetap tidak berubah",
+    "tests/Feature/ProductionProcessActivityTest.php diupdate untuk mencerminkan perubahan di atas: assertion 'renders the 7 active station tiles' diperluas menjadi 8 (menambahkan Solid Waste Disposal), dan test '10 newly-active tiles unrouted' menjadi '9 masih belum di-route' (menghapus Solid Waste Disposal dari daftar tersebut) — test lain di file tersebut tidak disentuh"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test file dibuat tapi tidak dapat dijalankan di sandbox ini (tidak ada infra Playwright/dev-server), konsisten dengan gap yang sama di screen-016/017/018.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV di sandbox ini.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 8,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

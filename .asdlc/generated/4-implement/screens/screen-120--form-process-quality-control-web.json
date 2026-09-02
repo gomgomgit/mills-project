@@ -1,0 +1,64 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-120--form-process-quality-control-web",
+  "name": "Form Process Quality Control (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/FormProcessQualityControlTest.php",
+    "backend/tests/Browser/FormProcessQualityControlTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormProcessQualityControl.php",
+    "backend/resources/views/data/process-quality-control-form.blade.php",
+    "backend/resources/views/livewire/data/form-process-quality-control.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormProcessQualityControlTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses ProcessQualityControlRecordService::create()/update() (BE service shared with screen-100)",
+    "The Process Quality Control Detail grid is fully dynamic -- addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions() on FormProcessQualityControl.php, exactly mirroring FormClarification's grid. Grid starts empty on create mode; edit mode loads existing rows verbatim with each row's id",
+    "All 16 non-time_slot columns per row are genuinely editable, never disabled -- Process Quality Control has no computed detail-grid fields and NO enum dropdowns at all: 12 are numeric inputs, 4 (Shift, QC Inspector ID, QC Engineering Corrective Actions, Findings) are plain text inputs -- the widest form grid in the project (min-width: 2600px)",
+    "UNLIKE Form Threshing Web: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
+    "Route /data/process-quality-control/create registered BEFORE /data/process-quality-control/{id} (screen-110) so the literal 'create' segment is not swallowed by {id}",
+    "checked/acknowledged self-attestation checkboxes mirror FormClarification's dual-checkbox pattern (both Checked By AND Acknowledged By)",
+    "NoActiveProcessQualityControlStationException (mirrors NoActiveClarificationStationException) thrown when production_line_id has no active station type=process-quality-control",
+    "This is the FINAL screen of the FINAL (10th) station implemented in this project -- all 10 stations from the 2026-08-31 batch (Solid Waste Disposal, Process Water, Kernel Dispatch, CPO Dispatch, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Clarification, Process Quality Control) are now fully implemented end-to-end (mobile + web) with all Data Browser tiles routed on Production Process Activity"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/FormProcessQualityControlTest.php) exists following this codebase's established convention but could not be executed in this sandboxed environment -- integration (Feature/Api) and component (Feature/Livewire) coverage is complete and passing, consistent with the codebase's Browser/* convention.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T06:00:00Z",
+      "passed": 14,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T06:00:00Z",
+      "passed": 18,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

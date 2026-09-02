@@ -1,0 +1,104 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "usecase-067--monitor-process-water",
+  "name": "Monitor Process Water",
+  "description": "Operator atau Supervisor melihat ringkasan data Process Water hari ini dan daftar draft/pause miliknya, lalu memulai data baru atau menelusuri data tersimpan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login sebagai Operator atau Supervisor",
+    "User sudah memilih Production Line dan station Process Water dari Station List"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan counter hari ini (Jumlah Process Water Record, Jumlah Baris Time-Slot Tercatat) dan daftar draft/pause milik user, diurutkan berdasarkan terakhir diubah"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'New Data' untuk membuat draft baru"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Membuat record Process Water baru berstatus draft (header saja, grid Process Water Detail kosong) dan membuka Form Process Water untuk record tersebut"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Lanjutkan Draft/Pause",
+      "trigger": "Pada langkah 1, user menekan salah satu item draft/pause di list",
+      "steps": [
+        "System membuka Form Process Water dengan data draft/pause tersebut, tanpa mengubah statusnya"
+      ]
+    },
+    {
+      "name": "Load Data",
+      "trigger": "Pada langkah 1, user menekan 'Load Data'",
+      "steps": [
+        "System membuka Data Preview Process Water dalam mode daftar (tanpa id), menampilkan seluruh record apapun statusnya"
+      ]
+    },
+    {
+      "name": "Belum Ada Draft",
+      "trigger": "Tidak ada draft/pause milik user saat layar dibuka",
+      "steps": [
+        "System menampilkan pesan/empty state pada area list",
+        "Tombol 'New Data' tetap aktif"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Untuk New Data: 1 record Process Water baru berstatus draft_ongoing tersimpan lokal, siap diisi di Form Process Water",
+    "Untuk Lanjutkan Draft: user berada di Form Process Water dengan data draft yang sudah ada"
+  ],
+  "business_rules": [
+    "Status draft ongoing dan paused digabung secara tampilan sebagai satu istilah 'Pause'",
+    "User bisa memiliki beberapa draft/pause berjalan bersamaan",
+    "New Data hanya membuat header record — grid Process Water Detail dimulai kosong, baris ditambahkan satu per satu oleh user di Form Process Water",
+    "Counter hari ini dihitung dari seluruh record dengan tanggal Date = hari ini, status apapun"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Monitor Process Water — New Data",
+      "given": "User berada di Monitor Process Water",
+      "when": "User menekan 'New Data'",
+      "then": "Sistem membuat draft baru (header saja, grid kosong) dan membuka Form Process Water untuk draft tersebut"
+    },
+    {
+      "scenario": "Monitor Process Water — Lanjutkan Draft/Pause",
+      "given": "User memiliki minimal satu draft/pause Process Water",
+      "when": "User menekan salah satu item di list draft/pause",
+      "then": "Sistem membuka Form Process Water dengan data draft tersebut tanpa mengubah statusnya"
+    },
+    {
+      "scenario": "Monitor Process Water — Load Data",
+      "given": "User berada di Monitor Process Water",
+      "when": "User menekan 'Load Data'",
+      "then": "Sistem membuka Data Preview Process Water dalam mode daftar, menampilkan seluruh record apapun statusnya"
+    },
+    {
+      "scenario": "Monitor Process Water — Belum Ada Draft",
+      "given": "User belum memiliki draft/pause Process Water",
+      "when": "User membuka Monitor Process Water",
+      "then": "Sistem menampilkan empty state pada list dan tombol 'New Data' tetap aktif"
+    },
+    {
+      "scenario": "Monitor Process Water — Belum Ada Data Hari Ini",
+      "given": "Belum ada record Process Water dengan tanggal hari ini",
+      "when": "User membuka Monitor Process Water",
+      "then": "Kedua card counter menampilkan 0"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-062--monitor-process-water"
+  ]
+}

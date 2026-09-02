@@ -1,13 +1,13 @@
 {
+  "ver": 8,
   "meta": {
-    "title": "Mill Smart Log",
-    "updated_at": "2026-08-23"
+    "title": "Mills Smart Log",
+    "updated_at": "2026-09-01"
   },
-  "ver": 5,
   "id": "screen-006--station-list",
   "name": "Station List",
   "module_id": "module-mobile-station-ops",
-  "description": "Grid pemilihan stasiun yang menampilkan 7 stasiun MVP aktif (Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant) dan 8 slot stasiun lain sebagai placeholder nonaktif untuk skema masa depan, dengan indikator warna yang menunjukkan apakah stasiun tersebut punya draft/record yang sedang berjalan atau di-pause, ikon per-station yang bisa di-override lewat Mills Setting (opsional, default mengikuti tipe stasiun) jika tersedia, serta breadcrumb navigasi dan akses kembali ke Home.",
+  "description": "Grid pemilihan stasiun yang menampilkan 18 stasiun MVP aktif (Weighbridge, Grading, Cages Track, Sterilizer, Threshing, Pressing, Depricarping, Kernel Plant, Clarification, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Process Water, Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control), dengan indikator warna yang menunjukkan apakah stasiun tersebut punya draft/record yang sedang berjalan atau di-pause, ikon per-station yang bisa di-override lewat Mills Setting (opsional, default mengikuti tipe stasiun) jika tersedia, serta breadcrumb navigasi dan akses kembali ke Home.",
   "actors": [
     "actor-station-operator",
     "actor-supervisor"
@@ -16,9 +16,9 @@
     "Navigasi dari Home (Production Process Activity)"
   ],
   "information_displayed": [
-    "Grid tombol stasiun (7 aktif: Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant; 8 disabled/placeholder)",
+    "Grid tombol stasiun (18 aktif: Weighbridge, Grading, Cages Track, Sterilizer, Threshing, Pressing, Depricarping, Kernel Plant, Clarification, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Process Water, Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control)",
     "Indikator warna per tombol stasiun aktif: merah jika ada draft/record berstatus ongoing atau paused pada stasiun tersebut (milik user yang login), hitam/netral jika tidak ada draft sama sekali",
-    "Ikon pada tile stasiun aktif: memakai station.icon (nama icon Lucide, dikelola Admin/Mill Management lewat Mills Setting) jika diisi, jika tidak diisi memakai ikon default sesuai tipe stasiun (Gauge=Weighbridge, Layers=Grading, Package=Cages Track, dan ikon default masing-masing untuk Threshing/Pressing/Depricarping/Kernel Plant) seperti sekarang — warna/shadow/radius/layout tile tetap sama, hanya glyph ikonnya yang bisa berbeda",
+    "Ikon pada tile stasiun aktif: memakai station.icon (nama icon Lucide, dikelola Admin/Mill Management lewat Mills Setting) jika diisi, jika tidak diisi memakai ikon default sesuai tipe stasiun (Gauge=Weighbridge, Layers=Grading, Package=Cages Track, dan ikon default masing-masing untuk 15 stasiun aktif lainnya) seperti sekarang — warna/shadow/radius/layout tile tetap sama, hanya glyph ikonnya yang bisa berbeda",
     "Breadcrumb navigasi (mis. 'Home > Production Process Activity') yang dapat ditap untuk berpindah halaman",
     "Nama sistem 'Mill Smart Log' pada header, dengan ikon hamburger menu (konsisten dengan Home)"
   ],
@@ -26,14 +26,6 @@
     {
       "action": "Tap stasiun aktif",
       "description": "Navigasi ke layar Monitor stasiun tersebut",
-      "actor_ids": [
-        "actor-station-operator",
-        "actor-supervisor"
-      ]
-    },
-    {
-      "action": "Tap stasiun disabled",
-      "description": "Tidak melakukan aksi / menampilkan info belum tersedia",
       "actor_ids": [
         "actor-station-operator",
         "actor-supervisor"
@@ -57,7 +49,7 @@
     }
   ],
   "business_rules": [
-    "7 stasiun MVP aktif secara fungsional (Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant, sejak 2026-08-23); 8 lainnya adalah placeholder skema data untuk fase mendatang",
+    "18 stasiun MVP aktif secara fungsional (Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant sejak 2026-08-23; Clarification, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Process Water, Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control sejak 2026-08-31; Sterilizer sejak 2026-09-01) — 0 placeholder tersisa, Sterilizer adalah stasiun terakhir yang dipromosikan",
     "Warna tombol stasiun aktif mencerminkan status draft: merah = ada draft/record berstatus ongoing atau paused pada stasiun itu (milik user yang login), hitam/netral = tidak ada draft sama sekali",
     "Ikon tile stasiun aktif memakai station.icon jika diisi (override, dikelola lewat Mills Setting); jika kosong, tetap memakai ikon default per tipe stasiun seperti sekarang — ini bukan foto/background image, murni penggantian glyph ikon",
     "Breadcrumb harus dapat dinavigasi (tap salah satu segmennya berpindah ke halaman terkait), bukan sekadar label statis"
@@ -66,13 +58,12 @@
     "usecase-006--station-list"
   ],
   "edge_cases": [
-    "User tap stasiun yang disabled",
     "Stasiun aktif punya draft ongoing DAN paused sekaligus (multi-draft) — warna tetap merah, tidak perlu dibedakan lebih lanjut di level warna",
     "Belum ada draft sama sekali di semua stasiun aktif — semua tombol tampil warna hitam/netral",
     "station.icon berisi nama icon yang tidak valid/tidak dikenal — fallback ke ikon default sesuai tipe stasiun"
   ],
   "test_priority": "medium",
   "open_questions": [
-    "Apakah semua Operator/Supervisor bisa mengakses ketujuh stasiun MVP, atau ada penugasan stasiun spesifik per user?"
+    "Apakah semua Operator/Supervisor bisa mengakses seluruh 18 stasiun MVP, atau ada penugasan stasiun spesifik per user?"
   ]
 }

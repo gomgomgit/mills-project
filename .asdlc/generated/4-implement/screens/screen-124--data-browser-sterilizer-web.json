@@ -1,0 +1,85 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-124--data-browser-sterilizer-web",
+  "name": "Data Browser Sterilizer (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/SterilizerRecordController.php",
+    "backend/app/Services/SterilizerRecordService.php",
+    "backend/app/Exceptions/NoActiveSterilizerStationException.php",
+    "backend/database/factories/SterilizerRecordFactory.php",
+    "backend/database/factories/SterilizerDetailFactory.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/database/migrations/2026_09_01_000024_create_sterilizer_records_table.php",
+    "backend/database/migrations/2026_09_01_000025_create_sterilizer_details_table.php",
+    "backend/database/migrations/2026_09_01_000026_widen_station_type_enum_add_sterilizer.php",
+    "backend/app/Enums/StationType.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/SterilizerRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserSterilizerTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserSterilizer.php",
+    "backend/resources/views/livewire/data/data-browser-sterilizer.blade.php",
+    "backend/resources/views/data/sterilizer.blade.php",
+    "backend/resources/views/data/production-process-activity.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DataBrowserSterilizerTest.php",
+    "backend/tests/Browser/DataBrowserSterilizerTest.php"
+  ],
+  "implementation_notes": [
+    "Mengikuti pola screen-094 (Data Browser CPO Dispatch) persis — SterilizerRecordController/Service delegasi penuh ke service layer yang sama dipakai Livewire component, reuse InvalidDateRangeException/ExportFailedException/Pagination::format() yang sudah ada di codebase, tidak diduplikasi",
+    "SterilizerRecord::sterilizerDetails() hasMany relationship ditulis di Model baru (bukan dari Phase 1 entity-models-agent — entity-catalog Sterilizer entities ditambahkan setelah Phase 4 entity-models sudah selesai, jadi Model ditulis langsung di Phase 4 screen implementation ini, sama treatment dengan entity late-addition lain); cycle_count dihitung via withCount('sterilizerDetails') di list maupun export",
+    "SterilizerRecord TIDAK punya `saving`-guard model event, sama seperti CpoDispatchRecord — validasi diserahkan ke Phase 4 (di service layer via validateDetails()), bukan model event. Factory default status = RecordStatus::Saved aman dipakai langsung",
+    "StationFactory gained sterilizer() state (type=sterilizer), additive, mirrors weighbridge()/grading()/cagesTrack()/.../processQualityControl() yang sudah ada — ini FINAL state ditambahkan ke factory ini",
+    "StationType enum gained Sterilizer case ('sterilizer') — case terakhir sebelum Other",
+    "2 migration baru: create_sterilizer_records_table, create_sterilizer_details_table (skema persis dari entity-catalog v15 sterilizer-record/sterilizer-detail entities) + 1 migration widen_station_type_enum_add_sterilizer (driver-guarded MySQL/Postgres CHECK constraint update, mirrors 2026_08_31_000001's pattern persis, termasuk fix Postgres yang sudah diterapkan sebelumnya)",
+    "production-process-activity.blade.php: tile 'Sterilizer' (sebelumnya @foreach placeholder div.disabled) sekarang di-wire ke route('data.sterilizer') karena screen ini kini terimplementasi — blok @foreach placeholder DIHAPUS SELURUHNYA (array kosong), 0 placeholder tersisa. File-level doc comment diperbarui untuk mencerminkan 18 tile aktif, 0 placeholder (promosi FINAL)",
+    "tests/Feature/ProductionProcessActivityTest.php diupdate: assertion 'renders all 18 active station tiles' (menambahkan Sterilizer), skenario 'Klik Stasiun Disabled' DIHAPUS diganti test 'renders 0 placeholder tiles — no disabled station tile remains anywhere on the grid'",
+    "Detail fields (13 kolom, entity-catalog sterilizer-detail) LEBIH SEDIKIT dari CPO Dispatch (21 kolom) — tidak ada per-baris event_date (semua baris memakai Date header), tidak ada net_weight_mt; sebagai gantinya ada 8 kolom time (close/peak1-3/exhaust1-3/open door) dan duration_minutes yang HARUS dihitung server-side (computeDurationMinutes()), tidak pernah dipercaya dari client bahkan jika dikirim",
+    "Ini adalah stasiun TERAKHIR dari 18 stasiun kanonis proyek ini — setelah screen-124/125/126 selesai (bersama Part C: promosi shared file), 0 placeholder tersisa di manapun dalam proyek ini"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test file dibuat tapi tidak dapat dijalankan di sandbox ini (tidak ada infra Playwright/dev-server), konsisten dengan gap yang sama di screen lain di module ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV di sandbox ini.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 28,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

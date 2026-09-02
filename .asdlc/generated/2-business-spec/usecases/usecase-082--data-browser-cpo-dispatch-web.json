@@ -1,0 +1,111 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-082--data-browser-cpo-dispatch-web",
+  "name": "Telusuri & Ekspor Data CPO Dispatch",
+  "description": "Supervisor, Mill Management, atau Admin menelusuri data record CPO Dispatch tersimpan (gabungan sync mobile & input web) melalui web dengan filter tanggal/business unit, membuka detail record, atau mengekspor data terfilter ke CSV/Excel.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web dengan role Supervisor/Mill Management/Admin"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Muat data record CPO Dispatch terpaginasi, default tanpa filter"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Melihat tabel data (CPO Dispatch ID, tanggal, jumlah kejadian tercatat, status)"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Menerapkan filter tanggal dan/atau business unit"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Klik salah satu baris untuk membuka detail, atau menekan tombol Ekspor untuk mengunduh data terfilter"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Navigasi ke Detail CPO Dispatch (Web) atau memulai proses unduh file ekspor sesuai pilihan"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tidak ada data sesuai filter",
+      "trigger": "Step 3 — filter tidak menghasilkan record apapun",
+      "steps": [
+        "Tampilkan empty state dengan opsi reset filter"
+      ]
+    },
+    {
+      "name": "Rentang tanggal tidak valid",
+      "trigger": "Step 3 — tanggal awal lebih besar dari tanggal akhir",
+      "steps": [
+        "Tampilkan pesan validasi, filter tidak diterapkan"
+      ]
+    },
+    {
+      "name": "Ekspor gagal",
+      "trigger": "Step 4 — dataset ekspor terlalu besar atau proses ekspor error",
+      "steps": [
+        "Tampilkan pesan error ekspor"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat data CPO Dispatch terfilter, berpindah ke Detail, atau mendapatkan file ekspor"
+  ],
+  "business_rules": [
+    "Data mencakup hasil sync mobile & input web",
+    "Ekspor mengikuti filter aktif",
+    "Daftar termuat <=2 detik untuk dataset normal"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Telusuri & Ekspor Data CPO Dispatch — success",
+      "given": "Terdapat data CPO Dispatch tersimpan",
+      "when": "User menerapkan filter tanggal/business unit dan menekan ekspor",
+      "then": "Tabel menampilkan data terfilter dan file ekspor terunduh sesuai filter"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data CPO Dispatch — Tidak Ada Data Sesuai Filter",
+      "given": "Filter tidak cocok dengan record manapun",
+      "when": "User menerapkan filter tersebut",
+      "then": "Empty state dengan opsi reset filter ditampilkan"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data CPO Dispatch — Rentang Tanggal Tidak Valid",
+      "given": "Tanggal awal filter lebih besar dari tanggal akhir",
+      "when": "User menerapkan filter tersebut",
+      "then": "Pesan validasi ditampilkan, filter tidak diterapkan"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data CPO Dispatch — Klik Baris Membuka Detail",
+      "given": "Terdapat baris data pada tabel",
+      "when": "User klik salah satu baris",
+      "then": "Navigasi client-side ke Detail CPO Dispatch (Web) tanpa panggilan API tambahan"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data CPO Dispatch — Ekspor Gagal",
+      "given": "Dataset ekspor terlalu besar atau proses ekspor error",
+      "when": "User menekan tombol ekspor",
+      "then": "Pesan error ekspor ditampilkan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-094--data-browser-cpo-dispatch-web"
+  ]
+}

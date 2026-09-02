@@ -1,0 +1,81 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-095--data-browser-effluent-plant-web",
+  "name": "Data Browser Effluent Plant (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/EffluentPlantRecordService.php",
+    "backend/app/Http/Controllers/Api/EffluentPlantRecordController.php",
+    "backend/app/Exceptions/NoActiveEffluentPlantStationException.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/factories/EffluentPlantRecordFactory.php",
+    "backend/database/factories/EffluentPlantDetailFactory.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/resources/views/data/production-process-activity.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/EffluentPlantRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserEffluentPlantTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserEffluentPlantTest.php",
+    "backend/tests/Browser/DataBrowserEffluentPlantTest.php",
+    "backend/tests/Feature/ProductionProcessActivityTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserEffluentPlant.php",
+    "backend/resources/views/data/effluent-plant.blade.php",
+    "backend/resources/views/livewire/data/data-browser-effluent-plant.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "EffluentPlantRecordService/Controller/routes/factories are shared infrastructure for all 3 web Effluent Plant screens (095/105/115), mirroring ProcessWaterRecordService's precedent -- reported under this screen since it is first in the implementation sequence",
+    "Effluent Plant follows the same hourly-grid (dynamic add-row/remove-row, 1..24 rows, unique + strictly ascending canonical time_slot) pattern as Process Water -- create()/update()/listRecords()/export()/getDetail(), plus canonicalTimeSlots() helper returning 24 'HH:00' strings starting 07:00",
+    "filled_slot_count computed via withCount() with an inner OR-whereNotNull constraint across all 19 non-time_slot columns (anaerobic_pond_1/2_ph/temp_c, cooling_pond_ph/temp_c, biogas_flare_status, biogas_flow_rate_m3h, raw_pome_feed_rate_m3h, effluent_discharge_flow_rate_m3h, final_discharge_ph/bod/cod/tss, dosing_pump_1_status, chemical_consumed_kgl, sludge_dewatering_status, remarks_maintenance_actions, findings) -- mirrors ProcessWaterRecordService's filled_slot_count pattern; UNLIKE Process Water, this station has NO identifying/context columns to exclude (no shift/inspector_id equivalent), so all 19 columns participate",
+    "IMPORTANT -- enum empty-string-vs-null: 3 of the 19 detail columns (biogas_flare_status, dosing_pump_1_status, sludge_dewatering_status) are backed by a SQLite CHECK constraint (Laravel enum()) that rejects an empty string. EffluentPlantRecordService::normalizeDetails() coerces '' to null for these 3 columns specifically before validation/persistence -- the same mitigation Kernel Dispatch needed for its own enum column, and a case Process Water never hit since it has no enum detail columns at all. Caught and fixed proactively per this task's explicit instruction before any test failure occurred.",
+    "UNLIKE Threshing/Pressing/Depricarping/Kernel Plant: Effluent Plant has NO operational-target reference table -- no seeder, no model, no Target Operasional section anywhere in this station's 6 screens, per this task's explicit scope",
+    "The Effluent Plant tile in production-process-activity.blade.php (screen-035) already existed as an active-styled tile pointing to javascript:void(0) (added by an earlier task alongside the DEFAULT_STATIONS/StationType groundwork) -- this implementation changes ONLY that one tile's href to route('data.effluent-plant'), leaving all other tiles unchanged",
+    "tests/Feature/ProductionProcessActivityTest.php (pre-existing, not owned by this screen) was updated additively: the Effluent Plant assertion moved from the '6 still-unrouted' test into the '9 active station tiles linking to their Data Browser routes' test, and both test names/counts were corrected from 6 to 5 remaining unrouted -- mirrors the exact precedent Process Water/CPO Dispatch set for this same shared test file when their own Data Browser screens were implemented",
+    "StationFactory::effluentPlant() state added additively (mirrors processWater()/kernelDispatch()/cpoDispatch() exactly) for this screen's and screen-115's test suites",
+    "Ran the full backend test suite (`php artisan test`) after all changes: 1704 passed (0 failed), confirming no regression to any pre-existing screen"
+  ],
+  "deferred_items": [
+    {
+      "description": "The mobile 'Sinkronisasi' button (Station List, screen-006) does not push locally-entered Effluent Plant records to POST /api/effluent-plant-records -- unlike Threshing/Pressing/Depricarping/Kernel Plant/Process Water/Kernel Dispatch/CPO Dispatch, which each have a syncEffluentPlantRecords()-equivalent function wired into syncService.ts's syncAllRecords()",
+      "reason": "Out of this 6-screen task's explicit scope; the most recent precedent station (Process Water) made the same deferral for the same reason. The route itself is already dual-guarded ('auth:web,sanctum' + operator role, see routes/api.php) so this is purely a mobile syncService.ts addition, not a backend change, when picked up later."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserEffluentPlantTest.php) was authored following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T01:52:00Z",
+      "passed": 33,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T01:52:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T01:52:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

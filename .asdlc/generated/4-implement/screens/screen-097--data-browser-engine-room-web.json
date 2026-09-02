@@ -1,0 +1,86 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-097--data-browser-engine-room-web",
+  "name": "Data Browser Engine Room (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Models/EngineRoomRecord.php",
+    "backend/app/Models/EngineRoomDetail.php",
+    "backend/database/migrations/2026_08_31_000014_create_engine_room_records_table.php",
+    "backend/database/migrations/2026_08_31_000015_create_engine_room_details_table.php",
+    "backend/app/Services/EngineRoomRecordService.php",
+    "backend/app/Http/Controllers/Api/EngineRoomRecordController.php",
+    "backend/app/Exceptions/NoActiveEngineRoomStationException.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/factories/EngineRoomRecordFactory.php",
+    "backend/database/factories/EngineRoomDetailFactory.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/resources/views/data/production-process-activity.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/EngineRoomRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserEngineRoomTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserEngineRoomTest.php",
+    "backend/tests/Browser/DataBrowserEngineRoomTest.php",
+    "backend/tests/Feature/ProductionProcessActivityTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserEngineRoom.php",
+    "backend/resources/views/data/engine-room.blade.php",
+    "backend/resources/views/livewire/data/data-browser-engine-room.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "EngineRoomRecordService/Controller/routes/factories/models/migrations are shared infrastructure for all 3 web Engine Room screens (097/107/117), mirroring StorageTankRecordService's precedent -- reported under this screen since it is first in the implementation sequence. Models/migrations were already generated in an earlier (Phase 1/entity-catalog) pass per the task brief; this pass verified them against the service/controller code (using the migration as ground truth for the exact column list) and found them consistent, requiring no changes",
+    "Engine Room follows the same hourly-grid (dynamic add-row/remove-row, 1..24 rows, unique + strictly ascending canonical time_slot) pattern as Storage Tank -- create()/update()/listRecords()/export()/getDetail(), plus canonicalTimeSlots() helper returning 24 'HH:00' strings starting 07:00",
+    "filled_slot_count computed via withCount() with an inner OR-whereNotNull constraint across all 27 non-time_slot columns -- mirrors StorageTankRecordService's filled_slot_count pattern; this station has NO identifying/context columns to exclude (no shift/inspector_id equivalent), so all 27 columns participate. This is the LARGEST field count of any station in this project",
+    "IMPORTANT -- enum empty-string-vs-null: 2 of the 27 detail columns (diesel_gen_1_status, diesel_gen_2_status) are backed by a SQLite CHECK constraint (Laravel enum()) that rejects an empty string. EngineRoomRecordService::normalizeDetails() coerces '' to null for these columns specifically before validation/persistence -- the same mitigation Kernel Dispatch/Effluent Plant/Storage Tank needed for their own enum columns. Proactively implemented per explicit task instruction (a prior station's enum columns hit a SQLite CHECK-constraint issue), verified by a dedicated unit test",
+    "DERIVED ASSUMPTION -- field count correction: the task brief stated 26 non-time_slot columns for this station, but the pre-generated migration files (2026_08_31_000015_create_engine_room_details_table.php) -- explicitly designated as ground truth -- contain 27 columns (2 enum status columns: diesel_gen_1_status, diesel_gen_2_status, not counted as 1). All code (backend + mobile) was generated against the migration's actual 27-column list",
+    "UNLIKE Threshing/Pressing/Depricarping/Kernel Plant: Engine Room has NO operational-target reference table -- no seeder, no model, no Target Operasional section anywhere in this station's 6 screens, per this task's explicit scope",
+    "The Engine Room tile in production-process-activity.blade.php (screen-035) was updated from a javascript:void(0) placeholder to route('data.engine-room') -- 3 of the 2026-08-31 batch (Clarification, Boiler Room, Process Quality Control) now remain unrouted, decremented from 4",
+    "tests/Feature/ProductionProcessActivityTest.php updated: Engine Room moved from the 'still-unrouted' test into the routed-tiles test (now asserts 11 active routed tiles, not 10)",
+    "StationFactory::engineRoom() state added additively (mirrors storageTank()/effluentPlant() exactly) for this screen's and screen-117's test suites",
+    "Ran the full backend test suite (`php artisan test`) after implementation: 1884 passed (0 failed), confirming no regression to any pre-existing screen. Engine-Room-specific tests (`--filter=EngineRoom`): 90 passed (0 failed) -- 33 unit (EngineRoomRecordServiceTest), 7 integration (Feature/Api/DataBrowserEngineRoomTest), 5 component (Feature/Livewire/DataBrowserEngineRoomTest), reported under this screen; remaining 45 Engine Room tests reported under screen-107/screen-117 below"
+  ],
+  "deferred_items": [
+    {
+      "description": "The mobile 'Sinkronisasi' button (Station List, screen-006) does not push locally-entered Engine Room records to POST /api/engine-room-records -- unlike Threshing/Pressing/Depricarping/Kernel Plant/Process Water/Kernel Dispatch/CPO Dispatch/Effluent Plant/Storage Tank, which each have a syncEngineRoomRecords()-equivalent function wired into syncService.ts's syncAllRecords()",
+      "reason": "Out of this 6-screen task's explicit scope; the most recent precedent station (Storage Tank) made the same deferral for the same reason. The route itself is already dual-guarded ('auth:web,sanctum' + operator role, see routes/api.php) so this is purely a mobile syncService.ts addition, not a backend change, when picked up later."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserEngineRoomTest.php) exists following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T04:07:00Z",
+      "passed": 33,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T04:07:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T04:07:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

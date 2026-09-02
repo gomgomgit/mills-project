@@ -1,0 +1,78 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-094--data-browser-cpo-dispatch-web",
+  "name": "Data Browser CPO Dispatch (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/CpoDispatchRecordController.php",
+    "backend/app/Services/CpoDispatchRecordService.php",
+    "backend/app/Exceptions/NoActiveCpoDispatchStationException.php",
+    "backend/database/factories/CpoDispatchRecordFactory.php",
+    "backend/database/factories/CpoDispatchDetailFactory.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/CpoDispatchRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserCpoDispatchTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserCpoDispatch.php",
+    "backend/resources/views/livewire/data/data-browser-cpo-dispatch.blade.php",
+    "backend/resources/views/data/cpo-dispatch.blade.php",
+    "backend/resources/views/data/production-process-activity.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DataBrowserCpoDispatchTest.php",
+    "backend/tests/Browser/DataBrowserCpoDispatchTest.php"
+  ],
+  "implementation_notes": [
+    "Mengikuti pola screen-093 (Data Browser Kernel Dispatch) persis — CpoDispatchRecordController/Service delegasi penuh ke service layer yang sama dipakai Livewire component, reuse InvalidDateRangeException/ExportFailedException/Pagination::format() yang sudah ada di codebase, tidak diduplikasi",
+    "CpoDispatchRecord::cpoDispatchDetails() hasMany relationship sudah ada di model (dibuat Phase 1 entity-models-agent, sudah tersedia sebelum sesi ini dimulai); event_count dihitung via withCount('cpoDispatchDetails') di list maupun export",
+    "CpoDispatchRecord TIDAK punya `saving`-guard model event (lihat model docblock yang sudah ada) — divalidasi diserahkan ke Phase 4 (di service layer via validateDetails()), bukan model event. Karena itu factory default status = RecordStatus::Saved aman dipakai langsung",
+    "StationFactory gained cpoDispatch() state (type=cpo-dispatch), additive, mirrors weighbridge()/grading()/cagesTrack()/solidWasteDisposal()/processWater()/kernelDispatch() yang sudah ada",
+    "production-process-activity.blade.php: tile 'CPO Dispatch' (sebelumnya href=\"javascript:void(0)\", styled active tapi belum di-route) sekarang di-wire ke route('data.cpo-dispatch') karena screen ini kini terimplementasi — satu-satunya perubahan pada tile di file bersama ini; 6 tile stasiun lain yang masih belum di-route (Clarification/Boiler Room/Effluent Plant/Engine Room/Storage Tank/Process Quality Control) tetap tidak berubah. File-level doc comment juga diperbarui untuk mencerminkan 6 sisa tile unrouted (turun dari 7)",
+    "tests/Feature/ProductionProcessActivityTest.php diupdate untuk mencerminkan perubahan di atas: assertion 'renders the N active station tiles' diperluas menjadi 9 (menambahkan CPO Dispatch), dan test 'still-unrouted tiles' menjadi 6 masih belum di-route (menghapus CPO Dispatch dari daftar tersebut) — test lain di file tersebut tidak disentuh",
+    "Detail fields (21 kolom, entity-catalog cpo-dispatch-detail) sama jumlahnya dengan Kernel Dispatch (21 kolom) namun set field berbeda: CPO Dispatch tidak punya weighbridge_ticket_no/remarks_gate_status, sebagai gantinya punya time_in, time_out, dan dobi"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test file dibuat tapi tidak dapat dijalankan di sandbox ini (tidak ada infra Playwright/dev-server), konsisten dengan gap yang sama di screen-016/017/018/091/093.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV di sandbox ini.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 8,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

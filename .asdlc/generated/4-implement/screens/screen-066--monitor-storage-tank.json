@@ -1,0 +1,67 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-066--monitor-storage-tank",
+  "name": "Monitor Storage Tank",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/localSchema.ts",
+    "mobile/src/services/storageTankRecordRepo.ts",
+    "mobile/src/views/MonitorStorageTankView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/StationListView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/storageTankRecordRepo.spec.ts",
+    "mobile/tests/MonitorStorageTankView.spec.ts"
+  ],
+  "implementation_notes": [
+    "storage_tank_record/storage_tank_detail local SQLite tables added to localSchema.ts (CREATE_STORAGE_TANK_RECORD/CREATE_STORAGE_TANK_DETAIL, appended to CREATE_TABLE_STATEMENTS) -- mirrors effluent_plant_record/effluent_plant_detail's shape, following the hourly-grid (dynamic add-row/remove-row) pattern. This station has 17 non-time_slot columns (not 19) and only 1 enum status column (steam_heating_valve_status), stored as plain TEXT locally (no CHECK constraint in SQLite local schema)",
+    "storageTankRecordRepo.ts covers all 3 mobile Storage Tank screens (066/076/086) in one file, same convention as effluentPlantRecordRepo.ts covering screens 065/075/085; its full unit test coverage (storageTankRecordRepo.spec.ts, 30 tests) is reported under this screen since it was authored first in sequence",
+    "createDraft() inserts ONLY the header row -- storage_tank_detail rows are added one at a time by the user in Form Storage Tank via 'Tambah baris', exactly mirroring effluentPlantRecordRepo.ts's pattern",
+    "'Jumlah Baris Time-Slot Tercatat' counter is a plain COUNT(*) of storage_tank_detail rows belonging to today's records -- no filled-row filter, mirrors Effluent Plant's Monitor counter exactly",
+    "Router: route name 'monitor-storage-tank' registered in router/index.ts -- StationListView.vue (screen-006) already had this route name pre-wired in MONITOR_ROUTE_NAMES and a 'storage-tank': false placeholder in draftStatusByType; this implementation wires the real storageTankRecordRepo.getDrafts() call into StationListView.vue's Promise.all, replacing that placeholder with storageTank.length > 0, same additive pattern Effluent Plant used for this same pre-existing scaffolding",
+    "Fixed a pre-existing test-file bug (not application code) discovered during this task: mobile/tests/StationListView.spec.ts already asserted 'storage-tank': false in its draftStatusByType expectations but never mocked '@/services/storageTankRecordRepo', causing the real (unmocked) module to load and the whole loadDraftStatusByType() Promise.all assignment to silently no-op (draftStatusByType stayed {}). Added the missing getStorageTankDraftsMock hoisted mock, vi.mock() registration, and getStorageTankDraftsMock.mockResolvedValue([]) call in every beforeEach block, mirroring the existing getEffluentPlantDraftsMock pattern exactly -- all 27 tests in that shared file pass again."
+  ],
+  "deferred_items": [
+    {
+      "description": "syncService.ts's syncAllRecords() was NOT extended with a syncStorageTankRecords() function (unlike Threshing/Pressing/Depricarping/Kernel Plant/Process Water/Effluent Plant, which each have one calling POST /api/storage-tank-records via the mobile 'Sinkronisasi' button)",
+      "reason": "Out of this 6-screen task's explicit scope; the most recent precedent station (Effluent Plant) made the same deferral decision for the same reason. The web POST/PATCH routes are already dual-guarded ('auth:web,sanctum' + operator role) so wiring this up later requires no backend route change, only a syncService.ts addition."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) e2e spec was not authored for this screen in this task (mobile/tests/e2e/monitor-storage-tank.spec.ts does not exist) -- component test coverage (MonitorStorageTankView.spec.ts) is complete and passing, but there is no browser-level verification of this screen's full navigation flow in a live dev server.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T03:00:38Z",
+      "passed": 30,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T03:00:38Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,13 +1,13 @@
 {
+  "ver": 6,
   "meta": {
-    "title": "Mill Smart Log",
-    "updated_at": "2026-08-23"
+    "title": "Mills Smart Log",
+    "updated_at": "2026-09-01"
   },
-  "ver": 2,
   "id": "screen-035--production-process-activity-web",
   "name": "Production Process Activity (Web)",
   "module_id": "module-web-station-data",
-  "status": "complete",
+  "status": "partial",
   "files_generated": [
     "backend/routes/web.php",
     "backend/resources/views/data/production-process-activity.blade.php"
@@ -20,12 +20,21 @@
   "fe_test_files_generated": [],
   "implementation_notes": [
     "Pure static Blade view per tech-spec — no Livewire component/controller/service/API endpoint",
-    "15 station tiles hardcoded in the view — mirrors mobile's DEFAULT_STATIONS in localSchema.ts, not a database query",
+    "18 station tiles hardcoded in the view — mirrors backend ProductionLineService::DEFAULT_STATIONS / mobile's DEFAULT_STATIONS in localSchema.ts, not a database query",
     "Icons are small inline SVGs for the active tiles — no icon library exists yet in the backend Blade layer",
-    "2026-08-23: 4 new active tiles added (Threshing/Pressing/Depricarping/Kernel Plant), using the same SVG path data as mobile StationGrid.vue's ACTIVE_ICONS for visual parity. Tests updated: Feature/ProductionProcessActivityTest.php now asserts 7 active tiles + 8 placeholder tiles (was 3 + 12)."
+    "2026-08-23: 4 new active tiles added (Threshing/Pressing/Depricarping/Kernel Plant), using the same SVG path data as mobile StationGrid.vue's ACTIVE_ICONS for visual parity. Tests updated: 7 active + 8 placeholder.",
+    "2026-08-31: 10 more active tiles added (6 promoted: Clarification/Boiler Room/Effluent Plant/Engine Room/Process Water/Storage Tank; 4 new: Solid Waste Disposal/Kernel Dispatch/CPO Dispatch/Process Quality Control) — now 17 active + 2 placeholder (Sterilizer, Loading Ramp). No routes exist yet in routes/web.php for these 10 stations' own Data Browser screens, so their tiles render with correct active styling/icon but href=\"javascript:void(0)\" (TODO comment left in the Blade file) instead of route(). Icons: 6 promoted tiles reuse the exact SVG path already used for their PLACEHOLDER_ICONS entry in mobile StationGrid.vue (mobile hasn't promoted its own icon set for these to ACTIVE_ICONS at this point in the session); 4 new tiles got hand-picked distinct icons in the same style (trash can, box+arrow, drum+arrow, shield+check). Tests updated: Feature/ProductionProcessActivityTest.php now asserts 17 active tiles (including a check that the 10 new ones use javascript:void(0) not route()) + 2 placeholder tiles (Sterilizer, Loading Ramp).",
+    "2026-09-01: Placeholder 'Loading Ramp' tile removed entirely — turned out to be a duplicate name for the already-active Cages Track station, not a distinct station. Grid now 18 tiles: 17 active + 1 placeholder (Sterilizer). All 17 active tiles are now routed via route() (the 10 newly-added stations' own Data Browser screens were completed earlier in the same session that this correction lands in). Tests updated accordingly.",
+    "v5 (2026-09-01, promosi final): Sterilizer dipromosikan dari placeholder menjadi tile aktif, di-route ke route('data.sterilizer') — 18 tile, SEMUA aktif, 0 placeholder. Blok @foreach placeholder di production-process-activity.blade.php dihapus seluruhnya (array kosong sebelumnya berisi 1 nama). Icon Sterilizer memakai SVG path yang identik dengan eks-placeholder-nya (rect + 2 garis horizontal), konsisten dengan mobile StationGrid.vue's ACTIVE_ICONS.sterilizer. Feature/ProductionProcessActivityTest.php: skenario 'Klik Stasiun Disabled' dihapus, diganti test baru 'renders 0 placeholder tiles — no disabled station tile remains anywhere on the grid' (assertDontSee('Belum tersedia'), assertDontSeeHtml disabled-tile class). Browser/ProductionProcessActivityTest.php (Playwright, tidak dijalankan di environment ini): skenario disabled-klik diganti test 'Sterilizer is now active'. Semua 5 Feature test lulus (php artisan test).",
+    "v6 (2026-09-01, reorder + hide, permintaan user): Tile diurutkan ulang ke layout custom — Weighbridge, Pressing, Storage Tank, Grading, Clarification, Effluent Plant, Cages Track, Engine Room, CPO Dispatch, Sterilizer, Boiler Room, Kernel Dispatch, Kernel Plant, Process Water, Threshing, Depricarping, Solid Waste Disposal, Process Quality Control — mirrors urutan CASE-based ORDER BY yang sama di mobile stationRepo.ts. Kemudian 8 tile (Engine Room, Storage Tank, Effluent Plant, CPO Dispatch, Kernel Dispatch, Process Water, Solid Waste Disposal, Process Quality Control) dibungkus komentar Blade {{-- --}} (bukan dihapus) — hanya 10 dari 18 tile aktif yang render: Weighbridge, Pressing, Grading, Clarification, Cages Track, Sterilizer, Boiler Room, Kernel Plant, Threshing, Depricarping. Route ke-8 stasiun tersembunyi tetap terdaftar dan berfungsi penuh jika diakses langsung (mis. lewat Data Browser screen masing-masing) — hanya tile grid ini yang disembunyikan, mengikuti pola 'temporarily hidden' yang sama seperti Threshing/Pressing/Depricarping/Kernel Plant di 2026-08-23. Untuk re-enable, hapus pembungkus komentar Blade-nya. Feature/ProductionProcessActivityTest.php: test 'berhasil' diperbarui hanya assert 10 tile visible; test baru 'does not render the 8 temporarily-hidden station tiles' ditambahkan. Backend full suite (2226 test) lulus."
   ],
   "deferred_items": [],
-  "known_issues": [],
+  "known_issues": [
+    {
+      "description": "8 tipe stasiun (Engine Room, Storage Tank, Effluent Plant, CPO Dispatch, Kernel Dispatch, Process Water, Solid Waste Disposal, Process Quality Control) di-hide sementara dari grid ini per keputusan produk 2026-09-01 — bukan bug, disengaja; tile-nya dibungkus komentar Blade di production-process-activity.blade.php",
+      "severity": "minor"
+    }
+  ],
   "test_results": {
     "unit": {
       "run_at": "",
@@ -34,8 +43,8 @@
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-23T00:00:00Z",
-      "passed": 5,
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 6,
       "failed": 0
     },
     "component": {

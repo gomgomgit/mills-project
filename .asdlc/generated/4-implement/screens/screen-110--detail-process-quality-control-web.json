@@ -1,0 +1,62 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-110--detail-process-quality-control-web",
+  "name": "Detail Process Quality Control (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/DetailProcessQualityControlTest.php",
+    "backend/tests/Browser/DetailProcessQualityControlTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DetailProcessQualityControl.php",
+    "backend/resources/views/data/process-quality-control-detail.blade.php",
+    "backend/resources/views/livewire/data/detail-process-quality-control.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DetailProcessQualityControlTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses ProcessQualityControlRecordService::getDetail() (BE service shared with screen-100, see that screen's implement artifact for the service/controller/route/factory/model files)",
+    "Field grouping/order in the Blade view mirrors mobile/src/views/DataPreviewProcessQualityControlView.vue's detail mode exactly (Process QC ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Process Quality Control Detail with all 16 non-time_slot columns), per explicit product direction that web station screens mirror mobile flow/UX",
+    "Route /data/process-quality-control/{id} registered after /data/process-quality-control/create (screen-120) so the literal 'create' segment is not swallowed by {id}",
+    "UNLIKE Detail Threshing: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
+    "404 handled automatically by ModelNotFoundException -> ApiExceptionHandler (findOrFail) for the API controller, and via the notFound flag in DetailProcessQualityControl Livewire component, same as every other detail screen in this codebase",
+    "Detail grid table has min-width: 2200px (17 columns incl. Time-Slot) due to the 16 non-time_slot columns -- the widest detail table in the project"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DetailProcessQualityControlTest.php) exists following this codebase's established convention but could not be executed in this sandboxed environment -- verified only by static review, consistent with the codebase's Browser/* convention.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T06:00:00Z",
+      "passed": 8,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T06:00:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

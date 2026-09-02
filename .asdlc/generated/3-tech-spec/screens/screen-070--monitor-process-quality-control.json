@@ -1,0 +1,235 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-070--monitor-process-quality-control",
+  "name": "Monitor Process Quality Control",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/process-quality-control/monitor",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-115--monitor-process-quality-control",
+      "usecase_name": "Monitor Process Quality Control",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load counter hari ini: COUNT local process_quality_control_record milik user WHERE date(date) = hari ini (status apapun), dan COUNT process_quality_control_detail rows milik record-record tersebut (plain COUNT(*), tidak difilter 'punya minimal satu kolom bacaan terisi')",
+        "2. Load list of local process_quality_control_record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC → each item labeled uniformly 'Pause'",
+        "3. Render 2 card counter sebaris (Jumlah Process Quality Control Record, Jumlah Baris Time-Slot Tercatat) di atas list draft/pause",
+        "4. Render breadcrumb (Home > Production Process Activity > Process Quality Control, tappable) dan header dengan 'Mill Smart Log' + hamburger",
+        "5. On 'New Data' → INSERT new local process_quality_control_record dengan status=draft_ongoing, created_by=current user, date=waktu saat ini SAJA — TIDAK sekaligus INSERT process_quality_control_detail rows kosong; grid Process Quality Control Detail dimulai kosong, baris ditambahkan satu per satu oleh user di Form Process Quality Control via 'Tambah baris'; navigasi ke Form Process Quality Control dengan id draft baru",
+        "6. On tap item list → navigasi ke Form Process Quality Control dengan id draft tersebut (tanpa transisi status)",
+        "7. On 'Load Data' → navigasi ke Data Preview Process Quality Control mode list (tanpa id param)",
+        "8. On tap breadcrumb segment → navigasi ke route terkait",
+        "9. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "process-quality-control-record",
+          "operation": "SELECT",
+          "description": "SELECT record-record milik user WHERE date(date) = hari ini, status apapun, untuk hitung COUNT"
+        },
+        {
+          "entity_id": "process-quality-control-detail",
+          "operation": "SELECT",
+          "description": "SELECT COUNT seluruh baris milik record-record hari ini tersebut (plain row count, tidak difilter 'terisi')"
+        },
+        {
+          "entity_id": "process-quality-control-record",
+          "operation": "SELECT",
+          "description": "SELECT list local record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC"
+        },
+        {
+          "entity_id": "process-quality-control-record",
+          "operation": "INSERT",
+          "description": "INSERT new local draft record on New Data, status=draft_ongoing, date=now — HANYA header, tanpa process_quality_control_detail rows"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Belum ada draft/pause sama sekali",
+          "handling": "List kosong/empty state ditampilkan, tombol New Data tetap aktif"
+        },
+        {
+          "condition": "Banyak draft/pause menumpuk",
+          "handling": "List perlu scroll agar semua tetap dapat diakses"
+        },
+        {
+          "condition": "Belum ada data (status apapun) dengan date = hari ini",
+          "handling": "Kedua card counter menampilkan 0"
+        },
+        {
+          "condition": "Draft baru dibuat tapi belum ada satu baris pun ditambahkan",
+          "handling": "Jumlah Baris Time-Slot Tercatat tetap 0 untuk record tersebut sampai user menekan 'Tambah baris' di Form Process Quality Control"
+        }
+      ],
+      "business_rules_applied": [
+        "User bisa punya beberapa draft/pause berjalan bersamaan, semua tampil di list",
+        "Ongoing dan paused digabung sebagai satu istilah Pause secara tampilan",
+        "New Data hanya membuat header — process_quality_control_detail rows TIDAK dibuat sekaligus, ditambahkan satu per satu oleh user di Form Process Quality Control",
+        "Counter hari ini dihitung dari seluruh record (status apapun) dengan tanggal Date = hari ini; Jumlah Baris Time-Slot Tercatat = plain COUNT seluruh baris process_quality_control_detail milik record-record tersebut"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads screen data successfully with populated list when local records exist",
+          "given": "processQualityControlRecordRepo.getDrafts() returns non-empty draft/pause records",
+          "expect": "return screen state { list: [...], isEmpty: false }"
+        },
+        {
+          "description": "returns empty-state list when no draft/pause records exist for current user",
+          "given": "processQualityControlRecordRepo.getDrafts(userId) returns []",
+          "expect": "return screen state { list: [], isEmpty: true }, New Data action remains enabled"
+        },
+        {
+          "description": "returns draft/pause list with uniform 'Pause' label ordered by updated_at DESC regardless of underlying status",
+          "given": "processQualityControlRecordRepo.getDrafts() returns mixed records with status draft_ongoing and draft_paused at different updated_at timestamps",
+          "expect": "return list mapped with label='Pause' for every item, sorted by updated_at descending"
+        },
+        {
+          "description": "creates a new draft record with ZERO process_quality_control_detail rows and navigates to Form Process Quality Control when New Data is pressed",
+          "given": "processQualityControlRecordRepo.createDraft() succeeds and returns a new record id with no process_quality_control_detail rows inserted",
+          "expect": "call navigate(FormProcessQualityControl, { id: newRecord.id }) and processQualityControlRecordRepo.createDraft() called with { status: 'draft_ongoing', created_by: currentUser, date: <now> }, resulting in zero detail rows"
+        },
+        {
+          "description": "navigates to Form Process Quality Control with selected draft id and does not change its status when a list item is tapped",
+          "given": "an existing draft/pause record with status=draft_paused is present in the loaded list",
+          "expect": "call navigate(FormProcessQualityControl, { id: tappedRecord.id }); processQualityControlRecordRepo.update() is NOT called"
+        },
+        {
+          "description": "navigates to Data Preview Process Quality Control in list mode with no id param when Load Data is pressed",
+          "given": "user triggers the Load Data action",
+          "expect": "call navigate(DataPreviewProcessQualityControl, { mode: 'list', id: null })"
+        },
+        {
+          "description": "computes today's counter (count records, plain count of detail rows added) from records with date = today, any status",
+          "given": "processQualityControlRecordRepo returns 2 records dated today, one with 2 process_quality_control_detail rows and one with 1, mixed statuses (draft_ongoing, saved)",
+          "expect": "counter = { countProcessQualityControlRecord: 2, detailRowCount: 3 }"
+        },
+        {
+          "description": "excludes records with date not equal to today from the counter",
+          "given": "processQualityControlRecordRepo returns records dated yesterday and today",
+          "expect": "counter only reflects today's records, yesterday's excluded"
+        },
+        {
+          "description": "returns zero counter values when no records match today's date",
+          "given": "processQualityControlRecordRepo returns no records dated today",
+          "expect": "counter = { countProcessQualityControlRecord: 0, detailRowCount: 0 }"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Asal navigasi ke Monitor Process Quality Control, dan tujuan breadcrumb/back"
+    },
+    {
+      "screen_id": "screen-080--form-process-quality-control",
+      "reason": "New Data / tap list item membuka Form Process Quality Control"
+    },
+    {
+      "screen_id": "screen-090--data-preview-process-quality-control",
+      "reason": "Load Data membuka Data Preview Process Quality Control mode list"
+    }
+  ],
+  "implementation_notes": [
+    "Semua operasi dilakukan lokal di SQLite, tidak ada panggilan API",
+    "24 time slot kanonis (canonicalTimeSlots(), dihitung sebagai deret jam mulai 7: for i in 0..23 -> hour = (7 + i) % 24, format 'HH:00') dipakai Form Process Quality Control untuk urutan opsi dropdown Time-Slot, tidak dipakai untuk pre-generate baris saat New Data",
+    "'Jumlah Baris Time-Slot Tercatat' adalah plain COUNT(*) process_quality_control_detail rows milik record-record hari ini",
+    "Breadcrumb & hamburger mengikuti pola yang sama dengan Monitor Clarification/Boiler Room/Engine Room/Storage Tank/Effluent Plant/Process Water/Threshing/Pressing/Depricarping/Kernel Plant",
+    "Router: route name 'monitor-process-quality-control' sudah wired di StationListView.vue (MONITOR_ROUTE_NAMES); StationListView.vue juga akan memanggil processQualityControlRecordRepo.getDrafts() langsung ke dalam Promise.all draftStatusByType, menggantikan placeholder 'process-quality-control': false",
+    "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak seperti Threshing/Pressing/Depricarping/Kernel Plant. Ini adalah stasiun dengan jumlah kolom bacaan terbanyak di seluruh proyek (16 kolom non-time_slot per baris: Shift, 12 kolom numerik across Fruit Press/Purifier & Clarification Balance/Vacuum Drying Station/Decanter-Centrifuge/Final Storage, QC Inspector ID, QC Engineering Corrective Actions, Findings), namun tanpa kolom enum/status apapun."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Monitor Process Quality Control — New Data",
+      "usecase_id": "usecase-115--monitor-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorProcessQualityControlView",
+        "action": "render screen with draft/pause list, tap the 'New Data' button",
+        "assert": "createNewDraft handler invoked (zero detail rows created); router push to Form Process Quality Control route called with the newly created draft id"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/monitor",
+        "action": "login, navigate to Process Quality Control from Station List, on Monitor Process Quality Control tap 'New Data' button",
+        "assert": "browser navigates to Form Process Quality Control URL for the newly created draft record, with the Process Quality Control Detail grid starting empty"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Process Quality Control — Lanjutkan Draft/Pause",
+      "usecase_id": "usecase-115--monitor-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorProcessQualityControlView",
+        "action": "render screen with a draft/pause list containing at least one item, tap the first list item",
+        "assert": "router push to Form Process Quality Control route called with the tapped item's draft id; no status-update handler invoked"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/monitor",
+        "action": "with an existing draft/pause present in the list, tap the draft/pause list item",
+        "assert": "browser navigates to Form Process Quality Control URL pre-filled with the selected draft's data"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Process Quality Control — Load Data",
+      "usecase_id": "usecase-115--monitor-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorProcessQualityControlView",
+        "action": "tap the 'Load Data' button",
+        "assert": "router push to Data Preview Process Quality Control route called in list mode with no id param"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/monitor",
+        "action": "tap the 'Load Data' button on Monitor Process Quality Control screen",
+        "assert": "browser navigates to Data Preview Process Quality Control screen, showing all records (saved and draft) with date and search filters visible"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Process Quality Control — Belum Ada Draft",
+      "usecase_id": "usecase-115--monitor-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorProcessQualityControlView",
+        "action": "render screen when the draft/pause list is empty",
+        "assert": "empty-state message shown in list area; 'New Data' button remains enabled/interactive"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/monitor",
+        "action": "open Monitor Process Quality Control screen with no existing draft/pause records",
+        "assert": "list area shows empty state; 'New Data' button is visible and enabled"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Process Quality Control — Belum Ada Data Hari Ini",
+      "usecase_id": "usecase-115--monitor-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorProcessQualityControlView",
+        "action": "render screen with today's counter data all zero",
+        "assert": "2 counter cards render 0"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/monitor",
+        "action": "ensure no process_quality_control_record rows dated today exist for the logged-in user, navigate to Monitor Process Quality Control",
+        "assert": "the 2 counter cards show 0"
+      }
+    }
+  ]
+}

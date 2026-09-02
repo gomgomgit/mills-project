@@ -28,7 +28,7 @@ use Illuminate\Validation\ValidationException;
  * master-data service in this codebase (BusinessUnitService/
  * MachineryGroupService/StationService).
  *
- * OWNS the 15-canonical-station auto-provisioning behavior that used to
+ * OWNS the 18-canonical-station auto-provisioning behavior that used to
  * live on BusinessUnitService::create() (moved here 2026-08-20, since
  * each Production Line now gets its own full set of stations, not one
  * shared set per Business Unit — see DEFAULT_STATIONS below).
@@ -39,17 +39,22 @@ use Illuminate\Validation\ValidationException;
 class ProductionLineService
 {
     /**
-     * The 15 canonical stations every Production Line is auto-provisioned
-     * with on create() — 7 MVP-functional (weighbridge/grading/
-     * cages-track/threshing/pressing/depricarping/kernel-plant, `is_active`
-     * true) + 8 `other`-typed placeholders for future station schemas
-     * (`is_active` false). Identical list to the one formerly on
-     * BusinessUnitService::DEFAULT_STATIONS (moved here verbatim, not
-     * duplicated — BusinessUnitService no longer has its own copy) and to
-     * mobile's `DEFAULT_STATIONS` (mobile/src/services/localSchema.ts).
-     * `code` is intentionally left null for every row — nullable+unique at
-     * the DB layer, multiple null `code`s across many production lines
-     * never collide.
+     * The 18 canonical stations every Production Line is auto-provisioned
+     * with on create() — ALL 18 are now MVP-functional and active
+     * (weighbridge/grading/cages-track/sterilizer/threshing/pressing/
+     * clarification/kernel-plant/boiler-room/effluent-plant/depricarping/
+     * engine-room/process-water/storage-tank/solid-waste-disposal/
+     * kernel-dispatch/cpo-dispatch/process-quality-control, `is_active`
+     * true). 0 placeholders remain as of 2026-09-01 (Sterilizer was the
+     * last one promoted — see this constant's own 2026-09-01 doc comment
+     * below).
+     * Identical list to the one formerly on BusinessUnitService::
+     * DEFAULT_STATIONS (moved here verbatim, not duplicated —
+     * BusinessUnitService no longer has its own copy) and to mobile's
+     * `DEFAULT_STATIONS` (mobile/src/services/localSchema.ts). `code` is
+     * intentionally left null for every row — nullable+unique at the DB
+     * layer, multiple null `code`s across many production lines never
+     * collide.
      *
      * 2026-08-23 — 4 of the former 12 `other` placeholders promoted to
      * active MVP stations: 'Thresher' → 'Threshing' (type threshing),
@@ -61,23 +66,60 @@ class ProductionLineService
      * by migration 2026_08_23_000014_activate_4_new_stations_on_existing_production_lines.php
      * rather than left stale — this constant only governs NEW Production
      * Lines going forward.
+     *
+     * 2026-08-31 — 6 of the remaining 8 `other` placeholders promoted to
+     * active stations: 'Clarification' stays same name (type
+     * clarification), 'Boiler' → 'Boiler Room' (type boiler-room),
+     * 'Effluent Treatment' → 'Effluent Plant' (type effluent-plant),
+     * 'Engine Room' stays same name (type engine-room), 'Water Treatment'
+     * → 'Process Water' (type process-water), 'Bulking Storage' →
+     * 'Storage Tank' (type storage-tank) — leaving only 'Sterilizer' and
+     * 'Loading Ramp' as `other` placeholders. 4 brand-new active stations
+     * also appended: 'Solid Waste Disposal' (type solid-waste-disposal),
+     * 'Kernel Dispatch' (type kernel-dispatch), 'CPO Dispatch' (type
+     * cpo-dispatch), 'Process Quality Control' (type
+     * process-quality-control) — all 4 types already widened onto the
+     * `stations.type` enum by 2026_08_31_000001_widen_station_type_enum_add_10_new_types.php.
+     * Existing Production Lines created before this change are backfilled
+     * by migration 2026_08_31_000022_activate_6_and_add_4_new_stations_on_existing_production_lines.php
+     * rather than left stale — this constant only governs NEW Production
+     * Lines going forward.
+     *
+     * 2026-09-01 — 'Loading Ramp' removed entirely (not just deactivated):
+     * it turned out to be a duplicate name for the already-active Cages
+     * Track station, not a distinct station. Only 'Sterilizer' remained as
+     * an `other` placeholder at that point. Existing Production Lines were
+     * backfilled by migration
+     * 2026_09_01_000023_remove_loading_ramp_placeholder_station.php, which
+     * deletes the 'Loading Ramp' row (type='other') from every Production
+     * Line that already has one.
+     *
+     * 2026-09-01 (final promotion) — 'Sterilizer' promoted from `other`
+     * placeholder to a fully active station (type `sterilizer`). This was
+     * the LAST remaining placeholder — all 18 canonical stations are now
+     * active, 0 placeholders remain. Existing Production Lines are
+     * backfilled by migration
+     * 2026_09_01_000027_activate_sterilizer_on_existing_production_lines.php.
      */
     protected const DEFAULT_STATIONS = [
         ['name' => 'Weighbridge', 'type' => 'weighbridge', 'is_active' => true],
         ['name' => 'Grading', 'type' => 'grading', 'is_active' => true],
         ['name' => 'Cages Track', 'type' => 'cages-track', 'is_active' => true],
-        ['name' => 'Sterilizer', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Sterilizer', 'type' => 'sterilizer', 'is_active' => true],
         ['name' => 'Threshing', 'type' => 'threshing', 'is_active' => true],
         ['name' => 'Pressing', 'type' => 'pressing', 'is_active' => true],
-        ['name' => 'Clarification', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Clarification', 'type' => 'clarification', 'is_active' => true],
         ['name' => 'Kernel Plant', 'type' => 'kernel-plant', 'is_active' => true],
-        ['name' => 'Boiler', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Effluent Treatment', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Loading Ramp', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Boiler Room', 'type' => 'boiler-room', 'is_active' => true],
+        ['name' => 'Effluent Plant', 'type' => 'effluent-plant', 'is_active' => true],
         ['name' => 'Depricarping', 'type' => 'depricarping', 'is_active' => true],
-        ['name' => 'Engine Room', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Water Treatment', 'type' => 'other', 'is_active' => false],
-        ['name' => 'Bulking Storage', 'type' => 'other', 'is_active' => false],
+        ['name' => 'Engine Room', 'type' => 'engine-room', 'is_active' => true],
+        ['name' => 'Process Water', 'type' => 'process-water', 'is_active' => true],
+        ['name' => 'Storage Tank', 'type' => 'storage-tank', 'is_active' => true],
+        ['name' => 'Solid Waste Disposal', 'type' => 'solid-waste-disposal', 'is_active' => true],
+        ['name' => 'Kernel Dispatch', 'type' => 'kernel-dispatch', 'is_active' => true],
+        ['name' => 'CPO Dispatch', 'type' => 'cpo-dispatch', 'is_active' => true],
+        ['name' => 'Process Quality Control', 'type' => 'process-quality-control', 'is_active' => true],
     ];
 
     /**
@@ -204,14 +246,14 @@ class ProductionLineService
     /**
      * create() — business_logic step "create": validate business_unit_id
      * exists → validate name required → validate code unique-if-filled →
-     * 422 if any invalid → insert, then auto-provision the 15 canonical
+     * 422 if any invalid → insert, then auto-provision the 18 canonical
      * DEFAULT_STATIONS rows for the new Production Line (both
      * `production_line_id` AND the denormalized `business_unit_id` are set
      * on every station row). `created_by` is always set from the
      * authenticated admin — never accepted from $data.
      *
-     * The Production Line insert and the 15 Station inserts run inside one
-     * DB::transaction() — either all 16 rows are written, or none are,
+     * The Production Line insert and the 18 Station inserts run inside one
+     * DB::transaction() — either all 19 rows are written, or none are,
      * mirrors the exact transactional guarantee BusinessUnitService::
      * create() used to provide before this behavior moved here.
      *

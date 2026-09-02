@@ -1,0 +1,60 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-102--detail-process-water-web",
+  "name": "Detail Process Water (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/DetailProcessWaterTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DetailProcessWater.php",
+    "backend/resources/views/data/process-water-detail.blade.php",
+    "backend/resources/views/livewire/data/detail-process-water.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DetailProcessWaterTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses ProcessWaterRecordService::getDetail() (BE service shared with screen-092, see that screen's implement artifact for the service/controller/route/factory files)",
+    "Field grouping/order in the Blade view mirrors mobile/src/views/DataPreviewProcessWaterView.vue's detail mode exactly (Process Water ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Process Water Detail with all reading columns), per explicit product direction that web station screens mirror mobile flow/UX",
+    "Route /data/process-water/{id} registered after /data/process-water/create (screen-112) so the literal 'create' segment is not swallowed by {id}",
+    "UNLIKE Detail Threshing: this screen has NO operational-target reference table section -- no ThreshingOperationalTarget-equivalent query, no reference table anywhere on this page",
+    "404 handled automatically by ModelNotFoundException -> ApiExceptionHandler (findOrFail), same as every other detail screen in this codebase"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DetailProcessWaterTest.php) was authored but could not be executed in this sandboxed environment -- verified only by static review.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-31T23:30:00Z",
+      "passed": 8,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-31T23:30:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

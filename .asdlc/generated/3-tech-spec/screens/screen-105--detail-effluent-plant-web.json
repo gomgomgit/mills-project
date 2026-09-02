@@ -1,0 +1,326 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-105--detail-effluent-plant-web",
+  "name": "Detail Effluent Plant (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/effluent-plant/{id}",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-089--detail-effluent-plant-web",
+      "usecase_name": "Lihat Detail Effluent Plant (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/effluent-plant-records/{id}",
+          "description": "Ambil 1 record Effluent Plant lengkap beserta seluruh baris Effluent Plant Detail-nya (berapapun jumlahnya), station_name, dan nama user (Inputted By/Checked By/Acknowledged By)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "required": true,
+                "description": "ID record Effluent Plant"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "effluent_plant_id": "string",
+              "date": "date",
+              "note": "string|null",
+              "created_by_name": "string",
+              "checked_by_name": "string|null",
+              "acknowledged_by_name": "string|null",
+              "status": "string",
+              "created_at": "timestamp",
+              "updated_at": "timestamp",
+              "details": [
+                {
+                  "id": "uuid",
+                  "time_slot": "string",
+                  "anaerobic_pond_1_ph": "float|null",
+                  "anaerobic_pond_1_temp_c": "float|null",
+                  "anaerobic_pond_2_ph": "float|null",
+                  "anaerobic_pond_2_temp_c": "float|null",
+                  "cooling_pond_ph": "float|null",
+                  "cooling_pond_temp_c": "float|null",
+                  "biogas_flare_status": "string|null",
+                  "biogas_flow_rate_m3h": "float|null",
+                  "raw_pome_feed_rate_m3h": "float|null",
+                  "effluent_discharge_flow_rate_m3h": "float|null",
+                  "final_discharge_ph": "float|null",
+                  "final_discharge_bod_mgl_lab": "float|null",
+                  "final_discharge_cod_mgl_lab": "float|null",
+                  "final_discharge_tss_mgl_lab": "float|null",
+                  "dosing_pump_1_status": "string|null",
+                  "chemical_consumed_kgl": "float|null",
+                  "sludge_dewatering_status": "string|null",
+                  "remarks_maintenance_actions": "string|null",
+                  "findings": "string|null"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate id ada di effluent-plant-record -> 404 RECORD_NOT_FOUND jika tidak ditemukan",
+        "2. SELECT effluent-plant-record by id, JOIN station untuk station_name, JOIN user untuk created_by_name/checked_by_name/acknowledged_by_name (null jika belum diisi, kecuali created_by_name yang selalu ada)",
+        "3. SELECT seluruh effluent-plant-detail by effluent_plant_record_id (berapapun jumlahnya, termasuk nol), ordered by urutan kanonis time_slot, langsung dari kolom tersimpan tanpa hitung ulang",
+        "4. Return full record + details array",
+        "5. FE render field per section (Identitas Effluent Plant, Effluent Plant Detail grid dengan seluruh baris yang ada, Verifikasi) read-only -- TIDAK ADA section Target Operasional untuk stasiun ini",
+        "6. On klik Back: navigasi client-side ke /data/effluent-plant, tanpa panggilan API tambahan",
+        "7. On klik Edit: navigasi client-side ke /data/effluent-plant/{id}/edit"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "effluent-plant-record",
+          "operation": "SELECT",
+          "description": "SELECT 1 record by id"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve station_name"
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve created_by_name/checked_by_name/acknowledged_by_name"
+        },
+        {
+          "entity_id": "effluent-plant-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris (berapapun jumlahnya) by effluent_plant_record_id, ordered by urutan kanonis time_slot"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "id tidak ditemukan",
+          "handling": "Return 404 RECORD_NOT_FOUND, FE tampilkan pesan error + tombol Back"
+        },
+        {
+          "condition": "checked_by/acknowledged_by belum diisi",
+          "handling": "checked_by_name/acknowledged_by_name null, FE tampilkan '-'"
+        },
+        {
+          "condition": "Record memiliki nol baris Effluent Plant Detail",
+          "handling": "details array kosong dikembalikan, FE tampilkan grid kosong/empty-state, bukan error"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh field read-only",
+        "Checked By dan Acknowledged By keduanya ditampilkan",
+        "Grid Effluent Plant Detail ditampilkan langsung dari data tersimpan, menampilkan persis baris yang ada",
+        "Tidak ada tabel referensi target operasional pada stasiun ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 RECORD_NOT_FOUND when id does not exist",
+          "given": "id tidak ada di effluent-plant-record",
+          "expect": "return 404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "returns full record with resolved station_name when id exists",
+          "given": "valid id, station terkait ada",
+          "expect": "return 200 dengan station_name terisi"
+        },
+        {
+          "description": "returns details array ordered by canonical time-slot regardless of how many rows exist",
+          "given": "record dengan 3 effluent-plant-detail rows, time_slot tidak berurutan saat disimpan",
+          "expect": "response.details terurut naik berdasarkan urutan kanonis time_slot (bukan alfabetis), berisi persis 3 entri"
+        },
+        {
+          "description": "returns an empty details array when the record has zero effluent-plant-detail rows",
+          "given": "record tanpa effluent-plant-detail rows sama sekali",
+          "expect": "response.details = []"
+        },
+        {
+          "description": "returns null checked_by_name and acknowledged_by_name when not set",
+          "given": "record dengan checked_by dan acknowledged_by null",
+          "expect": "response.checked_by_name dan response.acknowledged_by_name adalah null"
+        },
+        {
+          "description": "resolves created_by_name, checked_by_name, acknowledged_by_name to user names when present",
+          "given": "record dengan created_by/checked_by/acknowledged_by terisi uuid user valid",
+          "expect": "response berisi nama user yang sesuai untuk ketiganya, bukan uuid"
+        },
+        {
+          "description": "returns the 3 enum status columns as their raw string value (or null) on each detail row",
+          "given": "a detail row has biogas_flare_status='fault', dosing_pump_1_status=null, sludge_dewatering_status='run'",
+          "expect": "response.details[n].biogas_flare_status='fault', dosing_pump_1_status=null, sludge_dewatering_status='run'"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-095--data-browser-effluent-plant-web",
+      "reason": "Entry point - klik baris membuka detail ini"
+    },
+    {
+      "screen_id": "screen-115--form-effluent-plant-web",
+      "reason": "Koreksi data / tombol Edit membuka form ini"
+    }
+  ],
+  "implementation_notes": [
+    "Response resolve created_by/checked_by/acknowledged_by ke nama user via join, mengikuti pola screen-102--detail-process-water-web persis",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-102",
+    "Field grouping & urutan field di blade view MENIRU PERSIS mobile/src/views/DataPreviewEffluentPlantView.vue mode detail (Effluent Plant ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Effluent Plant Detail dengan seluruh baris yang ada) per arahan eksplisit: web station screens mengikuti flow/UX mobile -- TIDAK ADA section Target Operasional pada Blade view ini",
+    "Route /effluent-plant-records/{id} didaftarkan SETELAH /effluent-plant-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}, sama pola dengan screen-102"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Detail Effluent Plant - berhasil",
+      "usecase_id": "usecase-089--detail-effluent-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-records/{id}"
+          },
+          "request_example": {
+            "id": "{{effluent_plant_record_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailEffluentPlant",
+        "action": "render dengan data record lengkap dari API termasuk seluruh baris details yang ada",
+        "assert": "seluruh field header tampil read-only per section, grid Effluent Plant Detail menampilkan persis baris yang ada pada record"
+      },
+      "browser_test": {
+        "route": "/data/effluent-plant/{id}",
+        "action": "klik baris di Data Browser Effluent Plant, tunggu halaman detail termuat",
+        "assert": "halaman detail menampilkan seluruh field record beserta grid Effluent Plant Detail (baris sesuai yang tersimpan)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Effluent Plant - Record Tidak Ditemukan",
+      "usecase_id": "usecase-089--detail-effluent-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000"
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DetailEffluentPlant",
+        "action": "render dengan API mengembalikan 404",
+        "assert": "pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back"
+      },
+      "browser_test": {
+        "route": "/data/effluent-plant/00000000-0000-0000-0000-000000000000",
+        "action": "navigasi langsung ke id yang tidak valid",
+        "assert": "halaman menampilkan pesan error dan tombol Back yang berfungsi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Effluent Plant - Checked By/Acknowledged By Belum Diisi",
+      "usecase_id": "usecase-089--detail-effluent-plant-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/effluent-plant-records/{id}"
+          },
+          "request_example": {
+            "id": "{{effluent_plant_record_uuid_no_verification}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailEffluentPlant",
+        "action": "render dengan checked_by_name dan acknowledged_by_name null",
+        "assert": "field Checked By dan Acknowledged By menampilkan '-'"
+      },
+      "browser_test": {
+        "route": "/data/effluent-plant/{id}",
+        "action": "buka detail record yang belum diperiksa/dikonfirmasi",
+        "assert": "field Checked By dan Acknowledged By menampilkan '-'"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Effluent Plant - Edit",
+      "usecase_id": "usecase-089--detail-effluent-plant-web",
+      "api_test": [],
+      "component_test": {
+        "component": "DetailEffluentPlant",
+        "action": "klik tombol Edit",
+        "assert": "navigasi client-side ke /data/effluent-plant/{id}/edit dipicu"
+      },
+      "browser_test": {
+        "route": "/data/effluent-plant/{id}",
+        "action": "klik tombol Edit pada halaman detail",
+        "assert": "browser menampilkan Form Effluent Plant (Web) mode ubah untuk record tersebut"
+      }
+    }
+  ]
+}

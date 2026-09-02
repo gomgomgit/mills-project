@@ -1,6 +1,29 @@
 import { query } from '@/services/localDb'
 
 /**
+ * Station types temporarily hidden from the Station List grid (product
+ * decision, 2026-09-01) — the underlying stations remain fully active
+ * (`is_active = true`) and fully functional (Monitor/Form/Data Preview,
+ * sync, existing drafts, etc. all keep working); they are simply not
+ * offered as a selectable tile on this screen. Mirrors the same
+ * "temporarily hidden" pattern used earlier this project for
+ * Threshing/Pressing/Depricarping/Kernel Plant (later re-enabled) —
+ * remove an entry from this list to re-enable that station's tile.
+ */
+const HIDDEN_STATION_TYPES = [
+  'engine-room',
+  'storage-tank',
+  'effluent-plant',
+  'cpo-dispatch',
+  'kernel-dispatch',
+  'process-water',
+  'solid-waste-disposal',
+  'process-quality-control',
+] as const
+
+const HIDDEN_STATION_TYPES_SQL = HIDDEN_STATION_TYPES.map((t) => `'${t}'`).join(', ')
+
+/**
  * stationRepo — screen-006--station-list / usecase-006--station-list
  * "Pilih Stasiun" business_logic step 1.
  *
@@ -8,17 +31,37 @@ import { query } from '@/services/localDb'
  * device with the same shape as the server `station` entity (per
  * entity_catalog), pre-seeded by an earlier sync flow (a different
  * screen's responsibility, not this one). This repo is read-only: it never
- * writes to `station`, and it does not synthesize the "15 slots (7 active +
- * 8 placeholder)" shape in code — that shape is expected to already exist
- * as 15 rows in the local table (one per station master-data record synced
- * from the server, including the currently-not-implemented / not-yet-active
- * ones with `is_active = 0`). See localDb.ts's header comment, which lists
+ * writes to `station`, and it does not synthesize the "18 slots, all 18
+ * active, 0 placeholder" shape in code — that shape is expected to already
+ * exist as 18 rows in the local table (one per station master-data record
+ * synced from the server). See localDb.ts's header comment, which lists
  * `station` alongside the write-capable local tables as an existing local
  * table this screen assumes rather than creates.
  *
  * 2026-08-23 — 4 of the former 12 placeholder slots (Threshing, Pressing,
  * Depricarping, Kernel Plant) were promoted to active MVP stations; the
  * remaining 8 stay `type = 'other'` placeholders.
+ *
+ * 2026-08-31 — 10 more placeholder slots promoted to active stations
+ * (Solid Waste Disposal, Process Water, Kernel Dispatch, CPO Dispatch,
+ * Effluent Plant, Storage Tank, Engine Room, Boiler Room, Clarification,
+ * Process Quality Control), bringing the total to 17 active MVP stations.
+ * At that point only Sterilizer remained a `type = 'other'` placeholder —
+ * the other former placeholder, 'Loading Ramp', was removed entirely
+ * (2026-09-01): it turned out to be a duplicate name for the already-active
+ * Cages Track station, not a distinct station.
+ *
+ * 2026-09-01 (final promotion) — Sterilizer promoted from `type = 'other'`
+ * placeholder to a fully active station (`type = 'sterilizer'`). This was
+ * the LAST remaining placeholder — 18 active MVP stations total, 0
+ * placeholders remain anywhere in this project.
+ *
+ * Their own record repos / Form / Monitor / Data-Preview screens are a
+ * separate, later piece of work (screen-by-screen) — this addition is
+ * StationListView.vue/StationGrid.vue's station-list-level wiring only
+ * (type recognition, icon, Monitor route name mapping); see
+ * StationListView.vue's `loadDraftStatusByType()` doc comment for the
+ * always-`hasDraft: false` stopgap until each station's repo exists.
  */
 
 export type StationType =
@@ -29,6 +72,17 @@ export type StationType =
   | 'pressing'
   | 'depricarping'
   | 'kernel-plant'
+  | 'solid-waste-disposal'
+  | 'process-water'
+  | 'kernel-dispatch'
+  | 'cpo-dispatch'
+  | 'effluent-plant'
+  | 'storage-tank'
+  | 'engine-room'
+  | 'boiler-room'
+  | 'clarification'
+  | 'process-quality-control'
+  | 'sterilizer'
   | 'other'
 
 /**
@@ -77,22 +131,30 @@ function toStationSlot(row: StationRow): StationSlot {
 
 /**
  * Loads all station grid slots for the given business unit — the full set
- * of 15 synced rows (3 active real station types + 12 inactive
- * placeholder/not-yet-implemented entries), per business_logic step 1.
+ * of 18 synced rows, ALL 18 active real station types, 0 placeholders (as
+ * of 2026-09-01 — Sterilizer was the last one promoted), per business_logic
+ * step 1. 8 of the 18 (see `HIDDEN_STATION_TYPES` above) are filtered out
+ * of the result entirely as of 2026-09-01 (product decision to temporarily
+ * hide them from this grid) — they remain fully active/functional, just
+ * not returned by this query.
  *
  * Ordered by a FIXED canonical grid order (uiux-spec ver 2,
- * screen_type_patterns[type=list].body_area — mobile "list" sub-pattern):
- * the 3 active MVP stations first, in the exact order
- * Weighbridge → Grading → Cages Track, followed by the 12 placeholder
- * ("other") stations in a stable non-alphabetical order (`id ASC`).
- * Deliberately NOT alphabetical by `name` — the uiux-spec explicitly calls
- * out that the grid order must not be alphabetized.
+ * screen_type_patterns[type=list].body_area — mobile "list" sub-pattern),
+ * explicit per-type via the CASE expression below (revised 2026-09-01 to
+ * a full custom 18-station layout, replacing the old 3-explicit-then-99
+ * ordering): Weighbridge, Pressing, Storage Tank, Grading, Clarification,
+ * Effluent Plant, Cages Track, Engine Room, CPO Dispatch, Sterilizer,
+ * Boiler Room, Kernel Dispatch, Kernel Plant, Process Water, Threshing,
+ * Depricarping, Solid Waste Disposal, Process Quality Control. Deliberately
+ * NOT alphabetical by `name` — the uiux-spec explicitly calls out that the
+ * grid order must not be alphabetized.
  */
 export async function getActiveAndPlaceholderStations(businessUnitId: string): Promise<StationSlot[]> {
   const rows = await query<StationRow>(
     `SELECT id, business_unit_id, name, type, is_active, icon
      FROM station
      WHERE business_unit_id = ?
+       AND type NOT IN (${HIDDEN_STATION_TYPES_SQL})
        AND id = (
          SELECT s2.id FROM station s2
          WHERE s2.business_unit_id = station.business_unit_id AND s2.type = station.type
@@ -102,8 +164,23 @@ export async function getActiveAndPlaceholderStations(businessUnitId: string): P
      ORDER BY
        CASE type
          WHEN 'weighbridge' THEN 1
-         WHEN 'grading' THEN 2
-         WHEN 'cages-track' THEN 3
+         WHEN 'pressing' THEN 2
+         WHEN 'storage-tank' THEN 3
+         WHEN 'grading' THEN 4
+         WHEN 'clarification' THEN 5
+         WHEN 'effluent-plant' THEN 6
+         WHEN 'cages-track' THEN 7
+         WHEN 'engine-room' THEN 8
+         WHEN 'cpo-dispatch' THEN 9
+         WHEN 'sterilizer' THEN 10
+         WHEN 'boiler-room' THEN 11
+         WHEN 'kernel-dispatch' THEN 12
+         WHEN 'kernel-plant' THEN 13
+         WHEN 'process-water' THEN 14
+         WHEN 'threshing' THEN 15
+         WHEN 'depricarping' THEN 16
+         WHEN 'solid-waste-disposal' THEN 17
+         WHEN 'process-quality-control' THEN 18
          ELSE 99
        END ASC,
        id ASC`,
@@ -131,6 +208,7 @@ export async function getActiveAndPlaceholderStationsForProductionLine(
     `SELECT id, business_unit_id, name, type, is_active, icon
      FROM station
      WHERE production_line_id = ?
+       AND type NOT IN (${HIDDEN_STATION_TYPES_SQL})
        AND id = (
          SELECT s2.id FROM station s2
          WHERE s2.production_line_id = station.production_line_id AND s2.type = station.type
@@ -140,8 +218,23 @@ export async function getActiveAndPlaceholderStationsForProductionLine(
      ORDER BY
        CASE type
          WHEN 'weighbridge' THEN 1
-         WHEN 'grading' THEN 2
-         WHEN 'cages-track' THEN 3
+         WHEN 'pressing' THEN 2
+         WHEN 'storage-tank' THEN 3
+         WHEN 'grading' THEN 4
+         WHEN 'clarification' THEN 5
+         WHEN 'effluent-plant' THEN 6
+         WHEN 'cages-track' THEN 7
+         WHEN 'engine-room' THEN 8
+         WHEN 'cpo-dispatch' THEN 9
+         WHEN 'sterilizer' THEN 10
+         WHEN 'boiler-room' THEN 11
+         WHEN 'kernel-dispatch' THEN 12
+         WHEN 'kernel-plant' THEN 13
+         WHEN 'process-water' THEN 14
+         WHEN 'threshing' THEN 15
+         WHEN 'depricarping' THEN 16
+         WHEN 'solid-waste-disposal' THEN 17
+         WHEN 'process-quality-control' THEN 18
          ELSE 99
        END ASC,
        id ASC`,

@@ -1,0 +1,92 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-063--monitor-kernel-dispatch",
+  "name": "Monitor Kernel Dispatch",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar yang menampilkan ringkasan kejadian Kernel Dispatch yang tercatat hari ini (Jumlah Kernel Dispatch, Jumlah Kejadian Tercatat) beserta ringkasan kejadian terakhir yang tercatat, list draft/pause milik user (bisa lebih dari satu berjalan bersamaan), serta akses ke pembuatan data baru dan penelusuran data tersimpan. Mengikuti pola Cages Track/Solid Waste Disposal (event-log per-kejadian, bukan grid statis), diadaptasi untuk semantik pengiriman kernel.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap Kernel Dispatch di Station List"
+  ],
+  "information_displayed": [
+    "Counter data hari ini: 2 card sebaris (Jumlah Kernel Dispatch, Jumlah Kejadian Tercatat), di atas ringkasan kejadian terakhir dan list draft/pause",
+    "Kejadian Terakhir: ringkasan kejadian Kernel Dispatch paling akhir yang tercatat (destination/buyer, tanggal kejadian, nomor kendaraan), atau pesan 'belum ada kejadian tercatat' jika belum ada sama sekali",
+    "List draft/pause Kernel Dispatch milik user (bisa lebih dari satu), masing-masing berlabel 'Pause'",
+    "Breadcrumb navigasi (Home > Production Process Activity > Kernel Dispatch) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu (konsisten dengan Monitor Cages Track/Solid Waste Disposal/dst.)"
+  ],
+  "available_actions": [
+    {
+      "action": "Tap item draft di list",
+      "description": "Masuk ke Form Kernel Dispatch dengan data draft/pause tersebut untuk dilanjutkan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "New Data",
+      "description": "Membuat draft baru dan masuk ke Form Kernel Dispatch kosong",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Load Data",
+      "description": "Membuka daftar seluruh record Kernel Dispatch (tersimpan maupun masih draft/pause) dengan filter tanggal dan pencarian",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Station List",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Status draft ongoing dan paused digabung secara tampilan sebagai satu istilah 'Pause', tidak dibedakan lagi di UI — konsisten dengan Cages Track/Solid Waste Disposal",
+    "User bisa punya beberapa draft/pause berjalan bersamaan per stasiun, semua tampil di list",
+    "Pause dan Clear dilakukan dari Form Kernel Dispatch, bukan tombol terpisah di Monitor",
+    "Counter 'hari ini' (Jumlah Kernel Dispatch) dihitung dari seluruh record milik user dengan tanggal Date = hari ini, status apapun; Jumlah Kejadian Tercatat adalah total baris log kejadian pada record-record tersebut",
+    "Kejadian Terakhir menampilkan kejadian dari SELURUH record milik user (tidak dibatasi hari ini) — berbeda dari counter 'hari ini', karena tujuannya adalah menunjukkan aktivitas terbaru apapun tanggalnya"
+  ],
+  "usecase_ids": [
+    "usecase-073--monitor-kernel-dispatch"
+  ],
+  "edge_cases": [
+    "Belum ada draft/pause sama sekali — list kosong, tampilkan pesan/empty state, tombol New Data tetap aktif",
+    "Belum ada data hari ini — kedua card counter menampilkan 0",
+    "Belum ada kejadian tercatat sama sekali — kartu Kejadian Terakhir menampilkan pesan 'Belum ada kejadian tercatat'"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

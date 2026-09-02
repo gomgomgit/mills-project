@@ -1,0 +1,134 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-126--form-sterilizer-web",
+  "name": "Form Sterilizer (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Form web untuk input record Sterilizer baru dan mengubah record tersimpan, mengikuti flow yang sama dengan Form Sterilizer mobile (screen-122) — Log Siklus event-log dengan baris ditambah/dihapus manual, tidak dibatasi jumlahnya. Berbeda dari mobile: Date berdefault hari ini namun tetap dapat diedit user, dan record yang sudah tersimpan dapat diubah kapan saja lewat mode edit (bukan input sekali terkunci seperti draft mobile, tidak ada konsep Pause/Clear di web). Ini adalah screen TERAKHIR dari 18 stasiun kanonis proyek ini.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Tombol 'Tambah Data' dari Data Browser Sterilizer (Web) — mode buat baru",
+    "Tombol 'Edit' dari Detail Sterilizer (Web) — mode ubah record"
+  ],
+  "information_displayed": [
+    "Production Line (dropdown) — hanya pada mode buat baru, menentukan station Sterilizer tujuan record; station otomatis di-resolve dari Production Line terpilih (1 station Sterilizer aktif per production line)",
+    "Sterilizer ID",
+    "Date — default hari ini, DAPAT diedit manual (berbeda dari mobile yang mengunci field ini)",
+    "Note (input manual, opsional)",
+    "Log Siklus Sterilisasi: tabel baris siklus dengan kolom yang sama seperti mobile (Sterilizer No, Close Door Time, Peak 1-3 Time, Exhaust 1-3 Time, Open Door Time, Duration otomatis, Number of Cages, Cages Status, Checked by SPV, Remarks) — baris bisa ditambah/dihapus, tidak dibatasi jumlahnya",
+    "Checked By — checkbox 'Tandai sudah diperiksa', hanya tampil & aktif untuk role Supervisor",
+    "Acknowledged By — checkbox 'Tandai sudah dikonfirmasi', hanya tampil & aktif untuk role Mill Management",
+    "Field dikelompokkan per section: Identitas Sterilizer, Log Siklus, Verifikasi"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan station Sterilizer tujuan record baru (hanya mode buat baru)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah baris Log Siklus",
+      "description": "Menambah satu baris siklus kosong ke log; tidak dibatasi jumlahnya",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus baris Log Siklus",
+      "description": "Menghapus satu baris dari log",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Isi field baris siklus",
+      "description": "Mengisi Close Door Time (wajib per baris) dan field lain (opsional); Duration dihitung otomatis oleh server",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Centang Checked by SPV",
+      "description": "Menandai satu baris siklus sudah diperiksa Supervisor — checkbox sederhana per baris",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record baru (mode buat) atau memperbarui record tersimpan (mode edit), status langsung 'saved' — tidak ada draft/pause seperti mobile",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Batal",
+      "description": "Kembali ke Data Browser Sterilizer (mode buat) atau Detail (mode edit) tanpa menyimpan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tandai Checked",
+      "description": "Menandai record sudah diperiksa, mengisi Checked By dengan user yang login",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tandai Acknowledged",
+      "description": "Menandai record sudah dikonfirmasi, mengisi Acknowledged By dengan user yang login",
+      "actor_ids": [
+        "actor-mill-management"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tidak ada konsep draft/pause/Clear di web — Simpan langsung membuat/memperbarui record dengan status 'saved'",
+    "Field wajib ditandai asterisk merah dengan validasi inline",
+    "Date default hari ini saat form dibuka, TETAP DAPAT diedit manual oleh user",
+    "Log Siklus adalah event-log bebas, jumlah baris tidak dibatasi, sama seperti mobile",
+    "Duration (Minutes) dihitung server, tidak menerima override dari client — dikecualikan dari konvensi 'input web tidak boleh disabled' karena computed/data-integrity, ditampilkan sebagai teks non-input (bukan disabled input) untuk konsistensi visual dengan konvensi web terbaru, sama alasan seperti Net Weight pada Form Weighbridge Web/Form CPO Dispatch Web",
+    "Minimal satu baris Log Siklus dengan Close Door Time terisi harus ada sebelum Simpan",
+    "Production Line (dan station Sterilizer terkait) tidak dapat diubah setelah record dibuat — pada mode edit, station asal ditampilkan sebagai teks read-only",
+    "Checked By hanya dapat diisi (via checkbox) oleh user dengan role Supervisor — field disembunyikan untuk role lain",
+    "Acknowledged By hanya dapat diisi (via checkbox) oleh user dengan role Mill Management — field disembunyikan untuk role lain",
+    "Checked by SPV (per baris) adalah checkbox sederhana, tidak role-gated, berbeda dari header Checked By/Acknowledged By"
+  ],
+  "usecase_ids": [
+    "usecase-126--form-sterilizer-web"
+  ],
+  "edge_cases": [
+    "Field wajib belum lengkap saat Simpan ditekan",
+    "Belum ada baris Log Siklus valid saat Simpan ditekan",
+    "Production Line terpilih belum memiliki station Sterilizer aktif (mode buat baru) — Simpan ditolak dengan pesan error",
+    "Record tidak ditemukan saat mode edit dibuka dengan id tidak valid",
+    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Weighbridge/CPO Dispatch Web)",
+    "Siklus melewati tengah malam (Open Door Time lebih awal dari Close Door Time) — Duration tetap dihitung benar oleh server"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

@@ -1,0 +1,513 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-114--form-cpo-dispatch-web",
+  "name": "Form CPO Dispatch (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/cpo-dispatch/create (buat baru), /data/cpo-dispatch/{id}/edit (ubah)",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-084--form-cpo-dispatch-web",
+      "usecase_name": "Input & Edit Data CPO Dispatch (Web)",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/cpo-dispatch-records",
+          "description": "Membuat record CPO Dispatch baru beserta baris Log Kejadian; station diresolve dari production_line_id",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "production_line_id": "uuid, required",
+              "cpo_dispatch_id": "string, required",
+              "date": "date, required",
+              "note": "string, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of {id?: uuid, event_date: date, shift?: string, time_in?: time, time_out?: time, waybill_number?: string, tanker_plate_no?: string, transport_company?: string, driver_name?: string, storage_tank_source?: string, seal_no_top?: string, seal_no_bottom?: string, gross_weight_mt?: float, tare_weight_mt?: float, ffa_percent?: float, moisture_percent?: float, impurities_percent?: float, dobi?: float, destination_buyer?: string, weighbridge_operator?: string, findings?: string}, required, min 1 item with event_date filled"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "cpo_dispatch_id": "string",
+              "date": "date",
+              "status": "string",
+              "details": "array baris dengan net_weight_mt terhitung server"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong atau tidak ada baris details dengan event_date terisi"
+              },
+              {
+                "http_code": 422,
+                "error_code": "NO_ACTIVE_CPO_DISPATCH_STATION",
+                "condition": "production line tanpa station CPO Dispatch aktif"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/cpo-dispatch-records/{id}",
+          "description": "Memperbarui record CPO Dispatch tersimpan beserta baris Log Kejadian (upsert: baris tanpa id di-insert, baris dengan id di-update, baris yang dihapus dari array di-delete)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID record"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "cpo_dispatch_id": "string, required",
+              "date": "date, required",
+              "note": "string, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of {id?: uuid, event_date: date, ...}, required, min 1 item with event_date filled"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "cpo_dispatch_id": "string",
+              "status": "string",
+              "details": "array baris dengan net_weight_mt terhitung server"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong atau tidak ada baris details dengan event_date terisi"
+              },
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Create: validate field wajib (cpo_dispatch_id, date) + minimal 1 baris details valid (event_date terisi) -> 422 VALIDATION_ERROR",
+        "2. Create: resolve station = Station WHERE production_line_id AND type=cpo-dispatch AND is_active=true -> 422 NO_ACTIVE_CPO_DISPATCH_STATION jika tidak ada",
+        "3. Untuk tiap baris details valid: net_weight_mt = gross_weight_mt - tare_weight_mt (dihitung server, bukan diterima dari client, null jika salah satu kosong)",
+        "4. checked=true+role=supervisor -> checked_by=requester id; acknowledged=true+role=mill_management -> acknowledged_by=requester id; role lain diabaikan diam-diam",
+        "5. Dalam transaksi DB: INSERT cpo_dispatch_record (status=saved) lalu INSERT seluruh cpo_dispatch_detail rows valid",
+        "6. Update: validate id -> 404 jika tidak ada -> validate field wajib + details sama seperti create -> 422 jika gagal",
+        "7. Update: production_line_id/station_id tidak diterima dari body, tidak berubah",
+        "8. Dalam transaksi DB: UPDATE cpo_dispatch_record, lalu upsert cpo_dispatch_detail (baris tanpa id: INSERT; baris dengan id yang masih ada di array: UPDATE; baris yang sebelumnya ada di DB tapi tidak lagi ada di array: DELETE)",
+        "9. FE: mode create tampilkan dropdown Production Line (query langsung ProductionLine di Livewire mount(), sama seperti FormKernelDispatch/FormSolidWasteDisposal/FormWeighbridge/FormGrading); mode edit GET /api/cpo-dispatch-records/{id} untuk prefill, station ditampilkan read-only",
+        "10. FE: Date default hari ini pada mode create, tetap dapat diedit manual (input type=date)",
+        "11. FE: Tambah baris menambah 1 baris kosong tanpa id, TIDAK ADA batasan jumlah baris (event-log, bukan grid berkolom tetap); Hapus baris menghapus baris dari form state (jika punya id, dihapus dari array yang dikirim -> ditangani sebagai DELETE oleh backend)",
+        "12. FE: Net Weight (MT) dihitung reaktif client-side untuk preview (disabled, dikecualikan dari konvensi web-form-input sebagai computed value, sama seperti Net Weight Form Weighbridge Web/Form Kernel Dispatch Web) menggunakan rumus yang sama seperti server",
+        "13. FE: checkbox Checked hanya untuk role supervisor, Acknowledged hanya mill_management (pola sama dengan FormKernelDispatch/FormSolidWasteDisposal/FormWeighbridge)",
+        "14. FE: render field per section (Identitas CPO Dispatch, Log Kejadian, Verifikasi)",
+        "15. Simpan berhasil -> navigasi ke Detail CPO Dispatch (Web)",
+        "16. Batal -> kembali tanpa API call, dengan konfirmasi jika form dirty"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "cpo-dispatch-record",
+          "operation": "INSERT",
+          "description": "INSERT record baru"
+        },
+        {
+          "entity_id": "cpo-dispatch-record",
+          "operation": "UPDATE",
+          "description": "UPDATE record edit"
+        },
+        {
+          "entity_id": "cpo-dispatch-record",
+          "operation": "SELECT",
+          "description": "SELECT untuk prefill edit"
+        },
+        {
+          "entity_id": "cpo-dispatch-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru pada create/update"
+        },
+        {
+          "entity_id": "cpo-dispatch-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris existing pada update"
+        },
+        {
+          "entity_id": "cpo-dispatch-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris yang dihapus dari array pada update"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "Resolve station cpo-dispatch aktif dari production_line_id"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Field wajib kosong",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Tidak ada baris details dengan event_date terisi",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Production Line tanpa station cpo-dispatch aktif",
+          "handling": "422 NO_ACTIVE_CPO_DISPATCH_STATION"
+        },
+        {
+          "condition": "id tidak ditemukan (update)",
+          "handling": "404 RECORD_NOT_FOUND"
+        },
+        {
+          "condition": "checked/acknowledged oleh role tidak berhak",
+          "handling": "diabaikan diam-diam"
+        }
+      ],
+      "business_rules_applied": [
+        "Tidak ada draft/pause di web",
+        "Net Weight dihitung server, tidak menerima override",
+        "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Production Line tidak berubah setelah dibuat",
+        "Log Kejadian tidak dibatasi jumlah barisnya"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "creates record with resolved station_id and inserted details when valid",
+          "given": "valid body dengan 1 baris details lengkap, production line punya 1 station cpo-dispatch aktif",
+          "expect": "cpo_dispatch_record insert dengan station_id sesuai, status=saved, 1 detail row terinsert"
+        },
+        {
+          "description": "computes net_weight_mt from gross_weight_mt and tare_weight_mt",
+          "given": "detail gross_weight_mt=10, tare_weight_mt=2",
+          "expect": "net_weight_mt=8"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when required field empty",
+          "given": "cpo_dispatch_id kosong",
+          "expect": "ValidationException errors.cpo_dispatch_id"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when no detail row has event_date",
+          "given": "details berisi baris tanpa event_date terisi",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 NO_ACTIVE_CPO_DISPATCH_STATION when production line has no active station",
+          "given": "Station query kosong untuk production_line_id+type=cpo-dispatch",
+          "expect": "throw NoActiveCpoDispatchStationException"
+        },
+        {
+          "description": "sets checked_by when checked=true and role=supervisor",
+          "given": "checked=true, role=supervisor",
+          "expect": "checked_by=requester id"
+        },
+        {
+          "description": "ignores checked=true when role is not supervisor",
+          "given": "checked=true, role=mill_management",
+          "expect": "checked_by tetap null, tidak error"
+        },
+        {
+          "description": "sets acknowledged_by when acknowledged=true and role=mill_management",
+          "given": "acknowledged=true, role=mill_management",
+          "expect": "acknowledged_by=requester id"
+        },
+        {
+          "description": "updates record and upserts details: inserts new row, updates existing row, deletes removed row",
+          "given": "PATCH dengan 1 baris baru (tanpa id), 1 baris existing (id, field diubah), 1 baris existing sebelumnya dihilangkan dari array",
+          "expect": "1 detail row terinsert baru, 1 ter-update, 1 row lama terhapus"
+        },
+        {
+          "description": "updates record without accepting production_line_id change",
+          "given": "PATCH tanpa production_line_id",
+          "expect": "station_id tidak berubah"
+        },
+        {
+          "description": "404 RECORD_NOT_FOUND when updating non-existent id",
+          "given": "findOrFail throws",
+          "expect": "404 RECORD_NOT_FOUND"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-094--data-browser-cpo-dispatch-web",
+      "reason": "Entry point mode create"
+    },
+    {
+      "screen_id": "screen-104--detail-cpo-dispatch-web",
+      "reason": "Entry point mode edit dan tujuan navigasi setelah Simpan"
+    }
+  ],
+  "implementation_notes": [
+    "DIVERGENSI DARI MOBILE: Date pada web default hari ini namun TETAP dapat diedit manual, berbeda dari mobile (screen-074) yang menguncinya",
+    "DIVERGENSI DARI MOBILE: data web dapat diedit setelah tersimpan (mode edit penuh), tidak ada draft/pause/Clear - status langsung saved",
+    "PENGECUALIAN konvensi web-form-input: Net Weight tetap disabled - computed server-side, sama alasan seperti Net Weight Form Weighbridge Web/Form Kernel Dispatch Web",
+    "Production Line dropdown reuse query langsung Eloquent di Livewire mount(), mengikuti pola screen-024/057/058/059/060/111/113",
+    "Mode edit prefill reuse GET /api/cpo-dispatch-records/{id} (screen-104)",
+    "Route web /data/cpo-dispatch/create HARUS didaftarkan SEBELUM /data/cpo-dispatch/{id} agar tidak tertangkap sebagai {id} - sama pola dengan screen-022/023/024/111/113",
+    "Detail upsert (insert/update/delete baris) dijalankan dalam DB transaction agar konsisten, sama pola dengan Kernel Dispatch/Solid Waste Disposal/Cages Track",
+    "Time In/Time Out disimpan sebagai kolom time (HH:MM), bukan bagian dari Tanggal Kejadian - keduanya opsional per baris"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Buat Record CPO Dispatch Baru — berhasil",
+      "usecase_id": "usecase-084--form-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/cpo-dispatch-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}",
+            "cpo_dispatch_id": "CD-WEB-001",
+            "date": "2026-09-01",
+            "details": [
+              {
+                "event_date": "2026-09-01",
+                "gross_weight_mt": 10,
+                "tare_weight_mt": 2
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormCpoDispatch",
+        "action": "pilih Production Line, isi field wajib, tambah 1 baris Log Kejadian, klik Simpan",
+        "assert": "record tersimpan, navigasi ke Detail CPO Dispatch"
+      },
+      "browser_test": {
+        "route": "/data/cpo-dispatch/create",
+        "action": "klik Tambah Data, isi form lengkap termasuk 1 baris Log Kejadian, klik Simpan",
+        "assert": "halaman Detail menampilkan record baru beserta Log Kejadian"
+      }
+    },
+    {
+      "scenario_ref": "Edit Record CPO Dispatch — berhasil",
+      "usecase_id": "usecase-084--form-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/cpo-dispatch-records/{id}"
+          },
+          "request_example": {
+            "id": "{{record_uuid}}",
+            "cpo_dispatch_id": "CD-WEB-001-EDIT",
+            "date": "2026-09-01",
+            "details": [
+              {
+                "id": "{{detail_uuid}}",
+                "event_date": "2026-09-01",
+                "gross_weight_mt": 12,
+                "tare_weight_mt": 2
+              }
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormCpoDispatch",
+        "action": "buka mode edit, ubah field, klik Simpan",
+        "assert": "perubahan tersimpan"
+      },
+      "browser_test": {
+        "route": "/data/cpo-dispatch/{id}/edit",
+        "action": "klik Edit dari Detail, ubah field, klik Simpan",
+        "assert": "Detail menampilkan nilai baru"
+      }
+    },
+    {
+      "scenario_ref": "Field Wajib Belum Lengkap",
+      "usecase_id": "usecase-084--form-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/cpo-dispatch-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormCpoDispatch",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      },
+      "browser_test": {
+        "route": "/data/cpo-dispatch/create",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      }
+    },
+    {
+      "scenario_ref": "Belum Ada Baris Log Kejadian Valid",
+      "usecase_id": "usecase-084--form-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/cpo-dispatch-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}",
+            "cpo_dispatch_id": "CD-X",
+            "date": "2026-09-01",
+            "details": []
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormCpoDispatch",
+        "action": "isi header lengkap tanpa baris Log Kejadian, klik Simpan",
+        "assert": "pesan error khusus muncul"
+      },
+      "browser_test": {
+        "route": "/data/cpo-dispatch/create",
+        "action": "isi header lengkap tanpa baris detail, klik Simpan",
+        "assert": "pesan error khusus muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Production Line Tanpa Station CPO Dispatch Aktif",
+      "usecase_id": "usecase-084--form-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/cpo-dispatch-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_tanpa_cd_uuid}}",
+            "cpo_dispatch_id": "CD-Y",
+            "date": "2026-09-01",
+            "details": [
+              {
+                "event_date": "2026-09-01"
+              }
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "NO_ACTIVE_CPO_DISPATCH_STATION"
+        }
+      ],
+      "component_test": {
+        "component": "FormCpoDispatch",
+        "action": "pilih Production Line tanpa station cpo-dispatch aktif, klik Simpan",
+        "assert": "error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/cpo-dispatch/create",
+        "action": "pilih Production Line tanpa station cpo-dispatch, klik Simpan",
+        "assert": "error ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Record Tidak Ditemukan (mode edit)",
+      "usecase_id": "usecase-084--form-cpo-dispatch-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/cpo-dispatch-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "cpo_dispatch_id": "X",
+            "date": "2026-09-01",
+            "details": [
+              {
+                "event_date": "2026-09-01"
+              }
+            ]
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "FormCpoDispatch",
+        "action": "render edit dengan GET 404",
+        "assert": "pesan error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/cpo-dispatch/00000000-0000-0000-0000-000000000000/edit",
+        "action": "navigasi ke id tidak valid",
+        "assert": "halaman menampilkan error"
+      }
+    }
+  ]
+}

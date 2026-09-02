@@ -1,0 +1,123 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-113--form-kernel-dispatch-web",
+  "name": "Form Kernel Dispatch (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Form web untuk input record Kernel Dispatch baru dan mengubah record tersimpan, mengikuti flow yang sama dengan Form Kernel Dispatch mobile (screen-073) — Log Kejadian event-log dengan baris ditambah/dihapus manual, tidak dibatasi jumlahnya. Berbeda dari mobile: Date berdefault hari ini namun tetap dapat diedit user, dan record yang sudah tersimpan dapat diubah kapan saja lewat mode edit (bukan input sekali terkunci seperti draft mobile, tidak ada konsep Pause/Clear di web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Tombol 'Tambah Data' dari Data Browser Kernel Dispatch (Web) — mode buat baru",
+    "Tombol 'Edit' dari Detail Kernel Dispatch (Web) — mode ubah record"
+  ],
+  "information_displayed": [
+    "Production Line (dropdown) — hanya pada mode buat baru, menentukan station Kernel Dispatch tujuan record; station otomatis di-resolve dari Production Line terpilih (1 station Kernel Dispatch aktif per production line)",
+    "Kernel Dispatch ID",
+    "Date — default hari ini, DAPAT diedit manual (berbeda dari mobile yang mengunci field ini)",
+    "Note (input manual, opsional)",
+    "Log Kejadian Kernel Dispatch: tabel baris kejadian dengan kolom yang sama seperti mobile (Tanggal Kejadian, Shift, Weighbridge Ticket No, Waybill Number, Transporter/Contractor, Vehicle Plate No, Driver Name, Silo Source ID, Destination/Buyer, Gross/Tare Weight, Net Weight otomatis, Kernel Moisture, Dirt/Impurities, FFA, Broken Kernel, Security Seal No Top/Bottom, Weighbridge Operator ID, Remarks/Gate Status, Findings) — baris bisa ditambah/dihapus, tidak dibatasi jumlahnya",
+    "Checked By — checkbox 'Tandai sudah diperiksa', hanya tampil & aktif untuk role Supervisor",
+    "Acknowledged By — checkbox 'Tandai sudah dikonfirmasi', hanya tampil & aktif untuk role Mill Management",
+    "Field dikelompokkan per section: Identitas Kernel Dispatch, Log Kejadian, Verifikasi"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Production Line",
+      "description": "Menentukan station Kernel Dispatch tujuan record baru (hanya mode buat baru)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah baris Log Kejadian",
+      "description": "Menambah satu baris kejadian kosong ke log; tidak dibatasi jumlahnya",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus baris Log Kejadian",
+      "description": "Menghapus satu baris dari log",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Isi field baris kejadian",
+      "description": "Mengisi Tanggal Kejadian (wajib per baris) dan field lain (opsional); Net Weight dihitung otomatis",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record baru (mode buat) atau memperbarui record tersimpan (mode edit), status langsung 'saved' — tidak ada draft/pause seperti mobile",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Batal",
+      "description": "Kembali ke Data Browser Kernel Dispatch (mode buat) atau Detail (mode edit) tanpa menyimpan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tandai Checked",
+      "description": "Menandai record sudah diperiksa, mengisi Checked By dengan user yang login",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tandai Acknowledged",
+      "description": "Menandai record sudah dikonfirmasi, mengisi Acknowledged By dengan user yang login",
+      "actor_ids": [
+        "actor-mill-management"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tidak ada konsep draft/pause/Clear di web — Simpan langsung membuat/memperbarui record dengan status 'saved'",
+    "Field wajib ditandai asterisk merah dengan validasi inline",
+    "Date default hari ini saat form dibuka, TETAP DAPAT diedit manual oleh user",
+    "Log Kejadian adalah event-log bebas, jumlah baris tidak dibatasi, sama seperti mobile",
+    "Net Weight (MT) dihitung server, tidak menerima override dari client — dikecualikan dari konvensi 'input web tidak boleh disabled' karena computed/data-integrity, sama seperti Net Weight pada Form Weighbridge Web/Form Solid Waste Disposal Web",
+    "Minimal satu baris Log Kejadian dengan Tanggal Kejadian terisi harus ada sebelum Simpan",
+    "Production Line (dan station Kernel Dispatch terkait) tidak dapat diubah setelah record dibuat — pada mode edit, station asal ditampilkan sebagai teks read-only",
+    "Checked By hanya dapat diisi (via checkbox) oleh user dengan role Supervisor — field disembunyikan untuk role lain",
+    "Acknowledged By hanya dapat diisi (via checkbox) oleh user dengan role Mill Management — field disembunyikan untuk role lain"
+  ],
+  "usecase_ids": [
+    "usecase-078--form-kernel-dispatch-web"
+  ],
+  "edge_cases": [
+    "Field wajib belum lengkap saat Simpan ditekan",
+    "Belum ada baris Log Kejadian valid saat Simpan ditekan",
+    "Production Line terpilih belum memiliki station Kernel Dispatch aktif (mode buat baru) — Simpan ditolak dengan pesan error",
+    "Record tidak ditemukan saat mode edit dibuka dengan id tidak valid",
+    "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola Form Weighbridge/Solid Waste Disposal Web)"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

@@ -1,0 +1,112 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "usecase-064--data-browser-solid-waste-disposal-web",
+  "name": "Telusuri & Ekspor Data Solid Waste Disposal",
+  "description": "Supervisor, Mill Management, atau Admin menelusuri data record Solid Waste Disposal dengan filter tanggal/business unit, membuka detail record, atau mengekspor data terfilter.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web dengan role supervisor/mill_management/admin"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Membuka Data Browser Solid Waste Disposal"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan tabel record terpaginasi sesuai filter aktif"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Mengubah filter tanggal/business unit"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Menyaring dan menampilkan ulang tabel sesuai filter baru"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Mengklik baris untuk melihat detail, atau menekan Ekspor untuk mengunduh data terfilter"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tidak ada data sesuai filter",
+      "trigger": "Step 4 — filter tidak menghasilkan record apapun",
+      "steps": [
+        "Tampilkan empty state dengan opsi reset filter"
+      ]
+    },
+    {
+      "name": "Rentang tanggal tidak valid",
+      "trigger": "Step 3 — tanggal awal lebih besar dari tanggal akhir",
+      "steps": [
+        "Return 422 INVALID_DATE_RANGE",
+        "Filter tidak diterapkan"
+      ]
+    },
+    {
+      "name": "Ekspor gagal",
+      "trigger": "Step 5 — dataset ekspor terlalu besar atau terjadi error saat membuat berkas",
+      "steps": [
+        "Return 422 EXPORT_FAILED",
+        "Tampilkan pesan error ekspor"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat data terfilter, membuka detail record, atau mengunduh berkas ekspor"
+  ],
+  "business_rules": [
+    "Ekspor mengikuti filter aktif",
+    "Data mencakup hasil sync mobile & input web"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Telusuri & Ekspor Data Solid Waste Disposal — success",
+      "given": "Terdapat record sesuai filter",
+      "when": "User menerapkan filter dan menekan ekspor",
+      "then": "Tabel menampilkan data terfilter dan berkas ekspor terunduh sesuai filter"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Solid Waste Disposal — Tidak Ada Data Sesuai Filter",
+      "given": "Filter tidak cocok dengan record manapun",
+      "when": "User menerapkan filter tersebut",
+      "then": "Empty state dengan opsi reset filter ditampilkan"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Solid Waste Disposal — Rentang Tanggal Tidak Valid",
+      "given": "Tanggal awal lebih besar dari tanggal akhir",
+      "when": "User menerapkan filter tersebut",
+      "then": "Pesan validasi ditampilkan, filter tidak diterapkan"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Solid Waste Disposal — Klik Baris Membuka Detail",
+      "given": "Tabel menampilkan data",
+      "when": "User mengklik salah satu baris",
+      "then": "Halaman Detail Solid Waste Disposal (Web) terbuka untuk record tersebut"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Solid Waste Disposal — Ekspor Gagal",
+      "given": "Dataset ekspor melebihi batas atau terjadi error",
+      "when": "User menekan ekspor",
+      "then": "Pesan error ekspor ditampilkan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-091--data-browser-solid-waste-disposal-web"
+  ]
+}

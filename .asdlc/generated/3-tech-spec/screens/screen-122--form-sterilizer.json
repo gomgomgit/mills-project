@@ -1,0 +1,404 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-122--form-sterilizer",
+  "name": "Form Sterilizer",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/sterilizer/form/:id",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-122--form-sterilizer",
+      "usecase_name": "Input Data Sterilizer",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load draft sterilizer_record by id (route param) beserta seluruh sterilizer_detail turunannya ke form state",
+        "2. Auto-set Date = hari ini HANYA jika draft baru (masih kosong); jika draft dilanjutkan, pertahankan nilai tersimpan",
+        "3. Render field dikelompokkan per section: Identitas Sterilizer (Sterilizer ID, Date), Verifikasi (Inputted By [read-only], Checked By, Acknowledged By, Note), Log Siklus Sterilisasi (tabel event-log)",
+        "4. Render breadcrumb (Home > Production Process Activity > Sterilizer > Form, tappable) dan header dengan hamburger",
+        "5. On Tambah baris Log Siklus: tambah 1 baris baru (tanpa id) ke tabel, seluruh field kosong (checked_by_spv default false) — TIDAK ADA batasan jumlah baris (event-log unbounded)",
+        "6. On isi field baris (Sterilizer No, Close Door Time, Peak 1-3 Time, Exhaust 1-3 Time, Open Door Time, Number of Cages, Cages Status, Checked by SPV, Remarks): update field baris tersebut secara reaktif; Duration (Minutes) dihitung otomatis = Open Door Time − Close Door Time setiap kali salah satu berubah, ditampilkan sebagai teks non-input (bukan field yang bisa di-tap/edit)",
+        "7. On Hapus baris Log Siklus: hapus baris dari form state; jika baris punya id (sudah tersimpan sebelumnya), tandai untuk DELETE saat Simpan/Pause berikutnya",
+        "8. Checked By (header) hanya dapat diisi/diedit jika role user saat ini = supervisor; disabled untuk role lain",
+        "9. Acknowledged By hanya dapat diisi/diedit jika role user saat ini = mill_management; disabled untuk role lain",
+        "10. On Simpan: validasi field wajib (Sterilizer ID) dan minimal 1 baris Log Siklus valid (Close Door Time terisi) → jika lengkap: UPDATE sterilizer_record (semua field header, status=saved) → upsert sterilizer_detail (baris tanpa id: INSERT baru dengan Duration terhitung; baris dengan id: UPDATE; baris ditandai dihapus: DELETE) → navigasi ke Monitor Sterilizer",
+        "11. On Pause: UPDATE sterilizer_record (field form apa adanya, status=draft_paused, TANPA validasi field wajib), sterilizer_detail rows di-upsert/delete apa adanya juga → navigasi ke Monitor",
+        "12. On Clear: tampilkan dialog konfirmasi → jika dikonfirmasi: DELETE seluruh sterilizer_detail milik record lalu DELETE sterilizer_record → navigasi ke Monitor; jika dibatalkan: tidak ada perubahan",
+        "13. On Back: jika form dirty: tampilkan dialog konfirmasi → jika dikonfirmasi, buang perubahan di memori, navigasi ke Monitor; jika tidak dirty, navigasi langsung",
+        "14. On tap breadcrumb segment → navigasi ke route terkait",
+        "15. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "SELECT",
+          "description": "SELECT record by id untuk load form state"
+        },
+        {
+          "entity_id": "sterilizer-detail",
+          "operation": "SELECT",
+          "description": "SELECT semua baris by sterilizer_record_id"
+        },
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "UPDATE",
+          "description": "UPDATE semua field header + status=saved pada Simpan, atau field apa adanya + status=draft_paused pada Pause"
+        },
+        {
+          "entity_id": "sterilizer-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru (tanpa id sebelumnya) pada Simpan/Pause"
+        },
+        {
+          "entity_id": "sterilizer-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris yang sudah punya id pada Simpan/Pause"
+        },
+        {
+          "entity_id": "sterilizer-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris yang dihapus user dari log, pada Simpan/Pause berikutnya; atau seluruh baris pada Clear"
+        },
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "DELETE",
+          "description": "DELETE record pada Clear yang dikonfirmasi"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Field wajib (Sterilizer ID) belum lengkap saat Simpan",
+          "handling": "Tampilkan error inline per field, record tidak tersimpan"
+        },
+        {
+          "condition": "Belum ada baris Log Siklus dengan Close Door Time terisi saat Simpan",
+          "handling": "Tampilkan pesan error khusus pada bagian Log Siklus, record tidak tersimpan"
+        },
+        {
+          "condition": "Operator mencoba mengisi/mengedit Checked By (header)",
+          "handling": "Field disabled/read-only untuk role selain supervisor"
+        },
+        {
+          "condition": "Non-mill_management mencoba mengisi/mengedit Acknowledged By",
+          "handling": "Field disabled/read-only untuk role selain mill_management"
+        },
+        {
+          "condition": "User menghapus baris Log Siklus yang sudah ada (punya id)",
+          "handling": "Baris hilang dari log; ditandai untuk DELETE eksplisit"
+        },
+        {
+          "condition": "Draft di-Pause lalu dilanjutkan",
+          "handling": "Field form + tabel Log Siklus terisi dari draft tersimpan"
+        },
+        {
+          "condition": "Back dengan perubahan belum tersimpan",
+          "handling": "Tampilkan dialog konfirmasi sebelum keluar"
+        },
+        {
+          "condition": "Clear ditekan",
+          "handling": "Tampilkan dialog konfirmasi wajib sebelum DELETE dieksekusi"
+        },
+        {
+          "condition": "Siklus melewati tengah malam (Open Door Time < Close Door Time)",
+          "handling": "Duration dihitung dengan wrap 24 jam (menambah 1440 menit) baik di preview client maupun di server"
+        }
+      ],
+      "business_rules_applied": [
+        "Date otomatis sekali saat draft baru dibuat",
+        "Checked By (header) hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Log Siklus adalah event-log bebas, jumlah baris tidak dibatasi",
+        "Minimal satu baris Log Siklus dengan Close Door Time terisi sebelum Simpan",
+        "Duration (Minutes) dihitung otomatis per baris, TIDAK PERNAH dapat diedit manual"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "sets date to today when draft is new (empty)",
+          "given": "loaded draft record has date = null",
+          "expect": "date set to today's local date exactly once on mount"
+        },
+        {
+          "description": "preserves stored date when resuming a paused draft",
+          "given": "loaded draft record has date already set",
+          "expect": "date remains unchanged, not overwritten"
+        },
+        {
+          "description": "computes duration_minutes for a row as open_door_time minus close_door_time",
+          "given": "a row with close_door_time='07:00' and open_door_time='08:10'",
+          "expect": "that row's computed duration_minutes = 70"
+        },
+        {
+          "description": "wraps duration_minutes across midnight when open_door_time is earlier than close_door_time",
+          "given": "a row with close_door_time='23:30' and open_door_time='00:15'",
+          "expect": "that row's computed duration_minutes = 45"
+        },
+        {
+          "description": "adds a new empty row with no upper bound on row count",
+          "given": "user triggers 'Tambah baris' repeatedly",
+          "expect": "each call appends one new row with id undefined and checked_by_spv=false; no limit enforced"
+        },
+        {
+          "description": "queues an existing row (with id) for deletion when removed, does not delete rows without id immediately",
+          "given": "a row with id='existing-1' is removed",
+          "expect": "row removed from local rows array; its id appended to the pending-deletion list"
+        },
+        {
+          "description": "disables the Checked By field for a non-supervisor user",
+          "given": "current user role = 'operator'",
+          "expect": "Checked By field rendered disabled/read-only"
+        },
+        {
+          "description": "enables the Checked By field for a supervisor user",
+          "given": "current user role = 'supervisor'",
+          "expect": "Checked By field rendered enabled/editable"
+        },
+        {
+          "description": "disables the Acknowledged By field for a non-mill_management user",
+          "given": "current user role = 'operator' or 'supervisor'",
+          "expect": "Acknowledged By field rendered disabled/read-only"
+        },
+        {
+          "description": "returns validation errors and does not save when Sterilizer ID is empty on Simpan",
+          "given": "sterilizer_id empty, Simpan triggered",
+          "expect": "validation fails, inline error returned, saveDraft() not called"
+        },
+        {
+          "description": "returns validation error and does not save when no detail row has a close_door_time on Simpan",
+          "given": "all detail rows lack close_door_time, Simpan triggered",
+          "expect": "validation fails with detail-specific error, saveDraft() not called"
+        },
+        {
+          "description": "saves with status=saved when all conditions pass",
+          "given": "required header fields filled, 1 valid detail row, Simpan triggered",
+          "expect": "saveDraft() called with status='saved'; navigation to Monitor triggered"
+        },
+        {
+          "description": "updates record with status=draft_paused without validating required fields on Pause",
+          "given": "required field is empty, Pause triggered",
+          "expect": "pauseDraftWithFormData() called with current field values as-is, status='draft_paused', no validation errors; navigation to Monitor triggered"
+        },
+        {
+          "description": "shows confirmation dialog before deleting on Clear",
+          "given": "Clear button pressed",
+          "expect": "confirmation dialog displayed; deleteDraft() not yet called"
+        },
+        {
+          "description": "deletes record and all its detail rows, then navigates to Monitor when Clear is confirmed",
+          "given": "Clear confirmation dialog confirmed",
+          "expect": "sterilizer_detail rows deleted, sterilizer_record deleted; navigation to Monitor triggered"
+        },
+        {
+          "description": "shows confirmation dialog on Back when form is dirty",
+          "given": "form state isDirty = true, Back pressed",
+          "expect": "confirmation dialog displayed before navigation"
+        },
+        {
+          "description": "navigates directly on Back when form is not dirty",
+          "given": "form state isDirty = false, Back pressed",
+          "expect": "navigates to Monitor immediately, no dialog shown"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-121--monitor-sterilizer",
+      "reason": "Asal & tujuan kembali setelah Simpan/Pause/Clear/Back"
+    },
+    {
+      "screen_id": "screen-123--data-preview-sterilizer",
+      "reason": "Referensi tampilan data setelah tersimpan"
+    }
+  ],
+  "implementation_notes": [
+    "Simpan/Pause/Clear bersifat lokal (SQLite); pengiriman ke server terjadi lewat mekanisme sync manual terpisah, di luar scope screen ini",
+    "Berbeda dari stasiun grid-jam: TIDAK ADA konsep N-kolom checklist/jam — Log Siklus murni tabel bebas per-siklus, mengikuti pola CPO Dispatch/Kernel Dispatch/Solid Waste Disposal Detail hanya dari sisi 'unbounded rows added manually', bukan dari sisi struktur kolomnya",
+    "Hapus baris mengikuti pola queue-for-deletion (baris dengan id ditandai, baru DELETE eksekusi saat Simpan/Pause berikutnya), konsisten dengan Form CPO Dispatch/Kernel Dispatch/Solid Waste Disposal",
+    "Duration (Minutes) dihitung client-side lalu dipersist untuk preview UX, TAPI server (SterilizerRecordService) SELALU menghitung ulang nilai final saat Simpan/Pause — client-side value tidak pernah dipercaya sebagai sumber kebenaran akhir, berbeda dari Net Weight CPO Dispatch yang dipersist apa adanya dari client",
+    "13 kolom detail mengikuti persis urutan field entity-catalog sterilizer-detail: sterilizer_no, close_door_time, peak_1_time, exhaust_1_time, peak_2_time, exhaust_2_time, peak_3_time, exhaust_3_time, open_door_time, duration_minutes, number_of_cages, cages_status, checked_by_spv, remarks",
+    "BERBEDA dari CPO Dispatch/Kernel Dispatch: TIDAK ADA kolom event_date per baris — seluruh baris siklus memakai Date milik header (satu Sterilizer Record = satu tanggal, banyak siklus dalam tanggal itu). checked_by_spv adalah checkbox boolean sederhana per baris, BUKAN referensi nama Supervisor (berbeda dari header checked_by yang merupakan FK user)",
+    "Ini adalah stasiun TERAKHIR dari 18 stasiun kanonis proyek ini (dipromosikan 2026-09-01)"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Input Data Sterilizer — success sebagai Station Operator",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "FormSterilizerView",
+        "action": "fill Sterilizer ID, add a detail row with close_door_time, click Simpan as an operator user",
+        "assert": "record saved with status=saved, Checked By/Acknowledged By remain empty/disabled for operator"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "login as operator, buka Form Sterilizer draft baru dari Monitor, isi field wajib, tambah 1 baris log lengkap, klik Simpan",
+        "assert": "navigasi ke Monitor Sterilizer, record baru berstatus tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Sterilizer — success sebagai Supervisor dengan Checked By",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "FormSterilizerView",
+        "action": "as a supervisor user, fill required fields, add a valid detail row, check Checked By, click Simpan",
+        "assert": "record saved including checked_by set to the supervisor's id"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "login as supervisor, isi field wajib termasuk Checked By, tambah 1 baris lengkap, klik Simpan",
+        "assert": "record tersimpan dengan Checked By terisi"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Sterilizer — Field Wajib Belum Lengkap",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "FormSterilizerView",
+        "action": "leave Sterilizer ID empty, click Simpan",
+        "assert": "inline error shown, save handler not invoked"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "jangan isi Sterilizer ID, klik Simpan",
+        "assert": "pesan error inline muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Sterilizer — Belum Ada Baris Log Siklus Valid",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "FormSterilizerView",
+        "action": "fill header field, leave the Log Siklus table empty, click Simpan",
+        "assert": "detail-specific error shown, save handler not invoked"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "isi header, jangan tambah baris Log Siklus, klik Simpan",
+        "assert": "pesan error khusus muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Sterilizer — Duration Dihitung Otomatis",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "FormSterilizerView",
+        "action": "fill close_door_time='07:00' and open_door_time='08:10' for a row",
+        "assert": "duration_minutes displayed as 70, rendered as non-input text (not an editable field)"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "isi Close Door Time dan Open Door Time pada satu baris",
+        "assert": "Duration (Minutes) terhitung otomatis dan tidak dapat diedit"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Sterilizer — Checked By Khusus Supervisor",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "FormSterilizerView",
+        "action": "render the form for an operator user",
+        "assert": "Checked By field rendered disabled"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "buka Form Sterilizer sebagai Operator",
+        "assert": "field Checked By tidak dapat diisi/diedit"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Sterilizer — Hapus Baris Log Siklus",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "FormSterilizerView",
+        "action": "remove an existing (has-id) detail row",
+        "assert": "row removed from view; its id queued for deletion on next save"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "hapus salah satu baris Log Siklus yang sudah tersimpan",
+        "assert": "baris hilang dari tampilan; terhapus permanen setelah Simpan berikutnya"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Sterilizer — Lanjutkan Draft Paused",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "FormSterilizerView",
+        "action": "mount form with an existing draft_paused record and detail rows loaded",
+        "assert": "all header fields and detail table populated from the saved draft"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "dari Monitor, tap draft paused sebelumnya untuk dilanjutkan",
+        "assert": "semua field dan baris Log Siklus terisi sesuai draft tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Sterilizer — Back Dengan Perubahan Belum Tersimpan",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "FormSterilizerView",
+        "action": "modify a field to make the form dirty, trigger back action",
+        "assert": "confirmation dialog rendered before navigation occurs"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "ubah salah satu field, tekan tombol Back sebelum Simpan",
+        "assert": "dialog konfirmasi keluar ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Sterilizer — Pause Progress",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "FormSterilizerView",
+        "action": "fill form partially (required field left empty), click Pause",
+        "assert": "update invoked with status=draft_paused and current field values, no validation errors shown, navigation to Monitor triggered"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "isi sebagian field, tekan tombol Pause",
+        "assert": "tidak ada error validasi, navigasi kembali ke Monitor, draft tersimpan dengan status paused"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Sterilizer — Clear Draft",
+      "usecase_id": "usecase-122--form-sterilizer",
+      "api_test": [],
+      "component_test": {
+        "component": "FormSterilizerView",
+        "action": "click Clear then confirm the dialog; repeat and cancel the dialog",
+        "assert": "on confirm: delete invoked and navigation to Monitor triggered; on cancel: no delete call, form state unchanged"
+      },
+      "browser_test": {
+        "route": "/stations/sterilizer/form/:id",
+        "action": "tekan tombol Clear lalu konfirmasi hapus; ulangi dan batalkan konfirmasi",
+        "assert": "saat dikonfirmasi: draft terhapus permanen dan navigasi ke Monitor; saat dibatalkan: tidak ada perubahan"
+      }
+    }
+  ]
+}

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kelola Production Line | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only — no colour/radius/shadow literals, CSS variables only */
+    .pl-filter-bar {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+      flex-wrap: wrap;
+    }
+    .pl-filter-bar .input-group { min-width: 240px; }
+    .pl-table-card { margin-bottom: var(--space-xl); }
+    .pl-row-actions { display: flex; gap: var(--space-xs); }
+    .pl-form-card { margin-bottom: var(--space-xl); }
+    .pl-count-cell { text-align: center; }
+    .pl-hint {
+      font-size: var(--font-size-xs);
+      color: var(--color-muted-foreground, #71717a);
+      margin-top: var(--space-xs);
+    }
+    .actors-note {
+      font-size: var(--font-size-xs);
+      color: var(--color-muted-foreground, #71717a);
+      font-style: italic;
+      margin-top: var(--space-lg);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span>Mill Smart Log</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="#"><span class="label">Dashboard</span></a>
+        <a class="nav-item" href="#"><span class="label">Data Stasiun</span></a>
+        <a class="nav-item active" href="#"><span class="label">Master Data</span></a>
+        <a class="nav-item" href="#"><span class="label">User &amp; Role Management</span></a>
+        <a class="nav-item" href="#"><span class="label">Pengaturan Akun</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-title">Master Data &gt; Kelola Production Line</div>
+        <div class="topbar-end">
+          <span>Admin</span>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="page-header">
+          <h1 class="page-title">Kelola Production Line</h1>
+          <div class="page-actions">
+            <button class="btn btn-primary" type="button">+ Tambah Production Line</button>
+          </div>
+        </div>
+
+        <div class="pl-filter-bar">
+          <div class="input-group">
+            <label class="input-label" for="filter-bu">Filter Business Unit</label>
+            <select class="input" id="filter-bu">
+              <option>Semua Business Unit</option>
+              <option>Kilang Sawit Tenang</option>
+              <option>Kilang Sawit Utara</option>
+              <option>Kilang Sawit Selatan</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Daftar Production Line -->
+        <div class="card pl-table-card">
+          <div class="card-header">Daftar Production Line</div>
+          <div class="card-body" style="padding:0">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nama</th>
+                    <th>Kode</th>
+                    <th>Business Unit</th>
+                    <th>Jumlah Station</th>
+                    <th>Tanggal Dibuat</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Line 1</td>
+                    <td>TNG-L1</td>
+                    <td>Kilang Sawit Tenang</td>
+                    <td class="pl-count-cell">19</td>
+                    <td>12 Jan 2026</td>
+                    <td>
+                      <div class="pl-row-actions">
+                        <button class="btn btn-outline btn-sm" type="button">Edit</button>
+                        <button class="btn btn-destructive btn-sm" type="button">Hapus</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Line 2</td>
+                    <td>TNG-L2</td>
+                    <td>Kilang Sawit Tenang</td>
+                    <td class="pl-count-cell">19</td>
+                    <td>03 Feb 2026</td>
+                    <td>
+                      <div class="pl-row-actions">
+                        <button class="btn btn-outline btn-sm" type="button">Edit</button>
+                        <button class="btn btn-destructive btn-sm" type="button">Hapus</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Line 1</td>
+                    <td></td>
+                    <td>Kilang Sawit Utara</td>
+                    <td class="pl-count-cell">19</td>
+                    <td>20 Feb 2026</td>
+                    <td>
+                      <div class="pl-row-actions">
+                        <button class="btn btn-outline btn-sm" type="button">Edit</button>
+                        <button class="btn btn-destructive btn-sm" type="button">Hapus</button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Tambah/Edit Production Line -->
+        <div class="card pl-form-card">
+          <div class="card-header">Edit Production Line — Line 1 (Kilang Sawit Tenang)</div>
+          <div class="card-body">
+            <form class="form">
+              <div class="form-row">
+                <div class="input-group">
+                  <label class="input-label" for="pl-bu">Business Unit <span class="required">*</span></label>
+                  <select class="input" id="pl-bu">
+                    <option selected>Kilang Sawit Tenang</option>
+                    <option>Kilang Sawit Utara</option>
+                    <option>Kilang Sawit Selatan</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <label class="input-label" for="pl-nama">Nama <span class="required">*</span></label>
+                  <input class="input" type="text" id="pl-nama" value="Line 1">
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="input-group">
+                  <label class="input-label" for="pl-kode">Kode</label>
+                  <input class="input" type="text" id="pl-kode" value="TNG-L1">
+                  <p class="pl-hint">Opsional, harus unik secara global jika diisi.</p>
+                </div>
+                <div class="input-group">
+                  <label class="input-label" for="pl-deskripsi">Deskripsi</label>
+                  <input class="input" type="text" id="pl-deskripsi" value="Line produksi utama shift pagi &amp; sore">
+                </div>
+              </div>
+              <p class="pl-hint">Menyimpan Production Line baru akan otomatis membuat 19 station kanonis (17 aktif, 2 placeholder) untuk Production Line ini. Business Unit dan station yang sudah ada tidak berubah saat mengubah data di atas.</p>
+
+              <div class="form-actions">
+                <button class="btn btn-ghost" type="button">Batal</button>
+                <button class="btn btn-primary" type="submit">Simpan</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <p class="actors-note">
+          Actors: Admin &nbsp;·&nbsp;
+          Entry points: Menu sidebar 'Kelola Production Line'
+        </p>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

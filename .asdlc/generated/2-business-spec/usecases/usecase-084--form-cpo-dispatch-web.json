@@ -1,0 +1,143 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-084--form-cpo-dispatch-web",
+  "name": "Input & Edit Data CPO Dispatch (Web)",
+  "description": "Supervisor, Mill Management, atau Admin membuat record CPO Dispatch baru dari web (memilih Production Line) atau mengubah record tersimpan lewat mode edit, mengelola baris Log Kejadian secara bebas tanpa batas jumlah.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User berasal dari tombol 'Tambah Data' di Data Browser (mode buat) atau 'Edit' di Detail (mode ubah)"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Mode buat: muat opsi Production Line; mode edit: muat record tersimpan untuk prefill, tampilkan station sebagai read-only"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Mode buat: memilih Production Line; kedua mode: mengisi CPO Dispatch ID, Date (default hari ini, dapat diedit), Note"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Menambah/menghapus baris Log Kejadian dan mengisi Tanggal Kejadian (wajib) serta field lain per baris"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Menghitung Net Weight (MT) server-side untuk setiap baris valid"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Mencentang Checked (jika Supervisor) atau Acknowledged (jika Mill Management)"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Menekan Simpan"
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Validasi field wajib dan minimal 1 baris Log Kejadian valid, resolve station aktif (mode buat), simpan record dengan status 'saved', navigasi ke Detail CPO Dispatch (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field wajib belum lengkap",
+      "trigger": "Step 7 — field wajib kosong",
+      "steps": [
+        "Tampilkan error inline, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum ada baris Log Kejadian valid",
+      "trigger": "Step 7 — tidak ada baris dengan Tanggal Kejadian terisi",
+      "steps": [
+        "Tampilkan pesan error khusus, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Production Line tanpa station CPO Dispatch aktif",
+      "trigger": "Step 7 — mode buat, production line tidak memiliki station CPO Dispatch aktif",
+      "steps": [
+        "Tampilkan pesan error, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Record tidak ditemukan (mode edit)",
+      "trigger": "Step 1 — id tidak valid saat mode edit dibuka",
+      "steps": [
+        "Tampilkan pesan error"
+      ]
+    },
+    {
+      "name": "Batal dengan perubahan belum tersimpan",
+      "trigger": "User menekan Batal saat form dirty",
+      "steps": [
+        "Tampilkan dialog konfirmasi sebelum keluar"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record CPO Dispatch baru dibuat atau record tersimpan diperbarui, status selalu 'saved'"
+  ],
+  "business_rules": [
+    "Tidak ada draft/pause/Clear di web — Simpan langsung create/update dengan status 'saved'",
+    "Date default hari ini namun tetap dapat diedit manual",
+    "Net Weight dihitung server, tidak menerima override dari client",
+    "Production Line (dan station terkait) tidak dapat diubah setelah record dibuat",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Buat Record CPO Dispatch Baru — berhasil",
+      "given": "User memilih Production Line dan mengisi field wajib beserta 1 baris Log Kejadian valid",
+      "when": "User menekan Simpan",
+      "then": "Record tersimpan dan navigasi ke Detail CPO Dispatch (Web)"
+    },
+    {
+      "scenario": "Edit Record CPO Dispatch — berhasil",
+      "given": "User membuka mode edit dan mengubah field",
+      "when": "User menekan Simpan",
+      "then": "Perubahan tersimpan dan Detail menampilkan nilai baru"
+    },
+    {
+      "scenario": "Field Wajib Belum Lengkap",
+      "given": "Field wajib dikosongkan",
+      "when": "User menekan Simpan",
+      "then": "Error inline muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Belum Ada Baris Log Kejadian Valid",
+      "given": "Header lengkap tanpa baris Log Kejadian valid",
+      "when": "User menekan Simpan",
+      "then": "Pesan error khusus muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Production Line Tanpa Station CPO Dispatch Aktif",
+      "given": "Production Line dipilih tidak memiliki station CPO Dispatch aktif",
+      "when": "User menekan Simpan",
+      "then": "Pesan error ditampilkan, record tidak tersimpan"
+    },
+    {
+      "scenario": "Record Tidak Ditemukan (mode edit)",
+      "given": "Id record tidak valid pada mode edit",
+      "when": "Halaman form dimuat",
+      "then": "Pesan error ditampilkan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-114--form-cpo-dispatch-web"
+  ]
+}

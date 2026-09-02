@@ -1,0 +1,64 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-122--form-sterilizer",
+  "name": "Form Sterilizer",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/sterilizerRecordRepo.ts",
+    "mobile/src/views/FormSterilizerView.vue",
+    "mobile/src/router/index.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/sterilizerRecordRepo.spec.ts",
+    "mobile/tests/FormSterilizerView.spec.ts"
+  ],
+  "implementation_notes": [
+    "Mirrors FormCpoDispatchView.vue's structural pattern (breadcrumb + hamburger header, sectioned form body, dirty-tracking Back confirm, Pause/Clear/Simpan footer actions) but WITHOUT the grid/N-column/time-slot-uniqueness concept AND without a per-row event_date column — Log Siklus is a free event log, rows added manually via 'Tambah baris' with no upper bound, all rows sharing the header's single Date",
+    "Duration (Minutes) computed client-side (open_door_time - close_door_time, wrapping across midnight) via the exported computeDurationMinutes() helper in sterilizerRecordRepo.ts, reused identically by both FormSterilizerView.vue (live preview, rendered as a disabled/non-editable <input> showing the computed value) and the repo's own applyDetailRowChanges() (value persisted locally) — but the SERVER (SterilizerRecordService::computeDurationMinutes()) always recomputes and overrides this value on save/update, never trusting the client-persisted one, per entity-catalog: duration_minutes 'BUKAN kolom yang diinput user secara langsung'",
+    "Hapus baris follows the queue-for-deletion pattern (a row with an existing id is queued in pendingDeletionIds, only actually DELETEd by the repo on the next Simpan/Pause call) — consistent with Form CPO Dispatch/Kernel Dispatch/Solid Waste Disposal",
+    "checked_by_spv rendered as a plain <input type=\"checkbox\"> bound via v-model per row — a simple boolean, never disabled/role-gated (unlike the header's Checked By/Acknowledged By, which ARE role-gated to supervisor/mill_management respectively)",
+    "8 time-type detail fields (close_door_time, peak_1_time, exhaust_1_time, peak_2_time, exhaust_2_time, peak_3_time, exhaust_3_time, open_door_time) all rendered as <input type=\"time\"> — only close_door_time and open_door_time carry data-testid selectors (the two fields the Duration computation and its tests depend on), the other 6 are plain, matching CPO Dispatch's convention of only tagging fields with test-relevant behavior",
+    "This is the FINAL station of this project (18th and last of the 18 canonical stations, promoted 2026-09-01)"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser/E2E test not generated for this pass — component-level (Vitest) coverage exercises save/pause/clear/back flows instead.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % not measured — no Xdebug/PCOV in this environment.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 18,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 14,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

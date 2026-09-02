@@ -6,7 +6,10 @@ use App\Http\Controllers\Api\CagesTrackRecordController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\CorporateController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\EffluentPlantRecordController;
 use App\Http\Controllers\Api\GradingRecordController;
+use App\Http\Controllers\Api\CpoDispatchRecordController;
+use App\Http\Controllers\Api\KernelDispatchRecordController;
 use App\Http\Controllers\Api\MachineryController;
 use App\Http\Controllers\Api\MachineryGroupController;
 use App\Http\Controllers\Api\ManagementReportController;
@@ -14,8 +17,16 @@ use App\Http\Controllers\Api\MillSettingController;
 use App\Http\Controllers\Api\PressingRecordController;
 use App\Http\Controllers\Api\DepricarpingRecordController;
 use App\Http\Controllers\Api\KernelPlantRecordController;
+use App\Http\Controllers\Api\ProcessWaterRecordController;
 use App\Http\Controllers\Api\ProductionLineController;
+use App\Http\Controllers\Api\SolidWasteDisposalRecordController;
 use App\Http\Controllers\Api\StationController;
+use App\Http\Controllers\Api\StorageTankRecordController;
+use App\Http\Controllers\Api\BoilerRoomRecordController;
+use App\Http\Controllers\Api\ClarificationRecordController;
+use App\Http\Controllers\Api\ProcessQualityControlRecordController;
+use App\Http\Controllers\Api\SterilizerRecordController;
+use App\Http\Controllers\Api\EngineRoomRecordController;
 use App\Http\Controllers\Api\ThreshingRecordController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WeighbridgeRecordController;
@@ -540,5 +551,292 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     ->post('/kernel-plant-records', [KernelPlantRecordController::class, 'store']);
 Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
     ->patch('/kernel-plant-records/{id}', [KernelPlantRecordController::class, 'update']);
+
+// screen-091--data-browser-solid-waste-disposal-web
+// Mirrors screen-018--data-browser-cages-track-web's registration pattern
+// exactly — event-log station, no fixed grid.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/solid-waste-disposal-records', [SolidWasteDisposalRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/solid-waste-disposal-records/export', [SolidWasteDisposalRecordController::class, 'export']);
+
+// screen-101--detail-solid-waste-disposal-web
+// IMPORTANT — registered AFTER /solid-waste-disposal-records/export above,
+// so the literal "export" segment is matched first.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/solid-waste-disposal-records/{id}', [SolidWasteDisposalRecordController::class, 'show']);
+
+// screen-111--form-solid-waste-disposal-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) for the mobile sync
+// button, mirrors screen-024/057/058/059/060's routes.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/solid-waste-disposal-records', [SolidWasteDisposalRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/solid-waste-disposal-records/{id}', [SolidWasteDisposalRecordController::class, 'update']);
+
+// screen-092--data-browser-process-water-web
+// Session-guarded ('auth:web' — this screen is web-only, no mobile
+// counterpart exists for it yet) + role-guarded (supervisor,
+// mill_management, admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-049--data-browser-threshing-web's registration pattern exactly —
+// Process Water follows the same hourly-grid pattern as Threshing (no
+// operational-target reference table, unlike Threshing/Pressing/
+// Depricarping/Kernel Plant).
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/process-water-records', [ProcessWaterRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/process-water-records/export', [ProcessWaterRecordController::class, 'export']);
+
+// screen-102--detail-process-water-web
+// IMPORTANT — registered AFTER /process-water-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-053's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/process-water-records/{id}', [ProcessWaterRecordController::class, 'show']);
+
+// screen-112--form-process-water-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) mirrors
+// screen-057--form-threshing-web's routes, for a future mobile sync button.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/process-water-records', [ProcessWaterRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/process-water-records/{id}', [ProcessWaterRecordController::class, 'update']);
+
+// screen-093--data-browser-kernel-dispatch-web
+// Session-guarded ('auth:web') + role-guarded (supervisor, mill_management,
+// admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-091--data-browser-solid-waste-disposal-web's registration pattern
+// exactly — Kernel Dispatch follows the same event-log pattern as Solid
+// Waste Disposal (unbounded detail rows, no fixed grid).
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/kernel-dispatch-records', [KernelDispatchRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/kernel-dispatch-records/export', [KernelDispatchRecordController::class, 'export']);
+
+// screen-103--detail-kernel-dispatch-web
+// IMPORTANT — registered AFTER /kernel-dispatch-records/export above, so
+// the literal "export" segment is matched first; otherwise Laravel would
+// match it against {id} here instead. Mirrors screen-101's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/kernel-dispatch-records/{id}', [KernelDispatchRecordController::class, 'show']);
+
+// screen-113--form-kernel-dispatch-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) for a future mobile
+// sync button, mirrors screen-111's routes.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/kernel-dispatch-records', [KernelDispatchRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/kernel-dispatch-records/{id}', [KernelDispatchRecordController::class, 'update']);
+
+// screen-094--data-browser-cpo-dispatch-web
+// Session-guarded ('auth:web') + role-guarded (supervisor, mill_management,
+// admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-093--data-browser-kernel-dispatch-web's registration pattern
+// exactly — CPO Dispatch follows the same event-log pattern as Kernel
+// Dispatch (unbounded detail rows, no fixed grid).
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/cpo-dispatch-records', [CpoDispatchRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/cpo-dispatch-records/export', [CpoDispatchRecordController::class, 'export']);
+
+// screen-104--detail-cpo-dispatch-web
+// IMPORTANT — registered AFTER /cpo-dispatch-records/export above, so
+// the literal "export" segment is matched first; otherwise Laravel would
+// match it against {id} here instead. Mirrors screen-103's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/cpo-dispatch-records/{id}', [CpoDispatchRecordController::class, 'show']);
+
+// screen-114--form-cpo-dispatch-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) for a future mobile
+// sync button, mirrors screen-113's routes.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/cpo-dispatch-records', [CpoDispatchRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/cpo-dispatch-records/{id}', [CpoDispatchRecordController::class, 'update']);
+
+// screen-095--data-browser-effluent-plant-web
+// Session-guarded ('auth:web') + role-guarded (supervisor, mill_management,
+// admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-092--data-browser-process-water-web's registration pattern exactly
+// — Effluent Plant follows the same hourly-grid pattern as Process Water (no
+// operational-target reference table).
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/effluent-plant-records', [EffluentPlantRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/effluent-plant-records/export', [EffluentPlantRecordController::class, 'export']);
+
+// screen-105--detail-effluent-plant-web
+// IMPORTANT — registered AFTER /effluent-plant-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-102's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/effluent-plant-records/{id}', [EffluentPlantRecordController::class, 'show']);
+
+// screen-115--form-effluent-plant-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) mirrors
+// screen-112--form-process-water-web's routes, for a future mobile sync button.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/effluent-plant-records', [EffluentPlantRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/effluent-plant-records/{id}', [EffluentPlantRecordController::class, 'update']);
+
+// screen-096--data-browser-storage-tank-web
+// Session-guarded ('auth:web') + role-guarded (supervisor, mill_management,
+// admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-095--data-browser-effluent-plant-web's registration pattern exactly
+// — Storage Tank follows the same hourly-grid pattern as Effluent Plant (no
+// operational-target reference table).
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/storage-tank-records', [StorageTankRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/storage-tank-records/export', [StorageTankRecordController::class, 'export']);
+
+// screen-106--detail-storage-tank-web
+// IMPORTANT — registered AFTER /storage-tank-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-105's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/storage-tank-records/{id}', [StorageTankRecordController::class, 'show']);
+
+// screen-116--form-storage-tank-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) mirrors
+// screen-115--form-effluent-plant-web's routes, for a future mobile sync button.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/storage-tank-records', [StorageTankRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/storage-tank-records/{id}', [StorageTankRecordController::class, 'update']);
+
+// screen-097--data-browser-engine-room-web
+// Session-guarded ('auth:web') + role-guarded (supervisor, mill_management,
+// admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-096--data-browser-storage-tank-web's registration pattern exactly
+// — Engine Room follows the same hourly-grid pattern as Storage Tank (no
+// operational-target reference table).
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/engine-room-records', [EngineRoomRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/engine-room-records/export', [EngineRoomRecordController::class, 'export']);
+
+// screen-107--detail-engine-room-web
+// IMPORTANT — registered AFTER /engine-room-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-106's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/engine-room-records/{id}', [EngineRoomRecordController::class, 'show']);
+
+// screen-117--form-engine-room-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) mirrors
+// screen-116--form-storage-tank-web's routes, for a future mobile sync button.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/engine-room-records', [EngineRoomRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/engine-room-records/{id}', [EngineRoomRecordController::class, 'update']);
+
+// screen-098--data-browser-boiler-room-web
+// Session-guarded ('auth:web') + role-guarded (supervisor, mill_management,
+// admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-097--data-browser-engine-room-web's registration pattern exactly
+// — Boiler Room follows the same hourly-grid pattern as Engine Room (no
+// operational-target reference table).
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/boiler-room-records', [BoilerRoomRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/boiler-room-records/export', [BoilerRoomRecordController::class, 'export']);
+
+// screen-108--detail-boiler-room-web
+// IMPORTANT — registered AFTER /boiler-room-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-107's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/boiler-room-records/{id}', [BoilerRoomRecordController::class, 'show']);
+
+// screen-118--form-boiler-room-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) mirrors
+// screen-117--form-engine-room-web's routes, for a future mobile sync button.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/boiler-room-records', [BoilerRoomRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/boiler-room-records/{id}', [BoilerRoomRecordController::class, 'update']);
+
+// screen-099--data-browser-clarification-web
+// Session-guarded ('auth:web') + role-guarded (supervisor, mill_management,
+// admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-098--data-browser-boiler-room-web's registration pattern exactly
+// — Clarification follows the same hourly-grid pattern as Boiler Room (no
+// operational-target reference table).
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/clarification-records', [ClarificationRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/clarification-records/export', [ClarificationRecordController::class, 'export']);
+
+// screen-109--detail-clarification-web
+// IMPORTANT — registered AFTER /clarification-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-108's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/clarification-records/{id}', [ClarificationRecordController::class, 'show']);
+
+// screen-119--form-clarification-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) mirrors
+// screen-118--form-boiler-room-web's routes, for a future mobile sync button.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/clarification-records', [ClarificationRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/clarification-records/{id}', [ClarificationRecordController::class, 'update']);
+
+// screen-100--data-browser-process-quality-control-web
+// Session-guarded ('auth:web') + role-guarded (supervisor, mill_management,
+// admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-099--data-browser-clarification-web's registration pattern exactly
+// — Process Quality Control follows the same hourly-grid pattern as
+// Clarification (no operational-target reference table).
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/process-quality-control-records', [ProcessQualityControlRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/process-quality-control-records/export', [ProcessQualityControlRecordController::class, 'export']);
+
+// screen-110--detail-process-quality-control-web
+// IMPORTANT — registered AFTER /process-quality-control-records/export
+// above, so the literal "export" segment is matched first; otherwise
+// Laravel would match it against {id} here instead. Mirrors screen-109's
+// registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/process-quality-control-records/{id}', [ProcessQualityControlRecordController::class, 'show']);
+
+// screen-120--form-process-quality-control-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) mirrors
+// screen-119--form-clarification-web's routes, for a future mobile sync button.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/process-quality-control-records', [ProcessQualityControlRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/process-quality-control-records/{id}', [ProcessQualityControlRecordController::class, 'update']);
+
+// screen-124--data-browser-sterilizer-web
+// Session-guarded ('auth:web') + role-guarded (supervisor, mill_management,
+// admin per screen_tech_spec.actor_permissions). Mirrors
+// screen-094--data-browser-cpo-dispatch-web's registration pattern exactly
+// — Sterilizer follows the same event-log pattern as CPO Dispatch
+// (unbounded detail rows, no fixed grid). This is the FINAL station of
+// this project — after this, all 18 canonical stations have a full
+// backend + mobile implementation.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/sterilizer-records', [SterilizerRecordController::class, 'index']);
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/sterilizer-records/export', [SterilizerRecordController::class, 'export']);
+
+// screen-125--detail-sterilizer-web
+// IMPORTANT — registered AFTER /sterilizer-records/export above, so the
+// literal "export" segment is matched first; otherwise Laravel would match
+// it against {id} here instead. Mirrors screen-104's registration.
+Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+    ->get('/sterilizer-records/{id}', [SterilizerRecordController::class, 'show']);
+
+// screen-126--form-sterilizer-web
+// Dual-guarded ('auth:web,sanctum' + 'operator' role) mirrors
+// screen-114--form-cpo-dispatch-web's routes, for a future mobile sync button.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->post('/sterilizer-records', [SterilizerRecordController::class, 'store']);
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
+    ->patch('/sterilizer-records/{id}', [SterilizerRecordController::class, 'update']);
 
 // === ASDLC_ROUTES_END ===

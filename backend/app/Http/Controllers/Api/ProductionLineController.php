@@ -93,7 +93,7 @@ class ProductionLineController extends Controller
      * store() — POST /api/production-lines. business_logic step "create":
      * validate business_unit_id exists → validate name required → validate
      * code unique-if-filled → 422 if any invalid → insert, then
-     * auto-provision the 15 canonical DEFAULT_STATIONS rows.
+     * auto-provision the 19 canonical DEFAULT_STATIONS rows.
      *
      * Response status: 201 Created, mirroring
      * MachineryGroupController::store()/StationController::store().

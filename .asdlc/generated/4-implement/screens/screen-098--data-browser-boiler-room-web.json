@@ -1,0 +1,86 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-098--data-browser-boiler-room-web",
+  "name": "Data Browser Boiler Room (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Models/BoilerRoomRecord.php",
+    "backend/app/Models/BoilerRoomDetail.php",
+    "backend/database/migrations/2026_08_31_000016_create_boiler_room_records_table.php",
+    "backend/database/migrations/2026_08_31_000017_create_boiler_room_details_table.php",
+    "backend/app/Services/BoilerRoomRecordService.php",
+    "backend/app/Http/Controllers/Api/BoilerRoomRecordController.php",
+    "backend/app/Exceptions/NoActiveBoilerRoomStationException.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/factories/BoilerRoomRecordFactory.php",
+    "backend/database/factories/BoilerRoomDetailFactory.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/resources/views/data/production-process-activity.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/BoilerRoomRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserBoilerRoomTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserBoilerRoomTest.php",
+    "backend/tests/Browser/DataBrowserBoilerRoomTest.php",
+    "backend/tests/Feature/ProductionProcessActivityTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserBoilerRoom.php",
+    "backend/resources/views/data/boiler-room.blade.php",
+    "backend/resources/views/livewire/data/data-browser-boiler-room.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "BoilerRoomRecordService/Controller/routes/factories/models/migrations are shared infrastructure for all 3 web Boiler Room screens (098/108/118), mirroring EngineRoomRecordService's precedent -- reported under this screen since it is first in the implementation sequence. Models/migrations were already generated in an earlier (Phase 1/entity-catalog) pass per the task brief; this pass verified them against the service/controller code (using the migration as ground truth for the exact column list) and found them consistent, requiring no changes",
+    "Boiler Room follows the same hourly-grid (dynamic add-row/remove-row, 1..24 rows, unique + strictly ascending canonical time_slot) pattern as Engine Room -- create()/update()/listRecords()/export()/getDetail(), plus canonicalTimeSlots() helper returning 24 'HH:00' strings starting 07:00",
+    "filled_slot_count computed via withCount() with an inner OR-whereNotNull constraint across all 15 non-time_slot columns -- mirrors EngineRoomRecordService's filled_slot_count pattern; this station has NO identifying/context columns to exclude (no shift/inspector_id equivalent), so all 15 columns participate",
+    "IMPORTANT -- enum empty-string-vs-null: 2 of the 15 detail columns (blowdown_executed, sootblowing_executed) are backed by a SQLite CHECK constraint (Laravel enum('y','n')) that rejects an empty string. BoilerRoomRecordService::normalizeDetails() coerces '' to null for these columns specifically before validation/persistence -- the same mitigation Engine Room/Kernel Dispatch/Effluent Plant/Storage Tank needed for their own enum columns. Proactively implemented per explicit task instruction, verified by a dedicated unit test",
+    "3 detail columns (fuel_feed_rate, id_fan_load, sa_fan_load) are kept as free-text string columns end-to-end (request body, migration, service, FE) rather than numeric, per explicit task instruction: the paper-form units are mixed/ambiguous (Hz/%/tons for Fuel Feed Rate, A/% for ID/SA Fan Load)",
+    "UNLIKE Threshing/Pressing/Depricarping/Kernel Plant: Boiler Room has NO operational-target reference table -- no seeder, no model, no Target Operasional section anywhere in this station's 6 screens, per this task's explicit scope",
+    "The Boiler Room tile in production-process-activity.blade.php (screen-035) was updated from a javascript:void(0) placeholder to route('data.boiler-room') -- 2 of the 2026-08-31 batch (Clarification, Process Quality Control) now remain unrouted, decremented from 3",
+    "tests/Feature/ProductionProcessActivityTest.php updated: Boiler Room moved from the 'still-unrouted' test into the routed-tiles test (renamed to 'renders the 2 still-unrouted...')",
+    "StationFactory::boilerRoom() state added additively (mirrors engineRoom()/storageTank()/effluentPlant() exactly) for this screen's and screen-118's test suites",
+    "Ran the full backend test suite (`php artisan test`) after implementation: 1974 passed, 1 pre-existing unrelated flaky failure (Tests\\Unit\\Services\\CagesTrackRecordServiceTest -- a UNIQUE constraint collision from Faker-generated random data, reproduced in isolation as passing, confirmed unrelated to this station's changes). Boiler-Room-specific tests (`--filter=BoilerRoom`): 91 passed (0 failed) -- 34 unit (BoilerRoomRecordServiceTest), 7 integration (Feature/Api/DataBrowserBoilerRoomTest), 5 component (Feature/Livewire/DataBrowserBoilerRoomTest), reported under this screen; remaining 45 Boiler Room tests reported under screen-108/screen-118 below"
+  ],
+  "deferred_items": [
+    {
+      "description": "The mobile 'Sinkronisasi' button (Station List, screen-006) does not push locally-entered Boiler Room records to POST /api/boiler-room-records -- unlike Threshing/Pressing/Depricarping/Kernel Plant/Process Water/Kernel Dispatch/CPO Dispatch/Effluent Plant/Storage Tank/Engine Room, which each have a syncBoilerRoomRecords()-equivalent function wired into syncService.ts's syncAllRecords()",
+      "reason": "Out of this 6-screen task's explicit scope; the most recent precedent station (Engine Room) made the same deferral for the same reason. The route itself is already dual-guarded ('auth:web,sanctum' + operator role, see routes/api.php) so this is purely a mobile syncService.ts addition, not a backend change, when picked up later."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserBoilerRoomTest.php) exists following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T05:05:00Z",
+      "passed": 34,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T05:05:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T05:05:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

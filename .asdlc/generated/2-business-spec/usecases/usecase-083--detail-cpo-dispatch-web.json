@@ -1,0 +1,76 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-083--detail-cpo-dispatch-web",
+  "name": "Lihat Detail CPO Dispatch (Web)",
+  "description": "Supervisor, Mill Management, atau Admin melihat 1 record CPO Dispatch tersimpan secara lengkap beserta Log Kejadian, read-only, setelah klik baris di Data Browser CPO Dispatch (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User berasal dari Data Browser CPO Dispatch (Web) dan mengklik salah satu baris"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Validasi id record ada, muat record beserta seluruh baris Log Kejadian dan resolve nama user (Inputted By/Checked By/Acknowledged By)"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Melihat seluruh field header, Log Kejadian, dan Verifikasi secara read-only"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Menekan Back untuk kembali ke Data Browser, atau Edit untuk membuka Form CPO Dispatch (Web) mode edit"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Record tidak ditemukan",
+      "trigger": "Step 1 — id tidak ditemukan",
+      "steps": [
+        "Tampilkan pesan error dengan tombol Back"
+      ]
+    },
+    {
+      "name": "Checked By/Acknowledged By belum diisi",
+      "trigger": "Step 1 — field verifikasi masih kosong",
+      "steps": [
+        "Tampilkan '-' pada field tersebut"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User kembali ke Data Browser atau berpindah ke Form CPO Dispatch (Web) mode edit"
+  ],
+  "business_rules": [
+    "Seluruh field read-only, koreksi dilakukan lewat Form CPO Dispatch Web",
+    "Checked By dan Acknowledged By keduanya ditampilkan apa adanya",
+    "Log Kejadian ditampilkan langsung dari data tersimpan, tidak dihitung ulang"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Detail CPO Dispatch - berhasil",
+      "given": "Record CPO Dispatch valid dipilih dari Data Browser",
+      "when": "Halaman detail dimuat",
+      "then": "Seluruh field header dan Log Kejadian tampil read-only"
+    },
+    {
+      "scenario": "Lihat Detail CPO Dispatch - Record Tidak Ditemukan",
+      "given": "Id record tidak valid",
+      "when": "Halaman detail dimuat",
+      "then": "Pesan error ditampilkan beserta tombol Back yang berfungsi"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-104--detail-cpo-dispatch-web"
+  ]
+}

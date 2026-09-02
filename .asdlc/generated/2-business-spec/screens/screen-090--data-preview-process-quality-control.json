@@ -1,0 +1,84 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-090--data-preview-process-quality-control",
+  "name": "Data Preview Process Quality Control",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar dual-mode: mode LIST menampilkan seluruh record Process Quality Control milik user (apapun statusnya) dengan filter tanggal dan pencarian; mode DETAIL menampilkan 1 record secara read-only lengkap dengan grid Process Quality Control Detail-nya — mengikuti pola persis Data Preview Clarification/Boiler Room/Engine Room/Storage Tank/Effluent Plant.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Load Data dari Monitor Process Quality Control (mode list)",
+    "Tap item Tersimpan/Tersinkron di mode list (mode detail)"
+  ],
+  "information_displayed": [
+    "Mode list: filter Tanggal (default hari ini) dan Cari (Process QC ID), daftar record dengan badge status (Pause/Tersimpan/Tersinkron)",
+    "Mode detail: Process QC ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Process Quality Control Detail (seluruh baris yang ada, 16 kolom bacaan/keterangan + Findings per baris) read-only"
+  ],
+  "available_actions": [
+    {
+      "action": "Filter tanggal",
+      "description": "Menyaring list berdasarkan tanggal record",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Cari",
+      "description": "Menyaring list berdasarkan Process QC ID (substring, case-insensitive)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap item list",
+      "description": "draft/pause → membuka Form Process Quality Control; saved/synced → membuka mode detail layar ini",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Reset filter",
+      "description": "Mengosongkan filter tanggal dan pencarian saat tidak ada hasil",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Mode list → Monitor Process Quality Control; mode detail → kembali ke mode list",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Detail record bersifat murni read-only",
+    "List menampilkan seluruh record milik user apapun statusnya",
+    "Filter tanggal default ke hari ini saat list pertama kali dibuka",
+    "Checked By/Acknowledged By ditampilkan apa adanya tanpa pembatasan role untuk melihat",
+    "Baris Process Quality Control Detail ditampilkan langsung dari data tersimpan, tanpa hitung ulang"
+  ],
+  "usecase_ids": [
+    "usecase-117--data-preview-process-quality-control"
+  ],
+  "edge_cases": [
+    "Belum ada record Process Quality Control sama sekali — empty state pada mode list",
+    "Filter tidak menghasilkan apapun — pesan tidak ditemukan dengan opsi reset filter",
+    "id pada mode detail tidak valid/tidak ditemukan — pesan error dengan tombol Back",
+    "Record memiliki nol baris Process Quality Control Detail — grid kosong/empty-state, bukan error",
+    "Item draft/pause ditekan di mode list — membuka Form Process Quality Control, bukan mode detail"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

@@ -1,0 +1,104 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-109--monitor-clarification",
+  "name": "Monitor Clarification",
+  "description": "Operator atau Supervisor melihat ringkasan data Clarification hari ini dan daftar draft/pause miliknya, lalu memulai data baru atau menelusuri data tersimpan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login sebagai Operator atau Supervisor",
+    "User sudah memilih Production Line dan station Clarification dari Station List"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan counter hari ini (Jumlah Clarification Record, Jumlah Baris Time-Slot Tercatat) dan daftar draft/pause milik user, diurutkan berdasarkan terakhir diubah"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'New Data' untuk membuat draft baru"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Membuat record Clarification baru berstatus draft (header saja, grid Clarification Detail kosong) dan membuka Form Clarification untuk record tersebut"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Lanjutkan Draft/Pause",
+      "trigger": "Pada langkah 1, user menekan salah satu item draft/pause di list",
+      "steps": [
+        "System membuka Form Clarification dengan data draft/pause tersebut, tanpa mengubah statusnya"
+      ]
+    },
+    {
+      "name": "Load Data",
+      "trigger": "Pada langkah 1, user menekan 'Load Data'",
+      "steps": [
+        "System membuka Data Preview Clarification dalam mode daftar (tanpa id), menampilkan seluruh record apapun statusnya"
+      ]
+    },
+    {
+      "name": "Belum Ada Draft",
+      "trigger": "Tidak ada draft/pause milik user saat layar dibuka",
+      "steps": [
+        "System menampilkan pesan/empty state pada area list",
+        "Tombol 'New Data' tetap aktif"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Untuk New Data: 1 record Clarification baru berstatus draft_ongoing tersimpan lokal, siap diisi di Form Clarification",
+    "Untuk Lanjutkan Draft: user berada di Form Clarification dengan data draft yang sudah ada"
+  ],
+  "business_rules": [
+    "Status draft ongoing dan paused digabung secara tampilan sebagai satu istilah 'Pause'",
+    "User bisa memiliki beberapa draft/pause berjalan bersamaan",
+    "New Data hanya membuat header record — grid Clarification Detail dimulai kosong, baris ditambahkan satu per satu oleh user di Form Clarification",
+    "Counter hari ini dihitung dari seluruh record dengan tanggal Date = hari ini, status apapun"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Monitor Clarification — New Data",
+      "given": "User berada di Monitor Clarification",
+      "when": "User menekan 'New Data'",
+      "then": "Sistem membuat draft baru (header saja, grid kosong) dan membuka Form Clarification untuk draft tersebut"
+    },
+    {
+      "scenario": "Monitor Clarification — Lanjutkan Draft/Pause",
+      "given": "User memiliki minimal satu draft/pause Clarification",
+      "when": "User menekan salah satu item di list draft/pause",
+      "then": "Sistem membuka Form Clarification dengan data draft tersebut tanpa mengubah statusnya"
+    },
+    {
+      "scenario": "Monitor Clarification — Load Data",
+      "given": "User berada di Monitor Clarification",
+      "when": "User menekan 'Load Data'",
+      "then": "Sistem membuka Data Preview Clarification dalam mode daftar, menampilkan seluruh record apapun statusnya"
+    },
+    {
+      "scenario": "Monitor Clarification — Belum Ada Draft",
+      "given": "User belum memiliki draft/pause Clarification",
+      "when": "User membuka Monitor Clarification",
+      "then": "Sistem menampilkan empty state pada list dan tombol 'New Data' tetap aktif"
+    },
+    {
+      "scenario": "Monitor Clarification — Belum Ada Data Hari Ini",
+      "given": "Belum ada record Clarification dengan tanggal hari ini",
+      "when": "User membuka Monitor Clarification",
+      "then": "Kedua card counter menampilkan 0"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-069--monitor-clarification"
+  ]
+}

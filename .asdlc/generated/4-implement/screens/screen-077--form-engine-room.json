@@ -1,0 +1,58 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-077--form-engine-room",
+  "name": "Form Engine Room",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/FormEngineRoomView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/FormEngineRoomView.spec.ts"
+  ],
+  "implementation_notes": [
+    "Engine Room Detail grid renders whatever rows exist (0..24) loaded from engineRoomRecordRepo.getDraftWithDetails(), with Tambah baris/Hapus baris controls -- the exact same dynamic add-row/remove-row pattern as Storage Tank Detail (screen-076's mobile precedent)",
+    "availableTimeSlotOptions() compares slots by their index in canonicalTimeSlots() rather than a raw hour number (since slots wrap starting at 07:00, not 0-23), mirroring FormStorageTankView.vue's availableTimeSlotOptions() exactly",
+    "'Minimal 1 baris valid' (Time-Slot terpilih + minimal 1 kolom bacaan/status terisi) validated at FE + repo level (engineRoomRecordRepo.saveDraft() throws EngineRoomDetailRequiredError) -- this station has 27 non-time_slot columns, the LARGEST of any station in this project, all of which participate in the 'filled' check (no identifying/context columns to exclude)",
+    "The 2 enum status columns (Diesel Gen 1 Status, Diesel Gen 2 Status: Run/Standby/Off) are each rendered as a native <select> dropdown with a '-- Pilih --' empty option, styled with the existing .native-select CSS class; local SQLite has no CHECK constraint so no empty-string coercion is required in this repo (unlike the web backend, see screen-097/117)",
+    "UNLIKE Form Threshing/Form Effluent Plant: this screen has NO operational-target reference table section -- no CollapsibleSection, no static-constant data file, per this station's explicit scope",
+    "Every FormField id in the grid is set explicitly (e.g. steam-inlet-pressure-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide, same defensive pattern as FormStorageTankView.vue",
+    "Field order in the grid & template mirrors the migration column order exactly: Steam Turbine (6 fields) -> Diesel Gen 1 (5) -> Diesel Gen 2 (5) -> Electrical Sync (4) -> Air Compressor/Battery/Fuel/Energy (4) -> Action Taken/Findings (2) = 27 total"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) e2e spec was not authored for this screen in this task -- component test coverage (FormEngineRoomView.spec.ts, 20 tests) is complete and passing, but there is no browser-level verification of this screen's full Simpan/Pause/Clear/Back flow in a live dev server.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T04:11:00Z",
+      "passed": 20,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

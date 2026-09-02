@@ -1,0 +1,152 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-098--form-engine-room",
+  "name": "Input Data Engine Room",
+  "description": "Operator atau Supervisor mengisi header dan grid detail time-slot per jam untuk sebuah record Engine Room, lalu menyimpan, menjeda (Pause), atau membatalkan (Clear) record tersebut.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "Sebuah record Engine Room draft sudah dibuat (baru atau dilanjutkan) dari Monitor Engine Room"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Memuat draft Engine Room beserta seluruh baris Engine Room Detail yang sudah ada (bisa nol baris untuk draft baru)"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Mengisi Engine Room ID dan field header lainnya"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'Tambah baris' untuk menambah baris Engine Room Detail, memilih Time-Slot, dan mengisi kolom bacaan yang relevan (termasuk Diesel Gen 1 Status dan Diesel Gen 2 Status sebagai pilihan status masing-masing)"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'Simpan'"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi Engine Room ID terisi dan minimal satu baris Engine Room Detail valid (Time-Slot terpilih + minimal satu dari 26 kolom bacaan terisi)"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menyimpan record dengan status 'saved' dan kembali ke Monitor Engine Room"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Engine Room ID Belum Lengkap",
+      "trigger": "Pada langkah 5, Engine Room ID kosong",
+      "steps": [
+        "System menampilkan error inline pada field Engine Room ID",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum Ada Baris Valid",
+      "trigger": "Pada langkah 5, tidak ada baris Engine Room Detail valid",
+      "steps": [
+        "System menampilkan pesan error khusus pada grid",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Pause",
+      "trigger": "User menekan 'Pause' kapan saja sebelum Simpan",
+      "steps": [
+        "System menyimpan field apa adanya tanpa validasi wajib, status menjadi draft_paused",
+        "System kembali ke Monitor Engine Room"
+      ]
+    },
+    {
+      "name": "Clear",
+      "trigger": "User menekan 'Clear'",
+      "steps": [
+        "System menampilkan dialog konfirmasi",
+        "Jika dikonfirmasi: record beserta seluruh barisnya dihapus permanen, kembali ke Monitor Engine Room",
+        "Jika dibatalkan: tidak ada perubahan"
+      ]
+    },
+    {
+      "name": "Back Dengan Perubahan Belum Tersimpan",
+      "trigger": "User menekan Back saat form dirty",
+      "steps": [
+        "System menampilkan dialog konfirmasi sebelum keluar"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Untuk Simpan sukses: record berstatus 'saved' dengan header dan baris Engine Room Detail tersimpan",
+    "Untuk Pause: record berstatus 'draft_paused' dengan field apa adanya tersimpan sebagai checkpoint",
+    "Untuk Clear terkonfirmasi: record dan seluruh barisnya terhapus permanen"
+  ],
+  "business_rules": [
+    "Tanggal otomatis diisi sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Grid Engine Room Detail tidak di-pre-generate — baris ditambahkan satu per satu via Tambah baris, dapat dihapus via Hapus baris",
+    "Time-Slot tiap baris harus lebih lambat dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
+    "Minimal satu baris valid (Time-Slot terpilih + minimal satu kolom bacaan terisi) sebelum Simpan",
+    "Engine Room ID wajib diisi sebelum Simpan",
+    "Diesel Gen 1 Status dan Diesel Gen 2 Status masing-masing adalah kolom status/enum terpisah pada baris, tidak digabung menjadi satu"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data Engine Room — success",
+      "given": "Engine Room ID terisi dan minimal 1 baris Engine Room Detail valid",
+      "when": "User menekan Simpan",
+      "then": "Record tersimpan dengan status 'saved', navigasi ke Monitor Engine Room"
+    },
+    {
+      "scenario": "Input Data Engine Room — Engine Room ID Belum Lengkap",
+      "given": "Engine Room ID kosong",
+      "when": "User menekan Simpan",
+      "then": "Error inline ditampilkan, record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Engine Room — Belum Ada Baris Valid",
+      "given": "Grid Engine Room Detail kosong atau tidak ada baris valid",
+      "when": "User menekan Simpan",
+      "then": "Pesan error khusus ditampilkan pada grid, record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Engine Room — Tambah/Hapus Baris dan Urutan Time-Slot",
+      "given": "User menambah beberapa baris dengan Time-Slot berurutan",
+      "when": "User menghapus salah satu baris",
+      "then": "Time-Slot yang dipakai baris tersebut kembali tersedia untuk baris lain"
+    },
+    {
+      "scenario": "Input Data Engine Room — Baris Valid Hanya Dari Status Enum",
+      "given": "Satu baris memiliki Time-Slot terpilih dan hanya Diesel Gen 1 Status='Standby' terisi, kolom lain kosong",
+      "when": "User menekan Simpan",
+      "then": "Baris tersebut dianggap valid (terisi) dan record tersimpan"
+    },
+    {
+      "scenario": "Input Data Engine Room — Pause Progress",
+      "given": "Field wajib belum lengkap",
+      "when": "User menekan Pause",
+      "then": "Tidak ada validasi, progress tersimpan sebagai draft_paused, navigasi ke Monitor Engine Room"
+    },
+    {
+      "scenario": "Input Data Engine Room — Clear Draft",
+      "given": "User menekan Clear",
+      "when": "User mengonfirmasi dialog hapus",
+      "then": "Record dan seluruh barisnya terhapus permanen, navigasi ke Monitor Engine Room"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-077--form-engine-room"
+  ]
+}

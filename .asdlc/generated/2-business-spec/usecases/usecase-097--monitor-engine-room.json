@@ -1,0 +1,104 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-097--monitor-engine-room",
+  "name": "Monitor Engine Room",
+  "description": "Operator atau Supervisor melihat ringkasan data Engine Room hari ini dan daftar draft/pause miliknya, lalu memulai data baru atau menelusuri data tersimpan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login sebagai Operator atau Supervisor",
+    "User sudah memilih Production Line dan station Engine Room dari Station List"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan counter hari ini (Jumlah Engine Room Record, Jumlah Baris Time-Slot Tercatat) dan daftar draft/pause milik user, diurutkan berdasarkan terakhir diubah"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'New Data' untuk membuat draft baru"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Membuat record Engine Room baru berstatus draft (header saja, grid Engine Room Detail kosong) dan membuka Form Engine Room untuk record tersebut"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Lanjutkan Draft/Pause",
+      "trigger": "Pada langkah 1, user menekan salah satu item draft/pause di list",
+      "steps": [
+        "System membuka Form Engine Room dengan data draft/pause tersebut, tanpa mengubah statusnya"
+      ]
+    },
+    {
+      "name": "Load Data",
+      "trigger": "Pada langkah 1, user menekan 'Load Data'",
+      "steps": [
+        "System membuka Data Preview Engine Room dalam mode daftar (tanpa id), menampilkan seluruh record apapun statusnya"
+      ]
+    },
+    {
+      "name": "Belum Ada Draft",
+      "trigger": "Tidak ada draft/pause milik user saat layar dibuka",
+      "steps": [
+        "System menampilkan pesan/empty state pada area list",
+        "Tombol 'New Data' tetap aktif"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Untuk New Data: 1 record Engine Room baru berstatus draft_ongoing tersimpan lokal, siap diisi di Form Engine Room",
+    "Untuk Lanjutkan Draft: user berada di Form Engine Room dengan data draft yang sudah ada"
+  ],
+  "business_rules": [
+    "Status draft ongoing dan paused digabung secara tampilan sebagai satu istilah 'Pause'",
+    "User bisa memiliki beberapa draft/pause berjalan bersamaan",
+    "New Data hanya membuat header record — grid Engine Room Detail dimulai kosong, baris ditambahkan satu per satu oleh user di Form Engine Room",
+    "Counter hari ini dihitung dari seluruh record dengan tanggal Date = hari ini, status apapun"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Monitor Engine Room — New Data",
+      "given": "User berada di Monitor Engine Room",
+      "when": "User menekan 'New Data'",
+      "then": "Sistem membuat draft baru (header saja, grid kosong) dan membuka Form Engine Room untuk draft tersebut"
+    },
+    {
+      "scenario": "Monitor Engine Room — Lanjutkan Draft/Pause",
+      "given": "User memiliki minimal satu draft/pause Engine Room",
+      "when": "User menekan salah satu item di list draft/pause",
+      "then": "Sistem membuka Form Engine Room dengan data draft tersebut tanpa mengubah statusnya"
+    },
+    {
+      "scenario": "Monitor Engine Room — Load Data",
+      "given": "User berada di Monitor Engine Room",
+      "when": "User menekan 'Load Data'",
+      "then": "Sistem membuka Data Preview Engine Room dalam mode daftar, menampilkan seluruh record apapun statusnya"
+    },
+    {
+      "scenario": "Monitor Engine Room — Belum Ada Draft",
+      "given": "User belum memiliki draft/pause Engine Room",
+      "when": "User membuka Monitor Engine Room",
+      "then": "Sistem menampilkan empty state pada list dan tombol 'New Data' tetap aktif"
+    },
+    {
+      "scenario": "Monitor Engine Room — Belum Ada Data Hari Ini",
+      "given": "Belum ada record Engine Room dengan tanggal hari ini",
+      "when": "User membuka Monitor Engine Room",
+      "then": "Kedua card counter menampilkan 0"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-067--monitor-engine-room"
+  ]
+}

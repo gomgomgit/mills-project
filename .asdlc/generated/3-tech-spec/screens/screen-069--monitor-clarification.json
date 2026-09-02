@@ -1,0 +1,235 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-069--monitor-clarification",
+  "name": "Monitor Clarification",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/clarification/monitor",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-109--monitor-clarification",
+      "usecase_name": "Monitor Clarification",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load counter hari ini: COUNT local clarification_record milik user WHERE date(date) = hari ini (status apapun), dan COUNT clarification_detail rows milik record-record tersebut (plain COUNT(*), tidak difilter 'punya minimal satu kolom bacaan terisi')",
+        "2. Load list of local clarification_record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC → each item labeled uniformly 'Pause'",
+        "3. Render 2 card counter sebaris (Jumlah Clarification Record, Jumlah Baris Time-Slot Tercatat) di atas list draft/pause",
+        "4. Render breadcrumb (Home > Production Process Activity > Clarification, tappable) dan header dengan 'Mill Smart Log' + hamburger",
+        "5. On 'New Data' → INSERT new local clarification_record dengan status=draft_ongoing, created_by=current user, date=waktu saat ini SAJA — TIDAK sekaligus INSERT clarification_detail rows kosong; grid Clarification Detail dimulai kosong, baris ditambahkan satu per satu oleh user di Form Clarification via 'Tambah baris'; navigasi ke Form Clarification dengan id draft baru",
+        "6. On tap item list → navigasi ke Form Clarification dengan id draft tersebut (tanpa transisi status)",
+        "7. On 'Load Data' → navigasi ke Data Preview Clarification mode list (tanpa id param)",
+        "8. On tap breadcrumb segment → navigasi ke route terkait",
+        "9. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "clarification-record",
+          "operation": "SELECT",
+          "description": "SELECT record-record milik user WHERE date(date) = hari ini, status apapun, untuk hitung COUNT"
+        },
+        {
+          "entity_id": "clarification-detail",
+          "operation": "SELECT",
+          "description": "SELECT COUNT seluruh baris milik record-record hari ini tersebut (plain row count, tidak difilter 'terisi')"
+        },
+        {
+          "entity_id": "clarification-record",
+          "operation": "SELECT",
+          "description": "SELECT list local record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC"
+        },
+        {
+          "entity_id": "clarification-record",
+          "operation": "INSERT",
+          "description": "INSERT new local draft record on New Data, status=draft_ongoing, date=now — HANYA header, tanpa clarification_detail rows"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Belum ada draft/pause sama sekali",
+          "handling": "List kosong/empty state ditampilkan, tombol New Data tetap aktif"
+        },
+        {
+          "condition": "Banyak draft/pause menumpuk",
+          "handling": "List perlu scroll agar semua tetap dapat diakses"
+        },
+        {
+          "condition": "Belum ada data (status apapun) dengan date = hari ini",
+          "handling": "Kedua card counter menampilkan 0"
+        },
+        {
+          "condition": "Draft baru dibuat tapi belum ada satu baris pun ditambahkan",
+          "handling": "Jumlah Baris Time-Slot Tercatat tetap 0 untuk record tersebut sampai user menekan 'Tambah baris' di Form Clarification"
+        }
+      ],
+      "business_rules_applied": [
+        "User bisa punya beberapa draft/pause berjalan bersamaan, semua tampil di list",
+        "Ongoing dan paused digabung sebagai satu istilah Pause secara tampilan",
+        "New Data hanya membuat header — clarification_detail rows TIDAK dibuat sekaligus, ditambahkan satu per satu oleh user di Form Clarification",
+        "Counter hari ini dihitung dari seluruh record (status apapun) dengan tanggal Date = hari ini; Jumlah Baris Time-Slot Tercatat = plain COUNT seluruh baris clarification_detail milik record-record tersebut"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads screen data successfully with populated list when local records exist",
+          "given": "clarificationRecordRepo.getDrafts() returns non-empty draft/pause records",
+          "expect": "return screen state { list: [...], isEmpty: false }"
+        },
+        {
+          "description": "returns empty-state list when no draft/pause records exist for current user",
+          "given": "clarificationRecordRepo.getDrafts(userId) returns []",
+          "expect": "return screen state { list: [], isEmpty: true }, New Data action remains enabled"
+        },
+        {
+          "description": "returns draft/pause list with uniform 'Pause' label ordered by updated_at DESC regardless of underlying status",
+          "given": "clarificationRecordRepo.getDrafts() returns mixed records with status draft_ongoing and draft_paused at different updated_at timestamps",
+          "expect": "return list mapped with label='Pause' for every item, sorted by updated_at descending"
+        },
+        {
+          "description": "creates a new draft record with ZERO clarification_detail rows and navigates to Form Clarification when New Data is pressed",
+          "given": "clarificationRecordRepo.createDraft() succeeds and returns a new record id with no clarification_detail rows inserted",
+          "expect": "call navigate(FormClarification, { id: newRecord.id }) and clarificationRecordRepo.createDraft() called with { status: 'draft_ongoing', created_by: currentUser, date: <now> }, resulting in zero detail rows"
+        },
+        {
+          "description": "navigates to Form Clarification with selected draft id and does not change its status when a list item is tapped",
+          "given": "an existing draft/pause record with status=draft_paused is present in the loaded list",
+          "expect": "call navigate(FormClarification, { id: tappedRecord.id }); clarificationRecordRepo.update() is NOT called"
+        },
+        {
+          "description": "navigates to Data Preview Clarification in list mode with no id param when Load Data is pressed",
+          "given": "user triggers the Load Data action",
+          "expect": "call navigate(DataPreviewClarification, { mode: 'list', id: null })"
+        },
+        {
+          "description": "computes today's counter (count records, plain count of detail rows added) from records with date = today, any status",
+          "given": "clarificationRecordRepo returns 2 records dated today, one with 2 clarification_detail rows and one with 1, mixed statuses (draft_ongoing, saved)",
+          "expect": "counter = { countClarificationRecord: 2, detailRowCount: 3 }"
+        },
+        {
+          "description": "excludes records with date not equal to today from the counter",
+          "given": "clarificationRecordRepo returns records dated yesterday and today",
+          "expect": "counter only reflects today's records, yesterday's excluded"
+        },
+        {
+          "description": "returns zero counter values when no records match today's date",
+          "given": "clarificationRecordRepo returns no records dated today",
+          "expect": "counter = { countClarificationRecord: 0, detailRowCount: 0 }"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Asal navigasi ke Monitor Clarification, dan tujuan breadcrumb/back"
+    },
+    {
+      "screen_id": "screen-079--form-clarification",
+      "reason": "New Data / tap list item membuka Form Clarification"
+    },
+    {
+      "screen_id": "screen-089--data-preview-clarification",
+      "reason": "Load Data membuka Data Preview Clarification mode list"
+    }
+  ],
+  "implementation_notes": [
+    "Semua operasi dilakukan lokal di SQLite, tidak ada panggilan API",
+    "24 time slot kanonis (canonicalTimeSlots(), dihitung sebagai deret jam mulai 7: for i in 0..23 -> hour = (7 + i) % 24, format 'HH:00') dipakai Form Clarification untuk urutan opsi dropdown Time-Slot, tidak dipakai untuk pre-generate baris saat New Data",
+    "'Jumlah Baris Time-Slot Tercatat' adalah plain COUNT(*) clarification_detail rows milik record-record hari ini",
+    "Breadcrumb & hamburger mengikuti pola yang sama dengan Monitor Boiler Room/Engine Room/Storage Tank/Effluent Plant/Process Water/Threshing/Pressing/Depricarping/Kernel Plant",
+    "Router: route name 'monitor-clarification' sudah wired di StationListView.vue (MONITOR_ROUTE_NAMES); StationListView.vue juga akan memanggil clarificationRecordRepo.getDrafts() langsung ke dalam Promise.all draftStatusByType",
+    "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak seperti Threshing/Pressing/Depricarping/Kernel Plant. Ini adalah stasiun paling sederhana di seluruh proyek: hanya 6 kolom bacaan numerik + Findings per baris, tanpa kolom enum/status apapun."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Monitor Clarification — New Data",
+      "usecase_id": "usecase-109--monitor-clarification",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorClarificationView",
+        "action": "render screen with draft/pause list, tap the 'New Data' button",
+        "assert": "createNewDraft handler invoked (zero detail rows created); router push to Form Clarification route called with the newly created draft id"
+      },
+      "browser_test": {
+        "route": "/stations/clarification/monitor",
+        "action": "login, navigate to Clarification from Station List, on Monitor Clarification tap 'New Data' button",
+        "assert": "browser navigates to Form Clarification URL for the newly created draft record, with the Clarification Detail grid starting empty"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Clarification — Lanjutkan Draft/Pause",
+      "usecase_id": "usecase-109--monitor-clarification",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorClarificationView",
+        "action": "render screen with a draft/pause list containing at least one item, tap the first list item",
+        "assert": "router push to Form Clarification route called with the tapped item's draft id; no status-update handler invoked"
+      },
+      "browser_test": {
+        "route": "/stations/clarification/monitor",
+        "action": "with an existing draft/pause present in the list, tap the draft/pause list item",
+        "assert": "browser navigates to Form Clarification URL pre-filled with the selected draft's data"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Clarification — Load Data",
+      "usecase_id": "usecase-109--monitor-clarification",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorClarificationView",
+        "action": "tap the 'Load Data' button",
+        "assert": "router push to Data Preview Clarification route called in list mode with no id param"
+      },
+      "browser_test": {
+        "route": "/stations/clarification/monitor",
+        "action": "tap the 'Load Data' button on Monitor Clarification screen",
+        "assert": "browser navigates to Data Preview Clarification screen, showing all records (saved and draft) with date and search filters visible"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Clarification — Belum Ada Draft",
+      "usecase_id": "usecase-109--monitor-clarification",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorClarificationView",
+        "action": "render screen when the draft/pause list is empty",
+        "assert": "empty-state message shown in list area; 'New Data' button remains enabled/interactive"
+      },
+      "browser_test": {
+        "route": "/stations/clarification/monitor",
+        "action": "open Monitor Clarification screen with no existing draft/pause records",
+        "assert": "list area shows empty state; 'New Data' button is visible and enabled"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Clarification — Belum Ada Data Hari Ini",
+      "usecase_id": "usecase-109--monitor-clarification",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorClarificationView",
+        "action": "render screen with today's counter data all zero",
+        "assert": "2 counter cards render 0"
+      },
+      "browser_test": {
+        "route": "/stations/clarification/monitor",
+        "action": "ensure no clarification_record rows dated today exist for the logged-in user, navigate to Monitor Clarification",
+        "assert": "the 2 counter cards show 0"
+      }
+    }
+  ]
+}

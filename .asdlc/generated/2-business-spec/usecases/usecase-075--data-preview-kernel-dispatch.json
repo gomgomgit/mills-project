@@ -1,0 +1,116 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "usecase-075--data-preview-kernel-dispatch",
+  "name": "Lihat Data Kernel Dispatch Tersimpan",
+  "description": "Operator atau Supervisor menelusuri seluruh record Kernel Dispatch tersimpan lokal (dengan filter tanggal dan pencarian), lalu membuka salah satu record tersimpan/tersinkron untuk melihat detail lengkap read-only.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User berada di Monitor Kernel Dispatch dan menekan Load Data"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Muat seluruh record Kernel Dispatch milik user, status apapun, set filter tanggal default ke hari ini"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Melihat list record dengan label + indikator status"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Mengubah filter tanggal dan/atau mengetik kata kunci pencarian (Kernel Dispatch ID)"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Tap salah satu item pada list"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Jika item berstatus draft: navigasi ke Form Kernel Dispatch; jika tersimpan/tersinkron: tampilkan mode detail read-only beserta Log Kejadian"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Record tidak ditemukan",
+      "trigger": "Step 5 — id tidak valid/tidak ada di mode detail",
+      "steps": [
+        "Tampilkan pesan error 'record tidak ditemukan' dengan tombol Back kembali ke list"
+      ]
+    },
+    {
+      "name": "List kosong",
+      "trigger": "Step 1 — belum ada record sama sekali",
+      "steps": [
+        "Tampilkan empty state"
+      ]
+    },
+    {
+      "name": "Filter tidak menghasilkan apapun",
+      "trigger": "Step 3 — filter tanggal/pencarian tidak cocok dengan record manapun",
+      "steps": [
+        "Tampilkan pesan tidak ditemukan dengan opsi reset filter"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail record Kernel Dispatch (read-only) atau kembali ke Form untuk melanjutkan draft"
+  ],
+  "business_rules": [
+    "Detail record bersifat murni read-only",
+    "Filter tanggal default ke hari ini saat list pertama kali dibuka",
+    "Checked By/Acknowledged By ditampilkan apa adanya tanpa pembatasan role untuk melihat"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Data Kernel Dispatch Tersimpan — Record Tidak Ditemukan",
+      "given": "User membuka mode detail dengan id yang tidak valid",
+      "when": "System memuat record",
+      "then": "Pesan error 'record tidak ditemukan' tampil beserta tombol Back"
+    },
+    {
+      "scenario": "Lihat Data Kernel Dispatch Tersimpan — success",
+      "given": "Terdapat record berstatus tersimpan/tersinkron pada list",
+      "when": "User tap item tersebut",
+      "then": "Detail record lengkap beserta Log Kejadian tampil read-only"
+    },
+    {
+      "scenario": "Lihat Data Kernel Dispatch Tersimpan — Tap Item Draft/Pause",
+      "given": "Terdapat item berlabel Pause pada list",
+      "when": "User tap item tersebut",
+      "then": "Navigasi ke Form Kernel Dispatch membawa id draft tersebut"
+    },
+    {
+      "scenario": "Lihat Data Kernel Dispatch Tersimpan — Filter Tanggal Default Hari Ini",
+      "given": "Terdapat campuran record hari ini dan sebelumnya",
+      "when": "User membuka Load Data tanpa mengubah filter",
+      "then": "Filter tanggal menunjukkan hari ini, hanya record hari ini yang tampil"
+    },
+    {
+      "scenario": "Lihat Data Kernel Dispatch Tersimpan — Filter Tidak Menghasilkan Apapun",
+      "given": "User menerapkan filter yang tidak cocok dengan record manapun",
+      "when": "System menyaring list",
+      "then": "Pesan tidak ditemukan tampil dengan opsi reset filter"
+    },
+    {
+      "scenario": "Lihat Data Kernel Dispatch Tersimpan — List Kosong",
+      "given": "User belum memiliki record Kernel Dispatch sama sekali",
+      "when": "User membuka Load Data",
+      "then": "Empty state ditampilkan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-083--data-preview-kernel-dispatch"
+  ]
+}

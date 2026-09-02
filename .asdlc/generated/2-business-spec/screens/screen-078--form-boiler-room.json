@@ -1,0 +1,121 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-078--form-boiler-room",
+  "name": "Form Boiler Room",
+  "module_id": "module-mobile-station-ops",
+  "description": "Input/edit data header (Boiler Room ID, Date, Inputted/Checked/Acknowledged By, Note) dan grid detail time-slot per jam (07:00–06:00, hingga 24 baris, ditambah manual satu per satu via 'Tambah baris') untuk Steam Pressure, Steam Temp, Feed Water Temp, Feed Water Tank Level, Boiler Water Level, Water TDS, Water pH, Fuel Feed Rate, ID Fan Load, SA Fan Load, Exhaust Gas Temp, Dust Collector Differential Pressure, Blowdown Executed, Sootblowing Executed, dan Findings — mengikuti pola persis Form Engine Room/Storage Tank/Effluent Plant, TANPA tabel referensi target operasional.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "New Data dari Monitor Boiler Room",
+    "Tap item draft/pause di Monitor Boiler Room"
+  ],
+  "information_displayed": [
+    "Header: Boiler Room ID, Tanggal (otomatis, disabled), Inputted By (read-only), Checked By (toggle, hanya interaktif untuk Supervisor), Acknowledged By (toggle, hanya interaktif untuk Mill Management), Note",
+    "Grid Boiler Room Detail dinamis (0..24 baris): Time-Slot (dropdown, urutan menaik kanonis, tanpa duplikat) + 14 kolom bacaan per baris: Steam Pressure (bar), Steam Temp (°C), Feed Water Temp (°C), Feed Water Tank Level (%), Boiler Water Level (%), Water TDS (ppm), Water pH, Fuel Feed Rate (teks bebas, mis. Hz/%/tons), ID Fan Load (teks bebas, mis. A/%), SA Fan Load (teks bebas, mis. A/%), Exhaust Gas Temp (°C), Dust Collector Differential Pressure (mmH2O), Blowdown Executed (enum Y/N), Sootblowing Executed (enum Y/N), Findings",
+    "Tombol 'Tambah baris' (dinonaktifkan setelah 24 baris) dan 'Hapus baris' per baris",
+    "Footer aksi: Back, Pause, Clear, Simpan"
+  ],
+  "available_actions": [
+    {
+      "action": "Isi header",
+      "description": "Mengisi Boiler Room ID dan Note; Tanggal otomatis terisi sekali dan tidak dapat diedit",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tambah baris",
+      "description": "Menambah satu baris Boiler Room Detail baru dengan Time-Slot kosong, dipilih dari sisa slot kanonis yang tersedia",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus baris",
+      "description": "Menghapus satu baris dari grid (baris tersimpan baru benar-benar dihapus saat Simpan/Pause berikutnya)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Checked By",
+      "description": "Toggle self-attestation 'Saya verifikasi data ini', hanya interaktif untuk Supervisor",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Acknowledged By",
+      "description": "Toggle self-attestation 'Saya menyetujui data ini', hanya interaktif untuk Mill Management",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Memvalidasi Boiler Room ID wajib dan minimal satu baris valid, lalu menyimpan record berstatus 'saved' dan kembali ke Monitor Boiler Room",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progres apa adanya tanpa validasi wajib, status menjadi draft_paused, kembali ke Monitor Boiler Room",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus permanen record beserta seluruh barisnya setelah konfirmasi dialog",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor Boiler Room, menampilkan dialog konfirmasi jika ada perubahan belum tersimpan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tanggal otomatis diisi sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Grid Boiler Room Detail tidak di-pre-generate — baris ditambahkan satu per satu via Tambah baris, dapat dihapus via Hapus baris",
+    "Time-Slot tiap baris harus lebih lambat dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
+    "Minimal satu baris valid (Time-Slot terpilih + minimal satu dari 14 kolom bacaan terisi) sebelum Simpan",
+    "Boiler Room ID wajib diisi sebelum Simpan",
+    "Blowdown Executed dan Sootblowing Executed masing-masing adalah kolom status/enum Y/N terpisah pada baris, tidak digabung menjadi satu",
+    "Fuel Feed Rate, ID Fan Load, dan SA Fan Load adalah kolom teks bebas (bukan numerik) karena satuan pada form kertas asal bercampur (Hz/%/tons, A/%)"
+  ],
+  "usecase_ids": [
+    "usecase-104--form-boiler-room"
+  ],
+  "edge_cases": [
+    "Boiler Room ID kosong saat Simpan — error inline, record tidak tersimpan",
+    "Belum ada baris valid saat Simpan — pesan error khusus pada grid, record tidak tersimpan",
+    "Hapus baris membebaskan kembali Time-Slot baris tersebut untuk baris lain",
+    "Baris hanya terisi salah satu kolom status enum (mis. Blowdown Executed='Y') tetap dianggap valid/terisi",
+    "Pause tanpa validasi wajib apapun",
+    "Clear memerlukan konfirmasi sebelum menghapus permanen",
+    "Back saat form dirty menampilkan dialog konfirmasi"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

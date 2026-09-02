@@ -1,0 +1,92 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-119--form-clarification-web",
+  "name": "Form Clarification (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Input/edit data Clarification dari web, mengikuti pola field yang sama seperti Form Clarification mobile (header + grid time-slot dinamis 6 kolom bacaan numerik + Findings per baris), tanpa draft/pause/Clear — Simpan langsung berstatus 'saved'.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Tambah Data dari Data Browser Clarification (Web)",
+    "Edit dari Detail Clarification (Web)"
+  ],
+  "information_displayed": [
+    "Mode buat: dropdown Production Line, Clarification ID, Tanggal (default hari ini, dapat diedit), Note",
+    "Mode ubah: Station (read-only), Clarification ID, Tanggal, Note",
+    "Grid Clarification Detail dinamis: Time-Slot dropdown + 6 kolom bacaan numerik + Findings, tombol Tambah Baris/Hapus per baris",
+    "Verifikasi: checkbox Checked (Supervisor), Acknowledged (Mill Management)"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Production Line",
+      "description": "Hanya pada mode buat; menentukan station Clarification aktif yang akan dipakai",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah Baris",
+      "description": "Menambah satu baris Clarification Detail kosong ke grid",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus",
+      "description": "Menghapus satu baris dari grid",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Memvalidasi field wajib dan minimal satu baris valid, menyimpan record berstatus 'saved', navigasi ke Detail Clarification (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Batal",
+      "description": "Kembali tanpa menyimpan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tidak ada draft/pause/Clear di web — Simpan langsung berstatus 'saved'",
+    "Tanggal default hari ini, tetap dapat diedit (berbeda dari mobile yang menguncinya)",
+    "Grid Clarification Detail dinamis, baris ditambahkan/dihapus satu per satu",
+    "Production Line tidak dapat diubah setelah record dibuat",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Minimal satu baris valid (Time-Slot terpilih + minimal satu dari 6 kolom bacaan numerik atau Findings terisi) sebelum Simpan"
+  ],
+  "usecase_ids": [
+    "usecase-114--form-clarification-web"
+  ],
+  "edge_cases": [
+    "Field wajib kosong saat Simpan — error inline",
+    "Belum ada baris valid saat Simpan — pesan error khusus pada grid",
+    "Production Line tanpa station Clarification aktif — error, record tidak tersimpan",
+    "id record tidak ditemukan pada mode ubah — pesan error"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

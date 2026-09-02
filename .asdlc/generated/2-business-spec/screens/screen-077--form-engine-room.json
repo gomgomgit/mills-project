@@ -1,0 +1,120 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-077--form-engine-room",
+  "name": "Form Engine Room",
+  "module_id": "module-mobile-station-ops",
+  "description": "Input/edit data header (Engine Room ID, Date, Inputted/Checked/Acknowledged By, Note) dan grid detail time-slot per jam (07:00–06:00, hingga 24 baris, ditambah manual satu per satu via 'Tambah baris') untuk Steam Turbine, Diesel Generator 1 & 2, Electrical Sync, Air Compressor, Battery Charger/UPS, Fuel Tank Level, Daily Energy Export, dan catatan tindakan/temuan — mengikuti pola persis Form Storage Tank/Effluent Plant, TANPA tabel referensi target operasional.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "New Data dari Monitor Engine Room",
+    "Tap item draft/pause di Monitor Engine Room"
+  ],
+  "information_displayed": [
+    "Header: Engine Room ID, Tanggal (otomatis, disabled), Inputted By (read-only), Checked By (toggle, hanya interaktif untuk Supervisor), Acknowledged By (toggle, hanya interaktif untuk Mill Management), Note",
+    "Grid Engine Room Detail dinamis (0..24 baris): Time-Slot (dropdown, urutan menaik kanonis, tanpa duplikat) + 26 kolom bacaan per baris: Steam Turbine Inlet Pressure, Steam Turbine Inlet Temp, Steam Turbine Exhaust Pressure, Steam Turbine RPM, Steam Turbine Alternator Bearing Temp 1, Steam Turbine Alternator Bearing Temp 2, Diesel Gen 1 Status (enum Run/Standby/Off), Diesel Gen 1 Load, Diesel Gen 1 Amperage, Diesel Gen 1 Jacket Water Temp, Diesel Gen 1 Lube Oil Pressure, Diesel Gen 2 Status (enum Run/Standby/Off), Diesel Gen 2 Load, Diesel Gen 2 Amperage, Diesel Gen 2 Jacket Water Temp, Diesel Gen 2 Lube Oil Pressure, Electrical Sync Total Factory Load, Electrical Sync System Frequency, Electrical Sync Power Factor, Electrical Sync Busbar Voltage, Air Compressor 1 Pressure, Compressor 2 Pressure, Battery Charger/UPS Voltage, Fuel Tank Level, Daily Energy Export, Action Taken/Maintenance Remark, Findings",
+    "Tombol 'Tambah baris' (dinonaktifkan setelah 24 baris) dan 'Hapus baris' per baris",
+    "Footer aksi: Back, Pause, Clear, Simpan"
+  ],
+  "available_actions": [
+    {
+      "action": "Isi header",
+      "description": "Mengisi Engine Room ID dan Note; Tanggal otomatis terisi sekali dan tidak dapat diedit",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tambah baris",
+      "description": "Menambah satu baris Engine Room Detail baru dengan Time-Slot kosong, dipilih dari sisa slot kanonis yang tersedia",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus baris",
+      "description": "Menghapus satu baris dari grid (baris tersimpan baru benar-benar dihapus saat Simpan/Pause berikutnya)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Checked By",
+      "description": "Toggle self-attestation 'Saya verifikasi data ini', hanya interaktif untuk Supervisor",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Acknowledged By",
+      "description": "Toggle self-attestation 'Saya menyetujui data ini', hanya interaktif untuk Mill Management",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Memvalidasi Engine Room ID wajib dan minimal satu baris valid, lalu menyimpan record berstatus 'saved' dan kembali ke Monitor Engine Room",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progres apa adanya tanpa validasi wajib, status menjadi draft_paused, kembali ke Monitor Engine Room",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus permanen record beserta seluruh barisnya setelah konfirmasi dialog",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor Engine Room, menampilkan dialog konfirmasi jika ada perubahan belum tersimpan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tanggal otomatis diisi sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Grid Engine Room Detail tidak di-pre-generate — baris ditambahkan satu per satu via Tambah baris, dapat dihapus via Hapus baris",
+    "Time-Slot tiap baris harus lebih lambat dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
+    "Minimal satu baris valid (Time-Slot terpilih + minimal satu dari 26 kolom bacaan terisi) sebelum Simpan",
+    "Engine Room ID wajib diisi sebelum Simpan",
+    "Diesel Gen 1 Status dan Diesel Gen 2 Status masing-masing adalah kolom status/enum terpisah pada baris, tidak digabung menjadi satu"
+  ],
+  "usecase_ids": [
+    "usecase-098--form-engine-room"
+  ],
+  "edge_cases": [
+    "Engine Room ID kosong saat Simpan — error inline, record tidak tersimpan",
+    "Belum ada baris valid saat Simpan — pesan error khusus pada grid, record tidak tersimpan",
+    "Hapus baris membebaskan kembali Time-Slot baris tersebut untuk baris lain",
+    "Baris hanya terisi salah satu kolom status enum (mis. Diesel Gen 1 Status='Standby') tetap dianggap valid/terisi",
+    "Pause tanpa validasi wajib apapun",
+    "Clear memerlukan konfirmasi sebelum menghapus permanen",
+    "Back saat form dirty menampilkan dialog konfirmasi"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

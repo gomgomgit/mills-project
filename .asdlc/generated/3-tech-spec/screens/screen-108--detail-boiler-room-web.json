@@ -1,0 +1,322 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-108--detail-boiler-room-web",
+  "name": "Detail Boiler Room (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/boiler-room/{id}",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-107--detail-boiler-room-web",
+      "usecase_name": "Lihat Detail Boiler Room (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/boiler-room-records/{id}",
+          "description": "Ambil 1 record Boiler Room lengkap beserta seluruh baris Boiler Room Detail-nya (berapapun jumlahnya), station_name, dan nama user (Inputted By/Checked By/Acknowledged By)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "required": true,
+                "description": "ID record Boiler Room"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "boiler_room_id": "string",
+              "date": "date",
+              "note": "string|null",
+              "created_by_name": "string",
+              "checked_by_name": "string|null",
+              "acknowledged_by_name": "string|null",
+              "status": "string",
+              "created_at": "timestamp",
+              "updated_at": "timestamp",
+              "details": [
+                {
+                  "id": "uuid",
+                  "time_slot": "string",
+                  "steam_pressure_bar": "float|null",
+                  "steam_temp_c": "float|null",
+                  "feed_water_temp_c": "float|null",
+                  "feed_water_tank_level_percent": "float|null",
+                  "boiler_water_level_percent": "float|null",
+                  "water_tds_ppm": "float|null",
+                  "water_ph": "float|null",
+                  "fuel_feed_rate": "string|null",
+                  "id_fan_load": "string|null",
+                  "sa_fan_load": "string|null",
+                  "exhaust_gas_temp_c": "float|null",
+                  "dust_collector_differential_pressure_mmh2o": "float|null",
+                  "blowdown_executed": "string|null",
+                  "sootblowing_executed": "string|null",
+                  "findings": "string|null"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate id ada di boiler-room-record -> 404 RECORD_NOT_FOUND jika tidak ditemukan",
+        "2. SELECT boiler-room-record by id, JOIN station untuk station_name, JOIN user untuk created_by_name/checked_by_name/acknowledged_by_name (null jika belum diisi, kecuali created_by_name yang selalu ada)",
+        "3. SELECT seluruh boiler-room-detail by boiler_room_record_id (berapapun jumlahnya, termasuk nol), ordered by urutan kanonis time_slot, langsung dari kolom tersimpan tanpa hitung ulang",
+        "4. Return full record + details array (15 kolom bacaan per baris)",
+        "5. FE render field per section (Identitas Boiler Room, Boiler Room Detail grid dengan seluruh baris yang ada, Verifikasi) read-only -- TIDAK ADA section Target Operasional untuk stasiun ini",
+        "6. On klik Back: navigasi client-side ke /data/boiler-room, tanpa panggilan API tambahan",
+        "7. On klik Edit: navigasi client-side ke /data/boiler-room/{id}/edit"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "boiler-room-record",
+          "operation": "SELECT",
+          "description": "SELECT 1 record by id"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve station_name"
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve created_by_name/checked_by_name/acknowledged_by_name"
+        },
+        {
+          "entity_id": "boiler-room-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris (berapapun jumlahnya) by boiler_room_record_id, ordered by urutan kanonis time_slot"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "id tidak ditemukan",
+          "handling": "Return 404 RECORD_NOT_FOUND, FE tampilkan pesan error + tombol Back"
+        },
+        {
+          "condition": "checked_by/acknowledged_by belum diisi",
+          "handling": "checked_by_name/acknowledged_by_name null, FE tampilkan '-'"
+        },
+        {
+          "condition": "Record memiliki nol baris Boiler Room Detail",
+          "handling": "details array kosong dikembalikan, FE tampilkan grid kosong/empty-state, bukan error"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh field read-only",
+        "Checked By dan Acknowledged By keduanya ditampilkan",
+        "Grid Boiler Room Detail ditampilkan langsung dari data tersimpan, menampilkan persis baris yang ada",
+        "Tidak ada tabel referensi target operasional pada stasiun ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 RECORD_NOT_FOUND when id does not exist",
+          "given": "id tidak ada di boiler-room-record",
+          "expect": "return 404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "returns full record with resolved station_name when id exists",
+          "given": "valid id, station terkait ada",
+          "expect": "return 200 dengan station_name terisi"
+        },
+        {
+          "description": "returns details array ordered by canonical time-slot regardless of how many rows exist",
+          "given": "record dengan 3 boiler-room-detail rows, time_slot tidak berurutan saat disimpan",
+          "expect": "response.details terurut naik berdasarkan urutan kanonis time_slot (bukan alfabetis), berisi persis 3 entri"
+        },
+        {
+          "description": "returns an empty details array when the record has zero boiler-room-detail rows",
+          "given": "record tanpa boiler-room-detail rows sama sekali",
+          "expect": "response.details = []"
+        },
+        {
+          "description": "returns null checked_by_name and acknowledged_by_name when not set",
+          "given": "record dengan checked_by dan acknowledged_by null",
+          "expect": "response.checked_by_name dan response.acknowledged_by_name adalah null"
+        },
+        {
+          "description": "resolves created_by_name, checked_by_name, acknowledged_by_name to user names when present",
+          "given": "record dengan created_by/checked_by/acknowledged_by terisi uuid user valid",
+          "expect": "response berisi nama user yang sesuai untuk ketiganya, bukan uuid"
+        },
+        {
+          "description": "returns the 2 enum status columns as their raw string value (or null) on each detail row",
+          "given": "a detail row has blowdown_executed='y', sootblowing_executed=null",
+          "expect": "response.details[n].blowdown_executed='y', sootblowing_executed=null"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-098--data-browser-boiler-room-web",
+      "reason": "Entry point - klik baris membuka detail ini"
+    },
+    {
+      "screen_id": "screen-118--form-boiler-room-web",
+      "reason": "Koreksi data / tombol Edit membuka form ini"
+    }
+  ],
+  "implementation_notes": [
+    "Response resolve created_by/checked_by/acknowledged_by ke nama user via join, mengikuti pola screen-107--detail-engine-room-web persis",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-107",
+    "Field grouping & urutan field di blade view MENIRU PERSIS mobile/src/views/DataPreviewBoilerRoomView.vue mode detail (Boiler Room ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Boiler Room Detail dengan seluruh baris yang ada) per arahan eksplisit: web station screens mengikuti flow/UX mobile -- TIDAK ADA section Target Operasional pada Blade view ini",
+    "Route /boiler-room-records/{id} didaftarkan SETELAH /boiler-room-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}, sama pola dengan screen-107"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Detail Boiler Room - berhasil",
+      "usecase_id": "usecase-107--detail-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-records/{id}"
+          },
+          "request_example": {
+            "id": "{{boiler_room_record_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailBoilerRoom",
+        "action": "render dengan data record lengkap dari API termasuk seluruh baris details yang ada",
+        "assert": "seluruh field header tampil read-only per section, grid Boiler Room Detail menampilkan persis baris yang ada pada record"
+      },
+      "browser_test": {
+        "route": "/data/boiler-room/{id}",
+        "action": "klik baris di Data Browser Boiler Room, tunggu halaman detail termuat",
+        "assert": "halaman detail menampilkan seluruh field record beserta grid Boiler Room Detail (baris sesuai yang tersimpan)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Boiler Room - Record Tidak Ditemukan",
+      "usecase_id": "usecase-107--detail-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000"
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DetailBoilerRoom",
+        "action": "render dengan API mengembalikan 404",
+        "assert": "pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back"
+      },
+      "browser_test": {
+        "route": "/data/boiler-room/00000000-0000-0000-0000-000000000000",
+        "action": "navigasi langsung ke id yang tidak valid",
+        "assert": "halaman menampilkan pesan error dan tombol Back yang berfungsi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Boiler Room - Checked By/Acknowledged By Belum Diisi",
+      "usecase_id": "usecase-107--detail-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-records/{id}"
+          },
+          "request_example": {
+            "id": "{{boiler_room_record_uuid_no_verification}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailBoilerRoom",
+        "action": "render dengan checked_by_name dan acknowledged_by_name null",
+        "assert": "field Checked By dan Acknowledged By menampilkan '-'"
+      },
+      "browser_test": {
+        "route": "/data/boiler-room/{id}",
+        "action": "buka detail record yang belum diperiksa/dikonfirmasi",
+        "assert": "field Checked By dan Acknowledged By menampilkan '-'"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Boiler Room - Edit",
+      "usecase_id": "usecase-107--detail-boiler-room-web",
+      "api_test": [],
+      "component_test": {
+        "component": "DetailBoilerRoom",
+        "action": "klik tombol Edit",
+        "assert": "navigasi client-side ke /data/boiler-room/{id}/edit dipicu"
+      },
+      "browser_test": {
+        "route": "/data/boiler-room/{id}",
+        "action": "klik tombol Edit pada halaman detail",
+        "assert": "browser menampilkan Form Boiler Room (Web) mode ubah untuk record tersebut"
+      }
+    }
+  ]
+}

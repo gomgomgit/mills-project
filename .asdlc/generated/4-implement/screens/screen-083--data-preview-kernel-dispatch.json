@@ -1,0 +1,63 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-083--data-preview-kernel-dispatch",
+  "name": "Data Preview Kernel Dispatch",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/kernelDispatchRecordRepo.ts",
+    "mobile/src/views/DataPreviewKernelDispatchView.vue",
+    "mobile/src/router/index.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/kernelDispatchRecordRepo.spec.ts",
+    "mobile/tests/DataPreviewKernelDispatchView.spec.ts"
+  ],
+  "implementation_notes": [
+    "Mirrors DataPreviewSolidWasteDisposalView.vue's dual route-driven mode pattern exactly: LIST mode (no :id param, via getAllRecords()) with client-side date+search filter (default date = today), DETAIL mode (:id param present, via getDraftWithDetails()) rendering the header + Log Kejadian table read-only",
+    "A watch() on the id route param (immediate: true), not a one-time onMounted read, drives both the initial load and every list<->detail transition within the same component instance — Vue Router reuses this instance for param-only navigations on the same route record",
+    "Test file's useRoute() mock returns a fresh reactive() object created in beforeEach (not mutated in-place across the whole file) — @vue/test-utils does not auto-unmount wrappers between tests, so reusing one shared reactive object across the whole spec file let earlier tests' still-active watchers re-fire and corrupt later tests' mock call counts; this is now avoided",
+    "Log Kejadian table rendered read-only directly from stored columns (no recomputation) — net_weight_mt shown exactly as persisted, consistent with the 'computed then persisted, never recomputed on read' convention used throughout this codebase for derived numeric fields",
+    "Detail-mode preview table shows a condensed column set (Tanggal Kejadian, Vehicle Plate No, Destination/Buyer, Gross/Tare/Net Weight, Remarks/Gate Status) rather than all 21 detail columns, mirroring Solid Waste Disposal Data Preview's own condensed mobile table (full column set is only shown on the web Detail/Form screens)"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser/E2E test not generated for this pass — component-level (Vitest) coverage exercises list/detail/filter/navigation flows instead.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % not measured — no Xdebug/PCOV in this environment.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 15,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

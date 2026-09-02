@@ -39,7 +39,7 @@ use Livewire\Component;
  * driven by wire:click calls and directly testable via Livewire component
  * tests.
  *
- * create() auto-provisions the 15 canonical stations for the new
+ * create() auto-provisions the 19 canonical stations for the new
  * Production Line (see ProductionLineService::DEFAULT_STATIONS) — this
  * component does not need to know about that, it just calls
  * ProductionLineService::create() the same as the API controller does.

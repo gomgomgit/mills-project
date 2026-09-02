@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
-    "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "title": "Mills Smart Log",
+    "updated_at": "2026-08-31"
   },
   "id": "screen-029--kelola-business-unit",
   "name": "Kelola Business Unit",
@@ -35,8 +35,10 @@
     "PENEMUAN PENTING saat implementasi (bukan asumsi awal): GET /api/business-units TERNYATA sudah ada sebelumnya sebagai endpoint PUBLIK/tanpa auth yang dipakai screen-001/002 untuk dropdown 'Business Area' pra-login. Laravel tidak bisa mendaftarkan 2 route pada method+URI sama, sehingga digabung dalam SATU action index(): tanpa query param -> perilaku lama TIDAK BERUBAH (tetap publik, byte-for-byte identik); dengan page/per_page/company_id -> cabang list terpaginasi screen-029 (company_name, station_count) — KEDUANYA tetap publik, ini pengecualian sengaja dan sempit dari 'role:admin di semua endpoint', dijustifikasi karena (1) kontrak lama tidak boleh rusak (tidak ada sesi untuk dikirim saat pra-login) dan (2) data yang diekspos (label/jumlah master data) tidak sensitif. store/update/destroy/companyOptions tetap admin-gated penuh. Tech spec (ver 3) sudah diperbarui untuk mencerminkan realita ini.",
     "GET /api/companies/options ditaruh di BusinessUnitController (bukan CompanyController) untuk menghindari collision dengan rework screen-028 yang berjalan paralel — dikoordinasikan langsung antar agent paralel via pesan, dikonfirmasi command",
     "Logo mengikuti konvensi Corporate/Company: FILESYSTEM_DISK=local, direktori business-unit-logos. Preview Blade dijaga terhadap bug FileNotPreviewableException yang sama.",
-    "Semua test logo memakai UploadedFile::fake()->create() (bukan ->image()) — workaround GD extension yang sama seperti Corporate/Company",
-    "Independently re-verified oleh command: re-run `php artisan test` — 368/368 lulus (full suite gabungan 027+028+029); baca BusinessUnitController.php dan BusinessUnitService.php penuh untuk konfirmasi keputusan merge GET /api/business-units masuk akal dan didokumentasikan jelas, serta code-unik-global/name-tanpa-aturan diimplementasikan sesuai tech spec"
+    "Semua test logo memakai UploadedFile::fake()->create() (bukan ->image()), workaround GD extension yang sama seperti Corporate/Company",
+    "Independently re-verified oleh command: re-run `php artisan test` — 368/368 lulus (full suite gabungan 027+028+029); baca BusinessUnitController.php dan BusinessUnitService.php penuh untuk konfirmasi keputusan merge GET /api/business-units masuk akal dan didokumentasikan jelas, serta code-unik-global/name-tanpa-aturan diimplementasikan sesuai tech spec",
+    "2026-08-20 (entity-catalog v9, di luar sesi impl-2-screen ini — dilakukan bersamaan dengan rework screen-036 Kelola Production Line): create() DIUBAH agar TIDAK LAGI auto-provision Station apapun — tanggung jawab itu dipindah sepenuhnya ke ProductionLineService::create(), karena stations.production_line_id menjadi FK NOT NULL dan setiap Production Line kini punya set 15 Station kanonisnya sendiri, bukan satu set berbagi per Business Unit. Test `it('does not auto-create any stations when a new business unit is created', ...)` ditambahkan saat itu juga dan sudah lulus sejak 2026-08-20.",
+    "2026-08-31 (sinkronisasi dokumentasi, asdlc-fast-screen/impl-2-screen): screen-029 punya business-spec (v3) dan tech-spec (v4) yang tertinggal — masih mendeskripsikan Business Unit sebagai pembuat 15 Station kanonis (awalnya salah dikoreksi ke breakdown 7 aktif+8 placeholder tanpa menyadari fitur itu sendiri sudah tidak berlaku, lalu dikoreksi final dengan menghapus seluruh referensi fitur tersebut dari business-spec v5 dan tech-spec v6). Kode dan test TIDAK diubah pada sinkronisasi ini — sudah benar sejak 2026-08-20. Verifikasi ulang dijalankan: `php artisan test tests/Unit/Services/BusinessUnitServiceTest.php` (32 passed), `tests/Feature/Api/KelolaBusinessUnitTest.php` (34 passed), `tests/Feature/Livewire/KelolaBusinessUnitTest.php` (23 passed) — seluruhnya lulus tanpa perubahan kode, mengonfirmasi implementasi sudah selaras dengan tech-spec v6."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -51,18 +53,18 @@
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-08-19T14:30:00Z",
-      "passed": 31,
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 32,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-19T14:30:00Z",
-      "passed": 33,
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 34,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-19T14:30:00Z",
+      "run_at": "2026-08-31T00:00:00Z",
       "passed": 23,
       "failed": 0
     },

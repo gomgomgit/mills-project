@@ -1,0 +1,58 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-080--form-process-quality-control",
+  "name": "Form Process Quality Control",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/FormProcessQualityControlView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/FormProcessQualityControlView.spec.ts"
+  ],
+  "implementation_notes": [
+    "Process Quality Control Detail grid renders whatever rows exist (0..24) loaded from processQualityControlRecordRepo.getDraftWithDetails(), with Tambah baris/Hapus baris controls -- the exact same dynamic add-row/remove-row pattern as Clarification Detail (screen-079's mobile precedent)",
+    "availableTimeSlotOptions() compares slots by their index in canonicalTimeSlots() rather than a raw hour number (since slots wrap starting at 07:00, not 0-23), mirroring FormClarificationView.vue's availableTimeSlotOptions() exactly",
+    "'Minimal 1 baris valid' (Time-Slot terpilih + minimal 1 dari 14 kolom bacaan/keterangan terisi) validated at FE + repo level (processQualityControlRecordRepo.saveDraft() throws ProcessQualityControlDetailRequiredError) -- Shift and QC Inspector ID are identifying/context columns excluded from the 'filled' check, mirroring ProcessWaterRecordService's shift/inspector_id exclusion",
+    "16 non-time_slot columns per row (the MOST of any station in the project): 12 numeric readings across Fruit Press/Purifier & Clarification Balance/Vacuum Drying Station/Decanter-Centrifuge/Final Storage are plain type=number FormFields; Shift/QC Inspector ID/QC Engineering Corrective Actions/Findings are plain text FormFields -- NO enum/status dropdowns anywhere on this screen",
+    "UNLIKE Form Threshing/Form Boiler Room: this screen has NO operational-target reference table section -- no CollapsibleSection, no static-constant data file, per this station's explicit scope",
+    "Every FormField id in the grid is set explicitly (e.g. fruit-press-oil-loss-in-sludge-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- same defensive pattern as FormClarificationView.vue",
+    "Field order in the grid & template mirrors the migration column order exactly: Shift -> Fruit Press Oil Loss in Sludge -> Fruit Press Oil Loss in Fibre -> Purifier & Clarification Balance Inlet Temp -> Purifier & Clarification Balance Backpressure -> Vacuum Drying Station Drier Temp -> Vacuum Drying Station Vacuum Pressure -> Decanter/Centrifuge Feed Rate -> Decanter/Centrifuge Oil Loss in Cake -> Final Storage FFA -> Final Storage Moisture Content -> Final Storage Impurities/Dirt -> Final Storage DOBI Index -> QC Inspector ID -> QC Engineering Corrective Actions -> Findings = 16 total"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) e2e spec was not authored for this screen in this task -- component test coverage (FormProcessQualityControlView.spec.ts, 20 tests) is complete and passing, but there is no browser-level verification of this screen's full Simpan/Pause/Clear/Back flow in a live dev server.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T06:23:00Z",
+      "passed": 20,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

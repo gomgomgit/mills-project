@@ -1,0 +1,75 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "usecase-065--detail-solid-waste-disposal-web",
+  "name": "Lihat Detail Solid Waste Disposal (Web)",
+  "description": "Supervisor, Mill Management, atau Admin melihat detail lengkap 1 record Solid Waste Disposal secara read-only, termasuk Log Kejadian.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web dengan role supervisor/mill_management/admin",
+    "Record Solid Waste Disposal dengan id yang valid ada"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Mengklik baris record pada Data Browser Solid Waste Disposal"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Memuat record beserta Log Kejadian dan nama-nama user (Inputted/Checked/Acknowledged By)"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menampilkan seluruh field secara read-only, dikelompokkan per section"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Menekan Back untuk kembali ke Data Browser, atau Edit untuk membuka Form mode edit"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Record tidak ditemukan",
+      "trigger": "Step 2 — id record tidak ditemukan",
+      "steps": [
+        "Return 404 RECORD_NOT_FOUND",
+        "Tampilkan pesan error dengan tombol Back"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail record secara lengkap, atau berpindah ke Data Browser/Form"
+  ],
+  "business_rules": [
+    "Seluruh field read-only",
+    "Checked By dan Acknowledged By keduanya ditampilkan"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Detail Solid Waste Disposal - berhasil",
+      "given": "Record dengan id valid tersedia",
+      "when": "User membuka halaman detail record tersebut",
+      "then": "Seluruh field header dan Log Kejadian tampil read-only"
+    },
+    {
+      "scenario": "Lihat Detail Solid Waste Disposal - Record Tidak Ditemukan",
+      "given": "Id record tidak valid",
+      "when": "User membuka halaman detail dengan id tersebut",
+      "then": "Pesan error 'record tidak ditemukan' tampil beserta tombol Back"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-101--detail-solid-waste-disposal-web"
+  ]
+}

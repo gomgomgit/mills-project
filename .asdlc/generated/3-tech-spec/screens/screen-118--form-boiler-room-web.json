@@ -1,0 +1,606 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-118--form-boiler-room-web",
+  "name": "Form Boiler Room (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/boiler-room/create (buat baru), /data/boiler-room/{id}/edit (ubah)",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-108--form-boiler-room-web",
+      "usecase_name": "Input Data Boiler Room (Web)",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/boiler-room-records",
+          "description": "Membuat record Boiler Room baru beserta baris Boiler Room Detail yang diberikan (1..24 baris); station diresolve dari production_line_id",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {
+              "production_line_id": "uuid, required",
+              "boiler_room_id": "string, required",
+              "date": "date, required",
+              "note": "string, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of 1..24 {time_slot: string HH:00 (harus salah satu dari 24 slot kanonis, unik, urutan menaik), steam_pressure_bar?: float, steam_temp_c?: float, feed_water_temp_c?: float, feed_water_tank_level_percent?: float, boiler_water_level_percent?: float, water_tds_ppm?: float, water_ph?: float, fuel_feed_rate?: string, id_fan_load?: string, sa_fan_load?: string, exhaust_gas_temp_c?: float, dust_collector_differential_pressure_mmh2o?: float, blowdown_executed?: enum(y,n), sootblowing_executed?: enum(y,n), findings?: string}, required, minimal 1 baris dengan minimal 1 dari 15 kolom bacaan terisi"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "boiler_room_id": "string",
+              "date": "date",
+              "status": "string",
+              "details": "array baris sebanyak yang diberikan"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong, details kosong, time_slot bukan slot kanonis/duplikat/tidak urut menaik, atau tidak ada satu pun baris dengan minimal 1 kolom bacaan terisi"
+              },
+              {
+                "http_code": 422,
+                "error_code": "NO_ACTIVE_BOILER_ROOM_STATION",
+                "condition": "production line tanpa station boiler-room aktif"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/boiler-room-records/{id}",
+          "description": "Memperbarui record Boiler Room tersimpan beserta baris Boiler Room Detail-nya (upsert: baris tanpa id di-INSERT, baris dengan id di-UPDATE, baris existing yang idnya tidak lagi ada di payload di-DELETE)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID record"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "boiler_room_id": "string, required",
+              "date": "date, required",
+              "note": "string, optional",
+              "checked": "boolean, optional",
+              "acknowledged": "boolean, optional",
+              "details": "array of 1..24 {id?: uuid (ada jika baris existing), time_slot: string, steam_pressure_bar?: float, steam_temp_c?: float, feed_water_temp_c?: float, feed_water_tank_level_percent?: float, boiler_water_level_percent?: float, water_tds_ppm?: float, water_ph?: float, fuel_feed_rate?: string, id_fan_load?: string, sa_fan_load?: string, exhaust_gas_temp_c?: float, dust_collector_differential_pressure_mmh2o?: float, blowdown_executed?: enum(y,n), sootblowing_executed?: enum(y,n), findings?: string}, required"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "boiler_room_id": "string",
+              "status": "string",
+              "details": "array baris sebanyak yang diberikan"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "field wajib kosong, details kosong, atau tidak ada baris terisi"
+              },
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Create: validate field wajib (boiler_room_id, date) + minimal 1 baris details valid (time_slot salah satu dari 24 slot kanonis DAN minimal 1 dari 15 kolom bacaan terisi), setiap time_slot valid harus unik dan urutan menaik kanonis -> 422 VALIDATION_ERROR",
+        "2. Create: resolve station = Station WHERE production_line_id AND type=boiler-room AND is_active=true -> 422 NO_ACTIVE_BOILER_ROOM_STATION jika tidak ada",
+        "3. Normalisasi input: pada setiap baris details, string kosong ('') pada blowdown_executed/sootblowing_executed dikonversi menjadi null SEBELUM validasi enum dan SEBELUM INSERT/UPDATE -- menghindari kegagalan CHECK constraint SQLite pada kolom enum tersebut (mitigasi yang sama dipakai Engine Room/Kernel Dispatch/Effluent Plant/Storage Tank untuk isu serupa)",
+        "4. Dalam transaksi DB: INSERT boiler_room_record (status=saved) lalu INSERT setiap baris details yang valid sebagai boiler_room_detail row (time_slot dari body)",
+        "5. checked=true+role=supervisor -> checked_by=requester id; acknowledged=true+role=mill_management -> acknowledged_by=requester id; role lain diabaikan diam-diam",
+        "6. Update: validate id -> 404 jika tidak ada -> validate field wajib + details (minimal 1 baris valid, time_slot unik + urutan menaik) -> 422 jika gagal",
+        "7. Update: production_line_id/station_id tidak diterima dari body, tidak berubah",
+        "8. Dalam transaksi DB: UPDATE boiler_room_record, lalu upsert boiler_room_detail (baris valid tanpa id: INSERT baru; baris valid dengan id: UPDATE; baris existing di DB yang idnya tidak lagi ada di payload valid: DELETE) -- mirrors EngineRoomRecordService::upsertDetails()",
+        "9. FE: mode create tampilkan dropdown Production Line (query langsung ProductionLine di Livewire mount()); grid Boiler Room Detail DIMULAI KOSONG (0 baris)",
+        "10. FE: mode edit GET /api/boiler-room-records/{id} untuk prefill baris yang ada beserta id masing-masing (berapapun jumlahnya), Production Line ditampilkan read-only (resolve dari record.station_id -> nama production line, ditampilkan sebagai teks)",
+        "11. FE: Tanggal default waktu saat ini pada mode create, tetap dapat diedit manual (input type=date)",
+        "12. FE: grid Boiler Room Detail PUNYA tombol 'Tambah Baris' (menambah 1 baris kosong, time_slot belum dipilih) dan 'Hapus' per baris (menghapus dari state lokal, upsert di server terjadi saat Simpan)",
+        "13. FE: Time-Slot per baris adalah dropdown <select>, opsi = 24 slot kanonis DIKURANGI (slot dipakai baris lain) DAN (slot dengan index kanonis <= index slot tertinggi baris lain) -- computed di Livewire component, mirror FormEngineRoom::availableTimeSlotOptions()",
+        "14. FE: 2 dropdown status (Blowdown Executed: Y/N, Sootblowing Executed: Y/N) masing-masing menyertakan opsi kosong '-- Pilih --' yang di-submit sebagai string kosong lalu dinormalisasi ke null oleh backend (langkah 3)",
+        "15. FE: checkbox Checked hanya untuk role supervisor, Acknowledged hanya mill_management (pola sama dengan FormEngineRoom)",
+        "16. FE: render field per section (Identitas Boiler Room, Boiler Room Detail grid dinamis, Verifikasi) -- TIDAK ADA section Target Operasional untuk stasiun ini",
+        "17. Simpan berhasil -> navigasi ke Detail Boiler Room (Web)",
+        "18. Batal -> kembali tanpa API call, dengan konfirmasi jika form dirty"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "boiler-room-record",
+          "operation": "INSERT",
+          "description": "INSERT record baru"
+        },
+        {
+          "entity_id": "boiler-room-record",
+          "operation": "UPDATE",
+          "description": "UPDATE record edit"
+        },
+        {
+          "entity_id": "boiler-room-record",
+          "operation": "SELECT",
+          "description": "SELECT untuk prefill edit"
+        },
+        {
+          "entity_id": "boiler-room-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru pada create, atau baris tanpa id pada update"
+        },
+        {
+          "entity_id": "boiler-room-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris yang sudah punya id pada update"
+        },
+        {
+          "entity_id": "boiler-room-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris existing yang idnya tidak lagi ada di payload valid pada update"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "Resolve station boiler-room aktif dari production_line_id"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Field wajib kosong",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "details kosong atau time_slot bukan slot kanonis/duplikat/tidak urut menaik",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Tidak ada baris details dengan minimal 1 kolom bacaan terisi",
+          "handling": "422 VALIDATION_ERROR"
+        },
+        {
+          "condition": "Production Line tanpa station boiler-room aktif",
+          "handling": "422 NO_ACTIVE_BOILER_ROOM_STATION"
+        },
+        {
+          "condition": "id tidak ditemukan (update)",
+          "handling": "404 RECORD_NOT_FOUND"
+        },
+        {
+          "condition": "checked/acknowledged oleh role tidak berhak",
+          "handling": "diabaikan diam-diam"
+        },
+        {
+          "condition": "User memilih Time-Slot yang sudah dipakai baris lain atau lebih awal dari baris terakhir",
+          "handling": "opsi tersebut tidak ditampilkan di dropdown"
+        },
+        {
+          "condition": "User mengirim string kosong ('') pada salah satu dari 2 dropdown status (Blowdown/Sootblowing Executed)",
+          "handling": "Dikonversi menjadi null sebelum validasi & sebelum INSERT/UPDATE, tidak dianggap error -- menghindari kegagalan CHECK constraint SQLite pada kolom enum"
+        }
+      ],
+      "business_rules_applied": [
+        "Tidak ada draft/pause di web",
+        "Grid Boiler Room Detail dinamis, baris ditambahkan/dihapus satu per satu",
+        "Minimal satu baris harus punya minimal satu dari 15 kolom bacaan terisi",
+        "Time-Slot tiap baris unik dan urutan menaik kanonis",
+        "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Production Line tidak berubah setelah dibuat",
+        "Blowdown Executed dan Sootblowing Executed adalah 2 kolom status/enum Y/N independen",
+        "Tidak ada tabel referensi target operasional pada stasiun ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "creates record with resolved station_id and only the given detail rows inserted (no forced 24)",
+          "given": "valid body dengan production_line_id yang punya 1 station boiler-room aktif, details berisi 1 entri valid",
+          "expect": "boiler_room_record insert dengan station_id sesuai, status=saved, 1 boiler_room_detail row terinsert"
+        },
+        {
+          "description": "creates a record with multiple detail rows when given several valid, ascending time slots",
+          "given": "details berisi 3 entri dengan time_slot 07:00, 09:00, 14:00 dalam urutan menaik",
+          "expect": "3 boiler_room_detail rows terinsert, urutan time_slot sesuai"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when required field empty",
+          "given": "boiler_room_id kosong",
+          "expect": "ValidationException errors.boiler_room_id"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when details is empty",
+          "given": "details = []",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when a detail row uses a time_slot outside the 24 canonical slots",
+          "given": "details berisi 1 entri dengan time_slot '07:15' (bukan slot kanonis)",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when time_slot is not strictly ascending or is duplicated across detail rows",
+          "given": "details berisi 2 entri dengan time_slot 09:00 lalu 07:00 (mundur), atau dua entri time_slot sama",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "422 VALIDATION_ERROR when zero detail rows have any reading/status column filled",
+          "given": "details berisi entri dengan time_slot terisi tapi seluruh 15 kolom bacaan dan status null/kosong",
+          "expect": "ValidationException errors.details"
+        },
+        {
+          "description": "treats a row with only an enum status filled as satisfying the minimum-one-row rule",
+          "given": "details berisi 1 entri dengan blowdown_executed='y' dan seluruh kolom lain null",
+          "expect": "record berhasil disimpan (validasi lolos)"
+        },
+        {
+          "description": "coerces empty-string enum values to null before insert instead of failing validation or the DB constraint",
+          "given": "details berisi 1 entri dengan time_slot terisi, water_ph=7.2, dan blowdown_executed='', sootblowing_executed=''",
+          "expect": "record tersimpan; boiler_room_detail row menyimpan null (bukan string kosong) untuk kedua kolom enum tersebut, tidak ada exception dari CHECK constraint"
+        },
+        {
+          "description": "422 NO_ACTIVE_BOILER_ROOM_STATION when production line has no active boiler-room station",
+          "given": "Station query kosong untuk production_line_id+type=boiler-room",
+          "expect": "throw NoActiveBoilerRoomStationException"
+        },
+        {
+          "description": "sets checked_by when checked=true and role=supervisor",
+          "given": "checked=true, role=supervisor",
+          "expect": "checked_by=requester id"
+        },
+        {
+          "description": "ignores checked=true when role is not supervisor",
+          "given": "checked=true, role=mill_management",
+          "expect": "checked_by tetap null, tidak error"
+        },
+        {
+          "description": "sets acknowledged_by when acknowledged=true and role=mill_management",
+          "given": "acknowledged=true, role=mill_management",
+          "expect": "acknowledged_by=requester id"
+        },
+        {
+          "description": "updates record and upserts its detail rows: inserts new row, updates existing row, deletes removed row",
+          "given": "PATCH dengan 1 entri existing (punya id, nilai diubah) dan 1 entri baru (tanpa id); record sebelumnya punya 2 baris existing lain yang tidak lagi ada di payload",
+          "expect": "boiler_room_record ter-update; baris existing yang dikirim ter-UPDATE; baris baru ter-INSERT; baris existing yang tidak lagi dikirim ter-DELETE"
+        },
+        {
+          "description": "updates record without accepting production_line_id change",
+          "given": "PATCH tanpa production_line_id",
+          "expect": "station_id tidak berubah"
+        },
+        {
+          "description": "404 RECORD_NOT_FOUND when updating non-existent id",
+          "given": "findOrFail throws",
+          "expect": "404 RECORD_NOT_FOUND"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-098--data-browser-boiler-room-web",
+      "reason": "Entry point mode create"
+    },
+    {
+      "screen_id": "screen-108--detail-boiler-room-web",
+      "reason": "Entry point mode edit dan tujuan navigasi setelah Simpan"
+    }
+  ],
+  "implementation_notes": [
+    "DIVERGENSI DARI MOBILE: Tanggal pada web default waktu saat ini namun TETAP dapat diedit manual - berbeda dari mobile (screen-078) yang menguncinya",
+    "DIVERGENSI DARI MOBILE: data web dapat diedit setelah tersimpan (mode edit penuh), tidak ada draft/pause/Clear - status langsung saved",
+    "Grid Boiler Room Detail dinamis dengan tombol Tambah Baris/Hapus, persis seperti Form Engine Room Web (screen-117) -- lihat BoilerRoomRecordService::upsertDetails() dan FormBoilerRoom::addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions()",
+    "BARU: NoActiveBoilerRoomStationException (mirrors NoActiveEngineRoomStationException) -- dilempar saat production_line_id tidak punya station type=boiler-room aktif",
+    "BoilerRoomRecordService (mirrors EngineRoomRecordService) -- create()/update()/listRecords()/export()/getDetail(), plus canonicalTimeSlots() helper yang mengembalikan array 24 string 'HH:00' mulai 07:00 (for i in 0..23 -> hour=(7+i)%24)",
+    "Production Line dropdown reuse GET /api/production-lines (jika sudah ada) atau query langsung Eloquent di Livewire mount()",
+    "Mode edit prefill reuse GET /api/boiler-room-records/{id} (screen-108)",
+    "Route web /data/boiler-room/create HARUS didaftarkan SEBELUM /data/boiler-room/{id} agar tidak tertangkap sebagai {id}",
+    "Checked By DAN Acknowledged By sebagai checkbox self-attestation, sama pola dengan FormEngineRoom",
+    "Detail upsert (insert/update/delete) dijalankan dalam DB transaction agar konsisten",
+    "PENTING -- normalisasi enum kosong-ke-null: BoilerRoomRecordService PUNYA 2 kolom enum bertipe CHECK constraint SQLite (blowdown_executed, sootblowing_executed) -- normalizeDetails() HARUS mengonversi '' menjadi null untuk kedua kolom ini sebelum validasi dan sebelum INSERT/UPDATE, atau SQLite akan melempar constraint violation persis seperti yang terjadi pada Engine Room/Kernel Dispatch/Effluent Plant/Storage Tank",
+    "Stasiun ini TIDAK memiliki tabel referensi Target Operasional -- tidak ada section untuk itu di form",
+    "fuel_feed_rate, id_fan_load, sa_fan_load adalah kolom string (text) di request body, BUKAN float, karena satuan pada form kertas asal bercampur"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Buat Record Boiler Room Baru — berhasil",
+      "usecase_id": "usecase-108--form-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/boiler-room-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}",
+            "boiler_room_id": "BR-WEB-001",
+            "date": "2026-08-20",
+            "details": [
+              {
+                "time_slot": "07:00",
+                "steam_pressure_bar": 12.5
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormBoilerRoom",
+        "action": "pilih Production Line, isi Boiler Room ID, klik Tambah Baris, pilih Time-Slot, isi salah satu kolom bacaan, klik Simpan",
+        "assert": "record tersimpan, navigasi ke Detail Boiler Room"
+      },
+      "browser_test": {
+        "route": "/data/boiler-room/create",
+        "action": "klik Tambah Data, isi form lengkap, klik Tambah Baris, pilih Time-Slot, isi 1 kolom bacaan, klik Simpan",
+        "assert": "halaman Detail menampilkan record baru beserta baris grid yang ditambahkan"
+      }
+    },
+    {
+      "scenario_ref": "Edit Record Boiler Room — berhasil",
+      "usecase_id": "usecase-108--form-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/boiler-room-records/{id}"
+          },
+          "request_example": {
+            "id": "{{record_uuid}}",
+            "boiler_room_id": "BR-WEB-001-EDIT",
+            "date": "2026-08-20",
+            "details": [
+              {
+                "id": "{{detail_uuid_0700}}",
+                "time_slot": "07:00",
+                "steam_pressure_bar": 13.1
+              }
+            ]
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormBoilerRoom",
+        "action": "buka mode edit, ubah salah satu kolom bacaan, klik Simpan",
+        "assert": "perubahan tersimpan"
+      },
+      "browser_test": {
+        "route": "/data/boiler-room/{id}/edit",
+        "action": "klik Edit dari Detail, ubah field, klik Simpan",
+        "assert": "Detail menampilkan nilai baru"
+      }
+    },
+    {
+      "scenario_ref": "Field Wajib Belum Lengkap",
+      "usecase_id": "usecase-108--form-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/boiler-room-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormBoilerRoom",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      },
+      "browser_test": {
+        "route": "/data/boiler-room/create",
+        "action": "kosongkan field wajib, klik Simpan",
+        "assert": "error inline muncul"
+      }
+    },
+    {
+      "scenario_ref": "Belum Ada Baris Valid",
+      "usecase_id": "usecase-108--form-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/boiler-room-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}",
+            "boiler_room_id": "BR-X",
+            "date": "2026-08-20",
+            "details": []
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "FormBoilerRoom",
+        "action": "isi header lengkap, jangan tambah baris apapun, klik Simpan",
+        "assert": "pesan error khusus muncul"
+      },
+      "browser_test": {
+        "route": "/data/boiler-room/create",
+        "action": "isi header lengkap tanpa menambah baris Boiler Room Detail apapun, klik Simpan",
+        "assert": "pesan error khusus muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Production Line Tanpa Station Boiler Room Aktif",
+      "usecase_id": "usecase-108--form-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/boiler-room-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_tanpa_boiler_room_uuid}}",
+            "boiler_room_id": "BR-Y",
+            "date": "2026-08-20",
+            "details": [
+              {
+                "time_slot": "07:00",
+                "steam_temp_c": 220
+              }
+            ]
+          },
+          "expected_status": 422,
+          "expected_error_code": "NO_ACTIVE_BOILER_ROOM_STATION"
+        }
+      ],
+      "component_test": {
+        "component": "FormBoilerRoom",
+        "action": "pilih Production Line tanpa station boiler-room aktif, klik Simpan",
+        "assert": "error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/boiler-room/create",
+        "action": "pilih Production Line tanpa station boiler-room, klik Simpan",
+        "assert": "error ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Record Tidak Ditemukan (mode edit)",
+      "usecase_id": "usecase-108--form-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/boiler-room-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000",
+            "boiler_room_id": "X",
+            "date": "2026-08-20",
+            "details": []
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "FormBoilerRoom",
+        "action": "render edit dengan GET 404",
+        "assert": "pesan error ditampilkan"
+      },
+      "browser_test": {
+        "route": "/data/boiler-room/00000000-0000-0000-0000-000000000000/edit",
+        "action": "navigasi ke id tidak valid",
+        "assert": "halaman menampilkan error"
+      }
+    },
+    {
+      "scenario_ref": "Tambah/Hapus Baris Dinamis dan Urutan Time-Slot",
+      "usecase_id": "usecase-108--form-boiler-room-web",
+      "api_test": [],
+      "component_test": {
+        "component": "FormBoilerRoom",
+        "action": "render form mode create, klik Tambah Baris dua kali, pilih Time-Slot berbeda pada tiap baris, lalu klik Hapus pada satu baris",
+        "assert": "grid mulai kosong, bertambah satu baris tiap klik Tambah Baris, opsi Time-Slot baris berikutnya mengecualikan slot yang sudah dipakai/lebih awal, dan baris berkurang saat Hapus ditekan"
+      },
+      "browser_test": {
+        "route": "/data/boiler-room/create",
+        "action": "buka form buat baru, verifikasi grid kosong, klik Tambah Baris, pilih Time-Slot, klik Tambah Baris lagi, lalu Hapus salah satu baris",
+        "assert": "grid Boiler Room Detail dimulai kosong dan berubah sesuai interaksi tambah/hapus, tanpa batas 24 baris pre-generated"
+      }
+    },
+    {
+      "scenario_ref": "Baris Valid Hanya Dari Status Enum",
+      "usecase_id": "usecase-108--form-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/boiler-room-records"
+          },
+          "request_example": {
+            "production_line_id": "{{production_line_uuid}}",
+            "boiler_room_id": "BR-Z",
+            "date": "2026-08-20",
+            "details": [
+              {
+                "time_slot": "08:00",
+                "sootblowing_executed": "n"
+              }
+            ]
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "FormBoilerRoom",
+        "action": "tambah baris, pilih Time-Slot, pilih Sootblowing Executed = N saja, klik Simpan",
+        "assert": "record tersimpan tanpa error validasi grid"
+      },
+      "browser_test": {
+        "route": "/data/boiler-room/create",
+        "action": "isi header, tambah baris dengan hanya status Sootblowing terisi, klik Simpan",
+        "assert": "record tersimpan"
+      }
+    }
+  ]
+}

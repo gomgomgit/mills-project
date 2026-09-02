@@ -1,0 +1,84 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-088--data-preview-boiler-room",
+  "name": "Data Preview Boiler Room",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar dual-mode: mode LIST menampilkan seluruh record Boiler Room milik user (apapun statusnya) dengan filter tanggal dan pencarian; mode DETAIL menampilkan 1 record secara read-only lengkap dengan grid Boiler Room Detail-nya — mengikuti pola persis Data Preview Engine Room/Storage Tank/Effluent Plant.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Load Data dari Monitor Boiler Room (mode list)",
+    "Tap item Tersimpan/Tersinkron di mode list (mode detail)"
+  ],
+  "information_displayed": [
+    "Mode list: filter Tanggal (default hari ini) dan Cari (Boiler Room ID), daftar record dengan badge status (Pause/Tersimpan/Tersinkron)",
+    "Mode detail: Boiler Room ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Boiler Room Detail (seluruh baris yang ada, seluruh 14 kolom bacaan per baris) read-only"
+  ],
+  "available_actions": [
+    {
+      "action": "Filter tanggal",
+      "description": "Menyaring list berdasarkan tanggal record",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Cari",
+      "description": "Menyaring list berdasarkan Boiler Room ID (substring, case-insensitive)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap item list",
+      "description": "draft/pause → membuka Form Boiler Room; saved/synced → membuka mode detail layar ini",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Reset filter",
+      "description": "Mengosongkan filter tanggal dan pencarian saat tidak ada hasil",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Mode list → Monitor Boiler Room; mode detail → kembali ke mode list",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Detail record bersifat murni read-only",
+    "List menampilkan seluruh record milik user apapun statusnya",
+    "Filter tanggal default ke hari ini saat list pertama kali dibuka",
+    "Checked By/Acknowledged By ditampilkan apa adanya tanpa pembatasan role untuk melihat",
+    "Baris Boiler Room Detail ditampilkan langsung dari data tersimpan, tanpa hitung ulang"
+  ],
+  "usecase_ids": [
+    "usecase-105--data-preview-boiler-room"
+  ],
+  "edge_cases": [
+    "Belum ada record Boiler Room sama sekali — empty state pada mode list",
+    "Filter tidak menghasilkan apapun — pesan tidak ditemukan dengan opsi reset filter",
+    "id pada mode detail tidak valid/tidak ditemukan — pesan error dengan tombol Back",
+    "Record memiliki nol baris Boiler Room Detail — grid kosong/empty-state, bukan error",
+    "Item draft/pause ditekan di mode list — membuka Form Boiler Room, bukan mode detail"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

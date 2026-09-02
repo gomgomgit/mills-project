@@ -1,0 +1,106 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-100--data-browser-engine-room-web",
+  "name": "Telusuri & Ekspor Data Engine Room",
+  "description": "Supervisor, Mill Management, atau Admin menelusuri, memfilter, dan mengekspor data record Engine Room dari web.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web dengan role Supervisor/Mill Management/Admin"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan tabel data record Engine Room dengan pagination"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Mengatur filter tanggal dan/atau business unit"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menyaring dan menampilkan ulang data sesuai filter"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Menekan tombol ekspor dan memilih format CSV/Excel"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Mengekspor data terfilter ke file yang dipilih"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Klik Baris Membuka Detail",
+      "trigger": "User mengklik salah satu baris tabel",
+      "steps": [
+        "System menavigasikan ke Detail Engine Room (Web) untuk record tersebut"
+      ]
+    },
+    {
+      "name": "Tidak Ada Data Sesuai Filter",
+      "trigger": "Filter tidak menghasilkan data",
+      "steps": [
+        "System menampilkan empty state dengan opsi reset filter"
+      ]
+    },
+    {
+      "name": "Rentang Tanggal Tidak Valid",
+      "trigger": "date_from > date_to",
+      "steps": [
+        "System menampilkan error validasi, filter tidak diterapkan"
+      ]
+    },
+    {
+      "name": "Ekspor Gagal",
+      "trigger": "Dataset ekspor terlalu besar atau terjadi error",
+      "steps": [
+        "System menampilkan pesan error ekspor"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat data Engine Room sesuai filter, atau mengunduh file ekspor"
+  ],
+  "business_rules": [
+    "Data mencakup hasil sync mobile dan input web",
+    "Ekspor mengikuti filter aktif",
+    "Jumlah baris time-slot terisi dihitung dari baris dengan minimal satu kolom bacaan terisi"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Telusuri & Ekspor Data Engine Room — success",
+      "given": "Terdapat data Engine Room tersimpan",
+      "when": "User mengatur filter dan menekan ekspor",
+      "then": "Data terfilter ditampilkan dan file ekspor terunduh sesuai filter aktif"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Engine Room — Tidak Ada Data Sesuai Filter",
+      "given": "Filter tidak cocok dengan data manapun",
+      "when": "User menerapkan filter tersebut",
+      "then": "Sistem menampilkan empty state dengan opsi reset filter"
+    },
+    {
+      "scenario": "Telusuri & Ekspor Data Engine Room — Rentang Tanggal Tidak Valid",
+      "given": "date_from lebih besar dari date_to",
+      "when": "User menerapkan filter tersebut",
+      "then": "Sistem menampilkan error validasi dan tidak menerapkan filter"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-097--data-browser-engine-room-web"
+  ]
+}

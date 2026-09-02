@@ -1,0 +1,58 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-079--form-clarification",
+  "name": "Form Clarification",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/FormClarificationView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/FormClarificationView.spec.ts"
+  ],
+  "implementation_notes": [
+    "Clarification Detail grid renders whatever rows exist (0..24) loaded from clarificationRecordRepo.getDraftWithDetails(), with Tambah baris/Hapus baris controls -- the exact same dynamic add-row/remove-row pattern as Boiler Room Detail (screen-078's mobile precedent)",
+    "availableTimeSlotOptions() compares slots by their index in canonicalTimeSlots() rather than a raw hour number (since slots wrap starting at 07:00, not 0-23), mirroring FormBoilerRoomView.vue's availableTimeSlotOptions() exactly",
+    "'Minimal 1 baris valid' (Time-Slot terpilih + minimal 1 kolom terisi) validated at FE + repo level (clarificationRecordRepo.saveDraft() throws ClarificationDetailRequiredError) -- this station has only 7 non-time_slot columns, all of which participate in the 'filled' check",
+    "All 6 numeric columns (Clarification Tank Temp, Oil Tank Temperature, Sludge Tank Temp, Buffer Tank Level, Pure Oil Production Rate, Downtime) are plain type=number FormFields; Findings is a plain text FormField -- NO enum/status dropdowns anywhere on this screen, the simplest field set of any station in the project",
+    "UNLIKE Form Threshing/Form Boiler Room: this screen has NO operational-target reference table section -- no CollapsibleSection, no static-constant data file, per this station's explicit scope",
+    "Every FormField id in the grid is set explicitly (e.g. clarification-tank-temp-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- same defensive pattern as FormBoilerRoomView.vue",
+    "Field order in the grid & template mirrors the migration column order exactly: Clarification Tank Temp -> Oil Tank Temperature -> Sludge Tank Temp -> Buffer Tank Level -> Pure Oil Production Rate -> Downtime -> Findings = 7 total"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) e2e spec was not authored for this screen in this task -- component test coverage (FormClarificationView.spec.ts, 20 tests) is complete and passing, but there is no browser-level verification of this screen's full Simpan/Pause/Clear/Back flow in a live dev server.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T05:30:00Z",
+      "passed": 20,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

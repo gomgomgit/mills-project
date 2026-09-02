@@ -1,0 +1,61 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-101--detail-solid-waste-disposal-web",
+  "name": "Detail Solid Waste Disposal (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman detail read-only untuk melihat 1 record Solid Waste Disposal tersimpan secara lengkap beserta Log Kejadian, diakses dari klik baris di Data Browser Solid Waste Disposal (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Klik baris di Data Browser Solid Waste Disposal (Web)"
+  ],
+  "information_displayed": [
+    "Identitas Solid Waste Disposal: Solid Waste Disp. ID, Tanggal, Note",
+    "Log Kejadian Solid Waste Disposal: tabel seluruh baris kejadian (Tanggal Kejadian, Shift, Weighbridge Ticket No, Vehicle No, Driver Name, Solid Waste Type, Source Station, Gross/Tare/Net Weight, Disposal/Utilization Site, Purpose/End Use, Gate Pass No, Security Seal No, Operator ID, Remarks, Findings)",
+    "Verifikasi: Inputted By, Checked By, Acknowledged By (nama user, atau '-' jika belum diisi)",
+    "Status record (saved/synced)",
+    "Tombol Back kembali ke Data Browser dan tombol Edit ke Form"
+  ],
+  "available_actions": [
+    {
+      "action": "Back",
+      "description": "Kembali ke Data Browser Solid Waste Disposal (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit",
+      "description": "Masuk ke Form Solid Waste Disposal (Web) mode edit untuk record ini",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Seluruh field ditampilkan read-only — tidak ada aksi edit langsung dari layar ini (koreksi data dilakukan lewat Form Solid Waste Disposal Web)",
+    "Checked By DAN Acknowledged By keduanya ditampilkan apa adanya, tanpa pembatasan role untuk melihat, konsisten dengan Data Preview Solid Waste Disposal mobile",
+    "Log Kejadian ditampilkan langsung dari data tersimpan (historical), tidak dihitung ulang",
+    "Field dikelompokkan sesuai struktur Form Solid Waste Disposal (Identitas, Log Kejadian, Verifikasi)"
+  ],
+  "usecase_ids": [
+    "usecase-065--detail-solid-waste-disposal-web"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
+    "Checked By/Acknowledged By belum diisi — tampilkan '-'"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

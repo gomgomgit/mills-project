@@ -1,0 +1,151 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-116--form-process-quality-control",
+  "name": "Input Data Process Quality Control",
+  "description": "Operator atau Supervisor mengisi header dan grid detail time-slot per jam untuk sebuah record Process Quality Control, mencakup kelompok Fruit Press, Purifier & Clarification Balance, Vacuum Drying Station, Decanter/Centrifuge Separation, Final Storage Tank Product Quality, dan QC Accountability, lalu menyimpan, menjeda (Pause), atau membatalkan (Clear) record tersebut.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "Sebuah record Process Quality Control draft sudah dibuat (baru atau dilanjutkan) dari Monitor Process Quality Control"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Memuat draft Process Quality Control beserta seluruh baris Process Quality Control Detail yang sudah ada (bisa nol baris untuk draft baru)"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Mengisi Process QC ID dan field header lainnya"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'Tambah baris' untuk menambah baris Process Quality Control Detail, memilih Time-Slot, dan mengisi kolom Shift, kelompok Fruit Press, Purifier & Clarification Balance, Vacuum Drying Station, Decanter/Centrifuge Separation, Final Storage Tank Product Quality, dan QC Accountability yang relevan"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'Simpan'"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi Process QC ID terisi dan minimal satu baris Process Quality Control Detail valid (Time-Slot terpilih + minimal satu dari 14 kolom bacaan/keterangan, tidak termasuk Shift dan QC Inspector ID, atau Findings terisi)"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menyimpan record dengan status 'saved' dan kembali ke Monitor Process Quality Control"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Process QC ID Belum Lengkap",
+      "trigger": "Pada langkah 5, Process QC ID kosong",
+      "steps": [
+        "System menampilkan error inline pada field Process QC ID",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum Ada Baris Valid",
+      "trigger": "Pada langkah 5, tidak ada baris Process Quality Control Detail valid",
+      "steps": [
+        "System menampilkan pesan error khusus pada grid",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Pause",
+      "trigger": "User menekan 'Pause' kapan saja sebelum Simpan",
+      "steps": [
+        "System menyimpan field apa adanya tanpa validasi wajib, status menjadi draft_paused",
+        "System kembali ke Monitor Process Quality Control"
+      ]
+    },
+    {
+      "name": "Clear",
+      "trigger": "User menekan 'Clear'",
+      "steps": [
+        "System menampilkan dialog konfirmasi",
+        "Jika dikonfirmasi: record beserta seluruh barisnya dihapus permanen, kembali ke Monitor Process Quality Control",
+        "Jika dibatalkan: tidak ada perubahan"
+      ]
+    },
+    {
+      "name": "Back Dengan Perubahan Belum Tersimpan",
+      "trigger": "User menekan Back saat form dirty",
+      "steps": [
+        "System menampilkan dialog konfirmasi sebelum keluar"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Untuk Simpan sukses: record berstatus 'saved' dengan header dan baris Process Quality Control Detail tersimpan",
+    "Untuk Pause: record berstatus 'draft_paused' dengan field apa adanya tersimpan sebagai checkpoint",
+    "Untuk Clear terkonfirmasi: record dan seluruh barisnya terhapus permanen"
+  ],
+  "business_rules": [
+    "Tanggal otomatis diisi sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Grid Process Quality Control Detail tidak di-pre-generate — baris ditambahkan satu per satu via Tambah baris, dapat dihapus via Hapus baris",
+    "Time-Slot tiap baris harus lebih lambat dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
+    "Minimal satu baris valid (Time-Slot terpilih + minimal satu dari 14 kolom bacaan/keterangan, tidak termasuk Shift dan QC Inspector ID, atau Findings terisi) sebelum Simpan",
+    "Process QC ID wajib diisi sebelum Simpan"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data Process Quality Control — success",
+      "given": "Process QC ID terisi dan minimal 1 baris Process Quality Control Detail valid",
+      "when": "User menekan Simpan",
+      "then": "Record tersimpan dengan status 'saved', navigasi ke Monitor Process Quality Control"
+    },
+    {
+      "scenario": "Input Data Process Quality Control — Process QC ID Belum Lengkap",
+      "given": "Process QC ID kosong",
+      "when": "User menekan Simpan",
+      "then": "Error inline ditampilkan, record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Process Quality Control — Belum Ada Baris Valid",
+      "given": "Grid Process Quality Control Detail kosong atau tidak ada baris valid",
+      "when": "User menekan Simpan",
+      "then": "Pesan error khusus ditampilkan pada grid, record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data Process Quality Control — Tambah/Hapus Baris dan Urutan Time-Slot",
+      "given": "User menambah beberapa baris dengan Time-Slot berurutan",
+      "when": "User menghapus salah satu baris",
+      "then": "Time-Slot yang dipakai baris tersebut kembali tersedia untuk baris lain"
+    },
+    {
+      "scenario": "Input Data Process Quality Control — Baris Valid Hanya Dari Findings",
+      "given": "Satu baris memiliki Time-Slot terpilih dan hanya Findings terisi, Shift/QC Inspector ID/kolom bacaan lain kosong",
+      "when": "User menekan Simpan",
+      "then": "Baris tersebut dianggap valid (terisi) dan record tersimpan"
+    },
+    {
+      "scenario": "Input Data Process Quality Control — Pause Progress",
+      "given": "Field wajib belum lengkap",
+      "when": "User menekan Pause",
+      "then": "Tidak ada validasi, progress tersimpan sebagai draft_paused, navigasi ke Monitor Process Quality Control"
+    },
+    {
+      "scenario": "Input Data Process Quality Control — Clear Draft",
+      "given": "User menekan Clear",
+      "when": "User mengonfirmasi dialog hapus",
+      "then": "Record dan seluruh barisnya terhapus permanen, navigasi ke Monitor Process Quality Control"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-080--form-process-quality-control"
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-096--data-browser-storage-tank-web",
+  "name": "Data Browser Storage Tank (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Models/StorageTankRecord.php",
+    "backend/app/Models/StorageTankDetail.php",
+    "backend/database/migrations/2026_08_31_000012_create_storage_tank_records_table.php",
+    "backend/database/migrations/2026_08_31_000013_create_storage_tank_details_table.php",
+    "backend/app/Services/StorageTankRecordService.php",
+    "backend/app/Http/Controllers/Api/StorageTankRecordController.php",
+    "backend/app/Exceptions/NoActiveStorageTankStationException.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/factories/StorageTankRecordFactory.php",
+    "backend/database/factories/StorageTankDetailFactory.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/resources/views/data/production-process-activity.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/StorageTankRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserStorageTankTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserStorageTankTest.php",
+    "backend/tests/Browser/DataBrowserStorageTankTest.php",
+    "backend/tests/Feature/ProductionProcessActivityTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserStorageTank.php",
+    "backend/resources/views/data/storage-tank.blade.php",
+    "backend/resources/views/livewire/data/data-browser-storage-tank.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "StorageTankRecordService/Controller/routes/factories/models/migrations are shared infrastructure for all 3 web Storage Tank screens (096/106/116), mirroring EffluentPlantRecordService's precedent -- reported under this screen since it is first in the implementation sequence. Models/migrations were already generated in an earlier (Phase 1/entity-models) pass and survived the crash that interrupted this task; this pass verified them against the service/controller code and found them consistent, requiring no changes",
+    "Storage Tank follows the same hourly-grid (dynamic add-row/remove-row, 1..24 rows, unique + strictly ascending canonical time_slot) pattern as Effluent Plant -- create()/update()/listRecords()/export()/getDetail(), plus canonicalTimeSlots() helper returning 24 'HH:00' strings starting 07:00",
+    "filled_slot_count computed via withCount() with an inner OR-whereNotNull constraint across all 17 non-time_slot columns (cpo_sounding_depth_mm, water_dip_bottom_depth_mm, net_oil_depth_mm, oil_temperature_top_c, oil_temperature_middle_c, oil_temperature_bottom_c, average_temperature_c, calculated_volume_m3, calculated_weight_mt, ffa_percent, moisture_content_percent, impurities_dirt_percent, dobi_index, steam_heating_valve_status, tank_structural_condition, inspector_name, findings) -- mirrors EffluentPlantRecordService's filled_slot_count pattern; this station has NO identifying/context columns to exclude (no shift/inspector_id equivalent), so all 17 columns participate",
+    "IMPORTANT -- enum empty-string-vs-null: 1 of the 17 detail columns (steam_heating_valve_status) is backed by a SQLite CHECK constraint (Laravel enum()) that rejects an empty string. StorageTankRecordService::normalizeDetails() coerces '' to null for this column specifically before validation/persistence -- the same mitigation Kernel Dispatch/Effluent Plant needed for their own enum columns. This was already implemented correctly in the pre-existing (crash-survived) service code -- verified against a dedicated unit test, no fix needed",
+    "UNLIKE Threshing/Pressing/Depricarping/Kernel Plant: Storage Tank has NO operational-target reference table -- no seeder, no model, no Target Operasional section anywhere in this station's 6 screens, per this task's explicit scope",
+    "The Storage Tank tile in production-process-activity.blade.php (screen-035) already existed as an active-styled tile pointing to route('data.storage-tank') -- verified against the pre-existing (crash-survived) blade file, no changes needed",
+    "tests/Feature/ProductionProcessActivityTest.php (pre-existing, shared) already reflects Storage Tank's active routing (10 active station tiles, 4 remaining unrouted) -- verified by running the full suite, no changes needed",
+    "StationFactory::storageTank() state already existed (mirrors processWater()/effluentPlant() exactly) for this screen's and screen-116's test suites -- verified, no changes needed",
+    "Ran the full backend test suite (`php artisan test`) after resuming this task: 1794 passed (0 failed), confirming no regression to any pre-existing screen. Storage-Tank-specific tests (`--filter=StorageTank`): 90 passed (0 failed) -- 33 unit (StorageTankRecordServiceTest), 7 integration (Feature/Api/DataBrowserStorageTankTest), 5 component (Feature/Livewire/DataBrowserStorageTankTest), reported under this screen; remaining 45 Storage Tank tests reported under screen-106/screen-116 below"
+  ],
+  "deferred_items": [
+    {
+      "description": "The mobile 'Sinkronisasi' button (Station List, screen-006) does not push locally-entered Storage Tank records to POST /api/storage-tank-records -- unlike Threshing/Pressing/Depricarping/Kernel Plant/Process Water/Kernel Dispatch/CPO Dispatch/Effluent Plant, which each have a syncStorageTankRecords()-equivalent function wired into syncService.ts's syncAllRecords()",
+      "reason": "Out of this 6-screen task's explicit scope; the most recent precedent station (Effluent Plant) made the same deferral for the same reason. The route itself is already dual-guarded ('auth:web,sanctum' + operator role, see routes/api.php) so this is purely a mobile syncService.ts addition, not a backend change, when picked up later."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserStorageTankTest.php) exists following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T03:05:00Z",
+      "passed": 33,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T03:05:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T03:05:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,8 +1,8 @@
 {
-  "ver": 12,
+  "ver": 15,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-09-01"
   },
   "entities": [
     {
@@ -701,7 +701,7 @@
     {
       "id": "station",
       "name": "Station",
-      "description": "Stasiun produksi mill, di bawah Production Line — 7 aktif di MVP per Production Line (Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant), 8 lainnya placeholder skema masa depan. Field code/description/no_of_machinery_group ditambah dari ERD; field type tetap dipertahankan (TIDAK ada di ERD literal) karena krusial bagi mobile app (screen-006 Station List dan Monitor 007-009/037-040) yang sudah diimplementasikan dan diverifikasi berdasarkan field ini.",
+      "description": "Stasiun produksi mill, di bawah Production Line — 18 aktif di MVP per Production Line (Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant, Solid Waste Disposal, Process Water, Kernel Dispatch, CPO Dispatch, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Clarification, Process Quality Control, Sterilizer) — seluruh stasiun kanonis kini aktif, tidak ada placeholder tersisa (revisi 2026-09-01, promosi Sterilizer). Field code/description/no_of_machinery_group ditambah dari ERD; field type tetap dipertahankan (TIDAK ada di ERD literal) karena krusial bagi mobile app (screen-006 Station List dan Monitor 007-009/037-040) yang sudah diimplementasikan dan diverifikasi berdasarkan field ini.",
       "fields": [
         {
           "name": "id",
@@ -741,9 +741,9 @@
         },
         {
           "name": "type",
-          "type": "enum(weighbridge, grading, cages-track, threshing, pressing, depricarping, kernel-plant, other)",
+          "type": "enum(weighbridge, grading, cages-track, threshing, pressing, depricarping, kernel-plant, solid-waste-disposal, process-water, kernel-dispatch, cpo-dispatch, effluent-plant, storage-tank, engine-room, boiler-room, clarification, process-quality-control, sterilizer, other)",
           "required": true,
-          "description": "Tipe stasiun; 'other' menampung 8 placeholder stasiun masa depan (Sterilizer, Clarification, Boiler, Effluent Treatment, Loading Ramp, Engine Room, Water Treatment, Bulking Storage). DIPERTAHANKAN meski tidak ada di ERD literal — dipakai langsung oleh screen-006/007/008/009/037-060 mobile yang sudah/akan diimplementasikan."
+          "description": "Tipe stasiun. Direvisi 2026-09-01: 'sterilizer' ditambahkan (promosi placeholder terakhir) — tidak ada lagi tipe berstatus placeholder; 'other' dipertahankan di enum untuk kompatibilitas historis meski tidak ada di ERD literal — dipakai langsung oleh screen-006/007/008/009/037-060+ mobile yang sudah/akan diimplementasikan. Direvisi 2026-08-31: 10 tipe baru ditambahkan (6 promosi dari placeholder 'other' + 4 stasiun baru)."
         },
         {
           "name": "no_of_machinery_group",
@@ -794,7 +794,7 @@
         }
       ],
       "constraints": [
-        "Hanya station bertipe weighbridge/grading/cages-track/threshing/pressing/depricarping/kernel-plant yang is_active=true di MVP; tipe lain (other) adalah placeholder skema masa depan dengan is_active=false",
+        "Hanya station bertipe weighbridge/grading/cages-track/threshing/pressing/depricarping/kernel-plant/solid-waste-disposal/process-water/kernel-dispatch/cpo-dispatch/effluent-plant/storage-tank/engine-room/boiler-room/clarification/process-quality-control/sterilizer yang is_active=true di MVP (18 tipe aktif, seluruh stasiun kanonis) — tidak ada lagi tipe placeholder yang is_active=false.",
         "code unik jika diisi",
         "production_line_id harus milik business_unit_id yang sama"
       ],
@@ -3170,6 +3170,2919 @@
         "sort_order": 1,
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "solid-waste-disposal-record",
+      "name": "Solid Waste Disposal Record",
+      "description": "Record header log data stasiun Solid Waste Disposal — pola input manual header + log per-kejadian pembuangan limbah padat.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe solid_waste_disposal)."
+        },
+        {
+          "name": "solid_waste_disposal_id",
+          "type": "string",
+          "required": true,
+          "description": "Solid Waste Disp. ID, input manual — identifikasi stasiun/sesi pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "solid-waste-disposal-detail",
+          "type": "one-to-many",
+          "description": "Satu Solid Waste Disposal Record memiliki banyak Solid Waste Disposal Detail."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "sol-001",
+        "station_id": "ref-001",
+        "solid_waste_disposal_id": "ref-001",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": null,
+        "acknowledged_by": null,
+        "status": "draft_ongoing",
+        "created_by": "ref-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "solid-waste-disposal-detail",
+      "name": "Solid Waste Disposal Detail",
+      "description": "Baris log per-kejadian pembuangan limbah padat dalam satu Solid Waste Disposal Record.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "solid_waste_disposal_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Solid Waste Disposal Record induk."
+        },
+        {
+          "name": "event_date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal kejadian pada baris ini (dapat berbeda dari date header jika kejadian lintas hari)."
+        },
+        {
+          "name": "shift",
+          "type": "string",
+          "required": false,
+          "description": "Shift kerja saat kejadian, teks bebas (mis. 'Shift 1')."
+        },
+        {
+          "name": "weighbridge_ticket_no",
+          "type": "string",
+          "required": false,
+          "description": "Weighbridge Ticket No."
+        },
+        {
+          "name": "vehicle_no",
+          "type": "string",
+          "required": false,
+          "description": "Vehicle No."
+        },
+        {
+          "name": "driver_name",
+          "type": "string",
+          "required": false,
+          "description": "Driver Name."
+        },
+        {
+          "name": "solid_waste_type",
+          "type": "string",
+          "required": false,
+          "description": "Solid Waste Type, teks bebas."
+        },
+        {
+          "name": "source_station",
+          "type": "string",
+          "required": false,
+          "description": "Source Station, teks bebas/nama stasiun asal limbah."
+        },
+        {
+          "name": "gross_weight_mt",
+          "type": "float",
+          "required": false,
+          "description": "Gross Weight (MT)."
+        },
+        {
+          "name": "tare_weight_mt",
+          "type": "float",
+          "required": false,
+          "description": "Tare Weight (MT)."
+        },
+        {
+          "name": "net_weight_mt",
+          "type": "float",
+          "required": false,
+          "description": "Net Weight (MT), dihitung = gross_weight_mt - tare_weight_mt."
+        },
+        {
+          "name": "disposal_utilization_site",
+          "type": "string",
+          "required": false,
+          "description": "Disposal / Utilization Site."
+        },
+        {
+          "name": "purpose_end_use",
+          "type": "string",
+          "required": false,
+          "description": "Purpose / End Use."
+        },
+        {
+          "name": "gate_pass_no",
+          "type": "string",
+          "required": false,
+          "description": "Gate Pass No."
+        },
+        {
+          "name": "security_seal_no",
+          "type": "string",
+          "required": false,
+          "description": "Security Seal No."
+        },
+        {
+          "name": "operator_id",
+          "type": "string",
+          "required": false,
+          "description": "Operator ID."
+        },
+        {
+          "name": "remarks",
+          "type": "string",
+          "required": false,
+          "description": "Remarks."
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "Temuan/catatan observasi pada baris ini."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' sesuai kejadian pengiriman/pembuangan — jumlah baris per hari tidak dibatasi, mengikuti pola cages-tipped-time/cages-track-record (bukan grid statis 24 baris)."
+      ],
+      "test_fixture": {
+        "id": "sol-002",
+        "solid_waste_disposal_record_id": "ref-001",
+        "event_date": "2024-01-15",
+        "shift": "",
+        "weighbridge_ticket_no": "",
+        "vehicle_no": "",
+        "driver_name": "",
+        "solid_waste_type": "",
+        "source_station": "",
+        "gross_weight_mt": 0.0,
+        "tare_weight_mt": 0.0,
+        "net_weight_mt": 0.0,
+        "disposal_utilization_site": "",
+        "purpose_end_use": "",
+        "gate_pass_no": "",
+        "security_seal_no": "",
+        "operator_id": null,
+        "remarks": "",
+        "findings": "",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "process-water-record",
+      "name": "Process Water Record",
+      "description": "Record header log data stasiun Process Water — pola input manual header + grid time-slot per jam.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe process_water)."
+        },
+        {
+          "name": "process_water_id",
+          "type": "string",
+          "required": true,
+          "description": "Process Water ID, input manual — identifikasi stasiun/sesi pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "process-water-detail",
+          "type": "one-to-many",
+          "description": "Satu Process Water Record memiliki banyak Process Water Detail."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "pro-003",
+        "station_id": "ref-001",
+        "process_water_id": "ref-001",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": null,
+        "acknowledged_by": null,
+        "status": "draft_ongoing",
+        "created_by": "ref-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "process-water-detail",
+      "name": "Process Water Detail",
+      "description": "Baris detail time-slot per jam dalam satu Process Water Record.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "process_water_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Process Water Record induk."
+        },
+        {
+          "name": "time_slot",
+          "type": "time",
+          "required": true,
+          "description": "Jam pencatatan untuk baris ini, dipilih user dari dropdown saat menambah baris (bukan pre-generated) — mengikuti pola cages-tipped-time.tipped_hour: opsi dropdown = seluruh slot kanonis 07:00..06:00 DIKURANGI yang sudah dipakai baris lain, dan harus lebih lambat (index kanonis lebih besar) dari time_slot tertinggi yang sudah dipilih baris lain (urutan menaik kronologis, tidak bisa mundur/duplikat)."
+        },
+        {
+          "name": "shift",
+          "type": "string",
+          "required": false,
+          "description": "Shift kerja, teks bebas."
+        },
+        {
+          "name": "inspector_id",
+          "type": "string",
+          "required": false,
+          "description": "Inspector ID."
+        },
+        {
+          "name": "raw_water_flow_m3h",
+          "type": "float",
+          "required": false,
+          "description": "Raw Water Flow (m3/h)."
+        },
+        {
+          "name": "clarified_water_flow_m3h",
+          "type": "float",
+          "required": false,
+          "description": "Clarified Water Flow (m3/h)."
+        },
+        {
+          "name": "softener_inlet_ph",
+          "type": "float",
+          "required": false,
+          "description": "Softener Inlet pH."
+        },
+        {
+          "name": "softener_outlet_hardness_ppm",
+          "type": "float",
+          "required": false,
+          "description": "Softener Outlet Hardness (ppm)."
+        },
+        {
+          "name": "alum_dosing_kgh",
+          "type": "float",
+          "required": false,
+          "description": "Alum Dosing (kg/h)."
+        },
+        {
+          "name": "polymer_dosing_gh",
+          "type": "float",
+          "required": false,
+          "description": "Polymer Dosing (g/h)."
+        },
+        {
+          "name": "boiler_feed_tank_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Boiler Feed Tank Temp (°C)."
+        },
+        {
+          "name": "boiler_feed_water_ph",
+          "type": "float",
+          "required": false,
+          "description": "Boiler Feed Water pH."
+        },
+        {
+          "name": "boiler_feed_tds_ppm",
+          "type": "float",
+          "required": false,
+          "description": "Boiler Feed TDS (ppm)."
+        },
+        {
+          "name": "action_taken_status",
+          "type": "string",
+          "required": false,
+          "description": "Action Taken / Status."
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "Temuan/catatan observasi pada baris ini."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "time_slot unik per header (tidak ada 2 baris dengan jam sama dalam 1 record)",
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' (tidak di-pre-generate 24 baris sekaligus saat draft dibuat) dan dapat dihapus via 'Hapus baris' — mengikuti pola persis threshing-detail/cages-tipped-time, BUKAN grid statis 24 baris.",
+        "time_slot baris baru harus berada setelah time_slot tertinggi yang sudah ada di antara baris lain pada record yang sama, dalam urutan kanonis 07:00->06:00"
+      ],
+      "test_fixture": {
+        "id": "pro-004",
+        "process_water_record_id": "ref-001",
+        "time_slot": "07:00",
+        "shift": "",
+        "inspector_id": null,
+        "raw_water_flow_m3h": 0.0,
+        "clarified_water_flow_m3h": 0.0,
+        "softener_inlet_ph": 0.0,
+        "softener_outlet_hardness_ppm": 0.0,
+        "alum_dosing_kgh": 0.0,
+        "polymer_dosing_gh": 0.0,
+        "boiler_feed_tank_temp_c": 0.0,
+        "boiler_feed_water_ph": 0.0,
+        "boiler_feed_tds_ppm": 0.0,
+        "action_taken_status": "",
+        "findings": "",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "kernel-dispatch-record",
+      "name": "Kernel Dispatch Record",
+      "description": "Record header log data stasiun Kernel Dispatch — pola input manual header + log per-kejadian pengiriman kernel.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe kernel_dispatch)."
+        },
+        {
+          "name": "kernel_dispatch_id",
+          "type": "string",
+          "required": true,
+          "description": "Kernel Dispatch ID, input manual — identifikasi stasiun/sesi pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "kernel-dispatch-detail",
+          "type": "one-to-many",
+          "description": "Satu Kernel Dispatch Record memiliki banyak Kernel Dispatch Detail."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "ker-005",
+        "station_id": "ref-001",
+        "kernel_dispatch_id": "ref-001",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": null,
+        "acknowledged_by": null,
+        "status": "draft_ongoing",
+        "created_by": "ref-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "kernel-dispatch-detail",
+      "name": "Kernel Dispatch Detail",
+      "description": "Baris log per-kejadian pengiriman kernel dalam satu Kernel Dispatch Record.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "kernel_dispatch_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Kernel Dispatch Record induk."
+        },
+        {
+          "name": "event_date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal kejadian pada baris ini (dapat berbeda dari date header jika kejadian lintas hari)."
+        },
+        {
+          "name": "shift",
+          "type": "string",
+          "required": false,
+          "description": "Shift kerja saat kejadian, teks bebas (mis. 'Shift 1')."
+        },
+        {
+          "name": "weighbridge_ticket_no",
+          "type": "string",
+          "required": false,
+          "description": "Weighbridge Ticket No."
+        },
+        {
+          "name": "waybill_number",
+          "type": "string",
+          "required": false,
+          "description": "Waybill Number."
+        },
+        {
+          "name": "transporter_contractor",
+          "type": "string",
+          "required": false,
+          "description": "Transporter / Contractor."
+        },
+        {
+          "name": "vehicle_plate_no",
+          "type": "string",
+          "required": false,
+          "description": "Vehicle Plate No."
+        },
+        {
+          "name": "driver_name",
+          "type": "string",
+          "required": false,
+          "description": "Driver Name."
+        },
+        {
+          "name": "silo_source_id",
+          "type": "string",
+          "required": false,
+          "description": "Silo Source ID."
+        },
+        {
+          "name": "destination_buyer",
+          "type": "string",
+          "required": false,
+          "description": "Destination / Buyer."
+        },
+        {
+          "name": "gross_weight_mt",
+          "type": "float",
+          "required": false,
+          "description": "Gross Weight (MT)."
+        },
+        {
+          "name": "tare_weight_mt",
+          "type": "float",
+          "required": false,
+          "description": "Tare Weight (MT)."
+        },
+        {
+          "name": "net_weight_mt",
+          "type": "float",
+          "required": false,
+          "description": "Net Weight (MT), dihitung = gross_weight_mt - tare_weight_mt."
+        },
+        {
+          "name": "kernel_moisture_percent",
+          "type": "float",
+          "required": false,
+          "description": "Kernel Moisture (%)."
+        },
+        {
+          "name": "dirt_impurities_percent",
+          "type": "float",
+          "required": false,
+          "description": "Dirt / Impurities (%)."
+        },
+        {
+          "name": "ffa_percent",
+          "type": "float",
+          "required": false,
+          "description": "FFA / Free Fatty Acid (%)."
+        },
+        {
+          "name": "broken_kernel_percent",
+          "type": "float",
+          "required": false,
+          "description": "Broken Kernel (%)."
+        },
+        {
+          "name": "security_seal_no_top",
+          "type": "string",
+          "required": false,
+          "description": "Security Seal No (Top)."
+        },
+        {
+          "name": "security_seal_no_bottom",
+          "type": "string",
+          "required": false,
+          "description": "Security Seal No (Bottom)."
+        },
+        {
+          "name": "weighbridge_operator_id",
+          "type": "string",
+          "required": false,
+          "description": "Weighbridge Operator ID."
+        },
+        {
+          "name": "remarks_gate_status",
+          "type": "enum(released, not_released)",
+          "required": false,
+          "description": "Remarks / Gate Status (Released/Not Released)."
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "Temuan/catatan observasi pada baris ini."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' sesuai kejadian pengiriman/pembuangan — jumlah baris per hari tidak dibatasi, mengikuti pola cages-tipped-time/cages-track-record (bukan grid statis 24 baris)."
+      ],
+      "test_fixture": {
+        "id": "ker-006",
+        "kernel_dispatch_record_id": "ref-001",
+        "event_date": "2024-01-15",
+        "shift": "",
+        "weighbridge_ticket_no": "",
+        "waybill_number": "",
+        "transporter_contractor": "",
+        "vehicle_plate_no": "",
+        "driver_name": "",
+        "silo_source_id": null,
+        "destination_buyer": "",
+        "gross_weight_mt": 0.0,
+        "tare_weight_mt": 0.0,
+        "net_weight_mt": 0.0,
+        "kernel_moisture_percent": 0.0,
+        "dirt_impurities_percent": 0.0,
+        "ffa_percent": 0.0,
+        "broken_kernel_percent": 0.0,
+        "security_seal_no_top": "",
+        "security_seal_no_bottom": "",
+        "weighbridge_operator_id": null,
+        "remarks_gate_status": "released",
+        "findings": "",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "cpo-dispatch-record",
+      "name": "CPO Dispatch Record",
+      "description": "Record header log data stasiun CPO Dispatch — pola input manual header + log per-kejadian pengiriman CPO.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe cpo_dispatch)."
+        },
+        {
+          "name": "cpo_dispatch_id",
+          "type": "string",
+          "required": true,
+          "description": "CPO Dispatch ID, input manual — identifikasi stasiun/sesi pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "cpo-dispatch-detail",
+          "type": "one-to-many",
+          "description": "Satu CPO Dispatch Record memiliki banyak CPO Dispatch Detail."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "cpo-007",
+        "station_id": "ref-001",
+        "cpo_dispatch_id": "ref-001",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": null,
+        "acknowledged_by": null,
+        "status": "draft_ongoing",
+        "created_by": "ref-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "cpo-dispatch-detail",
+      "name": "CPO Dispatch Detail",
+      "description": "Baris log per-kejadian pengiriman CPO dalam satu CPO Dispatch Record.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "cpo_dispatch_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke CPO Dispatch Record induk."
+        },
+        {
+          "name": "event_date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal kejadian pada baris ini (dapat berbeda dari date header jika kejadian lintas hari)."
+        },
+        {
+          "name": "shift",
+          "type": "string",
+          "required": false,
+          "description": "Shift kerja saat kejadian, teks bebas (mis. 'Shift 1')."
+        },
+        {
+          "name": "time_in",
+          "type": "time",
+          "required": false,
+          "description": "Time In."
+        },
+        {
+          "name": "time_out",
+          "type": "time",
+          "required": false,
+          "description": "Time Out."
+        },
+        {
+          "name": "waybill_number",
+          "type": "string",
+          "required": false,
+          "description": "Waybill Number."
+        },
+        {
+          "name": "tanker_plate_no",
+          "type": "string",
+          "required": false,
+          "description": "Tanker Plate No."
+        },
+        {
+          "name": "transport_company",
+          "type": "string",
+          "required": false,
+          "description": "Transport Company."
+        },
+        {
+          "name": "driver_name",
+          "type": "string",
+          "required": false,
+          "description": "Driver Name."
+        },
+        {
+          "name": "storage_tank_source",
+          "type": "string",
+          "required": false,
+          "description": "Storage Tank Source."
+        },
+        {
+          "name": "seal_no_top",
+          "type": "string",
+          "required": false,
+          "description": "Seal Numbers (Top)."
+        },
+        {
+          "name": "seal_no_bottom",
+          "type": "string",
+          "required": false,
+          "description": "Seal Numbers (Bottom)."
+        },
+        {
+          "name": "gross_weight_mt",
+          "type": "float",
+          "required": false,
+          "description": "Gross Weight (MT)."
+        },
+        {
+          "name": "tare_weight_mt",
+          "type": "float",
+          "required": false,
+          "description": "Tare Weight (MT)."
+        },
+        {
+          "name": "net_weight_mt",
+          "type": "float",
+          "required": false,
+          "description": "Net Weight (MT), dihitung = gross_weight_mt - tare_weight_mt."
+        },
+        {
+          "name": "ffa_percent",
+          "type": "float",
+          "required": false,
+          "description": "FFA (%)."
+        },
+        {
+          "name": "moisture_percent",
+          "type": "float",
+          "required": false,
+          "description": "Moisture (%)."
+        },
+        {
+          "name": "impurities_percent",
+          "type": "float",
+          "required": false,
+          "description": "Impurities (%)."
+        },
+        {
+          "name": "dobi",
+          "type": "float",
+          "required": false,
+          "description": "DOBI (Deterioration of Bleachability Index)."
+        },
+        {
+          "name": "destination_buyer",
+          "type": "string",
+          "required": false,
+          "description": "Destination / Buyer."
+        },
+        {
+          "name": "weighbridge_operator",
+          "type": "string",
+          "required": false,
+          "description": "Weighbridge Operator."
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "Temuan/catatan observasi pada baris ini."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' sesuai kejadian pengiriman/pembuangan — jumlah baris per hari tidak dibatasi, mengikuti pola cages-tipped-time/cages-track-record (bukan grid statis 24 baris)."
+      ],
+      "test_fixture": {
+        "id": "cpo-008",
+        "cpo_dispatch_record_id": "ref-001",
+        "event_date": "2024-01-15",
+        "shift": "",
+        "time_in": "07:00",
+        "time_out": "07:00",
+        "waybill_number": "",
+        "tanker_plate_no": "",
+        "transport_company": "",
+        "driver_name": "",
+        "storage_tank_source": "",
+        "seal_no_top": "",
+        "seal_no_bottom": "",
+        "gross_weight_mt": 0.0,
+        "tare_weight_mt": 0.0,
+        "net_weight_mt": 0.0,
+        "ffa_percent": 0.0,
+        "moisture_percent": 0.0,
+        "impurities_percent": 0.0,
+        "dobi": 0.0,
+        "destination_buyer": "",
+        "weighbridge_operator": "",
+        "findings": "",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "effluent-plant-record",
+      "name": "Effluent Plant Record",
+      "description": "Record header log data stasiun Effluent Plant — pola input manual header + grid time-slot per jam.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe effluent_plant)."
+        },
+        {
+          "name": "effluent_plant_id",
+          "type": "string",
+          "required": true,
+          "description": "Effluent Plant ID, input manual — identifikasi stasiun/sesi pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "effluent-plant-detail",
+          "type": "one-to-many",
+          "description": "Satu Effluent Plant Record memiliki banyak Effluent Plant Detail."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "eff-009",
+        "station_id": "ref-001",
+        "effluent_plant_id": "ref-001",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": null,
+        "acknowledged_by": null,
+        "status": "draft_ongoing",
+        "created_by": "ref-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "effluent-plant-detail",
+      "name": "Effluent Plant Detail",
+      "description": "Baris detail time-slot per jam dalam satu Effluent Plant Record.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "effluent_plant_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Effluent Plant Record induk."
+        },
+        {
+          "name": "time_slot",
+          "type": "time",
+          "required": true,
+          "description": "Jam pencatatan untuk baris ini, dipilih user dari dropdown saat menambah baris (bukan pre-generated) — mengikuti pola cages-tipped-time.tipped_hour: opsi dropdown = seluruh slot kanonis 07:00..06:00 DIKURANGI yang sudah dipakai baris lain, dan harus lebih lambat (index kanonis lebih besar) dari time_slot tertinggi yang sudah dipilih baris lain (urutan menaik kronologis, tidak bisa mundur/duplikat)."
+        },
+        {
+          "name": "anaerobic_pond_1_ph",
+          "type": "float",
+          "required": false,
+          "description": "Anaerobic Pond 1 pH."
+        },
+        {
+          "name": "anaerobic_pond_1_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Anaerobic Pond 1 Temp (°C)."
+        },
+        {
+          "name": "anaerobic_pond_2_ph",
+          "type": "float",
+          "required": false,
+          "description": "Anaerobic Pond 2 pH."
+        },
+        {
+          "name": "anaerobic_pond_2_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Anaerobic Pond 2 Temp (°C)."
+        },
+        {
+          "name": "cooling_pond_ph",
+          "type": "float",
+          "required": false,
+          "description": "Cooling Pond pH."
+        },
+        {
+          "name": "cooling_pond_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Cooling Pond Temp (°C)."
+        },
+        {
+          "name": "biogas_flare_status",
+          "type": "enum(on, off, fault)",
+          "required": false,
+          "description": "Biogas Flare Status (On/Off/Fault)."
+        },
+        {
+          "name": "biogas_flow_rate_m3h",
+          "type": "float",
+          "required": false,
+          "description": "Biogas Flow Rate (m3/h)."
+        },
+        {
+          "name": "raw_pome_feed_rate_m3h",
+          "type": "float",
+          "required": false,
+          "description": "Raw POME Feed Rate (m3/h)."
+        },
+        {
+          "name": "effluent_discharge_flow_rate_m3h",
+          "type": "float",
+          "required": false,
+          "description": "Effluent Discharge Flow Rate (m3/h)."
+        },
+        {
+          "name": "final_discharge_ph",
+          "type": "float",
+          "required": false,
+          "description": "Final Discharge pH."
+        },
+        {
+          "name": "final_discharge_bod_mgl_lab",
+          "type": "float",
+          "required": false,
+          "description": "Final Discharge BOD (mg/L - Lab)."
+        },
+        {
+          "name": "final_discharge_cod_mgl_lab",
+          "type": "float",
+          "required": false,
+          "description": "Final Discharge COD (mg/L - Lab)."
+        },
+        {
+          "name": "final_discharge_tss_mgl_lab",
+          "type": "float",
+          "required": false,
+          "description": "Final Discharge TSS (mg/L - Lab)."
+        },
+        {
+          "name": "dosing_pump_1_status",
+          "type": "enum(run, stop)",
+          "required": false,
+          "description": "Dosing Pump 1 Status (Run/Stop)."
+        },
+        {
+          "name": "chemical_consumed_kgl",
+          "type": "float",
+          "required": false,
+          "description": "Chemical Consumed (kg/L)."
+        },
+        {
+          "name": "sludge_dewatering_status",
+          "type": "enum(run, stop)",
+          "required": false,
+          "description": "Sludge Dewatering Status (Run/Stop)."
+        },
+        {
+          "name": "remarks_maintenance_actions",
+          "type": "string",
+          "required": false,
+          "description": "Remarks / Maintenance Actions."
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "Temuan/catatan observasi pada baris ini."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "time_slot unik per header (tidak ada 2 baris dengan jam sama dalam 1 record)",
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' (tidak di-pre-generate 24 baris sekaligus saat draft dibuat) dan dapat dihapus via 'Hapus baris' — mengikuti pola persis threshing-detail/cages-tipped-time, BUKAN grid statis 24 baris.",
+        "time_slot baris baru harus berada setelah time_slot tertinggi yang sudah ada di antara baris lain pada record yang sama, dalam urutan kanonis 07:00->06:00"
+      ],
+      "test_fixture": {
+        "id": "eff-010",
+        "effluent_plant_record_id": "ref-001",
+        "time_slot": "07:00",
+        "anaerobic_pond_1_ph": 0.0,
+        "anaerobic_pond_1_temp_c": 0.0,
+        "anaerobic_pond_2_ph": 0.0,
+        "anaerobic_pond_2_temp_c": 0.0,
+        "cooling_pond_ph": 0.0,
+        "cooling_pond_temp_c": 0.0,
+        "biogas_flare_status": "on",
+        "biogas_flow_rate_m3h": 0.0,
+        "raw_pome_feed_rate_m3h": 0.0,
+        "effluent_discharge_flow_rate_m3h": 0.0,
+        "final_discharge_ph": 0.0,
+        "final_discharge_bod_mgl_lab": 0.0,
+        "final_discharge_cod_mgl_lab": 0.0,
+        "final_discharge_tss_mgl_lab": 0.0,
+        "dosing_pump_1_status": "run",
+        "chemical_consumed_kgl": 0.0,
+        "sludge_dewatering_status": "run",
+        "remarks_maintenance_actions": "",
+        "findings": "",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "storage-tank-record",
+      "name": "Storage Tank Record",
+      "description": "Record header log data stasiun Storage Tank — pola input manual header + grid time-slot per jam.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe storage_tank)."
+        },
+        {
+          "name": "storage_tank_id",
+          "type": "string",
+          "required": true,
+          "description": "Storage Tank ID, input manual — identifikasi stasiun/sesi pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "storage-tank-detail",
+          "type": "one-to-many",
+          "description": "Satu Storage Tank Record memiliki banyak Storage Tank Detail."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "sto-011",
+        "station_id": "ref-001",
+        "storage_tank_id": "ref-001",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": null,
+        "acknowledged_by": null,
+        "status": "draft_ongoing",
+        "created_by": "ref-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "storage-tank-detail",
+      "name": "Storage Tank Detail",
+      "description": "Baris detail time-slot per jam dalam satu Storage Tank Record.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "storage_tank_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Storage Tank Record induk."
+        },
+        {
+          "name": "time_slot",
+          "type": "time",
+          "required": true,
+          "description": "Jam pencatatan untuk baris ini, dipilih user dari dropdown saat menambah baris (bukan pre-generated) — mengikuti pola cages-tipped-time.tipped_hour: opsi dropdown = seluruh slot kanonis 07:00..06:00 DIKURANGI yang sudah dipakai baris lain, dan harus lebih lambat (index kanonis lebih besar) dari time_slot tertinggi yang sudah dipilih baris lain (urutan menaik kronologis, tidak bisa mundur/duplikat)."
+        },
+        {
+          "name": "cpo_sounding_depth_mm",
+          "type": "float",
+          "required": false,
+          "description": "CPO Sounding Depth (mm)."
+        },
+        {
+          "name": "water_dip_bottom_depth_mm",
+          "type": "float",
+          "required": false,
+          "description": "Water Dip / Bottom Depth (mm)."
+        },
+        {
+          "name": "net_oil_depth_mm",
+          "type": "float",
+          "required": false,
+          "description": "Net Oil Depth (mm)."
+        },
+        {
+          "name": "oil_temperature_top_c",
+          "type": "float",
+          "required": false,
+          "description": "Oil Temperature - Top (°C)."
+        },
+        {
+          "name": "oil_temperature_middle_c",
+          "type": "float",
+          "required": false,
+          "description": "Oil Temperature - Middle (°C)."
+        },
+        {
+          "name": "oil_temperature_bottom_c",
+          "type": "float",
+          "required": false,
+          "description": "Oil Temperature - Bottom (°C)."
+        },
+        {
+          "name": "average_temperature_c",
+          "type": "float",
+          "required": false,
+          "description": "Average Temperature (°C)."
+        },
+        {
+          "name": "calculated_volume_m3",
+          "type": "float",
+          "required": false,
+          "description": "Calculated Volume (m³)."
+        },
+        {
+          "name": "calculated_weight_mt",
+          "type": "float",
+          "required": false,
+          "description": "Calculated Weight (MT)."
+        },
+        {
+          "name": "ffa_percent",
+          "type": "float",
+          "required": false,
+          "description": "Free Fatty Acid - FFA (%)."
+        },
+        {
+          "name": "moisture_content_percent",
+          "type": "float",
+          "required": false,
+          "description": "Moisture Content (%)."
+        },
+        {
+          "name": "impurities_dirt_percent",
+          "type": "float",
+          "required": false,
+          "description": "Impurities / Dirt (%)."
+        },
+        {
+          "name": "dobi_index",
+          "type": "float",
+          "required": false,
+          "description": "DOBI Index."
+        },
+        {
+          "name": "steam_heating_valve_status",
+          "type": "enum(closed, open_1_4, open_1_2)",
+          "required": false,
+          "description": "Steam Heating Valve Status (Closed/Open 1/4/Open 1/2)."
+        },
+        {
+          "name": "tank_structural_condition",
+          "type": "string",
+          "required": false,
+          "description": "Tank Structural Condition, teks bebas."
+        },
+        {
+          "name": "inspector_name",
+          "type": "string",
+          "required": false,
+          "description": "Inspector Name."
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "Temuan/catatan observasi pada baris ini."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "time_slot unik per header (tidak ada 2 baris dengan jam sama dalam 1 record)",
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' (tidak di-pre-generate 24 baris sekaligus saat draft dibuat) dan dapat dihapus via 'Hapus baris' — mengikuti pola persis threshing-detail/cages-tipped-time, BUKAN grid statis 24 baris.",
+        "time_slot baris baru harus berada setelah time_slot tertinggi yang sudah ada di antara baris lain pada record yang sama, dalam urutan kanonis 07:00->06:00"
+      ],
+      "test_fixture": {
+        "id": "sto-012",
+        "storage_tank_record_id": "ref-001",
+        "time_slot": "07:00",
+        "cpo_sounding_depth_mm": 0.0,
+        "water_dip_bottom_depth_mm": 0.0,
+        "net_oil_depth_mm": 0.0,
+        "oil_temperature_top_c": 0.0,
+        "oil_temperature_middle_c": 0.0,
+        "oil_temperature_bottom_c": 0.0,
+        "average_temperature_c": 0.0,
+        "calculated_volume_m3": 0.0,
+        "calculated_weight_mt": 0.0,
+        "ffa_percent": 0.0,
+        "moisture_content_percent": 0.0,
+        "impurities_dirt_percent": 0.0,
+        "dobi_index": 0.0,
+        "steam_heating_valve_status": "closed",
+        "tank_structural_condition": "",
+        "inspector_name": "",
+        "findings": "",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "engine-room-record",
+      "name": "Engine Room Record",
+      "description": "Record header log data stasiun Engine Room — pola input manual header + grid time-slot per jam.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe engine_room)."
+        },
+        {
+          "name": "engine_room_id",
+          "type": "string",
+          "required": true,
+          "description": "Engine Room ID, input manual — identifikasi stasiun/sesi pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "engine-room-detail",
+          "type": "one-to-many",
+          "description": "Satu Engine Room Record memiliki banyak Engine Room Detail."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "eng-013",
+        "station_id": "ref-001",
+        "engine_room_id": "ref-001",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": null,
+        "acknowledged_by": null,
+        "status": "draft_ongoing",
+        "created_by": "ref-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "engine-room-detail",
+      "name": "Engine Room Detail",
+      "description": "Baris detail time-slot per jam dalam satu Engine Room Record.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "engine_room_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Engine Room Record induk."
+        },
+        {
+          "name": "time_slot",
+          "type": "time",
+          "required": true,
+          "description": "Jam pencatatan untuk baris ini, dipilih user dari dropdown saat menambah baris (bukan pre-generated) — mengikuti pola cages-tipped-time.tipped_hour: opsi dropdown = seluruh slot kanonis 07:00..06:00 DIKURANGI yang sudah dipakai baris lain, dan harus lebih lambat (index kanonis lebih besar) dari time_slot tertinggi yang sudah dipilih baris lain (urutan menaik kronologis, tidak bisa mundur/duplikat)."
+        },
+        {
+          "name": "steam_turbine_inlet_pressure_bar",
+          "type": "float",
+          "required": false,
+          "description": "Steam Turbine - Inlet Pressure (bar)."
+        },
+        {
+          "name": "steam_turbine_inlet_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Steam Turbine - Inlet Temp (°C)."
+        },
+        {
+          "name": "steam_turbine_exhaust_pressure_bar",
+          "type": "float",
+          "required": false,
+          "description": "Steam Turbine - Exhaust Pressure (bar)."
+        },
+        {
+          "name": "steam_turbine_rpm",
+          "type": "float",
+          "required": false,
+          "description": "Steam Turbine - RPM."
+        },
+        {
+          "name": "steam_turbine_alternator_bearing_temp_1_c",
+          "type": "float",
+          "required": false,
+          "description": "Steam Turbine - Alternator Bearing Temp 1 (°C)."
+        },
+        {
+          "name": "steam_turbine_alternator_bearing_temp_2_c",
+          "type": "float",
+          "required": false,
+          "description": "Steam Turbine - Alternator Bearing Temp 2 (°C)."
+        },
+        {
+          "name": "diesel_gen_1_status",
+          "type": "enum(run, standby, off)",
+          "required": false,
+          "description": "Diesel Gen 1 - Status (Run/Standby/Off)."
+        },
+        {
+          "name": "diesel_gen_1_load_kw",
+          "type": "float",
+          "required": false,
+          "description": "Diesel Gen 1 - Load (kW)."
+        },
+        {
+          "name": "diesel_gen_1_amperage_a",
+          "type": "float",
+          "required": false,
+          "description": "Diesel Gen 1 - Amperage (A)."
+        },
+        {
+          "name": "diesel_gen_1_jacket_water_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Diesel Gen 1 - Jacket Water Temp (°C)."
+        },
+        {
+          "name": "diesel_gen_1_lube_oil_pressure_bar",
+          "type": "float",
+          "required": false,
+          "description": "Diesel Gen 1 - Lube Oil Pressure (bar)."
+        },
+        {
+          "name": "diesel_gen_2_status",
+          "type": "enum(run, standby, off)",
+          "required": false,
+          "description": "Diesel Gen 2 - Status (Run/Standby/Off)."
+        },
+        {
+          "name": "diesel_gen_2_load_kw",
+          "type": "float",
+          "required": false,
+          "description": "Diesel Gen 2 - Load (kW)."
+        },
+        {
+          "name": "diesel_gen_2_amperage_a",
+          "type": "float",
+          "required": false,
+          "description": "Diesel Gen 2 - Amperage (A)."
+        },
+        {
+          "name": "diesel_gen_2_jacket_water_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Diesel Gen 2 - Jacket Water Temp (°C)."
+        },
+        {
+          "name": "diesel_gen_2_lube_oil_pressure_bar",
+          "type": "float",
+          "required": false,
+          "description": "Diesel Gen 2 - Lube Oil Pressure (bar)."
+        },
+        {
+          "name": "electrical_sync_total_factory_load_kw",
+          "type": "float",
+          "required": false,
+          "description": "Electrical Sync - Total Factory Load (kW)."
+        },
+        {
+          "name": "electrical_sync_system_frequency_hz",
+          "type": "float",
+          "required": false,
+          "description": "Electrical Sync - System Frequency (Hz)."
+        },
+        {
+          "name": "electrical_sync_power_factor",
+          "type": "float",
+          "required": false,
+          "description": "Electrical Sync - Power Factor (PF)."
+        },
+        {
+          "name": "electrical_sync_busbar_voltage_v",
+          "type": "float",
+          "required": false,
+          "description": "Electrical Sync - Busbar Voltage (V)."
+        },
+        {
+          "name": "air_compressor_1_pressure_bar",
+          "type": "float",
+          "required": false,
+          "description": "Air Compressor 1 - Pressure (bar)."
+        },
+        {
+          "name": "compressor_2_pressure_bar",
+          "type": "float",
+          "required": false,
+          "description": "Compressor 2 - Pressure (bar)."
+        },
+        {
+          "name": "battery_charger_ups_voltage_v",
+          "type": "float",
+          "required": false,
+          "description": "Battery Charger / UPS - Voltage (V)."
+        },
+        {
+          "name": "fuel_tank_level",
+          "type": "float",
+          "required": false,
+          "description": "Fuel Tank Level (Liters / %)."
+        },
+        {
+          "name": "daily_energy_export_kwh",
+          "type": "float",
+          "required": false,
+          "description": "Daily Energy Export (kWh)."
+        },
+        {
+          "name": "action_taken_maintenance_remark",
+          "type": "string",
+          "required": false,
+          "description": "Action Taken / Maintenance Remark."
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "Temuan/catatan observasi pada baris ini."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "time_slot unik per header (tidak ada 2 baris dengan jam sama dalam 1 record)",
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' (tidak di-pre-generate 24 baris sekaligus saat draft dibuat) dan dapat dihapus via 'Hapus baris' — mengikuti pola persis threshing-detail/cages-tipped-time, BUKAN grid statis 24 baris.",
+        "time_slot baris baru harus berada setelah time_slot tertinggi yang sudah ada di antara baris lain pada record yang sama, dalam urutan kanonis 07:00->06:00"
+      ],
+      "test_fixture": {
+        "id": "eng-014",
+        "engine_room_record_id": "ref-001",
+        "time_slot": "07:00",
+        "steam_turbine_inlet_pressure_bar": 0.0,
+        "steam_turbine_inlet_temp_c": 0.0,
+        "steam_turbine_exhaust_pressure_bar": 0.0,
+        "steam_turbine_rpm": 0.0,
+        "steam_turbine_alternator_bearing_temp_1_c": 0.0,
+        "steam_turbine_alternator_bearing_temp_2_c": 0.0,
+        "diesel_gen_1_status": "run",
+        "diesel_gen_1_load_kw": 0.0,
+        "diesel_gen_1_amperage_a": 0.0,
+        "diesel_gen_1_jacket_water_temp_c": 0.0,
+        "diesel_gen_1_lube_oil_pressure_bar": 0.0,
+        "diesel_gen_2_status": "run",
+        "diesel_gen_2_load_kw": 0.0,
+        "diesel_gen_2_amperage_a": 0.0,
+        "diesel_gen_2_jacket_water_temp_c": 0.0,
+        "diesel_gen_2_lube_oil_pressure_bar": 0.0,
+        "electrical_sync_total_factory_load_kw": 0.0,
+        "electrical_sync_system_frequency_hz": 0.0,
+        "electrical_sync_power_factor": 0.0,
+        "electrical_sync_busbar_voltage_v": 0.0,
+        "air_compressor_1_pressure_bar": 0.0,
+        "compressor_2_pressure_bar": 0.0,
+        "battery_charger_ups_voltage_v": 0.0,
+        "fuel_tank_level": 0.0,
+        "daily_energy_export_kwh": 0.0,
+        "action_taken_maintenance_remark": "",
+        "findings": "",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "boiler-room-record",
+      "name": "Boiler Room Record",
+      "description": "Record header log data stasiun Boiler Room — pola input manual header + grid time-slot per jam.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe boiler_room)."
+        },
+        {
+          "name": "boiler_room_id",
+          "type": "string",
+          "required": true,
+          "description": "Boiler Room ID, input manual — identifikasi stasiun/sesi pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "boiler-room-detail",
+          "type": "one-to-many",
+          "description": "Satu Boiler Room Record memiliki banyak Boiler Room Detail."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "boi-015",
+        "station_id": "ref-001",
+        "boiler_room_id": "ref-001",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": null,
+        "acknowledged_by": null,
+        "status": "draft_ongoing",
+        "created_by": "ref-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "boiler-room-detail",
+      "name": "Boiler Room Detail",
+      "description": "Baris detail time-slot per jam dalam satu Boiler Room Record.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "boiler_room_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Boiler Room Record induk."
+        },
+        {
+          "name": "time_slot",
+          "type": "time",
+          "required": true,
+          "description": "Jam pencatatan untuk baris ini, dipilih user dari dropdown saat menambah baris (bukan pre-generated) — mengikuti pola cages-tipped-time.tipped_hour: opsi dropdown = seluruh slot kanonis 07:00..06:00 DIKURANGI yang sudah dipakai baris lain, dan harus lebih lambat (index kanonis lebih besar) dari time_slot tertinggi yang sudah dipilih baris lain (urutan menaik kronologis, tidak bisa mundur/duplikat)."
+        },
+        {
+          "name": "steam_pressure_bar",
+          "type": "float",
+          "required": false,
+          "description": "Steam Pressure (bar)."
+        },
+        {
+          "name": "steam_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Steam Temp (°C)."
+        },
+        {
+          "name": "feed_water_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Feed Water Temp (°C)."
+        },
+        {
+          "name": "feed_water_tank_level_percent",
+          "type": "float",
+          "required": false,
+          "description": "Feed Water Tank Level (%)."
+        },
+        {
+          "name": "boiler_water_level_percent",
+          "type": "float",
+          "required": false,
+          "description": "Boiler Water Level (%)."
+        },
+        {
+          "name": "water_tds_ppm",
+          "type": "float",
+          "required": false,
+          "description": "Water TDS (ppm)."
+        },
+        {
+          "name": "water_ph",
+          "type": "float",
+          "required": false,
+          "description": "Water pH."
+        },
+        {
+          "name": "fuel_feed_rate",
+          "type": "string",
+          "required": false,
+          "description": "Fuel Feed Rate (Hz/%/tons)."
+        },
+        {
+          "name": "id_fan_load",
+          "type": "string",
+          "required": false,
+          "description": "ID Fan Load (A/%)."
+        },
+        {
+          "name": "sa_fan_load",
+          "type": "string",
+          "required": false,
+          "description": "SA Fan Load (A/%)."
+        },
+        {
+          "name": "exhaust_gas_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Exhaust Gas Temp (°C)."
+        },
+        {
+          "name": "dust_collector_differential_pressure_mmh2o",
+          "type": "float",
+          "required": false,
+          "description": "Dust Collector Differential Pressure (mmH2O)."
+        },
+        {
+          "name": "blowdown_executed",
+          "type": "enum(y, n)",
+          "required": false,
+          "description": "Blowdown Executed (Y/N)."
+        },
+        {
+          "name": "sootblowing_executed",
+          "type": "enum(y, n)",
+          "required": false,
+          "description": "Sootblowing Executed (Y/N)."
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "Temuan/catatan observasi pada baris ini."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "time_slot unik per header (tidak ada 2 baris dengan jam sama dalam 1 record)",
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' (tidak di-pre-generate 24 baris sekaligus saat draft dibuat) dan dapat dihapus via 'Hapus baris' — mengikuti pola persis threshing-detail/cages-tipped-time, BUKAN grid statis 24 baris.",
+        "time_slot baris baru harus berada setelah time_slot tertinggi yang sudah ada di antara baris lain pada record yang sama, dalam urutan kanonis 07:00->06:00"
+      ],
+      "test_fixture": {
+        "id": "boi-016",
+        "boiler_room_record_id": "ref-001",
+        "time_slot": "07:00",
+        "steam_pressure_bar": 0.0,
+        "steam_temp_c": 0.0,
+        "feed_water_temp_c": 0.0,
+        "feed_water_tank_level_percent": 0.0,
+        "boiler_water_level_percent": 0.0,
+        "water_tds_ppm": 0.0,
+        "water_ph": 0.0,
+        "fuel_feed_rate": "",
+        "id_fan_load": "",
+        "sa_fan_load": "",
+        "exhaust_gas_temp_c": 0.0,
+        "dust_collector_differential_pressure_mmh2o": 0.0,
+        "blowdown_executed": "y",
+        "sootblowing_executed": "y",
+        "findings": "",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "clarification-record",
+      "name": "Clarification Record",
+      "description": "Record header log data stasiun Clarification — pola input manual header + grid time-slot per jam.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe clarification)."
+        },
+        {
+          "name": "clarification_id",
+          "type": "string",
+          "required": true,
+          "description": "Clarification ID, input manual — identifikasi stasiun/sesi pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "clarification-detail",
+          "type": "one-to-many",
+          "description": "Satu Clarification Record memiliki banyak Clarification Detail."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "cla-017",
+        "station_id": "ref-001",
+        "clarification_id": "ref-001",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": null,
+        "acknowledged_by": null,
+        "status": "draft_ongoing",
+        "created_by": "ref-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "clarification-detail",
+      "name": "Clarification Detail",
+      "description": "Baris detail time-slot per jam dalam satu Clarification Record.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "clarification_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Clarification Record induk."
+        },
+        {
+          "name": "time_slot",
+          "type": "time",
+          "required": true,
+          "description": "Jam pencatatan untuk baris ini, dipilih user dari dropdown saat menambah baris (bukan pre-generated) — mengikuti pola cages-tipped-time.tipped_hour: opsi dropdown = seluruh slot kanonis 07:00..06:00 DIKURANGI yang sudah dipakai baris lain, dan harus lebih lambat (index kanonis lebih besar) dari time_slot tertinggi yang sudah dipilih baris lain (urutan menaik kronologis, tidak bisa mundur/duplikat)."
+        },
+        {
+          "name": "clarification_tank_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Clarification Tank Temp (°C)."
+        },
+        {
+          "name": "oil_tank_temperature_c",
+          "type": "float",
+          "required": false,
+          "description": "Oil Tank Temperature (°C)."
+        },
+        {
+          "name": "sludge_tank_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Sludge Tank Temp (°C)."
+        },
+        {
+          "name": "buffer_tank_level_percent",
+          "type": "float",
+          "required": false,
+          "description": "Buffer Tank Level (%)."
+        },
+        {
+          "name": "pure_oil_production_rate_ton_hour",
+          "type": "float",
+          "required": false,
+          "description": "Pure Oil Production Rate (Ton/Hour)."
+        },
+        {
+          "name": "downtime_mins",
+          "type": "float",
+          "required": false,
+          "description": "Downtime (Mins)."
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "Temuan/catatan observasi pada baris ini."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "time_slot unik per header (tidak ada 2 baris dengan jam sama dalam 1 record)",
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' (tidak di-pre-generate 24 baris sekaligus saat draft dibuat) dan dapat dihapus via 'Hapus baris' — mengikuti pola persis threshing-detail/cages-tipped-time, BUKAN grid statis 24 baris.",
+        "time_slot baris baru harus berada setelah time_slot tertinggi yang sudah ada di antara baris lain pada record yang sama, dalam urutan kanonis 07:00->06:00"
+      ],
+      "test_fixture": {
+        "id": "cla-018",
+        "clarification_record_id": "ref-001",
+        "time_slot": "07:00",
+        "clarification_tank_temp_c": 0.0,
+        "oil_tank_temperature_c": 0.0,
+        "sludge_tank_temp_c": 0.0,
+        "buffer_tank_level_percent": 0.0,
+        "pure_oil_production_rate_ton_hour": 0.0,
+        "downtime_mins": 0.0,
+        "findings": "",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "process-quality-control-record",
+      "name": "Process Quality Control Record",
+      "description": "Record header log data stasiun Process Quality Control — pola input manual header + grid time-slot per jam.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe process_qc)."
+        },
+        {
+          "name": "process_qc_id",
+          "type": "string",
+          "required": true,
+          "description": "Process QC ID, input manual — identifikasi stasiun/sesi pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "process-quality-control-detail",
+          "type": "one-to-many",
+          "description": "Satu Process Quality Control Record memiliki banyak Process Quality Control Detail."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "pro-019",
+        "station_id": "ref-001",
+        "process_qc_id": "ref-001",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": null,
+        "acknowledged_by": null,
+        "status": "draft_ongoing",
+        "created_by": "ref-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "process-quality-control-detail",
+      "name": "Process Quality Control Detail",
+      "description": "Baris detail time-slot dalam satu Process Quality Control Record.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "process_quality_control_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Process Quality Control Record induk."
+        },
+        {
+          "name": "time_slot",
+          "type": "time",
+          "required": true,
+          "description": "Jam pencatatan untuk baris ini, dipilih user dari dropdown saat menambah baris (bukan pre-generated) — mengikuti pola cages-tipped-time.tipped_hour: opsi dropdown = seluruh slot kanonis 07:00..06:00 DIKURANGI yang sudah dipakai baris lain, dan harus lebih lambat (index kanonis lebih besar) dari time_slot tertinggi yang sudah dipilih baris lain (urutan menaik kronologis, tidak bisa mundur/duplikat)."
+        },
+        {
+          "name": "shift",
+          "type": "string",
+          "required": false,
+          "description": "Shift kerja, teks bebas."
+        },
+        {
+          "name": "fruit_press_oil_loss_in_sludge_percent",
+          "type": "float",
+          "required": false,
+          "description": "Fruit Press Oil Loss in Sludge (%)."
+        },
+        {
+          "name": "fruit_press_oil_loss_in_fibre_percent",
+          "type": "float",
+          "required": false,
+          "description": "Fruit Press Oil Loss in Fibre (%)."
+        },
+        {
+          "name": "purifier_clarification_balance_inlet_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Purifier & Clarification Balance Inlet Temp (°C)."
+        },
+        {
+          "name": "purifier_clarification_balance_backpressure_bar",
+          "type": "float",
+          "required": false,
+          "description": "Purifier & Clarification Balance Backpressure (Bar)."
+        },
+        {
+          "name": "vacuum_drying_station_drier_temp_c",
+          "type": "float",
+          "required": false,
+          "description": "Vacuum Drying Station: Drier Temp (°C)."
+        },
+        {
+          "name": "vacuum_drying_station_vacuum_pressure_bar",
+          "type": "float",
+          "required": false,
+          "description": "Vacuum Drying Station: Vacuum Pressure (Bar)."
+        },
+        {
+          "name": "decanter_centrifuge_feed_rate_mth",
+          "type": "float",
+          "required": false,
+          "description": "Decanter / Centrifuge Separation: Feed Rate (MT/h)."
+        },
+        {
+          "name": "decanter_centrifuge_oil_loss_in_cake_percent",
+          "type": "float",
+          "required": false,
+          "description": "Decanter / Centrifuge Separation: Oil Loss in Cake (%)."
+        },
+        {
+          "name": "final_storage_ffa_percent",
+          "type": "float",
+          "required": false,
+          "description": "Final Storage Tank Product Quality: Free Fatty Acid - FFA (%)."
+        },
+        {
+          "name": "final_storage_moisture_content_percent",
+          "type": "float",
+          "required": false,
+          "description": "Final Storage Tank Product Quality: Moisture Content (%)."
+        },
+        {
+          "name": "final_storage_impurities_dirt_percent",
+          "type": "float",
+          "required": false,
+          "description": "Final Storage Tank Product Quality: Impurities / Dirt (%)."
+        },
+        {
+          "name": "final_storage_dobi_index",
+          "type": "float",
+          "required": false,
+          "description": "Final Storage Tank Product Quality: DOBI Index."
+        },
+        {
+          "name": "qc_inspector_id",
+          "type": "string",
+          "required": false,
+          "description": "QC Accountability: Inspector ID."
+        },
+        {
+          "name": "qc_engineering_corrective_actions",
+          "type": "string",
+          "required": false,
+          "description": "QC Accountability: Engineering Corrective Actions / Remarks."
+        },
+        {
+          "name": "findings",
+          "type": "string",
+          "required": false,
+          "description": "Temuan/catatan observasi pada baris ini."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "time_slot unik per header (tidak ada 2 baris dengan jam sama dalam 1 record)",
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' (tidak di-pre-generate 24 baris sekaligus saat draft dibuat) dan dapat dihapus via 'Hapus baris' — mengikuti pola persis threshing-detail/cages-tipped-time, BUKAN grid statis 24 baris.",
+        "time_slot baris baru harus berada setelah time_slot tertinggi yang sudah ada di antara baris lain pada record yang sama, dalam urutan kanonis 07:00->06:00"
+      ],
+      "test_fixture": {
+        "id": "pro-020",
+        "process_quality_control_record_id": "ref-001",
+        "time_slot": "07:00",
+        "shift": "",
+        "fruit_press_oil_loss_in_sludge_percent": 0.0,
+        "fruit_press_oil_loss_in_fibre_percent": 0.0,
+        "purifier_clarification_balance_inlet_temp_c": 0.0,
+        "purifier_clarification_balance_backpressure_bar": 0.0,
+        "vacuum_drying_station_drier_temp_c": 0.0,
+        "vacuum_drying_station_vacuum_pressure_bar": 0.0,
+        "decanter_centrifuge_feed_rate_mth": 0.0,
+        "decanter_centrifuge_oil_loss_in_cake_percent": 0.0,
+        "final_storage_ffa_percent": 0.0,
+        "final_storage_moisture_content_percent": 0.0,
+        "final_storage_impurities_dirt_percent": 0.0,
+        "final_storage_dobi_index": 0.0,
+        "qc_inspector_id": null,
+        "qc_engineering_corrective_actions": "",
+        "findings": "",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "sterilizer-record",
+      "name": "Sterilizer Record",
+      "description": "Record header log data stasiun Sterilizer — pola input manual header + log per-kejadian siklus sterilisasi TBS (Tandan Buah Segar).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID (stabil untuk sync dari mobile)."
+        },
+        {
+          "name": "station_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Station (tipe sterilizer)."
+        },
+        {
+          "name": "sterilizer_id",
+          "type": "string",
+          "required": true,
+          "description": "Sterilizer ID, input manual — identifikasi stasiun/sesi pada form."
+        },
+        {
+          "name": "date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal pencatatan, otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit manual."
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false,
+          "description": "Catatan bebas."
+        },
+        {
+          "name": "checked_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role supervisor) yang memverifikasi."
+        },
+        {
+          "name": "acknowledged_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role mill_management) yang mengakui."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft_ongoing, draft_paused, saved, synced)",
+          "required": true,
+          "description": "Status lifecycle record."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record — ditampilkan sebagai 'Inputted By' di UI."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "sterilizer-detail",
+          "type": "one-to-many",
+          "description": "Satu Sterilizer Record memiliki banyak Sterilizer Detail (baris siklus sterilisasi)."
+        }
+      ],
+      "constraints": [
+        "checked_by hanya dapat diisi oleh user dengan role supervisor",
+        "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
+        "minimal satu baris detail harus terisi sebelum status=saved",
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+      ],
+      "test_fixture": {
+        "id": "ste-001",
+        "station_id": "ref-001",
+        "sterilizer_id": "ref-001",
+        "date": "2024-01-15",
+        "note": "",
+        "checked_by": null,
+        "acknowledged_by": null,
+        "status": "draft_ongoing",
+        "created_by": "ref-001",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T07:00:00Z"
+      }
+    },
+    {
+      "id": "sterilizer-detail",
+      "name": "Sterilizer Detail",
+      "description": "Baris log per-siklus sterilisasi dalam satu Sterilizer Record — satu baris = satu siklus (Close Door s.d. Open Door).",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "sterilizer_record_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Sterilizer Record induk."
+        },
+        {
+          "name": "sterilizer_no",
+          "type": "string",
+          "required": false,
+          "description": "Nomor unit sterilizer fisik yang dipakai pada siklus ini, teks/angka bebas tanpa enum."
+        },
+        {
+          "name": "close_door_time",
+          "type": "time",
+          "required": false,
+          "description": "Close Door Time — jam saja (HH:mm), memakai Date dari header record."
+        },
+        {
+          "name": "peak_1_time",
+          "type": "time",
+          "required": false,
+          "description": "Peak 1 Time — jam saja (HH:mm), memakai Date dari header record."
+        },
+        {
+          "name": "exhaust_1_time",
+          "type": "time",
+          "required": false,
+          "description": "Exhaust 1 Time — jam saja (HH:mm), memakai Date dari header record."
+        },
+        {
+          "name": "peak_2_time",
+          "type": "time",
+          "required": false,
+          "description": "Peak 2 Time — jam saja (HH:mm), memakai Date dari header record."
+        },
+        {
+          "name": "exhaust_2_time",
+          "type": "time",
+          "required": false,
+          "description": "Exhaust 2 Time — jam saja (HH:mm), memakai Date dari header record."
+        },
+        {
+          "name": "peak_3_time",
+          "type": "time",
+          "required": false,
+          "description": "Peak 3 Time — jam saja (HH:mm), memakai Date dari header record."
+        },
+        {
+          "name": "exhaust_3_time",
+          "type": "time",
+          "required": false,
+          "description": "Exhaust 3 Time — jam saja (HH:mm), memakai Date dari header record."
+        },
+        {
+          "name": "open_door_time",
+          "type": "time",
+          "required": false,
+          "description": "Open Door Time — jam saja (HH:mm), memakai Date dari header record."
+        },
+        {
+          "name": "duration_minutes",
+          "type": "integer",
+          "required": false,
+          "description": "Durasi siklus dalam menit. Dihitung/di-derive OTOMATIS di level aplikasi = open_door_time − close_door_time — BUKAN kolom yang diinput user secara langsung."
+        },
+        {
+          "name": "number_of_cages",
+          "type": "integer",
+          "required": false,
+          "description": "Jumlah cage/lori yang diproses pada siklus ini, input manual."
+        },
+        {
+          "name": "cages_status",
+          "type": "string",
+          "required": false,
+          "description": "Status cage pada siklus ini, teks bebas tanpa pilihan tetap."
+        },
+        {
+          "name": "checked_by_spv",
+          "type": "boolean",
+          "required": false,
+          "description": "Checkbox konfirmasi bahwa baris/siklus ini sudah diperiksa Supervisor — boolean sederhana, BUKAN referensi nama Supervisor (berbeda dari header checked_by)."
+        },
+        {
+          "name": "remarks",
+          "type": "string",
+          "required": false,
+          "description": "Catatan/temuan bebas pada baris ini."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [],
+      "constraints": [
+        "Baris detail ditambahkan manual oleh user via aksi 'Tambah baris' sesuai siklus sterilisasi — jumlah baris per hari tidak dibatasi, mengikuti pola cages-tipped-time/cpo-dispatch-detail (bukan grid statis 24 baris).",
+        "duration_minutes dihitung otomatis di level aplikasi (open_door_time − close_door_time), tidak diinput langsung oleh user."
+      ],
+      "test_fixture": {
+        "id": "sted-001",
+        "sterilizer_record_id": "ste-001",
+        "sterilizer_no": "1",
+        "close_door_time": "07:00",
+        "peak_1_time": "07:15",
+        "exhaust_1_time": "07:20",
+        "peak_2_time": "07:35",
+        "exhaust_2_time": "07:40",
+        "peak_3_time": "07:55",
+        "exhaust_3_time": "08:00",
+        "open_door_time": "08:10",
+        "duration_minutes": 70,
+        "number_of_cages": 10,
+        "cages_status": "",
+        "checked_by_spv": false,
+        "remarks": "",
+        "created_at": "2024-01-15T07:00:00Z",
+        "updated_at": "2024-01-15T08:10:00Z"
       }
     }
   ]

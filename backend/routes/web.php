@@ -344,4 +344,273 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/data/kernel-plant/{id}/edit', \App\Livewire\Data\FormKernelPlant::class)
     ->name('data.kernel-plant.edit');
+
+// screen-091--data-browser-solid-waste-disposal-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/solid-waste-disposal', \App\Livewire\Data\DataBrowserSolidWasteDisposal::class)
+    ->name('data.solid-waste-disposal');
+
+// screen-111--form-solid-waste-disposal-web
+// IMPORTANT — '/data/solid-waste-disposal/create' MUST be registered
+// BEFORE '/data/solid-waste-disposal/{id}' (screen-101, right below) or
+// Laravel would match the literal 'create' segment as {id} instead.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/solid-waste-disposal/create', \App\Livewire\Data\FormSolidWasteDisposal::class)
+    ->name('data.solid-waste-disposal.create');
+
+// screen-101--detail-solid-waste-disposal-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/solid-waste-disposal/{id}', \App\Livewire\Data\DetailSolidWasteDisposal::class)
+    ->name('data.solid-waste-disposal.detail');
+
+// screen-111--form-solid-waste-disposal-web (edit mode)
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/solid-waste-disposal/{id}/edit', \App\Livewire\Data\FormSolidWasteDisposal::class)
+    ->name('data.solid-waste-disposal.edit');
+
+// screen-092--data-browser-process-water-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/process-water', \App\Livewire\Data\DataBrowserProcessWater::class)
+    ->name('data.process-water');
+
+// screen-112--form-process-water-web
+// IMPORTANT — '/data/process-water/create' MUST be registered BEFORE
+// '/data/process-water/{id}' (screen-102, right below) or Laravel would
+// match the literal 'create' segment as {id} instead. Mirrors
+// screen-057--form-threshing-web's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/process-water/create', \App\Livewire\Data\FormProcessWater::class)
+    ->name('data.process-water.create');
+
+// screen-102--detail-process-water-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/process-water/{id}', \App\Livewire\Data\DetailProcessWater::class)
+    ->name('data.process-water.detail');
+
+// screen-112--form-process-water-web (edit mode) — extra '/edit' segment
+// never collides with '/data/process-water/{id}' above regardless of
+// registration order (different path shape), but kept after 'create' for
+// readability.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/process-water/{id}/edit', \App\Livewire\Data\FormProcessWater::class)
+    ->name('data.process-water.edit');
+
+// screen-093--data-browser-kernel-dispatch-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/kernel-dispatch', \App\Livewire\Data\DataBrowserKernelDispatch::class)
+    ->name('data.kernel-dispatch');
+
+// screen-113--form-kernel-dispatch-web
+// IMPORTANT — '/data/kernel-dispatch/create' MUST be registered BEFORE
+// '/data/kernel-dispatch/{id}' (screen-103, right below) or Laravel would
+// match the literal 'create' segment as {id} instead. Mirrors
+// screen-111--form-solid-waste-disposal-web's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/kernel-dispatch/create', \App\Livewire\Data\FormKernelDispatch::class)
+    ->name('data.kernel-dispatch.create');
+
+// screen-103--detail-kernel-dispatch-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/kernel-dispatch/{id}', \App\Livewire\Data\DetailKernelDispatch::class)
+    ->name('data.kernel-dispatch.detail');
+
+// screen-113--form-kernel-dispatch-web (edit mode)
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/kernel-dispatch/{id}/edit', \App\Livewire\Data\FormKernelDispatch::class)
+    ->name('data.kernel-dispatch.edit');
+
+// screen-094--data-browser-cpo-dispatch-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/cpo-dispatch', \App\Livewire\Data\DataBrowserCpoDispatch::class)
+    ->name('data.cpo-dispatch');
+
+// screen-114--form-cpo-dispatch-web
+// IMPORTANT — '/data/cpo-dispatch/create' MUST be registered BEFORE
+// '/data/cpo-dispatch/{id}' (screen-104, right below) or Laravel would
+// match the literal 'create' segment as {id} instead. Mirrors
+// screen-113--form-kernel-dispatch-web's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/cpo-dispatch/create', \App\Livewire\Data\FormCpoDispatch::class)
+    ->name('data.cpo-dispatch.create');
+
+// screen-104--detail-cpo-dispatch-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/cpo-dispatch/{id}', \App\Livewire\Data\DetailCpoDispatch::class)
+    ->name('data.cpo-dispatch.detail');
+
+// screen-114--form-cpo-dispatch-web (edit mode)
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/cpo-dispatch/{id}/edit', \App\Livewire\Data\FormCpoDispatch::class)
+    ->name('data.cpo-dispatch.edit');
+
+// screen-095--data-browser-effluent-plant-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/effluent-plant', \App\Livewire\Data\DataBrowserEffluentPlant::class)
+    ->name('data.effluent-plant');
+
+// screen-115--form-effluent-plant-web
+// IMPORTANT — '/data/effluent-plant/create' MUST be registered BEFORE
+// '/data/effluent-plant/{id}' (screen-105, right below) or Laravel would
+// match the literal 'create' segment as {id} instead. Mirrors
+// screen-112--form-process-water-web's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/effluent-plant/create', \App\Livewire\Data\FormEffluentPlant::class)
+    ->name('data.effluent-plant.create');
+
+// screen-105--detail-effluent-plant-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/effluent-plant/{id}', \App\Livewire\Data\DetailEffluentPlant::class)
+    ->name('data.effluent-plant.detail');
+
+// screen-115--form-effluent-plant-web (edit mode)
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/effluent-plant/{id}/edit', \App\Livewire\Data\FormEffluentPlant::class)
+    ->name('data.effluent-plant.edit');
+
+// screen-096--data-browser-storage-tank-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/storage-tank', \App\Livewire\Data\DataBrowserStorageTank::class)
+    ->name('data.storage-tank');
+
+// screen-116--form-storage-tank-web
+// IMPORTANT — '/data/storage-tank/create' MUST be registered BEFORE
+// '/data/storage-tank/{id}' (screen-106, right below) or Laravel would
+// match the literal 'create' segment as {id} instead. Mirrors
+// screen-115--form-effluent-plant-web's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/storage-tank/create', \App\Livewire\Data\FormStorageTank::class)
+    ->name('data.storage-tank.create');
+
+// screen-106--detail-storage-tank-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/storage-tank/{id}', \App\Livewire\Data\DetailStorageTank::class)
+    ->name('data.storage-tank.detail');
+
+// screen-116--form-storage-tank-web (edit mode)
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/storage-tank/{id}/edit', \App\Livewire\Data\FormStorageTank::class)
+    ->name('data.storage-tank.edit');
+
+// screen-097--data-browser-engine-room-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/engine-room', \App\Livewire\Data\DataBrowserEngineRoom::class)
+    ->name('data.engine-room');
+
+// screen-117--form-engine-room-web
+// IMPORTANT — '/data/engine-room/create' MUST be registered BEFORE
+// '/data/engine-room/{id}' (screen-107, right below) or Laravel would
+// match the literal 'create' segment as {id} instead. Mirrors
+// screen-116--form-storage-tank-web's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/engine-room/create', \App\Livewire\Data\FormEngineRoom::class)
+    ->name('data.engine-room.create');
+
+// screen-107--detail-engine-room-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/engine-room/{id}', \App\Livewire\Data\DetailEngineRoom::class)
+    ->name('data.engine-room.detail');
+
+// screen-117--form-engine-room-web (edit mode)
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/engine-room/{id}/edit', \App\Livewire\Data\FormEngineRoom::class)
+    ->name('data.engine-room.edit');
+
+// screen-098--data-browser-boiler-room-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/boiler-room', \App\Livewire\Data\DataBrowserBoilerRoom::class)
+    ->name('data.boiler-room');
+
+// screen-118--form-boiler-room-web
+// IMPORTANT — '/data/boiler-room/create' MUST be registered BEFORE
+// '/data/boiler-room/{id}' (screen-108, right below) or Laravel would
+// match the literal 'create' segment as {id} instead. Mirrors
+// screen-117--form-engine-room-web's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/boiler-room/create', \App\Livewire\Data\FormBoilerRoom::class)
+    ->name('data.boiler-room.create');
+
+// screen-108--detail-boiler-room-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/boiler-room/{id}', \App\Livewire\Data\DetailBoilerRoom::class)
+    ->name('data.boiler-room.detail');
+
+// screen-118--form-boiler-room-web (edit mode)
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/boiler-room/{id}/edit', \App\Livewire\Data\FormBoilerRoom::class)
+    ->name('data.boiler-room.edit');
+
+// screen-099--data-browser-clarification-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/clarification', \App\Livewire\Data\DataBrowserClarification::class)
+    ->name('data.clarification');
+
+// screen-119--form-clarification-web
+// IMPORTANT — '/data/clarification/create' MUST be registered BEFORE
+// '/data/clarification/{id}' (screen-109, right below) or Laravel would
+// match the literal 'create' segment as {id} instead. Mirrors
+// screen-118--form-boiler-room-web's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/clarification/create', \App\Livewire\Data\FormClarification::class)
+    ->name('data.clarification.create');
+
+// screen-109--detail-clarification-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/clarification/{id}', \App\Livewire\Data\DetailClarification::class)
+    ->name('data.clarification.detail');
+
+// screen-119--form-clarification-web (edit mode)
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/clarification/{id}/edit', \App\Livewire\Data\FormClarification::class)
+    ->name('data.clarification.edit');
+
+// screen-100--data-browser-process-quality-control-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/process-quality-control', \App\Livewire\Data\DataBrowserProcessQualityControl::class)
+    ->name('data.process-quality-control');
+
+// screen-120--form-process-quality-control-web
+// IMPORTANT — '/data/process-quality-control/create' MUST be registered
+// BEFORE '/data/process-quality-control/{id}' (screen-110, right below) or
+// Laravel would match the literal 'create' segment as {id} instead. Mirrors
+// screen-119--form-clarification-web's registration pattern exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/process-quality-control/create', \App\Livewire\Data\FormProcessQualityControl::class)
+    ->name('data.process-quality-control.create');
+
+// screen-110--detail-process-quality-control-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/process-quality-control/{id}', \App\Livewire\Data\DetailProcessQualityControl::class)
+    ->name('data.process-quality-control.detail');
+
+// screen-120--form-process-quality-control-web (edit mode)
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/process-quality-control/{id}/edit', \App\Livewire\Data\FormProcessQualityControl::class)
+    ->name('data.process-quality-control.edit');
+
+// screen-124--data-browser-sterilizer-web
+// This is the FINAL station of this project — after this, all 18
+// canonical stations have a full web Data Browser/Detail/Form.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/sterilizer', \App\Livewire\Data\DataBrowserSterilizer::class)
+    ->name('data.sterilizer');
+
+// screen-126--form-sterilizer-web
+// IMPORTANT — '/data/sterilizer/create' MUST be registered BEFORE
+// '/data/sterilizer/{id}' (screen-125, right below) or Laravel would
+// match the literal 'create' segment as {id} instead. Mirrors
+// screen-120--form-process-quality-control-web's registration pattern
+// exactly.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/sterilizer/create', \App\Livewire\Data\FormSterilizer::class)
+    ->name('data.sterilizer.create');
+
+// screen-125--detail-sterilizer-web
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/sterilizer/{id}', \App\Livewire\Data\DetailSterilizer::class)
+    ->name('data.sterilizer.detail');
+
+// screen-126--form-sterilizer-web (edit mode)
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/data/sterilizer/{id}/edit', \App\Livewire\Data\FormSterilizer::class)
+    ->name('data.sterilizer.edit');
 // === ASDLC_ROUTES_END ===

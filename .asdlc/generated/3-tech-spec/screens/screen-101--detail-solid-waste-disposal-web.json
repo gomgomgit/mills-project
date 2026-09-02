@@ -1,0 +1,264 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-101--detail-solid-waste-disposal-web",
+  "name": "Detail Solid Waste Disposal (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/solid-waste-disposal/{id}",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-065--detail-solid-waste-disposal-web",
+      "usecase_name": "Lihat Detail Solid Waste Disposal (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/solid-waste-disposal-records/{id}",
+          "description": "Ambil 1 record Solid Waste Disposal lengkap beserta Log Kejadian, station_name, dan nama user (Inputted By/Checked By/Acknowledged By)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "required": true,
+                "description": "ID record Solid Waste Disposal"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "solid_waste_disposal_id": "string",
+              "date": "date",
+              "note": "string|null",
+              "created_by_name": "string",
+              "checked_by_name": "string|null",
+              "acknowledged_by_name": "string|null",
+              "status": "string",
+              "created_at": "timestamp",
+              "updated_at": "timestamp",
+              "details": [
+                {
+                  "id": "uuid",
+                  "event_date": "date",
+                  "shift": "string|null",
+                  "weighbridge_ticket_no": "string|null",
+                  "vehicle_no": "string|null",
+                  "driver_name": "string|null",
+                  "solid_waste_type": "string|null",
+                  "source_station": "string|null",
+                  "gross_weight_mt": "float|null",
+                  "tare_weight_mt": "float|null",
+                  "net_weight_mt": "float|null",
+                  "disposal_utilization_site": "string|null",
+                  "purpose_end_use": "string|null",
+                  "gate_pass_no": "string|null",
+                  "security_seal_no": "string|null",
+                  "operator_id": "string|null",
+                  "remarks": "string|null",
+                  "findings": "string|null"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate id ada di solid-waste-disposal-record -> 404 RECORD_NOT_FOUND jika tidak ditemukan",
+        "2. SELECT solid-waste-disposal-record by id, JOIN station untuk station_name, JOIN user untuk created_by_name/checked_by_name/acknowledged_by_name (null jika belum diisi, kecuali created_by_name yang selalu ada)",
+        "3. SELECT semua solid-waste-disposal-detail by solid_waste_disposal_record_id, ordered by event_date, langsung dari kolom tersimpan tanpa hitung ulang",
+        "4. Return full record + details array",
+        "5. FE render field per section (Identitas, Log Kejadian, Verifikasi) read-only",
+        "6. On klik Back: navigasi client-side ke /data/solid-waste-disposal, tanpa panggilan API tambahan"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "solid-waste-disposal-record",
+          "operation": "SELECT",
+          "description": "SELECT 1 record by id"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve station_name"
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve created_by_name/checked_by_name/acknowledged_by_name"
+        },
+        {
+          "entity_id": "solid-waste-disposal-detail",
+          "operation": "SELECT",
+          "description": "SELECT semua baris by solid_waste_disposal_record_id, ordered by event_date"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "id tidak ditemukan",
+          "handling": "Return 404 RECORD_NOT_FOUND, FE tampilkan pesan error + tombol Back"
+        },
+        {
+          "condition": "checked_by/acknowledged_by belum diisi",
+          "handling": "checked_by_name/acknowledged_by_name null, FE tampilkan '-'"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh field read-only",
+        "Checked By dan Acknowledged By keduanya ditampilkan",
+        "Log Kejadian ditampilkan langsung dari data tersimpan"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 RECORD_NOT_FOUND when id does not exist",
+          "given": "id tidak ada di solid-waste-disposal-record",
+          "expect": "return 404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "returns full record with resolved station_name when id exists",
+          "given": "valid id, station terkait ada",
+          "expect": "return 200 dengan station_name terisi"
+        },
+        {
+          "description": "returns details array ordered by event_date",
+          "given": "record dengan 3 solid-waste-disposal-detail rows, event_date tidak berurutan saat disimpan",
+          "expect": "response.details terurut naik berdasarkan event_date"
+        },
+        {
+          "description": "returns null checked_by_name and acknowledged_by_name when not set",
+          "given": "record dengan checked_by dan acknowledged_by null",
+          "expect": "response.checked_by_name dan response.acknowledged_by_name adalah null"
+        },
+        {
+          "description": "resolves created_by_name, checked_by_name, acknowledged_by_name to user names when present",
+          "given": "record dengan created_by/checked_by/acknowledged_by terisi uuid user valid",
+          "expect": "response berisi nama user yang sesuai untuk ketiganya"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-091--data-browser-solid-waste-disposal-web",
+      "reason": "Entry point - klik baris membuka detail ini"
+    },
+    {
+      "screen_id": "screen-111--form-solid-waste-disposal-web",
+      "reason": "Koreksi data dilakukan lewat form ini, bukan dari layar detail"
+    }
+  ],
+  "implementation_notes": [
+    "Response resolve created_by/checked_by/acknowledged_by ke nama user via join, mengikuti pola screen-019/020/021 persis",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail)",
+    "Field grouping & urutan field di blade view mengikuti struktur mobile/src/views/DataPreviewSolidWasteDisposalView.vue mode detail per arahan eksplisit: web station screens mengikuti flow/UX mobile",
+    "Route /solid-waste-disposal-records/{id} didaftarkan SETELAH /solid-waste-disposal-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id} — sudah diimplementasikan"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Detail Solid Waste Disposal - berhasil",
+      "usecase_id": "usecase-065--detail-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-records/{id}"
+          },
+          "request_example": {
+            "id": "{{solid_waste_disposal_record_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailSolidWasteDisposal",
+        "action": "render dengan data record lengkap dari API termasuk Log Kejadian",
+        "assert": "seluruh field header tampil read-only per section, tabel Log Kejadian menampilkan seluruh baris"
+      },
+      "browser_test": {
+        "route": "/data/solid-waste-disposal/{id}",
+        "action": "klik baris di Data Browser Solid Waste Disposal, tunggu halaman detail termuat",
+        "assert": "halaman detail menampilkan seluruh field record beserta Log Kejadian"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Solid Waste Disposal - Record Tidak Ditemukan",
+      "usecase_id": "usecase-065--detail-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000"
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DetailSolidWasteDisposal",
+        "action": "render dengan API mengembalikan 404",
+        "assert": "pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back"
+      },
+      "browser_test": {
+        "route": "/data/solid-waste-disposal/00000000-0000-0000-0000-000000000000",
+        "action": "navigasi langsung ke id yang tidak valid",
+        "assert": "halaman menampilkan pesan error dan tombol Back yang berfungsi"
+      }
+    }
+  ]
+}

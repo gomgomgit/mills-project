@@ -1,0 +1,64 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-123--data-preview-sterilizer",
+  "name": "Data Preview Sterilizer",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/sterilizerRecordRepo.ts",
+    "mobile/src/views/DataPreviewSterilizerView.vue",
+    "mobile/src/router/index.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/sterilizerRecordRepo.spec.ts",
+    "mobile/tests/DataPreviewSterilizerView.spec.ts"
+  ],
+  "implementation_notes": [
+    "Mirrors DataPreviewCpoDispatchView.vue's dual route-driven mode pattern exactly: LIST mode (no :id param, via getAllRecords()) with client-side date+search filter (default date = today), DETAIL mode (:id param present, via getDraftWithDetails()) rendering the header + Log Siklus table read-only",
+    "A watch() on the id route param (immediate: true), not a one-time onMounted read, drives both the initial load and every list<->detail transition within the same component instance — Vue Router reuses this instance for param-only navigations on the same route record",
+    "Test file's useRoute() mock returns a fresh reactive() object created in beforeEach (not mutated in-place across the whole file) — same convention as DataPreviewCpoDispatchView.spec.ts, avoiding leftover watchers from earlier tests corrupting later mock call counts",
+    "Log Siklus table rendered read-only directly from stored columns (no recomputation) — duration_minutes shown exactly as persisted (already server-finalized), consistent with the 'computed then persisted, never recomputed on read' convention used throughout this codebase for derived numeric fields",
+    "Detail-mode preview table shows a condensed column set (Sterilizer No, Close Door Time, Open Door Time, Duration (Minutes), Number of Cages, Cages Status, Checked by SPV) rather than all 13 detail columns — Peak/Exhaust Time columns omitted from this condensed mobile view (full column set is only shown on the web Detail/Form screens), mirroring CPO Dispatch Data Preview's own condensed mobile table convention",
+    "This is the FINAL station of this project (18th and last of the 18 canonical stations, promoted 2026-09-01)"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser/E2E test not generated for this pass — component-level (Vitest) coverage exercises list/detail/filter/navigation flows instead.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % not measured — no Xdebug/PCOV in this environment.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 18,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

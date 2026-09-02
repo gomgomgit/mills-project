@@ -1,0 +1,121 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-102--form-engine-room-web",
+  "name": "Input Data Engine Room (Web)",
+  "description": "Supervisor, Mill Management, atau Admin membuat record Engine Room baru atau mengubah record tersimpan dari web.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web dengan role Supervisor/Mill Management/Admin"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Membuka Form Engine Room dari 'Tambah Data' (mode buat) atau 'Edit' (mode ubah)"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Pada mode buat: memilih Production Line; mengisi Engine Room ID, Tanggal, Note"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Menekan 'Tambah Baris' untuk menambah baris Engine Room Detail, memilih Time-Slot, mengisi kolom bacaan"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Menekan Simpan"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memvalidasi field wajib dan minimal satu baris valid, lalu menyimpan record berstatus 'saved' dan menavigasikan ke Detail Engine Room (Web)"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field Wajib Belum Lengkap",
+      "trigger": "Field wajib kosong saat Simpan",
+      "steps": [
+        "System menampilkan error inline, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum Ada Baris Valid",
+      "trigger": "Tidak ada baris Engine Room Detail valid saat Simpan",
+      "steps": [
+        "System menampilkan pesan error khusus, record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Production Line Tanpa Station Engine Room Aktif",
+      "trigger": "Production Line terpilih tidak memiliki station Engine Room aktif",
+      "steps": [
+        "System menolak Simpan dengan pesan error"
+      ]
+    },
+    {
+      "name": "Record Tidak Ditemukan (mode edit)",
+      "trigger": "id record pada mode edit tidak valid",
+      "steps": [
+        "System menampilkan pesan error"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Untuk Simpan sukses (create): record baru berstatus 'saved' tersimpan beserta baris Engine Room Detail-nya",
+    "Untuk Simpan sukses (update): record dan baris Engine Room Detail-nya diperbarui (upsert/delete sesuai payload)"
+  ],
+  "business_rules": [
+    "Tidak ada draft/pause/Clear di web — Simpan langsung berstatus 'saved'",
+    "Tanggal default hari ini, tetap dapat diedit",
+    "Grid Engine Room Detail dinamis, baris ditambahkan/dihapus satu per satu",
+    "Production Line tidak dapat diubah setelah record dibuat",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Buat Record Engine Room Baru — berhasil",
+      "given": "Production Line, Engine Room ID, dan minimal 1 baris valid terisi",
+      "when": "User menekan Simpan",
+      "then": "Record baru tersimpan, navigasi ke Detail Engine Room (Web)"
+    },
+    {
+      "scenario": "Edit Record Engine Room — berhasil",
+      "given": "User membuka mode edit dan mengubah data",
+      "when": "User menekan Simpan",
+      "then": "Perubahan tersimpan pada record yang sama"
+    },
+    {
+      "scenario": "Field Wajib Belum Lengkap",
+      "given": "Field wajib kosong",
+      "when": "User menekan Simpan",
+      "then": "Error inline muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Belum Ada Baris Valid",
+      "given": "Grid Engine Room Detail kosong",
+      "when": "User menekan Simpan",
+      "then": "Pesan error khusus muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Production Line Tanpa Station Engine Room Aktif",
+      "given": "Production Line terpilih tidak memiliki station Engine Room aktif",
+      "when": "User menekan Simpan",
+      "then": "Sistem menampilkan error dan record tidak tersimpan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-117--form-engine-room-web"
+  ]
+}

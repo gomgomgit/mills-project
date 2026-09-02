@@ -1,0 +1,285 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-080--form-process-quality-control",
+  "name": "Form Process Quality Control",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/process-quality-control/form/:id",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Checked By toggle hanya interaktif untuk role Supervisor"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-116--form-process-quality-control",
+      "usecase_name": "Input Data Process Quality Control",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load local process_quality_control_record by id beserta seluruh process_quality_control_detail rows yang ada (0..24), diurutkan berdasarkan urutan kanonis time_slot",
+        "2. Populate header form: Process QC ID, Note, Checked By/Acknowledged By dari record; Tanggal auto-fill sekali dengan waktu lokal saat ini HANYA jika record.date masih kosong (draft baru)",
+        "3. On 'Tambah baris' → push satu baris kosong baru ke state lokal (belum ter-INSERT ke DB)",
+        "4. On 'Hapus baris' → baris dengan id (sudah tersimpan) di-queue ke pendingDeletionIds untuk DELETE saat Simpan/Pause berikutnya; baris tanpa id (baru ditambah sesi ini) langsung dibuang dari state lokal",
+        "5. availableTimeSlotOptions(index) → 24 slot kanonis DIKURANGI (slot dipakai baris lain) DAN (slot dengan index kanonis <= index slot TERTINGGI di antara baris lain yang terisi), selalu menyertakan nilai baris itu sendiri",
+        "6. On 'Simpan' → validate Process QC ID required (inline error) DAN minimal satu baris valid (Time-Slot terpilih + minimal satu dari 14 kolom bacaan/keterangan, TIDAK termasuk Shift dan QC Inspector ID yang bersifat identitas baris, atau Findings terisi, error khusus pada grid, bukan per-field header)",
+        "7. UPDATE header record (status='saved'), lalu applyDetailRowChanges(): upsert baris (id ada → UPDATE, id tidak ada → INSERT dengan id baru) dan DELETE seluruh id di pendingDeletionIds — sequential run() calls, bukan satu transaksi (SQLite lokal, mirrors clarificationRecordRepo.ts/boilerRoomRecordRepo.ts)",
+        "8. Navigasi ke Monitor Process Quality Control setelah Simpan sukses",
+        "9. On 'Pause' → tanpa validasi wajib apapun, UPDATE header (status='draft_paused') + applyDetailRowChanges() yang sama, navigasi ke Monitor Process Quality Control",
+        "10. On 'Clear' → ConfirmDialog; jika confirm: DELETE seluruh process_quality_control_detail rows milik record lalu DELETE header record, navigasi ke Monitor Process Quality Control; jika cancel: tidak ada perubahan",
+        "11. On 'Back' → jika form dirty (header atau detailRows atau pendingDeletionIds berubah dari snapshot saat load): tampilkan ConfirmDialog sebelum navigasi; jika tidak dirty: navigasi langsung ke Monitor Process Quality Control",
+        "12. checked_by/acknowledged_by role-stripping: checked_by hanya ditulis jika currentUserRole='supervisor', acknowledged_by hanya jika currentUserRole='mill_management'; role lain diabaikan diam-diam"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "process-quality-control-record",
+          "operation": "SELECT",
+          "description": "SELECT 1 record by id beserta seluruh process_quality_control_detail rows"
+        },
+        {
+          "entity_id": "process-quality-control-record",
+          "operation": "UPDATE",
+          "description": "UPDATE header record on Simpan/Pause (status berubah sesuai aksi)"
+        },
+        {
+          "entity_id": "process-quality-control-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru (tanpa id) saat Simpan/Pause"
+        },
+        {
+          "entity_id": "process-quality-control-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris existing (punya id) saat Simpan/Pause"
+        },
+        {
+          "entity_id": "process-quality-control-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris yang di-queue di pendingDeletionIds saat Simpan/Pause, dan seluruh baris record saat Clear"
+        },
+        {
+          "entity_id": "process-quality-control-record",
+          "operation": "DELETE",
+          "description": "DELETE header record saat Clear dikonfirmasi"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Process QC ID kosong saat Simpan",
+          "handling": "Error inline pada field Process QC ID, record tidak tersimpan"
+        },
+        {
+          "condition": "Tidak ada baris Process Quality Control Detail valid saat Simpan",
+          "handling": "ProcessQualityControlDetailRequiredError dilempar oleh repo, error khusus ditampilkan pada grid, record tidak tersimpan; FE juga sudah mem-validasi sebelum memanggil repo (defense-in-depth)"
+        },
+        {
+          "condition": "Hapus baris yang sudah punya id",
+          "handling": "id di-queue ke pendingDeletionIds, baru benar-benar DELETE saat Simpan/Pause berikutnya; Time-Slot baris tersebut langsung bebas dipakai baris lain"
+        },
+        {
+          "condition": "Baris hanya terisi Findings saja (atau salah satu dari 14 kolom bacaan/keterangan)",
+          "handling": "Dihitung sebagai baris terisi/valid oleh isRowFilled(), meskipun Shift dan QC Inspector ID kosong"
+        },
+        {
+          "condition": "Pause ditekan dengan field wajib belum lengkap",
+          "handling": "Tidak ada validasi apapun, field disimpan apa adanya sebagai checkpoint, status=draft_paused"
+        },
+        {
+          "condition": "Clear ditekan",
+          "handling": "ConfirmDialog wajib dikonfirmasi sebelum penghapusan permanen dijalankan"
+        },
+        {
+          "condition": "Back ditekan saat form dirty",
+          "handling": "ConfirmDialog ditampilkan sebelum navigasi keluar tanpa menyimpan"
+        }
+      ],
+      "business_rules_applied": [
+        "Tanggal auto-fill sekali, disabled, tidak dapat diedit manual",
+        "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Grid Process Quality Control Detail dinamis 0..24 baris, ditambah/dihapus satu per satu",
+        "Time-Slot tiap baris unik dan urutan menaik kanonis",
+        "Minimal satu baris valid sebelum Simpan (tidak berlaku untuk Pause)",
+        "Process QC ID wajib diisi sebelum Simpan (tidak berlaku untuk Pause)"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads an existing draft with its process_quality_control_detail rows in canonical time-slot order",
+          "given": "processQualityControlRecordRepo.getDraftWithDetails(id) returns a record with 3 detail rows stored out of canonical order",
+          "expect": "returned details array is sorted by canonical time-slot order, not insertion/alphabetical order"
+        },
+        {
+          "description": "auto-fills date only when the loaded record's date is empty",
+          "given": "a brand-new draft record with date=''",
+          "expect": "form.date is set to the current local datetime string; an existing draft with a non-empty date keeps its stored value unchanged"
+        },
+        {
+          "description": "computes availableTimeSlotOptions excluding slots used by other rows and slots at-or-before the highest used index",
+          "given": "detailRows has 2 other rows using '09:00' and '14:00'",
+          "expect": "options for a new row exclude '09:00', '14:00', and every canonical slot at-or-before '14:00' except the row's own current value"
+        },
+        {
+          "description": "throws ProcessQualityControlDetailRequiredError when saveDraft is called with zero valid rows",
+          "given": "details array where every row has time_slot null/empty or all 14 reading/keterangan columns (excluding shift and qc_inspector_id) are null",
+          "expect": "throw ProcessQualityControlDetailRequiredError; no DB write occurs"
+        },
+        {
+          "description": "treats a row with only Findings filled as valid for the minimum-one-row rule, even with shift/qc_inspector_id empty",
+          "given": "one detail row with time_slot='08:00', findings='Perlu ditinjau', shift=null, qc_inspector_id=null, all 12 numeric columns and qc_engineering_corrective_actions null",
+          "expect": "row counts as filled; saveDraft() proceeds without throwing"
+        },
+        {
+          "description": "saveDraft sets status='saved' and applies upsert/delete for detail rows",
+          "given": "1 existing row (id present, values changed) + 1 new row (no id) + 1 pendingDeletionIds entry for a previously-existing row",
+          "expect": "header UPDATE sets status='saved'; existing row UPDATEd; new row INSERTed with a generated id; queued id DELETEd"
+        },
+        {
+          "description": "pauseDraftWithFormData persists as draft_paused without required-field validation",
+          "given": "process_qc_id empty and zero valid detail rows",
+          "expect": "no error thrown; header UPDATEd to status='draft_paused' with fields as-is; detail upsert/delete still applied"
+        },
+        {
+          "description": "deleteDraft cascades delete to all process_quality_control_detail rows before deleting the header",
+          "given": "a record with 4 process_quality_control_detail rows",
+          "expect": "all 4 detail rows DELETEd, then the header record DELETEd"
+        },
+        {
+          "description": "strips checked_by/acknowledged_by when currentUserRole lacks the matching role",
+          "given": "headerData.checked_by set but currentUserRole='operator'; headerData.acknowledged_by set but currentUserRole='supervisor'",
+          "expect": "persisted checked_by=null and acknowledged_by=null despite headerData values being present"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-070--monitor-process-quality-control",
+      "reason": "Entry point (New Data / lanjutkan draft) dan tujuan navigasi setelah Simpan/Pause/Clear"
+    }
+  ],
+  "implementation_notes": [
+    "Semua operasi lokal di SQLite via processQualityControlRecordRepo.ts, tidak ada panggilan API",
+    "processQualityControlRecordRepo.ts mencakup ketiga screen mobile Process Quality Control (070/080/090) dalam satu file, mirrors clarificationRecordRepo.ts/boilerRoomRecordRepo.ts",
+    "canonicalTimeSlots() identik dengan clarificationRecordRepo.ts: for i in 0..23 -> hour = (7 + i) % 24, format 'HH:00', dimulai dari 07:00",
+    "16 kolom non-time_slot per baris (jumlah kolom bacaan terbanyak di seluruh proyek): Shift (teks bebas, identitas baris), 12 kolom numerik (Fruit Press Oil Loss in Sludge/Fibre, Purifier & Clarification Balance Inlet Temp/Backpressure, Vacuum Drying Station Drier Temp/Vacuum Pressure, Decanter/Centrifuge Feed Rate/Oil Loss in Cake, Final Storage FFA/Moisture Content/Impurities-Dirt/DOBI Index), QC Inspector ID (teks bebas, identitas baris), QC Engineering Corrective Actions (teks bebas, ikut 'filled' check), Findings (teks bebas, ikut 'filled' check) — TANPA kolom enum/status apapun",
+    "isRowFilled() mengecek 14 kolom (12 numerik + QC Engineering Corrective Actions + Findings) — Shift dan QC Inspector ID adalah kolom identitas/konteks baris, TIDAK ikut menentukan 'filled', mirrors ProcessWaterRecordService's exclusion of shift/inspector_id",
+    "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak ada CollapsibleSection/read-only reference data pada layar ini",
+    "Field urutan pada grid & form mengikuti urutan kolom migration process_quality_control_details persis: Shift → Fruit Press Oil Loss in Sludge → Fruit Press Oil Loss in Fibre → Purifier & Clarification Balance Inlet Temp → Purifier & Clarification Balance Backpressure → Vacuum Drying Station Drier Temp → Vacuum Drying Station Vacuum Pressure → Decanter/Centrifuge Feed Rate → Decanter/Centrifuge Oil Loss in Cake → Final Storage FFA → Final Storage Moisture Content → Final Storage Impurities/Dirt → Final Storage DOBI Index → QC Inspector ID → QC Engineering Corrective Actions → Findings"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Input Data Process Quality Control — success",
+      "usecase_id": "usecase-116--form-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "FormProcessQualityControlView",
+        "action": "fill Process QC ID, tap 'Tambah baris', select a Time-Slot, fill at least one reading column, tap 'Simpan'",
+        "assert": "saveDraft() called with the filled header and detail row; navigation to Monitor Process Quality Control triggered"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/form/:id",
+        "action": "open a new draft, fill Process QC ID, add a detail row, select Time-Slot, fill Fruit Press Oil Loss in Sludge, tap Simpan",
+        "assert": "browser navigates to Monitor Process Quality Control; the saved record now shows status Tersimpan in Data Preview"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Process Quality Control — Process QC ID Belum Lengkap",
+      "usecase_id": "usecase-116--form-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "FormProcessQualityControlView",
+        "action": "leave Process QC ID empty, tap 'Simpan'",
+        "assert": "inline error shown on Process QC ID field; saveDraft() not called"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/form/:id",
+        "action": "leave Process QC ID empty, tap Simpan",
+        "assert": "inline validation error is visible, no navigation occurs"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Process Quality Control — Belum Ada Baris Valid",
+      "usecase_id": "usecase-116--form-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "FormProcessQualityControlView",
+        "action": "fill Process QC ID but leave the detail grid empty, tap 'Simpan'",
+        "assert": "grid-level error message shown (detailRowsError); saveDraft() not called"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/form/:id",
+        "action": "fill header only, do not add any detail row, tap Simpan",
+        "assert": "grid error message visible, record not saved"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Process Quality Control — Tambah/Hapus Baris dan Urutan Time-Slot",
+      "usecase_id": "usecase-116--form-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "FormProcessQualityControlView",
+        "action": "tap 'Tambah baris' twice, pick distinct ascending Time-Slots, then tap 'Hapus baris' on the first row",
+        "assert": "grid starts empty, grows by one row per tap; deleted row's Time-Slot becomes available again for remaining rows"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/form/:id",
+        "action": "add 2 rows with ascending Time-Slots, remove the first row",
+        "assert": "grid reflects the removal and the freed Time-Slot reappears in the dropdown for other rows"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Process Quality Control — Baris Valid Hanya Dari Findings",
+      "usecase_id": "usecase-116--form-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "FormProcessQualityControlView",
+        "action": "add a row, select a Time-Slot, fill Findings only (leave Shift and QC Inspector ID empty), tap Simpan",
+        "assert": "no grid validation error; saveDraft() called and succeeds"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/form/:id",
+        "action": "fill header, add a row with only Findings filled, tap Simpan",
+        "assert": "record saved successfully"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Process Quality Control — Pause Progress",
+      "usecase_id": "usecase-116--form-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "FormProcessQualityControlView",
+        "action": "leave required fields empty, tap 'Pause'",
+        "assert": "pauseDraftWithFormData() called without validation errors; navigation to Monitor Process Quality Control triggered"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/form/:id",
+        "action": "leave Process QC ID empty, tap Pause",
+        "assert": "no validation error shown, browser navigates to Monitor Process Quality Control, record status becomes Pause in the list"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Process Quality Control — Clear Draft",
+      "usecase_id": "usecase-116--form-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "FormProcessQualityControlView",
+        "action": "tap 'Clear', confirm the ConfirmDialog",
+        "assert": "deleteDraft() called; navigation to Monitor Process Quality Control triggered"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/form/:id",
+        "action": "tap Clear then confirm the dialog",
+        "assert": "record is permanently removed and no longer appears anywhere in Monitor/Data Preview Process Quality Control"
+      }
+    }
+  ]
+}

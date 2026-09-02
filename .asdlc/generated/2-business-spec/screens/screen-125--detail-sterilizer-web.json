@@ -1,0 +1,62 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-125--detail-sterilizer-web",
+  "name": "Detail Sterilizer (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman detail read-only untuk melihat 1 record Sterilizer tersimpan secara lengkap beserta Log Siklus Sterilisasi, diakses dari klik baris di Data Browser Sterilizer (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Klik baris di Data Browser Sterilizer (Web)"
+  ],
+  "information_displayed": [
+    "Identitas Sterilizer: Sterilizer ID, Tanggal, Note",
+    "Log Siklus Sterilisasi: tabel seluruh baris siklus (Sterilizer No, Close Door Time, Peak 1 Time, Exhaust 1 Time, Peak 2 Time, Exhaust 2 Time, Peak 3 Time, Exhaust 3 Time, Open Door Time, Duration (Minutes), Number of Cages, Cages Status, Checked by SPV, Remarks)",
+    "Verifikasi: Inputted By, Checked By, Acknowledged By (nama user, atau '-' jika belum diisi)",
+    "Status record (saved/synced)",
+    "Tombol Back kembali ke Data Browser dan tombol Edit ke Form"
+  ],
+  "available_actions": [
+    {
+      "action": "Back",
+      "description": "Kembali ke Data Browser Sterilizer (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit",
+      "description": "Masuk ke Form Sterilizer (Web) mode edit untuk record ini",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Seluruh field ditampilkan read-only — tidak ada aksi edit langsung dari layar ini (koreksi data dilakukan lewat Form Sterilizer Web)",
+    "Checked By DAN Acknowledged By keduanya ditampilkan apa adanya, tanpa pembatasan role untuk melihat, konsisten dengan Data Preview Sterilizer mobile",
+    "Log Siklus ditampilkan langsung dari data tersimpan (historical), tidak dihitung ulang — termasuk duration_minutes yang sudah final dari server",
+    "Checked by SPV ditampilkan sebagai indikator Ya/Tidak per baris — checkbox sederhana, BUKAN nama Supervisor (berbeda dari header Checked By yang merupakan nama user)",
+    "Field dikelompokkan sesuai struktur Form Sterilizer (Identitas, Log Siklus, Verifikasi)"
+  ],
+  "usecase_ids": [
+    "usecase-125--detail-sterilizer-web"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
+    "Checked By/Acknowledged By belum diisi — tampilkan '-'"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

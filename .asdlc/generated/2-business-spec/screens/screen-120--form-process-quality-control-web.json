@@ -1,0 +1,92 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-120--form-process-quality-control-web",
+  "name": "Form Process Quality Control (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Input/edit data Process Quality Control dari web, mengikuti pola field yang sama seperti Form Process Quality Control mobile (header + grid time-slot dinamis 16 kolom bacaan/keterangan + Findings per baris), tanpa draft/pause/Clear — Simpan langsung berstatus 'saved'.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Tambah Data dari Data Browser Process Quality Control (Web)",
+    "Edit dari Detail Process Quality Control (Web)"
+  ],
+  "information_displayed": [
+    "Mode buat: dropdown Production Line, Process QC ID, Tanggal (default hari ini, dapat diedit), Note",
+    "Mode ubah: Station (read-only), Process QC ID, Tanggal, Note",
+    "Grid Process Quality Control Detail dinamis: Time-Slot dropdown + Shift + 12 kolom bacaan numerik (Fruit Press x2, Purifier & Clarification Balance x2, Vacuum Drying Station x2, Decanter/Centrifuge x2, Final Storage x4) + QC Inspector ID + QC Engineering Corrective Actions/Remarks + Findings, tombol Tambah Baris/Hapus per baris",
+    "Verifikasi: checkbox Checked (Supervisor), Acknowledged (Mill Management)"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Production Line",
+      "description": "Hanya pada mode buat; menentukan station Process Quality Control aktif yang akan dipakai",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah Baris",
+      "description": "Menambah satu baris Process Quality Control Detail kosong ke grid",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus",
+      "description": "Menghapus satu baris dari grid",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Memvalidasi field wajib dan minimal satu baris valid, menyimpan record berstatus 'saved', navigasi ke Detail Process Quality Control (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Batal",
+      "description": "Kembali tanpa menyimpan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tidak ada draft/pause/Clear di web — Simpan langsung berstatus 'saved'",
+    "Tanggal default hari ini, tetap dapat diedit (berbeda dari mobile yang menguncinya)",
+    "Grid Process Quality Control Detail dinamis, baris ditambahkan/dihapus satu per satu",
+    "Production Line tidak dapat diubah setelah record dibuat",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Minimal satu baris valid (Time-Slot terpilih + minimal satu dari 14 kolom bacaan/keterangan, tidak termasuk Shift dan QC Inspector ID, atau Findings terisi) sebelum Simpan"
+  ],
+  "usecase_ids": [
+    "usecase-120--form-process-quality-control-web"
+  ],
+  "edge_cases": [
+    "Field wajib kosong saat Simpan — error inline",
+    "Belum ada baris valid saat Simpan — pesan error khusus pada grid",
+    "Production Line tanpa station Process Quality Control aktif — error, record tidak tersimpan",
+    "id record tidak ditemukan pada mode ubah — pesan error"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

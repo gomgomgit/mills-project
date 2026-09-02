@@ -1,0 +1,68 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-115--form-effluent-plant-web",
+  "name": "Form Effluent Plant (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/FormEffluentPlantTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormEffluentPlant.php",
+    "backend/resources/views/data/effluent-plant-form.blade.php",
+    "backend/resources/views/livewire/data/form-effluent-plant.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormEffluentPlantTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses EffluentPlantRecordService::create()/update() (BE service shared with screen-095)",
+    "The Effluent Plant Detail grid is fully dynamic -- addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions() on FormEffluentPlant.php, exactly mirroring FormProcessWater's grid. Grid starts empty on create mode; edit mode loads existing rows verbatim with each row's id",
+    "All 19 non-time_slot columns per row are genuinely editable, never disabled -- Effluent Plant has no computed detail-grid fields. 3 of them (Biogas Flare Status, Dosing Pump 1 Status, Sludge Dewatering Status) render as <select> dropdowns with an empty '-- Pilih --' option",
+    "IMPORTANT -- enum empty-string-vs-null: the 3 enum dropdowns submit '' when left unselected; EffluentPlantRecordService::normalizeDetails() (shared with screen-095) coerces this to null before validation/persistence, avoiding a SQLite CHECK constraint violation -- verified by a dedicated unit test and a Feature/Api test (Kernel Dispatch previously hit this same failure mode; fixed here proactively before it could recur)",
+    "UNLIKE Form Threshing Web: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
+    "Route /data/effluent-plant/create registered BEFORE /data/effluent-plant/{id} (screen-105) so the literal 'create' segment is not swallowed by {id}",
+    "checked/acknowledged self-attestation checkboxes mirror FormProcessWater's dual-checkbox pattern (both Checked By AND Acknowledged By)",
+    "NoActiveEffluentPlantStationException (mirrors NoActiveProcessWaterStationException) thrown when production_line_id has no active station type=effluent-plant"
+  ],
+  "deferred_items": [
+    {
+      "description": "The mobile 'Sinkronisasi' button does not yet call POST/PATCH /api/effluent-plant-records for locally-entered records",
+      "reason": "Out of this 6-screen task's explicit scope (see screen-095's implement artifact for the full rationale) -- the dual-guarded route already supports this when a future syncService.ts addition wires it up."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/FormEffluentPlantTest.php) was authored but could not be executed in this sandboxed environment -- verified only by static review.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T01:52:00Z",
+      "passed": 14,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T01:52:00Z",
+      "passed": 18,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-107--detail-boiler-room-web",
+  "name": "Lihat Detail Boiler Room (Web)",
+  "description": "Supervisor, Mill Management, atau Admin melihat 1 record Boiler Room secara lengkap dan read-only dari web.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User berasal dari Data Browser Boiler Room (Web) dan mengklik salah satu baris"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Memuat record Boiler Room by id beserta seluruh baris Boiler Room Detail-nya"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan seluruh field header dan grid Boiler Room Detail secara read-only"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Record Tidak Ditemukan",
+      "trigger": "id tidak ditemukan",
+      "steps": [
+        "System menampilkan pesan error dengan tombol Back"
+      ]
+    },
+    {
+      "name": "Edit",
+      "trigger": "User menekan tombol Edit",
+      "steps": [
+        "System menavigasikan ke Form Boiler Room (Web) mode ubah untuk record ini"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail lengkap record Boiler Room secara read-only"
+  ],
+  "business_rules": [
+    "Seluruh field read-only",
+    "Checked By dan Acknowledged By keduanya ditampilkan apa adanya",
+    "Grid Boiler Room Detail ditampilkan langsung dari data tersimpan, menampilkan persis baris yang ada"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Detail Boiler Room - berhasil",
+      "given": "id record valid",
+      "when": "User membuka halaman detail",
+      "then": "Seluruh field record dan grid Boiler Room Detail ditampilkan read-only"
+    },
+    {
+      "scenario": "Lihat Detail Boiler Room - Record Tidak Ditemukan",
+      "given": "id record tidak valid",
+      "when": "User membuka halaman detail dengan id tersebut",
+      "then": "Sistem menampilkan pesan error dan tombol Back yang berfungsi"
+    },
+    {
+      "scenario": "Lihat Detail Boiler Room - Edit",
+      "given": "User berada di halaman detail",
+      "when": "User menekan tombol Edit",
+      "then": "Sistem menavigasikan ke Form Boiler Room (Web) mode ubah untuk record tersebut"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-108--detail-boiler-room-web"
+  ]
+}

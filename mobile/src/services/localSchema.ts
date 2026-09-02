@@ -523,6 +523,663 @@ const CREATE_KERNEL_PLANT_DETAIL = `
   )
 `
 
+// screen-061--monitor-solid-waste-disposal / screen-071--form-solid-waste-disposal
+// (entity-catalog v13, 2026-08-31) — new station table, mirrors
+// cages_track_record's header shape but WITHOUT the tippler/grid-column
+// concept — Solid Waste Disposal is a pure EVENT-LOG station (one row per
+// disposal/shipment event, added manually via "Tambah baris", unbounded per
+// day — like cages_tipped_time, unlike the fixed/dynamic hourly time-slot
+// grids of Threshing/Pressing/Depricarping/Kernel Plant). `date` auto-fills
+// once at draft creation, not manually editable. The header ID field is
+// `solid_waste_disposal_id` (labeled "Solid Waste Disp. ID" on the form).
+const CREATE_SOLID_WASTE_DISPOSAL_RECORD = `
+  CREATE TABLE IF NOT EXISTS solid_waste_disposal_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    solid_waste_disposal_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-071--form-solid-waste-disposal (entity-catalog v13) — one row per
+// disposal/shipment event belonging to a solid_waste_disposal_record, added
+// manually via "Tambah baris" (unbounded — NOT a fixed/dynamic 24-slot
+// grid). `net_weight_mt` is computed client-side (= gross_weight_mt -
+// tare_weight_mt) and persisted as-is, same "computed then persisted"
+// pattern as cages_tipped_time.total_cages.
+const CREATE_SOLID_WASTE_DISPOSAL_DETAIL = `
+  CREATE TABLE IF NOT EXISTS solid_waste_disposal_detail (
+    id TEXT PRIMARY KEY,
+    solid_waste_disposal_record_id TEXT NOT NULL,
+    event_date TEXT,
+    shift TEXT,
+    weighbridge_ticket_no TEXT,
+    vehicle_no TEXT,
+    driver_name TEXT,
+    solid_waste_type TEXT,
+    source_station TEXT,
+    gross_weight_mt REAL,
+    tare_weight_mt REAL,
+    net_weight_mt REAL,
+    disposal_utilization_site TEXT,
+    purpose_end_use TEXT,
+    gate_pass_no TEXT,
+    security_seal_no TEXT,
+    operator_id TEXT,
+    remarks TEXT,
+    findings TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-062--monitor-process-water / screen-072--form-process-water
+// (entity-catalog v13, 2026-08-31) — new station table, mirrors
+// threshing_record/threshing_detail's shape exactly: process_water_detail
+// is a DYNAMIC add-row/remove-row grid (one row per hourly time-slot,
+// 07:00 through 06:00 the next day), following the same hourly-grid
+// pattern as Threshing/Pressing/Kernel Plant. `date` auto-fills once at
+// draft creation, not manually editable. UNLIKE Threshing/Pressing/
+// Depricarping/Kernel Plant, Process Water has NO operational-target
+// reference table.
+const CREATE_PROCESS_WATER_RECORD = `
+  CREATE TABLE IF NOT EXISTS process_water_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    process_water_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-072--form-process-water (entity-catalog v13) — one row per hourly
+// time-slot belonging to a process_water_record, added dynamically via
+// "Tambah baris" (however many the user adds — up to 24). `time_slot`
+// stored as plain TEXT 'HH:00', consistent with threshing_detail. Unlike
+// Threshing's single set of reading columns, Process Water also carries
+// `shift`/`inspector_id` (identifying/context columns, not reading
+// columns) per row.
+const CREATE_PROCESS_WATER_DETAIL = `
+  CREATE TABLE IF NOT EXISTS process_water_detail (
+    id TEXT PRIMARY KEY,
+    process_water_record_id TEXT NOT NULL,
+    time_slot TEXT NOT NULL,
+    shift TEXT,
+    inspector_id TEXT,
+    raw_water_flow_m3h REAL,
+    clarified_water_flow_m3h REAL,
+    softener_inlet_ph REAL,
+    softener_outlet_hardness_ppm REAL,
+    alum_dosing_kgh REAL,
+    polymer_dosing_gh REAL,
+    boiler_feed_tank_temp_c REAL,
+    boiler_feed_water_ph REAL,
+    boiler_feed_tds_ppm REAL,
+    action_taken_status TEXT,
+    findings TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-063--monitor-kernel-dispatch / screen-073--form-kernel-dispatch
+// (entity-catalog v13) — event-log station mirroring
+// solid_waste_disposal_record/solid_waste_disposal_detail's shape exactly
+// (one row per dispatch event, added manually via "Tambah baris",
+// unbounded per day — like cages_tipped_time/solid_waste_disposal_detail,
+// unlike the fixed/dynamic hourly time-slot grids of Threshing/Pressing/
+// Depricarping/Kernel Plant). `date` auto-fills once at draft creation,
+// not manually editable. The header ID field is `kernel_dispatch_id`
+// (labeled "Kernel Dispatch ID" on the form).
+const CREATE_KERNEL_DISPATCH_RECORD = `
+  CREATE TABLE IF NOT EXISTS kernel_dispatch_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    kernel_dispatch_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-073--form-kernel-dispatch (entity-catalog v13) — one row per
+// dispatch event belonging to a kernel_dispatch_record, added manually via
+// "Tambah baris" (unbounded — NOT a fixed/dynamic 24-slot grid).
+// `net_weight_mt` is computed client-side (= gross_weight_mt -
+// tare_weight_mt) and persisted as-is, same "computed then persisted"
+// pattern as solid_waste_disposal_detail.net_weight_mt.
+const CREATE_KERNEL_DISPATCH_DETAIL = `
+  CREATE TABLE IF NOT EXISTS kernel_dispatch_detail (
+    id TEXT PRIMARY KEY,
+    kernel_dispatch_record_id TEXT NOT NULL,
+    event_date TEXT,
+    shift TEXT,
+    weighbridge_ticket_no TEXT,
+    waybill_number TEXT,
+    transporter_contractor TEXT,
+    vehicle_plate_no TEXT,
+    driver_name TEXT,
+    silo_source_id TEXT,
+    destination_buyer TEXT,
+    gross_weight_mt REAL,
+    tare_weight_mt REAL,
+    net_weight_mt REAL,
+    kernel_moisture_percent REAL,
+    dirt_impurities_percent REAL,
+    ffa_percent REAL,
+    broken_kernel_percent REAL,
+    security_seal_no_top TEXT,
+    security_seal_no_bottom TEXT,
+    weighbridge_operator_id TEXT,
+    remarks_gate_status TEXT,
+    findings TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-064--monitor-cpo-dispatch / screen-074--form-cpo-dispatch
+// (entity-catalog v13) — event-log station mirroring
+// kernel_dispatch_record/kernel_dispatch_detail's shape exactly (one row
+// per dispatch event, added manually via "Tambah baris", unbounded per
+// day — like cages_tipped_time/kernel_dispatch_detail, unlike the
+// fixed/dynamic hourly time-slot grids of Threshing/Pressing/
+// Depricarping/Kernel Plant). `date` auto-fills once at draft creation,
+// not manually editable. The header ID field is `cpo_dispatch_id`
+// (labeled "CPO Dispatch ID" on the form). Unlike Kernel Dispatch, there
+// is no remarks_gate_status/weighbridge_ticket_no column — CPO Dispatch
+// instead has time_in/time_out (two separate time columns) and dobi.
+const CREATE_CPO_DISPATCH_RECORD = `
+  CREATE TABLE IF NOT EXISTS cpo_dispatch_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    cpo_dispatch_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-074--form-cpo-dispatch (entity-catalog v13) — one row per
+// dispatch event belonging to a cpo_dispatch_record, added manually via
+// "Tambah baris" (unbounded — NOT a fixed/dynamic 24-slot grid).
+// `net_weight_mt` is computed client-side (= gross_weight_mt -
+// tare_weight_mt) and persisted as-is, same "computed then persisted"
+// pattern as kernel_dispatch_detail.net_weight_mt.
+const CREATE_CPO_DISPATCH_DETAIL = `
+  CREATE TABLE IF NOT EXISTS cpo_dispatch_detail (
+    id TEXT PRIMARY KEY,
+    cpo_dispatch_record_id TEXT NOT NULL,
+    event_date TEXT,
+    shift TEXT,
+    time_in TEXT,
+    time_out TEXT,
+    waybill_number TEXT,
+    tanker_plate_no TEXT,
+    transport_company TEXT,
+    driver_name TEXT,
+    storage_tank_source TEXT,
+    seal_no_top TEXT,
+    seal_no_bottom TEXT,
+    gross_weight_mt REAL,
+    tare_weight_mt REAL,
+    net_weight_mt REAL,
+    ffa_percent REAL,
+    moisture_percent REAL,
+    impurities_percent REAL,
+    dobi REAL,
+    destination_buyer TEXT,
+    weighbridge_operator TEXT,
+    findings TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-065--monitor-effluent-plant / screen-075--form-effluent-plant
+// (entity-catalog v13) — new station table, mirrors
+// process_water_record/process_water_detail's shape exactly:
+// effluent_plant_detail is a DYNAMIC add-row/remove-row grid (one row per
+// hourly time-slot, 07:00 through 06:00 the next day), following the same
+// hourly-grid pattern as Threshing/Pressing/Kernel Plant/Process Water.
+// `date` auto-fills once at draft creation, not manually editable. UNLIKE
+// Threshing/Pressing/Depricarping/Kernel Plant, Effluent Plant has NO
+// operational-target reference table.
+const CREATE_EFFLUENT_PLANT_RECORD = `
+  CREATE TABLE IF NOT EXISTS effluent_plant_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    effluent_plant_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-075--form-effluent-plant (entity-catalog v13) — one row per hourly
+// time-slot belonging to an effluent_plant_record, added dynamically via
+// "Tambah baris" (however many the user adds — up to 24). `time_slot`
+// stored as plain TEXT 'HH:00', consistent with process_water_detail.
+// UNLIKE Process Water, this station has NO identifying/context columns
+// (no shift/inspector_id equivalent) — all 19 non-time_slot columns are
+// reading/status columns. 3 of them (biogas_flare_status,
+// dosing_pump_1_status, sludge_dewatering_status) are enum-shaped but
+// stored as plain TEXT here (no CHECK constraint in local SQLite — that
+// only applies on the Laravel backend).
+const CREATE_EFFLUENT_PLANT_DETAIL = `
+  CREATE TABLE IF NOT EXISTS effluent_plant_detail (
+    id TEXT PRIMARY KEY,
+    effluent_plant_record_id TEXT NOT NULL,
+    time_slot TEXT NOT NULL,
+    anaerobic_pond_1_ph REAL,
+    anaerobic_pond_1_temp_c REAL,
+    anaerobic_pond_2_ph REAL,
+    anaerobic_pond_2_temp_c REAL,
+    cooling_pond_ph REAL,
+    cooling_pond_temp_c REAL,
+    biogas_flare_status TEXT,
+    biogas_flow_rate_m3h REAL,
+    raw_pome_feed_rate_m3h REAL,
+    effluent_discharge_flow_rate_m3h REAL,
+    final_discharge_ph REAL,
+    final_discharge_bod_mgl_lab REAL,
+    final_discharge_cod_mgl_lab REAL,
+    final_discharge_tss_mgl_lab REAL,
+    dosing_pump_1_status TEXT,
+    chemical_consumed_kgl REAL,
+    sludge_dewatering_status TEXT,
+    remarks_maintenance_actions TEXT,
+    findings TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-066--monitor-storage-tank / screen-076--form-storage-tank
+// (entity-catalog v13) — new station table, mirrors
+// effluent_plant_record/effluent_plant_detail's shape exactly:
+// storage_tank_detail is a DYNAMIC add-row/remove-row grid (one row per
+// hourly time-slot, 07:00 through 06:00 the next day), following the same
+// hourly-grid pattern as Effluent Plant/Process Water/Threshing/Pressing/
+// Kernel Plant. `date` auto-fills once at draft creation, not manually
+// editable. UNLIKE Threshing/Pressing/Depricarping/Kernel Plant, Storage
+// Tank has NO operational-target reference table.
+const CREATE_STORAGE_TANK_RECORD = `
+  CREATE TABLE IF NOT EXISTS storage_tank_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    storage_tank_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-076--form-storage-tank (entity-catalog v13) — one row per hourly
+// time-slot belonging to a storage_tank_record, added dynamically via
+// "Tambah baris" (however many the user adds — up to 24). `time_slot`
+// stored as plain TEXT 'HH:00', consistent with effluent_plant_detail.
+// UNLIKE Process Water, this station has NO identifying/context columns
+// (no shift/inspector_id equivalent) — all 17 non-time_slot columns are
+// reading/status/text columns. 1 of them (steam_heating_valve_status) is
+// enum-shaped but stored as plain TEXT here (no CHECK constraint in local
+// SQLite — that only applies on the Laravel backend).
+const CREATE_STORAGE_TANK_DETAIL = `
+  CREATE TABLE IF NOT EXISTS storage_tank_detail (
+    id TEXT PRIMARY KEY,
+    storage_tank_record_id TEXT NOT NULL,
+    time_slot TEXT NOT NULL,
+    cpo_sounding_depth_mm REAL,
+    water_dip_bottom_depth_mm REAL,
+    net_oil_depth_mm REAL,
+    oil_temperature_top_c REAL,
+    oil_temperature_middle_c REAL,
+    oil_temperature_bottom_c REAL,
+    average_temperature_c REAL,
+    calculated_volume_m3 REAL,
+    calculated_weight_mt REAL,
+    ffa_percent REAL,
+    moisture_content_percent REAL,
+    impurities_dirt_percent REAL,
+    dobi_index REAL,
+    steam_heating_valve_status TEXT,
+    tank_structural_condition TEXT,
+    inspector_name TEXT,
+    findings TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-077--form-engine-room (entity-catalog v13) — header row for a
+// single Engine Room log-sheet, mirrors storage_tank_record's shape
+// column-for-column (storage_tank_id -> engine_room_id).
+const CREATE_ENGINE_ROOM_RECORD = `
+  CREATE TABLE IF NOT EXISTS engine_room_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    engine_room_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-077--form-engine-room (entity-catalog v13) — one row per hourly
+// time-slot belonging to an engine_room_record, added dynamically via
+// "Tambah baris" (however many the user adds — up to 24). `time_slot`
+// stored as plain TEXT 'HH:00', consistent with storage_tank_detail.
+// UNLIKE Threshing/Pressing/Depricarping/Kernel Plant, this station has NO
+// identifying/context columns (no shift/inspector_id equivalent) — all 27
+// non-time_slot columns are reading/status/text columns. This is the
+// LARGEST field count of any station in this project (task brief
+// originally said 26; the migration on the backend — ground truth — has
+// 27; corrected here as a derived assumption). 2 of them
+// (diesel_gen_1_status, diesel_gen_2_status) are enum-shaped but stored as
+// plain TEXT here (no CHECK constraint in local SQLite — that only applies
+// on the Laravel backend).
+const CREATE_ENGINE_ROOM_DETAIL = `
+  CREATE TABLE IF NOT EXISTS engine_room_detail (
+    id TEXT PRIMARY KEY,
+    engine_room_record_id TEXT NOT NULL,
+    time_slot TEXT NOT NULL,
+    steam_turbine_inlet_pressure_bar REAL,
+    steam_turbine_inlet_temp_c REAL,
+    steam_turbine_exhaust_pressure_bar REAL,
+    steam_turbine_rpm REAL,
+    steam_turbine_alternator_bearing_temp_1_c REAL,
+    steam_turbine_alternator_bearing_temp_2_c REAL,
+    diesel_gen_1_status TEXT,
+    diesel_gen_1_load_kw REAL,
+    diesel_gen_1_amperage_a REAL,
+    diesel_gen_1_jacket_water_temp_c REAL,
+    diesel_gen_1_lube_oil_pressure_bar REAL,
+    diesel_gen_2_status TEXT,
+    diesel_gen_2_load_kw REAL,
+    diesel_gen_2_amperage_a REAL,
+    diesel_gen_2_jacket_water_temp_c REAL,
+    diesel_gen_2_lube_oil_pressure_bar REAL,
+    electrical_sync_total_factory_load_kw REAL,
+    electrical_sync_system_frequency_hz REAL,
+    electrical_sync_power_factor REAL,
+    electrical_sync_busbar_voltage_v REAL,
+    air_compressor_1_pressure_bar REAL,
+    compressor_2_pressure_bar REAL,
+    battery_charger_ups_voltage_v REAL,
+    fuel_tank_level REAL,
+    daily_energy_export_kwh REAL,
+    action_taken_maintenance_remark TEXT,
+    findings TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-078--form-boiler-room (entity-catalog v13) — header row for a
+// single Boiler Room log-sheet, mirrors engine_room_record's shape
+// column-for-column (engine_room_id -> boiler_room_id).
+const CREATE_BOILER_ROOM_RECORD = `
+  CREATE TABLE IF NOT EXISTS boiler_room_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    boiler_room_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-078--form-boiler-room (entity-catalog v13) — one row per hourly
+// time-slot belonging to a boiler_room_record, added dynamically via
+// "Tambah baris" (however many the user adds — up to 24). `time_slot`
+// stored as plain TEXT 'HH:00', consistent with engine_room_detail.
+// UNLIKE Threshing/Pressing/Depricarping/Kernel Plant, this station has NO
+// identifying/context columns (no shift/inspector_id equivalent) — all 15
+// non-time_slot columns are reading/status/text columns. 2 of them
+// (blowdown_executed, sootblowing_executed) are enum-shaped (Y/N) but
+// stored as plain TEXT here (no CHECK constraint in local SQLite — that
+// only applies on the Laravel backend). fuel_feed_rate/id_fan_load/
+// sa_fan_load are free-text TEXT columns (not numeric) because the
+// paper-form units are mixed/ambiguous (Hz/%/tons, A/%).
+const CREATE_BOILER_ROOM_DETAIL = `
+  CREATE TABLE IF NOT EXISTS boiler_room_detail (
+    id TEXT PRIMARY KEY,
+    boiler_room_record_id TEXT NOT NULL,
+    time_slot TEXT NOT NULL,
+    steam_pressure_bar REAL,
+    steam_temp_c REAL,
+    feed_water_temp_c REAL,
+    feed_water_tank_level_percent REAL,
+    boiler_water_level_percent REAL,
+    water_tds_ppm REAL,
+    water_ph REAL,
+    fuel_feed_rate TEXT,
+    id_fan_load TEXT,
+    sa_fan_load TEXT,
+    exhaust_gas_temp_c REAL,
+    dust_collector_differential_pressure_mmh2o REAL,
+    blowdown_executed TEXT,
+    sootblowing_executed TEXT,
+    findings TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-079--form-clarification (entity-catalog v13) — header row for a
+// single Clarification log-sheet, mirrors boiler_room_record's shape
+// column-for-column (boiler_room_id -> clarification_id).
+const CREATE_CLARIFICATION_RECORD = `
+  CREATE TABLE IF NOT EXISTS clarification_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    clarification_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-079--form-clarification (entity-catalog v13) — one row per hourly
+// time-slot belonging to a clarification_record, added dynamically via
+// "Tambah baris" (however many the user adds — up to 24). `time_slot`
+// stored as plain TEXT 'HH:00', consistent with boiler_room_detail. This
+// is the SIMPLEST station in the whole project — NO identifying/context
+// columns (no shift/inspector_id equivalent), NO enum columns, NO
+// free-text-unit columns — all 6 non-findings columns are plain numeric
+// readings; `findings` is plain text.
+const CREATE_CLARIFICATION_DETAIL = `
+  CREATE TABLE IF NOT EXISTS clarification_detail (
+    id TEXT PRIMARY KEY,
+    clarification_record_id TEXT NOT NULL,
+    time_slot TEXT NOT NULL,
+    clarification_tank_temp_c REAL,
+    oil_tank_temperature_c REAL,
+    sludge_tank_temp_c REAL,
+    buffer_tank_level_percent REAL,
+    pure_oil_production_rate_ton_hour REAL,
+    downtime_mins REAL,
+    findings TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-080--form-process-quality-control (entity-catalog v13) — header row
+// for a single Process Quality Control log-sheet, mirrors
+// clarification_record's shape column-for-column (clarification_id ->
+// process_qc_id).
+const CREATE_PROCESS_QUALITY_CONTROL_RECORD = `
+  CREATE TABLE IF NOT EXISTS process_quality_control_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    process_qc_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-080--form-process-quality-control (entity-catalog v13) — one row
+// per hourly time-slot belonging to a process_quality_control_record, added
+// dynamically via "Tambah baris" (however many the user adds — up to 24).
+// `time_slot` stored as plain TEXT 'HH:00', consistent with
+// clarification_detail. THIS STATION HAS THE MOST NON-TIME_SLOT COLUMNS IN
+// THE PROJECT (16): `shift` and `qc_inspector_id` are identifying/context
+// columns (like Process Water's shift/inspector_id), NOT part of the
+// "filled" check; the remaining 14 columns (12 numeric readings across
+// Fruit Press/Purifier & Clarification Balance/Vacuum Drying
+// Station/Decanter-Centrifuge/Final Storage, plus
+// qc_engineering_corrective_actions and findings) participate. NO enum
+// columns at all.
+const CREATE_PROCESS_QUALITY_CONTROL_DETAIL = `
+  CREATE TABLE IF NOT EXISTS process_quality_control_detail (
+    id TEXT PRIMARY KEY,
+    process_quality_control_record_id TEXT NOT NULL,
+    time_slot TEXT NOT NULL,
+    shift TEXT,
+    fruit_press_oil_loss_in_sludge_percent REAL,
+    fruit_press_oil_loss_in_fibre_percent REAL,
+    purifier_clarification_balance_inlet_temp_c REAL,
+    purifier_clarification_balance_backpressure_bar REAL,
+    vacuum_drying_station_drier_temp_c REAL,
+    vacuum_drying_station_vacuum_pressure_bar REAL,
+    decanter_centrifuge_feed_rate_mth REAL,
+    decanter_centrifuge_oil_loss_in_cake_percent REAL,
+    final_storage_ffa_percent REAL,
+    final_storage_moisture_content_percent REAL,
+    final_storage_impurities_dirt_percent REAL,
+    final_storage_dobi_index REAL,
+    qc_inspector_id TEXT,
+    qc_engineering_corrective_actions TEXT,
+    findings TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-121--monitor-sterilizer / screen-122--form-sterilizer
+// (entity-catalog v15) — event-log station mirroring
+// cpo_dispatch_record/cpo_dispatch_detail's shape exactly (one row per
+// sterilization cycle, added manually via "Tambah baris", unbounded per
+// day — like cages_tipped_time/cpo_dispatch_detail, unlike the
+// fixed/dynamic hourly time-slot grids of Threshing/Pressing/
+// Depricarping/Kernel Plant). `date` auto-fills once at draft creation,
+// not manually editable. The header ID field is `sterilizer_id` (labeled
+// "Sterilizer ID" on the form). This is the FINAL station of this project
+// — the 18th and last of the 18 canonical stations, promoted 2026-09-01.
+const CREATE_STERILIZER_RECORD = `
+  CREATE TABLE IF NOT EXISTS sterilizer_record (
+    id TEXT PRIMARY KEY,
+    station_id TEXT,
+    sterilizer_id TEXT,
+    date TEXT,
+    note TEXT,
+    checked_by TEXT,
+    acknowledged_by TEXT,
+    status TEXT NOT NULL DEFAULT 'draft_ongoing',
+    server_id TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
+// screen-122--form-sterilizer (entity-catalog v15) — one row per
+// sterilization cycle belonging to a sterilizer_record, added manually via
+// "Tambah baris" (unbounded — NOT a fixed/dynamic 24-slot grid).
+// `duration_minutes` is computed client-side (= open_door_time -
+// close_door_time) and persisted as-is for immediate UX feedback, same
+// "computed then persisted" pattern as cpo_dispatch_detail.net_weight_mt
+// — but the SERVER (SterilizerRecordService) always recomputes this value
+// on save, never trusting the client-supplied one. `checked_by_spv` is
+// stored as INTEGER (0/1) — SQLite has no native boolean type.
+const CREATE_STERILIZER_DETAIL = `
+  CREATE TABLE IF NOT EXISTS sterilizer_detail (
+    id TEXT PRIMARY KEY,
+    sterilizer_record_id TEXT NOT NULL,
+    sterilizer_no TEXT,
+    close_door_time TEXT,
+    peak_1_time TEXT,
+    exhaust_1_time TEXT,
+    peak_2_time TEXT,
+    exhaust_2_time TEXT,
+    peak_3_time TEXT,
+    exhaust_3_time TEXT,
+    open_door_time TEXT,
+    duration_minutes INTEGER,
+    number_of_cages INTEGER,
+    cages_status TEXT,
+    checked_by_spv INTEGER NOT NULL DEFAULT 0,
+    remarks TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )
+`
+
 const CREATE_TABLE_STATEMENTS: string[] = [
   CREATE_WEIGHBRIDGE_RECORD,
   CREATE_GRADING_RECORD,
@@ -540,6 +1197,28 @@ const CREATE_TABLE_STATEMENTS: string[] = [
   CREATE_DEPRICARPING_DETAIL,
   CREATE_KERNEL_PLANT_RECORD,
   CREATE_KERNEL_PLANT_DETAIL,
+  CREATE_SOLID_WASTE_DISPOSAL_RECORD,
+  CREATE_SOLID_WASTE_DISPOSAL_DETAIL,
+  CREATE_PROCESS_WATER_RECORD,
+  CREATE_PROCESS_WATER_DETAIL,
+  CREATE_KERNEL_DISPATCH_RECORD,
+  CREATE_KERNEL_DISPATCH_DETAIL,
+  CREATE_CPO_DISPATCH_RECORD,
+  CREATE_CPO_DISPATCH_DETAIL,
+  CREATE_EFFLUENT_PLANT_RECORD,
+  CREATE_EFFLUENT_PLANT_DETAIL,
+  CREATE_STORAGE_TANK_RECORD,
+  CREATE_STORAGE_TANK_DETAIL,
+  CREATE_ENGINE_ROOM_RECORD,
+  CREATE_ENGINE_ROOM_DETAIL,
+  CREATE_BOILER_ROOM_RECORD,
+  CREATE_BOILER_ROOM_DETAIL,
+  CREATE_CLARIFICATION_RECORD,
+  CREATE_CLARIFICATION_DETAIL,
+  CREATE_PROCESS_QUALITY_CONTROL_RECORD,
+  CREATE_PROCESS_QUALITY_CONTROL_DETAIL,
+  CREATE_STERILIZER_RECORD,
+  CREATE_STERILIZER_DETAIL,
 ]
 
 /**
@@ -757,36 +1436,81 @@ async function migrateRecordTablesForSync(): Promise<void> {
 }
 
 /**
- * The 15 MVP stations (business_rules: "Hanya 3 stasiun MVP yang aktif
- * secara fungsional; 12 lainnya adalah placeholder skema data untuk fase
- * mendatang") — fixed, known domain data per entity-catalog's `station`
- * entity (type enum: weighbridge/grading/cages-track/other). Names and
- * icon mapping (StationGrid.vue) match the Phase 2 reference mock
+ * The 18 canonical stations — ALL 18 are now MVP-functional and active
+ * (weighbridge/grading/cages-track/sterilizer/threshing/pressing/
+ * depricarping/kernel-plant/clarification/boiler-room/effluent-plant/
+ * engine-room/process-water/storage-tank/solid-waste-disposal/
+ * kernel-dispatch/cpo-dispatch/process-quality-control, `isActive: true`).
+ * 0 placeholders remain as of 2026-09-01 (Sterilizer was the last one
+ * promoted — see this array's own 2026-09-01 doc comment below) — fixed,
+ * known domain data per entity-catalog's `station` entity, identical
+ * (active/placeholder types) to the backend's
+ * `ProductionLineService::DEFAULT_STATIONS`
+ * (backend/app/Services/ProductionLineService.php), which this array must
+ * be kept in sync with. Names and icon mapping (StationGrid.vue's
+ * `ACTIVE_ICONS`) match the Phase 2 reference mock
  * (.asdlc/generated/2-business-spec/screens/html/screen-006--station-list.html)
  * exactly. `idSuffix` combines with `business_unit_id` to build a stable,
  * deterministic local id — safe to re-run every login via `INSERT OR
  * IGNORE` without duplicating rows or needing a "have we seeded"
  * version flag. stationRepo.ts's query orders placeholders by `id ASC`
- * (tie-break after the 3 active types) — the 12 placeholder `idSuffix`
- * values are zero-padded (`01-`..`12-`) in this exact array's order so
- * that sort lands in the same order as the mock, not alphabetical.
+ * (tie-break after the active types) — the 1 remaining placeholder
+ * `idSuffix` is zero-padded (`01-`) for consistency with its prior
+ * numbering.
+ *
+ * 2026-08-23 — 4 of the former 12 `other` placeholders promoted to active
+ * MVP stations: 'Thresher' → 'Threshing' (type threshing), 'Press' →
+ * 'Pressing' (type pressing), 'Digester' → 'Depricarping' (type
+ * depricarping), 'Kernel Plant' stays same name (type kernel-plant) —
+ * leaving 8 `other` placeholders (`01-`..`12-`, with gaps where the 4
+ * promoted suffixes used to sit).
+ *
+ * 2026-08-31 — 6 of the remaining 8 `other` placeholders promoted to
+ * active stations: 'Clarification' stays same name (type clarification),
+ * 'Boiler' → 'Boiler Room' (type boiler-room), 'Effluent Treatment' →
+ * 'Effluent Plant' (type effluent-plant), 'Engine Room' stays same name
+ * (type engine-room), 'Water Treatment' → 'Process Water' (type
+ * process-water), 'Bulking Storage' → 'Storage Tank' (type storage-tank)
+ * — leaving only 'Sterilizer' and 'Loading Ramp' as `other` placeholders,
+ * renumbered `01-`/`02-` since there are only 2 left. 4 brand-new active
+ * stations also appended: 'Solid Waste Disposal' (type
+ * solid-waste-disposal), 'Kernel Dispatch' (type kernel-dispatch), 'CPO
+ * Dispatch' (type cpo-dispatch), 'Process Quality Control' (type
+ * process-quality-control) — mirrors
+ * ProductionLineService::DEFAULT_STATIONS verbatim (see that file's own
+ * 2026-08-31 doc comment).
+ *
+ * 2026-09-01 — 'Loading Ramp' removed entirely: it turned out to be a
+ * duplicate name for the already-active Cages Track station, not a
+ * distinct station. Only 'Sterilizer' remained as an `other` placeholder
+ * at that point.
+ *
+ * 2026-09-01 (final promotion) — 'Sterilizer' promoted from `other`
+ * placeholder to a fully active station (type `sterilizer`, idSuffix
+ * simplified from '01-sterilizer' to 'sterilizer' now that it sits
+ * alongside the other 17 active entries, not in a separate numbered
+ * placeholder list). This was the LAST remaining placeholder — 0
+ * placeholders remain anywhere in this project after this.
  */
 const DEFAULT_STATIONS: Array<{ idSuffix: string; name: string; type: string; isActive: boolean }> = [
   { idSuffix: 'weighbridge', name: 'Weighbridge', type: 'weighbridge', isActive: true },
   { idSuffix: 'grading', name: 'Grading', type: 'grading', isActive: true },
   { idSuffix: 'cages-track', name: 'Cages Track', type: 'cages-track', isActive: true },
+  { idSuffix: 'sterilizer', name: 'Sterilizer', type: 'sterilizer', isActive: true },
   { idSuffix: 'threshing', name: 'Threshing', type: 'threshing', isActive: true },
   { idSuffix: 'pressing', name: 'Pressing', type: 'pressing', isActive: true },
   { idSuffix: 'depricarping', name: 'Depricarping', type: 'depricarping', isActive: true },
   { idSuffix: 'kernel-plant', name: 'Kernel Plant', type: 'kernel-plant', isActive: true },
-  { idSuffix: '01-sterilizer', name: 'Sterilizer', type: 'other', isActive: false },
-  { idSuffix: '04-clarification', name: 'Clarification', type: 'other', isActive: false },
-  { idSuffix: '06-boiler', name: 'Boiler', type: 'other', isActive: false },
-  { idSuffix: '07-effluent-treatment', name: 'Effluent Treatment', type: 'other', isActive: false },
-  { idSuffix: '08-loading-ramp', name: 'Loading Ramp', type: 'other', isActive: false },
-  { idSuffix: '10-engine-room', name: 'Engine Room', type: 'other', isActive: false },
-  { idSuffix: '11-water-treatment', name: 'Water Treatment', type: 'other', isActive: false },
-  { idSuffix: '12-bulking-storage', name: 'Bulking Storage', type: 'other', isActive: false },
+  { idSuffix: 'clarification', name: 'Clarification', type: 'clarification', isActive: true },
+  { idSuffix: 'boiler-room', name: 'Boiler Room', type: 'boiler-room', isActive: true },
+  { idSuffix: 'effluent-plant', name: 'Effluent Plant', type: 'effluent-plant', isActive: true },
+  { idSuffix: 'engine-room', name: 'Engine Room', type: 'engine-room', isActive: true },
+  { idSuffix: 'process-water', name: 'Process Water', type: 'process-water', isActive: true },
+  { idSuffix: 'storage-tank', name: 'Storage Tank', type: 'storage-tank', isActive: true },
+  { idSuffix: 'solid-waste-disposal', name: 'Solid Waste Disposal', type: 'solid-waste-disposal', isActive: true },
+  { idSuffix: 'kernel-dispatch', name: 'Kernel Dispatch', type: 'kernel-dispatch', isActive: true },
+  { idSuffix: 'cpo-dispatch', name: 'CPO Dispatch', type: 'cpo-dispatch', isActive: true },
+  { idSuffix: 'process-quality-control', name: 'Process Quality Control', type: 'process-quality-control', isActive: true },
 ]
 
 /**
@@ -824,7 +1548,7 @@ async function dedupeStationRows(): Promise<void> {
 }
 
 /**
- * Seeds the 15 default MVP stations for `businessUnitId` — replace, not
+ * Seeds the 18 default MVP stations for `businessUnitId` — replace, not
  * merge: deletes every existing `station` row for this business unit
  * FIRST, then inserts the fixed synthetic set fresh. This is now a
  * fallback-only path (Production Line fetch unreachable — see

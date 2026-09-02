@@ -1,0 +1,66 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-064--monitor-cpo-dispatch",
+  "name": "Monitor CPO Dispatch",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/cpoDispatchRecordRepo.ts",
+    "mobile/src/views/MonitorCpoDispatchView.vue",
+    "mobile/src/services/localSchema.ts",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/StationListView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/cpoDispatchRecordRepo.spec.ts",
+    "mobile/tests/MonitorCpoDispatchView.spec.ts",
+    "mobile/tests/StationListView.spec.ts"
+  ],
+  "implementation_notes": [
+    "Mirrors MonitorKernelDispatchView.vue's structural pattern (breadcrumb + hamburger header, draft/pause list, New Data/Load Data/Back footer) but with EVENT-LOG summary semantics: 'Hari Ini' shows Jumlah CPO Dispatch + Jumlah Kejadian Tercatat (not a tipping-progress metric), plus a 'Kejadian Terakhir' card (getLastEventSummary()) showing the single most-recently-logged event across ALL of the user's records (not scoped to today), displaying destination/buyer + event date + tanker plate no instead of Kernel Dispatch's destination/buyer/date/vehicle-plate-no triple (tankerPlateNo is the CPO Dispatch analog of vehiclePlateNo)",
+    "localSchema.ts gained 2 new tables (cpo_dispatch_record, cpo_dispatch_detail) via CREATE TABLE IF NOT EXISTS — no column-migration function needed since these are brand-new tables, not an existing-table schema change",
+    "router/index.ts gained 3 new routes: monitor-cpo-dispatch, cpo-dispatch-form, data-preview-cpo-dispatch",
+    "StationListView.vue's draftStatusByType wiring updated: 'cpo-dispatch' now calls cpoDispatchRecordRepo.getDrafts(userId).length > 0 instead of the previous hardcoded false placeholder — MONITOR_ROUTE_NAMES already had 'monitor-cpo-dispatch' mapped from an earlier station-list update, so the tile itself needed no further changes. Test file updated with a matching mock (getCpoDispatchDraftsMock) plus a default mockResolvedValue([]) added alongside every existing kernelDispatch default, following the exact convention used for Kernel Dispatch/Process Water/Solid Waste Disposal",
+    "cpoDispatchRecordRepo.ts is a new, from-scratch repo file (no pre-existing block to extend) — createDraft()/getTodaySummary()/getLastEventSummary()/getDrafts()/getAllRecords()/getDraftWithDetails()/saveDraft()/pauseDraftWithFormData()/deleteDraft() all written together, with 21 detail columns per entity-catalog cpo-dispatch-detail. Unlike Kernel Dispatch, there is no remarks_gate_status/weighbridge_ticket_no column — CPO Dispatch instead has time_in/time_out (two separate time columns, distinct from event_date) and dobi"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser/E2E test not generated for this pass (no Playwright infra wired into this sandbox run) — component-level (Vitest) coverage exercises the same navigation/business logic instead.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % not measured — no Xdebug/PCOV in this environment, consistent with prior stations in this codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 15,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 12,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,184 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-090--data-preview-process-quality-control",
+  "name": "Data Preview Process Quality Control",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/process-quality-control/preview/:id?",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-117--data-preview-process-quality-control",
+      "usecase_name": "Lihat Data Process Quality Control Tersimpan",
+      "endpoints": [],
+      "business_logic": [
+        "1. Route-driven mode via watch() on the :id param (immediate: true) — param kosong → loadList(), param terisi → loadDetail(id)",
+        "2. loadList(): SELECT seluruh process_quality_control_record milik current user, apapun statusnya, ORDER BY updated_at DESC; set dateFilter default ke tanggal lokal hari ini, searchFilter kosong",
+        "3. filteredRecords computed: filter by dateFilter (bandingkan item.date.slice(0,10)) DAN searchFilter (substring case-insensitive terhadap process_qc_id)",
+        "4. On tap list item → jika status draft_ongoing/draft_paused: navigasi ke Form Process Quality Control dengan id item; jika saved/synced: navigasi ke route ini sendiri dengan :id param diisi (transisi ke mode detail)",
+        "5. loadDetail(id): getDraftWithDetails(id) — SELECT header + seluruh process_quality_control_detail rows (berapapun jumlahnya, termasuk nol), tanpa hitung ulang; not found → detailNotFound=true",
+        "6. Render mode detail: seluruh field header read-only + grid Process Quality Control Detail (16 kolom bacaan/keterangan + Findings per baris) langsung dari data tersimpan",
+        "7. On 'Reset Filter' (mode list, saat hasil kosong) → kosongkan dateFilter dan searchFilter",
+        "8. On 'Back' → mode detail: navigasi ke mode list (route sama, tanpa :id); mode list: navigasi ke Monitor Process Quality Control"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "process-quality-control-record",
+          "operation": "SELECT",
+          "description": "SELECT seluruh record milik user (mode list), atau 1 record by id (mode detail)"
+        },
+        {
+          "entity_id": "process-quality-control-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris milik record yang dibuka di mode detail (berapapun jumlahnya)"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Belum ada record Process Quality Control sama sekali",
+          "handling": "Mode list menampilkan empty state (record-list-empty)"
+        },
+        {
+          "condition": "Filter tidak menghasilkan apapun",
+          "handling": "Pesan tidak ditemukan + tombol Reset Filter ditampilkan"
+        },
+        {
+          "condition": "id pada mode detail tidak ditemukan",
+          "handling": "detailNotFound=true, tampilkan pesan error + tombol Back"
+        },
+        {
+          "condition": "Record memiliki nol baris Process Quality Control Detail",
+          "handling": "Grid menampilkan empty-state (process-quality-control-detail-rows-empty), bukan error"
+        },
+        {
+          "condition": "Item draft/pause ditekan di mode list",
+          "handling": "Navigasi ke Form Process Quality Control, bukan transisi ke mode detail layar ini"
+        }
+      ],
+      "business_rules_applied": [
+        "Detail record bersifat murni read-only",
+        "List menampilkan seluruh record apapun statusnya",
+        "Filter tanggal default ke hari ini saat list pertama kali dibuka",
+        "Checked By/Acknowledged By ditampilkan apa adanya tanpa pembatasan role"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads and filters records by today's date by default",
+          "given": "processQualityControlRecordRepo.getAllRecords(userId) returns records with mixed dates including today",
+          "expect": "filteredRecords initially only includes records dated today"
+        },
+        {
+          "description": "filters records by case-insensitive process_qc_id substring search",
+          "given": "records with process_qc_id 'PQC-01' and 'pqc-02', searchFilter='pqc-0'",
+          "expect": "both records match; searchFilter is case-insensitive"
+        },
+        {
+          "description": "navigates to Form Process Quality Control (not detail mode) when a draft/pause item is tapped",
+          "given": "a list item with status='draft_paused'",
+          "expect": "router navigates to route 'process-quality-control-form' with the item's id; no transition into this screen's own detail mode"
+        },
+        {
+          "description": "navigates into this screen's own detail mode when a saved/synced item is tapped",
+          "given": "a list item with status='saved'",
+          "expect": "router navigates to this screen's own route with :id set to the item's id"
+        },
+        {
+          "description": "loads full detail including all process_quality_control_detail rows when a valid id param is present",
+          "given": "getDraftWithDetails(id) returns a record with 5 process_quality_control_detail rows",
+          "expect": "detailRecord and detailRows are populated with all 5 rows, canonical time-slot order"
+        },
+        {
+          "description": "sets detailNotFound when the id does not match any local record",
+          "given": "getDraftWithDetails(id) returns null",
+          "expect": "detailNotFound=true; detail UI shows a not-found message with a working Back button"
+        },
+        {
+          "description": "renders an empty detail grid without error when the record has zero process_quality_control_detail rows",
+          "given": "getDraftWithDetails(id) returns a record with details=[]",
+          "expect": "detailRows=[]; UI shows the empty-state message, not an error"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-070--monitor-process-quality-control",
+      "reason": "Entry point (Load Data) dan tujuan Back dari mode list"
+    },
+    {
+      "screen_id": "screen-080--form-process-quality-control",
+      "reason": "Tap item draft/pause di mode list membuka Form Process Quality Control"
+    }
+  ],
+  "implementation_notes": [
+    "Semua operasi lokal di SQLite via processQualityControlRecordRepo.ts (getAllRecords, getDraftWithDetails), tidak ada panggilan API",
+    "Dual-mode via watch() pada route :id param (immediate: true), Vue Router reuse instance komponen ini untuk navigasi param-only pada route record yang sama",
+    "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak ada section untuk itu di mode detail",
+    "Date filter membandingkan item.date.slice(0,10) karena process_quality_control_record.date adalah datetime lokal penuh (YYYY-MM-DDTHH:mm:ss)",
+    "Badge status list mode: draft_ongoing/draft_paused → 'Pause'; saved → 'Tersimpan'; synced → 'Tersinkron' (LIST_STATUS_BADGE_MAP); mode detail memakai mapping berbeda yang membedakan ongoing vs paused (DETAIL_STATUS_BADGE_MAP), mirrors DataPreviewClarificationView.vue persis",
+    "Grid detail menampilkan 16 kolom (Shift, 12 numerik, QC Inspector ID, QC Engineering Corrective Actions) + Findings per baris, urutan kolom migration"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Data Process Quality Control Tersimpan — success",
+      "usecase_id": "usecase-117--data-preview-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewProcessQualityControlView",
+        "action": "render list mode with a saved record, tap that record",
+        "assert": "router navigates into this screen's own detail mode with the record's id; detail view renders all header fields and the Process Quality Control Detail grid"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/preview",
+        "action": "from Monitor Process Quality Control tap Load Data, then tap a Tersimpan/Tersinkron item",
+        "assert": "browser shows the read-only detail page with header fields and Process Quality Control Detail grid matching the stored record"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Process Quality Control Tersimpan — Record Tidak Ditemukan",
+      "usecase_id": "usecase-117--data-preview-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewProcessQualityControlView",
+        "action": "mount detail mode with an id that does not exist locally",
+        "assert": "detailNotFound=true; not-found message and Back button rendered"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/preview/00000000-0000-0000-0000-000000000000",
+        "action": "navigate directly to a non-existent record id",
+        "assert": "page shows a record-not-found message with a working Back button"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Data Process Quality Control Tersimpan — List Kosong",
+      "usecase_id": "usecase-117--data-preview-process-quality-control",
+      "api_test": [],
+      "component_test": {
+        "component": "DataPreviewProcessQualityControlView",
+        "action": "render list mode when getAllRecords returns []",
+        "assert": "empty-state message shown"
+      },
+      "browser_test": {
+        "route": "/stations/process-quality-control/preview",
+        "action": "open Data Preview Process Quality Control list mode with no records for the user",
+        "assert": "empty-state message visible"
+      }
+    }
+  ]
+}

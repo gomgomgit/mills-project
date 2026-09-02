@@ -1,0 +1,77 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-119--detail-process-quality-control-web",
+  "name": "Lihat Detail Process Quality Control (Web)",
+  "description": "Supervisor, Mill Management, atau Admin melihat 1 record Process Quality Control secara lengkap dan read-only dari web.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User berasal dari Data Browser Process Quality Control (Web) dan mengklik salah satu baris"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Memuat record Process Quality Control by id beserta seluruh baris Process Quality Control Detail-nya"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan seluruh field header dan grid Process Quality Control Detail secara read-only"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Record Tidak Ditemukan",
+      "trigger": "id tidak ditemukan",
+      "steps": [
+        "System menampilkan pesan error dengan tombol Back"
+      ]
+    },
+    {
+      "name": "Edit",
+      "trigger": "User menekan tombol Edit",
+      "steps": [
+        "System menavigasikan ke Form Process Quality Control (Web) mode ubah untuk record ini"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail lengkap record Process Quality Control secara read-only"
+  ],
+  "business_rules": [
+    "Seluruh field read-only",
+    "Checked By dan Acknowledged By keduanya ditampilkan apa adanya",
+    "Grid Process Quality Control Detail ditampilkan langsung dari data tersimpan, menampilkan persis baris yang ada"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Detail Process Quality Control - berhasil",
+      "given": "id record valid",
+      "when": "User membuka halaman detail",
+      "then": "Seluruh field record dan grid Process Quality Control Detail ditampilkan read-only"
+    },
+    {
+      "scenario": "Lihat Detail Process Quality Control - Record Tidak Ditemukan",
+      "given": "id record tidak valid",
+      "when": "User membuka halaman detail dengan id tersebut",
+      "then": "Sistem menampilkan pesan error dan tombol Back yang berfungsi"
+    },
+    {
+      "scenario": "Lihat Detail Process Quality Control - Edit",
+      "given": "User berada di halaman detail",
+      "when": "User menekan tombol Edit",
+      "then": "Sistem menavigasikan ke Form Process Quality Control (Web) mode ubah untuk record tersebut"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-110--detail-process-quality-control-web"
+  ]
+}

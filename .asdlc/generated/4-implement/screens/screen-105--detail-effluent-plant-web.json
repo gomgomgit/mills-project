@@ -1,0 +1,60 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-105--detail-effluent-plant-web",
+  "name": "Detail Effluent Plant (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/DetailEffluentPlantTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DetailEffluentPlant.php",
+    "backend/resources/views/data/effluent-plant-detail.blade.php",
+    "backend/resources/views/livewire/data/detail-effluent-plant.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DetailEffluentPlantTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses EffluentPlantRecordService::getDetail() (BE service shared with screen-095, see that screen's implement artifact for the service/controller/route/factory files)",
+    "Field grouping/order in the Blade view mirrors mobile/src/views/DataPreviewEffluentPlantView.vue's detail mode exactly (Effluent Plant ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Effluent Plant Detail with all 19 reading/status columns), per explicit product direction that web station screens mirror mobile flow/UX",
+    "Route /data/effluent-plant/{id} registered after /data/effluent-plant/create (screen-115) so the literal 'create' segment is not swallowed by {id}",
+    "UNLIKE Detail Threshing: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
+    "404 handled automatically by ModelNotFoundException -> ApiExceptionHandler (findOrFail), same as every other detail screen in this codebase"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DetailEffluentPlantTest.php) was authored but could not be executed in this sandboxed environment -- verified only by static review.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T01:52:00Z",
+      "passed": 8,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T01:52:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

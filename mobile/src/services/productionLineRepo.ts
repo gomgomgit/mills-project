@@ -5,7 +5,7 @@ import { run } from '@/services/localDb'
  * "Pilih Stasiun", updated 2026-08-20 for the Production Line feature
  * (entity-catalog v9: Business Unit → Production Line → Station — a
  * Business Unit/mill can now have several Production Lines, each with its
- * own full set of 15 stations).
+ * own full set of 18 stations).
  *
  * Talks to the two self-scoped mobile-facing backend endpoints
  * (App\Http\Controllers\Api\ProductionLineController::current()/

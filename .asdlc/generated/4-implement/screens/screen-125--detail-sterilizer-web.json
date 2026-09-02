@@ -1,0 +1,77 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-125--detail-sterilizer-web",
+  "name": "Detail Sterilizer (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/SterilizerRecordController.php",
+    "backend/app/Services/SterilizerRecordService.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/SterilizerRecordServiceTest.php",
+    "backend/tests/Feature/Api/DetailSterilizerTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DetailSterilizer.php",
+    "backend/resources/views/livewire/data/detail-sterilizer.blade.php",
+    "backend/resources/views/data/sterilizer-detail.blade.php",
+    "backend/routes/web.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DetailSterilizerTest.php",
+    "backend/tests/Browser/DetailSterilizerTest.php"
+  ],
+  "implementation_notes": [
+    "Dual entry point: GET /api/sterilizer-records/{id} (SterilizerRecordController::show()) dan Livewire DetailSterilizer keduanya panggil SterilizerRecordService::getDetail() yang sama, mengikuti pola screen-104 (Detail CPO Dispatch Web) persis",
+    "getDetail() eager-load station/createdBy/checkedBy/acknowledgedBy/sterilizerDetails dan resolve ke station_name/created_by_name/checked_by_name/acknowledged_by_name",
+    "details di-sort by created_at (BUKAN event_date — kolom itu tidak ada di Sterilizer Detail) di service layer (toDetailRow()), supaya urutan insert konsisten",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-104",
+    "Field grouping & urutan field di blade view mengikuti struktur mobile/src/views/DataPreviewSterilizerView.vue mode detail, per arahan eksplisit: web station screens mengikuti flow/UX mobile",
+    "Route /sterilizer-records/{id} didaftarkan SETELAH /sterilizer-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}",
+    "checked_by_spv per baris ditampilkan sebagai teks 'Ya'/'Tidak' di blade view (bukan checkbox interaktif, karena seluruh halaman read-only)"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV.",
+      "severity": "minor"
+    },
+    {
+      "description": "Response error tidak punya field error_code mesin-terbaca, hanya message (404 generik), konsisten dengan pola error_format di seluruh codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 28,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 8,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-116--form-storage-tank-web",
+  "name": "Form Storage Tank (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/FormStorageTankTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormStorageTank.php",
+    "backend/resources/views/data/storage-tank-form.blade.php",
+    "backend/resources/views/livewire/data/form-storage-tank.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormStorageTankTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses StorageTankRecordService::create()/update() (BE service shared with screen-096)",
+    "The Storage Tank Detail grid is fully dynamic -- addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions() on FormStorageTank.php, exactly mirroring FormEffluentPlant's grid. Grid starts empty on create mode; edit mode loads existing rows verbatim with each row's id",
+    "All 17 non-time_slot columns per row are genuinely editable, never disabled -- Storage Tank has no computed detail-grid fields. 1 of them (Steam Heating Valve Status) renders as a <select> dropdown with an empty '-- Pilih --' option (Closed/Open 1/4/Open 1/2)",
+    "IMPORTANT -- enum empty-string-vs-null: the Steam Heating Valve Status dropdown submits '' when left unselected; StorageTankRecordService::normalizeDetails() (shared with screen-096) coerces this to null before validation/persistence, avoiding a SQLite CHECK constraint violation -- verified by a dedicated unit test and a Feature/Api test (Kernel Dispatch/Effluent Plant previously hit this same failure mode; this station's pre-existing crash-survived code already had the fix in place, confirmed correct rather than needing to be added)",
+    "UNLIKE Form Threshing Web: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
+    "Route /data/storage-tank/create registered BEFORE /data/storage-tank/{id} (screen-106) so the literal 'create' segment is not swallowed by {id} -- verified against the pre-existing (crash-survived) routes/web.php, already correct",
+    "checked/acknowledged self-attestation checkboxes mirror FormEffluentPlant's dual-checkbox pattern (both Checked By AND Acknowledged By)",
+    "NoActiveStorageTankStationException (mirrors NoActiveEffluentPlantStationException) thrown when production_line_id has no active station type=storage-tank"
+  ],
+  "deferred_items": [
+    {
+      "description": "The mobile 'Sinkronisasi' button does not yet call POST/PATCH /api/storage-tank-records for locally-entered records",
+      "reason": "Out of this 6-screen task's explicit scope (see screen-096's implement artifact for the full rationale) -- the dual-guarded route already supports this when a future syncService.ts addition wires it up."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/FormStorageTankTest.php) was not authored/found for this screen in this task -- integration (Feature/Api) and component (Feature/Livewire) coverage is complete and passing, but there is no browser-level verification of this screen's create/edit flow in a live dev server.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T03:05:00Z",
+      "passed": 14,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T03:05:00Z",
+      "passed": 18,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

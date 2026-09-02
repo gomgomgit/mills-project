@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 6,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-09-01"
   },
   "overview": "Mill Smart Log adalah sistem manajemen operasional pabrik CPO (mill) yang mendigitalisasi log sheet stasiun produksi — Operator menginput data melalui aplikasi mobile offline-first, sementara Supervisor, Mill Management, dan Admin mengelola, memonitor, dan turut menginput data stasiun melalui web (dan mobile untuk Supervisor), menggantikan pencatatan manual berbasis kertas.",
   "problem_statement": "Pencatatan log stasiun pabrik CPO secara manual (kertas) menyebabkan keterlambatan pelaporan, risiko kesalahan input, kesulitan konsolidasi data lintas stasiun, dan tidak adanya jalur input cadangan saat operator lapangan tidak dapat mengakses perangkat mobile.",
@@ -22,10 +22,6 @@
     {
       "item": "Menyiapkan struktur data (status sinkronisasi, ID stabil) agar records siap dikirim ke API/sync di fase mendatang",
       "reason": "Memungkinkan integrasi sinkronisasi dan ERP tanpa migrasi skema besar nantinya"
-    },
-    {
-      "item": "Menyediakan basis data skalabel untuk 8 stasiun desain masa depan (Sterilization, Clarification, Boiler, Effluent Treatment, Loading Ramp, Engine Room, Water Treatment, Bulking Storage) tanpa mengimplementasikan layar operasionalnya di MVP",
-      "reason": "Mempersiapkan ekspansi tanpa menambah kompleksitas MVP"
     },
     {
       "item": "Menyediakan mekanisme sync manual dari mobile ke API Laravel (dipicu aksi eksplisit Operator/Supervisor)",
@@ -50,6 +46,14 @@
     {
       "item": "Menyediakan tabel referensi target operasional (read-only) pada form Threshing, Pressing, Depricarping, dan Kernel Plant — parameter/metric, target/range, dan action plan/critical limit sesuai log sheet kertas asli",
       "reason": "Operator/Supervisor butuh acuan standar operasional saat menginput data time-slot tanpa membuka dokumen kertas terpisah"
+    },
+    {
+      "item": "Mendigitalisasi log 10 stasiun tambahan: promosi 6 stasiun dari skema placeholder menjadi stasiun aktif penuh (Clarification, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Process Water) dan penambahan 4 stasiun operasional baru (Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control) — total 18 stasiun kanonis per Production Line (17 aktif + 1 placeholder tersisa: Sterilizer). Placeholder 'Loading Ramp' dihapus sepenuhnya dari daftar kanonis (revisi 2026-09-01) setelah teridentifikasi sebagai nama duplikat untuk stasiun yang sama dengan Cages Track, bukan stasiun terpisah.",
+      "reason": "Melengkapi cakupan operasional mill dari proses inti (clarification, utilitas boiler/engine/effluent/air) hingga hilir (dispatch CPO/kernel/limbah) dan kontrol kualitas proses, mengikuti kebutuhan lapangan yang berkembang dari log sheet kertas yang masih dipakai untuk stasiun-stasiun ini"
+    },
+    {
+      "item": "Mendigitalisasi log stasiun placeholder terakhir: Sterilizer, dipromosikan dari skema placeholder menjadi stasiun aktif penuh — melengkapi seluruh 18 stasiun kanonis per Production Line menjadi 100% aktif, tidak ada lagi stasiun placeholder skema masa depan yang tersisa",
+      "reason": "Log sheet kertas Sterilizer (siklus sterilisasi TBS: Close Door/Peak/Exhaust/Open Door Time, jumlah cages, status cages) masih dipakai di lapangan dan perlu didigitalisasi sama seperti 17 stasiun aktif lainnya"
     }
   ],
   "non_goals": [
@@ -80,10 +84,6 @@
     {
       "item": "Full PDF template/report engine",
       "reason": "Pelaporan MVP cukup dashboard, data browser, ekspor CSV/Excel dasar"
-    },
-    {
-      "item": "Implementasi 8 stasiun desain masa depan sisanya (Sterilization, Clarification, Boiler, Effluent Treatment, Loading Ramp, Engine Room, Water Treatment, Bulking Storage) sebagai layar mobile/web",
-      "reason": "Tetap di level skema data saja untuk MVP — hanya Threshing, Pressing, Depricarping, dan Kernel Plant yang dipromosikan menjadi stasiun aktif pada revisi ini"
     }
   ],
   "initial_actors": [
@@ -107,6 +107,18 @@
     },
     {
       "assumption": "Tabel referensi target operasional (Threshing/Pressing/Depricarping/Kernel Plant) diseed oleh Admin dan ditampilkan read-only di form — bukan bagian dari payload create/update record time-slot",
+      "status": "confirmed"
+    },
+    {
+      "assumption": "10 stasiun baru (revisi 2026-08-31) tidak memerlukan tabel referensi target operasional read-only seperti Threshing/Pressing/Depricarping/Kernel Plant — tidak ada acuan target/range pada form sumbernya",
+      "status": "confirmed"
+    },
+    {
+      "assumption": "3 dari 10 stasiun baru (Solid Waste Disposal, Kernel Dispatch, CPO Dispatch) memakai pola input 'catat per kejadian' (baris ditambah manual per pengiriman/pembuangan, jumlah baris per hari tidak dibatasi 24) mengikuti pola Cages Track, bukan grid 24-jam seperti Threshing/Pressing/Depricarping/Kernel Plant; 7 stasiun baru lainnya (Process Water, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Clarification, Process Quality Control) memakai grid 24-jam",
+      "status": "confirmed"
+    },
+    {
+      "assumption": "Sterilizer (revisi 2026-09-01, promosi placeholder terakhir) memakai pola input 'catat per kejadian' (event-log, mengikuti pola persis Cages Track/Solid Waste Disposal/Kernel Dispatch/CPO Dispatch) — satu baris detail = satu siklus sterilisasi, bukan grid 24-jam. Field 'Duration (Minutes)' dihitung otomatis oleh sistem (Open Door Time − Close Door Time), bukan input manual. Field 'Checked by SPV' per-baris berupa checkbox boolean sederhana (bukan referensi nama Supervisor seperti header 'Checked By'). Field 'Sterilizer No' dan 'Cages Status' adalah teks/angka bebas tanpa enum. Semua field waktu (Close Door/Peak 1-3/Exhaust 1-3/Open Door Time) berformat jam saja (HH:mm), memakai Date dari header record.",
       "status": "confirmed"
     }
   ],
@@ -158,6 +170,14 @@
     {
       "type": "technical",
       "description": "Detail time-slot Threshing/Pressing/Depricarping/Kernel Plant memakai tabel detail khusus per stasiun (bukan tabel measurement generik). Baris ditambahkan MANUAL oleh user satu per satu (aksi 'Tambah baris' + pilih jam dari dropdown sisa slot kanonis 07:00–06:00, urutan menaik), BUKAN grid statis 24 baris pre-generated — mengikuti pola persis Cages Track (cages_tipped_time), direvisi 2026-08-24 dari desain awal agar form tidak memakan banyak ruang dan tidak memaksa isi tiap jam."
+    },
+    {
+      "type": "technical",
+      "description": "10 stasiun baru (revisi 2026-08-31) masing-masing memakai tabel record + detail/event khusus per stasiun, mengikuti dua pola yang sudah ada: pola grid-per-jam ala Threshing (Process Water, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Clarification, Process Quality Control — baris ditambah manual, dropdown slot jam 07:00–06:00) dan pola log-per-kejadian ala Cages Track (Solid Waste Disposal, Kernel Dispatch, CPO Dispatch — baris ditambah bebas per kejadian pengiriman/pembuangan, tidak dibatasi 24/hari). Tidak ada tabel operational-target untuk 10 stasiun ini."
+    },
+    {
+      "type": "technical",
+      "description": "Sterilizer (revisi 2026-09-01, promosi placeholder terakhir) memakai tabel record + detail event-log khusus (sterilizer_record + sterilizer_detail), mengikuti pola persis Cages Track — baris detail ditambah bebas per siklus sterilisasi, tidak dibatasi jumlah per hari, tanpa tabel operational-target. Field Duration (Minutes) pada detail dihitung/di-derive dari Close Door Time dan Open Door Time di level aplikasi (bukan kolom yang diinput user)."
     }
   ],
   "success_metrics": [

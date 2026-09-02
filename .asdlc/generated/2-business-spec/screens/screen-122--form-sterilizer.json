@@ -1,0 +1,155 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-122--form-sterilizer",
+  "name": "Form Sterilizer",
+  "module_id": "module-mobile-station-ops",
+  "description": "Form input/edit data log Sterilizer yang mencatat data header (Sterilizer ID, Date otomatis, verifikasi Checked By/Acknowledged By) dan log detail per-siklus sterilisasi TBS (baris ditambah manual sesuai siklus Close Door s.d. Open Door, TIDAK dibatasi jumlah baris per hari), mengikuti pola Form CPO Dispatch/Kernel Dispatch/Solid Waste Disposal.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap 'New Data' dari Monitor Sterilizer (draft baru)",
+    "Tap salah satu item draft/pause di list Monitor Sterilizer (lanjutkan draft)"
+  ],
+  "information_displayed": [
+    "Identitas Sterilizer: Sterilizer ID (input manual, wajib), Date (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit)",
+    "Verifikasi: Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (hanya bisa diisi Supervisor), Acknowledged By (hanya bisa diisi Mill Management), Note (input manual, opsional)",
+    "Log Siklus Sterilisasi: tabel baris per-siklus dengan kolom Sterilizer No, Close Door Time, Peak 1 Time, Exhaust 1 Time, Peak 2 Time, Exhaust 2 Time, Peak 3 Time, Exhaust 3 Time, Open Door Time, Duration (Minutes, dihitung otomatis = Open Door Time − Close Door Time), Number of Cages, Cages Status, Checked by SPV (checkbox), Remarks — baris dapat ditambah dan dihapus, jumlah baris TIDAK dibatasi per hari",
+    "Breadcrumb navigasi (Home > Production Process Activity > Sterilizer > Form) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu"
+  ],
+  "available_actions": [
+    {
+      "action": "Isi Sterilizer ID",
+      "description": "Mengisi identifikasi record Sterilizer (wajib)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tambah baris Log Siklus",
+      "description": "Menambah satu baris siklus baru ke log (tidak dibatasi jumlahnya)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus baris Log Siklus",
+      "description": "Menghapus satu baris dari log",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi field baris siklus",
+      "description": "Mengisi Close Door Time (wajib per baris) dan field lain (opsional) pada baris, termasuk Peak/Exhaust Time dan Open Door Time; Duration (Minutes) dihitung otomatis dari Open Door Time − Close Door Time",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Centang Checked by SPV",
+      "description": "Menandai satu baris siklus sudah diperiksa Supervisor — checkbox sederhana per baris, bukan referensi nama Supervisor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi Checked By",
+      "description": "Mengisi field verifikasi header Checked By",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi Acknowledged By",
+      "description": "Mengisi field verifikasi Acknowledged By",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record data Sterilizer secara final",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progress saat ini sebagai draft yang bisa dilanjutkan nanti, kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus draft ini secara permanen (dengan konfirmasi), kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor tanpa menyimpan, dengan konfirmasi jika ada perubahan belum tersimpan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Inputted By otomatis diambil dari user yang login, tidak dapat diedit manual",
+    "Checked By hanya bisa diisi/diedit oleh Supervisor; Acknowledged By hanya bisa diisi/diedit oleh Mill Management — KEDUANYA berbeda dari Checked by SPV per-baris yang merupakan checkbox sederhana, bukan referensi user",
+    "Log Siklus adalah event-log bebas — baris ditambah manual sesuai siklus sterilisasi, jumlah baris TIDAK dibatasi 24/hari seperti stasiun grid-jam, mengikuti pola CPO Dispatch/Kernel Dispatch/Solid Waste Disposal",
+    "Minimal satu baris Log Siklus dengan Close Door Time terisi harus ada sebelum Simpan",
+    "Duration (Minutes) dihitung otomatis = Open Door Time − Close Door Time, TIDAK PERNAH dapat diedit manual oleh user",
+    "Record tersimpan langsung begitu Simpan ditekan (bukan approval workflow berjenjang)",
+    "Field wajib ditandai asterisk dengan validasi inline"
+  ],
+  "usecase_ids": [
+    "usecase-122--form-sterilizer"
+  ],
+  "edge_cases": [
+    "Field wajib (Sterilizer ID) belum lengkap saat Simpan ditekan",
+    "Belum ada baris Log Siklus dengan Close Door Time terisi saat Simpan ditekan",
+    "Operator mencoba mengisi/mengedit Checked By atau Acknowledged By (header)",
+    "Siklus melewati tengah malam (Open Door Time lebih awal dari Close Door Time) — Duration tetap dihitung benar dengan asumsi siklus menyeberang hari",
+    "Draft yang di-Pause lalu dilanjutkan",
+    "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
+    "User menekan Clear (perlu konfirmasi sebelum hapus permanen)",
+    "User menghapus baris Log Siklus yang sudah ada sebelumnya (bukan baru ditambah)"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

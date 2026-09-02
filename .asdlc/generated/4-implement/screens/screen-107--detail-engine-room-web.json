@@ -1,0 +1,61 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-107--detail-engine-room-web",
+  "name": "Detail Engine Room (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/DetailEngineRoomTest.php",
+    "backend/tests/Browser/DetailEngineRoomTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DetailEngineRoom.php",
+    "backend/resources/views/data/engine-room-detail.blade.php",
+    "backend/resources/views/livewire/data/detail-engine-room.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DetailEngineRoomTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses EngineRoomRecordService::getDetail() (BE service shared with screen-097, see that screen's implement artifact for the service/controller/route/factory/model files)",
+    "Field grouping/order in the Blade view mirrors mobile/src/views/DataPreviewEngineRoomView.vue's detail mode exactly (Engine Room ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Engine Room Detail with all 27 reading/status columns), per explicit product direction that web station screens mirror mobile flow/UX",
+    "Route /data/engine-room/{id} registered after /data/engine-room/create (screen-117) so the literal 'create' segment is not swallowed by {id}",
+    "UNLIKE Detail Threshing: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
+    "404 handled automatically by ModelNotFoundException -> ApiExceptionHandler (findOrFail) for the API controller, and via the notFound flag in DetailEngineRoom Livewire component, same as every other detail screen in this codebase"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DetailEngineRoomTest.php) exists following this codebase's established convention but could not be executed in this sandboxed environment -- verified only by static review, consistent with the codebase's Browser/* convention.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T04:07:00Z",
+      "passed": 8,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T04:07:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

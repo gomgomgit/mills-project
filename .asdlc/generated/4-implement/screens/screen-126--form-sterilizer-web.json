@@ -1,0 +1,84 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-126--form-sterilizer-web",
+  "name": "Form Sterilizer (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Exceptions/NoActiveSterilizerStationException.php",
+    "backend/app/Services/SterilizerRecordService.php",
+    "backend/app/Http/Controllers/Api/SterilizerRecordController.php",
+    "backend/routes/api.php",
+    "backend/database/factories/StationFactory.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/SterilizerRecordServiceTest.php",
+    "backend/tests/Feature/Api/FormSterilizerTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormSterilizer.php",
+    "backend/resources/views/livewire/data/form-sterilizer.blade.php",
+    "backend/resources/views/data/sterilizer-form.blade.php",
+    "backend/routes/web.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormSterilizerTest.php",
+    "backend/tests/Browser/FormSterilizerTest.php"
+  ],
+  "implementation_notes": [
+    "Satu Livewire component (FormSterilizer) menangani mode create DAN edit — mode ditentukan oleh ada/tidaknya parameter $id di mount(), sama persis pola FormCpoDispatch/FormKernelDispatch/FormSolidWasteDisposal/FormWeighbridge",
+    "SterilizerRecordService::create()/update() dipanggil dari SterilizerRecordController::store()/update() (API) DAN Livewire FormSterilizer::save() — satu source of truth validasi/business logic",
+    "BERBEDA dari CPO Dispatch: TIDAK ADA kolom event_date per baris — seluruh baris siklus memakai Date milik header. Sebagai gantinya Sterilizer punya 8 kolom time (close_door_time, peak_1_time, exhaust_1_time, peak_2_time, exhaust_2_time, peak_3_time, exhaust_3_time, open_door_time) dan duration_minutes (computed) yang tidak dimiliki CPO Dispatch. checked_by_spv adalah boolean sederhana per baris, dikoersi eksplisit ke (bool) di service layer (upsertDetails()) untuk menghindari isu SQLite integer-vs-boolean",
+    "Duration (Minutes) dihitung server di SterilizerRecordService::computeDurationMinutes() (= open_door_time - close_door_time dalam menit, wrap 24 jam jika open < close, null jika salah satu kosong) via Carbon::createFromFormat('H:i', ...) — TIDAK menerima override dari client meskipun dikirim (diuji eksplisit: FormSterilizerTest 'computes duration_minutes server-side and ignores any client-supplied value')",
+    "PENYESUAIAN KONVENSI WEB TERBARU (berbeda dari precedent Net Weight Form CPO Dispatch Web yang masih pakai disabled <input>): Duration (Minutes) di form-sterilizer.blade.php dirender sebagai <span class=\"sf-computed-value\"> biasa, BUKAN <input disabled> — mengikuti konvensi proyek terbaru 'no disabled/readonly inputs on web forms', field station-readonly (mode edit) tetap memakai <span class=\"sf-field__readonly\"> yang sudah menjadi konvensi sejak beberapa stasiun terakhir (Threshing/Pressing/Depricarping/Kernel Plant dst.)",
+    "DIVERGENSI DARI MOBILE (instruksi eksplisit): Date pada web default hari ini namun TETAP dapat diedit manual — TIDAK dikunci/dibekukan seperti mobile screen-122",
+    "DIVERGENSI DARI MOBILE (instruksi eksplisit): tidak ada draft/pause/Clear di web — Simpan langsung create/update dengan status=saved, record dapat diedit kapan saja lewat mode edit",
+    "Checked By DAN Acknowledged By keduanya ada di form ini sebagai checkbox self-attestation role-gated (header), konsisten dengan mobile screen-122 dan Detail Sterilizer Web (screen-125); Checked by SPV per-baris TIDAK role-gated (checkbox polos untuk siapapun yang berhak akses form)",
+    "Route web /data/sterilizer/create HARUS didaftarkan SEBELUM /data/sterilizer/{id} (screen-125) — sama pola dengan screen-022/023/024/111/113/114",
+    "Ditambahkan tombol 'Tambah Data' di Data Browser (screen-124) dan tombol 'Edit' di Detail (screen-125) sebagai entry point ke screen ini",
+    "Station::factory()->sterilizer() state reused (ditambahkan bersama screen-124's implementation) untuk kebutuhan test suite screen ini",
+    "Ini adalah screen TERAKHIR dari 18 stasiun kanonis proyek ini (dipromosikan 2026-09-01). Bersama dengan Part C (promosi ProductionLineService::DEFAULT_STATIONS, migration backfill 2026_09_01_000027, StationType enum, mobile localSchema.ts/StationGrid.vue/stationRepo.ts/StationListView.vue, blade production-process-activity.blade.php), 0 placeholder tersisa di manapun dalam proyek Mill Smart Log — 18 stasiun kanonis, SEMUA 18 aktif dan terimplementasi penuh (mobile + web + backend)."
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV.",
+      "severity": "minor"
+    },
+    {
+      "description": "Production Line tidak dapat diubah di mode edit by design (immutable setelah create), konsisten dengan screen-022/023/024/111/113/114, tidak ada jalur UI untuk memindah record ke production line lain.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 28,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 13,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

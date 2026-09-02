@@ -1,9 +1,9 @@
 {
+  "ver": 9,
   "meta": {
-    "title": "Mill Smart Log",
-    "updated_at": "2026-08-23"
+    "title": "Mills Smart Log",
+    "updated_at": "2026-09-01"
   },
-  "ver": 6,
   "id": "screen-006--station-list",
   "name": "Station List",
   "module_id": "module-mobile-station-ops",
@@ -28,14 +28,13 @@
       "endpoints": [],
       "business_logic": [
         "1. Load cached station list from local storage, termasuk kolom icon",
-        "2. Query local draft records (weighbridge-record/grading-record/cages-track-record/threshing-record/pressing-record/depricarping-record/kernel-plant-record) WHERE created_by = current user AND status IN (draft_ongoing, draft_paused) -> hasDraft boolean per active station type. 2026-08-23: threshing/pressing/depricarping/kernel-plant memakai getDrafts(userId) direduksi ke boolean via length > 0, bukan getSummary()/getProgressSummary() milik 3 stasiun lama.",
-        "3. Render grid: is_active=true -> tappable, icon default per type termasuk threshing/pressing/depricarping/kernel-plant; is_active=false -> disabled/info only",
+        "2. Query local draft records (weighbridge-record/grading-record/cages-track-record/threshing-record/pressing-record/depricarping-record/kernel-plant-record/solid-waste-disposal-record/process-water-record/kernel-dispatch-record/cpo-dispatch-record/effluent-plant-record/storage-tank-record/engine-room-record/boiler-room-record/clarification-record/process-quality-control-record/sterilizer-record) WHERE created_by = current user AND status IN (draft_ongoing, draft_paused) -> hasDraft boolean per active station type. Pola getDrafts(userId) direduksi ke boolean via length > 0, konsisten untuk seluruh 18 stasiun aktif.",
+        "3. Render grid: seluruh 18 stasiun aktif dan tappable, icon default per type termasuk Sterilizer",
         "4. Render breadcrumb tappable",
         "5. Render header dengan hamburger menu",
-        "6. On tap active station -> navigate ke Monitor screen (monitor-weighbridge/monitor-grading/monitor-cages-track/monitor-threshing/monitor-pressing/monitor-depricarping/monitor-kernel-plant)",
-        "7. On tap disabled station -> show info, no navigation",
-        "8. On tap breadcrumb -> navigate",
-        "9. On tap hamburger -> open nav menu"
+        "6. On tap active station -> navigate ke Monitor screen (monitor-weighbridge/monitor-grading/monitor-cages-track/monitor-threshing/monitor-pressing/monitor-depricarping/monitor-kernel-plant/monitor-solid-waste-disposal/monitor-process-water/monitor-kernel-dispatch/monitor-cpo-dispatch/monitor-effluent-plant/monitor-storage-tank/monitor-engine-room/monitor-boiler-room/monitor-clarification/monitor-process-quality-control/monitor-sterilizer)",
+        "7. On tap breadcrumb -> navigate",
+        "8. On tap hamburger -> open nav menu"
       ],
       "data_operations": [
         {
@@ -77,13 +76,64 @@
           "entity_id": "kernel-plant-record",
           "operation": "SELECT",
           "description": "SELECT local draft/paused records via getDrafts()"
+        },
+        {
+          "entity_id": "solid-waste-disposal-record",
+          "operation": "SELECT",
+          "description": "SELECT local draft/paused records via getDrafts() (2026-08-31)"
+        },
+        {
+          "entity_id": "process-water-record",
+          "operation": "SELECT",
+          "description": "SELECT local draft/paused records via getDrafts() (2026-08-31)"
+        },
+        {
+          "entity_id": "kernel-dispatch-record",
+          "operation": "SELECT",
+          "description": "SELECT local draft/paused records via getDrafts() (2026-08-31)"
+        },
+        {
+          "entity_id": "cpo-dispatch-record",
+          "operation": "SELECT",
+          "description": "SELECT local draft/paused records via getDrafts() (2026-08-31)"
+        },
+        {
+          "entity_id": "effluent-plant-record",
+          "operation": "SELECT",
+          "description": "SELECT local draft/paused records via getDrafts() (2026-08-31)"
+        },
+        {
+          "entity_id": "storage-tank-record",
+          "operation": "SELECT",
+          "description": "SELECT local draft/paused records via getDrafts() (2026-08-31)"
+        },
+        {
+          "entity_id": "engine-room-record",
+          "operation": "SELECT",
+          "description": "SELECT local draft/paused records via getDrafts() (2026-08-31)"
+        },
+        {
+          "entity_id": "boiler-room-record",
+          "operation": "SELECT",
+          "description": "SELECT local draft/paused records via getDrafts() (2026-08-31)"
+        },
+        {
+          "entity_id": "clarification-record",
+          "operation": "SELECT",
+          "description": "SELECT local draft/paused records via getDrafts() (2026-08-31)"
+        },
+        {
+          "entity_id": "process-quality-control-record",
+          "operation": "SELECT",
+          "description": "SELECT local draft/paused records via getDrafts() (2026-08-31)"
+        },
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "SELECT",
+          "description": "SELECT local draft/paused records via getDrafts() (2026-09-01, final station)"
         }
       ],
       "edge_case_handling": [
-        {
-          "condition": "Tap Stasiun Disabled",
-          "handling": "Info singkat, tanpa navigasi"
-        },
         {
           "condition": "Draft ongoing dan paused sekaligus",
           "handling": "Warna tetap merah"
@@ -97,12 +147,12 @@
           "handling": "Fallback ke ikon default per tipe"
         },
         {
-          "condition": "Salah satu repo getDrafts() baru gagal",
+          "condition": "Salah satu repo getDrafts() gagal",
           "handling": "Stasiun dianggap tidak ada draft, best-effort"
         }
       ],
       "business_rules_applied": [
-        "7 stasiun MVP aktif sejak 2026-08-23",
+        "18 stasiun MVP aktif (7 sejak 2026-08-23, 10 lagi sejak 2026-08-31, Sterilizer sejak 2026-09-01) - 0 placeholder tersisa",
         "Warna tombol mencerminkan status draft",
         "Ikon tile memakai station.icon jika diisi else default per tipe",
         "Breadcrumb dapat dinavigasi"
@@ -119,9 +169,14 @@
           "expect": "router.push called with Monitor route"
         },
         {
-          "description": "calls the 4 new station repos getDrafts(userId) alongside the 3 existing summary calls on mount",
+          "description": "calls the 10 new station repos getDrafts(userId) alongside the 7 existing calls on mount",
           "given": "current user authenticated",
-          "expect": "threshingRecordRepo.getDrafts, pressingRecordRepo.getDrafts, depricarpingRecordRepo.getDrafts, kernelPlantRecordRepo.getDrafts all called with the user id"
+          "expect": "solidWasteDisposalRecordRepo.getDrafts, processWaterRecordRepo.getDrafts, kernelDispatchRecordRepo.getDrafts, cpoDispatchRecordRepo.getDrafts, effluentPlantRecordRepo.getDrafts, storageTankRecordRepo.getDrafts, engineRoomRecordRepo.getDrafts, boilerRoomRecordRepo.getDrafts, clarificationRecordRepo.getDrafts, processQualityControlRecordRepo.getDrafts all called with the user id"
+        },
+        {
+          "description": "calls sterilizerRecordRepo.getDrafts(userId) alongside every other station repo on mount (final station, 2026-09-01)",
+          "given": "current user authenticated",
+          "expect": "sterilizerRecordRepo.getDrafts called with the user id, and its mock is registered in StationListView.spec.ts's beforeEach so Promise.all does not silently break"
         }
       ]
     }
@@ -161,6 +216,50 @@
       "reason": "Navigasi saat Kernel Plant dipilih (2026-08-23)"
     },
     {
+      "screen_id": "screen-061--monitor-solid-waste-disposal",
+      "reason": "Navigasi saat Solid Waste Disposal dipilih (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-062--monitor-process-water",
+      "reason": "Navigasi saat Process Water dipilih (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-063--monitor-kernel-dispatch",
+      "reason": "Navigasi saat Kernel Dispatch dipilih (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-064--monitor-cpo-dispatch",
+      "reason": "Navigasi saat CPO Dispatch dipilih (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-065--monitor-effluent-plant",
+      "reason": "Navigasi saat Effluent Plant dipilih (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-066--monitor-storage-tank",
+      "reason": "Navigasi saat Storage Tank dipilih (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-067--monitor-engine-room",
+      "reason": "Navigasi saat Engine Room dipilih (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-068--monitor-boiler-room",
+      "reason": "Navigasi saat Boiler Room dipilih (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-069--monitor-clarification",
+      "reason": "Navigasi saat Clarification dipilih (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-070--monitor-process-quality-control",
+      "reason": "Navigasi saat Process Quality Control dipilih (2026-08-31)"
+    },
+    {
+      "screen_id": "screen-121--monitor-sterilizer",
+      "reason": "Navigasi saat Sterilizer dipilih (2026-09-01, stasiun terakhir)"
+    },
+    {
       "screen_id": "screen-034--mills-setting",
       "reason": "Sumber override station.icon"
     }
@@ -172,7 +271,10 @@
     "station.icon murni override nama icon Lucide, bukan foto",
     "Sync station.icon via fetchAndCacheStationIconOverrides() saat login",
     "KNOWN LIMITATION: override icon dicocokkan berdasar business_unit_id dan type, bukan station id asli",
-    "2026-08-23: 4 stasiun baru dipromosikan dari placeholder ke aktif - StationListView.vue diperluas import 4 repo baru, MONITOR_ROUTE_NAMES dan loadDraftStatusByType diperluas 4 entri; StationGrid.vue ACTIVE_ICONS diperluas 4 entri; stationRepo.ts StationType union diperluas 4 literal baru."
+    "2026-08-23: 4 stasiun baru dipromosikan dari placeholder ke aktif - StationListView.vue diperluas import 4 repo baru, MONITOR_ROUTE_NAMES dan loadDraftStatusByType diperluas 4 entri; StationGrid.vue ACTIVE_ICONS diperluas 4 entri; stationRepo.ts StationType union diperluas 4 literal baru.",
+    "KOREKSI ver 7 (2026-08-31): 10 stasiun baru ditambahkan (6 promosi placeholder + 4 baru) - StationListView.vue diperluas 10 repo baru, MONITOR_ROUTE_NAMES dan loadDraftStatusByType diperluas 10 entri; StationGrid.vue ACTIVE_ICONS diperluas 10 entri; stationRepo.ts StationType union diperluas 10 literal baru. Total 17 stasiun aktif, 2 placeholder tersisa (Sterilizer, Loading Ramp).",
+    "KOREKSI ver 8 (2026-09-01): Placeholder 'Loading Ramp' dihapus sepenuhnya dari daftar kanonis - ternyata nama duplikat untuk stasiun yang sama dengan Cages Track (sudah aktif), bukan stasiun terpisah. Total sekarang 17 stasiun aktif, 1 placeholder tersisa (Sterilizer).",
+    "KOREKSI ver 9 (2026-09-01, promosi final): Sterilizer dipromosikan dari placeholder (type=other) menjadi stasiun aktif (type=sterilizer) - stasiun terakhir dari 18 stasiun kanonis. StationListView.vue menambah import sterilizerRecordRepo, satu entri di MONITOR_ROUTE_NAMES dan loadDraftStatusByType (Promise.all); StationGrid.vue memindahkan icon Sterilizer dari PLACEHOLDER_ICONS ke ACTIVE_ICONS (glyph SVG sama persis, kini dipakai untuk tile aktif); stationRepo.ts StationType union menambah literal 'sterilizer'. Section 'Skema Mendatang (Belum Tersedia)' pada StationGrid.vue kini otomatis tidak render apa pun (placeholderStations.length === 0) - tidak perlu perubahan kode di conditional-nya. Test scenario 'Pilih Stasiun - Tap Disabled' DIHAPUS dari test_scenarios di bawah (bukan direpurpose) karena 0 tile disabled tersisa untuk diuji - tidak ada lagi kondisi tap-disabled yang berlaku di screen ini. Entri edge_case_handling 'Tap Stasiun Disabled' juga dihapus dengan alasan yang sama."
   ],
   "test_scenarios": [
     {
@@ -181,28 +283,13 @@
       "api_test": [],
       "component_test": {
         "component": "StationGrid",
-        "action": "render grid with 7 active stations, tap an active tile",
+        "action": "render grid with 18 active stations, tap an active tile",
         "assert": "navigate event fired with correct station type"
       },
       "browser_test": {
         "route": "/stations",
         "action": "login, tap an active station tile",
         "assert": "browser navigates to Monitor route"
-      }
-    },
-    {
-      "scenario_ref": "Pilih Stasiun - Tap Disabled",
-      "usecase_id": "usecase-006--station-list",
-      "api_test": [],
-      "component_test": {
-        "component": "StationGrid",
-        "action": "tap disabled tile",
-        "assert": "info shown, no navigation"
-      },
-      "browser_test": {
-        "route": "/stations",
-        "action": "tap disabled tile",
-        "assert": "URL unchanged"
       }
     }
   ]

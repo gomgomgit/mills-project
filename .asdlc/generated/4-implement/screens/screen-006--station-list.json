@@ -1,13 +1,13 @@
 {
+  "ver": 12,
   "meta": {
-    "title": "Mill Smart Log",
-    "updated_at": "2026-08-23"
+    "title": "Mills Smart Log",
+    "updated_at": "2026-09-01"
   },
-  "ver": 8,
   "id": "screen-006--station-list",
   "name": "Station List",
   "module_id": "module-mobile-station-ops",
-  "status": "complete",
+  "status": "partial",
   "files_generated": [],
   "test_files_generated": [],
   "fe_files_generated": [
@@ -20,7 +20,8 @@
     "mobile/src/services/threshingRecordRepo.ts",
     "mobile/src/services/pressingRecordRepo.ts",
     "mobile/src/services/depricarpingRecordRepo.ts",
-    "mobile/src/services/kernelPlantRecordRepo.ts"
+    "mobile/src/services/kernelPlantRecordRepo.ts",
+    "mobile/src/services/productionLineRepo.ts"
   ],
   "fe_test_files_generated": [
     "mobile/tests/stationRepo.spec.ts",
@@ -30,11 +31,15 @@
     "mobile/tests/localSchema.spec.ts"
   ],
   "implementation_notes": [
-    "stationRepo.ts mengasumsikan 15 baris station (7 aktif + 8 placeholder, sejak 2026-08-23) sudah ada di tabel lokal via sync sebelumnya",
+    "stationRepo.ts mengasumsikan baris station (17 aktif + 1 placeholder, sejak 2026-09-01) sudah ada di tabel lokal via sync sebelumnya",
     "StationGrid.vue pakai aria-disabled + styling (bukan atribut disabled native) agar tap tetap memunculkan pesan 'belum tersedia'",
     "Router pakai konvensi meta: { public: false } mengikuti guard yang sudah ada",
     "v7 (2026-08-19, Mills Setting feature): stationRepo.ts tambah field icon, StationGrid.vue ICON_OVERRIDES lookup baru",
-    "v8 (2026-08-23, promosi 4 stasiun baru): StationListView.vue diperluas — import threshingRecordRepo/pressingRecordRepo/depricarpingRecordRepo/kernelPlantRecordRepo, MONITOR_ROUTE_NAMES ditambah 4 entri (monitor-threshing/monitor-pressing/monitor-depricarping/monitor-kernel-plant, semuanya sudah terdaftar di router/index.ts oleh screen implementasi masing-masing stasiun), loadDraftStatusByType() ditambah 4 panggilan getDrafts(userId) yang direduksi ke boolean via length > 0 (repo baru tidak punya currentDraft shape seperti 3 repo lama). StationGrid.vue ACTIVE_ICONS diperluas 4 entri (SVG path di-reuse dari PLACEHOLDER_ICONS lama: thresher/press/'kernel plant' match nama langsung, depricarping reuse 'digester' karena tidak ada match nama persis di antara 12 placeholder lama — lihat ProductionLineService.php DEFAULT_STATIONS untuk keputusan mapping ini). stationRepo.ts StationType union diperluas 4 literal. Backend: ProductionLineService::DEFAULT_STATIONS diperbarui (governs Production Line baru), plus migration 2026_08_23_000014 membackfill 4 tipe stasiun pada seluruh Production Line yang sudah ada sebelumnya. Semua test terkait (StationListView.spec.ts, StationGrid.spec.ts, localSchema.spec.ts) diperbarui dan lulus."
+    "v8 (2026-08-23, promosi 4 stasiun baru): StationListView.vue diperluas — import threshingRecordRepo/pressingRecordRepo/depricarpingRecordRepo/kernelPlantRecordRepo, MONITOR_ROUTE_NAMES ditambah 4 entri, loadDraftStatusByType() ditambah 4 panggilan getDrafts(userId). StationGrid.vue ACTIVE_ICONS diperluas 4 entri. stationRepo.ts StationType union diperluas 4 literal. Backend: ProductionLineService::DEFAULT_STATIONS diperbarui plus migration backfill.",
+    "v9 (2026-08-31, promosi 6 + penambahan 4 stasiun baru): MONITOR_ROUTE_NAMES diperluas 10 entri (monitor-solid-waste-disposal/monitor-process-water/monitor-kernel-dispatch/monitor-cpo-dispatch/monitor-effluent-plant/monitor-storage-tank/monitor-engine-room/monitor-boiler-room/monitor-clarification/monitor-process-quality-control) TAPI route-route ini BELUM terdaftar di router/index.ts (screen Monitor masing-masing belum diimplementasikan) — tap tile akan gagal navigasi untuk sementara, ini known_issue disengaja. loadDraftStatusByType() default-kan 10 tipe baru ke hasDraft=false (TODO wire ke repo asli begitu masing-masing Form/Monitor diimplementasikan) — TIDAK ada import repo baru karena repo-repo itu belum ada. StationGrid.vue ACTIVE_ICONS diperluas 10 entri (6 reuse dari SVG path placeholder lama yang match nama: clarification/effluent treatment/engine room/water treatment/bulking storage/boiler; 4 ikon baru dibuat tangan: Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control). stationRepo.ts StationType union diperluas 10 literal. localSchema.ts DEFAULT_STATIONS disinkronkan ke backend ProductionLineService::DEFAULT_STATIONS (19 entri: 17 aktif + 2 placeholder renumbered 01-sterilizer/02-loading-ramp). Semua test terkait diperbarui dan lulus (827/827 vitest mobile penuh).",
+    "v10 (2026-09-01, koreksi): Placeholder 'Loading Ramp' dihapus sepenuhnya dari DEFAULT_STATIONS (backend & mobile) — ternyata nama duplikat untuk stasiun yang sama dengan Cages Track, bukan stasiun terpisah. localSchema.ts sekarang 18 entri (17 aktif + 1 placeholder: Sterilizer). Migration data baru menghapus row 'Loading Ramp' dari semua Production Line existing. StationGrid.vue, blade view, dan test terkait diperbarui.",
+    "v11 (2026-09-01, promosi final): Sterilizer dipromosikan dari placeholder (type=other) menjadi stasiun aktif (type=sterilizer) — 18 stasiun aktif, 0 placeholder tersisa. StationListView.vue diperluas: import sterilizerRecordRepo, MONITOR_ROUTE_NAMES ditambah 1 entri (monitor-sterilizer), loadDraftStatusByType() ditambah 1 panggilan getDrafts(userId) di dalam Promise.all — ini adalah panggilan repo nyata ke-18, tidak ada lagi stopgap hasDraft:false untuk stasiun manapun. StationGrid.vue: icon Sterilizer dipindah dari PLACEHOLDER_ICONS ke ACTIVE_ICONS (SVG path sama persis), sehingga section 'Skema Mendatang (Belum Tersedia)' kini otomatis kosong (placeholderStations.length === 0, tidak perlu perubahan pada v-if template yang sudah ada). stationRepo.ts StationType union ditambah literal 'sterilizer'. localSchema.ts DEFAULT_STATIONS sekarang 18 entri, semua isActive:true, idSuffix Sterilizer disederhanakan dari '01-sterilizer' ke 'sterilizer'. mobile/tests/StationListView.spec.ts: mock sterilizerRecordRepo ditambahkan ke beforeEach agar Promise.all tidak silently break. Backend: ProductionLineService::DEFAULT_STATIONS, migration backfill, dan StationType enum diperbarui senada.",
+    "v12 (2026-09-01, reorder + hide, permintaan user): stationRepo.ts getActiveAndPlaceholderStations()/getActiveAndPlaceholderStationsForProductionLine() ORDER BY CASE diperluas dari 3 tipe eksplisit (weighbridge/grading/cages-track lalu ELSE 99) menjadi 18 tipe eksplisit sesuai urutan custom: Weighbridge, Pressing, Storage Tank, Grading, Clarification, Effluent Plant, Cages Track, Engine Room, CPO Dispatch, Sterilizer, Boiler Room, Kernel Dispatch, Kernel Plant, Process Water, Threshing, Depricarping, Solid Waste Disposal, Process Quality Control — mirrors urutan yang sama di blade web (screen-035). Selain itu 8 tipe (Engine Room, Storage Tank, Effluent Plant, CPO Dispatch, Kernel Dispatch, Process Water, Solid Waste Disposal, Process Quality Control) di-hide sementara dari grid via konstanta HIDDEN_STATION_TYPES + klausa 'AND type NOT IN (...)' di kedua query — stasiun tetap is_active=true dan sepenuhnya fungsional (Monitor/Form/Data Preview, draft, sync semua tetap jalan), hanya tidak ditawarkan sebagai tile yang bisa dipilih di grid ini. Mengikuti pola 'temporarily hidden' yang sama seperti Threshing/Pressing/Depricarping/Kernel Plant di 2026-08-23 (yang lalu di-re-enable). Untuk re-enable, hapus entri dari HIDDEN_STATION_TYPES. Tidak ada perubahan pada loadDraftStatusByType()/MONITOR_ROUTE_NAMES — draft-status dan routing tetap bekerja untuk ke-8 stasiun ini seandainya diakses lewat jalur lain, hanya grid Station List yang menyaringnya."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -43,7 +48,7 @@
       "severity": "minor"
     },
     {
-      "description": "19 ikon SVG (7 aktif + 8 placeholder + 10 ICON_OVERRIDES lain) di StationGrid.vue ditulis tangan meniru path mock/Lucide, belum di-pixel-diff terhadap sumber asli",
+      "description": "28 ikon SVG di StationGrid.vue (18 aktif + ICON_OVERRIDES lain) ditulis tangan meniru path mock/Lucide, belum di-pixel-diff terhadap sumber asli",
       "severity": "minor"
     },
     {
@@ -57,11 +62,15 @@
     {
       "description": "KNOWN LIMITATION: fetchAndCacheStationIconOverrides() mencocokkan berdasarkan (business_unit_id, type), bukan station id asli",
       "severity": "minor"
+    },
+    {
+      "description": "8 tipe stasiun (Engine Room, Storage Tank, Effluent Plant, CPO Dispatch, Kernel Dispatch, Process Water, Solid Waste Disposal, Process Quality Control) di-hide sementara dari grid Station List per keputusan produk 2026-09-01 — bukan bug, disengaja; lihat HIDDEN_STATION_TYPES di stationRepo.ts",
+      "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-08-23T00:00:00Z",
+      "run_at": "2026-09-01T00:00:00Z",
       "passed": 5,
       "failed": 0,
       "coverage": 0
@@ -72,7 +81,7 @@
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-23T00:00:00Z",
+      "run_at": "2026-09-01T00:00:00Z",
       "passed": 38,
       "failed": 0
     },

@@ -1,0 +1,80 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-092--data-browser-process-water-web",
+  "name": "Data Browser Process Water (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Services/ProcessWaterRecordService.php",
+    "backend/app/Http/Controllers/Api/ProcessWaterRecordController.php",
+    "backend/app/Exceptions/NoActiveProcessWaterStationException.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/factories/ProcessWaterRecordFactory.php",
+    "backend/database/factories/ProcessWaterDetailFactory.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/resources/views/data/production-process-activity.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/ProcessWaterRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserProcessWaterTest.php",
+    "backend/tests/Feature/Livewire/DataBrowserProcessWaterTest.php",
+    "backend/tests/Browser/DataBrowserProcessWaterTest.php",
+    "backend/tests/Feature/ProductionProcessActivityTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserProcessWater.php",
+    "backend/resources/views/data/process-water.blade.php",
+    "backend/resources/views/livewire/data/data-browser-process-water.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "ProcessWaterRecordService/Controller/routes/factories are shared infrastructure for all 3 web Process Water screens (092/102/112), mirroring ThreshingRecordService's precedent -- reported under this screen since it is first in the implementation sequence",
+    "Process Water follows the exact same hourly-grid (dynamic add-row/remove-row, 1..24 rows, unique + strictly ascending canonical time_slot) pattern as ThreshingRecordService -- create()/update()/listRecords()/export()/getDetail(), plus canonicalTimeSlots() helper returning 24 'HH:00' strings starting 07:00",
+    "filled_slot_count computed via withCount() with an inner OR-whereNotNull constraint across all 11 reading columns (raw_water_flow_m3h, clarified_water_flow_m3h, softener_inlet_ph, softener_outlet_hardness_ppm, alum_dosing_kgh, polymer_dosing_gh, boiler_feed_tank_temp_c, boiler_feed_water_ph, boiler_feed_tds_ppm, action_taken_status, findings) -- mirrors ThreshingRecordService's filled_slot_count pattern; 'shift'/'inspector_id' are deliberately excluded (identifying/context columns, not readings)",
+    "UNLIKE Threshing/Pressing/Depricarping/Kernel Plant: Process Water has NO operational-target reference table -- no seeder, no model, no Target Operasional section anywhere in this station's 6 screens, per this task's explicit scope",
+    "The Process Water tile in production-process-activity.blade.php (screen-035) already existed as an active-styled tile pointing to javascript:void(0) (added by an earlier task alongside the DEFAULT_STATIONS/StationType groundwork) -- this implementation changes ONLY that one tile's href to route('data.process-water'), leaving all 16 other tiles (7 previously-routed + 8 still-unrouted 2026-08-31-batch tiles + 2 placeholders) completely unchanged",
+    "tests/Feature/ProductionProcessActivityTest.php (pre-existing, not owned by this screen) was updated additively: the Process Water assertion moved from the '9 still-unrouted' test into the '7 (now 8) active station tiles linking to their Data Browser routes' test, and both test names/counts were corrected from 9 to 8 remaining unrouted -- mirrors the exact precedent Solid Waste Disposal set for this same shared test file when its own Data Browser screen was implemented",
+    "StationFactory::processWater() state added additively (mirrors weighbridge()/grading()/threshing()/etc. exactly) for this screen's and screen-112's test suites",
+    "Ran the full backend test suite (`php artisan test`) after all changes: 1468 passed (0 failed), confirming no regression to any pre-existing screen"
+  ],
+  "deferred_items": [
+    {
+      "description": "The mobile 'Sinkronisasi' button (Station List, screen-006) does not push locally-entered Process Water records to POST /api/process-water-records -- unlike Threshing/Pressing/Depricarping/Kernel Plant, which each have a syncProcessWaterRecords()-equivalent function wired into syncService.ts's syncAllRecords()",
+      "reason": "Out of this 6-screen task's explicit scope; the most recent precedent station (Solid Waste Disposal) made the same deferral for the same reason. The route itself is already dual-guarded ('auth:web,sanctum' + operator role, see routes/api.php) so this is purely a mobile syncService.ts addition, not a backend change, when picked up later."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserProcessWaterTest.php) was authored following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-31T23:30:00Z",
+      "passed": 31,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-31T23:30:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-31T23:30:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

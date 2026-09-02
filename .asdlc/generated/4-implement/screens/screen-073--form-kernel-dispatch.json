@@ -1,0 +1,64 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-073--form-kernel-dispatch",
+  "name": "Form Kernel Dispatch",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/kernelDispatchRecordRepo.ts",
+    "mobile/src/views/FormKernelDispatchView.vue",
+    "mobile/src/router/index.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/kernelDispatchRecordRepo.spec.ts",
+    "mobile/tests/FormKernelDispatchView.spec.ts"
+  ],
+  "implementation_notes": [
+    "Mirrors FormSolidWasteDisposalView.vue's structural pattern (breadcrumb + hamburger header, sectioned form body, dirty-tracking Back confirm, Pause/Clear/Simpan footer actions) but WITHOUT the grid/N-column/time-slot-uniqueness concept — Log Kejadian is a free event log, rows added manually via 'Tambah baris' with no upper bound and no shared checkbox-column grid",
+    "Save/Simpan button is `type=\"button\"` with a direct `@click=\"onSimpan\"` handler (NOT `type=\"submit\"` relying on the enclosing `<form>`'s @submit.prevent) — mirrors FormSolidWasteDisposalView.vue's exact convention; jsdom (the Vitest test environment) does not implement the native submit-button-triggers-form-submission behavior, so a submit-button-based approach would silently never invoke the handler under test",
+    "Net Weight (MT) computed client-side (gross_weight_mt - tare_weight_mt) via rowNetWeight()/buildDetailPayload(), recomputed immediately before every save call — same 'computed then persisted' pattern as SolidWasteDisposalDetailFormRow",
+    "Hapus baris follows the queue-for-deletion pattern (a row with an existing id is queued in pendingDeletionIds, only actually DELETEd by the repo on the next Simpan/Pause call) — consistent with Form Solid Waste Disposal/Form Cages Track",
+    "FormField ids given explicitly (id=\"kernel_dispatch_id\", id=\"date\") rather than relying on FormField's auto-derived label-slug id, for stable, predictable test selectors",
+    "Remarks/Gate Status rendered as a <select> (Released/Not Released/blank) rather than free text, per entity-catalog's enum(released, not_released) — the only detail field that is an enum rather than free text/number, mirrored from KernelDispatchDetail.remarks_gate_status"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser/E2E test not generated for this pass — component-level (Vitest) coverage exercises save/pause/clear/back flows instead.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % not measured — no Xdebug/PCOV in this environment.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 15,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 13,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

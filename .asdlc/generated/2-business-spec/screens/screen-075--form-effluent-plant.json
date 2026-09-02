@@ -1,0 +1,160 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-075--form-effluent-plant",
+  "name": "Form Effluent Plant",
+  "module_id": "module-mobile-station-ops",
+  "description": "Form input/edit data log Effluent Plant yang mencatat data header (Effluent Plant ID, Tanggal otomatis, verifikasi Checked By/Acknowledged By) dan grid Effluent Plant Detail (baris time-slot ditambahkan satu per satu oleh user via 'Tambah baris', memilih Time-Slot dari 24 slot kanonis 07:00-06:00 keesokan hari secara berurutan) — mengikuti pola persis Form Process Water. Tidak ada tabel referensi target operasional pada stasiun ini.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap 'New Data' dari Monitor Effluent Plant (draft baru, grid Effluent Plant Detail dimulai kosong)",
+    "Tap salah satu item draft/pause di list Monitor Effluent Plant (lanjutkan draft)"
+  ],
+  "information_displayed": [
+    "Identitas Effluent Plant: Effluent Plant ID (input manual, wajib), Tanggal (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit)",
+    "Verifikasi: Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (hanya bisa diisi Supervisor), Acknowledged By (hanya bisa diisi Mill Management), Note (input manual, opsional)",
+    "Effluent Plant Detail: grid baris time-slot yang ditambahkan satu per satu oleh user (Tambah baris), dengan kolom per baris: Time-Slot (dropdown, opsi = 24 slot kanonis jam 07:00-06:00 keesokan hari DIKURANGI yang sudah dipakai baris lain dan yang lebih awal-atau-sama dengan slot tertinggi yang sudah dipilih baris lain), Anaerobic Pond 1 pH, Anaerobic Pond 1 Temp (°C), Anaerobic Pond 2 pH, Anaerobic Pond 2 Temp (°C), Cooling Pond pH, Cooling Pond Temp (°C), Biogas Flare Status (On/Off/Fault), Biogas Flow Rate (m3/h), Raw POME Feed Rate (m3/h), Effluent Discharge Flow Rate (m3/h), Final Discharge pH, Final Discharge BOD (mg/L - Lab), Final Discharge COD (mg/L - Lab), Final Discharge TSS (mg/L - Lab), Dosing Pump 1 Status (Run/Stop), Chemical Consumed (kg/L), Sludge Dewatering Status (Run/Stop), Remarks/Maintenance Actions, Findings — semua kolom bacaan opsional per baris, baris dapat dihapus (Hapus baris)",
+    "Breadcrumb navigasi (Home > Production Process Activity > Effluent Plant > Form) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu",
+    "Field dikelompokkan per section: Identitas Effluent Plant, Verifikasi, Effluent Plant Detail"
+  ],
+  "available_actions": [
+    {
+      "action": "Isi Effluent Plant ID",
+      "description": "Mengisi identitas Effluent Plant ID pada header",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tambah baris Effluent Plant Detail",
+      "description": "Menambah satu baris time-slot baru ke grid Effluent Plant Detail",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus baris Effluent Plant Detail",
+      "description": "Menghapus satu baris dari grid Effluent Plant Detail",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pilih Time-Slot per baris",
+      "description": "Memilih slot jam untuk baris tersebut dari slot kanonis yang tersedia (belum dipakai baris lain, lebih lambat dari slot tertinggi yang sudah dipilih baris lain)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi kolom bacaan pada baris Effluent Plant Detail",
+      "description": "Mengisi salah satu atau lebih kolom bacaan (Anaerobic Pond 1/2 pH & Temp, Cooling Pond pH & Temp, Biogas Flare Status, Biogas Flow Rate, Raw POME Feed Rate, Effluent Discharge Flow Rate, Final Discharge pH/BOD/COD/TSS, Dosing Pump 1 Status, Chemical Consumed, Sludge Dewatering Status, Remarks/Maintenance Actions, Findings) pada baris manapun yang sudah ditambahkan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi Checked By",
+      "description": "Mengisi field verifikasi Checked By",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi Acknowledged By",
+      "description": "Mengisi field verifikasi Acknowledged By",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record data Effluent Plant secara final",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progress saat ini sebagai draft yang bisa dilanjutkan nanti, kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus draft ini secara permanen (dengan konfirmasi), kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor tanpa menyimpan, dengan konfirmasi jika ada perubahan belum tersimpan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tanggal diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Inputted By otomatis diambil dari user yang login, tidak dapat diedit manual",
+    "Checked By hanya bisa diisi/diedit oleh Supervisor; Acknowledged By hanya bisa diisi/diedit oleh Mill Management",
+    "Grid Effluent Plant Detail TIDAK di-pre-generate — baris ditambahkan satu per satu oleh user via 'Tambah baris', mengikuti pola persis Process Water",
+    "Time-Slot tiap baris wajib lebih lambat (index kanonis lebih besar) dari Time-Slot baris yang terakhir ditambahkan pada record yang sama, dan tidak boleh duplikat dengan baris manapun (urutan menaik kronologis, maksimal 24 baris karena hanya ada 24 slot kanonis)",
+    "Setiap kolom bacaan pada baris Effluent Plant Detail bersifat opsional — baris yang sebagian terisi tetap valid",
+    "Minimal satu baris Effluent Plant Detail (dengan Time-Slot terpilih) harus punya minimal satu kolom bacaan terisi sebelum Simpan",
+    "Effluent Plant ID wajib diisi sebelum Simpan",
+    "Record tersimpan langsung begitu Simpan ditekan (bukan approval workflow berjenjang)",
+    "Field wajib ditandai asterisk dengan validasi inline",
+    "Stasiun ini tidak memiliki tabel referensi target operasional — tidak seperti Threshing/Pressing/Depricarping/Kernel Plant"
+  ],
+  "usecase_ids": [
+    "usecase-086--form-effluent-plant"
+  ],
+  "edge_cases": [
+    "Effluent Plant ID belum diisi saat Simpan ditekan",
+    "Belum ada satu pun baris Effluent Plant Detail yang punya Time-Slot terpilih dan kolom bacaan terisi saat Simpan ditekan",
+    "Operator mencoba mengisi/mengedit Checked By atau Acknowledged By",
+    "User mencoba memilih Time-Slot yang sudah dipakai baris lain atau lebih awal dari baris terakhir — opsi tersebut tidak tersedia di dropdown",
+    "User menghapus baris Effluent Plant Detail yang sudah ada sebelumnya (bukan baru ditambah) — baris di-queue untuk dihapus, benar-benar terhapus saat Simpan/Pause berikutnya",
+    "Draft yang di-Pause lalu dilanjutkan — baris yang sudah ditambahkan beserta bacaan yang sudah terisi tetap utuh",
+    "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
+    "User menekan Clear (perlu konfirmasi sebelum hapus permanen record beserta seluruh barisnya)",
+    "User mengisi Findings atau Remarks/Maintenance Actions tanpa mengisi kolom numerik/status apapun pada baris yang sama — baris tetap dianggap terisi"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

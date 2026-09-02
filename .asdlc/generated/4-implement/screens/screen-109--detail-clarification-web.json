@@ -1,0 +1,61 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-109--detail-clarification-web",
+  "name": "Detail Clarification (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/DetailClarificationTest.php",
+    "backend/tests/Browser/DetailClarificationTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DetailClarification.php",
+    "backend/resources/views/data/clarification-detail.blade.php",
+    "backend/resources/views/livewire/data/detail-clarification.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DetailClarificationTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses ClarificationRecordService::getDetail() (BE service shared with screen-099, see that screen's implement artifact for the service/controller/route/factory/model files)",
+    "Field grouping/order in the Blade view mirrors mobile/src/views/DataPreviewClarificationView.vue's detail mode exactly (Clarification ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Clarification Detail with all 7 reading/text columns), per explicit product direction that web station screens mirror mobile flow/UX",
+    "Route /data/clarification/{id} registered after /data/clarification/create (screen-119) so the literal 'create' segment is not swallowed by {id}",
+    "UNLIKE Detail Threshing: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
+    "404 handled automatically by ModelNotFoundException -> ApiExceptionHandler (findOrFail) for the API controller, and via the notFound flag in DetailClarification Livewire component, same as every other detail screen in this codebase"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/DetailClarificationTest.php) exists following this codebase's established convention but could not be executed in this sandboxed environment -- verified only by static review, consistent with the codebase's Browser/* convention.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 8,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T00:00:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

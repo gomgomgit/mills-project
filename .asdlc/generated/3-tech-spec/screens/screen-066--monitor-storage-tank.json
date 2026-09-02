@@ -1,0 +1,235 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-066--monitor-storage-tank",
+  "name": "Monitor Storage Tank",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/storage-tank/monitor",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-091--monitor-storage-tank",
+      "usecase_name": "Monitor Storage Tank",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load counter hari ini: COUNT local storage_tank_record milik user WHERE date(date) = hari ini (status apapun), dan COUNT storage_tank_detail rows milik record-record tersebut (plain COUNT(*), tidak difilter 'punya minimal satu kolom bacaan terisi')",
+        "2. Load list of local storage_tank_record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC → each item labeled uniformly 'Pause'",
+        "3. Render 2 card counter sebaris (Jumlah Storage Tank Record, Jumlah Baris Time-Slot Tercatat) di atas list draft/pause",
+        "4. Render breadcrumb (Home > Production Process Activity > Storage Tank, tappable) dan header dengan 'Mill Smart Log' + hamburger",
+        "5. On 'New Data' → INSERT new local storage_tank_record dengan status=draft_ongoing, created_by=current user, date=waktu saat ini SAJA — TIDAK sekaligus INSERT storage_tank_detail rows kosong; grid Storage Tank Detail dimulai kosong, baris ditambahkan satu per satu oleh user di Form Storage Tank via 'Tambah baris'; navigasi ke Form Storage Tank dengan id draft baru",
+        "6. On tap item list → navigasi ke Form Storage Tank dengan id draft tersebut (tanpa transisi status)",
+        "7. On 'Load Data' → navigasi ke Data Preview Storage Tank mode list (tanpa id param)",
+        "8. On tap breadcrumb segment → navigasi ke route terkait",
+        "9. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "storage-tank-record",
+          "operation": "SELECT",
+          "description": "SELECT record-record milik user WHERE date(date) = hari ini, status apapun, untuk hitung COUNT"
+        },
+        {
+          "entity_id": "storage-tank-detail",
+          "operation": "SELECT",
+          "description": "SELECT COUNT seluruh baris milik record-record hari ini tersebut (plain row count, tidak difilter 'terisi')"
+        },
+        {
+          "entity_id": "storage-tank-record",
+          "operation": "SELECT",
+          "description": "SELECT list local record WHERE created_by = current user AND status IN (draft_ongoing, draft_paused), ORDER BY updated_at DESC"
+        },
+        {
+          "entity_id": "storage-tank-record",
+          "operation": "INSERT",
+          "description": "INSERT new local draft record on New Data, status=draft_ongoing, date=now — HANYA header, tanpa storage_tank_detail rows"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Belum ada draft/pause sama sekali",
+          "handling": "List kosong/empty state ditampilkan, tombol New Data tetap aktif"
+        },
+        {
+          "condition": "Banyak draft/pause menumpuk",
+          "handling": "List perlu scroll agar semua tetap dapat diakses"
+        },
+        {
+          "condition": "Belum ada data (status apapun) dengan date = hari ini",
+          "handling": "Kedua card counter menampilkan 0"
+        },
+        {
+          "condition": "Draft baru dibuat tapi belum ada satu baris pun ditambahkan",
+          "handling": "Jumlah Baris Time-Slot Tercatat tetap 0 untuk record tersebut sampai user menekan 'Tambah baris' di Form Storage Tank"
+        }
+      ],
+      "business_rules_applied": [
+        "User bisa punya beberapa draft/pause berjalan bersamaan, semua tampil di list",
+        "Ongoing dan paused digabung sebagai satu istilah Pause secara tampilan",
+        "New Data hanya membuat header — storage_tank_detail rows TIDAK dibuat sekaligus, ditambahkan satu per satu oleh user di Form Storage Tank",
+        "Counter hari ini dihitung dari seluruh record (status apapun) dengan tanggal Date = hari ini; Jumlah Baris Time-Slot Tercatat = plain COUNT seluruh baris storage_tank_detail milik record-record tersebut"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads screen data successfully with populated list when local records exist",
+          "given": "storageTankRecordRepo.getDrafts() returns non-empty draft/pause records",
+          "expect": "return screen state { list: [...], isEmpty: false }"
+        },
+        {
+          "description": "returns empty-state list when no draft/pause records exist for current user",
+          "given": "storageTankRecordRepo.getDrafts(userId) returns []",
+          "expect": "return screen state { list: [], isEmpty: true }, New Data action remains enabled"
+        },
+        {
+          "description": "returns draft/pause list with uniform 'Pause' label ordered by updated_at DESC regardless of underlying status",
+          "given": "storageTankRecordRepo.getDrafts() returns mixed records with status draft_ongoing and draft_paused at different updated_at timestamps",
+          "expect": "return list mapped with label='Pause' for every item, sorted by updated_at descending"
+        },
+        {
+          "description": "creates a new draft record with ZERO storage_tank_detail rows and navigates to Form Storage Tank when New Data is pressed",
+          "given": "storageTankRecordRepo.createDraft() succeeds and returns a new record id with no storage_tank_detail rows inserted",
+          "expect": "call navigate(FormStorageTank, { id: newRecord.id }) and storageTankRecordRepo.createDraft() called with { status: 'draft_ongoing', created_by: currentUser, date: <now> }, resulting in zero detail rows"
+        },
+        {
+          "description": "navigates to Form Storage Tank with selected draft id and does not change its status when a list item is tapped",
+          "given": "an existing draft/pause record with status=draft_paused is present in the loaded list",
+          "expect": "call navigate(FormStorageTank, { id: tappedRecord.id }); storageTankRecordRepo.update() is NOT called"
+        },
+        {
+          "description": "navigates to Data Preview Storage Tank in list mode with no id param when Load Data is pressed",
+          "given": "user triggers the Load Data action",
+          "expect": "call navigate(DataPreviewStorageTank, { mode: 'list', id: null })"
+        },
+        {
+          "description": "computes today's counter (count records, plain count of detail rows added) from records with date = today, any status",
+          "given": "storageTankRecordRepo returns 2 records dated today, one with 2 storage_tank_detail rows and one with 1, mixed statuses (draft_ongoing, saved)",
+          "expect": "counter = { countStorageTankRecord: 2, detailRowCount: 3 }"
+        },
+        {
+          "description": "excludes records with date not equal to today from the counter",
+          "given": "storageTankRecordRepo returns records dated yesterday and today",
+          "expect": "counter only reflects today's records, yesterday's excluded"
+        },
+        {
+          "description": "returns zero counter values when no records match today's date",
+          "given": "storageTankRecordRepo returns no records dated today",
+          "expect": "counter = { countStorageTankRecord: 0, detailRowCount: 0 }"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Asal navigasi ke Monitor Storage Tank, dan tujuan breadcrumb/back"
+    },
+    {
+      "screen_id": "screen-076--form-storage-tank",
+      "reason": "New Data / tap list item membuka Form Storage Tank"
+    },
+    {
+      "screen_id": "screen-086--data-preview-storage-tank",
+      "reason": "Load Data membuka Data Preview Storage Tank mode list"
+    }
+  ],
+  "implementation_notes": [
+    "Semua operasi dilakukan lokal di SQLite, tidak ada panggilan API",
+    "24 time slot kanonis (canonicalTimeSlots(), dihitung sebagai deret jam mulai 7: for i in 0..23 -> hour = (7 + i) % 24, format 'HH:00') dipakai Form Storage Tank untuk urutan opsi dropdown Time-Slot, tidak dipakai untuk pre-generate baris saat New Data",
+    "'Jumlah Baris Time-Slot Tercatat' adalah plain COUNT(*) storage_tank_detail rows milik record-record hari ini",
+    "Breadcrumb & hamburger mengikuti pola yang sama dengan Monitor Effluent Plant/Process Water/Threshing/Pressing/Depricarping/Kernel Plant",
+    "Router: route name 'monitor-storage-tank' sudah wired di StationListView.vue (MONITOR_ROUTE_NAMES); StationListView.vue juga sudah memanggil storageTankRecordRepo.getDrafts() langsung ke dalam Promise.all draftStatusByType",
+    "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak seperti Threshing/Pressing/Depricarping/Kernel Plant"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Monitor Storage Tank — New Data",
+      "usecase_id": "usecase-091--monitor-storage-tank",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorStorageTankView",
+        "action": "render screen with draft/pause list, tap the 'New Data' button",
+        "assert": "createNewDraft handler invoked (zero detail rows created); router push to Form Storage Tank route called with the newly created draft id"
+      },
+      "browser_test": {
+        "route": "/stations/storage-tank/monitor",
+        "action": "login, navigate to Storage Tank from Station List, on Monitor Storage Tank tap 'New Data' button",
+        "assert": "browser navigates to Form Storage Tank URL for the newly created draft record, with the Storage Tank Detail grid starting empty"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Storage Tank — Lanjutkan Draft/Pause",
+      "usecase_id": "usecase-091--monitor-storage-tank",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorStorageTankView",
+        "action": "render screen with a draft/pause list containing at least one item, tap the first list item",
+        "assert": "router push to Form Storage Tank route called with the tapped item's draft id; no status-update handler invoked"
+      },
+      "browser_test": {
+        "route": "/stations/storage-tank/monitor",
+        "action": "with an existing draft/pause present in the list, tap the draft/pause list item",
+        "assert": "browser navigates to Form Storage Tank URL pre-filled with the selected draft's data"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Storage Tank — Load Data",
+      "usecase_id": "usecase-091--monitor-storage-tank",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorStorageTankView",
+        "action": "tap the 'Load Data' button",
+        "assert": "router push to Data Preview Storage Tank route called in list mode with no id param"
+      },
+      "browser_test": {
+        "route": "/stations/storage-tank/monitor",
+        "action": "tap the 'Load Data' button on Monitor Storage Tank screen",
+        "assert": "browser navigates to Data Preview Storage Tank screen, showing all records (saved and draft) with date and search filters visible"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Storage Tank — Belum Ada Draft",
+      "usecase_id": "usecase-091--monitor-storage-tank",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorStorageTankView",
+        "action": "render screen when the draft/pause list is empty",
+        "assert": "empty-state message shown in list area; 'New Data' button remains enabled/interactive"
+      },
+      "browser_test": {
+        "route": "/stations/storage-tank/monitor",
+        "action": "open Monitor Storage Tank screen with no existing draft/pause records",
+        "assert": "list area shows empty state; 'New Data' button is visible and enabled"
+      }
+    },
+    {
+      "scenario_ref": "Monitor Storage Tank — Belum Ada Data Hari Ini",
+      "usecase_id": "usecase-091--monitor-storage-tank",
+      "api_test": [],
+      "component_test": {
+        "component": "MonitorStorageTankView",
+        "action": "render screen with today's counter data all zero",
+        "assert": "2 counter cards render 0"
+      },
+      "browser_test": {
+        "route": "/stations/storage-tank/monitor",
+        "action": "ensure no storage_tank_record rows dated today exist for the logged-in user, navigate to Monitor Storage Tank",
+        "assert": "the 2 counter cards show 0"
+      }
+    }
+  ]
+}

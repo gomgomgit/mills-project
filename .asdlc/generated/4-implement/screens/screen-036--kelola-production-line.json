@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 4,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-09-01"
   },
   "id": "screen-036--kelola-production-line",
   "name": "Kelola Production Line",
@@ -19,12 +19,15 @@
     "backend/database/migrations/2026_08_20_000004_add_production_line_id_to_stations_table.php",
     "backend/database/migrations/2026_08_20_000005_backfill_production_lines_for_existing_business_units.php",
     "backend/database/migrations/2026_08_20_000006_make_production_line_id_not_null_on_stations_table.php",
+    "backend/database/migrations/2026_08_31_000022_activate_6_and_add_4_new_stations_on_existing_production_lines.php",
+    "backend/database/migrations/2026_09_01_000027_activate_sterilizer_on_existing_production_lines.php",
     "backend/routes/api.php",
     "backend/routes/web.php"
   ],
   "test_files_generated": [
     "backend/tests/Feature/Api/KelolaProductionLineTest.php",
-    "backend/tests/Feature/Livewire/KelolaProductionLineTest.php"
+    "backend/tests/Feature/Livewire/KelolaProductionLineTest.php",
+    "backend/tests/Browser/KelolaProductionLineTest.php"
   ],
   "fe_files_generated": [
     "backend/resources/views/livewire/master-data/kelola-production-line.blade.php",
@@ -33,7 +36,10 @@
   "fe_test_files_generated": [],
   "implementation_notes": [
     "Dibangun oleh agent dalam sesi ini sebagai bagian dari fitur Production Line yang lebih besar (entity-catalog v9) — artifact ASDLC untuk screen ini (business-spec/tech-spec/4-implement) tertinggal/tidak sempat ditulis karena sesi agent yang membangunnya terputus sebelum sempat menulis artifact; direkonstruksi (backfill dokumentasi) dari kode dan test yang sudah nyata ada dan lolos, bukan dari re-implementasi.",
-    "Mirip pola Kelola Machinery Group persis — CRUD master-data flat, tanpa child-grid, admin-only, tanpa scoping kepemilikan per-resource."
+    "Mirip pola Kelola Machinery Group persis — CRUD master-data flat, tanpa child-grid, admin-only, tanpa scoping kepemilikan per-resource.",
+    "2026-08-31: DEFAULT_STATIONS diperluas dari 15 menjadi 19 entri (6 placeholder dipromosikan: Clarification, Boiler→'Boiler Room', Effluent Treatment→'Effluent Plant', Engine Room, Water Treatment→'Process Water', Bulking Storage→'Storage Tank'; 4 stasiun baru ditambahkan: Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control). Migration baru 2026_08_31_000022 menjalankan backfill untuk Production Line yang sudah ada (UPDATE 6 row promosi + INSERT 4 row baru per Production Line, idempotent via doesntExist guard). Dijalankan nyata (php artisan migrate --force) — diverifikasi via tinker: Production Line existing sekarang punya 19 station dengan tipe yang benar. Full test suite 1306/1306 lulus setelah update assertion station_count 15→19 di 3 file test (Api/Livewire/Browser) — tidak ada regresi.",
+    "2026-09-01: DEFAULT_STATIONS dikoreksi dari 19 menjadi 18 entri — placeholder 'Loading Ramp' dihapus sepenuhnya, ternyata nama duplikat untuk stasiun yang sama dengan Cages Track (sudah aktif), bukan stasiun terpisah. Migration data baru menghapus row 'Loading Ramp' (type='other') dari setiap Production Line existing. station_count assertion di 3 file test (Api/Livewire/Browser) diperbarui 19→18. screen-035 (Production Process Activity, web) turut diperbarui pada sesi yang sama agar konsisten (17 aktif + 1 placeholder).",
+    "v4 (2026-09-01, promosi final): Sterilizer (placeholder terakhir) dipromosikan menjadi station aktif (type=sterilizer) via migration baru 2026_09_01_000027_activate_sterilizer_on_existing_production_lines.php — dijalankan nyata (php artisan migrate --force), diverifikasi via tinker: setiap Production Line existing sekarang punya 18 station aktif, 0 is_active=false. station_count TIDAK berubah (tetap 18, sudah benar sejak Loading Ramp dihapus) — hanya frasa '17 aktif + 1 placeholder' yang dikoreksi jadi 'semua 18 aktif, 0 placeholder' di seluruh dokumen/test. tests/Feature/Api/KelolaProductionLineTest.php diperbaiki: assertion is_active=false count dari 1 menjadi 0 (test sebelumnya GAGAL setelah promosi ini sampai diperbaiki), ditambah assertion is_active=true count=18. Backend full suite (2225 test) lulus setelah perbaikan ini."
   ],
   "deferred_items": [
     {
@@ -43,7 +49,7 @@
   ],
   "known_issues": [
     {
-      "description": "Tidak ada Browser/E2E test untuk screen ini, berbeda dari pola sebagian screen master-data lain",
+      "description": "Playwright Browser test file ada di disk (tests/Browser/KelolaProductionLineTest.php, sudah disinkronkan ke station_count=18) tapi tidak dijalankan oleh php artisan test — tidak ada Playwright/Node infra di sandbox backend/, konsisten dengan keterbatasan yang sudah diterima di seluruh screen web lain",
       "severity": "minor"
     }
   ],
@@ -55,12 +61,12 @@
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-20T00:00:00Z",
+      "run_at": "2026-09-01T00:00:00Z",
       "passed": 26,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-20T00:00:00Z",
+      "run_at": "2026-08-31T00:00:00Z",
       "passed": 15,
       "failed": 0
     },

@@ -1,0 +1,393 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-073--form-kernel-dispatch",
+  "name": "Form Kernel Dispatch",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/kernel-dispatch/form/:id",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-074--form-kernel-dispatch",
+      "usecase_name": "Input Data Kernel Dispatch",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load draft kernel_dispatch_record by id (route param) beserta seluruh kernel_dispatch_detail turunannya ke form state",
+        "2. Auto-set Date = hari ini HANYA jika draft baru (masih kosong); jika draft dilanjutkan, pertahankan nilai tersimpan",
+        "3. Render field dikelompokkan per section: Identitas Kernel Dispatch (Kernel Dispatch ID, Date), Verifikasi (Inputted By [read-only], Checked By, Acknowledged By, Note), Log Kejadian (tabel event-log)",
+        "4. Render breadcrumb (Home > Production Process Activity > Kernel Dispatch > Form, tappable) dan header dengan hamburger",
+        "5. On Tambah baris Log Kejadian: tambah 1 baris baru (tanpa id) ke tabel, seluruh field kosong — TIDAK ADA batasan jumlah baris (event-log unbounded)",
+        "6. On isi field baris (Tanggal Kejadian, Shift, Weighbridge Ticket No, Waybill Number, Transporter/Contractor, Vehicle Plate No, Driver Name, Silo Source ID, Destination/Buyer, dll): update field baris tersebut secara reaktif; Net Weight (MT) dihitung otomatis = Gross Weight - Tare Weight setiap kali salah satu berubah; Remarks/Gate Status dipilih dari enum (Released/Not Released)",
+        "7. On Hapus baris Log Kejadian: hapus baris dari form state; jika baris punya id (sudah tersimpan sebelumnya), tandai untuk DELETE saat Simpan/Pause berikutnya",
+        "8. Checked By hanya dapat diisi/diedit jika role user saat ini = supervisor; disabled untuk role lain",
+        "9. Acknowledged By hanya dapat diisi/diedit jika role user saat ini = mill_management; disabled untuk role lain",
+        "10. On Simpan: validasi field wajib (Kernel Dispatch ID) dan minimal 1 baris Log Kejadian valid (Tanggal Kejadian terisi) → jika lengkap: UPDATE kernel_dispatch_record (semua field header, status=saved) → upsert kernel_dispatch_detail (baris tanpa id: INSERT baru dengan Net Weight terhitung; baris dengan id: UPDATE; baris ditandai dihapus: DELETE) → navigasi ke Monitor Kernel Dispatch",
+        "11. On Pause: UPDATE kernel_dispatch_record (field form apa adanya, status=draft_paused, TANPA validasi field wajib), kernel_dispatch_detail rows di-upsert/delete apa adanya juga → navigasi ke Monitor",
+        "12. On Clear: tampilkan dialog konfirmasi → jika dikonfirmasi: DELETE seluruh kernel_dispatch_detail milik record lalu DELETE kernel_dispatch_record → navigasi ke Monitor; jika dibatalkan: tidak ada perubahan",
+        "13. On Back: jika form dirty: tampilkan dialog konfirmasi → jika dikonfirmasi, buang perubahan di memori, navigasi ke Monitor; jika tidak dirty, navigasi langsung",
+        "14. On tap breadcrumb segment → navigasi ke route terkait",
+        "15. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "kernel-dispatch-record",
+          "operation": "SELECT",
+          "description": "SELECT record by id untuk load form state"
+        },
+        {
+          "entity_id": "kernel-dispatch-detail",
+          "operation": "SELECT",
+          "description": "SELECT semua baris by kernel_dispatch_record_id"
+        },
+        {
+          "entity_id": "kernel-dispatch-record",
+          "operation": "UPDATE",
+          "description": "UPDATE semua field header + status=saved pada Simpan, atau field apa adanya + status=draft_paused pada Pause"
+        },
+        {
+          "entity_id": "kernel-dispatch-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru (tanpa id sebelumnya) pada Simpan/Pause"
+        },
+        {
+          "entity_id": "kernel-dispatch-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris yang sudah punya id pada Simpan/Pause"
+        },
+        {
+          "entity_id": "kernel-dispatch-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris yang dihapus user dari log, pada Simpan/Pause berikutnya; atau seluruh baris pada Clear"
+        },
+        {
+          "entity_id": "kernel-dispatch-record",
+          "operation": "DELETE",
+          "description": "DELETE record pada Clear yang dikonfirmasi"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Field wajib (Kernel Dispatch ID) belum lengkap saat Simpan",
+          "handling": "Tampilkan error inline per field, record tidak tersimpan"
+        },
+        {
+          "condition": "Belum ada baris Log Kejadian dengan Tanggal Kejadian terisi saat Simpan",
+          "handling": "Tampilkan pesan error khusus pada bagian Log Kejadian, record tidak tersimpan"
+        },
+        {
+          "condition": "Operator mencoba mengisi/mengedit Checked By",
+          "handling": "Field disabled/read-only untuk role selain supervisor"
+        },
+        {
+          "condition": "Non-mill_management mencoba mengisi/mengedit Acknowledged By",
+          "handling": "Field disabled/read-only untuk role selain mill_management"
+        },
+        {
+          "condition": "User menghapus baris Log Kejadian yang sudah ada (punya id)",
+          "handling": "Baris hilang dari log; ditandai untuk DELETE eksplisit"
+        },
+        {
+          "condition": "Draft di-Pause lalu dilanjutkan",
+          "handling": "Field form + tabel Log Kejadian terisi dari draft tersimpan"
+        },
+        {
+          "condition": "Back dengan perubahan belum tersimpan",
+          "handling": "Tampilkan dialog konfirmasi sebelum keluar"
+        },
+        {
+          "condition": "Clear ditekan",
+          "handling": "Tampilkan dialog konfirmasi wajib sebelum DELETE dieksekusi"
+        }
+      ],
+      "business_rules_applied": [
+        "Date otomatis sekali saat draft baru dibuat",
+        "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Log Kejadian adalah event-log bebas, jumlah baris tidak dibatasi",
+        "Minimal satu baris Log Kejadian dengan Tanggal Kejadian terisi sebelum Simpan",
+        "Net Weight dihitung otomatis per baris, tidak dapat diedit manual"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "sets date to today when draft is new (empty)",
+          "given": "loaded draft record has date = null",
+          "expect": "date set to today's local date exactly once on mount"
+        },
+        {
+          "description": "preserves stored date when resuming a paused draft",
+          "given": "loaded draft record has date already set",
+          "expect": "date remains unchanged, not overwritten"
+        },
+        {
+          "description": "computes net_weight_mt for a row as gross_weight_mt minus tare_weight_mt",
+          "given": "a row with gross_weight_mt=10 and tare_weight_mt=2",
+          "expect": "that row's computed net_weight_mt = 8"
+        },
+        {
+          "description": "adds a new empty row with no upper bound on row count",
+          "given": "user triggers 'Tambah baris' repeatedly",
+          "expect": "each call appends one new row with id undefined; no limit enforced"
+        },
+        {
+          "description": "queues an existing row (with id) for deletion when removed, does not delete rows without id immediately",
+          "given": "a row with id='existing-1' is removed",
+          "expect": "row removed from local rows array; its id appended to the pending-deletion list"
+        },
+        {
+          "description": "disables the Checked By field for a non-supervisor user",
+          "given": "current user role = 'operator'",
+          "expect": "Checked By field rendered disabled/read-only"
+        },
+        {
+          "description": "enables the Checked By field for a supervisor user",
+          "given": "current user role = 'supervisor'",
+          "expect": "Checked By field rendered enabled/editable"
+        },
+        {
+          "description": "disables the Acknowledged By field for a non-mill_management user",
+          "given": "current user role = 'operator' or 'supervisor'",
+          "expect": "Acknowledged By field rendered disabled/read-only"
+        },
+        {
+          "description": "returns validation errors and does not save when Kernel Dispatch ID is empty on Simpan",
+          "given": "kernel_dispatch_id empty, Simpan triggered",
+          "expect": "validation fails, inline error returned, saveDraft() not called"
+        },
+        {
+          "description": "returns validation error and does not save when no detail row has an event_date on Simpan",
+          "given": "all detail rows lack event_date, Simpan triggered",
+          "expect": "validation fails with detail-specific error, saveDraft() not called"
+        },
+        {
+          "description": "saves with status=saved when all conditions pass",
+          "given": "required header fields filled, 1 valid detail row, Simpan triggered",
+          "expect": "saveDraft() called with status='saved'; navigation to Monitor triggered"
+        },
+        {
+          "description": "updates record with status=draft_paused without validating required fields on Pause",
+          "given": "required field is empty, Pause triggered",
+          "expect": "pauseDraftWithFormData() called with current field values as-is, status='draft_paused', no validation errors; navigation to Monitor triggered"
+        },
+        {
+          "description": "shows confirmation dialog before deleting on Clear",
+          "given": "Clear button pressed",
+          "expect": "confirmation dialog displayed; deleteDraft() not yet called"
+        },
+        {
+          "description": "deletes record and all its detail rows, then navigates to Monitor when Clear is confirmed",
+          "given": "Clear confirmation dialog confirmed",
+          "expect": "kernel_dispatch_detail rows deleted, kernel_dispatch_record deleted; navigation to Monitor triggered"
+        },
+        {
+          "description": "shows confirmation dialog on Back when form is dirty",
+          "given": "form state isDirty = true, Back pressed",
+          "expect": "confirmation dialog displayed before navigation"
+        },
+        {
+          "description": "navigates directly on Back when form is not dirty",
+          "given": "form state isDirty = false, Back pressed",
+          "expect": "navigates to Monitor immediately, no dialog shown"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-063--monitor-kernel-dispatch",
+      "reason": "Asal & tujuan kembali setelah Simpan/Pause/Clear/Back"
+    },
+    {
+      "screen_id": "screen-083--data-preview-kernel-dispatch",
+      "reason": "Referensi tampilan data setelah tersimpan"
+    }
+  ],
+  "implementation_notes": [
+    "Simpan/Pause/Clear bersifat lokal (SQLite); pengiriman ke server terjadi lewat mekanisme sync manual terpisah, di luar scope screen ini",
+    "Berbeda dari stasiun grid-jam: TIDAK ADA konsep N-kolom checklist/jam — Log Kejadian murni tabel bebas per-kejadian, mengikuti pola solid-waste-disposal-detail/cages-tipped-time hanya dari sisi 'unbounded rows added manually', bukan dari sisi struktur kolomnya",
+    "Hapus baris mengikuti pola queue-for-deletion (baris dengan id ditandai, baru DELETE eksekusi saat Simpan/Pause berikutnya), konsisten dengan Form Solid Waste Disposal/Form Cages Track",
+    "Net Weight (MT) dihitung client-side lalu dipersist, tidak pernah dihitung ulang oleh repo saat load",
+    "21 kolom detail (lebih banyak dari Solid Waste Disposal's 17) mengikuti persis urutan field entity-catalog kernel-dispatch-detail: event_date, shift, weighbridge_ticket_no, waybill_number, transporter_contractor, vehicle_plate_no, driver_name, silo_source_id, destination_buyer, gross_weight_mt, tare_weight_mt, net_weight_mt, kernel_moisture_percent, dirt_impurities_percent, ffa_percent, broken_kernel_percent, security_seal_no_top, security_seal_no_bottom, weighbridge_operator_id, remarks_gate_status, findings"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Input Data Kernel Dispatch — success sebagai Station Operator",
+      "usecase_id": "usecase-074--form-kernel-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "FormKernelDispatchView",
+        "action": "fill Kernel Dispatch ID, add a detail row with event_date, click Simpan as an operator user",
+        "assert": "record saved with status=saved, Checked By/Acknowledged By remain empty/disabled for operator"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-dispatch/form/:id",
+        "action": "login as operator, buka Form Kernel Dispatch draft baru dari Monitor, isi field wajib, tambah 1 baris log lengkap, klik Simpan",
+        "assert": "navigasi ke Monitor Kernel Dispatch, record baru berstatus tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Kernel Dispatch — success sebagai Supervisor dengan Checked By",
+      "usecase_id": "usecase-074--form-kernel-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "FormKernelDispatchView",
+        "action": "as a supervisor user, fill required fields, add a valid detail row, check Checked By, click Simpan",
+        "assert": "record saved including checked_by set to the supervisor's id"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-dispatch/form/:id",
+        "action": "login as supervisor, isi field wajib termasuk Checked By, tambah 1 baris lengkap, klik Simpan",
+        "assert": "record tersimpan dengan Checked By terisi"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Kernel Dispatch — Field Wajib Belum Lengkap",
+      "usecase_id": "usecase-074--form-kernel-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "FormKernelDispatchView",
+        "action": "leave Kernel Dispatch ID empty, click Simpan",
+        "assert": "inline error shown, save handler not invoked"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-dispatch/form/:id",
+        "action": "jangan isi Kernel Dispatch ID, klik Simpan",
+        "assert": "pesan error inline muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Kernel Dispatch — Belum Ada Baris Log Kejadian Valid",
+      "usecase_id": "usecase-074--form-kernel-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "FormKernelDispatchView",
+        "action": "fill header field, leave the Log Kejadian table empty, click Simpan",
+        "assert": "detail-specific error shown, save handler not invoked"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-dispatch/form/:id",
+        "action": "isi header, jangan tambah baris Log Kejadian, klik Simpan",
+        "assert": "pesan error khusus muncul, record tidak tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Kernel Dispatch — Net Weight Dihitung Otomatis",
+      "usecase_id": "usecase-074--form-kernel-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "FormKernelDispatchView",
+        "action": "fill gross_weight_mt=10 and tare_weight_mt=2 for a row",
+        "assert": "net_weight_mt displayed as 8, input disabled"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-dispatch/form/:id",
+        "action": "isi Gross Weight dan Tare Weight pada satu baris",
+        "assert": "Net Weight terhitung otomatis dan tidak dapat diedit"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Kernel Dispatch — Checked By Khusus Supervisor",
+      "usecase_id": "usecase-074--form-kernel-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "FormKernelDispatchView",
+        "action": "render the form for an operator user",
+        "assert": "Checked By field rendered disabled"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-dispatch/form/:id",
+        "action": "buka Form Kernel Dispatch sebagai Operator",
+        "assert": "field Checked By tidak dapat diisi/diedit"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Kernel Dispatch — Hapus Baris Log Kejadian",
+      "usecase_id": "usecase-074--form-kernel-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "FormKernelDispatchView",
+        "action": "remove an existing (has-id) detail row",
+        "assert": "row removed from view; its id queued for deletion on next save"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-dispatch/form/:id",
+        "action": "hapus salah satu baris Log Kejadian yang sudah tersimpan",
+        "assert": "baris hilang dari tampilan; terhapus permanen setelah Simpan berikutnya"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Kernel Dispatch — Lanjutkan Draft Paused",
+      "usecase_id": "usecase-074--form-kernel-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "FormKernelDispatchView",
+        "action": "mount form with an existing draft_paused record and detail rows loaded",
+        "assert": "all header fields and detail table populated from the saved draft"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-dispatch/form/:id",
+        "action": "dari Monitor, tap draft paused sebelumnya untuk dilanjutkan",
+        "assert": "semua field dan baris Log Kejadian terisi sesuai draft tersimpan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Kernel Dispatch — Back Dengan Perubahan Belum Tersimpan",
+      "usecase_id": "usecase-074--form-kernel-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "FormKernelDispatchView",
+        "action": "modify a field to make the form dirty, trigger back action",
+        "assert": "confirmation dialog rendered before navigation occurs"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-dispatch/form/:id",
+        "action": "ubah salah satu field, tekan tombol Back sebelum Simpan",
+        "assert": "dialog konfirmasi keluar ditampilkan"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Kernel Dispatch — Pause Progress",
+      "usecase_id": "usecase-074--form-kernel-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "FormKernelDispatchView",
+        "action": "fill form partially (required field left empty), click Pause",
+        "assert": "update invoked with status=draft_paused and current field values, no validation errors shown, navigation to Monitor triggered"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-dispatch/form/:id",
+        "action": "isi sebagian field, tekan tombol Pause",
+        "assert": "tidak ada error validasi, navigasi kembali ke Monitor, draft tersimpan dengan status paused"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Kernel Dispatch — Clear Draft",
+      "usecase_id": "usecase-074--form-kernel-dispatch",
+      "api_test": [],
+      "component_test": {
+        "component": "FormKernelDispatchView",
+        "action": "click Clear then confirm the dialog; repeat and cancel the dialog",
+        "assert": "on confirm: delete invoked and navigation to Monitor triggered; on cancel: no delete call, form state unchanged"
+      },
+      "browser_test": {
+        "route": "/stations/kernel-dispatch/form/:id",
+        "action": "tekan tombol Clear lalu konfirmasi hapus; ulangi dan batalkan konfirmasi",
+        "assert": "saat dikonfirmasi: draft terhapus permanen dan navigasi ke Monitor; saat dibatalkan: tidak ada perubahan"
+      }
+    }
+  ]
+}

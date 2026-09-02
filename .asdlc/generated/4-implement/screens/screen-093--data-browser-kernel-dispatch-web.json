@@ -1,0 +1,78 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-093--data-browser-kernel-dispatch-web",
+  "name": "Data Browser Kernel Dispatch (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/KernelDispatchRecordController.php",
+    "backend/app/Services/KernelDispatchRecordService.php",
+    "backend/app/Exceptions/NoActiveKernelDispatchStationException.php",
+    "backend/database/factories/KernelDispatchRecordFactory.php",
+    "backend/database/factories/KernelDispatchDetailFactory.php",
+    "backend/database/factories/StationFactory.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/KernelDispatchRecordServiceTest.php",
+    "backend/tests/Feature/Api/DataBrowserKernelDispatchTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DataBrowserKernelDispatch.php",
+    "backend/resources/views/livewire/data/data-browser-kernel-dispatch.blade.php",
+    "backend/resources/views/data/kernel-dispatch.blade.php",
+    "backend/resources/views/data/production-process-activity.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DataBrowserKernelDispatchTest.php",
+    "backend/tests/Browser/DataBrowserKernelDispatchTest.php"
+  ],
+  "implementation_notes": [
+    "Mengikuti pola screen-091 (Data Browser Solid Waste Disposal) persis — KernelDispatchRecordController/Service delegasi penuh ke service layer yang sama dipakai Livewire component, reuse InvalidDateRangeException/ExportFailedException/Pagination::format() yang sudah ada di codebase, tidak diduplikasi",
+    "KernelDispatchRecord::kernelDispatchDetails() hasMany relationship sudah ada di model (dibuat Phase 1 entity-models-agent, sudah tersedia sebelum sesi ini dimulai); event_count dihitung via withCount('kernelDispatchDetails') di list maupun export",
+    "KernelDispatchRecord TIDAK punya `saving`-guard model event (lihat model docblock yang sudah ada) — divalidasi diserahkan ke Phase 4 (di service layer via validateDetails()), bukan model event. Karena itu factory default status = RecordStatus::Saved aman dipakai langsung",
+    "StationFactory gained kernelDispatch() state (type=kernel-dispatch), additive, mirrors weighbridge()/grading()/cagesTrack()/solidWasteDisposal()/processWater() yang sudah ada",
+    "production-process-activity.blade.php: tile 'Kernel Dispatch' (sebelumnya href=\"javascript:void(0)\", styled active tapi belum di-route) sekarang di-wire ke route('data.kernel-dispatch') karena screen ini kini terimplementasi — satu-satunya perubahan pada tile di file bersama ini; 7 tile stasiun lain yang masih belum di-route (Clarification/Boiler Room/Effluent Plant/Engine Room/Storage Tank/CPO Dispatch/Process Quality Control) tetap tidak berubah. File-level doc comment juga diperbarui untuk mencerminkan 7 sisa tile unrouted (turun dari 8)",
+    "tests/Feature/ProductionProcessActivityTest.php diupdate untuk mencerminkan perubahan di atas: assertion 'renders the N active station tiles' diperluas menjadi 8 (menambahkan Kernel Dispatch), dan test 'still-unrouted tiles' menjadi 7 masih belum di-route (menghapus Kernel Dispatch dari daftar tersebut) — test lain di file tersebut tidak disentuh",
+    "Detail fields (21 kolom, entity-catalog kernel-dispatch-detail) lebih banyak dari Solid Waste Disposal (17 kolom): tambahan waybill_number, transporter_contractor, kernel_moisture_percent, dirt_impurities_percent, ffa_percent, broken_kernel_percent, dan security_seal_no dipecah menjadi security_seal_no_top/security_seal_no_bottom"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test file dibuat tapi tidak dapat dijalankan di sandbox ini (tidak ada infra Playwright/dev-server), konsisten dengan gap yang sama di screen-016/017/018/091/092.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV di sandbox ini.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 8,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 7,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 5,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-074--form-cpo-dispatch",
+  "name": "Form CPO Dispatch",
+  "module_id": "module-mobile-station-ops",
+  "description": "Form input/edit data log CPO Dispatch yang mencatat data header (CPO Dispatch ID, Date otomatis, verifikasi Checked By/Acknowledged By) dan log detail per-kejadian pengiriman CPO (baris ditambah manual sesuai kejadian, TIDAK dibatasi jumlah baris per hari), mengikuti pola Form Kernel Dispatch/Form Solid Waste Disposal.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap 'New Data' dari Monitor CPO Dispatch (draft baru)",
+    "Tap salah satu item draft/pause di list Monitor CPO Dispatch (lanjutkan draft)"
+  ],
+  "information_displayed": [
+    "Identitas CPO Dispatch: CPO Dispatch ID (input manual, wajib), Date (otomatis terisi sekali saat draft baru dibuat, tidak dapat diedit)",
+    "Verifikasi: Inputted By (otomatis nama user yang login, tidak dapat diedit), Checked By (hanya bisa diisi Supervisor), Acknowledged By (hanya bisa diisi Mill Management), Note (input manual, opsional)",
+    "Log Kejadian CPO Dispatch: tabel baris per-kejadian dengan kolom Tanggal Kejadian, Shift, Time In, Time Out, Waybill Number, Tanker Plate No, Transport Company, Driver Name, Storage Tank Source, Seal Numbers (Top), Seal Numbers (Bottom), Gross Weight (MT), Tare Weight (MT), Net Weight (MT, dihitung otomatis = Gross - Tare), FFA (%), Moisture (%), Impurities (%), DOBI, Destination/Buyer, Weighbridge Operator, Findings — baris dapat ditambah dan dihapus, jumlah baris TIDAK dibatasi per hari",
+    "Breadcrumb navigasi (Home > Production Process Activity > CPO Dispatch > Form) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu"
+  ],
+  "available_actions": [
+    {
+      "action": "Isi CPO Dispatch ID",
+      "description": "Mengisi identifikasi record CPO Dispatch (wajib)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tambah baris Log Kejadian",
+      "description": "Menambah satu baris kejadian baru ke log (tidak dibatasi jumlahnya)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus baris Log Kejadian",
+      "description": "Menghapus satu baris dari log",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi field baris kejadian",
+      "description": "Mengisi Tanggal Kejadian (wajib per baris) dan field lain (opsional) pada baris, termasuk Time In/Time Out; Net Weight dihitung otomatis dari Gross - Tare",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi Checked By",
+      "description": "Mengisi field verifikasi Checked By",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Isi Acknowledged By",
+      "description": "Mengisi field verifikasi Acknowledged By",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Menyimpan record data CPO Dispatch secara final",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progress saat ini sebagai draft yang bisa dilanjutkan nanti, kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus draft ini secara permanen (dengan konfirmasi), kembali ke Monitor",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor tanpa menyimpan, dengan konfirmasi jika ada perubahan belum tersimpan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Inputted By otomatis diambil dari user yang login, tidak dapat diedit manual",
+    "Checked By hanya bisa diisi/diedit oleh Supervisor; Acknowledged By hanya bisa diisi/diedit oleh Mill Management",
+    "Log Kejadian adalah event-log bebas — baris ditambah manual sesuai kejadian pengiriman CPO, jumlah baris TIDAK dibatasi 24/hari seperti stasiun grid-jam, mengikuti pola Kernel Dispatch/Solid Waste Disposal",
+    "Minimal satu baris Log Kejadian dengan Tanggal Kejadian terisi harus ada sebelum Simpan",
+    "Net Weight (MT) dihitung otomatis = Gross Weight - Tare Weight, tidak dapat diedit manual",
+    "Record tersimpan langsung begitu Simpan ditekan (bukan approval workflow berjenjang)",
+    "Field wajib ditandai asterisk dengan validasi inline",
+    "Tidak ada field status gerbang/gate (berbeda dari Kernel Dispatch) — CPO Dispatch tidak memiliki kolom Remarks/Gate Status"
+  ],
+  "usecase_ids": [
+    "usecase-080--form-cpo-dispatch"
+  ],
+  "edge_cases": [
+    "Field wajib (CPO Dispatch ID) belum lengkap saat Simpan ditekan",
+    "Belum ada baris Log Kejadian dengan Tanggal Kejadian terisi saat Simpan ditekan",
+    "Operator mencoba mengisi/mengedit Checked By atau Acknowledged By",
+    "Draft yang di-Pause lalu dilanjutkan",
+    "User menekan Back dengan perubahan belum tersimpan (perlu konfirmasi)",
+    "User menekan Clear (perlu konfirmasi sebelum hapus permanen)",
+    "User menghapus baris Log Kejadian yang sudah ada sebelumnya (bukan baru ditambah)"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

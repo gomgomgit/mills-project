@@ -1,0 +1,66 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-063--monitor-kernel-dispatch",
+  "name": "Monitor Kernel Dispatch",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/kernelDispatchRecordRepo.ts",
+    "mobile/src/views/MonitorKernelDispatchView.vue",
+    "mobile/src/services/localSchema.ts",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/StationListView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/kernelDispatchRecordRepo.spec.ts",
+    "mobile/tests/MonitorKernelDispatchView.spec.ts",
+    "mobile/tests/StationListView.spec.ts"
+  ],
+  "implementation_notes": [
+    "Mirrors MonitorSolidWasteDisposalView.vue's structural pattern (breadcrumb + hamburger header, draft/pause list, New Data/Load Data/Back footer) but with EVENT-LOG summary semantics: 'Hari Ini' shows Jumlah Kernel Dispatch + Jumlah Kejadian Tercatat (not a tipping-progress metric), plus a 'Kejadian Terakhir' card (getLastEventSummary()) showing the single most-recently-logged event across ALL of the user's records (not scoped to today), displaying destination/buyer + event date + vehicle plate no instead of Solid Waste Disposal's type/date/vehicle triple",
+    "localSchema.ts gained 2 new tables (kernel_dispatch_record, kernel_dispatch_detail) via CREATE TABLE IF NOT EXISTS — no column-migration function needed since these are brand-new tables, not an existing-table schema change",
+    "router/index.ts gained 3 new routes: monitor-kernel-dispatch, kernel-dispatch-form, data-preview-kernel-dispatch",
+    "StationListView.vue's draftStatusByType wiring updated: 'kernel-dispatch' now calls kernelDispatchRecordRepo.getDrafts(userId).length > 0 instead of the previous hardcoded false placeholder — MONITOR_ROUTE_NAMES already had 'monitor-kernel-dispatch' mapped from an earlier station-list update, so the tile itself needed no further changes. Test file updated with a matching mock (getKernelDispatchDraftsMock) plus a default mockResolvedValue([]) added alongside every existing processWater default, following the exact convention used for Process Water/Solid Waste Disposal",
+    "kernelDispatchRecordRepo.ts is a new, from-scratch repo file (no pre-existing block to extend) — createDraft()/getTodaySummary()/getLastEventSummary()/getDrafts()/getAllRecords()/getDraftWithDetails()/saveDraft()/pauseDraftWithFormData()/deleteDraft() all written together, with 21 detail columns (more than Solid Waste Disposal's 17) per entity-catalog kernel-dispatch-detail"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser/E2E test not generated for this pass (no Playwright infra wired into this sandbox run) — component-level (Vitest) coverage exercises the same navigation/business logic instead.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % not measured — no Xdebug/PCOV in this environment, consistent with prior stations in this codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 15,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 12,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-062--monitor-process-water",
+  "name": "Monitor Process Water",
+  "module_id": "module-mobile-station-ops",
+  "description": "Layar yang menampilkan counter ringkasan data hari ini (Jumlah Process Water Record, Jumlah Baris Time-Slot Tercatat), list draft/pause milik user (bisa lebih dari satu berjalan bersamaan), serta akses ke pembuatan data baru dan penelusuran data tersimpan — mengikuti pola persis Monitor Threshing, termasuk untuk struktur grid Process Water Detail-nya yang dinamis (baris ditambahkan satu per satu oleh user, bukan grid 24 baris tetap).",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "Tap Process Water di Station List"
+  ],
+  "information_displayed": [
+    "Counter data hari ini: 2 card sebaris (Jumlah Process Water Record, Jumlah Baris Time-Slot Tercatat), di atas list draft/pause",
+    "List draft/pause Process Water milik user (bisa lebih dari satu), masing-masing berlabel 'Pause' (ongoing dan paused tidak dibedakan secara tampilan)",
+    "Breadcrumb navigasi (Home > Production Process Activity > Process Water) yang dapat ditap",
+    "Header 'Mill Smart Log' + ikon hamburger menu (konsisten dengan Monitor Threshing/Pressing/Depricarping/Kernel Plant)"
+  ],
+  "available_actions": [
+    {
+      "action": "Tap item draft di list",
+      "description": "Masuk ke Form Process Water dengan data draft/pause tersebut untuk dilanjutkan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "New Data",
+      "description": "Membuat draft baru (header saja, grid Process Water Detail dimulai kosong) dan masuk ke Form Process Water — baris time-slot ditambahkan satu per satu di Form Process Water via 'Tambah baris', persis seperti Threshing",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Load Data",
+      "description": "Membuka daftar seluruh record Process Water (tersimpan maupun masih draft/pause) dengan filter tanggal dan pencarian",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tap breadcrumb",
+      "description": "Navigasi ke halaman yang diklik pada breadcrumb",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Buka menu hamburger",
+      "description": "Navigasi ke Ganti Password, Logout, dll",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Station List",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Status draft ongoing dan paused digabung secara tampilan sebagai satu istilah: 'Pause' — tidak dibedakan lagi di UI",
+    "User bisa punya beberapa draft/pause berjalan bersamaan per stasiun, semua tampil di list",
+    "Saat New Data dibuat, HANYA header yang dibuat — grid Process Water Detail dimulai kosong, baris time-slot ditambahkan satu per satu oleh user di Form Process Water via 'Tambah baris'",
+    "Pause dan Clear dilakukan dari Form Process Water, bukan tombol terpisah di Monitor",
+    "Breadcrumb harus dapat dinavigasi, bukan sekadar label statis",
+    "Counter 'hari ini' (Jumlah Process Water Record, Jumlah Baris Time-Slot Tercatat) dihitung dari seluruh record milik user dengan tanggal Date = hari ini, status apapun — Jumlah Baris Time-Slot Tercatat adalah COUNT sederhana seluruh baris process_water_detail milik record-record tersebut (setiap baris yang ada sudah pasti ditambahkan sengaja oleh user via 'Tambah baris')"
+  ],
+  "usecase_ids": [
+    "usecase-067--monitor-process-water"
+  ],
+  "edge_cases": [
+    "Belum ada draft/pause sama sekali — list kosong, tampilkan pesan/empty state, tombol New Data tetap aktif",
+    "Banyak draft/pause menumpuk — list perlu scroll agar semua tetap dapat diakses",
+    "Belum ada data hari ini — kedua card counter menampilkan 0",
+    "Draft baru dibuat tapi belum ada satu baris pun ditambahkan — Jumlah Baris Time-Slot Tercatat tetap 0 untuk record tersebut sampai user menekan 'Tambah baris' di Form Process Water"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

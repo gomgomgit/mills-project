@@ -1,0 +1,191 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-080--form-cpo-dispatch",
+  "name": "Input Data CPO Dispatch",
+  "description": "Operator atau Supervisor mengisi header record CPO Dispatch dan menambahkan baris log kejadian pengiriman CPO secara manual, lalu menyimpan atau menjeda progres pengisian.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "Draft record CPO Dispatch sudah dibuat dari Monitor CPO Dispatch (baru atau lanjutan)"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Muat draft record beserta seluruh baris log kejadian yang sudah ada ke form"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Isi otomatis Date (jika draft baru) dan Inputted By dari user yang login"
+    },
+    {
+      "step": 3,
+      "actor": "actor-station-operator",
+      "description": "Mengisi CPO Dispatch ID dan Note"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Menambah satu atau lebih baris Log Kejadian, mengisi Tanggal Kejadian (wajib) dan field lain (opsional) per baris, termasuk Time In dan Time Out"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Menghitung Net Weight (MT) otomatis = Gross Weight - Tare Weight untuk tiap baris"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Mengisi Checked By jika berperan sebagai Supervisor"
+    },
+    {
+      "step": 7,
+      "actor": "actor-station-operator",
+      "description": "Menekan Simpan untuk menyimpan record secara final, atau Pause untuk menjeda progres"
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Validasi field wajib dan minimal satu baris Log Kejadian valid, lalu simpan record dengan status sesuai aksi, navigasi ke Monitor CPO Dispatch"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field wajib belum lengkap",
+      "trigger": "Step 8 — CPO Dispatch ID kosong saat Simpan ditekan",
+      "steps": [
+        "Tampilkan error inline pada field yang kosong",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Belum ada baris Log Kejadian valid",
+      "trigger": "Step 8 — tidak ada baris dengan Tanggal Kejadian terisi saat Simpan ditekan",
+      "steps": [
+        "Tampilkan pesan error khusus pada bagian Log Kejadian",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Operator mencoba mengisi Checked By/Acknowledged By",
+      "trigger": "Step 6 — user bukan Supervisor/Mill Management mencoba mengedit field verifikasi",
+      "steps": [
+        "Field tampil nonaktif/tidak dapat diedit untuk role yang tidak berwenang"
+      ]
+    },
+    {
+      "name": "Pause tanpa validasi",
+      "trigger": "Step 7 — user menekan Pause, bukan Simpan",
+      "steps": [
+        "Simpan progres apa adanya tanpa validasi field wajib",
+        "Status record menjadi draft_paused",
+        "Navigasi ke Monitor CPO Dispatch"
+      ]
+    },
+    {
+      "name": "Clear draft",
+      "trigger": "User menekan Clear",
+      "steps": [
+        "Tampilkan dialog konfirmasi",
+        "Jika dikonfirmasi: hapus record beserta seluruh baris Log Kejadian, navigasi ke Monitor",
+        "Jika dibatalkan: tidak ada perubahan"
+      ]
+    },
+    {
+      "name": "Back dengan perubahan belum tersimpan",
+      "trigger": "User menekan Back saat form dirty",
+      "steps": [
+        "Tampilkan dialog konfirmasi keluar",
+        "Jika dikonfirmasi: buang perubahan, navigasi ke Monitor",
+        "Jika dibatalkan: tetap di form"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record CPO Dispatch tersimpan dengan status 'saved' (Simpan) atau 'draft_paused' (Pause), beserta seluruh baris Log Kejadian yang valid"
+  ],
+  "business_rules": [
+    "Date auto-set sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Net Weight dihitung otomatis, tidak dapat diedit manual",
+    "Minimal satu baris Log Kejadian dengan Tanggal Kejadian terisi sebelum Simpan (tidak berlaku untuk Pause)"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Input Data CPO Dispatch — success sebagai Station Operator",
+      "given": "Draft baru CPO Dispatch terbuka",
+      "when": "Operator mengisi CPO Dispatch ID, menambah satu baris log dengan Tanggal Kejadian, dan menekan Simpan",
+      "then": "Record tersimpan dengan status saved dan navigasi ke Monitor"
+    },
+    {
+      "scenario": "Input Data CPO Dispatch — success sebagai Supervisor dengan Checked By",
+      "given": "Draft baru CPO Dispatch terbuka sebagai Supervisor",
+      "when": "Supervisor mengisi field wajib, mencentang Checked By, menambah satu baris log, dan menekan Simpan",
+      "then": "Record tersimpan dengan Checked By terisi id Supervisor"
+    },
+    {
+      "scenario": "Input Data CPO Dispatch — Field Wajib Belum Lengkap",
+      "given": "CPO Dispatch ID kosong",
+      "when": "User menekan Simpan",
+      "then": "Error inline muncul dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data CPO Dispatch — Belum Ada Baris Log Kejadian Valid",
+      "given": "Field header lengkap namun tidak ada baris Log Kejadian dengan Tanggal Kejadian terisi",
+      "when": "User menekan Simpan",
+      "then": "Pesan error khusus muncul dan record tidak tersimpan"
+    },
+    {
+      "scenario": "Input Data CPO Dispatch — Net Weight Dihitung Otomatis",
+      "given": "Baris log dengan Gross Weight 10 dan Tare Weight 2",
+      "when": "User mengisi kedua field tersebut",
+      "then": "Net Weight menampilkan 8 secara otomatis, tidak dapat diedit"
+    },
+    {
+      "scenario": "Input Data CPO Dispatch — Checked By Khusus Supervisor",
+      "given": "Form dibuka sebagai Operator",
+      "when": "Operator melihat field Checked By",
+      "then": "Field Checked By tidak dapat diisi/diedit"
+    },
+    {
+      "scenario": "Input Data CPO Dispatch — Hapus Baris Log Kejadian",
+      "given": "Terdapat lebih dari satu baris log kejadian",
+      "when": "User menghapus salah satu baris",
+      "then": "Baris hilang dari log; jika baris sudah tersimpan sebelumnya, ditandai untuk dihapus permanen saat Simpan/Pause berikutnya"
+    },
+    {
+      "scenario": "Input Data CPO Dispatch — Lanjutkan Draft Paused",
+      "given": "Draft berstatus paused dengan data tersimpan sebelumnya",
+      "when": "User membuka draft tersebut dari Monitor",
+      "then": "Seluruh field dan baris Log Kejadian terisi sesuai draft tersimpan"
+    },
+    {
+      "scenario": "Input Data CPO Dispatch — Back Dengan Perubahan Belum Tersimpan",
+      "given": "User mengubah salah satu field",
+      "when": "User menekan Back sebelum Simpan",
+      "then": "Dialog konfirmasi keluar ditampilkan"
+    },
+    {
+      "scenario": "Input Data CPO Dispatch — Pause Progress",
+      "given": "Form terisi sebagian, ada field wajib yang masih kosong",
+      "when": "User menekan Pause",
+      "then": "Tidak ada error validasi, progres tersimpan dengan status draft_paused, navigasi ke Monitor"
+    },
+    {
+      "scenario": "Input Data CPO Dispatch — Clear Draft",
+      "given": "User menekan Clear",
+      "when": "User mengkonfirmasi penghapusan",
+      "then": "Draft terhapus permanen dan navigasi ke Monitor"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-074--form-cpo-dispatch"
+  ]
+}

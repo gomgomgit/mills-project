@@ -1,0 +1,63 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-102--detail-process-water-web",
+  "name": "Detail Process Water (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman detail read-only untuk melihat 1 record Process Water tersimpan secara lengkap beserta grid Process Water Detail (menampilkan seluruh baris yang ada pada record tersebut, berapapun jumlahnya), diakses dari klik baris di Data Browser Process Water (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Klik baris di Data Browser Process Water (Web)"
+  ],
+  "information_displayed": [
+    "Identitas Process Water: Process Water ID, Tanggal",
+    "Verifikasi: Inputted By, Checked By, Acknowledged By, Note",
+    "Grid Process Water Detail: menampilkan persis baris yang tersimpan pada record (Time-Slot, Shift, Inspector ID, Raw Water Flow, Clarified Water Flow, Softener Inlet pH, Softener Outlet Hardness, Alum Dosing, Polymer Dosing, Boiler Feed Tank Temp, Boiler Feed Water pH, Boiler Feed TDS, Action Taken/Status, Findings)",
+    "Status record (saved/synced)",
+    "Tombol Back kembali ke Data Browser Process Water"
+  ],
+  "available_actions": [
+    {
+      "action": "Back",
+      "description": "Kembali ke Data Browser Process Water (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit",
+      "description": "Masuk ke Form Process Water (Web) mode ubah untuk record ini",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Seluruh field ditampilkan read-only — tidak ada aksi edit langsung dari layar ini selain tombol Edit yang membuka Form Process Water Web",
+    "Checked By DAN Acknowledged By keduanya ditampilkan apa adanya, tanpa pembatasan role untuk melihat, konsisten dengan Data Preview Process Water mobile",
+    "Grid Process Water Detail ditampilkan langsung dari data tersimpan (historical), tidak dihitung ulang, dan menampilkan persis jumlah baris yang tersimpan pada record",
+    "Field dikelompokkan sesuai struktur Form Process Water (Identitas, Verifikasi, Grid Detail)",
+    "Tidak ada tabel referensi target operasional pada stasiun ini"
+  ],
+  "usecase_ids": [
+    "usecase-071--detail-process-water-web"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
+    "Checked By/Acknowledged By belum diisi — tampilkan '-'",
+    "Record memiliki nol baris Process Water Detail (kasus tepi: tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

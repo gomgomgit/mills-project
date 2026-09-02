@@ -1,0 +1,55 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-087--data-preview-engine-room",
+  "name": "Data Preview Engine Room",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/DataPreviewEngineRoomView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/DataPreviewEngineRoomView.spec.ts"
+  ],
+  "implementation_notes": [
+    "Dual-mode component (list/detail driven by :id? route param), mirrors DataPreviewStorageTankView.vue's watch()-driven mode switch exactly",
+    "Detail mode renders the Engine Room Detail grid read-only straight from stored columns (no recomputation, historical data), however many rows the record actually has, plus an empty-state message for zero rows",
+    "Checked By/Acknowledged By rendered read-only with no role restriction on viewing, consistent with Data Preview Storage Tank and this screen's business spec",
+    "UNLIKE Data Preview Threshing/Effluent Plant: this screen has NO operational-target reference table section, per this station's explicit scope; all 27 non-time_slot detail columns (including the 2 enum status columns) are rendered in the detail-row grid since there are no identifying/context columns to treat differently"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) e2e spec was not authored for this screen in this task -- component test coverage (DataPreviewEngineRoomView.spec.ts, 11 tests) is complete and passing, but there is no browser-level verification of this screen's list/detail navigation flow in a live dev server.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T04:11:00Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

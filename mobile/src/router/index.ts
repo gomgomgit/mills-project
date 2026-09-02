@@ -402,6 +402,375 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/DataPreviewKernelPlantView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-061--monitor-solid-waste-disposal /
+    // usecase-061--monitor-solid-waste-disposal "Monitor Solid Waste
+    // Disposal". meta.public deliberately false (authenticated; actors:
+    // operator, supervisor). Fills in the `monitor-solid-waste-disposal`
+    // route name StationListView.vue already references (MONITOR_ROUTE_NAMES).
+    path: '/stations/solid-waste-disposal/monitor',
+    name: 'monitor-solid-waste-disposal',
+    component: () => import('@/views/MonitorSolidWasteDisposalView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-071--form-solid-waste-disposal /
+    // usecase-062--form-solid-waste-disposal "Form Solid Waste Disposal".
+    // `:id` route param carries the draft record's id, same convention as
+    // `cages-track-form`/`pressing-form` above.
+    path: '/stations/solid-waste-disposal/form/:id',
+    name: 'solid-waste-disposal-form',
+    component: () => import('@/views/FormSolidWasteDisposalView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-081--data-preview-solid-waste-disposal /
+    // usecase-063--data-preview-solid-waste-disposal "Data Preview Solid
+    // Waste Disposal". `:id?` optional trailing param, same convention as
+    // `data-preview-cages-track`/`data-preview-kernel-plant` above.
+    path: '/stations/solid-waste-disposal/preview/:id?',
+    name: 'data-preview-solid-waste-disposal',
+    component: () => import('@/views/DataPreviewSolidWasteDisposalView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-062--monitor-process-water / usecase-067--monitor-process-water
+    // "Monitor Process Water". meta.public deliberately false
+    // (authenticated; actors: operator, supervisor). Fills in the
+    // `monitor-process-water` route name StationListView.vue already
+    // references (MONITOR_ROUTE_NAMES). Process Water follows the same
+    // hourly-grid pattern as Threshing/Pressing/Kernel Plant — mirrors
+    // `monitor-threshing` exactly.
+    path: '/stations/process-water/monitor',
+    name: 'monitor-process-water',
+    component: () => import('@/views/MonitorProcessWaterView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-072--form-process-water / usecase-068--form-process-water
+    // "Form Process Water". `:id` route param carries the draft record's
+    // id, same convention as `threshing-form`/`pressing-form` above.
+    path: '/stations/process-water/form/:id',
+    name: 'process-water-form',
+    component: () => import('@/views/FormProcessWaterView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-082--data-preview-process-water /
+    // usecase-069--data-preview-process-water "Data Preview Process
+    // Water". `:id?` optional trailing param, same convention as
+    // `data-preview-threshing`/`data-preview-solid-waste-disposal` above.
+    path: '/stations/process-water/preview/:id?',
+    name: 'data-preview-process-water',
+    component: () => import('@/views/DataPreviewProcessWaterView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-063--monitor-kernel-dispatch /
+    // usecase-073--monitor-kernel-dispatch "Monitor Kernel Dispatch".
+    // meta.public deliberately false (authenticated; actors: operator,
+    // supervisor). Fills in the `monitor-kernel-dispatch` route name
+    // StationListView.vue already references (MONITOR_ROUTE_NAMES).
+    path: '/stations/kernel-dispatch/monitor',
+    name: 'monitor-kernel-dispatch',
+    component: () => import('@/views/MonitorKernelDispatchView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-073--form-kernel-dispatch /
+    // usecase-074--form-kernel-dispatch "Form Kernel Dispatch". `:id`
+    // route param carries the draft record's id, same convention as
+    // `solid-waste-disposal-form`/`process-water-form` above.
+    path: '/stations/kernel-dispatch/form/:id',
+    name: 'kernel-dispatch-form',
+    component: () => import('@/views/FormKernelDispatchView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-083--data-preview-kernel-dispatch /
+    // usecase-075--data-preview-kernel-dispatch "Data Preview Kernel
+    // Dispatch". `:id?` optional trailing param, same convention as
+    // `data-preview-solid-waste-disposal`/`data-preview-process-water`
+    // above.
+    path: '/stations/kernel-dispatch/preview/:id?',
+    name: 'data-preview-kernel-dispatch',
+    component: () => import('@/views/DataPreviewKernelDispatchView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-064--monitor-cpo-dispatch /
+    // usecase-079--monitor-cpo-dispatch "Monitor CPO Dispatch".
+    // meta.public deliberately false (authenticated; actors: operator,
+    // supervisor). Fills in the `monitor-cpo-dispatch` route name
+    // StationListView.vue already references (MONITOR_ROUTE_NAMES).
+    path: '/stations/cpo-dispatch/monitor',
+    name: 'monitor-cpo-dispatch',
+    component: () => import('@/views/MonitorCpoDispatchView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-074--form-cpo-dispatch /
+    // usecase-080--form-cpo-dispatch "Form CPO Dispatch". `:id`
+    // route param carries the draft record's id, same convention as
+    // `kernel-dispatch-form`/`solid-waste-disposal-form` above.
+    path: '/stations/cpo-dispatch/form/:id',
+    name: 'cpo-dispatch-form',
+    component: () => import('@/views/FormCpoDispatchView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-084--data-preview-cpo-dispatch /
+    // usecase-081--data-preview-cpo-dispatch "Data Preview CPO
+    // Dispatch". `:id?` optional trailing param, same convention as
+    // `data-preview-kernel-dispatch`/`data-preview-solid-waste-disposal`
+    // above.
+    path: '/stations/cpo-dispatch/preview/:id?',
+    name: 'data-preview-cpo-dispatch',
+    component: () => import('@/views/DataPreviewCpoDispatchView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-065--monitor-effluent-plant /
+    // usecase-085--monitor-effluent-plant "Monitor Effluent Plant".
+    // meta.public deliberately false (authenticated; actors: operator,
+    // supervisor). Fills in the `monitor-effluent-plant` route name
+    // StationListView.vue already references (MONITOR_ROUTE_NAMES).
+    // Effluent Plant follows the same hourly-grid pattern as Process
+    // Water/Threshing/Pressing/Kernel Plant — mirrors
+    // `monitor-process-water` exactly.
+    path: '/stations/effluent-plant/monitor',
+    name: 'monitor-effluent-plant',
+    component: () => import('@/views/MonitorEffluentPlantView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-075--form-effluent-plant /
+    // usecase-086--form-effluent-plant "Form Effluent Plant". `:id` route
+    // param carries the draft record's id, same convention as
+    // `process-water-form`/`kernel-dispatch-form` above.
+    path: '/stations/effluent-plant/form/:id',
+    name: 'effluent-plant-form',
+    component: () => import('@/views/FormEffluentPlantView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-085--data-preview-effluent-plant /
+    // usecase-087--data-preview-effluent-plant "Data Preview Effluent
+    // Plant". `:id?` optional trailing param, same convention as
+    // `data-preview-process-water`/`data-preview-cpo-dispatch` above.
+    path: '/stations/effluent-plant/preview/:id?',
+    name: 'data-preview-effluent-plant',
+    component: () => import('@/views/DataPreviewEffluentPlantView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-066--monitor-storage-tank /
+    // usecase-091--monitor-storage-tank "Monitor Storage Tank".
+    // meta.public deliberately false (authenticated; actors: operator,
+    // supervisor). Fills in the `monitor-storage-tank` route name
+    // StationListView.vue already references (MONITOR_ROUTE_NAMES).
+    // Storage Tank follows the same hourly-grid pattern as Effluent
+    // Plant/Process Water/Threshing/Pressing/Kernel Plant — mirrors
+    // `monitor-effluent-plant` exactly.
+    path: '/stations/storage-tank/monitor',
+    name: 'monitor-storage-tank',
+    component: () => import('@/views/MonitorStorageTankView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-076--form-storage-tank /
+    // usecase-092--form-storage-tank "Form Storage Tank". `:id` route
+    // param carries the draft record's id, same convention as
+    // `effluent-plant-form`/`process-water-form` above.
+    path: '/stations/storage-tank/form/:id',
+    name: 'storage-tank-form',
+    component: () => import('@/views/FormStorageTankView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-086--data-preview-storage-tank /
+    // usecase-093--data-preview-storage-tank "Data Preview Storage Tank".
+    // `:id?` optional trailing param, same convention as
+    // `data-preview-effluent-plant`/`data-preview-process-water` above.
+    path: '/stations/storage-tank/preview/:id?',
+    name: 'data-preview-storage-tank',
+    component: () => import('@/views/DataPreviewStorageTankView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-067--monitor-engine-room /
+    // usecase-097--monitor-engine-room "Monitor Engine Room".
+    // meta.public deliberately false (authenticated; actors: operator,
+    // supervisor). Fills in the `monitor-engine-room` route name
+    // StationListView.vue already references (MONITOR_ROUTE_NAMES).
+    // Engine Room follows the same hourly-grid pattern as Storage Tank/
+    // Effluent Plant/Process Water/Threshing/Pressing/Kernel Plant —
+    // mirrors `monitor-storage-tank` exactly.
+    path: '/stations/engine-room/monitor',
+    name: 'monitor-engine-room',
+    component: () => import('@/views/MonitorEngineRoomView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-077--form-engine-room /
+    // usecase-098--form-engine-room "Form Engine Room". `:id` route
+    // param carries the draft record's id, same convention as
+    // `storage-tank-form`/`effluent-plant-form` above.
+    path: '/stations/engine-room/form/:id',
+    name: 'engine-room-form',
+    component: () => import('@/views/FormEngineRoomView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-087--data-preview-engine-room /
+    // usecase-099--data-preview-engine-room "Data Preview Engine Room".
+    // `:id?` optional trailing param, same convention as
+    // `data-preview-storage-tank`/`data-preview-effluent-plant` above.
+    path: '/stations/engine-room/preview/:id?',
+    name: 'data-preview-engine-room',
+    component: () => import('@/views/DataPreviewEngineRoomView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-068--monitor-boiler-room /
+    // usecase-103--monitor-boiler-room "Monitor Boiler Room".
+    // meta.public deliberately false (authenticated; actors: operator,
+    // supervisor). Fills in the `monitor-boiler-room` route name
+    // StationListView.vue already references (MONITOR_ROUTE_NAMES).
+    // Boiler Room follows the same hourly-grid pattern as Engine Room/
+    // Storage Tank/Effluent Plant/Process Water/Threshing/Pressing/Kernel
+    // Plant — mirrors `monitor-engine-room` exactly.
+    path: '/stations/boiler-room/monitor',
+    name: 'monitor-boiler-room',
+    component: () => import('@/views/MonitorBoilerRoomView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-078--form-boiler-room /
+    // usecase-104--form-boiler-room "Form Boiler Room". `:id` route
+    // param carries the draft record's id, same convention as
+    // `engine-room-form`/`storage-tank-form` above.
+    path: '/stations/boiler-room/form/:id',
+    name: 'boiler-room-form',
+    component: () => import('@/views/FormBoilerRoomView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-088--data-preview-boiler-room /
+    // usecase-105--data-preview-boiler-room "Data Preview Boiler Room".
+    // `:id?` optional trailing param, same convention as
+    // `data-preview-engine-room`/`data-preview-storage-tank` above.
+    path: '/stations/boiler-room/preview/:id?',
+    name: 'data-preview-boiler-room',
+    component: () => import('@/views/DataPreviewBoilerRoomView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-069--monitor-clarification /
+    // usecase-109--monitor-clarification "Monitor Clarification".
+    // meta.public deliberately false (authenticated; actors: operator,
+    // supervisor). Fills in the `monitor-clarification` route name
+    // StationListView.vue already references (MONITOR_ROUTE_NAMES).
+    // Clarification follows the same hourly-grid pattern as Boiler
+    // Room/Engine Room/Storage Tank — mirrors `monitor-boiler-room` exactly.
+    path: '/stations/clarification/monitor',
+    name: 'monitor-clarification',
+    component: () => import('@/views/MonitorClarificationView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-079--form-clarification /
+    // usecase-110--form-clarification "Form Clarification". `:id` route
+    // param carries the draft record's id, same convention as
+    // `boiler-room-form`/`engine-room-form` above.
+    path: '/stations/clarification/form/:id',
+    name: 'clarification-form',
+    component: () => import('@/views/FormClarificationView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-089--data-preview-clarification /
+    // usecase-111--data-preview-clarification "Data Preview Clarification".
+    // `:id?` optional trailing param, same convention as
+    // `data-preview-boiler-room`/`data-preview-engine-room` above.
+    path: '/stations/clarification/preview/:id?',
+    name: 'data-preview-clarification',
+    component: () => import('@/views/DataPreviewClarificationView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-070--monitor-process-quality-control /
+    // usecase-115--monitor-process-quality-control "Monitor Process
+    // Quality Control". meta.public deliberately false (authenticated;
+    // actors: operator, supervisor). Fills in the
+    // `monitor-process-quality-control` route name StationListView.vue
+    // already references (MONITOR_ROUTE_NAMES). Process Quality Control
+    // follows the same hourly-grid pattern as Clarification/Boiler
+    // Room/Engine Room/Storage Tank — mirrors `monitor-clarification`
+    // exactly. This is the FINAL of the 10 MVP stations promoted
+    // 2026-08-31.
+    path: '/stations/process-quality-control/monitor',
+    name: 'monitor-process-quality-control',
+    component: () => import('@/views/MonitorProcessQualityControlView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-080--form-process-quality-control /
+    // usecase-116--form-process-quality-control "Form Process Quality
+    // Control". `:id` route param carries the draft record's id, same
+    // convention as `clarification-form`/`boiler-room-form` above.
+    path: '/stations/process-quality-control/form/:id',
+    name: 'process-quality-control-form',
+    component: () => import('@/views/FormProcessQualityControlView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-090--data-preview-process-quality-control /
+    // usecase-117--data-preview-process-quality-control "Data Preview
+    // Process Quality Control". `:id?` optional trailing param, same
+    // convention as `data-preview-clarification`/`data-preview-boiler-room`
+    // above.
+    path: '/stations/process-quality-control/preview/:id?',
+    name: 'data-preview-process-quality-control',
+    component: () => import('@/views/DataPreviewProcessQualityControlView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-121--monitor-sterilizer /
+    // usecase-121--monitor-sterilizer "Monitor Sterilizer". meta.public
+    // deliberately false (authenticated; actors: operator, supervisor).
+    // Fills in the `monitor-sterilizer` route name StationListView.vue
+    // already references (MONITOR_ROUTE_NAMES). Sterilizer follows the
+    // same event-log pattern as CPO Dispatch/Solid Waste Disposal/Kernel
+    // Dispatch — mirrors `monitor-cpo-dispatch` exactly. This is the
+    // FINAL station of this project (the 18th and last of the 18
+    // canonical stations, promoted 2026-09-01).
+    path: '/stations/sterilizer/monitor',
+    name: 'monitor-sterilizer',
+    component: () => import('@/views/MonitorSterilizerView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-122--form-sterilizer /
+    // usecase-122--form-sterilizer "Form Sterilizer". `:id` route param
+    // carries the draft record's id, same convention as
+    // `cpo-dispatch-form`/`kernel-dispatch-form` above.
+    path: '/stations/sterilizer/form/:id',
+    name: 'sterilizer-form',
+    component: () => import('@/views/FormSterilizerView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-123--data-preview-sterilizer /
+    // usecase-123--data-preview-sterilizer "Data Preview Sterilizer".
+    // `:id?` optional trailing param, same convention as
+    // `data-preview-cpo-dispatch`/`data-preview-process-quality-control`
+    // above.
+    path: '/stations/sterilizer/preview/:id?',
+    name: 'data-preview-sterilizer',
+    component: () => import('@/views/DataPreviewSterilizerView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

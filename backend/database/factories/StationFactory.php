@@ -121,6 +121,142 @@ class StationFactory extends Factory
         return $this->state(fn () => ['type' => StationType::KernelPlant]);
     }
 
+    /**
+     * `type = solid-waste-disposal` — added additively for
+     * screen-111--form-solid-waste-disposal-web's test suite
+     * (SolidWasteDisposalRecordServiceTest / FormSolidWasteDisposalTest),
+     * mirroring `weighbridge()`/`grading()`/`cagesTrack()`/etc. above
+     * exactly.
+     */
+    public function solidWasteDisposal(): self
+    {
+        return $this->state(fn () => ['type' => StationType::SolidWasteDisposal]);
+    }
+
+    /**
+     * `type = process-water` — added additively for
+     * screen-112--form-process-water-web's test suite
+     * (ProcessWaterRecordServiceTest / FormProcessWaterTest), mirroring
+     * `weighbridge()`/`grading()`/`cagesTrack()`/`threshing()`/etc. above
+     * exactly.
+     */
+    public function processWater(): self
+    {
+        return $this->state(fn () => ['type' => StationType::ProcessWater]);
+    }
+
+    /**
+     * `type = kernel-dispatch` — added additively for
+     * screen-113--form-kernel-dispatch-web's test suite
+     * (KernelDispatchRecordServiceTest / FormKernelDispatchTest), mirroring
+     * `weighbridge()`/`grading()`/`cagesTrack()`/`solidWasteDisposal()`/
+     * `processWater()` above exactly.
+     */
+    public function kernelDispatch(): self
+    {
+        return $this->state(fn () => ['type' => StationType::KernelDispatch]);
+    }
+
+    /**
+     * `type = cpo-dispatch` — added additively for
+     * screen-114--form-cpo-dispatch-web's test suite
+     * (CpoDispatchRecordServiceTest / FormCpoDispatchTest), mirroring
+     * `weighbridge()`/`grading()`/`cagesTrack()`/`solidWasteDisposal()`/
+     * `processWater()`/`kernelDispatch()` above exactly.
+     */
+    public function cpoDispatch(): self
+    {
+        return $this->state(fn () => ['type' => StationType::CpoDispatch]);
+    }
+
+    /**
+     * `type = effluent-plant` — added additively for
+     * screen-115--form-effluent-plant-web's test suite
+     * (EffluentPlantRecordServiceTest / FormEffluentPlantTest), mirroring
+     * `weighbridge()`/`grading()`/`cagesTrack()`/`processWater()`/etc. above
+     * exactly.
+     */
+    public function effluentPlant(): self
+    {
+        return $this->state(fn () => ['type' => StationType::EffluentPlant]);
+    }
+
+    /**
+     * `type = storage-tank` — added additively for
+     * screen-116--form-storage-tank-web's test suite
+     * (StorageTankRecordServiceTest / FormStorageTankTest), mirroring
+     * `weighbridge()`/`grading()`/`cagesTrack()`/`processWater()`/
+     * `effluentPlant()`/etc. above exactly.
+     */
+    public function storageTank(): self
+    {
+        return $this->state(fn () => ['type' => StationType::StorageTank]);
+    }
+
+    /**
+     * `type = engine-room` — added additively for
+     * screen-117--form-engine-room-web's test suite
+     * (EngineRoomRecordServiceTest / FormEngineRoomTest), mirroring
+     * `weighbridge()`/`grading()`/`cagesTrack()`/`processWater()`/
+     * `effluentPlant()`/`storageTank()`/etc. above exactly.
+     */
+    public function engineRoom(): self
+    {
+        return $this->state(fn () => ['type' => StationType::EngineRoom]);
+    }
+
+    /**
+     * `type = boiler-room` — added additively for
+     * screen-118--form-boiler-room-web's test suite
+     * (BoilerRoomRecordServiceTest / FormBoilerRoomTest), mirroring
+     * `weighbridge()`/`grading()`/`cagesTrack()`/`processWater()`/
+     * `effluentPlant()`/`storageTank()`/`engineRoom()`/etc. above exactly.
+     */
+    public function boilerRoom(): self
+    {
+        return $this->state(fn () => ['type' => StationType::BoilerRoom]);
+    }
+
+    /**
+     * `type = clarification` — added additively for
+     * screen-119--form-clarification-web's test suite
+     * (ClarificationRecordServiceTest / FormClarificationTest), mirroring
+     * `weighbridge()`/`grading()`/`cagesTrack()`/`processWater()`/
+     * `effluentPlant()`/`storageTank()`/`engineRoom()`/`boilerRoom()`/etc.
+     * above exactly.
+     */
+    public function clarification(): self
+    {
+        return $this->state(fn () => ['type' => StationType::Clarification]);
+    }
+
+    /**
+     * `type = process-quality-control` — added additively for
+     * screen-120--form-process-quality-control-web's test suite
+     * (ProcessQualityControlRecordServiceTest / FormProcessQualityControlTest),
+     * mirroring `weighbridge()`/`grading()`/`cagesTrack()`/`processWater()`/
+     * `effluentPlant()`/`storageTank()`/`engineRoom()`/`boilerRoom()`/
+     * `clarification()`/etc. above exactly. This is the FINAL of the 10
+     * MVP stations promoted 2026-08-31.
+     */
+    public function processQualityControl(): self
+    {
+        return $this->state(fn () => ['type' => StationType::ProcessQualityControl]);
+    }
+
+    /**
+     * `type = sterilizer` — added additively for
+     * screen-126--form-sterilizer-web's test suite
+     * (SterilizerRecordServiceTest / FormSterilizerTest), mirroring
+     * `weighbridge()`/`grading()`/`cagesTrack()`/`processQualityControl()`/
+     * etc. above exactly. This is the FINAL station type promoted out of
+     * `other` for this project — 0 placeholders remain after this.
+     */
+    public function sterilizer(): self
+    {
+        return $this->state(fn () => ['type' => StationType::Sterilizer]);
+    }
+
     public function forBusinessUnit(BusinessUnit|string $businessUnit): self
     {
         return $this->state(function () use ($businessUnit) {

@@ -1,0 +1,122 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "usecase-073--monitor-kernel-dispatch",
+  "name": "Monitor Kernel Dispatch",
+  "description": "Operator atau Supervisor membuka Monitor Kernel Dispatch untuk melihat ringkasan aktivitas hari ini, kejadian terakhir yang tercatat, dan draft/pause yang belum selesai, lalu memilih untuk melanjutkan draft, membuat data baru, atau menelusuri data tersimpan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login dan berada di Station List",
+    "Stasiun Kernel Dispatch aktif tersedia untuk business unit/production line user"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Muat counter hari ini (Jumlah Kernel Dispatch, Jumlah Kejadian Tercatat) dari seluruh record milik user bertanggal hari ini"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Muat ringkasan kejadian terakhir yang tercatat (destination/buyer, tanggal, kendaraan) dari seluruh record milik user"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Muat list draft/pause milik user, diurutkan terbaru diperbarui lebih dulu"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Melihat ringkasan dan list draft/pause"
+    },
+    {
+      "step": 5,
+      "actor": "actor-station-operator",
+      "description": "Memilih salah satu: tap draft untuk melanjutkan, New Data untuk membuat draft baru, atau Load Data untuk menelusuri data tersimpan"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Navigasi ke Form Kernel Dispatch (dengan draft terpilih/baru) atau ke Data Preview Kernel Dispatch (mode list) sesuai pilihan"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Belum ada draft/pause",
+      "trigger": "Step 3 — list draft/pause kosong",
+      "steps": [
+        "Tampilkan pesan/empty state pada area list",
+        "Tombol New Data tetap aktif"
+      ]
+    },
+    {
+      "name": "Belum ada data hari ini",
+      "trigger": "Step 1 — tidak ada record bertanggal hari ini",
+      "steps": [
+        "Kedua card counter menampilkan 0"
+      ]
+    },
+    {
+      "name": "Belum ada kejadian tercatat",
+      "trigger": "Step 2 — tidak ada baris log kejadian sama sekali di seluruh record user",
+      "steps": [
+        "Kartu Kejadian Terakhir menampilkan pesan 'Belum ada kejadian tercatat'"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User berpindah ke Form Kernel Dispatch atau ke Data Preview Kernel Dispatch, sesuai aksi yang dipilih"
+  ],
+  "business_rules": [
+    "Ongoing dan paused digabung sebagai satu istilah 'Pause' secara tampilan",
+    "Counter hari ini dan kejadian terakhir dihitung dari data lokal (offline-first), tidak memerlukan koneksi server"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Monitor Kernel Dispatch — menampilkan ringkasan dan list draft",
+      "given": "User memiliki draft/pause dan record hari ini",
+      "when": "User membuka Monitor Kernel Dispatch",
+      "then": "Counter hari ini, kejadian terakhir, dan list draft/pause tampil sesuai data"
+    },
+    {
+      "scenario": "Monitor Kernel Dispatch — New Data",
+      "given": "User berada di Monitor Kernel Dispatch",
+      "when": "User menekan New Data",
+      "then": "Draft baru dibuat dan Form Kernel Dispatch terbuka untuk draft tersebut"
+    },
+    {
+      "scenario": "Monitor Kernel Dispatch — Lanjutkan Draft",
+      "given": "User memiliki draft/pause pada list",
+      "when": "User menap salah satu item draft",
+      "then": "Form Kernel Dispatch terbuka dengan data draft tersebut, tanpa mengubah status"
+    },
+    {
+      "scenario": "Monitor Kernel Dispatch — Load Data",
+      "given": "User berada di Monitor Kernel Dispatch",
+      "when": "User menekan Load Data",
+      "then": "Data Preview Kernel Dispatch terbuka pada mode list"
+    },
+    {
+      "scenario": "Monitor Kernel Dispatch — Belum Ada Draft",
+      "given": "User belum memiliki draft/pause apapun",
+      "when": "User membuka Monitor Kernel Dispatch",
+      "then": "List menampilkan empty state dan tombol New Data tetap aktif"
+    },
+    {
+      "scenario": "Monitor Kernel Dispatch — Belum Ada Kejadian Tercatat",
+      "given": "User belum pernah mencatat kejadian Kernel Dispatch apapun",
+      "when": "User membuka Monitor Kernel Dispatch",
+      "then": "Kartu Kejadian Terakhir menampilkan pesan 'Belum ada kejadian tercatat'"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-063--monitor-kernel-dispatch"
+  ]
+}

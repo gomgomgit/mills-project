@@ -1,0 +1,68 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-069--monitor-clarification",
+  "name": "Monitor Clarification",
+  "module_id": "module-mobile-station-ops",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/services/localSchema.ts",
+    "mobile/src/services/clarificationRecordRepo.ts",
+    "mobile/src/views/MonitorClarificationView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/StationListView.vue"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/clarificationRecordRepo.spec.ts",
+    "mobile/tests/MonitorClarificationView.spec.ts",
+    "mobile/tests/StationListView.spec.ts"
+  ],
+  "implementation_notes": [
+    "clarification_record/clarification_detail local SQLite tables added to localSchema.ts (CREATE_CLARIFICATION_RECORD/CREATE_CLARIFICATION_DETAIL, appended to CREATE_TABLE_STATEMENTS) -- mirrors boiler_room_record/boiler_room_detail's shape, following the hourly-grid (dynamic add-row/remove-row) pattern. This station has only 7 non-time_slot columns, all numeric except Findings (text) -- the SIMPLEST station in the whole project, no enum/status columns at all",
+    "clarificationRecordRepo.ts covers all 3 mobile Clarification screens (069/079/089) in one file, same convention as boilerRoomRecordRepo.ts covering screens 068/078/088",
+    "createDraft() inserts ONLY the header row -- clarification_detail rows are added one at a time by the user in Form Clarification via 'Tambah baris', exactly mirroring boilerRoomRecordRepo.ts's pattern",
+    "'Jumlah Baris Time-Slot Tercatat' counter is a plain COUNT(*) of clarification_detail rows belonging to today's records -- no filled-row filter, mirrors Boiler Room's Monitor counter exactly",
+    "Router: route name 'monitor-clarification' registered in router/index.ts -- StationListView.vue (screen-006) already had this route name pre-wired in MONITOR_ROUTE_NAMES and a 'clarification': false placeholder in draftStatusByType; this implementation wires the real clarificationRecordRepo.getDrafts() call into StationListView.vue's Promise.all, replacing that placeholder with clarification.length > 0, same additive pattern Boiler Room used for this same pre-existing scaffolding",
+    "Added the missing getClarificationDraftsMock hoisted mock, vi.mock() registration, and getClarificationDraftsMock.mockResolvedValue([]) call in every beforeEach block AND every individual it-block that manually re-sets the record-repo mocks in mobile/tests/StationListView.spec.ts (mirroring the existing getBoilerRoomDraftsMock pattern exactly) proactively, per explicit task instruction that a prior station's run omitted this and broke silently -- all 27 tests in that shared file pass"
+  ],
+  "deferred_items": [
+    {
+      "description": "syncService.ts's syncAllRecords() was NOT extended with a syncClarificationRecords() function (unlike Threshing/Pressing/Depricarping/Kernel Plant/Process Water/Effluent Plant/Storage Tank/Engine Room/Boiler Room, which each have one calling POST /api/clarification-records via the mobile 'Sinkronisasi' button)",
+      "reason": "Out of this 6-screen task's explicit scope; the most recent precedent station (Boiler Room) made the same deferral decision for the same reason. The web POST/PATCH routes are already dual-guarded ('auth:web,sanctum' + operator role) so wiring this up later requires no backend route change, only a syncService.ts addition."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) e2e spec was not authored for this screen in this task (mobile/tests/e2e/monitor-clarification.spec.ts does not exist) -- component test coverage (MonitorClarificationView.spec.ts) is complete and passing, but there is no browser-level verification of this screen's full navigation flow in a live dev server.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-01T05:30:00Z",
+      "passed": 28,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-01T05:30:00Z",
+      "passed": 11,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

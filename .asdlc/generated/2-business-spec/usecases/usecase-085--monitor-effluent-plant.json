@@ -1,0 +1,104 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-085--monitor-effluent-plant",
+  "name": "Monitor Effluent Plant",
+  "description": "Operator atau Supervisor melihat ringkasan data Effluent Plant hari ini dan daftar draft/pause miliknya, lalu memulai data baru atau menelusuri data tersimpan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "preconditions": [
+    "User sudah login sebagai Operator atau Supervisor",
+    "User sudah memilih Production Line dan station Effluent Plant dari Station List"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Menampilkan counter hari ini (Jumlah Effluent Plant Record, Jumlah Baris Time-Slot Tercatat) dan daftar draft/pause milik user, diurutkan berdasarkan terakhir diubah"
+    },
+    {
+      "step": 2,
+      "actor": "actor-station-operator",
+      "description": "Menekan 'New Data' untuk membuat draft baru"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Membuat record Effluent Plant baru berstatus draft (header saja, grid Effluent Plant Detail kosong) dan membuka Form Effluent Plant untuk record tersebut"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Lanjutkan Draft/Pause",
+      "trigger": "Pada langkah 1, user menekan salah satu item draft/pause di list",
+      "steps": [
+        "System membuka Form Effluent Plant dengan data draft/pause tersebut, tanpa mengubah statusnya"
+      ]
+    },
+    {
+      "name": "Load Data",
+      "trigger": "Pada langkah 1, user menekan 'Load Data'",
+      "steps": [
+        "System membuka Data Preview Effluent Plant dalam mode daftar (tanpa id), menampilkan seluruh record apapun statusnya"
+      ]
+    },
+    {
+      "name": "Belum Ada Draft",
+      "trigger": "Tidak ada draft/pause milik user saat layar dibuka",
+      "steps": [
+        "System menampilkan pesan/empty state pada area list",
+        "Tombol 'New Data' tetap aktif"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Untuk New Data: 1 record Effluent Plant baru berstatus draft_ongoing tersimpan lokal, siap diisi di Form Effluent Plant",
+    "Untuk Lanjutkan Draft: user berada di Form Effluent Plant dengan data draft yang sudah ada"
+  ],
+  "business_rules": [
+    "Status draft ongoing dan paused digabung secara tampilan sebagai satu istilah 'Pause'",
+    "User bisa memiliki beberapa draft/pause berjalan bersamaan",
+    "New Data hanya membuat header record — grid Effluent Plant Detail dimulai kosong, baris ditambahkan satu per satu oleh user di Form Effluent Plant",
+    "Counter hari ini dihitung dari seluruh record dengan tanggal Date = hari ini, status apapun"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Monitor Effluent Plant — New Data",
+      "given": "User berada di Monitor Effluent Plant",
+      "when": "User menekan 'New Data'",
+      "then": "Sistem membuat draft baru (header saja, grid kosong) dan membuka Form Effluent Plant untuk draft tersebut"
+    },
+    {
+      "scenario": "Monitor Effluent Plant — Lanjutkan Draft/Pause",
+      "given": "User memiliki minimal satu draft/pause Effluent Plant",
+      "when": "User menekan salah satu item di list draft/pause",
+      "then": "Sistem membuka Form Effluent Plant dengan data draft tersebut tanpa mengubah statusnya"
+    },
+    {
+      "scenario": "Monitor Effluent Plant — Load Data",
+      "given": "User berada di Monitor Effluent Plant",
+      "when": "User menekan 'Load Data'",
+      "then": "Sistem membuka Data Preview Effluent Plant dalam mode daftar, menampilkan seluruh record apapun statusnya"
+    },
+    {
+      "scenario": "Monitor Effluent Plant — Belum Ada Draft",
+      "given": "User belum memiliki draft/pause Effluent Plant",
+      "when": "User membuka Monitor Effluent Plant",
+      "then": "Sistem menampilkan empty state pada list dan tombol 'New Data' tetap aktif"
+    },
+    {
+      "scenario": "Monitor Effluent Plant — Belum Ada Data Hari Ini",
+      "given": "Belum ada record Effluent Plant dengan tanggal hari ini",
+      "when": "User membuka Monitor Effluent Plant",
+      "then": "Kedua card counter menampilkan 0"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-065--monitor-effluent-plant"
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-079--form-clarification",
+  "name": "Form Clarification",
+  "module_id": "module-mobile-station-ops",
+  "description": "Input/edit data header (Clarification ID, Date, Inputted/Checked/Acknowledged By, Note) dan grid detail time-slot per jam (07:00–06:00, hingga 24 baris, ditambah manual satu per satu via 'Tambah baris') untuk Clarification Tank Temp, Oil Tank Temperature, Sludge Tank Temp, Buffer Tank Level, Pure Oil Production Rate, Downtime, dan Findings — mengikuti pola persis Form Boiler Room/Engine Room/Storage Tank/Effluent Plant, TANPA tabel referensi target operasional. Ini adalah stasiun paling sederhana di seluruh proyek — hanya 6 kolom bacaan numerik + Findings per baris, tanpa kolom enum/status apapun.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "New Data dari Monitor Clarification",
+    "Tap item draft/pause di Monitor Clarification"
+  ],
+  "information_displayed": [
+    "Header: Clarification ID, Tanggal (otomatis, disabled), Inputted By (read-only), Checked By (toggle, hanya interaktif untuk Supervisor), Acknowledged By (toggle, hanya interaktif untuk Mill Management), Note",
+    "Grid Clarification Detail dinamis (0..24 baris): Time-Slot (dropdown, urutan menaik kanonis, tanpa duplikat) + 6 kolom bacaan numerik per baris: Clarification Tank Temp (°C), Oil Tank Temperature (°C), Sludge Tank Temp (°C), Buffer Tank Level (%), Pure Oil Production Rate (Ton/Hour), Downtime (Mins), plus Findings (teks bebas)",
+    "Tombol 'Tambah baris' (dinonaktifkan setelah 24 baris) dan 'Hapus baris' per baris",
+    "Footer aksi: Back, Pause, Clear, Simpan"
+  ],
+  "available_actions": [
+    {
+      "action": "Isi header",
+      "description": "Mengisi Clarification ID dan Note; Tanggal otomatis terisi sekali dan tidak dapat diedit",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tambah baris",
+      "description": "Menambah satu baris Clarification Detail baru dengan Time-Slot kosong, dipilih dari sisa slot kanonis yang tersedia",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus baris",
+      "description": "Menghapus satu baris dari grid (baris tersimpan baru benar-benar dihapus saat Simpan/Pause berikutnya)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Checked By",
+      "description": "Toggle self-attestation 'Saya verifikasi data ini', hanya interaktif untuk Supervisor",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Acknowledged By",
+      "description": "Toggle self-attestation 'Saya menyetujui data ini', hanya interaktif untuk Mill Management",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Memvalidasi Clarification ID wajib dan minimal satu baris valid, lalu menyimpan record berstatus 'saved' dan kembali ke Monitor Clarification",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progres apa adanya tanpa validasi wajib, status menjadi draft_paused, kembali ke Monitor Clarification",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus permanen record beserta seluruh barisnya setelah konfirmasi dialog",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor Clarification, menampilkan dialog konfirmasi jika ada perubahan belum tersimpan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tanggal otomatis diisi sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Grid Clarification Detail tidak di-pre-generate — baris ditambahkan satu per satu via Tambah baris, dapat dihapus via Hapus baris",
+    "Time-Slot tiap baris harus lebih lambat dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
+    "Minimal satu baris valid (Time-Slot terpilih + minimal satu dari 6 kolom bacaan atau Findings terisi) sebelum Simpan",
+    "Clarification ID wajib diisi sebelum Simpan"
+  ],
+  "usecase_ids": [
+    "usecase-110--form-clarification"
+  ],
+  "edge_cases": [
+    "Clarification ID kosong saat Simpan — error inline, record tidak tersimpan",
+    "Belum ada baris valid saat Simpan — pesan error khusus pada grid, record tidak tersimpan",
+    "Hapus baris membebaskan kembali Time-Slot baris tersebut untuk baris lain",
+    "Baris hanya terisi Findings saja tetap dianggap valid/terisi",
+    "Pause tanpa validasi wajib apapun",
+    "Clear memerlukan konfirmasi sebelum menghapus permanen",
+    "Back saat form dirty menampilkan dialog konfirmasi"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

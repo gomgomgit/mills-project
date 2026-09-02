@@ -3,7 +3,7 @@
  * local `station` table was never populated on a real device (no sync
  * flow exists anywhere in this project), leaving Station List
  * permanently empty. Covers `seedDefaultStationsIfNeeded()`, the local,
- * idempotent default seed of the 15 MVP stations that replaces the
+ * idempotent default seed of the 18 MVP stations that replaces the
  * never-built "separate sync flow" every mobile screen's comments used
  * to assume.
  *
@@ -33,11 +33,11 @@ describe('localSchema — seedDefaultStationsIfNeeded()', () => {
     vi.mocked(run).mockResolvedValue({ changes: 1 })
   })
 
-  it('deletes any existing rows for the business unit first, then inserts all 15 MVP stations (replace, not merge)', async () => {
+  it('deletes any existing rows for the business unit first, then inserts all 18 MVP stations (replace, not merge)', async () => {
     await seedDefaultStationsIfNeeded(BUSINESS_UNIT_ID)
 
-    // 1 DELETE (clears stale/duplicate rows for this business unit) + 15 INSERT.
-    expect(run).toHaveBeenCalledTimes(16)
+    // 1 DELETE (clears stale/duplicate rows for this business unit) + 18 INSERT.
+    expect(run).toHaveBeenCalledTimes(19)
     expect(run).toHaveBeenNthCalledWith(1, expect.stringContaining('DELETE FROM station WHERE business_unit_id = ?'), [
       BUSINESS_UNIT_ID,
     ])
@@ -47,13 +47,13 @@ describe('localSchema — seedDefaultStationsIfNeeded()', () => {
     await seedDefaultStationsIfNeeded(BUSINESS_UNIT_ID)
 
     const insertCalls = vi.mocked(run).mock.calls.slice(1)
-    expect(insertCalls).toHaveLength(15)
+    expect(insertCalls).toHaveLength(18)
     for (const call of insertCalls) {
       expect(call[0]).toContain('INSERT INTO station')
     }
   })
 
-  it('seeds exactly the 7 active MVP station types with is_active=1', async () => {
+  it('seeds all 18 active MVP station types with is_active=1 (Sterilizer promoted, 0 placeholders remain)', async () => {
     await seedDefaultStationsIfNeeded(BUSINESS_UNIT_ID)
 
     const insertCalls = vi.mocked(run).mock.calls.slice(1)
@@ -61,26 +61,34 @@ describe('localSchema — seedDefaultStationsIfNeeded()', () => {
     const activeTypes = activeCalls.map((call) => call[1]?.[3])
 
     expect(activeTypes.sort()).toEqual([
+      'boiler-room',
       'cages-track',
+      'clarification',
+      'cpo-dispatch',
       'depricarping',
+      'effluent-plant',
+      'engine-room',
       'grading',
+      'kernel-dispatch',
       'kernel-plant',
       'pressing',
+      'process-quality-control',
+      'process-water',
+      'solid-waste-disposal',
+      'sterilizer',
+      'storage-tank',
       'threshing',
       'weighbridge',
     ])
   })
 
-  it('seeds the 8 placeholder stations with type=other and is_active=0', async () => {
+  it('seeds 0 placeholder stations — Sterilizer was the last one promoted', async () => {
     await seedDefaultStationsIfNeeded(BUSINESS_UNIT_ID)
 
     const insertCalls = vi.mocked(run).mock.calls.slice(1)
     const placeholderCalls = insertCalls.filter((call) => call[1]?.[4] === 0)
 
-    expect(placeholderCalls).toHaveLength(8)
-    for (const call of placeholderCalls) {
-      expect(call[1]?.[3]).toBe('other')
-    }
+    expect(placeholderCalls).toHaveLength(0)
   })
 
   it('scopes every seeded row to the given business_unit_id and derives a deterministic id from it', async () => {

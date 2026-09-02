@@ -1,0 +1,63 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-105--detail-effluent-plant-web",
+  "name": "Detail Effluent Plant (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman detail read-only untuk melihat 1 record Effluent Plant tersimpan secara lengkap beserta grid Effluent Plant Detail (menampilkan seluruh baris yang ada pada record tersebut, berapapun jumlahnya), diakses dari klik baris di Data Browser Effluent Plant (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Klik baris di Data Browser Effluent Plant (Web)"
+  ],
+  "information_displayed": [
+    "Identitas Effluent Plant: Effluent Plant ID, Tanggal",
+    "Verifikasi: Inputted By, Checked By, Acknowledged By, Note",
+    "Grid Effluent Plant Detail: menampilkan persis baris yang tersimpan pada record (Time-Slot, Anaerobic Pond 1/2 pH & Temp, Cooling Pond pH & Temp, Biogas Flare Status, Biogas Flow Rate, Raw POME Feed Rate, Effluent Discharge Flow Rate, Final Discharge pH/BOD/COD/TSS, Dosing Pump 1 Status, Chemical Consumed, Sludge Dewatering Status, Remarks/Maintenance Actions, Findings)",
+    "Status record (saved/synced)",
+    "Tombol Back kembali ke Data Browser Effluent Plant"
+  ],
+  "available_actions": [
+    {
+      "action": "Back",
+      "description": "Kembali ke Data Browser Effluent Plant (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit",
+      "description": "Masuk ke Form Effluent Plant (Web) mode ubah untuk record ini",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Seluruh field ditampilkan read-only — tidak ada aksi edit langsung dari layar ini selain tombol Edit yang membuka Form Effluent Plant Web",
+    "Checked By DAN Acknowledged By keduanya ditampilkan apa adanya, tanpa pembatasan role untuk melihat, konsisten dengan Data Preview Effluent Plant mobile",
+    "Grid Effluent Plant Detail ditampilkan langsung dari data tersimpan (historical), tidak dihitung ulang, dan menampilkan persis jumlah baris yang tersimpan pada record",
+    "Field dikelompokkan sesuai struktur Form Effluent Plant (Identitas, Verifikasi, Grid Detail)",
+    "Tidak ada tabel referensi target operasional pada stasiun ini"
+  ],
+  "usecase_ids": [
+    "usecase-089--detail-effluent-plant-web"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
+    "Checked By/Acknowledged By belum diisi — tampilkan '-'",
+    "Record memiliki nol baris Effluent Plant Detail (kasus tepi: tersimpan tanpa baris apapun) — grid menampilkan pesan/empty state, bukan error"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

@@ -1,0 +1,318 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-110--detail-process-quality-control-web",
+  "name": "Detail Process Quality Control (Web)",
+  "module_id": "module-web-station-data",
+  "route": "/data/process-quality-control/{id}",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-119--detail-process-quality-control-web",
+      "usecase_name": "Lihat Detail Process Quality Control (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/process-quality-control-records/{id}",
+          "description": "Ambil 1 record Process Quality Control lengkap beserta seluruh baris Process Quality Control Detail-nya (berapapun jumlahnya), station_name, dan nama user (Inputted By/Checked By/Acknowledged By)",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "required": true,
+                "description": "ID record Process Quality Control"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "station_id": "uuid",
+              "station_name": "string",
+              "process_qc_id": "string",
+              "date": "date",
+              "note": "string|null",
+              "created_by_name": "string",
+              "checked_by_name": "string|null",
+              "acknowledged_by_name": "string|null",
+              "status": "string",
+              "created_at": "timestamp",
+              "updated_at": "timestamp",
+              "details": [
+                {
+                  "id": "uuid",
+                  "time_slot": "string",
+                  "shift": "string|null",
+                  "fruit_press_oil_loss_in_sludge_percent": "float|null",
+                  "fruit_press_oil_loss_in_fibre_percent": "float|null",
+                  "purifier_clarification_balance_inlet_temp_c": "float|null",
+                  "purifier_clarification_balance_backpressure_bar": "float|null",
+                  "vacuum_drying_station_drier_temp_c": "float|null",
+                  "vacuum_drying_station_vacuum_pressure_bar": "float|null",
+                  "decanter_centrifuge_feed_rate_mth": "float|null",
+                  "decanter_centrifuge_oil_loss_in_cake_percent": "float|null",
+                  "final_storage_ffa_percent": "float|null",
+                  "final_storage_moisture_content_percent": "float|null",
+                  "final_storage_impurities_dirt_percent": "float|null",
+                  "final_storage_dobi_index": "float|null",
+                  "qc_inspector_id": "string|null",
+                  "qc_engineering_corrective_actions": "string|null",
+                  "findings": "string|null"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. Validate id ada di process-quality-control-record -> 404 RECORD_NOT_FOUND jika tidak ditemukan",
+        "2. SELECT process-quality-control-record by id, JOIN station untuk station_name, JOIN user untuk created_by_name/checked_by_name/acknowledged_by_name (null jika belum diisi, kecuali created_by_name yang selalu ada)",
+        "3. SELECT seluruh process-quality-control-detail by process_quality_control_record_id (berapapun jumlahnya, termasuk nol), ordered by urutan kanonis time_slot, langsung dari kolom tersimpan tanpa hitung ulang",
+        "4. Return full record + details array (16 kolom non-time_slot per baris)",
+        "5. FE render field per section (Identitas Process Quality Control, Process Quality Control Detail grid dengan seluruh baris yang ada, Verifikasi) read-only -- TIDAK ADA section Target Operasional untuk stasiun ini",
+        "6. On klik Back: navigasi client-side ke /data/process-quality-control, tanpa panggilan API tambahan",
+        "7. On klik Edit: navigasi client-side ke /data/process-quality-control/{id}/edit"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "process-quality-control-record",
+          "operation": "SELECT",
+          "description": "SELECT 1 record by id"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve station_name"
+        },
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "JOIN untuk resolve created_by_name/checked_by_name/acknowledged_by_name"
+        },
+        {
+          "entity_id": "process-quality-control-detail",
+          "operation": "SELECT",
+          "description": "SELECT seluruh baris (berapapun jumlahnya) by process_quality_control_record_id, ordered by urutan kanonis time_slot"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "id tidak ditemukan",
+          "handling": "Return 404 RECORD_NOT_FOUND, FE tampilkan pesan error + tombol Back"
+        },
+        {
+          "condition": "checked_by/acknowledged_by belum diisi",
+          "handling": "checked_by_name/acknowledged_by_name null, FE tampilkan '-'"
+        },
+        {
+          "condition": "Record memiliki nol baris Process Quality Control Detail",
+          "handling": "details array kosong dikembalikan, FE tampilkan grid kosong/empty-state, bukan error"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh field read-only",
+        "Checked By dan Acknowledged By keduanya ditampilkan",
+        "Grid Process Quality Control Detail ditampilkan langsung dari data tersimpan, menampilkan persis baris yang ada",
+        "Tidak ada tabel referensi target operasional pada stasiun ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns 404 RECORD_NOT_FOUND when id does not exist",
+          "given": "id tidak ada di process-quality-control-record",
+          "expect": "return 404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "returns full record with resolved station_name when id exists",
+          "given": "valid id, station terkait ada",
+          "expect": "return 200 dengan station_name terisi"
+        },
+        {
+          "description": "returns details array ordered by canonical time-slot regardless of how many rows exist",
+          "given": "record dengan 3 process-quality-control-detail rows, time_slot tidak berurutan saat disimpan",
+          "expect": "response.details terurut naik berdasarkan urutan kanonis time_slot (bukan alfabetis), berisi persis 3 entri"
+        },
+        {
+          "description": "returns an empty details array when the record has zero process-quality-control-detail rows",
+          "given": "record tanpa process-quality-control-detail rows sama sekali",
+          "expect": "response.details = []"
+        },
+        {
+          "description": "returns null checked_by_name and acknowledged_by_name when not set",
+          "given": "record dengan checked_by dan acknowledged_by null",
+          "expect": "response.checked_by_name dan response.acknowledged_by_name adalah null"
+        },
+        {
+          "description": "resolves created_by_name, checked_by_name, acknowledged_by_name to user names when present",
+          "given": "record dengan created_by/checked_by/acknowledged_by terisi uuid user valid",
+          "expect": "response berisi nama user yang sesuai untuk ketiganya, bukan uuid"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "user",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-100--data-browser-process-quality-control-web",
+      "reason": "Entry point - klik baris membuka detail ini"
+    },
+    {
+      "screen_id": "screen-120--form-process-quality-control-web",
+      "reason": "Koreksi data / tombol Edit membuka form ini"
+    }
+  ],
+  "implementation_notes": [
+    "Response resolve created_by/checked_by/acknowledged_by ke nama user via join, mengikuti pola screen-109--detail-clarification-web persis",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-109",
+    "Field grouping & urutan field di blade view MENIRU PERSIS mobile/src/views/DataPreviewProcessQualityControlView.vue mode detail (Process QC ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Process Quality Control Detail dengan seluruh baris yang ada) per arahan eksplisit: web station screens mengikuti flow/UX mobile -- TIDAK ADA section Target Operasional pada Blade view ini",
+    "Route /process-quality-control-records/{id} didaftarkan SETELAH /process-quality-control-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}, sama pola dengan screen-109"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Detail Process Quality Control - berhasil",
+      "usecase_id": "usecase-119--detail-process-quality-control-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-records/{id}"
+          },
+          "request_example": {
+            "id": "{{process_quality_control_record_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailProcessQualityControl",
+        "action": "render dengan data record lengkap dari API termasuk seluruh baris details yang ada",
+        "assert": "seluruh field header tampil read-only per section, grid Process Quality Control Detail menampilkan persis baris yang ada pada record"
+      },
+      "browser_test": {
+        "route": "/data/process-quality-control/{id}",
+        "action": "klik baris di Data Browser Process Quality Control, tunggu halaman detail termuat",
+        "assert": "halaman detail menampilkan seluruh field record beserta grid Process Quality Control Detail (baris sesuai yang tersimpan)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Process Quality Control - Record Tidak Ditemukan",
+      "usecase_id": "usecase-119--detail-process-quality-control-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-records/{id}"
+          },
+          "request_example": {
+            "id": "00000000-0000-0000-0000-000000000000"
+          },
+          "expected_status": 404,
+          "expected_error_code": "RECORD_NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "DetailProcessQualityControl",
+        "action": "render dengan API mengembalikan 404",
+        "assert": "pesan error 'record tidak ditemukan' ditampilkan beserta tombol Back"
+      },
+      "browser_test": {
+        "route": "/data/process-quality-control/00000000-0000-0000-0000-000000000000",
+        "action": "navigasi langsung ke id yang tidak valid",
+        "assert": "halaman menampilkan pesan error dan tombol Back yang berfungsi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Process Quality Control - Checked By/Acknowledged By Belum Diisi",
+      "usecase_id": "usecase-119--detail-process-quality-control-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/process-quality-control-records/{id}"
+          },
+          "request_example": {
+            "id": "{{process_quality_control_record_uuid_no_verification}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DetailProcessQualityControl",
+        "action": "render dengan checked_by_name dan acknowledged_by_name null",
+        "assert": "field Checked By dan Acknowledged By menampilkan '-'"
+      },
+      "browser_test": {
+        "route": "/data/process-quality-control/{id}",
+        "action": "buka detail record yang belum diperiksa/dikonfirmasi",
+        "assert": "field Checked By dan Acknowledged By menampilkan '-'"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Detail Process Quality Control - Edit",
+      "usecase_id": "usecase-119--detail-process-quality-control-web",
+      "api_test": [],
+      "component_test": {
+        "component": "DetailProcessQualityControl",
+        "action": "klik tombol Edit",
+        "assert": "navigasi client-side ke /data/process-quality-control/{id}/edit dipicu"
+      },
+      "browser_test": {
+        "route": "/data/process-quality-control/{id}",
+        "action": "klik tombol Edit pada halaman detail",
+        "assert": "browser menampilkan Form Process Quality Control (Web) mode ubah untuk record tersebut"
+      }
+    }
+  ]
+}

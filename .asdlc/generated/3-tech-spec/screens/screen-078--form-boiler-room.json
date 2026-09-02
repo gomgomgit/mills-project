@@ -1,0 +1,293 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-078--form-boiler-room",
+  "name": "Form Boiler Room",
+  "module_id": "module-mobile-station-ops",
+  "route": "/stations/boiler-room/form/:id",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": ""
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Checked By toggle hanya interaktif untuk role Supervisor"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-104--form-boiler-room",
+      "usecase_name": "Input Data Boiler Room",
+      "endpoints": [],
+      "business_logic": [
+        "1. Load local boiler_room_record by id beserta seluruh boiler_room_detail rows yang ada (0..24), diurutkan berdasarkan urutan kanonis time_slot",
+        "2. Populate header form: Boiler Room ID, Note, Checked By/Acknowledged By dari record; Tanggal auto-fill sekali dengan waktu lokal saat ini HANYA jika record.date masih kosong (draft baru)",
+        "3. On 'Tambah baris' → push satu baris kosong baru ke state lokal (belum ter-INSERT ke DB)",
+        "4. On 'Hapus baris' → baris dengan id (sudah tersimpan) di-queue ke pendingDeletionIds untuk DELETE saat Simpan/Pause berikutnya; baris tanpa id (baru ditambah sesi ini) langsung dibuang dari state lokal",
+        "5. availableTimeSlotOptions(index) → 24 slot kanonis DIKURANGI (slot dipakai baris lain) DAN (slot dengan index kanonis <= index slot TERTINGGI di antara baris lain yang terisi), selalu menyertakan nilai baris itu sendiri",
+        "6. On 'Simpan' → validate Boiler Room ID required (inline error) DAN minimal satu baris valid (Time-Slot terpilih + minimal satu dari 14 kolom bacaan terisi, error khusus pada grid, bukan per-field header)",
+        "7. Validasi lolos → coerce string kosong ('') pada 2 kolom enum (blowdown_executed, sootblowing_executed) menjadi null SEBELUM persist — defense-in-depth di FE, backend rule tidak relevan untuk mobile (local SQLite tanpa CHECK constraint), tetap diterapkan untuk konsistensi lintas platform",
+        "8. UPDATE header record (status='saved'), lalu applyDetailRowChanges(): upsert baris (id ada → UPDATE, id tidak ada → INSERT dengan id baru) dan DELETE seluruh id di pendingDeletionIds — sequential run() calls, bukan satu transaksi (SQLite lokal, mirrors storageTankRecordRepo.ts/engineRoomRecordRepo.ts)",
+        "9. Navigasi ke Monitor Boiler Room setelah Simpan sukses",
+        "10. On 'Pause' → tanpa validasi wajib apapun, UPDATE header (status='draft_paused') + applyDetailRowChanges() yang sama, navigasi ke Monitor Boiler Room",
+        "11. On 'Clear' → ConfirmDialog; jika confirm: DELETE seluruh boiler_room_detail rows milik record lalu DELETE header record, navigasi ke Monitor Boiler Room; jika cancel: tidak ada perubahan",
+        "12. On 'Back' → jika form dirty (header atau detailRows atau pendingDeletionIds berubah dari snapshot saat load): tampilkan ConfirmDialog sebelum navigasi; jika tidak dirty: navigasi langsung ke Monitor Boiler Room",
+        "13. checked_by/acknowledged_by role-stripping: checked_by hanya ditulis jika currentUserRole='supervisor', acknowledged_by hanya jika currentUserRole='mill_management'; role lain diabaikan diam-diam"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "boiler-room-record",
+          "operation": "SELECT",
+          "description": "SELECT 1 record by id beserta seluruh boiler_room_detail rows"
+        },
+        {
+          "entity_id": "boiler-room-record",
+          "operation": "UPDATE",
+          "description": "UPDATE header record on Simpan/Pause (status berubah sesuai aksi)"
+        },
+        {
+          "entity_id": "boiler-room-detail",
+          "operation": "INSERT",
+          "description": "INSERT baris baru (tanpa id) saat Simpan/Pause"
+        },
+        {
+          "entity_id": "boiler-room-detail",
+          "operation": "UPDATE",
+          "description": "UPDATE baris existing (punya id) saat Simpan/Pause"
+        },
+        {
+          "entity_id": "boiler-room-detail",
+          "operation": "DELETE",
+          "description": "DELETE baris yang di-queue di pendingDeletionIds saat Simpan/Pause, dan seluruh baris record saat Clear"
+        },
+        {
+          "entity_id": "boiler-room-record",
+          "operation": "DELETE",
+          "description": "DELETE header record saat Clear dikonfirmasi"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Boiler Room ID kosong saat Simpan",
+          "handling": "Error inline pada field Boiler Room ID, record tidak tersimpan"
+        },
+        {
+          "condition": "Tidak ada baris Boiler Room Detail valid saat Simpan",
+          "handling": "BoilerRoomDetailRequiredError dilempar oleh repo, error khusus ditampilkan pada grid, record tidak tersimpan; FE juga sudah mem-validasi sebelum memanggil repo (defense-in-depth)"
+        },
+        {
+          "condition": "Hapus baris yang sudah punya id",
+          "handling": "id di-queue ke pendingDeletionIds, baru benar-benar DELETE saat Simpan/Pause berikutnya; Time-Slot baris tersebut langsung bebas dipakai baris lain"
+        },
+        {
+          "condition": "Baris hanya terisi salah satu kolom status enum (Blowdown/Sootblowing Executed)",
+          "handling": "Dihitung sebagai baris terisi/valid oleh isRowFilled(), sama seperti kolom bacaan numerik/text lainnya"
+        },
+        {
+          "condition": "Pause ditekan dengan field wajib belum lengkap",
+          "handling": "Tidak ada validasi apapun, field disimpan apa adanya sebagai checkpoint, status=draft_paused"
+        },
+        {
+          "condition": "Clear ditekan",
+          "handling": "ConfirmDialog wajib dikonfirmasi sebelum penghapusan permanen dijalankan"
+        },
+        {
+          "condition": "Back ditekan saat form dirty",
+          "handling": "ConfirmDialog ditampilkan sebelum navigasi keluar tanpa menyimpan"
+        }
+      ],
+      "business_rules_applied": [
+        "Tanggal auto-fill sekali, disabled, tidak dapat diedit manual",
+        "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+        "Grid Boiler Room Detail dinamis 0..24 baris, ditambah/dihapus satu per satu",
+        "Time-Slot tiap baris unik dan urutan menaik kanonis",
+        "Minimal satu baris valid sebelum Simpan (tidak berlaku untuk Pause)",
+        "Boiler Room ID wajib diisi sebelum Simpan (tidak berlaku untuk Pause)",
+        "Blowdown Executed dan Sootblowing Executed adalah 2 kolom status/enum Y/N independen",
+        "Fuel Feed Rate, ID Fan Load, SA Fan Load adalah kolom teks bebas, bukan numerik"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "loads an existing draft with its boiler_room_detail rows in canonical time-slot order",
+          "given": "boilerRoomRecordRepo.getDraftWithDetails(id) returns a record with 3 detail rows stored out of canonical order",
+          "expect": "returned details array is sorted by canonical time-slot order, not insertion/alphabetical order"
+        },
+        {
+          "description": "auto-fills date only when the loaded record's date is empty",
+          "given": "a brand-new draft record with date=''",
+          "expect": "form.date is set to the current local datetime string; an existing draft with a non-empty date keeps its stored value unchanged"
+        },
+        {
+          "description": "computes availableTimeSlotOptions excluding slots used by other rows and slots at-or-before the highest used index",
+          "given": "detailRows has 2 other rows using '09:00' and '14:00'",
+          "expect": "options for a new row exclude '09:00', '14:00', and every canonical slot at-or-before '14:00' except the row's own current value"
+        },
+        {
+          "description": "throws BoilerRoomDetailRequiredError when saveDraft is called with zero valid rows",
+          "given": "details array where every row has time_slot null/empty or all 14 reading/status columns null",
+          "expect": "throw BoilerRoomDetailRequiredError; no DB write occurs"
+        },
+        {
+          "description": "treats a row with only an enum status column filled as valid for the minimum-one-row rule",
+          "given": "one detail row with time_slot='08:00' and blowdown_executed='y', all other 13 columns null",
+          "expect": "row counts as filled; saveDraft() proceeds without throwing"
+        },
+        {
+          "description": "saveDraft sets status='saved' and applies upsert/delete for detail rows",
+          "given": "1 existing row (id present, values changed) + 1 new row (no id) + 1 pendingDeletionIds entry for a previously-existing row",
+          "expect": "header UPDATE sets status='saved'; existing row UPDATEd; new row INSERTed with a generated id; queued id DELETEd"
+        },
+        {
+          "description": "pauseDraftWithFormData persists as draft_paused without required-field validation",
+          "given": "boiler_room_id empty and zero valid detail rows",
+          "expect": "no error thrown; header UPDATEd to status='draft_paused' with fields as-is; detail upsert/delete still applied"
+        },
+        {
+          "description": "deleteDraft cascades delete to all boiler_room_detail rows before deleting the header",
+          "given": "a record with 4 boiler_room_detail rows",
+          "expect": "all 4 detail rows DELETEd, then the header record DELETEd"
+        },
+        {
+          "description": "strips checked_by/acknowledged_by when currentUserRole lacks the matching role",
+          "given": "headerData.checked_by set but currentUserRole='operator'; headerData.acknowledged_by set but currentUserRole='supervisor'",
+          "expect": "persisted checked_by=null and acknowledged_by=null despite headerData values being present"
+        },
+        {
+          "description": "coerces empty-string enum values to null before persisting the 2 status columns",
+          "given": "a detail row with blowdown_executed='' and sootblowing_executed=''",
+          "expect": "persisted row stores null (not empty string) for both blowdown_executed and sootblowing_executed"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-068--monitor-boiler-room",
+      "reason": "Entry point (New Data / lanjutkan draft) dan tujuan navigasi setelah Simpan/Pause/Clear"
+    }
+  ],
+  "implementation_notes": [
+    "Semua operasi lokal di SQLite via boilerRoomRecordRepo.ts, tidak ada panggilan API",
+    "boilerRoomRecordRepo.ts mencakup ketiga screen mobile Boiler Room (068/078/088) dalam satu file, mirrors engineRoomRecordRepo.ts/storageTankRecordRepo.ts",
+    "canonicalTimeSlots() identik dengan engineRoomRecordRepo.ts: for i in 0..23 -> hour = (7 + i) % 24, format 'HH:00', dimulai dari 07:00",
+    "14 kolom non-time_slot per baris; 2 di antaranya adalah kolom status/enum Y/N (blowdown_executed, sootblowing_executed) yang disimpan sebagai plain TEXT di SQLite lokal (tidak ada CHECK constraint di sisi mobile); 3 kolom (fuel_feed_rate, id_fan_load, sa_fan_load) adalah teks bebas karena satuan pada form kertas asal bercampur (Hz/%/tons, A/%)",
+    "isRowFilled() mengecek seluruh 14 kolom non-time_slot (numerik !== null ATAU string/enum bukan null dan bukan '')",
+    "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak ada CollapsibleSection/read-only reference data pada layar ini",
+    "Field urutan pada grid & form mengikuti urutan kolom migration boiler_room_details persis: Steam Pressure → Steam Temp → Feed Water Temp → Feed Water Tank Level → Boiler Water Level → Water TDS → Water pH → Fuel Feed Rate → ID Fan Load → SA Fan Load → Exhaust Gas Temp → Dust Collector Differential Pressure → Blowdown Executed → Sootblowing Executed → Findings"
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Input Data Boiler Room — success",
+      "usecase_id": "usecase-104--form-boiler-room",
+      "api_test": [],
+      "component_test": {
+        "component": "FormBoilerRoomView",
+        "action": "fill Boiler Room ID, tap 'Tambah baris', select a Time-Slot, fill at least one reading column, tap 'Simpan'",
+        "assert": "saveDraft() called with the filled header and detail row; navigation to Monitor Boiler Room triggered"
+      },
+      "browser_test": {
+        "route": "/stations/boiler-room/form/:id",
+        "action": "open a new draft, fill Boiler Room ID, add a detail row, select Time-Slot, fill Steam Pressure, tap Simpan",
+        "assert": "browser navigates to Monitor Boiler Room; the saved record now shows status Tersimpan in Data Preview"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Boiler Room — Boiler Room ID Belum Lengkap",
+      "usecase_id": "usecase-104--form-boiler-room",
+      "api_test": [],
+      "component_test": {
+        "component": "FormBoilerRoomView",
+        "action": "leave Boiler Room ID empty, tap 'Simpan'",
+        "assert": "inline error shown on Boiler Room ID field; saveDraft() not called"
+      },
+      "browser_test": {
+        "route": "/stations/boiler-room/form/:id",
+        "action": "leave Boiler Room ID empty, tap Simpan",
+        "assert": "inline validation error is visible, no navigation occurs"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Boiler Room — Belum Ada Baris Valid",
+      "usecase_id": "usecase-104--form-boiler-room",
+      "api_test": [],
+      "component_test": {
+        "component": "FormBoilerRoomView",
+        "action": "fill Boiler Room ID but leave the detail grid empty, tap 'Simpan'",
+        "assert": "grid-level error message shown (detailRowsError); saveDraft() not called"
+      },
+      "browser_test": {
+        "route": "/stations/boiler-room/form/:id",
+        "action": "fill header only, do not add any detail row, tap Simpan",
+        "assert": "grid error message visible, record not saved"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Boiler Room — Tambah/Hapus Baris dan Urutan Time-Slot",
+      "usecase_id": "usecase-104--form-boiler-room",
+      "api_test": [],
+      "component_test": {
+        "component": "FormBoilerRoomView",
+        "action": "tap 'Tambah baris' twice, pick distinct ascending Time-Slots, then tap 'Hapus baris' on the first row",
+        "assert": "grid starts empty, grows by one row per tap; deleted row's Time-Slot becomes available again for remaining rows"
+      },
+      "browser_test": {
+        "route": "/stations/boiler-room/form/:id",
+        "action": "add 2 rows with ascending Time-Slots, remove the first row",
+        "assert": "grid reflects the removal and the freed Time-Slot reappears in the dropdown for other rows"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Boiler Room — Baris Valid Hanya Dari Status Enum",
+      "usecase_id": "usecase-104--form-boiler-room",
+      "api_test": [],
+      "component_test": {
+        "component": "FormBoilerRoomView",
+        "action": "add a row, select a Time-Slot, set Blowdown Executed='Y' only, tap Simpan",
+        "assert": "no grid validation error; saveDraft() called and succeeds"
+      },
+      "browser_test": {
+        "route": "/stations/boiler-room/form/:id",
+        "action": "fill header, add a row with only Sootblowing Executed filled, tap Simpan",
+        "assert": "record saved successfully"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Boiler Room — Pause Progress",
+      "usecase_id": "usecase-104--form-boiler-room",
+      "api_test": [],
+      "component_test": {
+        "component": "FormBoilerRoomView",
+        "action": "leave required fields empty, tap 'Pause'",
+        "assert": "pauseDraftWithFormData() called without validation errors; navigation to Monitor Boiler Room triggered"
+      },
+      "browser_test": {
+        "route": "/stations/boiler-room/form/:id",
+        "action": "leave Boiler Room ID empty, tap Pause",
+        "assert": "no validation error shown, browser navigates to Monitor Boiler Room, record status becomes Pause in the list"
+      }
+    },
+    {
+      "scenario_ref": "Input Data Boiler Room — Clear Draft",
+      "usecase_id": "usecase-104--form-boiler-room",
+      "api_test": [],
+      "component_test": {
+        "component": "FormBoilerRoomView",
+        "action": "tap 'Clear', confirm the ConfirmDialog",
+        "assert": "deleteDraft() called; navigation to Monitor Boiler Room triggered"
+      },
+      "browser_test": {
+        "route": "/stations/boiler-room/form/:id",
+        "action": "tap Clear then confirm the dialog",
+        "assert": "record is permanently removed and no longer appears anywhere in Monitor/Data Preview Boiler Room"
+      }
+    }
+  ]
+}

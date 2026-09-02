@@ -1,0 +1,119 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "screen-080--form-process-quality-control",
+  "name": "Form Process Quality Control",
+  "module_id": "module-mobile-station-ops",
+  "description": "Input/edit data header (Process QC ID, Date, Inputted/Checked/Acknowledged By, Note) dan grid detail time-slot per jam (07:00–06:00, hingga 24 baris, ditambah manual satu per satu via 'Tambah baris') untuk Shift, Fruit Press Oil Loss in Sludge (%), Fruit Press Oil Loss in Fibre (%), Purifier & Clarification Balance Inlet Temp (°C), Purifier & Clarification Balance Backpressure (Bar), Vacuum Drying Station Drier Temp (°C), Vacuum Drying Station Vacuum Pressure (Bar), Decanter/Centrifuge Feed Rate (MT/h), Decanter/Centrifuge Oil Loss in Cake (%), Final Storage FFA (%), Final Storage Moisture Content (%), Final Storage Impurities/Dirt (%), Final Storage DOBI Index, QC Inspector ID, QC Engineering Corrective Actions/Remarks, dan Findings — mengikuti pola persis Form Clarification/Boiler Room/Engine Room/Storage Tank/Effluent Plant, TANPA tabel referensi target operasional. Stasiun ini memiliki jumlah kolom bacaan terbanyak di seluruh proyek (16 kolom non-time-slot per baris), namun TANPA kolom enum/status apapun — seluruhnya numerik atau teks bebas.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor"
+  ],
+  "entry_points": [
+    "New Data dari Monitor Process Quality Control",
+    "Tap item draft/pause di Monitor Process Quality Control"
+  ],
+  "information_displayed": [
+    "Header: Process QC ID, Tanggal (otomatis, disabled), Inputted By (read-only), Checked By (toggle, hanya interaktif untuk Supervisor), Acknowledged By (toggle, hanya interaktif untuk Mill Management), Note",
+    "Grid Process Quality Control Detail dinamis (0..24 baris): Time-Slot (dropdown, urutan menaik kanonis, tanpa duplikat) + Shift (teks bebas) + Fruit Press Oil Loss in Sludge (%) + Fruit Press Oil Loss in Fibre (%) + Purifier & Clarification Balance Inlet Temp (°C) + Purifier & Clarification Balance Backpressure (Bar) + Vacuum Drying Station Drier Temp (°C) + Vacuum Drying Station Vacuum Pressure (Bar) + Decanter/Centrifuge Feed Rate (MT/h) + Decanter/Centrifuge Oil Loss in Cake (%) + Final Storage FFA (%) + Final Storage Moisture Content (%) + Final Storage Impurities/Dirt (%) + Final Storage DOBI Index + QC Inspector ID (teks bebas) + QC Engineering Corrective Actions/Remarks (teks bebas) + Findings (teks bebas) per baris",
+    "Tombol 'Tambah baris' (dinonaktifkan setelah 24 baris) dan 'Hapus baris' per baris",
+    "Footer aksi: Back, Pause, Clear, Simpan"
+  ],
+  "available_actions": [
+    {
+      "action": "Isi header",
+      "description": "Mengisi Process QC ID dan Note; Tanggal otomatis terisi sekali dan tidak dapat diedit",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Tambah baris",
+      "description": "Menambah satu baris Process Quality Control Detail baru dengan Time-Slot kosong, dipilih dari sisa slot kanonis yang tersedia",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Hapus baris",
+      "description": "Menghapus satu baris dari grid (baris tersimpan baru benar-benar dihapus saat Simpan/Pause berikutnya)",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Checked By",
+      "description": "Toggle self-attestation 'Saya verifikasi data ini', hanya interaktif untuk Supervisor",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Acknowledged By",
+      "description": "Toggle self-attestation 'Saya menyetujui data ini', hanya interaktif untuk Mill Management",
+      "actor_ids": [
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Simpan",
+      "description": "Memvalidasi Process QC ID wajib dan minimal satu baris valid, lalu menyimpan record berstatus 'saved' dan kembali ke Monitor Process Quality Control",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Pause",
+      "description": "Menyimpan progres apa adanya tanpa validasi wajib, status menjadi draft_paused, kembali ke Monitor Process Quality Control",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Clear",
+      "description": "Menghapus permanen record beserta seluruh barisnya setelah konfirmasi dialog",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    },
+    {
+      "action": "Back",
+      "description": "Kembali ke Monitor Process Quality Control, menampilkan dialog konfirmasi jika ada perubahan belum tersimpan",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Tanggal otomatis diisi sekali saat draft baru dibuat, tidak dapat diedit manual",
+    "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
+    "Grid Process Quality Control Detail tidak di-pre-generate — baris ditambahkan satu per satu via Tambah baris, dapat dihapus via Hapus baris",
+    "Time-Slot tiap baris harus lebih lambat dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
+    "Minimal satu baris valid (Time-Slot terpilih + minimal satu dari 14 kolom bacaan/keterangan atau Findings terisi, tidak termasuk Shift dan QC Inspector ID yang bersifat identitas baris) sebelum Simpan",
+    "Process QC ID wajib diisi sebelum Simpan"
+  ],
+  "usecase_ids": [
+    "usecase-116--form-process-quality-control"
+  ],
+  "edge_cases": [
+    "Process QC ID kosong saat Simpan — error inline, record tidak tersimpan",
+    "Belum ada baris valid saat Simpan — pesan error khusus pada grid, record tidak tersimpan",
+    "Hapus baris membebaskan kembali Time-Slot baris tersebut untuk baris lain",
+    "Baris hanya terisi Findings saja (atau salah satu dari 14 kolom bacaan/keterangan) tetap dianggap valid/terisi, meskipun Shift dan QC Inspector ID kosong",
+    "Pause tanpa validasi wajib apapun",
+    "Clear memerlukan konfirmasi sebelum menghapus permanen",
+    "Back saat form dirty menampilkan dialog konfirmasi"
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

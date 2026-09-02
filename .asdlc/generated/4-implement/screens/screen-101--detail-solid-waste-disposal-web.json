@@ -1,0 +1,76 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-101--detail-solid-waste-disposal-web",
+  "name": "Detail Solid Waste Disposal (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [
+    "backend/app/Http/Controllers/Api/SolidWasteDisposalRecordController.php",
+    "backend/app/Services/SolidWasteDisposalRecordService.php",
+    "backend/routes/api.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/SolidWasteDisposalRecordServiceTest.php",
+    "backend/tests/Feature/Api/DetailSolidWasteDisposalTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/DetailSolidWasteDisposal.php",
+    "backend/resources/views/livewire/data/detail-solid-waste-disposal.blade.php",
+    "backend/resources/views/data/solid-waste-disposal-detail.blade.php",
+    "backend/routes/web.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/DetailSolidWasteDisposalTest.php",
+    "backend/tests/Browser/DetailSolidWasteDisposalTest.php"
+  ],
+  "implementation_notes": [
+    "Dual entry point: GET /api/solid-waste-disposal-records/{id} (SolidWasteDisposalRecordController::show()) dan Livewire DetailSolidWasteDisposal keduanya panggil SolidWasteDisposalRecordService::getDetail() yang sama, mengikuti pola screen-021 (Detail Cages Track) persis",
+    "getDetail() eager-load station/createdBy/checkedBy/acknowledgedBy/solidWasteDisposalDetails dan resolve ke station_name/created_by_name/checked_by_name/acknowledged_by_name",
+    "details di-sort by event_date di service layer (toDetailRow()), bukan hanya di query, supaya urutan konsisten terlepas dari urutan insert",
+    "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-019/020/021",
+    "Field grouping & urutan field di blade view mengikuti struktur mobile/src/views/DataPreviewSolidWasteDisposalView.vue mode detail, per arahan eksplisit: web station screens mengikuti flow/UX mobile",
+    "Route /solid-waste-disposal-records/{id} didaftarkan SETELAH /solid-waste-disposal-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}"
+  ],
+  "deferred_items": [],
+  "known_issues": [
+    {
+      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox.",
+      "severity": "minor"
+    },
+    {
+      "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV.",
+      "severity": "minor"
+    },
+    {
+      "description": "Response error tidak punya field error_code mesin-terbaca, hanya message (404 generik), konsisten dengan pola error_format di seluruh codebase.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 5,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 8,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-31T00:00:00Z",
+      "passed": 4,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

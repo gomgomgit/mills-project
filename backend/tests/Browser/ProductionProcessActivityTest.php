@@ -42,14 +42,20 @@ test.describe('Production Process Activity (screen-035)', () => {
     await expect(page).toHaveURL(`${BASE_URL}/data/weighbridge`);
   });
 
-  test('Pilih Stasiun (Web) — Klik Stasiun Disabled: clicking a placeholder tile does not navigate', async ({ page }) => {
+  // Repurposed 2026-09-01: Sterilizer (the last placeholder) was promoted
+  // to a fully active tile — 0 placeholders remain anywhere on the grid,
+  // so there is nothing left to click-disabled. This now asserts the
+  // negative: clicking the (now active) Sterilizer tile navigates normally,
+  // and no "Belum tersedia" placeholder text renders anywhere.
+  test('Pilih Stasiun (Web) — Sterilizer is now active: clicking it navigates to its Data Browser', async ({ page }) => {
     await login(page, 'supervisor01');
     await page.goto(`${BASE_URL}${PPA_PATH}`);
 
-    const placeholderTile = page.getByText('Sterilizer').locator('..');
-    await placeholderTile.click({ force: true });
+    await expect(page.getByText('Belum tersedia')).toHaveCount(0);
 
-    // No navigation should have occurred — still on the same page.
-    await expect(page).toHaveURL(`${BASE_URL}${PPA_PATH}`);
+    await page.getByRole('link', { name: /Sterilizer/i }).click();
+
+    await page.waitForURL(`${BASE_URL}/data/sterilizer`);
+    await expect(page).toHaveURL(`${BASE_URL}/data/sterilizer`);
   });
 });

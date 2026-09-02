@@ -59,6 +59,17 @@ import { threshingRecordRepo } from '@/services/threshingRecordRepo'
 import { pressingRecordRepo } from '@/services/pressingRecordRepo'
 import { depricarpingRecordRepo } from '@/services/depricarpingRecordRepo'
 import { kernelPlantRecordRepo } from '@/services/kernelPlantRecordRepo'
+import { solidWasteDisposalRecordRepo } from '@/services/solidWasteDisposalRecordRepo'
+import { processWaterRecordRepo } from '@/services/processWaterRecordRepo'
+import { kernelDispatchRecordRepo } from '@/services/kernelDispatchRecordRepo'
+import { cpoDispatchRecordRepo } from '@/services/cpoDispatchRecordRepo'
+import { effluentPlantRecordRepo } from '@/services/effluentPlantRecordRepo'
+import { storageTankRecordRepo } from '@/services/storageTankRecordRepo'
+import { engineRoomRecordRepo } from '@/services/engineRoomRecordRepo'
+import { boilerRoomRecordRepo } from '@/services/boilerRoomRecordRepo'
+import { clarificationRecordRepo } from '@/services/clarificationRecordRepo'
+import { processQualityControlRecordRepo } from '@/services/processQualityControlRecordRepo'
+import { sterilizerRecordRepo } from '@/services/sterilizerRecordRepo'
 import { syncAllRecords, type SyncSummary } from '@/services/syncService'
 import StationGrid from '@/components/StationGrid.vue'
 import SyncResultDialog from '@/components/SyncResultDialog.vue'
@@ -96,13 +107,32 @@ const showProductionLinePicker = ref(false)
 /**
  * Maps an active station's type to its monitor screen route name —
  * business_logic step 3. `other` never appears as an active tile in
- * practice (only the 7 MVP station types below are real, implemented
+ * practice (only the MVP station types below are real, implemented
  * station types per this screen's spec) but is handled defensively rather
  * than assumed away.
  *
  * 2026-08-23 — extended with the 4 newly-promoted MVP stations (Threshing,
  * Pressing, Depricarping, Kernel Plant); all 4 route names are already
  * registered in router/index.ts by their own screen implementations.
+ *
+ * 2026-08-31 — extended with 10 more newly-promoted MVP stations (Solid
+ * Waste Disposal, Process Water, Kernel Dispatch, CPO Dispatch, Effluent
+ * Plant, Storage Tank, Engine Room, Boiler Room, Clarification, Process
+ * Quality Control), 17 active MVP stations total. UNLIKE the 2026-08-23
+ * batch, these 10 route names are NOT yet registered in router/index.ts —
+ * each station's own Monitor screen has not been implemented yet (separate,
+ * later screen-by-screen work). Mapping them here now means the type is
+ * still recognized as an active tile (renders normally, not as a disabled
+ * placeholder); tapping one calls `router.push({ name: ... })` with a route
+ * name vue-router does not yet know, which currently fails to navigate —
+ * acceptable for now, same "known_issue, not worked around here" stance
+ * StationListView.vue's own header comment already documents for the
+ * original 3 MVP stations before their Monitor screens existed.
+ *
+ * 2026-09-01 — extended with the FINAL station, Sterilizer (the 18th and
+ * last of the 18 canonical stations). Its route name IS registered in
+ * router/index.ts (screen-121--monitor-sterilizer), same as the rest of
+ * the 2026-08-31 batch by this point.
  */
 const MONITOR_ROUTE_NAMES: Partial<Record<StationType, string>> = {
   weighbridge: 'monitor-weighbridge',
@@ -112,6 +142,17 @@ const MONITOR_ROUTE_NAMES: Partial<Record<StationType, string>> = {
   pressing: 'monitor-pressing',
   depricarping: 'monitor-depricarping',
   'kernel-plant': 'monitor-kernel-plant',
+  'solid-waste-disposal': 'monitor-solid-waste-disposal',
+  'process-water': 'monitor-process-water',
+  'kernel-dispatch': 'monitor-kernel-dispatch',
+  'cpo-dispatch': 'monitor-cpo-dispatch',
+  'effluent-plant': 'monitor-effluent-plant',
+  'storage-tank': 'monitor-storage-tank',
+  'engine-room': 'monitor-engine-room',
+  'boiler-room': 'monitor-boiler-room',
+  clarification: 'monitor-clarification',
+  'process-quality-control': 'monitor-process-quality-control',
+  sterilizer: 'monitor-sterilizer',
 }
 
 onMounted(async () => {
@@ -232,6 +273,28 @@ async function onSelectProductionLine(line: ProductionLineOption): Promise<void>
  * are equivalent for this screen's purpose (hasDraft = at least one
  * ongoing/paused record exists), so the new 4 are reduced to a boolean via
  * `.length > 0` instead.
+ *
+ * 2026-08-31 — 10 more MVP stations were promoted to active (see
+ * MONITOR_ROUTE_NAMES's doc comment), but most of their own record repos
+ * do not exist yet — Phase 4 screen implementation for each of these
+ * stations' own Form/Monitor/Data-Preview screens hasn't happened yet
+ * (separate, later screen-by-screen work). Process Water's repo
+ * (processWaterRecordRepo.ts), Kernel Dispatch's repo
+ * (kernelDispatchRecordRepo.ts), CPO Dispatch's repo
+ * (cpoDispatchRecordRepo.ts), Effluent Plant's repo
+ * (effluentPlantRecordRepo.ts), Storage Tank's repo
+ * (storageTankRecordRepo.ts), Engine Room's repo
+ * (engineRoomRecordRepo.ts), Boiler Room's repo
+ * (boilerRoomRecordRepo.ts), Clarification's repo
+ * (clarificationRecordRepo.ts), and Process Quality Control's repo
+ * (processQualityControlRecordRepo.ts) now exist and are wired in below,
+ * same `getDrafts(userId)` shape as the 2026-08-23 batch — all 10 of the
+ * 2026-08-31 batch are now wired.
+ *
+ * 2026-09-01 — Sterilizer's repo (sterilizerRecordRepo.ts) now exists and
+ * is wired in below, same `getDrafts(userId)` shape as every station
+ * above. This is the FINAL station of this project — the 18th and last of
+ * the 18 canonical stations, 0 placeholders remain anywhere.
  */
 async function loadDraftStatusByType() {
   const userId = authStore.currentUser?.id
@@ -240,15 +303,27 @@ async function loadDraftStatusByType() {
     return
   }
 
-  const [weighbridge, grading, cagesTrack, threshing, pressing, depricarping, kernelPlant] = await Promise.all([
-    weighbridgeRecordRepo.getSummary(userId).catch(() => null),
-    gradingRecordRepo.getProgressSummary(userId).catch(() => null),
-    cagesTrackRecordRepo.getProgressSummary(userId).catch(() => null),
-    threshingRecordRepo.getDrafts(userId).catch(() => []),
-    pressingRecordRepo.getDrafts(userId).catch(() => []),
-    depricarpingRecordRepo.getDrafts(userId).catch(() => []),
-    kernelPlantRecordRepo.getDrafts(userId).catch(() => []),
-  ])
+  const [weighbridge, grading, cagesTrack, threshing, pressing, depricarping, kernelPlant, solidWasteDisposal, processWater, kernelDispatch, cpoDispatch, effluentPlant, storageTank, engineRoom, boilerRoom, clarification, processQualityControl, sterilizer] =
+    await Promise.all([
+      weighbridgeRecordRepo.getSummary(userId).catch(() => null),
+      gradingRecordRepo.getProgressSummary(userId).catch(() => null),
+      cagesTrackRecordRepo.getProgressSummary(userId).catch(() => null),
+      threshingRecordRepo.getDrafts(userId).catch(() => []),
+      pressingRecordRepo.getDrafts(userId).catch(() => []),
+      depricarpingRecordRepo.getDrafts(userId).catch(() => []),
+      kernelPlantRecordRepo.getDrafts(userId).catch(() => []),
+      solidWasteDisposalRecordRepo.getDrafts(userId).catch(() => []),
+      processWaterRecordRepo.getDrafts(userId).catch(() => []),
+      kernelDispatchRecordRepo.getDrafts(userId).catch(() => []),
+      cpoDispatchRecordRepo.getDrafts(userId).catch(() => []),
+      effluentPlantRecordRepo.getDrafts(userId).catch(() => []),
+      storageTankRecordRepo.getDrafts(userId).catch(() => []),
+      engineRoomRecordRepo.getDrafts(userId).catch(() => []),
+      boilerRoomRecordRepo.getDrafts(userId).catch(() => []),
+      clarificationRecordRepo.getDrafts(userId).catch(() => []),
+      processQualityControlRecordRepo.getDrafts(userId).catch(() => []),
+      sterilizerRecordRepo.getDrafts(userId).catch(() => []),
+    ])
 
   draftStatusByType.value = {
     weighbridge: weighbridge?.currentDraft !== null && weighbridge?.currentDraft !== undefined,
@@ -258,6 +333,17 @@ async function loadDraftStatusByType() {
     pressing: pressing.length > 0,
     depricarping: depricarping.length > 0,
     'kernel-plant': kernelPlant.length > 0,
+    'solid-waste-disposal': solidWasteDisposal.length > 0,
+    'process-water': processWater.length > 0,
+    'kernel-dispatch': kernelDispatch.length > 0,
+    'cpo-dispatch': cpoDispatch.length > 0,
+    'effluent-plant': effluentPlant.length > 0,
+    'storage-tank': storageTank.length > 0,
+    'engine-room': engineRoom.length > 0,
+    'boiler-room': boilerRoom.length > 0,
+    clarification: clarification.length > 0,
+    'process-quality-control': processQualityControl.length > 0,
+    sterilizer: sterilizer.length > 0,
   }
 }
 

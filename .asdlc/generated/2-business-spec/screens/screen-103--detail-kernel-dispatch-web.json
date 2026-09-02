@@ -1,0 +1,61 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-103--detail-kernel-dispatch-web",
+  "name": "Detail Kernel Dispatch (Web)",
+  "module_id": "module-web-station-data",
+  "description": "Halaman detail read-only untuk melihat 1 record Kernel Dispatch tersimpan secara lengkap beserta Log Kejadian, diakses dari klik baris di Data Browser Kernel Dispatch (Web).",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Klik baris di Data Browser Kernel Dispatch (Web)"
+  ],
+  "information_displayed": [
+    "Identitas Kernel Dispatch: Kernel Dispatch ID, Tanggal, Note",
+    "Log Kejadian Kernel Dispatch: tabel seluruh baris kejadian (Tanggal Kejadian, Shift, Weighbridge Ticket No, Waybill Number, Transporter/Contractor, Vehicle Plate No, Driver Name, Silo Source ID, Destination/Buyer, Gross/Tare/Net Weight, Kernel Moisture, Dirt/Impurities, FFA, Broken Kernel, Security Seal No Top/Bottom, Weighbridge Operator ID, Remarks/Gate Status, Findings)",
+    "Verifikasi: Inputted By, Checked By, Acknowledged By (nama user, atau '-' jika belum diisi)",
+    "Status record (saved/synced)",
+    "Tombol Back kembali ke Data Browser dan tombol Edit ke Form"
+  ],
+  "available_actions": [
+    {
+      "action": "Back",
+      "description": "Kembali ke Data Browser Kernel Dispatch (Web)",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit",
+      "description": "Masuk ke Form Kernel Dispatch (Web) mode edit untuk record ini",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Seluruh field ditampilkan read-only — tidak ada aksi edit langsung dari layar ini (koreksi data dilakukan lewat Form Kernel Dispatch Web)",
+    "Checked By DAN Acknowledged By keduanya ditampilkan apa adanya, tanpa pembatasan role untuk melihat, konsisten dengan Data Preview Kernel Dispatch mobile",
+    "Log Kejadian ditampilkan langsung dari data tersimpan (historical), tidak dihitung ulang",
+    "Field dikelompokkan sesuai struktur Form Kernel Dispatch (Identitas, Log Kejadian, Verifikasi)"
+  ],
+  "usecase_ids": [
+    "usecase-077--detail-kernel-dispatch-web"
+  ],
+  "edge_cases": [
+    "Record tidak ditemukan (id tidak valid) — tampilkan pesan error dengan tombol Back",
+    "Checked By/Acknowledged By belum diisi — tampilkan '-'"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

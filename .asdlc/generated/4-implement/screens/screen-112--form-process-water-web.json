@@ -1,0 +1,67 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "screen-112--form-process-water-web",
+  "name": "Form Process Water (Web)",
+  "module_id": "module-web-station-data",
+  "status": "complete",
+  "files_generated": [],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/FormProcessWaterTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Data/FormProcessWater.php",
+    "backend/resources/views/data/process-water-form.blade.php",
+    "backend/resources/views/livewire/data/form-process-water.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/FormProcessWaterTest.php"
+  ],
+  "implementation_notes": [
+    "Reuses ProcessWaterRecordService::create()/update() (BE service shared with screen-092)",
+    "The Process Water Detail grid is fully dynamic -- addDetailRow()/removeDetailRow()/canAddRow()/availableTimeSlotOptions() on FormProcessWater.php, exactly mirroring FormThreshing's grid. Grid starts empty on create mode; edit mode loads existing rows verbatim with each row's id",
+    "All reading-column inputs per row (11 reading fields + Shift + Inspector ID = 13 editable fields per row) are genuinely editable, never disabled -- Process Water has no computed detail-grid fields",
+    "UNLIKE Form Threshing Web: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
+    "Route /data/process-water/create registered BEFORE /data/process-water/{id} (screen-102) so the literal 'create' segment is not swallowed by {id}",
+    "checked/acknowledged self-attestation checkboxes mirror FormThreshing's dual-checkbox pattern (both Checked By AND Acknowledged By)",
+    "NoActiveProcessWaterStationException (mirrors NoActiveThreshingStationException) thrown when production_line_id has no active station type=process-water"
+  ],
+  "deferred_items": [
+    {
+      "description": "The mobile 'Sinkronisasi' button does not yet call POST/PATCH /api/process-water-records for locally-entered records",
+      "reason": "Out of this 6-screen task's explicit scope (see screen-092's implement artifact for the full rationale) -- the dual-guarded route already supports this when a future syncService.ts addition wires it up."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Browser (Playwright) spec (backend/tests/Browser/FormProcessWaterTest.php) was authored but could not be executed in this sandboxed environment -- verified only by static review.",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-08-31T23:30:00Z",
+      "passed": 14,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-08-31T23:30:00Z",
+      "passed": 18,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

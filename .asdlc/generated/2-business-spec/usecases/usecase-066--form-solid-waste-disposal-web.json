@@ -1,0 +1,141 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-08-31"
+  },
+  "id": "usecase-066--form-solid-waste-disposal-web",
+  "name": "Input Data Solid Waste Disposal (Web)",
+  "description": "Supervisor, Mill Management, atau Admin membuat record Solid Waste Disposal baru atau mengubah record tersimpan dari web, mengisi header dan Log Kejadian.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User sudah login ke web dengan role supervisor/mill_management/admin",
+    "Untuk mode buat baru: minimal satu Production Line dengan station Solid Waste Disposal aktif tersedia"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Membuka Form Solid Waste Disposal (Web) mode buat baru atau edit"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Memilih Production Line (mode buat baru) dan mengisi Solid Waste Disp. ID, Date, Note"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Menambah satu atau lebih baris Log Kejadian, mengisi Tanggal Kejadian (wajib) dan field lain"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Menghitung Net Weight (MT) otomatis untuk tiap baris"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Mencentang Checked/Acknowledged jika berwenang, lalu menekan Simpan"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Validasi field wajib dan minimal satu baris Log Kejadian valid, resolve station dari Production Line, simpan record dengan status 'saved', navigasi ke Detail"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Field wajib belum lengkap",
+      "trigger": "Step 6 — Solid Waste Disp. ID atau Date kosong",
+      "steps": [
+        "Return 422 VALIDATION_ERROR",
+        "Tampilkan error inline"
+      ]
+    },
+    {
+      "name": "Belum ada baris Log Kejadian valid",
+      "trigger": "Step 6 — tidak ada baris dengan Tanggal Kejadian terisi",
+      "steps": [
+        "Return 422 VALIDATION_ERROR khusus Log Kejadian",
+        "Record tidak tersimpan"
+      ]
+    },
+    {
+      "name": "Production Line tanpa station aktif",
+      "trigger": "Step 6 — Production Line terpilih tidak memiliki station Solid Waste Disposal aktif",
+      "steps": [
+        "Return 422 NO_ACTIVE_SOLID_WASTE_DISPOSAL_STATION",
+        "Tampilkan pesan error"
+      ]
+    },
+    {
+      "name": "Record tidak ditemukan (mode edit)",
+      "trigger": "Step 1 — id record pada mode edit tidak ditemukan",
+      "steps": [
+        "Return 404 RECORD_NOT_FOUND",
+        "Tampilkan pesan error"
+      ]
+    },
+    {
+      "name": "Batal dengan perubahan belum tersimpan",
+      "trigger": "User menekan Batal saat form dirty",
+      "steps": [
+        "Tampilkan dialog konfirmasi sebelum keluar"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Record Solid Waste Disposal tersimpan dengan status 'saved' beserta Log Kejadian-nya"
+  ],
+  "business_rules": [
+    "Tidak ada draft/pause di web",
+    "Net Weight dihitung server",
+    "Production Line tidak dapat diubah setelah record dibuat"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Buat Record Solid Waste Disposal Baru — berhasil",
+      "given": "Production Line dengan station Solid Waste Disposal aktif dipilih",
+      "when": "User mengisi field wajib dan minimal satu baris Log Kejadian, lalu menekan Simpan",
+      "then": "Record tersimpan dan halaman Detail menampilkan record baru"
+    },
+    {
+      "scenario": "Edit Record Solid Waste Disposal — berhasil",
+      "given": "Record tersimpan dibuka dalam mode edit",
+      "when": "User mengubah field dan menekan Simpan",
+      "then": "Perubahan tersimpan dan tercermin di halaman Detail"
+    },
+    {
+      "scenario": "Field Wajib Belum Lengkap",
+      "given": "Solid Waste Disp. ID kosong",
+      "when": "User menekan Simpan",
+      "then": "Error inline muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Belum Ada Baris Log Kejadian Valid",
+      "given": "Tidak ada baris dengan Tanggal Kejadian terisi",
+      "when": "User menekan Simpan",
+      "then": "Pesan error khusus muncul, record tidak tersimpan"
+    },
+    {
+      "scenario": "Production Line Tanpa Station Solid Waste Disposal Aktif",
+      "given": "Production Line terpilih tidak memiliki station Solid Waste Disposal aktif",
+      "when": "User menekan Simpan",
+      "then": "Pesan error ditampilkan, record tidak tersimpan"
+    },
+    {
+      "scenario": "Record Tidak Ditemukan (mode edit)",
+      "given": "Id record pada mode edit tidak valid",
+      "when": "User membuka form edit dengan id tersebut",
+      "then": "Pesan error ditampilkan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-111--form-solid-waste-disposal-web"
+  ]
+}

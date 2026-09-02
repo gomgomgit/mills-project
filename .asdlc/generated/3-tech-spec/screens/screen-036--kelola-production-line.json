@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 4,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-09-01"
   },
   "id": "screen-036--kelola-production-line",
   "name": "Kelola Production Line",
@@ -128,7 +128,7 @@
         {
           "method": "POST",
           "path": "/api/production-lines",
-          "description": "Membuat Production Line baru; otomatis memprovisikan 15 station kanonis dalam satu transaksi",
+          "description": "Membuat Production Line baru; otomatis memprovisikan 18 station kanonis dalam satu transaksi",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -148,7 +148,7 @@
               "name": "string",
               "code": "string|null",
               "description": "string|null",
-              "station_count": 15,
+              "station_count": 18,
               "created_by": "uuid",
               "created_at": "iso8601"
             },
@@ -262,7 +262,7 @@
       ],
       "business_logic": [
         "list: paginate ProductionLine, eager-load businessUnit, withCount('stations'), filter business_unit_id jika ada → return",
-        "create: validate business_unit_id exists, name required, code unique-if-filled → 422 jika invalid → INSERT ProductionLine → foreach 15 DEFAULT_STATIONS: INSERT Station (production_line_id + business_unit_id denormalized) → semua dalam DB::transaction → return row (201)",
+        "create: validate business_unit_id exists, name required, code unique-if-filled → 422 jika invalid → INSERT ProductionLine → foreach 18 DEFAULT_STATIONS: INSERT Station (production_line_id + business_unit_id denormalized) → semua dalam DB::transaction → return row (201)",
         "update: findOrFail id (404 jika tidak ada) → validasi sama seperti create (code unique excluding self) → UPDATE, TIDAK menyentuh station → return row",
         "delete: findOrFail id (404) → COUNT Station WHERE production_line_id=id → jika >0 throw 409 PRODUCTION_LINE_HAS_STATIONS → else DELETE"
       ],
@@ -290,7 +290,7 @@
         {
           "entity_id": "station",
           "operation": "INSERT",
-          "description": "15 station kanonis diprovisikan otomatis saat create() Production Line"
+          "description": "18 station kanonis diprovisikan otomatis saat create() Production Line"
         },
         {
           "entity_id": "station",
@@ -320,16 +320,16 @@
         "Business Unit wajib dipilih saat create/update",
         "Nama wajib diisi",
         "Kode opsional, unik global (unique-excluding-self saat update)",
-        "15 station kanonis diprovisikan HANYA saat create, dalam 1 transaksi dengan Production Line-nya",
+        "18 station kanonis diprovisikan HANYA saat create, dalam 1 transaksi dengan Production Line-nya",
         "Update tidak pernah menyentuh station yang sudah ada",
         "Delete ditolak jika masih ada Station terkait",
         "Hanya Admin yang dapat mengakses seluruh endpoint CRUD ini"
       ],
       "unit_test_cases": [
         {
-          "description": "berhasil: creates a production line and auto-provisions 15 stations",
+          "description": "berhasil: creates a production line and auto-provisions 18 stations",
           "given": "business_unit_id valid, name terisi",
-          "expect": "ProductionLine + 15 Station dibuat, station_count=15"
+          "expect": "ProductionLine + 18 Station dibuat, semua 18 aktif, 0 placeholder, station_count=18"
         },
         {
           "description": "returns 422 when business_unit_id is missing/non-existent",
@@ -353,8 +353,8 @@
         },
         {
           "description": "update does not recreate or remove stations",
-          "given": "ProductionLine dengan 15 station sudah ada, update name",
-          "expect": "station_count tetap 15 setelah update"
+          "given": "ProductionLine dengan 18 station sudah ada, update name",
+          "expect": "station_count tetap 18 setelah update"
         },
         {
           "description": "returns 404 when updating/deleting a non-existent id",
@@ -415,9 +415,12 @@
   "implementation_notes": [
     "ProductionLineController juga meng-host current()/currentStations() (GET /api/production-lines/current, /current/stations) — endpoint self-scoped mobile-facing yang melayani screen-006 (Station List)'s Production Line picker, bukan bagian dari CRUD admin usecase-036 di atas; didaftarkan dengan auth:web,sanctum + role operator/supervisor/mill_management/admin, HARUS terdaftar sebelum route {id}-berparameter agar tidak collision, mengikuti pola persis GET /api/mill-settings/current",
     "currentStations() menyertakan machinery_count (COUNT machinery WHERE station_id=...) khusus untuk station bertipe cages-track, null untuk tipe lain — dipakai Form Cages Track (mobile & web) sebagai pengganti mill-setting.jumlah_cages yang sudah dihapus",
-    "DEFAULT_STATIONS (15 baris kanonis) dipindah dari BusinessUnitService ke ProductionLineService — BusinessUnitService::create() tidak lagi memprovisikan station/production line apa pun",
-    "code dibiarkan null pada semua 15 station hasil auto-provisioning — nullable+unique di level DB, banyak null tidak collide",
-    "Belum ada Browser test (Playwright) khusus untuk screen ini — hanya Feature/Api + Feature/Livewire, berbeda dari sebagian screen master-data lain yang juga punya Browser test; dicatat sebagai known_issue minor di 4-implement"
+    "DEFAULT_STATIONS (kanonis) dipindah dari BusinessUnitService ke ProductionLineService — BusinessUnitService::create() tidak lagi memprovisikan station/production line apa pun",
+    "code dibiarkan null pada semua station hasil auto-provisioning — nullable+unique di level DB, banyak null tidak collide",
+    "Belum ada Browser test (Playwright) khusus untuk screen ini — hanya Feature/Api + Feature/Livewire, berbeda dari sebagian screen master-data lain yang juga punya Browser test; dicatat sebagai known_issue minor di 4-implement",
+    "KOREKSI ver 2 (2026-08-31): DEFAULT_STATIONS diperluas dari 15 menjadi 19 entri — 6 dari 8 placeholder lama dipromosikan menjadi aktif (Clarification, Boiler→'Boiler Room', Effluent Treatment→'Effluent Plant', Engine Room, Water Treatment→'Process Water', Bulking Storage→'Storage Tank') dan 4 stasiun baru ditambahkan (Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control). Migration backfill diperlukan untuk Production Line yang sudah ada: UPDATE 6 row placeholder existing (rename+retype+aktifkan) dan INSERT 4 row baru per Production Line — mengikuti pola persis migration 2026_08_23_000014_activate_4_new_stations_on_existing_production_lines.php. Tech-spec ver 1 (2026-08-20) sebelumnya juga belum sempat diupdate untuk promosi Threshing/Pressing/Depricarping/Kernel Plant (2026-08-23) — koreksi ini menggabungkan keduanya sekaligus.",
+    "KOREKSI ver 3 (2026-09-01): DEFAULT_STATIONS dikoreksi dari 19 menjadi 18 entri — placeholder 'Loading Ramp' dihapus sepenuhnya, ternyata nama duplikat untuk stasiun yang sama dengan Cages Track (sudah aktif), bukan stasiun terpisah. Migration data baru menghapus row 'Loading Ramp' (type='other') dari setiap Production Line existing. Semua referensi station_count=19 pada endpoint/test di atas dikoreksi ke 18.",
+    "KOREKSI ver 4 (2026-09-01, promosi final): Sterilizer (placeholder terakhir) dipromosikan menjadi station aktif (type=sterilizer). station_count tetap 18 (tidak berubah sejak Loading Ramp dihapus) — HANYA frasa '17 aktif + 1 placeholder' di seluruh dokumen ini (unit_test_cases, dsb.) yang dikoreksi menjadi 'semua 18 aktif, 0 placeholder'. Migration backfill baru (2026_09_01_000027) mempromosikan row 'Sterilizer' existing di setiap Production Line. tests/Feature/Api/KelolaProductionLineTest.php diperbarui: assertion is_active=false count dari 1 menjadi 0, ditambah assertion is_active=true count=18."
   ],
   "test_scenarios": [
     {
@@ -441,7 +444,7 @@
       "component_test": {
         "component": "KelolaProductionLine",
         "action": "pilih Business Unit, isi Nama, klik Simpan",
-        "assert": "row baru muncul di tabel dengan station_count=15"
+        "assert": "row baru muncul di tabel dengan station_count=18"
       },
       "browser_test": {
         "route": "",
@@ -470,7 +473,7 @@
       "component_test": {
         "component": "KelolaProductionLine",
         "action": "buka Edit, ubah Nama, klik Simpan",
-        "assert": "nama terupdate, station_count tetap 15"
+        "assert": "nama terupdate, station_count tetap 18"
       },
       "browser_test": {
         "route": "",
@@ -521,7 +524,7 @@
       ],
       "component_test": {
         "component": "KelolaProductionLine",
-        "action": "klik Hapus lalu konfirmasi pada Production Line yang baru dibuat (15 station)",
+        "action": "klik Hapus lalu konfirmasi pada Production Line yang baru dibuat (18 station)",
         "assert": "pesan error inline muncul, row tetap ada"
       },
       "browser_test": {

@@ -1,0 +1,77 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-01"
+  },
+  "id": "usecase-113--detail-clarification-web",
+  "name": "Lihat Detail Clarification (Web)",
+  "description": "Supervisor, Mill Management, atau Admin melihat 1 record Clarification secara lengkap dan read-only dari web.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "User berasal dari Data Browser Clarification (Web) dan mengklik salah satu baris"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "System",
+      "description": "Memuat record Clarification by id beserta seluruh baris Clarification Detail-nya"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menampilkan seluruh field header dan grid Clarification Detail secara read-only"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Record Tidak Ditemukan",
+      "trigger": "id tidak ditemukan",
+      "steps": [
+        "System menampilkan pesan error dengan tombol Back"
+      ]
+    },
+    {
+      "name": "Edit",
+      "trigger": "User menekan tombol Edit",
+      "steps": [
+        "System menavigasikan ke Form Clarification (Web) mode ubah untuk record ini"
+      ]
+    }
+  ],
+  "postconditions": [
+    "User melihat detail lengkap record Clarification secara read-only"
+  ],
+  "business_rules": [
+    "Seluruh field read-only",
+    "Checked By dan Acknowledged By keduanya ditampilkan apa adanya",
+    "Grid Clarification Detail ditampilkan langsung dari data tersimpan, menampilkan persis baris yang ada"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Detail Clarification - berhasil",
+      "given": "id record valid",
+      "when": "User membuka halaman detail",
+      "then": "Seluruh field record dan grid Clarification Detail ditampilkan read-only"
+    },
+    {
+      "scenario": "Lihat Detail Clarification - Record Tidak Ditemukan",
+      "given": "id record tidak valid",
+      "when": "User membuka halaman detail dengan id tersebut",
+      "then": "Sistem menampilkan pesan error dan tombol Back yang berfungsi"
+    },
+    {
+      "scenario": "Lihat Detail Clarification - Edit",
+      "given": "User berada di halaman detail",
+      "when": "User menekan tombol Edit",
+      "then": "Sistem menavigasikan ke Form Clarification (Web) mode ubah untuk record tersebut"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-109--detail-clarification-web"
+  ]
+}

@@ -87,6 +87,21 @@ it('berhasil: renders the 10 visible active station tiles linking to their Data 
     $response->assertDontSee('javascript:void(0)', false);
 });
 
+// Regression: a 2026-09-01 edit embedded literal '{{-- --}}' characters
+// inside a Blade comment's own prose ("Remove the surrounding {{-- --}}
+// comment markers..."), which terminated that comment early — Blade
+// comments don't nest — and leaked the rest of the comment body as literal
+// page text ("comment markers to re-enable a given tile. --}}"). Fixed by
+// rewording the prose to not contain literal comment-delimiter characters.
+it('never leaks raw Blade comment delimiters or comment prose into the rendered page', function () {
+    $response = $this->actingAs($this->supervisor, 'web')->get('/production-process-activity');
+
+    $response->assertOk();
+    $response->assertDontSee('{{--', false);
+    $response->assertDontSee('--}}', false);
+    $response->assertDontSee('comment markers');
+});
+
 // Scenario: 2026-09-01 (hide) — 8 stations temporarily hidden from this
 // grid per product decision. They remain fully active/functional
 // (own Data Browser screens still resolve if visited directly, covered by

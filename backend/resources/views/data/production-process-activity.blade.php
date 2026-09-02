@@ -144,7 +144,7 @@
         only this grid's tile is hidden. Only 10 of 18 active tiles now
         render: Weighbridge, Pressing, Grading, Clarification, Cages
         Track, Sterilizer, Boiler Room, Kernel Plant, Threshing,
-        Depricarping. Remove the surrounding {{-- --}} comment markers to
+        Depricarping. Remove the surrounding comment block below to
         re-enable a given tile.
     --}}
     <div class="station-grid">

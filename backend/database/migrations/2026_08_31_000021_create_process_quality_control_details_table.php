@@ -30,7 +30,13 @@ return new class extends Migration
             $table->string('findings')->nullable();
             $table->timestamps();
 
-            $table->unique(['process_quality_control_record_id', 'time_slot']);
+            // Explicit short name — the Laravel-generated default name
+            // ('process_quality_control_details_process_quality_control_record_id_time_slot_unique')
+            // exceeds PostgreSQL's 63-byte identifier limit and truncates to the
+            // exact same prefix as the auto-generated foreignUuid() constraint
+            // name above, causing a duplicate-object error on Postgres (MySQL's
+            // longer identifier limit masked this).
+            $table->unique(['process_quality_control_record_id', 'time_slot'], 'pqc_details_record_time_slot_unique');
         });
     }
 

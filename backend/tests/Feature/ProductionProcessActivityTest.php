@@ -45,6 +45,11 @@
  * "Klik Stasiun Disabled" scenario this test used to cover no longer
  * applies to any tile — repurposed below into an assertion that no
  * placeholder/disabled tile renders at all.
+ *
+ * 2026-09-04 (re-enable) — Engine Room and Storage Tank re-enabled per user
+ * request (2 of the 8 tiles hidden 2026-09-01). 12 of 18 active tiles now
+ * render; the remaining 6 (Effluent Plant, CPO Dispatch, Kernel Dispatch,
+ * Process Water, Solid Waste Disposal, Process Quality Control) stay hidden.
  */
 
 use App\Enums\UserRole;
@@ -58,7 +63,7 @@ beforeEach(function () {
 });
 
 // Scenario: "Pilih Stasiun (Web) — berhasil"
-it('berhasil: renders the 10 visible active station tiles linking to their Data Browser routes, all routed', function () {
+it('berhasil: renders the 12 visible active station tiles linking to their Data Browser routes, all routed', function () {
     $response = $this->actingAs($this->supervisor, 'web')->get('/production-process-activity');
 
     $response->assertOk();
@@ -72,6 +77,8 @@ it('berhasil: renders the 10 visible active station tiles linking to their Data 
     $response->assertSee(route('data.boiler-room'), false);
     $response->assertSee(route('data.clarification'), false);
     $response->assertSee(route('data.sterilizer'), false);
+    $response->assertSee(route('data.storage-tank'), false);
+    $response->assertSee(route('data.engine-room'), false);
     $response->assertSee('Weighbridge');
     $response->assertSee('Grading');
     $response->assertSee('Cages Track');
@@ -82,21 +89,37 @@ it('berhasil: renders the 10 visible active station tiles linking to their Data 
     $response->assertSee('Boiler Room');
     $response->assertSee('Clarification');
     $response->assertSee('Sterilizer');
+    $response->assertSee('Storage Tank');
+    $response->assertSee('Engine Room');
     // No tile links to the javascript:void(0) placeholder any more — every
     // visible tile has a real route() href (see the assertions above).
     $response->assertDontSee('javascript:void(0)', false);
 });
 
-// Scenario: 2026-09-01 (hide) — 8 stations temporarily hidden from this
-// grid per product decision. They remain fully active/functional
-// (own Data Browser screens still resolve if visited directly, covered by
-// their own screen tests) — this only asserts they don't render HERE.
-it('does not render the 8 temporarily-hidden station tiles on this grid', function () {
+// Regression: a 2026-09-01 edit embedded literal '{{-- --}}' characters
+// inside a Blade comment's own prose ("Remove the surrounding {{-- --}}
+// comment markers..."), which terminated that comment early — Blade
+// comments don't nest — and leaked the rest of the comment body as literal
+// page text ("comment markers to re-enable a given tile. --}}"). Fixed by
+// rewording the prose to not contain literal comment-delimiter characters.
+it('never leaks raw Blade comment delimiters or comment prose into the rendered page', function () {
     $response = $this->actingAs($this->supervisor, 'web')->get('/production-process-activity');
 
     $response->assertOk();
-    $response->assertDontSee('Engine Room');
-    $response->assertDontSee('Storage Tank');
+    $response->assertDontSee('{{--', false);
+    $response->assertDontSee('--}}', false);
+    $response->assertDontSee('comment markers');
+});
+
+// Scenario: 2026-09-01 (hide), narrowed 2026-09-04 (re-enable Engine Room/
+// Storage Tank) — 6 stations remain temporarily hidden from this grid per
+// product decision. They remain fully active/functional (own Data Browser
+// screens still resolve if visited directly, covered by their own screen
+// tests) — this only asserts they don't render HERE.
+it('does not render the 6 remaining temporarily-hidden station tiles on this grid', function () {
+    $response = $this->actingAs($this->supervisor, 'web')->get('/production-process-activity');
+
+    $response->assertOk();
     $response->assertDontSee('Effluent Plant');
     $response->assertDontSee('CPO Dispatch');
     $response->assertDontSee('Kernel Dispatch');

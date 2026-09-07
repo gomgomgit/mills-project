@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
@@ -90,6 +91,16 @@ class KelolaCompany extends Component
 
     public int $perPage = 20;
 
+    /**
+     * screen-127--master-data-tree-view: bound to the URL query string
+     * (`?filterCorporateId=<id>`) so clicking a Corporate node in the
+     * Master Data Tree View arrives here pre-filtered. Livewire only
+     * appends the param when non-default, and mount() never touches this
+     * property, so visiting this screen directly (no query string) still
+     * defaults to '' (unfiltered) exactly as before — the in-page dropdown
+     * filter's own behavior is unchanged.
+     */
+    #[Url]
     public string $filterCorporateId = '';
 
     public bool $showForm = false;

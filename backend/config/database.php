@@ -4,15 +4,16 @@
 |--------------------------------------------------------------------------
 | Database Connections — db-client (shared-modules)
 |--------------------------------------------------------------------------
-| tech_stack: database=MySQL, ORM=Eloquent, migration=Laravel Migrations.
-| All Eloquent models (App\Models\*) use the default connection below.
-| `sqlite` (in-memory) is provided for the Pest/PHPUnit test suite — see
-| phpunit.xml, which overrides DB_CONNECTION=sqlite / DB_DATABASE=:memory:
-| for the `testing` environment so tests never touch the real MySQL DB.
+| tech_stack: database=PostgreSQL (arch-spec v2, 2026-09-07 — was MySQL),
+| ORM=Eloquent, migration=Laravel Migrations. All Eloquent models
+| (App\Models\*) use the default connection below. `sqlite` (in-memory) is
+| provided for the Pest/PHPUnit test suite — see phpunit.xml, which
+| overrides DB_CONNECTION=sqlite / DB_DATABASE=:memory: for the `testing`
+| environment so tests never touch the real PostgreSQL DB.
 */
 return [
 
-    'default' => env('DB_CONNECTION', 'mysql'),
+    'default' => env('DB_CONNECTION', 'pgsql'),
 
     'connections' => [
 
@@ -24,24 +25,19 @@ return [
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
         ],
 
-        'mysql' => [
-            'driver' => 'mysql',
+        'pgsql' => [
+            'driver' => 'pgsql',
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
-            'port' => env('DB_PORT', '3306'),
+            'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'mill_smart_log'),
-            'username' => env('DB_USERNAME', 'root'),
+            'username' => env('DB_USERNAME', 'postgres'),
             'password' => env('DB_PASSWORD', ''),
-            'unix_socket' => env('DB_SOCKET', ''),
-            'charset' => env('DB_CHARSET', 'utf8mb4'),
-            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'strict' => true,
-            'engine' => null,
-            'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
         ],
 
     ],

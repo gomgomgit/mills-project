@@ -132,6 +132,17 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/data/cages-track/{id}/edit', \App\Livewire\Data\FormCagesTrack::class)
     ->name('data.cages-track.edit');
 
+// screen-127--master-data-tree-view
+// Session-guarded ('auth') + role-guarded (admin only, per
+// screen_tech_spec.actor_permissions). Read-only navigation aid over the
+// Corporate/Company/Business Unit/Production Line hierarchy — clicking a
+// node navigates to the corresponding Kelola screen below, pre-filtered.
+// Placed before screen-027 since it's the overview entry point for the
+// whole master-data section.
+Route::middleware(['auth', 'role:admin'])
+    ->get('/master-data/tree-view', \App\Livewire\MasterData\MasterDataTreeView::class)
+    ->name('master-data.tree-view');
+
 // screen-027--kelola-corporate
 // Session-guarded ('auth') + role-guarded (admin only, per
 // screen_tech_spec.actor_permissions — supervisor/mill_management/operator

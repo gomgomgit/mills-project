@@ -472,3 +472,19 @@ it('filters the list when filterCompanyId is set', function () {
         ->set('filterCompanyId', $companyA->id)
         ->assertViewHas('businessUnits', fn ($businessUnits) => collect($businessUnits)->pluck('name')->all() === ['Mill A1']);
 });
+
+// screen-127--master-data-tree-view: filterCompanyId is now #[Url]-bound
+// so clicking a Company node in the Master Data Tree View arrives here
+// pre-filtered via the query string, with no mount() changes needed.
+it('hydrates filterCompanyId from the URL query string and filters the list accordingly', function () {
+    $companyA = Company::factory()->create();
+    $companyB = Company::factory()->create();
+    BusinessUnit::factory()->create(['company_id' => $companyA->id, 'name' => 'Mill A1']);
+    BusinessUnit::factory()->create(['company_id' => $companyB->id, 'name' => 'Mill B1']);
+
+    Livewire::actingAs($this->admin)
+        ->withQueryParams(['filterCompanyId' => $companyA->id])
+        ->test(KelolaBusinessUnit::class)
+        ->assertSet('filterCompanyId', $companyA->id)
+        ->assertViewHas('businessUnits', fn ($businessUnits) => collect($businessUnits)->pluck('name')->all() === ['Mill A1']);
+});

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-14"
+    "updated_at": "2026-09-07"
   },
   "system_type": "Web app (Laravel monolith: REST API + Livewire UI untuk Admin/Supervisor/Mill Management) + Mobile app (Vue 3 + Capacitor untuk Operator/Supervisor, offline-first)",
   "architecture_pattern": {
@@ -58,7 +58,7 @@
     },
     {
       "layer": "database",
-      "choice": "MySQL"
+      "choice": "PostgreSQL"
     },
     {
       "layer": "ORM / data access",
@@ -108,5 +108,5 @@
       "requirement": "Tidak ada requirement compliance formal di PRD untuk MVP; data sensitif dilindungi saat transit (HTTPS) dan at rest"
     }
   ],
-  "architecture_notes": "Backend Laravel berperan ganda sebagai REST API (dikonsumsi mobile) dan aplikasi web Livewire (Admin/Supervisor/Mill Management) dalam satu codebase monolith — trade-off: development lebih sederhana untuk tim kecil dan satu mill, namun web app dan API tidak dapat di-scale/deploy terpisah. Mobile menyimpan data lokal (SQLite) dan hanya kirim ke API saat sync manual dipicu operator, sehingga backend tidak perlu menangani real-time push dari mobile."
+  "architecture_notes": "Backend Laravel berperan ganda sebagai REST API (dikonsumsi mobile) dan aplikasi web Livewire (Admin/Supervisor/Mill Management) dalam satu codebase monolith — trade-off: development lebih sederhana untuk tim kecil dan satu mill, namun web app dan API tidak dapat di-scale/deploy terpisah. Mobile menyimpan data lokal (SQLite) dan hanya kirim ke API saat sync manual dipicu operator, sehingga backend tidak perlu menangani real-time push dari mobile. 2026-09-07: database backend web admin diganti dari MySQL ke PostgreSQL (keputusan produk) — cakupannya hanya database server-side (Laravel); local storage mobile (SQLite via Capacitor) tidak terpengaruh dan tetap terpisah sepenuhnya dari keputusan ini."
 }

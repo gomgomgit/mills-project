@@ -1,0 +1,69 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-02"
+  },
+  "id": "screen-127--master-data-tree-view",
+  "name": "Master Data Tree View",
+  "module_id": "module-master-data",
+  "status": "partial",
+  "files_generated": [
+    "backend/app/Services/MasterDataTreeService.php",
+    "backend/app/Livewire/MasterData/MasterDataTreeView.php",
+    "backend/resources/views/master-data/tree-view.blade.php",
+    "backend/routes/web.php",
+    "backend/resources/views/components/layouts/app.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Feature/Livewire/MasterDataTreeViewTest.php"
+  ],
+  "fe_files_generated": [
+    "backend/resources/views/livewire/master-data/master-data-tree-view.blade.php",
+    "backend/resources/views/components/master-data-tree-node.blade.php"
+  ],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "Read-only screen, no create/update/delete — reuses MasterDataTreeService::getTree() (1 query via nested eager-loads, no N+1) for data, and reuses the 3 existing Kelola screens' own filter properties for navigation, adding only a #[Url] attribute to each (no new filter concept)",
+    "MasterDataTreeView loads $tree once in mount(), not render() — this screen does not paginate/refilter like the 4 CRUD screens do, so refetching on every expand/collapse toggle would be wasteful",
+    "Recursive rendering via one Blade component (x-master-data-tree-node) rather than 4 near-duplicate partials, since every level from the service shares the identical node shape (level, id, parent_id, name, code, children_count, children)",
+    "3 existing screens (KelolaCompany, KelolaBusinessUnit, KelolaProductionLine) each got #[Url] added to their pre-existing filter property (filterCorporateId/filterCompanyId/filterBusinessUnitId) — verified their existing in-page dropdown-filter behavior is unchanged (full existing test suites re-run and still 100% green) before adding new URL-hydration test scenarios to each",
+    "Sidebar link added as the first item among the master-data links in components/layouts/app.blade.php, since this screen is the overview entry point for that group",
+    "New route /master-data/tree-view registered ahead of screen-027 in routes/web.php, same 'auth'+'role:admin' guard as every other master-data screen"
+  ],
+  "deferred_items": [
+    {
+      "description": "Browser (Playwright) test suite for this screen",
+      "reason": "Consistent with every other master-data screen in this codebase (e.g. screen-036 Kelola Production Line) — no Playwright/Node infra exists in this sandbox; functional coverage is provided via Feature/Livewire tests instead (8 tests, including a real-HTTP-route access-control check and a node-link href assertion)"
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Playwright Browser test not written for the same reason it is absent from every other master-data screen this session — no Node/Playwright infra in this sandbox",
+      "severity": "minor"
+    }
+  ],
+  "test_results": {
+    "unit": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-02T00:00:00Z",
+      "passed": 8,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    }
+  }
+}

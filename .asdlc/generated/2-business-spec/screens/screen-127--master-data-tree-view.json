@@ -1,0 +1,61 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-02"
+  },
+  "id": "screen-127--master-data-tree-view",
+  "name": "Master Data Tree View",
+  "module_id": "module-master-data",
+  "description": "Halaman read-only untuk Admin melihat hierarki Corporate → Company → Business Unit → Production Line sebagai pohon yang bisa di-expand/collapse. Klik sebuah node menavigasi ke screen Kelola terkait (Kelola Company/Business Unit/Production Line), pre-filtered ke induk node tersebut. Tidak ada CRUD di screen ini — murni alat bantu navigasi/eksplorasi data master, melengkapi 4 screen Kelola yang sudah ada (Corporate, Company, Business Unit, Production Line) tanpa mengubah cara kerjanya.",
+  "actors": [
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Master Data Tree View'"
+  ],
+  "information_displayed": [
+    "Pohon hierarki 4 level: Corporate → Company → Business Unit → Production Line, tiap node menampilkan nama dan jumlah anak langsung (children count) kecuali Production Line (level daun, tanpa children count)",
+    "Ikon expand/collapse (chevron) pada node yang punya anak; node tanpa anak tidak menampilkan chevron",
+    "Indentasi visual per level untuk menunjukkan kedalaman hierarki"
+  ],
+  "available_actions": [
+    {
+      "action": "Expand/collapse node",
+      "description": "Menampilkan atau menyembunyikan anak node secara in-place tanpa pindah halaman",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Klik nama node Company/Business Unit/Production Line",
+      "description": "Navigasi ke screen Kelola terkait (Kelola Company/Business Unit/Production Line), dengan filter induk node tersebut sudah otomatis diterapkan (mis. klik node Company X → Kelola Business Unit terfilter ke Company X)",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Klik nama node Corporate",
+      "description": "Navigasi ke Kelola Corporate tanpa filter (Corporate adalah root hierarki)",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Hierarki yang ditampilkan berhenti di Production Line — Station, Machinery Group, dan Machinery TIDAK ditampilkan sebagai node di pohon ini; entitas tersebut tetap dikelola lewat screen Kelola masing-masing seperti biasa",
+    "Screen ini murni read-only navigasi — tidak ada create/update/delete data master di screen ini",
+    "Klik node Company/Business Unit/Production Line menavigasi ke screen Kelola terkait dengan filter induk node tersebut sudah diterapkan via query string, memakai filter yang sudah ada di screen Kelola tujuan (filterCorporateId/filterCompanyId/filterBusinessUnitId) — bukan filter baru",
+    "Klik node Corporate menavigasi ke Kelola Corporate tanpa filter, karena Corporate adalah level teratas hierarki",
+    "Hanya Admin yang dapat mengakses screen ini, sama seperti 7 screen master data lainnya (Kelola Corporate/Company/Business Unit/Production Line/Station/Machinery Group/Machinery)"
+  ],
+  "usecase_ids": [
+    "usecase-127--master-data-tree-view"
+  ],
+  "edge_cases": [
+    "Belum ada data master sama sekali (0 Corporate) → tampilkan pesan kosong, bukan pohon kosong tanpa penjelasan",
+    "Sebuah node tidak punya anak (mis. Corporate tanpa Company, atau Business Unit tanpa Production Line) → node tersebut tidak menampilkan ikon expand/collapse, karena tidak ada yang bisa di-expand"
+  ],
+  "test_priority": "low",
+  "open_questions": []
+}

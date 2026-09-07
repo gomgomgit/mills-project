@@ -140,6 +140,7 @@
             <li><a href="{{ route('dashboard') }}"{!! request()->routeIs('dashboard') ? ' class="active"' : '' !!}>Dashboard</a></li>
             <li><a href="{{ route('production-process-activity') }}"{!! request()->routeIs('production-process-activity') ? ' class="active"' : '' !!}>Production Process Activity</a></li>
             <li><a href="{{ route('reports.management') }}"{!! request()->routeIs('reports.management') ? ' class="active"' : '' !!}>Laporan Manajemen</a></li>
+            <li><a href="{{ route('master-data.tree-view') }}"{!! request()->routeIs('master-data.tree-view') ? ' class="active"' : '' !!}>Master Data Tree View</a></li>
             <li><a href="{{ route('master-data.corporates') }}"{!! request()->routeIs('master-data.corporates') ? ' class="active"' : '' !!}>Kelola Corporate</a></li>
             <li><a href="{{ route('master-data.companies') }}"{!! request()->routeIs('master-data.companies') ? ' class="active"' : '' !!}>Kelola Company</a></li>
             <li><a href="{{ route('master-data.business-units') }}"{!! request()->routeIs('master-data.business-units') ? ' class="active"' : '' !!}>Kelola Business Unit</a></li>

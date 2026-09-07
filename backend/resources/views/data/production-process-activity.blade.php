@@ -141,11 +141,17 @@
         deleted, mirroring mobile's stationRepo.ts HIDDEN_STATION_TYPES
         list. The underlying stations remain fully active/functional
         (their Data Browser routes still resolve if visited directly);
-        only this grid's tile is hidden. Only 10 of 18 active tiles now
-        render: Weighbridge, Pressing, Grading, Clarification, Cages
-        Track, Sterilizer, Boiler Room, Kernel Plant, Threshing,
-        Depricarping. Remove the surrounding comment block below to
-        re-enable a given tile.
+        only this grid's tile is hidden. Remove the surrounding comment
+        block below to re-enable a given tile.
+
+        2026-09-04 (re-enable) — Engine Room and Storage Tank re-enabled
+        per user request; un-commented below and removed from mobile's
+        stationRepo.ts HIDDEN_STATION_TYPES. 12 of 18 active tiles now
+        render: Weighbridge, Pressing, Storage Tank, Grading, Clarification,
+        Cages Track, Engine Room, Sterilizer, Boiler Room, Kernel Plant,
+        Threshing, Depricarping. The remaining 6 (Effluent Plant, CPO
+        Dispatch, Kernel Dispatch, Process Water, Solid Waste Disposal,
+        Process Quality Control) stay hidden.
     --}}
     <div class="station-grid">
         <a href="{{ route('data.weighbridge') }}" class="station-tile active">
@@ -156,12 +162,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 20V10l8-6 8 6v10"></path><line x1="12" y1="14" x2="12" y2="20"></line></svg>
             Pressing
         </a>
-        {{-- Storage Tank temporarily hidden (2026-09-01, product decision) — station stays active, just not shown as a tile here.
         <a href="{{ route('data.storage-tank') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="6" width="16" height="14" rx="1"></rect><path d="M8 6V4h8v2"></path></svg>
             Storage Tank
         </a>
-        --}}
         <a href="{{ route('data.grading') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="4"></rect><rect x="3" y="10" width="18" height="4"></rect><rect x="3" y="16" width="18" height="4"></rect></svg>
             Grading
@@ -180,12 +184,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="18" height="13" rx="1"></rect><path d="M3 11h18"></path><path d="M8 7V4h8v3"></path></svg>
             Cages Track
         </a>
-        {{-- Engine Room temporarily hidden (2026-09-01, product decision) — station stays active, just not shown as a tile here.
         <a href="{{ route('data.engine-room') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="2" width="12" height="20" rx="1"></rect><line x1="6" y1="8" x2="18" y2="8"></line><line x1="6" y1="14" x2="18" y2="14"></line></svg>
             Engine Room
         </a>
-        --}}
         {{-- CPO Dispatch temporarily hidden (2026-09-01, product decision) — station stays active, just not shown as a tile here.
         <a href="{{ route('data.cpo-dispatch') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="10" height="14" rx="2"></rect><line x1="3" y1="10" x2="13" y2="10"></line><line x1="3" y1="14" x2="13" y2="14"></line><path d="M15 12h6"></path><path d="M18 9l3 3-3 3"></path></svg>

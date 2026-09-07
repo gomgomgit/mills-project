@@ -1,0 +1,196 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-02"
+  },
+  "id": "screen-127--master-data-tree-view",
+  "name": "Master Data Tree View",
+  "module_id": "module-master-data",
+  "route": "/master-data/tree-view",
+  "auth_requirement": "role: admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": ""
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "usecase_name": "Jelajahi Hierarki Master Data (Tree View)",
+      "endpoints": [],
+      "business_logic": [
+        "1. mount(): panggil MasterDataTreeService::getTree() sekali (bukan di render()) — mengembalikan array 4 level (corporate→company→business_unit→production_line) dengan children_count per node, disimpan ke property $tree",
+        "2. mount(): pre-populate $expanded dengan semua key 'corporate-{id}' agar level Company langsung terlihat saat pertama dibuka; level Company/Business Unit mulai collapsed",
+        "3. toggleNode(level, id): toggle key '{level}-{id}' di $expanded array (tambah jika belum ada, hapus jika sudah ada) — tidak query ulang data, murni state lokal",
+        "4. render(): tampilkan $tree secara rekursif lewat komponen Blade x-master-data-tree-node, meneruskan $expanded untuk menentukan node mana yang children-nya dirender",
+        "5. Setiap node Company/Business Unit/Production Line dirender sebagai link ke route Kelola terkait dengan query param filter (filterCorporateId/filterCompanyId/filterBusinessUnitId) = parent_id node tersebut; node Corporate dirender sebagai link ke Kelola Corporate tanpa query param"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "corporate",
+          "operation": "SELECT",
+          "description": "Eager-load Corporate + withCount('companies'), 1 query"
+        },
+        {
+          "entity_id": "company",
+          "operation": "SELECT",
+          "description": "Bagian dari 1 query nested eager-load yang sama (bukan query terpisah per Corporate)"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Bagian dari query nested eager-load yang sama"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Level daun, ikut termuat dalam query nested eager-load yang sama — total tetap 1 round-trip query untuk seluruh pohon, bukan N+1"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Belum ada Corporate sama sekali",
+          "handling": "Tampilkan pesan 'Belum ada data master' alih-alih pohon kosong"
+        },
+        {
+          "condition": "Node tidak punya anak",
+          "handling": "Tidak render ikon chevron expand/collapse untuk node tersebut"
+        }
+      ],
+      "business_rules_applied": [
+        "Hierarki berhenti di Production Line, tidak sampai Station/Machinery Group/Machinery",
+        "Read-only — tidak ada operasi create/update/delete",
+        "Navigasi node memakai filter yang sudah ada di screen Kelola tujuan, bukan filter baru",
+        "Hanya Admin yang dapat mengakses"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "MasterDataTreeService::getTree() returns full 4-level nested structure with correct children_count at each level",
+          "given": "1 Corporate dengan 1 Company, 1 Business Unit, 2 Production Line; 1 Corporate lain tanpa anak",
+          "expect": "array 2 node corporate; node pertama children_count=1, menembus ke company/business_unit/production_line dengan children_count yang benar; node kedua children=[] dan children_count=0"
+        },
+        {
+          "description": "getTree() executes exactly 1 query for the whole tree regardless of size (no N+1)",
+          "given": "seeded multi-level data",
+          "expect": "assertion jumlah query menunjukkan angka konstan, tidak bertambah seiring jumlah node"
+        }
+      ]
+    }
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat pohon hierarki lengkap",
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "mount dengan data seed 4 level",
+        "assert": "tree property berisi seluruh hierarki, root Corporate ter-expand default, Company/Business Unit collapsed default"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "Admin login, buka halaman",
+        "assert": "Corporate dan Company terlihat, Business Unit/Production Line belum terlihat sebelum di-expand"
+      }
+    },
+    {
+      "scenario_ref": "Expand/collapse node",
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "panggil toggleNode('company', id) dua kali berturut-turut",
+        "assert": "children node tersebut tampil setelah panggilan pertama, hilang lagi setelah panggilan kedua"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "klik chevron sebuah node Company",
+        "assert": "Business Unit di bawahnya muncul; klik lagi menyembunyikannya"
+      }
+    },
+    {
+      "scenario_ref": "Klik node menavigasi dengan filter yang benar",
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "api_test": [],
+      "component_test": {
+        "component": "MasterDataTreeView",
+        "action": "render dengan data seed, cek href pada node Company/Business Unit/Production Line",
+        "assert": "href mengandung route Kelola yang benar + query param filter*Id = parent_id node; node Corporate tidak mengandung query string"
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "klik nama sebuah node Business Unit",
+        "assert": "browser navigasi ke halaman Kelola Production Line dengan query filterBusinessUnitId terisi, daftar Production Line sudah terfilter ke Business Unit itu"
+      }
+    },
+    {
+      "scenario_ref": "Akses ditolak untuk non-Admin",
+      "usecase_id": "usecase-127--master-data-tree-view",
+      "api_test": [],
+      "component_test": {
+        "component": "N/A",
+        "action": "",
+        "assert": ""
+      },
+      "browser_test": {
+        "route": "/master-data/tree-view",
+        "action": "user non-admin (misal Supervisor) mengakses route ini",
+        "assert": "response 403"
+      }
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "corporate",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "company",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-027--kelola-corporate",
+      "reason": "Klik node Corporate menavigasi ke sini"
+    },
+    {
+      "screen_id": "screen-028--kelola-company",
+      "reason": "Klik node Company menavigasi ke sini, pre-filtered oleh filterCorporateId"
+    },
+    {
+      "screen_id": "screen-029--kelola-business-unit",
+      "reason": "Klik node Business Unit menavigasi ke sini, pre-filtered oleh filterCompanyId"
+    },
+    {
+      "screen_id": "screen-036--kelola-production-line",
+      "reason": "Klik node Production Line menavigasi ke sini, pre-filtered oleh filterBusinessUnitId"
+    }
+  ],
+  "implementation_notes": [
+    "Service baru MasterDataTreeService (bukan ditambahkan ke CorporateService) — konsisten dengan pola satu service per entity di codebase ini; service ini murni cross-cutting read, tidak dimiliki satu entity manapun",
+    "Livewire component memuat $tree sekali di mount(), BUKAN di render() — berbeda dari 4 screen Kelola yang query ulang tiap render untuk pagination/filter; screen ini tidak paginasi, refetch tiap toggle expand/collapse akan sia-sia",
+    "Rendering rekursif lewat SATU komponen Blade (x-master-data-tree-node), bukan 4 partial terpisah per level — seluruh level punya shape data yang identik (level, id, parent_id, name, code, children_count, children) sehingga rekursi generik lebih sederhana daripada 4 partial yang isinya nyaris sama",
+    "Navigasi antar-node adalah link biasa (full page load), BUKAN wire:navigate — codebase ini belum pernah pakai wire:navigate di manapun, dan pola link biasa menjamin mount()/#[Url] hydration di screen tujuan berjalan identik dengan mengetik URL langsung",
+    "3 screen Kelola tujuan (Company/Business Unit/Production Line) masing-masing mendapat #[Url] baru pada filter property yang sudah ada (filterCorporateId/filterCompanyId/filterBusinessUnitId) — bukan filter baru, dan tidak mengubah perilaku dropdown filter in-page yang sudah ada saat screen itu diakses langsung tanpa query string"
+  ]
+}

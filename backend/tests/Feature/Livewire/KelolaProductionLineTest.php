@@ -286,3 +286,19 @@ it('filters the list when filterBusinessUnitId is set, resetting to page 1', fun
         ->assertSet('page', 1)
         ->assertViewHas('productionLines', fn ($rows) => collect($rows)->pluck('code')->all() === ['PL-LW-A1']);
 });
+
+// screen-127--master-data-tree-view: filterBusinessUnitId is now
+// #[Url]-bound so clicking a Business Unit node in the Master Data Tree
+// View arrives here pre-filtered via the query string, with no mount()
+// changes needed.
+it('hydrates filterBusinessUnitId from the URL query string and filters the list accordingly', function () {
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+    ProductionLine::factory()->forBusinessUnit($this->businessUnit)->withCode('PL-URL-A1')->create();
+    ProductionLine::factory()->forBusinessUnit($otherBusinessUnit)->withCode('PL-URL-B1')->create();
+
+    Livewire::actingAs($this->admin)
+        ->withQueryParams(['filterBusinessUnitId' => $this->businessUnit->id])
+        ->test(KelolaProductionLine::class)
+        ->assertSet('filterBusinessUnitId', $this->businessUnit->id)
+        ->assertViewHas('productionLines', fn ($rows) => collect($rows)->pluck('code')->all() === ['PL-URL-A1']);
+});

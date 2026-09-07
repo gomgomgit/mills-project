@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+# set -e
 
 BACKEND_DIR=$(pwd)/backend
 MOBILE_DIR=$(pwd)/mobile

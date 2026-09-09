@@ -3,117 +3,378 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>list — loading | Mill Smart Log</title>
+  <title>List — loading | Mill Smart Log</title>
   <link rel="stylesheet" href="assets/design-tokens.css">
   <link rel="stylesheet" href="assets/components.css">
   <link rel="stylesheet" href="assets/shell.css">
   <style>
-    /* Page-specific layout only — no colour/radius/shadow literals, CSS variables only */
-    body {
-      background: var(--color-surface);
-      min-height: 100vh;
+    /* Page-specific layout only — no colour/radius/shadow literals, CSS variables only.
+       screen_type_patterns[type=list], web variant, state=loading: "Skeleton row/grid".
+       Structure mirrors screen-type-list.html (data state) exactly — same shell, same
+       filter bar / table / pagination layout — only the table body + pagination info
+       are replaced with skeleton placeholders (component_patterns 'loading'). */
+
+    html, body { height: 100%; }
+
+    .sidebar-logo-icon { width: 24px; height: 24px; flex-shrink: 0; color: var(--color-brand); }
+    .sidebar-logo-icon svg { width: 100%; height: 100%; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .nav-item svg { width: 20px; height: 20px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    .hamburger-btn svg { width: 22px; height: 22px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    .user-menu { display: flex; align-items: center; gap: var(--space-sm); }
+    .user-menu .avatar { width: 32px; height: 32px; border-radius: var(--radius-chip); background: var(--color-brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: var(--font-size-xs); font-weight: 600; flex-shrink: 0; }
+    .user-menu .user-meta { display: flex; flex-direction: column; line-height: 1.2; }
+    .user-menu .user-name { font-size: var(--font-size-sm); font-weight: 500; color: var(--color-foreground); }
+    .user-menu .user-role { font-size: var(--font-size-xs); color: var(--color-muted-foreground); }
+    @media (max-width: 767px) { .user-menu .user-meta { display: none; } }
+
+    .responsive-note { margin-bottom: var(--space-lg); }
+    .responsive-note code { background: color-mix(in srgb, var(--color-brand) 12%, transparent); padding: 1px 6px; border-radius: var(--radius-input); font-size: var(--font-size-xs); }
+
+    /* ---------- Filter bar (same as data state — filters stay visible/usable while loading) ---------- */
+    .filter-bar {
       display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding: var(--space-xl) var(--space-md);
-    }
-    .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); }
-    .preview-label {
-      font-size: var(--font-size-xs);
-      color: var(--color-text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      font-weight: 600;
-    }
-
-    .mobile-shell { min-height: 780px; box-shadow: var(--shadow-dropdown); }
-
-    .mobile-header-title { display: flex; align-items: center; gap: var(--space-sm); flex: 1; min-width: 0; }
-    .mobile-header-title h1 {
-      font-size: var(--font-size-lg);
-      font-weight: var(--font-weight-lg);
-      color: var(--color-text-primary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .icon-btn {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: var(--space-touch-target-min); height: var(--space-touch-target-min);
-      flex-shrink: 0; color: var(--color-text-primary); cursor: pointer;
-    }
-    .icon-btn svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
-
-    .section-label {
-      font-size: var(--font-size-xs);
-      font-weight: 700;
-      color: var(--color-text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: var(--space-sm);
-    }
-
-    .station-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      flex-wrap: wrap;
+      align-items: flex-end;
       gap: var(--space-md);
+      padding: var(--space-md);
       margin-bottom: var(--space-lg);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+    }
+    .filter-field { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 170px; flex: 1 1 170px; }
+    .filter-field label { font-size: var(--font-size-sm); font-weight: var(--font-weight-sm); color: var(--color-foreground); }
+    .filter-actions { display: flex; gap: var(--space-sm); margin-left: auto; }
+    @media (max-width: 767px) {
+      .filter-bar { flex-direction: column; align-items: stretch; }
+      .filter-field { min-width: 0; flex: 1 1 auto; }
+      .filter-actions { margin-left: 0; justify-content: flex-end; }
     }
 
-    /* Loading-state skeleton tile: same footprint as .station-tile so layout does not shift */
-    .station-tile-skeleton {
-      height: 84px;
-      border-radius: var(--radius-card);
+    /* ---------- Pagination (skeleton placeholders) ---------- */
+    .pagination { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); flex-wrap: wrap; margin-top: var(--space-lg); }
+    .pagination-controls { display: flex; gap: var(--space-xs); }
+    .page-btn {
+      min-width: var(--space-touch_target_min);
+      min-height: var(--space-touch_target_min);
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-button);
+      background: var(--color-background);
+      color: var(--color-foreground);
+      font-size: var(--font-size-sm);
+      cursor: not-allowed;
+    }
+
+    /* ---------- Skeleton table (mimics the real column layout so the loading skeleton
+         reads as "this exact table is loading", not a generic placeholder) ---------- */
+    .skeleton-table td { padding: var(--space-sm) var(--space-md); }
+    .skeleton-cell { height: 1em; }
+    .skeleton-cell.w-sm { width: 60%; }
+    .skeleton-cell.w-md { width: 80%; }
+    .skeleton-cell.w-lg { width: 95%; }
+    .skeleton-cell.w-badge { width: 70px; height: 1.4em; border-radius: var(--radius-badge); }
+    .skeleton-cell.w-btn { width: 50px; height: 1.6em; }
+
+    /* ---------- Live breakpoint-tier indicator (for manual resize testing) ---------- */
+    .tier-indicator {
+      position: fixed;
+      bottom: var(--space-md);
+      right: var(--space-md);
+      background: var(--color-text-primary);
+      color: #fff;
+      padding: var(--space-xs) var(--space-md);
+      border-radius: var(--radius-chip);
+      font-size: var(--font-size-xs);
+      box-shadow: var(--shadow-dropdown);
+      z-index: 50;
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
-  <div class="preview-wrap">
-    <div class="preview-label">List &mdash; loading state (station selector) &middot; Mobile (Operator/Supervisor)</div>
 
-    <div class="mobile-shell">
-      <!-- Header: back + title (static chrome renders immediately, only body content loads) -->
-      <div class="mobile-header">
-        <span class="icon-btn" title="Kembali">
-          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+  <div class="app-shell">
+
+    <!-- Sidebar — full 240px on desktop, icon-only 64px on tablet (768-1024px, CSS-only),
+         off-canvas drawer on phone (<768px, toggled via .drawer-open + JS below) -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M2 20h20"/><path d="M5 20V8l7-4 7 4v12"/><path d="M9 20v-6h6v6"/></svg>
         </span>
-        <div class="mobile-header-title">
-          <h1>Pilih Stasiun</h1>
-        </div>
-        <span class="icon-btn" title="Menu">
-          <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-        </span>
+        <span class="label">Mill Smart Log</span>
       </div>
-      <div class="mobile-breadcrumb">Production Process Activity</div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item" title="Dashboard">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+          <span class="label">Dashboard</span>
+        </a>
+        <a href="#" class="nav-item active" title="Data Stasiun" aria-current="page">
+          <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+          <span class="label">Data Stasiun</span>
+        </a>
+        <a href="#" class="nav-item" title="Master Data">
+          <svg viewBox="0 0 24 24"><path d="m12.83 2.18-8.58 3.9a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83l-8.58-3.9a2 2 0 0 0-1.66 0Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>
+          <span class="label">Master Data</span>
+        </a>
+        <a href="#" class="nav-item" title="User &amp; Role Management">
+          <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="label">User &amp; Role Management</span>
+        </a>
+        <a href="#" class="nav-item" title="Pengaturan Akun">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          <span class="label">Pengaturan Akun</span>
+        </a>
+      </nav>
+    </aside>
 
-      <!-- Body: skeleton grid while station list loads -->
-      <div class="mobile-content">
+    <!-- Backdrop — only visible/active on phone (<768px) while drawer is open -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
-        <div class="skeleton skeleton-title" style="width: 55%;"></div>
-        <div class="station-grid">
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-start">
+          <!-- Hamburger — only rendered visible at <768px via shell.css; opens the drawer -->
+          <button type="button" class="hamburger-btn" id="hamburgerBtn" aria-label="Buka menu navigasi" aria-expanded="false">
+            <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+          </button>
+          <span class="topbar-title">Data Stasiun</span>
+        </div>
+        <div class="topbar-end">
+          <div class="user-menu">
+            <span class="avatar">BS</span>
+            <span class="user-meta">
+              <span class="user-name">Budi Santoso</span>
+              <span class="user-role">Admin</span>
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <main class="content-area">
+
+        <div class="alert alert-info responsive-note">
+          <div>
+            <div class="alert-title">State: loading</div>
+            Data sedang dimuat — bandingkan dengan <code>screen-type-list.html</code> (state data) dan
+            <code>screen-type-list-empty.html</code> / <code>screen-type-list-error.html</code> untuk konsistensi
+            shell &amp; tata letak lintas state. Perkecil/perbesar lebar browser untuk melihat 3 tingkat adaptasi
+            responsif yang sama seperti state lain.
+          </div>
         </div>
 
-        <div class="skeleton skeleton-title" style="width: 65%;"></div>
-        <div class="station-grid">
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
-          <div class="skeleton station-tile-skeleton"></div>
+        <div class="page-header">
+          <div>
+            <div class="breadcrumb"><span>Data Stasiun</span></div>
+            <div class="page-title">Data Stasiun</div>
+          </div>
+          <div class="page-actions">
+            <button type="button" class="btn btn-outline" disabled>
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </button>
+            <button type="button" class="btn btn-outline" disabled>
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export Excel
+            </button>
+          </div>
         </div>
 
-      </div>
+        <!-- Filter bar — identical to data state, remains interactive while table loads -->
+        <div class="filter-bar">
+          <div class="filter-field">
+            <label for="filterFrom">Tanggal Dari</label>
+            <input type="date" id="filterFrom" class="input" value="2026-09-01">
+          </div>
+          <div class="filter-field">
+            <label for="filterTo">Tanggal Sampai</label>
+            <input type="date" id="filterTo" class="input" value="2026-09-09">
+          </div>
+          <div class="filter-field">
+            <label for="filterBU">Business Unit</label>
+            <select id="filterBU" class="input">
+              <option>PKS Sei Rampah</option>
+              <option>PKS Tanjung Morawa</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="filterStation">Stasiun</label>
+            <select id="filterStation" class="input">
+              <option selected>Weighbridge</option>
+              <option>Grading</option>
+              <option>Cages Track</option>
+              <option>Threshing</option>
+              <option>Pressing</option>
+              <option>Depricarping</option>
+              <option>Kernel Plant</option>
+            </select>
+          </div>
+          <div class="filter-actions">
+            <button type="button" class="btn btn-outline btn-sm">Reset</button>
+            <button type="button" class="btn btn-primary btn-sm">Terapkan</button>
+          </div>
+        </div>
+
+        <!-- Skeleton row/grid — same table column structure as the data state, real headers
+             kept so the skeleton reads as "this table is loading" rather than a generic block. -->
+        <div class="card">
+          <div class="table-wrapper">
+            <table class="skeleton-table">
+              <thead>
+                <tr>
+                  <th>WB Card No</th>
+                  <th>Tanggal</th>
+                  <th>Kendaraan</th>
+                  <th>Supir</th>
+                  <th>Estate / Supplier</th>
+                  <th>Berat Kotor (kg)</th>
+                  <th>Berat Tara (kg)</th>
+                  <th>Berat Netto (kg)</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-lg"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-badge"></div></td>
+                  <td><div class="skeleton skeleton-cell w-btn"></div></td>
+                </tr>
+                <tr>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-lg"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-badge"></div></td>
+                  <td><div class="skeleton skeleton-cell w-btn"></div></td>
+                </tr>
+                <tr>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-lg"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-badge"></div></td>
+                  <td><div class="skeleton skeleton-cell w-btn"></div></td>
+                </tr>
+                <tr>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-lg"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-badge"></div></td>
+                  <td><div class="skeleton skeleton-cell w-btn"></div></td>
+                </tr>
+                <tr>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-lg"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-badge"></div></td>
+                  <td><div class="skeleton skeleton-cell w-btn"></div></td>
+                </tr>
+                <tr>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-md"></div></td>
+                  <td><div class="skeleton skeleton-cell w-lg"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-sm"></div></td>
+                  <td><div class="skeleton skeleton-cell w-badge"></div></td>
+                  <td><div class="skeleton skeleton-cell w-btn"></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="pagination">
+          <div class="skeleton skeleton-text" style="width: 180px; margin: 0;"></div>
+          <div class="pagination-controls">
+            <button type="button" class="page-btn" disabled aria-label="Halaman sebelumnya">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.5" fill="none"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button type="button" class="page-btn" disabled>1</button>
+            <button type="button" class="page-btn" disabled aria-label="Halaman berikutnya">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="1.5" fill="none"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </div>
+
+      </main>
     </div>
   </div>
+
+  <div class="tier-indicator" id="tierIndicator">Desktop (&ge;1024px)</div>
+
+  <script>
+    // Hamburger drawer toggle (phone <768px only) — vanilla JS per shell.css convention:
+    // toggles .drawer-open on .sidebar + .visible on .sidebar-backdrop.
+    var sidebar = document.getElementById('sidebar');
+    var backdrop = document.getElementById('sidebarBackdrop');
+    var hamburger = document.getElementById('hamburgerBtn');
+
+    function openDrawer() {
+      sidebar.classList.add('drawer-open');
+      backdrop.classList.add('visible');
+      hamburger.setAttribute('aria-expanded', 'true');
+    }
+    function closeDrawer() {
+      sidebar.classList.remove('drawer-open');
+      backdrop.classList.remove('visible');
+      hamburger.setAttribute('aria-expanded', 'false');
+    }
+    hamburger.addEventListener('click', function () {
+      sidebar.classList.contains('drawer-open') ? closeDrawer() : openDrawer();
+    });
+    backdrop.addEventListener('click', closeDrawer);
+
+    // Live breakpoint-tier indicator, updates on resize so the 3 tiers are
+    // visibly verifiable without opening devtools.
+    var tierEl = document.getElementById('tierIndicator');
+    function updateTier() {
+      var w = window.innerWidth;
+      var tier;
+      if (w < 768) {
+        tier = 'Phone (<768px) — sidebar off-canvas drawer';
+      } else if (w <= 1024) {
+        tier = 'Tablet (768–1024px) — sidebar icon-only';
+        closeDrawer();
+      } else {
+        tier = 'Desktop (≥1024px) — sidebar penuh 240px';
+        closeDrawer();
+      }
+      tierEl.textContent = tier + ' · ' + w + 'px';
+    }
+    window.addEventListener('resize', updateTier);
+    updateTier();
+  </script>
 </body>
 </html>

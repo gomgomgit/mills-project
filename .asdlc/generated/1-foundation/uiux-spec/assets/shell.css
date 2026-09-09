@@ -1,7 +1,15 @@
-/* App shell — Mills Smart Log (web: sidebar 240px, collapses to 64px icon-only <1024px, top header 56px)
-   Mobile app shell (header 64px + drawer) uses .mobile-shell below. */
+/* App shell — Mill Smart Log (web)
+   Two-tier adaptive shell (layout.adaptation, revised 2026-09-09):
+     - Desktop  (>=1024px): sidebar 240px, full label + icon
+     - Tablet   (768-1024px): sidebar collapses to 64px icon-only, top header unchanged
+     - Phone    (<768px): sidebar hidden entirely, becomes an off-canvas drawer (240px)
+                           opened via a hamburger button (min 44px touch target) that
+                           appears in the top header only at this width, with a
+                           backdrop/overlay behind the drawer that closes it on tap.
+   Mobile app shell (Operator/Supervisor native app) uses .mobile-shell below — separate
+   from the web shell above, always header + drawer, no bottom tabs, no breakpoints. */
 
-.app-shell { display: flex; height: 100vh; overflow: hidden; }
+.app-shell { display: flex; height: 100vh; overflow: hidden; position: relative; }
 
 .sidebar {
   width: var(--space-sidebar_width);
@@ -11,7 +19,7 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  transition: width 0.15s;
+  transition: width 0.15s, transform 0.2s ease-in-out;
 }
 .sidebar-header { padding: var(--space-lg); border-bottom: 1px solid var(--color-border); font-weight: 700; font-size: var(--font-size-lg); color: var(--color-foreground); display: flex; align-items: center; gap: var(--space-sm); }
 .sidebar-nav { padding: var(--space-md); display: flex; flex-direction: column; gap: var(--space-xs); flex: 1; }
@@ -19,26 +27,82 @@
 .nav-item:hover  { background: color-mix(in srgb, var(--color-brand) 8%, transparent); color: var(--color-foreground); }
 .nav-item.active { background: color-mix(in srgb, var(--color-brand) 12%, transparent); color: var(--color-brand); font-weight: 500; }
 
+/* ---------- Tablet (768px – 1024px): sidebar collapses to icon-only ---------- */
 @media (max-width: 1024px) {
   .sidebar { width: var(--space-sidebar_collapsed_width); }
   .sidebar .nav-item span.label,
   .sidebar .sidebar-header span.label { display: none; }
 }
 
-.main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+/* ---------- Phone (<768px): sidebar becomes an off-canvas drawer ---------- */
+.sidebar-backdrop { display: none; }
+.hamburger-btn { display: none; }
+
+@media (max-width: 767px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: var(--space-sidebar_width);
+    transform: translateX(-100%);
+    z-index: 40;
+    box-shadow: var(--shadow-modal);
+  }
+  /* full icon + label restored inside the drawer (not icon-only like tablet) */
+  .sidebar .nav-item span.label,
+  .sidebar .sidebar-header span.label { display: inline; }
+
+  .sidebar.drawer-open { transform: translateX(0); }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
+  }
+  .sidebar-backdrop.visible { opacity: 1; pointer-events: auto; }
+
+  .hamburger-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--space-touch_target_min);
+    min-height: var(--space-touch_target_min);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-button);
+    color: var(--color-foreground);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .hamburger-btn:hover { background: color-mix(in srgb, var(--color-brand) 8%, transparent); }
+}
+
+.main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 .topbar {
   height: var(--space-top_header_height);
   border-bottom: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-md);
   padding: 0 var(--space-lg);
   flex-shrink: 0;
   background: var(--color-background);
 }
-.topbar-title { font-size: var(--font-size-lg); font-weight: var(--font-weight-lg); color: var(--color-foreground); }
-.topbar-end { display: flex; align-items: center; gap: var(--space-sm); }
+.topbar-start { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
+.topbar-title { font-size: var(--font-size-lg); font-weight: var(--font-weight-lg); color: var(--color-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-end { display: flex; align-items: center; gap: var(--space-sm); flex-shrink: 0; }
 .content-area { flex: 1; overflow-y: auto; padding: var(--space-lg); }
+
+@media (max-width: 767px) {
+  .content-area { padding: var(--space-md); }
+}
 
 /* ---------- Mobile app shell (Operator/Supervisor mobile — header + hamburger drawer, no bottom tabs) ---------- */
 .mobile-shell { display: flex; flex-direction: column; height: 100vh; overflow: hidden; max-width: 480px; margin: 0 auto; background: var(--color-background); box-shadow: var(--shadow-dropdown); }

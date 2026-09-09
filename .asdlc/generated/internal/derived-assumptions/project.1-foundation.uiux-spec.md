@@ -20,3 +20,10 @@
 
 - component_patterns['web-form-input'] pengecualian untuk field Checked By/Acknowledged By (role-based disable pada component 'form') tetap berlaku dan tidak termasuk larangan disabled/readonly baru ← user tidak menyebutkan pengecualian ini secara eksplisit; agen menyimpulkan agar konvensi baru tidak bertentangan dengan pola role-based access control yang sudah ada sebelumnya
 - component_patterns['web-form-input'] cakupan field date/datetime = native `<input type="date">`/`<input type="datetime-local">` secara spesifik (bukan sekadar "harus ada picker + manual") ← user hanya menyatakan "bisa input manual ataupun date picker"; agen memilih implementasi HTML native konkret yang sudah dipakai di semua form date existing (dikonfirmasi via audit) sebagai cara memenuhi requirement tersebut
+
+## v5 — 2026-09-09
+
+- layout.shell_description = web shell diperluas jadi 2-tingkat breakpoint — tablet (768–1024px, sidebar icon-only, sudah ada sejak v1) + phone baru (<768px, sidebar disembunyikan total jadi off-canvas drawer + hamburger button di top header + backdrop overlay) ← user hanya minta "web app tampil baik di mobile"; detail mekanisme (off-canvas drawer + hamburger, bukan bottom-sheet nav atau pola lain) diturunkan agen mengikuti pola yang sudah dipakai app mobile native di spec yang sama, supaya konsisten
+- layout.adaptation.notes = phone tier menambahkan aturan form 1-kolom dan data-table horizontal-scroll ← agent-derived, konsekuensi teknis dari keputusan di atas
+- design_system.spacing = tokens baru `tablet_breakpoint` (1024px) dan `phone_breakpoint` (768px) ditambahkan untuk memformalkan breakpoint yang sebelumnya hanya disebut dalam teks prosa ← agent derived, bukan nilai baru (1024px sudah ada di teks v1), sekadar ditokenkan
+- component_patterns['data-table'] = aturan <768px adalah horizontal-scroll (bukan stack-as-card) ← agent derived; dipilih supaya struktur kolom tetap konsisten & implementasi seragam di semua tabel stasiun/master-data yang jumlah kolomnya bervariasi, alih-alih pola stack-as-card yang perlu didefinisikan ulang per tabel

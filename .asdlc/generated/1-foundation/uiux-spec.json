@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-23"
+    "updated_at": "2026-09-09"
   },
   "design_system": {
     "color_palette": [
@@ -133,6 +133,14 @@
         "value": "64px"
       },
       {
+        "name": "tablet_breakpoint",
+        "value": "1024px"
+      },
+      {
+        "name": "phone_breakpoint",
+        "value": "768px"
+      },
+      {
         "name": "top_header_height",
         "value": "56px"
       },
@@ -192,7 +200,7 @@
     }
   },
   "layout": {
-    "shell_description": "Web: sidebar kiri fixed (240px, collapse ke 64px icon-only pada layar <1024px) berisi menu navigasi utama per role, top header (56px) berisi judul halaman + user menu. Mobile: header atas (64px) dengan hamburger menu (membuka drawer navigasi) + logo, tanpa bottom tab bar — mengikuti pola Figma (Opener/Login/Home dengan hamburger menu).",
+    "shell_description": "Web: sidebar kiri fixed (240px) berisi menu navigasi utama per role — collapse jadi icon-only (64px) pada layar tablet (768–1024px), lalu disembunyikan penuh menjadi off-canvas drawer pada layar phone (<768px), dibuka/ditutup lewat hamburger button (min touch target 44px) yang muncul di top header hanya pada <768px, dengan overlay/backdrop di belakang drawer yang menutup drawer saat di-tap. Top header (56px) berisi judul halaman + user menu, selalu terlihat penuh di semua ukuran layar. Mobile (aplikasi native terpisah): header atas (64px) dengan hamburger menu (membuka drawer navigasi) + logo, tanpa bottom tab bar — mengikuti pola Figma (Opener/Login/Home dengan hamburger menu).",
     "navigation_per_role": [
       {
         "menu_item": "Dashboard",
@@ -293,7 +301,7 @@
     ],
     "adaptation": {
       "strategy": "adaptive",
-      "notes": "Web app: desktop-first, dengan adaptasi dasar untuk tablet (sidebar collapse jadi icon-only di layar <1024px, top header tetap). Mobile app: mobile-only, dioptimalkan untuk smartphone & tablet lapangan (portrait utama, touch target besar minimal 44px, tidak ada versi desktop)."
+      "notes": "Web app: desktop-first, dua tingkat adaptasi — (1) tablet (768–1024px): sidebar collapse jadi icon-only, top header tetap; (2) phone (<768px): sidebar disembunyikan total jadi off-canvas drawer yang dibuka via hamburger button di top header, konten utama full-width single-column, form grid 2-kolom turun jadi 1-kolom, data-table di-bungkus horizontal-scroll (lihat component_patterns 'data-table') supaya kolom tidak overflow atau terpotong. Mobile app (native, Capacitor): mobile-only, dioptimalkan untuk smartphone & tablet lapangan (portrait utama, touch target besar minimal 44px, tidak ada versi desktop)."
     }
   },
   "screen_type_patterns": [
@@ -378,7 +386,7 @@
     {
       "type": "form",
       "description": "Form input Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant (header + detail grid) di web dan mobile; form master data (Corporate, Company, Business Unit, Station, Machinery, dst) di web.",
-      "layout": "Web: form vertikal dalam card, grid 2-kolom untuk field pendek. Mobile: form vertikal full-page, scroll panjang.",
+      "layout": "Web: form vertikal dalam card, grid 2-kolom untuk field pendek (turun jadi 1-kolom di layar <768px). Mobile: form vertikal full-page, scroll panjang.",
       "header_area": "Breadcrumb/back + judul form (mis. 'WB New | WB Load Data').",
       "body_area": "Field header (WB ID, Date, dst) diikuti grid/detail rows (mis. Cages Tipped Time, Grading Detail, atau grid time-slot 24 baris untuk Threshing/Pressing/Depricarping/Kernel Plant) dengan aksi Add/Edit per baris. Field Checked By hanya muncul/aktif untuk role Supervisor, Acknowledged By hanya untuk Mill Management.",
       "footer_area": "Action row: Save, Clear, Delete (jika ada), Pause, Back — besar dan mudah dijangkau (touch target ≥44px di mobile).",
@@ -408,7 +416,7 @@
     {
       "type": "detail",
       "description": "Data Preview untuk record tersimpan (Weighbridge/Grading/Cages Track/Threshing/Pressing/Depricarping/Kernel Plant) di web dan mobile — read-only.",
-      "layout": "Web: split-view (ringkasan header di kiri/atas, detail grid di kanan/bawah) dalam shell sidebar+header. Mobile: full-page read-only, mengikuti struktur form tapi non-editable.",
+      "layout": "Web: split-view (ringkasan header di kiri/atas, detail grid di kanan/bawah) dalam shell sidebar+header, turun jadi stacked single-column di layar <768px. Mobile: full-page read-only, mengikuti struktur form tapi non-editable.",
       "header_area": "Judul record (mis. nomor WB Card) + status badge (saved/synced/paused).",
       "body_area": "Seluruh field header & detail ditampilkan read-only, dikelompokkan sesuai struktur form aslinya.",
       "footer_area": "Web: tombol Back/Export. Mobile: tombol Back.",
@@ -461,7 +469,7 @@
   "component_patterns": [
     {
       "component": "data-table",
-      "notes": "Web only. Kolom dinamis sesuai stasiun, sticky header, pagination bawah, empty-state ilustratif, row hover highlight, klik row buka Detail."
+      "notes": "Web only. Kolom dinamis sesuai stasiun, sticky header, pagination bawah, empty-state ilustratif, row hover highlight, klik row buka Detail. Pada layar <768px: tabel dibungkus container dengan overflow-x: auto (horizontal scroll) — kolom TIDAK di-stack ulang jadi card, supaya struktur kolom tetap konsisten & predictable di semua stasiun; header tetap sticky, tapi hanya secara vertikal (bukan sticky-horizontal saat discroll ke samping)."
     },
     {
       "component": "form",
@@ -514,5 +522,5 @@
       "images_and_media": "Gambar referensi stasiun/mesin disertai teks deskriptif singkat (nama stasiun/mesin)"
     }
   },
-  "design_notes": "Warna merah #D20000 dipakai ganda — sebagai warna default tombol grid stasiun (Figma) dan sebagai indikator status 'sedang berlangsung'/'paused' (section 6.2 PRD) — dibedakan lewat ikon dan teks label, bukan varian warna, sesuai keputusan mengikuti dokumen sumber. Dark mode berada di luar scope MVP. Level aksesibilitas Basic dipilih karena ini internal tool untuk operator lapangan, bukan aplikasi publik. Revisi 2026-08-18 (screen-006 terlihat 'jelek' — tile solid tanpa ikon, urutan alfabetis, reference-image placeholder tak bermakna): pattern 'list' tipe mobile diperjelas dengan ikon per-tile, shadow elevation, urutan grid tetap, dan reference-image dijadikan opsional bukan wajib — lihat screen_type_patterns[type=list] dan component_patterns 'station-tile'. Revisi 2026-08-19: ditambahkan component_patterns 'web-form-input' — konvensi baru bahwa input form web tidak boleh disabled/readonly (termasuk field computed), dan field date/datetime web wajib mendukung input manual + picker sekaligus. Revisi 2026-08-23: Threshing/Pressing/Depricarping/Kernel Plant dipromosikan dari placeholder ke stasiun aktif MVP (7 aktif + 8 placeholder, dari sebelumnya 3 aktif + 12 placeholder) — screen_type_patterns[type=list/form/detail] dan component_patterns 'station-tile' diperbarui untuk mencerminkan hal ini; tidak ada type-pattern baru yang dibutuhkan, keempat stasiun baru mengikuti pola form/detail/list yang sama persis."
+  "design_notes": "Warna merah #D20000 dipakai ganda — sebagai warna default tombol grid stasiun (Figma) dan sebagai indikator status 'sedang berlangsung'/'paused' (section 6.2 PRD) — dibedakan lewat ikon dan teks label, bukan varian warna, sesuai keputusan mengikuti dokumen sumber. Dark mode berada di luar scope MVP. Level aksesibilitas Basic dipilih karena ini internal tool untuk operator lapangan, bukan aplikasi publik. Revisi 2026-08-18 (screen-006 terlihat 'jelek' — tile solid tanpa ikon, urutan alfabetis, reference-image placeholder tak bermakna): pattern 'list' tipe mobile diperjelas dengan ikon per-tile, shadow elevation, urutan grid tetap, dan reference-image dijadikan opsional bukan wajib — lihat screen_type_patterns[type=list] dan component_patterns 'station-tile'. Revisi 2026-08-19: ditambahkan component_patterns 'web-form-input' — konvensi baru bahwa input form web tidak boleh disabled/readonly (termasuk field computed), dan field date/datetime web wajib mendukung input manual + picker sekaligus. Revisi 2026-08-23: Threshing/Pressing/Depricarping/Kernel Plant dipromosikan dari placeholder ke stasiun aktif MVP (7 aktif + 8 placeholder, dari sebelumnya 3 aktif + 12 placeholder) — screen_type_patterns[type=list/form/detail] dan component_patterns 'station-tile' diperbarui untuk mencerminkan hal ini; tidak ada type-pattern baru yang dibutuhkan, keempat stasiun baru mengikuti pola form/detail/list yang sama persis. Revisi 2026-09-09: web app sebelumnya hanya diadaptasi sampai level tablet (icon-only sidebar collapse <1024px) sesuai keputusan awal 'desktop-first, adaptasi dasar untuk tablet'; setelah permintaan eksplisit agar web app tampil baik di HP, adaptation.strategy diperluas jadi 2-tingkat — tablet (768-1024px, icon-only sidebar) dan phone (<768px, sidebar jadi off-canvas drawer + hamburger, form 1-kolom, data-table horizontal-scroll). Implementasi shell saat ini (components/layouts/app.blade.php) diketahui belum mengikuti bahkan tingkat tablet — akan diperbaiki langsung di kode sebagai bagian dari revisi ini, tanpa perlu re-generate business/tech spec tiap screen karena perubahan ini murni presentational (tidak mengubah business logic atau API contract screen manapun)."
 }

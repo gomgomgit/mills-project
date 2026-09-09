@@ -39,6 +39,7 @@
     .space-row { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-sm); }
     .space-label { width: 220px; flex-shrink: 0; font-size: var(--font-size-xs); font-family: monospace; color: var(--color-text-muted); }
     .space-bar { height: 16px; background: var(--color-brand); border-radius: 4px; }
+    .space-bar.breakpoint { background: var(--color-station-red); }
 
     /* Radius / shadow demo */
     .demo-row { display: flex; gap: var(--space-lg); flex-wrap: wrap; }
@@ -60,6 +61,34 @@
 
     /* Station tile grid (page-specific layout — station-tile itself styled in components.css) */
     .station-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-sm); }
+
+    /* Responsive shell demo (page-specific static illustration — mirrors assets/shell.css breakpoint behavior,
+       rendered as three fixed-size snapshots since real @media queries key off page viewport, not this frame) */
+    .shell-demo-row { display: flex; gap: var(--space-lg); flex-wrap: wrap; align-items: flex-start; }
+    .shell-demo-col { display: flex; flex-direction: column; gap: var(--space-sm); align-items: center; }
+    .shell-demo-caption { font-size: var(--font-size-xs); color: var(--color-text-muted); text-align: center; max-width: 220px; }
+    .shell-demo-caption b { color: var(--color-text-primary); }
+    .shell-demo-frame { position: relative; border: 1px solid var(--color-border); border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-card); background: var(--color-background); }
+    .shell-demo-topbar { height: 28px; display: flex; align-items: center; gap: var(--space-xs); padding: 0 var(--space-sm); border-bottom: 1px solid var(--color-border); background: var(--color-background); }
+    .shell-demo-hamburger { width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; color: var(--color-text-primary); flex-shrink: 0; }
+    .shell-demo-title { font-size: 10px; font-weight: 600; color: var(--color-text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .shell-demo-body { display: flex; height: 152px; }
+    .shell-demo-sidebar { background: var(--color-surface); border-right: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 4px; padding: var(--space-xs); flex-shrink: 0; }
+    .shell-demo-nav-item { display: flex; align-items: center; gap: 4px; padding: 3px 4px; border-radius: 4px; font-size: 9px; color: var(--color-text-muted); }
+    .shell-demo-nav-item.active { background: color-mix(in srgb, var(--color-brand) 12%, transparent); color: var(--color-brand); }
+    .shell-demo-nav-item .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; flex-shrink: 0; }
+    .shell-demo-content { flex: 1; background: var(--color-background); padding: var(--space-xs); }
+    .shell-demo-content .skeleton-row { height: 8px; margin-bottom: 4px; }
+    .shell-demo-frame.desktop { width: 260px; }
+    .shell-demo-frame.desktop .shell-demo-sidebar { width: 78px; }
+    .shell-demo-frame.tablet { width: 180px; }
+    .shell-demo-frame.tablet .shell-demo-sidebar { width: 24px; align-items: center; }
+    .shell-demo-frame.tablet .shell-demo-nav-item span.label { display: none; }
+    .shell-demo-frame.phone { width: 130px; }
+    .shell-demo-frame.phone .shell-demo-body { position: relative; }
+    .shell-demo-frame.phone .shell-demo-sidebar { position: absolute; top: 0; left: 0; height: 100%; width: 86px; z-index: 3; box-shadow: var(--shadow-modal); }
+    .shell-demo-frame.phone .shell-demo-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); z-index: 2; }
+    .shell-demo-frame.phone .shell-demo-hamburger { color: var(--color-brand); }
   </style>
 </head>
 <body>
@@ -169,9 +198,11 @@
       <!-- ============ Section 3: Spacing ============ -->
       <section class="dsp-section" id="spacing">
         <h2>3. Spacing</h2>
-        <p class="dsp-desc">Skala spasi layout (langsung dari design_system.spacing) dan skala spasi komponen turunan (kelipatan base_unit 4px, dipakai padding/gap komponen).</p>
+        <p class="dsp-desc">Skala spasi layout (langsung dari design_system.spacing) dan skala spasi komponen turunan (kelipatan base_unit 4px, dipakai padding/gap komponen). Termasuk breakpoint token shell web (revisi 2026-09-09) — ditandai warna Station/Status Red pada bar di bawah.</p>
         <div class="space-row"><div class="space-label">sidebar_width (240px)</div><div class="space-bar" style="width: var(--space-sidebar_width);"></div></div>
         <div class="space-row"><div class="space-label">sidebar_collapsed_width (64px)</div><div class="space-bar" style="width: var(--space-sidebar_collapsed_width);"></div></div>
+        <div class="space-row"><div class="space-label">tablet_breakpoint (1024px)</div><div class="space-bar breakpoint" style="width: min(var(--space-tablet_breakpoint), 100%);"></div></div>
+        <div class="space-row"><div class="space-label">phone_breakpoint (768px)</div><div class="space-bar breakpoint" style="width: min(var(--space-phone_breakpoint), 100%);"></div></div>
         <div class="space-row"><div class="space-label">top_header_height (56px)</div><div class="space-bar" style="width: var(--space-top_header_height);"></div></div>
         <div class="space-row"><div class="space-label">mobile_header_height (64px)</div><div class="space-bar" style="width: var(--space-mobile_header_height);"></div></div>
         <div class="space-row"><div class="space-label">base_unit (4px)</div><div class="space-bar" style="width: var(--space-base_unit);"></div></div>
@@ -214,6 +245,7 @@
             <div class="icon-sample"><i data-lucide="package" width="20" height="20" stroke-width="1.5"></i></div>
             <div class="icon-sample"><i data-lucide="clock" width="20" height="20" stroke-width="1.5"></i></div>
             <div class="icon-sample"><i data-lucide="pause" width="20" height="20" stroke-width="1.5"></i></div>
+            <div class="icon-sample"><i data-lucide="menu" width="20" height="20" stroke-width="1.5"></i></div>
           </div>
           <dl>
             <dt>Library</dt><dd>Lucide</dd>
@@ -385,6 +417,75 @@
           <div class="showcase-row">
             <div class="toast toast-success"><i data-lucide="check" width="16" height="16"></i> Data Grading tersimpan</div>
             <div class="toast toast-error"><i data-lucide="x" width="16" height="16"></i> Sinkronisasi gagal, coba lagi</div>
+          </div>
+        </div>
+
+        <div class="showcase-block">
+          <h3>Responsive Shell (Web) — Revisi 2026-09-09</h3>
+          <p class="dsp-desc" style="margin-bottom: var(--space-md);">Web app shell (Admin/Supervisor/Mill Management) beradaptasi dua tingkat di bawah tablet_breakpoint (1024px) dan phone_breakpoint (768px). Ilustrasi statis berikut mencerminkan perilaku sebenarnya yang didefinisikan di <code style="font-family: monospace; font-size: 11px;">assets/shell.css</code> — tidak dapat di-resize langsung di halaman referensi ini karena breakpoint dievaluasi terhadap lebar viewport penuh, bukan lebar frame.</p>
+          <div class="shell-demo-row">
+            <div class="shell-demo-col">
+              <div class="shell-demo-frame desktop">
+                <div class="shell-demo-topbar">
+                  <span class="shell-demo-title">Dashboard — Mill Smart Log</span>
+                </div>
+                <div class="shell-demo-body">
+                  <div class="shell-demo-sidebar">
+                    <div class="shell-demo-nav-item active"><span class="dot"></span><span class="label">Dashboard</span></div>
+                    <div class="shell-demo-nav-item"><span class="dot"></span><span class="label">Data Stasiun</span></div>
+                    <div class="shell-demo-nav-item"><span class="dot"></span><span class="label">Master Data</span></div>
+                    <div class="shell-demo-nav-item"><span class="dot"></span><span class="label">User &amp; Role</span></div>
+                  </div>
+                  <div class="shell-demo-content">
+                    <div class="skeleton skeleton-row" style="width: 90%;"></div>
+                    <div class="skeleton skeleton-row" style="width: 70%;"></div>
+                    <div class="skeleton skeleton-row" style="width: 80%;"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="shell-demo-caption"><b>Desktop ≥1024px</b> — sidebar 240px, label + ikon penuh</div>
+            </div>
+
+            <div class="shell-demo-col">
+              <div class="shell-demo-frame tablet">
+                <div class="shell-demo-topbar">
+                  <span class="shell-demo-title">Dashboard</span>
+                </div>
+                <div class="shell-demo-body">
+                  <div class="shell-demo-sidebar">
+                    <div class="shell-demo-nav-item active"><span class="dot"></span><span class="label">Dashboard</span></div>
+                    <div class="shell-demo-nav-item"><span class="dot"></span><span class="label">Data Stasiun</span></div>
+                    <div class="shell-demo-nav-item"><span class="dot"></span><span class="label">Master Data</span></div>
+                    <div class="shell-demo-nav-item"><span class="dot"></span><span class="label">User &amp; Role</span></div>
+                  </div>
+                  <div class="shell-demo-content">
+                    <div class="skeleton skeleton-row" style="width: 90%;"></div>
+                    <div class="skeleton skeleton-row" style="width: 70%;"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="shell-demo-caption"><b>Tablet 768–1024px</b> — sidebar collapse jadi icon-only 64px, top header tetap penuh</div>
+            </div>
+
+            <div class="shell-demo-col">
+              <div class="shell-demo-frame phone">
+                <div class="shell-demo-topbar">
+                  <span class="shell-demo-hamburger"><i data-lucide="menu" width="14" height="14"></i></span>
+                  <span class="shell-demo-title">Dashboard</span>
+                </div>
+                <div class="shell-demo-body">
+                  <div class="shell-demo-backdrop"></div>
+                  <div class="shell-demo-sidebar">
+                    <div class="shell-demo-nav-item active"><span class="dot"></span><span class="label">Dashboard</span></div>
+                    <div class="shell-demo-nav-item"><span class="dot"></span><span class="label">Data Stasiun</span></div>
+                    <div class="shell-demo-nav-item"><span class="dot"></span><span class="label">Master Data</span></div>
+                    <div class="shell-demo-nav-item"><span class="dot"></span><span class="label">User &amp; Role</span></div>
+                  </div>
+                  <div class="shell-demo-content"></div>
+                </div>
+              </div>
+              <div class="shell-demo-caption"><b>Phone &lt;768px</b> — sidebar disembunyikan total, dibuka via hamburger (min 44px touch target) di top header jadi off-canvas drawer 240px + backdrop; tap backdrop menutup drawer. Konten single-column, form 1-kolom, data-table horizontal-scroll.</div>
+            </div>
           </div>
         </div>
 

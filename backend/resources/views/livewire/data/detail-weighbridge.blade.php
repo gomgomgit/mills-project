@@ -17,6 +17,14 @@
             Record tidak ditemukan.
         </div>
     @elseif ($record)
+        <x-record-verification-actions
+            :can-check="$this->canCheck()"
+            :can-acknowledge="$this->canAcknowledge()"
+            :is-checked="$this->isChecked()"
+            :is-acknowledged="$this->isAcknowledged()"
+            :message="$verificationMessage"
+        />
+
         <div class="dw-detail-section">
             <h4 class="dw-detail-section__title">Identitas Weighbridge</h4>
             <div class="dw-detail-grid">

@@ -27,6 +27,7 @@ import solidWasteDisposalRecordRepo, {
   type SolidWasteDisposalRecord,
 } from '@/services/solidWasteDisposalRecordRepo'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
+import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -368,6 +369,13 @@ function goToMonitor() {
         </section>
       </div>
     </template>
+
+    <RecordVerificationActions
+      station-type="solid-waste-disposal"
+      local-table="solid_waste_disposal_record"
+      :record="detailRecord"
+      @updated="loadDetail(recordIdParam)"
+    />
 
     <footer class="action-footer">
       <button type="button" class="action-button action-button--secondary" data-testid="back-button" @click="onBack">

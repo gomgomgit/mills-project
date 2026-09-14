@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\HandlesRecordVerification;
+use App\Models\SolidWasteDisposalRecord;
 use App\Services\SolidWasteDisposalRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Layout;
@@ -15,6 +17,8 @@ use Livewire\Component;
 #[Layout('data.solid-waste-disposal-detail')]
 class DetailSolidWasteDisposal extends Component
 {
+    use HandlesRecordVerification;
+
     public string $id;
 
     public ?array $record = null;
@@ -26,10 +30,20 @@ class DetailSolidWasteDisposal extends Component
         $this->id = $id;
 
         try {
-            $this->record = app(SolidWasteDisposalRecordService::class)->getDetail($id);
+            $this->reloadRecord();
         } catch (ModelNotFoundException) {
             $this->notFound = true;
         }
+    }
+
+    protected function verificationModelClass(): string
+    {
+        return SolidWasteDisposalRecord::class;
+    }
+
+    protected function reloadRecord(): void
+    {
+        $this->record = app(SolidWasteDisposalRecordService::class)->getDetail($this->id);
     }
 
     public function render()

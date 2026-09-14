@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\HandlesRecordVerification;
 use App\Models\DepricarpingOperationalTarget;
+use App\Models\DepricarpingRecord;
 use App\Services\DepricarpingRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Layout;
@@ -35,6 +37,8 @@ use Livewire\Component;
 #[Layout('data.depricarping-detail')]
 class DetailDepricarping extends Component
 {
+    use HandlesRecordVerification;
+
     public string $id;
 
     public ?array $record = null;
@@ -46,10 +50,20 @@ class DetailDepricarping extends Component
         $this->id = $id;
 
         try {
-            $this->record = app(DepricarpingRecordService::class)->getDetail($id);
+            $this->reloadRecord();
         } catch (ModelNotFoundException) {
             $this->notFound = true;
         }
+    }
+
+    protected function verificationModelClass(): string
+    {
+        return DepricarpingRecord::class;
+    }
+
+    protected function reloadRecord(): void
+    {
+        $this->record = app(DepricarpingRecordService::class)->getDetail($this->id);
     }
 
     public function render()

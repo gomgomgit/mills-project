@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\HandlesRecordVerification;
+use App\Models\EngineRoomRecord;
 use App\Services\EngineRoomRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Layout;
@@ -31,6 +33,8 @@ use Livewire\Component;
 #[Layout('data.engine-room-detail')]
 class DetailEngineRoom extends Component
 {
+    use HandlesRecordVerification;
+
     public string $id;
 
     public ?array $record = null;
@@ -42,10 +46,20 @@ class DetailEngineRoom extends Component
         $this->id = $id;
 
         try {
-            $this->record = app(EngineRoomRecordService::class)->getDetail($id);
+            $this->reloadRecord();
         } catch (ModelNotFoundException) {
             $this->notFound = true;
         }
+    }
+
+    protected function verificationModelClass(): string
+    {
+        return EngineRoomRecord::class;
+    }
+
+    protected function reloadRecord(): void
+    {
+        $this->record = app(EngineRoomRecordService::class)->getDetail($this->id);
     }
 
     public function render()

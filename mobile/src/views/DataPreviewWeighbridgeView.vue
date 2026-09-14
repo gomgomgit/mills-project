@@ -104,6 +104,7 @@ import { useAiAssistantStore } from '@/stores/aiAssistant'
 import weighbridgeRecordRepo, { type WeighbridgeRecord } from '@/services/weighbridgeRecordRepo'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import FormField from '@/components/FormField.vue'
+import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -567,6 +568,13 @@ function goToMonitorWeighbridge(): void {
         <FormField :model-value="detailRecord.acknowledged_by" label="Acknowledged By" disabled />
       </div>
     </template>
+
+    <RecordVerificationActions
+      station-type="weighbridge"
+      local-table="weighbridge_record"
+      :record="detailRecord"
+      @updated="loadDetail(recordIdParam)"
+    />
 
     <footer class="action-footer">
       <div class="action-row">

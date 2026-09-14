@@ -17,6 +17,14 @@
             Record tidak ditemukan.
         </div>
     @elseif ($record)
+        <x-record-verification-actions
+            :can-check="$this->canCheck()"
+            :can-acknowledge="$this->canAcknowledge()"
+            :is-checked="$this->isChecked()"
+            :is-acknowledged="$this->isAcknowledged()"
+            :message="$verificationMessage"
+        />
+
         <div class="pqc-detail-section">
             <h4 class="pqc-detail-section__title">Identitas Process Quality Control</h4>
             <div class="pqc-detail-grid">

@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\HandlesRecordVerification;
+use App\Models\KernelDispatchRecord;
 use App\Services\KernelDispatchRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Layout;
@@ -15,6 +17,8 @@ use Livewire\Component;
 #[Layout('data.kernel-dispatch-detail')]
 class DetailKernelDispatch extends Component
 {
+    use HandlesRecordVerification;
+
     public string $id;
 
     public ?array $record = null;
@@ -26,10 +30,20 @@ class DetailKernelDispatch extends Component
         $this->id = $id;
 
         try {
-            $this->record = app(KernelDispatchRecordService::class)->getDetail($id);
+            $this->reloadRecord();
         } catch (ModelNotFoundException) {
             $this->notFound = true;
         }
+    }
+
+    protected function verificationModelClass(): string
+    {
+        return KernelDispatchRecord::class;
+    }
+
+    protected function reloadRecord(): void
+    {
+        $this->record = app(KernelDispatchRecordService::class)->getDetail($this->id);
     }
 
     public function render()

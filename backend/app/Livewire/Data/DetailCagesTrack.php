@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\HandlesRecordVerification;
+use App\Models\CagesTrackRecord;
 use App\Services\CagesTrackRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Layout;
@@ -30,6 +32,8 @@ use Livewire\Component;
 #[Layout('data.cages-track-detail')]
 class DetailCagesTrack extends Component
 {
+    use HandlesRecordVerification;
+
     public string $id;
 
     public ?array $record = null;
@@ -41,10 +45,20 @@ class DetailCagesTrack extends Component
         $this->id = $id;
 
         try {
-            $this->record = app(CagesTrackRecordService::class)->getDetail($id);
+            $this->reloadRecord();
         } catch (ModelNotFoundException) {
             $this->notFound = true;
         }
+    }
+
+    protected function verificationModelClass(): string
+    {
+        return CagesTrackRecord::class;
+    }
+
+    protected function reloadRecord(): void
+    {
+        $this->record = app(CagesTrackRecordService::class)->getDetail($this->id);
     }
 
     public function render()

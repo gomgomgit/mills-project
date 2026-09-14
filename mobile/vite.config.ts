@@ -28,7 +28,12 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    // 5173 is occupied by another project on this dev machine, so Vite kept
+    // silently falling back to 5174 while the configured value still said
+    // 5173 — strictPort makes a future collision fail loudly instead of
+    // drifting to yet another port without anyone noticing.
+    port: 5174,
+    strictPort: true,
   },
   test: {
     environment: 'jsdom',

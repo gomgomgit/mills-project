@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\HandlesRecordVerification;
 use App\Models\KernelPlantOperationalTarget;
+use App\Models\KernelPlantRecord;
 use App\Services\KernelPlantRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Layout;
@@ -35,6 +37,8 @@ use Livewire\Component;
 #[Layout('data.kernel-plant-detail')]
 class DetailKernelPlant extends Component
 {
+    use HandlesRecordVerification;
+
     public string $id;
 
     public ?array $record = null;
@@ -46,10 +50,20 @@ class DetailKernelPlant extends Component
         $this->id = $id;
 
         try {
-            $this->record = app(KernelPlantRecordService::class)->getDetail($id);
+            $this->reloadRecord();
         } catch (ModelNotFoundException) {
             $this->notFound = true;
         }
+    }
+
+    protected function verificationModelClass(): string
+    {
+        return KernelPlantRecord::class;
+    }
+
+    protected function reloadRecord(): void
+    {
+        $this->record = app(KernelPlantRecordService::class)->getDetail($this->id);
     }
 
     public function render()

@@ -69,6 +69,7 @@ import storageTankRecordRepo, {
 } from '@/services/storageTankRecordRepo'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import FormField from '@/components/FormField.vue'
+import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -508,6 +509,13 @@ function goToMonitorStorageTank(): void {
         </section>
       </div>
     </template>
+
+    <RecordVerificationActions
+      station-type="storage-tank"
+      local-table="storage_tank_record"
+      :record="detailRecord"
+      @updated="loadDetail(recordIdParam)"
+    />
 
     <footer class="action-footer">
       <div class="action-row">

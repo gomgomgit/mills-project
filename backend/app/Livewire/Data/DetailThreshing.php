@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\HandlesRecordVerification;
 use App\Models\ThreshingOperationalTarget;
+use App\Models\ThreshingRecord;
 use App\Services\ThreshingRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Layout;
@@ -34,6 +36,8 @@ use Livewire\Component;
 #[Layout('data.threshing-detail')]
 class DetailThreshing extends Component
 {
+    use HandlesRecordVerification;
+
     public string $id;
 
     public ?array $record = null;
@@ -45,10 +49,20 @@ class DetailThreshing extends Component
         $this->id = $id;
 
         try {
-            $this->record = app(ThreshingRecordService::class)->getDetail($id);
+            $this->reloadRecord();
         } catch (ModelNotFoundException) {
             $this->notFound = true;
         }
+    }
+
+    protected function verificationModelClass(): string
+    {
+        return ThreshingRecord::class;
+    }
+
+    protected function reloadRecord(): void
+    {
+        $this->record = app(ThreshingRecordService::class)->getDetail($this->id);
     }
 
     public function render()

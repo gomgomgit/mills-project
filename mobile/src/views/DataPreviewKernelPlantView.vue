@@ -71,6 +71,7 @@ import kernelPlantRecordRepo, {
 import { KERNEL_PLANT_OPERATIONAL_TARGETS } from '@/data/kernelPlantOperationalTargets'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import FormField from '@/components/FormField.vue'
+import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -529,6 +530,13 @@ function goToMonitorKernelPlant(): void {
         </section>
       </div>
     </template>
+
+    <RecordVerificationActions
+      station-type="kernel-plant"
+      local-table="kernel_plant_record"
+      :record="detailRecord"
+      @updated="loadDetail(recordIdParam)"
+    />
 
     <footer class="action-footer">
       <div class="action-row">

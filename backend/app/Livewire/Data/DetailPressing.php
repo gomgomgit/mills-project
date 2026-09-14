@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\HandlesRecordVerification;
 use App\Models\PressingOperationalTarget;
+use App\Models\PressingRecord;
 use App\Services\PressingRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Layout;
@@ -34,6 +36,8 @@ use Livewire\Component;
 #[Layout('data.pressing-detail')]
 class DetailPressing extends Component
 {
+    use HandlesRecordVerification;
+
     public string $id;
 
     public ?array $record = null;
@@ -45,10 +49,20 @@ class DetailPressing extends Component
         $this->id = $id;
 
         try {
-            $this->record = app(PressingRecordService::class)->getDetail($id);
+            $this->reloadRecord();
         } catch (ModelNotFoundException) {
             $this->notFound = true;
         }
+    }
+
+    protected function verificationModelClass(): string
+    {
+        return PressingRecord::class;
+    }
+
+    protected function reloadRecord(): void
+    {
+        $this->record = app(PressingRecordService::class)->getDetail($this->id);
     }
 
     public function render()

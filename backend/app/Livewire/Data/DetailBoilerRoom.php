@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\HandlesRecordVerification;
+use App\Models\BoilerRoomRecord;
 use App\Services\BoilerRoomRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Layout;
@@ -31,6 +33,8 @@ use Livewire\Component;
 #[Layout('data.boiler-room-detail')]
 class DetailBoilerRoom extends Component
 {
+    use HandlesRecordVerification;
+
     public string $id;
 
     public ?array $record = null;
@@ -42,10 +46,20 @@ class DetailBoilerRoom extends Component
         $this->id = $id;
 
         try {
-            $this->record = app(BoilerRoomRecordService::class)->getDetail($id);
+            $this->reloadRecord();
         } catch (ModelNotFoundException) {
             $this->notFound = true;
         }
+    }
+
+    protected function verificationModelClass(): string
+    {
+        return BoilerRoomRecord::class;
+    }
+
+    protected function reloadRecord(): void
+    {
+        $this->record = app(BoilerRoomRecordService::class)->getDetail($this->id);
     }
 
     public function render()

@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\HandlesRecordVerification;
+use App\Models\WeighbridgeRecord;
 use App\Services\WeighbridgeRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Layout;
@@ -29,6 +31,8 @@ use Livewire\Component;
 #[Layout('data.weighbridge-detail')]
 class DetailWeighbridge extends Component
 {
+    use HandlesRecordVerification;
+
     public string $id;
 
     public ?array $record = null;
@@ -40,10 +44,20 @@ class DetailWeighbridge extends Component
         $this->id = $id;
 
         try {
-            $this->record = app(WeighbridgeRecordService::class)->getDetail($id);
+            $this->reloadRecord();
         } catch (ModelNotFoundException) {
             $this->notFound = true;
         }
+    }
+
+    protected function verificationModelClass(): string
+    {
+        return WeighbridgeRecord::class;
+    }
+
+    protected function reloadRecord(): void
+    {
+        $this->record = app(WeighbridgeRecordService::class)->getDetail($this->id);
     }
 
     public function render()

@@ -17,6 +17,14 @@
             Record tidak ditemukan.
         </div>
     @elseif ($record)
+        <x-record-verification-actions
+            :can-check="$this->canCheck()"
+            :can-acknowledge="$this->canAcknowledge()"
+            :is-checked="$this->isChecked()"
+            :is-acknowledged="$this->isAcknowledged()"
+            :message="$verificationMessage"
+        />
+
         <div class="st-detail-section">
             <h4 class="st-detail-section__title">Identitas Storage Tank</h4>
             <div class="st-detail-grid">

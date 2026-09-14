@@ -152,6 +152,17 @@
         Threshing, Depricarping. The remaining 6 (Effluent Plant, CPO
         Dispatch, Kernel Dispatch, Process Water, Solid Waste Disposal,
         Process Quality Control) stay hidden.
+
+        2026-09-11 (re-enable) — Effluent Plant and CPO Dispatch re-enabled
+        per user request; un-commented below and removed from mobile's
+        stationRepo.ts HIDDEN_STATION_TYPES. 14 of 18 tiles now render; the
+        remaining 4 (Kernel Dispatch, Process Water, Solid Waste Disposal,
+        Process Quality Control) stay hidden.
+
+        2026-09-14 (re-enable) — Kernel Dispatch and Process Water re-enabled
+        per user request; un-commented below and removed from mobile's
+        stationRepo.ts HIDDEN_STATION_TYPES. 16 of 18 tiles now render; only
+        Solid Waste Disposal and Process Quality Control stay hidden.
     --}}
     <div class="station-grid">
         <a href="{{ route('data.weighbridge') }}" class="station-tile active">
@@ -174,12 +185,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>
             Clarification
         </a>
-        {{-- Effluent Plant temporarily hidden (2026-09-01, product decision) — station stays active, just not shown as a tile here.
         <a href="{{ route('data.effluent-plant') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8M12 8v8"></path></svg>
             Effluent Plant
         </a>
-        --}}
         <a href="{{ route('data.cages-track') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="18" height="13" rx="1"></rect><path d="M3 11h18"></path><path d="M8 7V4h8v3"></path></svg>
             Cages Track
@@ -188,12 +197,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="2" width="12" height="20" rx="1"></rect><line x1="6" y1="8" x2="18" y2="8"></line><line x1="6" y1="14" x2="18" y2="14"></line></svg>
             Engine Room
         </a>
-        {{-- CPO Dispatch temporarily hidden (2026-09-01, product decision) — station stays active, just not shown as a tile here.
         <a href="{{ route('data.cpo-dispatch') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="10" height="14" rx="2"></rect><line x1="3" y1="10" x2="13" y2="10"></line><line x1="3" y1="14" x2="13" y2="14"></line><path d="M15 12h6"></path><path d="M18 9l3 3-3 3"></path></svg>
             CPO Dispatch
         </a>
-        --}}
         <a href="{{ route('data.sterilizer') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="2"></rect><line x1="8" y1="9" x2="16" y2="9"></line><line x1="8" y1="13" x2="16" y2="13"></line></svg>
             Sterilizer
@@ -202,22 +209,18 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 21V9a6 6 0 0 1 12 0v12"></path><line x1="6" y1="15" x2="18" y2="15"></line></svg>
             Boiler Room
         </a>
-        {{-- Kernel Dispatch temporarily hidden (2026-09-01, product decision) — station stays active, just not shown as a tile here.
         <a href="{{ route('data.kernel-dispatch') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="9" width="12" height="10" rx="1"></rect><path d="M15 12h6"></path><path d="M18 9l3 3-3 3"></path></svg>
             Kernel Dispatch
         </a>
-        --}}
         <a href="{{ route('data.kernel-plant') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="3" width="14" height="18" rx="1"></rect><line x1="9" y1="8" x2="15" y2="8"></line><line x1="9" y1="12" x2="15" y2="12"></line></svg>
             Kernel Plant
         </a>
-        {{-- Process Water temporarily hidden (2026-09-01, product decision) — station stays active, just not shown as a tile here.
         <a href="{{ route('data.process-water') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"></path></svg>
             Process Water
         </a>
-        --}}
         <a href="{{ route('data.threshing') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>
             Threshing

@@ -70,6 +70,7 @@ import processWaterRecordRepo, {
 } from '@/services/processWaterRecordRepo'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import FormField from '@/components/FormField.vue'
+import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -505,6 +506,13 @@ function goToMonitorProcessWater(): void {
         </section>
       </div>
     </template>
+
+    <RecordVerificationActions
+      station-type="process-water"
+      local-table="process_water_record"
+      :record="detailRecord"
+      @updated="loadDetail(recordIdParam)"
+    />
 
     <footer class="action-footer">
       <div class="action-row">

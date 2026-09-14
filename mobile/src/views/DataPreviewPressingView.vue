@@ -70,6 +70,7 @@ import pressingRecordRepo, {
 import { PRESSING_OPERATIONAL_TARGETS } from '@/data/pressingOperationalTargets'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import FormField from '@/components/FormField.vue'
+import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -518,6 +519,13 @@ function goToMonitorPressing(): void {
         </section>
       </div>
     </template>
+
+    <RecordVerificationActions
+      station-type="pressing"
+      local-table="pressing_record"
+      :record="detailRecord"
+      @updated="loadDetail(recordIdParam)"
+    />
 
     <footer class="action-footer">
       <div class="action-row">

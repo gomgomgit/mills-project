@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\HandlesRecordVerification;
+use App\Models\ProcessQualityControlRecord;
 use App\Services\ProcessQualityControlRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Layout;
@@ -31,6 +33,8 @@ use Livewire\Component;
 #[Layout('data.process-quality-control-detail')]
 class DetailProcessQualityControl extends Component
 {
+    use HandlesRecordVerification;
+
     public string $id;
 
     public ?array $record = null;
@@ -42,10 +46,20 @@ class DetailProcessQualityControl extends Component
         $this->id = $id;
 
         try {
-            $this->record = app(ProcessQualityControlRecordService::class)->getDetail($id);
+            $this->reloadRecord();
         } catch (ModelNotFoundException) {
             $this->notFound = true;
         }
+    }
+
+    protected function verificationModelClass(): string
+    {
+        return ProcessQualityControlRecord::class;
+    }
+
+    protected function reloadRecord(): void
+    {
+        $this->record = app(ProcessQualityControlRecordService::class)->getDetail($this->id);
     }
 
     public function render()

@@ -13,7 +13,8 @@ use Laravel\Sanctum\Sanctum;
 | .notes — tokens do not auto-expire while the device is offline, hence
 | `expiration` is left null / not enforced server-side).
 |
-| Deliberately excludes the mobile app's Vite dev port (5173) — listing it
+| Deliberately excludes the mobile app's Vite dev port (5174 since
+| 2026-09-14, 5173 before that) — listing it
 | here made EnsureFrontendRequestsAreStateful treat every mobile request as
 | stateful/CSRF-protected regardless of the Authorization: Bearer header,
 | causing "CSRF token mismatch" (419) on every mutating mobile API call

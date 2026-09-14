@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Data;
 
+use App\Livewire\Data\Concerns\HandlesRecordVerification;
+use App\Models\StorageTankRecord;
 use App\Services\StorageTankRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Livewire\Attributes\Layout;
@@ -31,6 +33,8 @@ use Livewire\Component;
 #[Layout('data.storage-tank-detail')]
 class DetailStorageTank extends Component
 {
+    use HandlesRecordVerification;
+
     public string $id;
 
     public ?array $record = null;
@@ -42,10 +46,20 @@ class DetailStorageTank extends Component
         $this->id = $id;
 
         try {
-            $this->record = app(StorageTankRecordService::class)->getDetail($id);
+            $this->reloadRecord();
         } catch (ModelNotFoundException) {
             $this->notFound = true;
         }
+    }
+
+    protected function verificationModelClass(): string
+    {
+        return StorageTankRecord::class;
+    }
+
+    protected function reloadRecord(): void
+    {
+        $this->record = app(StorageTankRecordService::class)->getDetail($this->id);
     }
 
     public function render()

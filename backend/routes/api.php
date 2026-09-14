@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\DepricarpingRecordController;
 use App\Http\Controllers\Api\KernelPlantRecordController;
 use App\Http\Controllers\Api\ProcessWaterRecordController;
 use App\Http\Controllers\Api\ProductionLineController;
+use App\Http\Controllers\Api\RecordVerificationController;
 use App\Http\Controllers\Api\SolidWasteDisposalRecordController;
 use App\Http\Controllers\Api\StationController;
 use App\Http\Controllers\Api\StorageTankRecordController;
@@ -838,5 +839,15 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     ->post('/sterilizer-records', [SterilizerRecordController::class, 'store']);
 Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])
     ->patch('/sterilizer-records/{id}', [SterilizerRecordController::class, 'update']);
+
+// Direct approve/un-approve action shared by every station's Detail screen
+// (web) and Data Preview screen (mobile) — 2026-09-14 product decision.
+// ONE generic route for all 18 stations; {stationType} is resolved through
+// RecordVerificationService's explicit whitelist, never concatenated into a
+// class name. 'operator' is deliberately absent from the role list: an
+// Operator never verifies anything, so the guard rejects them before the
+// service's own role rule is even reached.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
+    ->patch('/records/{stationType}/{id}/verification', [RecordVerificationController::class, 'update']);
 
 // === ASDLC_ROUTES_END ===

@@ -68,6 +68,7 @@ import threshingRecordRepo, {
 import { THRESHING_OPERATIONAL_TARGETS } from '@/data/threshingOperationalTargets'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import FormField from '@/components/FormField.vue'
+import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -516,6 +517,13 @@ function goToMonitorThreshing(): void {
         </section>
       </div>
     </template>
+
+    <RecordVerificationActions
+      station-type="threshing"
+      local-table="threshing_record"
+      :record="detailRecord"
+      @updated="loadDetail(recordIdParam)"
+    />
 
     <footer class="action-footer">
       <div class="action-row">

@@ -12,12 +12,14 @@ import { query } from '@/services/localDb'
  *
  * 2026-09-04 — Engine Room and Storage Tank re-enabled per user request
  * (removed from this list); 6 remain hidden.
+ *
+ * 2026-09-11 — Effluent Plant and CPO Dispatch re-enabled per user request
+ * (removed from this list); 4 remain hidden.
+ *
+ * 2026-09-14 — Kernel Dispatch and Process Water re-enabled per user request
+ * (removed from this list); 2 remain hidden.
  */
 const HIDDEN_STATION_TYPES = [
-  'effluent-plant',
-  'cpo-dispatch',
-  'kernel-dispatch',
-  'process-water',
   'solid-waste-disposal',
   'process-quality-control',
 ] as const
@@ -134,10 +136,10 @@ function toStationSlot(row: StationRow): StationSlot {
  * Loads all station grid slots for the given business unit — the full set
  * of 18 synced rows, ALL 18 active real station types, 0 placeholders (as
  * of 2026-09-01 — Sterilizer was the last one promoted), per business_logic
- * step 1. 6 of the 18 (see `HIDDEN_STATION_TYPES` above) are filtered out
- * of the result entirely as of 2026-09-01, narrowed 2026-09-04 (product
- * decision to temporarily hide them from this grid) — they remain fully
- * active/functional, just not returned by this query.
+ * step 1. 2 of the 18 (see `HIDDEN_STATION_TYPES` above) are filtered out
+ * of the result entirely as of 2026-09-01, narrowed 2026-09-04, 2026-09-11
+ * and 2026-09-14 (product decision to temporarily hide them from this grid)
+ * — they remain fully active/functional, just not returned by this query.
  *
  * Ordered by a FIXED canonical grid order (uiux-spec ver 2,
  * screen_type_patterns[type=list].body_area — mobile "list" sub-pattern),

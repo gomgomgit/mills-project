@@ -69,6 +69,7 @@ import boilerRoomRecordRepo, {
 } from '@/services/boilerRoomRecordRepo'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import FormField from '@/components/FormField.vue'
+import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -506,6 +507,13 @@ function goToMonitorBoilerRoom(): void {
         </section>
       </div>
     </template>
+
+    <RecordVerificationActions
+      station-type="boiler-room"
+      local-table="boiler_room_record"
+      :record="detailRecord"
+      @updated="loadDetail(recordIdParam)"
+    />
 
     <footer class="action-footer">
       <div class="action-row">

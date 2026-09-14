@@ -30,6 +30,7 @@ import sterilizerRecordRepo, {
   type SterilizerRecord,
 } from '@/services/sterilizerRecordRepo'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
+import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -371,6 +372,13 @@ function goToMonitor() {
         </section>
       </div>
     </template>
+
+    <RecordVerificationActions
+      station-type="sterilizer"
+      local-table="sterilizer_record"
+      :record="detailRecord"
+      @updated="loadDetail(recordIdParam)"
+    />
 
     <footer class="action-footer">
       <button type="button" class="action-button action-button--secondary" data-testid="back-button" @click="onBack">

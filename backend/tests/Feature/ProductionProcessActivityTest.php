@@ -50,6 +50,15 @@
  * request (2 of the 8 tiles hidden 2026-09-01). 12 of 18 active tiles now
  * render; the remaining 6 (Effluent Plant, CPO Dispatch, Kernel Dispatch,
  * Process Water, Solid Waste Disposal, Process Quality Control) stay hidden.
+ *
+ * 2026-09-11 (re-enable) — Effluent Plant and CPO Dispatch re-enabled per
+ * user request. 14 of 18 active tiles now render; the remaining 4 (Kernel
+ * Dispatch, Process Water, Solid Waste Disposal, Process Quality Control)
+ * stay hidden.
+ *
+ * 2026-09-14 (re-enable) — Kernel Dispatch and Process Water re-enabled per
+ * user request. 16 of 18 active tiles now render; only Solid Waste Disposal
+ * and Process Quality Control stay hidden.
  */
 
 use App\Enums\UserRole;
@@ -63,7 +72,7 @@ beforeEach(function () {
 });
 
 // Scenario: "Pilih Stasiun (Web) — berhasil"
-it('berhasil: renders the 12 visible active station tiles linking to their Data Browser routes, all routed', function () {
+it('berhasil: renders the 16 visible active station tiles linking to their Data Browser routes, all routed', function () {
     $response = $this->actingAs($this->supervisor, 'web')->get('/production-process-activity');
 
     $response->assertOk();
@@ -79,6 +88,10 @@ it('berhasil: renders the 12 visible active station tiles linking to their Data 
     $response->assertSee(route('data.sterilizer'), false);
     $response->assertSee(route('data.storage-tank'), false);
     $response->assertSee(route('data.engine-room'), false);
+    $response->assertSee(route('data.effluent-plant'), false);
+    $response->assertSee(route('data.cpo-dispatch'), false);
+    $response->assertSee(route('data.kernel-dispatch'), false);
+    $response->assertSee(route('data.process-water'), false);
     $response->assertSee('Weighbridge');
     $response->assertSee('Grading');
     $response->assertSee('Cages Track');
@@ -91,6 +104,10 @@ it('berhasil: renders the 12 visible active station tiles linking to their Data 
     $response->assertSee('Sterilizer');
     $response->assertSee('Storage Tank');
     $response->assertSee('Engine Room');
+    $response->assertSee('Effluent Plant');
+    $response->assertSee('CPO Dispatch');
+    $response->assertSee('Kernel Dispatch');
+    $response->assertSee('Process Water');
     // No tile links to the javascript:void(0) placeholder any more — every
     // visible tile has a real route() href (see the assertions above).
     $response->assertDontSee('javascript:void(0)', false);
@@ -112,18 +129,15 @@ it('never leaks raw Blade comment delimiters or comment prose into the rendered 
 });
 
 // Scenario: 2026-09-01 (hide), narrowed 2026-09-04 (re-enable Engine Room/
-// Storage Tank) — 6 stations remain temporarily hidden from this grid per
-// product decision. They remain fully active/functional (own Data Browser
-// screens still resolve if visited directly, covered by their own screen
-// tests) — this only asserts they don't render HERE.
-it('does not render the 6 remaining temporarily-hidden station tiles on this grid', function () {
+// Storage Tank), 2026-09-11 (Effluent Plant/CPO Dispatch) and 2026-09-14
+// (Kernel Dispatch/Process Water) — 2 stations remain temporarily hidden from
+// this grid per product decision. They remain fully active/functional (own
+// Data Browser screens still resolve if visited directly, covered by their own
+// screen tests) — this only asserts they don't render HERE.
+it('does not render the 2 remaining temporarily-hidden station tiles on this grid', function () {
     $response = $this->actingAs($this->supervisor, 'web')->get('/production-process-activity');
 
     $response->assertOk();
-    $response->assertDontSee('Effluent Plant');
-    $response->assertDontSee('CPO Dispatch');
-    $response->assertDontSee('Kernel Dispatch');
-    $response->assertDontSee('Process Water');
     $response->assertDontSee('Solid Waste Disposal');
     $response->assertDontSee('Process Quality Control');
 });

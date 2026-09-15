@@ -89,6 +89,20 @@
                 </div>
             </div>
 
+            <div class="ms-form-field">
+                <label class="ms-checkbox">
+                    <input type="checkbox" wire:model="immediate_sync_enabled" data-testid="immediate-sync-toggle">
+                    Kirim data langsung ke server saat disimpan
+                </label>
+                <p class="ms-form-field__hint">
+                    Aktif: setiap data yang disimpan Operator di aplikasi mobile langsung dikirim ke server
+                    saat itu juga, tanpa menunggu tombol Sinkronisasi. Nonaktif: data menunggu sinkronisasi
+                    manual seperti sebelumnya. Aplikasi mobile tetap menyimpan ke database lokal pada kedua
+                    mode &mdash; saat tidak ada sinyal, data tetap aman tersimpan di perangkat dan terkirim
+                    pada sinkronisasi berikutnya.
+                </p>
+            </div>
+
             <div class="ms-form-actions">
                 <button type="submit" class="ms-button ms-button--primary" wire:loading.attr="disabled" wire:target="save">Simpan</button>
             </div>
@@ -289,6 +303,15 @@
             margin: 4px 0 0;
             font-size: 12px;
             color: var(--ms-text-muted);
+        }
+
+        .ms-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 44px;
+            font-size: 14px;
+            cursor: pointer;
         }
 
         .ms-image-field {

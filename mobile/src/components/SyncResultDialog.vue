@@ -28,16 +28,12 @@ const emit = defineEmits<{
   close: []
 }>()
 
+// `items` is already every station's results flattened (2026-09-14). This
+// used to spread seven named fields by hand, which silently excluded the
+// 11 stations that had no sync path — a failure there could never have
+// been listed here even once they did.
 function failedItems(summary: SyncSummary) {
-  return [
-    ...summary.weighbridge,
-    ...summary.grading,
-    ...summary.cagesTrack,
-    ...summary.threshing,
-    ...summary.pressing,
-    ...summary.depricarping,
-    ...summary.kernelPlant,
-  ].filter((item) => !item.ok)
+  return summary.items.filter((item) => !item.ok)
 }
 </script>
 

@@ -105,6 +105,7 @@ import weighbridgeRecordRepo, { type WeighbridgeRecord } from '@/services/weighb
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import FormField from '@/components/FormField.vue'
 import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
+import RecordVerificationStatus from '@/components/RecordVerificationStatus.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -564,8 +565,18 @@ function goToMonitorWeighbridge(): void {
         <FormField :model-value="detailRecord.tare_weight" label="Berat Kosong (Tare Weight)" type="number" disabled />
         <FormField :model-value="detailRecord.net_weight" label="Berat Bersih (Net Weight)" type="number" disabled />
         <FormField :model-value="detailRecord.quantity" label="Kuantitas (tandan)" type="number" disabled />
-        <FormField :model-value="detailRecord.checked_by" label="Checked By" disabled />
-        <FormField :model-value="detailRecord.acknowledged_by" label="Acknowledged By" disabled />
+        <RecordVerificationStatus
+          label="Checked By"
+          :verifier-id="detailRecord.checked_by"
+          :verifier-name="detailRecord.checked_by_name"
+          pending-label="Belum diperiksa Supervisor"
+        />
+        <RecordVerificationStatus
+          label="Acknowledged By"
+          :verifier-id="detailRecord.acknowledged_by"
+          :verifier-name="detailRecord.acknowledged_by_name"
+          pending-label="Belum dikonfirmasi Mill Management"
+        />
       </div>
     </template>
 

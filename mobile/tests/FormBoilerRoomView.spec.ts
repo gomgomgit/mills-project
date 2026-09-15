@@ -449,17 +449,17 @@ describe('FormBoilerRoomView', () => {
     expect(pushMock).toHaveBeenCalledWith({ name: 'monitor-boiler-room' })
   })
 
-  it('disables Checked By for a non-supervisor user and enables it for a supervisor', async () => {
+  it('hides Checked By from a non-supervisor user (2026-09-14)', async () => {
     const wrapper = mount(FormBoilerRoomView)
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="checked-by-toggle"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="checked-by-toggle"]').exists()).toBe(false)
   })
 
-  it('disables Acknowledged By for a non-mill_management user', async () => {
+  it('hides Acknowledged By from a non-mill_management user (2026-09-14)', async () => {
     const wrapper = mount(FormBoilerRoomView)
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="acknowledged-by-toggle"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="acknowledged-by-toggle"]').exists()).toBe(false)
   })
 })

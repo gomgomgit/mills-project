@@ -33,11 +33,13 @@ class MillSetting extends Model
         'app_name',
         'logo',
         'home_page_image',
+        'immediate_sync_enabled',
         'created_by',
         'updated_by',
     ];
 
     protected $casts = [
+        'immediate_sync_enabled' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

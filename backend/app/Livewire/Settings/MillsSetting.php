@@ -49,6 +49,15 @@ class MillsSetting extends Component
     public string $app_name = '';
 
     /**
+     * Write-through saving for the mobile app (2026-09-14). When on, a
+     * successful save on a mobile device also pushes that record to the
+     * server immediately instead of waiting for the operator to tap
+     * "Sinkronisasi". The device keeps using its local database either
+     * way — this does not turn offline support off.
+     */
+    public bool $immediate_sync_enabled = false;
+
+    /**
      * Newly selected (not yet saved) uploads — Livewire
      * TemporaryUploadedFile, previewed via ->temporaryUrl(). Null means
      * "no new file chosen"; on save() a null value leaves the existing
@@ -138,6 +147,7 @@ class MillsSetting extends Component
         }
 
         $this->app_name = $millSetting['app_name'];
+        $this->immediate_sync_enabled = (bool) ($millSetting['immediate_sync_enabled'] ?? false);
         $this->existingLogoUrl = $millSetting['logo'];
         $this->existingHomePageImageUrl = $millSetting['home_page_image'];
         $this->logo = null;
@@ -147,6 +157,7 @@ class MillsSetting extends Component
     protected function resetForm(): void
     {
         $this->app_name = '';
+        $this->immediate_sync_enabled = false;
         $this->existingLogoUrl = null;
         $this->existingHomePageImageUrl = null;
         $this->logo = null;
@@ -169,6 +180,7 @@ class MillsSetting extends Component
             'app_name' => ['nullable', 'string', 'max:255'],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
             'home_page_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'immediate_sync_enabled' => ['boolean'],
         ], [
             'logo.mimes' => 'Logo harus berformat JPG atau PNG.',
             'logo.max' => 'Ukuran logo maksimal 2MB.',
@@ -184,6 +196,7 @@ class MillsSetting extends Component
                 $this->selectedBusinessUnitId,
                 [
                     'app_name' => $this->app_name,
+                    'immediate_sync_enabled' => $this->immediate_sync_enabled,
                 ],
                 $this->logo,
                 $this->home_page_image,

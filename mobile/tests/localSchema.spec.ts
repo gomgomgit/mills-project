@@ -150,6 +150,9 @@ describe('localSchema — initLocalSchema() weighbridge_record v5 migration', ()
       { name: 'record_datetime' },
       { name: 'destination' },
       { name: 'server_id' },
+      // added 2026-09-14 by migrateRecordTablesForVerifierNames()
+      { name: 'checked_by_name' },
+      { name: 'acknowledged_by_name' },
     ] as never)
 
     await initLocalSchema()
@@ -218,6 +221,9 @@ describe('localSchema — initLocalSchema() grading_record/grading_detail v2 mig
       { name: 'quantity' },
       { name: 'note' },
       { name: 'server_id' },
+      // added 2026-09-14 by migrateRecordTablesForVerifierNames()
+      { name: 'checked_by_name' },
+      { name: 'acknowledged_by_name' },
     ] as never)
 
     await initLocalSchema()
@@ -284,6 +290,9 @@ describe('localSchema — initLocalSchema() cages_track_record/cages_tipped_time
       { name: 'cages_tipped' },
       { name: 'note' },
       { name: 'server_id' },
+      // added 2026-09-14 by migrateRecordTablesForVerifierNames()
+      { name: 'checked_by_name' },
+      { name: 'acknowledged_by_name' },
     ] as never)
 
     await initLocalSchema()

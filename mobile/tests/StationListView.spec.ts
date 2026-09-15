@@ -778,14 +778,11 @@ describe('StationListView — draft-status-by-type detection', () => {
       expect(button.text()).toContain('Menyinkronkan')
       expect(wrapper.find('[data-testid="sync-dialog-message"]').exists()).toBe(false)
 
+      // SyncSummary became { byStation, items, … } on 2026-09-14 so it could
+      // cover all 18 stations instead of a named field per station.
       resolveSync({
-        weighbridge: [],
-        grading: [],
-        cagesTrack: [],
-        threshing: [],
-        pressing: [],
-        depricarping: [],
-        kernelPlant: [],
+        byStation: {},
+        items: [],
         syncedCount: 3,
         failedCount: 0,
       })
@@ -802,13 +799,10 @@ describe('StationListView — draft-status-by-type detection', () => {
     it('shows a combined success/failure summary with per-item reasons in the popup', async () => {
       getActiveAndPlaceholderStationsMock.mockResolvedValue([])
       syncAllRecordsMock.mockResolvedValue({
-        weighbridge: [{ id: 'wb-1', label: 'WB-001', ok: false, reason: 'Gagal terhubung ke server.' }],
-        grading: [],
-        cagesTrack: [],
-        threshing: [],
-        pressing: [],
-        depricarping: [],
-        kernelPlant: [],
+        byStation: {
+          weighbridge: [{ id: 'wb-1', label: 'WB-001', ok: false, reason: 'Gagal terhubung ke server.' }],
+        },
+        items: [{ id: 'wb-1', label: 'WB-001', ok: false, reason: 'Gagal terhubung ke server.' }],
         syncedCount: 2,
         failedCount: 1,
       })

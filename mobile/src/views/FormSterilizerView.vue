@@ -48,6 +48,7 @@ import sterilizerRecordRepo, {
 } from '@/services/sterilizerRecordRepo'
 import FormField from '@/components/FormField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
+import { syncAfterSave } from '@/services/writeThroughSync'
 
 const route = useRoute()
 const router = useRouter()
@@ -269,6 +270,11 @@ async function onSimpan(): Promise<void> {
       pendingDeletionIds.value,
       authStore.currentUser?.role ?? null,
     )
+    // Write-through saving (2026-09-14): push straight to the server
+    // when this mill has it enabled. Silent by design — the record is
+    // already saved locally, so a failure here just means it waits for
+    // the next manual sync.
+    await syncAfterSave('sterilizer_record', recordId)
     router.push({ name: 'monitor-sterilizer' })
   } catch (err) {
     if (err instanceof SterilizerDetailRequiredError) {

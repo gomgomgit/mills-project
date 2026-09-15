@@ -118,6 +118,8 @@ const CREATE_WEIGHBRIDGE_RECORD = `
     quantity REAL,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -149,6 +151,8 @@ const CREATE_GRADING_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -222,6 +226,8 @@ const CREATE_CAGES_TRACK_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -305,6 +311,7 @@ const CREATE_MILL_SETTING = `
     logo TEXT,
     home_page_image TEXT,
     jumlah_cages INTEGER,
+    immediate_sync_enabled INTEGER NOT NULL DEFAULT 0,
     created_at TEXT,
     updated_at TEXT
   )
@@ -328,6 +335,8 @@ const CREATE_THRESHING_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -379,6 +388,8 @@ const CREATE_PRESSING_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -428,6 +439,8 @@ const CREATE_DEPRICARPING_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -486,6 +499,8 @@ const CREATE_KERNEL_PLANT_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -541,6 +556,8 @@ const CREATE_SOLID_WASTE_DISPOSAL_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -599,6 +616,8 @@ const CREATE_PROCESS_WATER_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -655,6 +674,8 @@ const CREATE_KERNEL_DISPATCH_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -719,6 +740,8 @@ const CREATE_CPO_DISPATCH_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -781,6 +804,8 @@ const CREATE_EFFLUENT_PLANT_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -846,6 +871,8 @@ const CREATE_STORAGE_TANK_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -902,6 +929,8 @@ const CREATE_ENGINE_ROOM_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -972,6 +1001,8 @@ const CREATE_BOILER_ROOM_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -1029,6 +1060,8 @@ const CREATE_CLARIFICATION_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -1075,6 +1108,8 @@ const CREATE_PROCESS_QUALITY_CONTROL_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -1140,6 +1175,8 @@ const CREATE_STERILIZER_RECORD = `
     note TEXT,
     checked_by TEXT,
     acknowledged_by TEXT,
+    checked_by_name TEXT,
+    acknowledged_by_name TEXT,
     status TEXT NOT NULL DEFAULT 'draft_ongoing',
     server_id TEXT,
     created_by TEXT NOT NULL,
@@ -1254,6 +1291,8 @@ export async function initLocalSchema(): Promise<void> {
   await migrateStationTableToV9()
   await migrateStationTableForMachineryCount()
   await migrateRecordTablesForSync()
+  await migrateRecordTablesForVerifierNames()
+  await migrateMillSettingForImmediateSync()
   await dedupeStationRows()
 }
 
@@ -1429,6 +1468,60 @@ async function migrateStationTableForMachineryCount(): Promise<void> {
  * every prior migration in this file — required for any device/browser
  * whose these 3 tables pre-date this change.
  */
+/**
+ * Verification display names (2026-09-14) — Data Preview used to render the
+ * raw `checked_by` / `acknowledged_by` UUID straight into a "Checked By"
+ * field, which is meaningless to a user. There is no local `user` table to
+ * resolve an id against offline, so the NAME is stored alongside the id
+ * whenever this device learns it (the verification API returns it; a user
+ * verifying themselves is resolved from the auth store instead).
+ *
+ * A record verified by someone else on the web still arrives here with no
+ * name — nothing pulls server-side changes down — so the UI falls back to
+ * "sudah diverifikasi" without a name rather than inventing one.
+ *
+ * Same "CREATE TABLE IF NOT EXISTS is a no-op on an existing table" gap
+ * this repeats from every prior migration in this file.
+ */
+const VERIFIER_NAME_COLUMNS = [
+  { name: 'checked_by_name', type: 'TEXT' },
+  { name: 'acknowledged_by_name', type: 'TEXT' },
+]
+
+/**
+ * Write-through saving flag (2026-09-14), cached from
+ * GET /api/mill-settings/current so a save can decide whether to push
+ * immediately without a network round-trip first. 0 = wait for the manual
+ * Sinkronisasi button, which is the pre-existing behaviour and the default
+ * for every mill that has not opted in.
+ */
+async function migrateMillSettingForImmediateSync(): Promise<void> {
+  await addMissingColumns('mill_setting', [
+    { name: 'immediate_sync_enabled', type: 'INTEGER NOT NULL DEFAULT 0' },
+  ])
+}
+
+async function migrateRecordTablesForVerifierNames(): Promise<void> {
+  await addMissingColumns('weighbridge_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('grading_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('cages_track_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('threshing_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('pressing_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('depricarping_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('kernel_plant_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('solid_waste_disposal_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('process_water_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('kernel_dispatch_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('cpo_dispatch_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('effluent_plant_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('storage_tank_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('engine_room_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('boiler_room_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('clarification_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('process_quality_control_record', VERIFIER_NAME_COLUMNS)
+  await addMissingColumns('sterilizer_record', VERIFIER_NAME_COLUMNS)
+}
+
 async function migrateRecordTablesForSync(): Promise<void> {
   await addMissingColumns('weighbridge_record', [{ name: 'server_id', type: 'TEXT' }])
   await addMissingColumns('grading_record', [{ name: 'server_id', type: 'TEXT' }])
@@ -1605,18 +1698,20 @@ export async function fetchAndCacheMillSetting(businessUnitId: string): Promise<
     logo?: string | null
     home_page_image?: string | null
     jumlah_cages?: number | null
+    immediate_sync_enabled?: boolean
   }
 
   const now = new Date().toISOString()
 
   await run(
-    `INSERT INTO mill_setting (id, business_unit_id, app_name, logo, home_page_image, jumlah_cages, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO mill_setting (id, business_unit_id, app_name, logo, home_page_image, jumlah_cages, immediate_sync_enabled, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(business_unit_id) DO UPDATE SET
        app_name = excluded.app_name,
        logo = excluded.logo,
        home_page_image = excluded.home_page_image,
        jumlah_cages = excluded.jumlah_cages,
+       immediate_sync_enabled = excluded.immediate_sync_enabled,
        updated_at = excluded.updated_at`,
     [
       `mill-setting-${businessUnitId}`,
@@ -1625,6 +1720,7 @@ export async function fetchAndCacheMillSetting(businessUnitId: string): Promise<
       data.logo ?? null,
       data.home_page_image ?? null,
       data.jumlah_cages ?? null,
+      data.immediate_sync_enabled ? 1 : 0,
       now,
       now,
     ],

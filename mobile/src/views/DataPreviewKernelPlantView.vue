@@ -72,6 +72,7 @@ import { KERNEL_PLANT_OPERATIONAL_TARGETS } from '@/data/kernelPlantOperationalT
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import FormField from '@/components/FormField.vue'
 import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
+import RecordVerificationStatus from '@/components/RecordVerificationStatus.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -473,8 +474,18 @@ function goToMonitorKernelPlant(): void {
         <FormField :model-value="detailRecord.kernel_plant_id" label="Kernel Plant ID" disabled />
         <FormField :model-value="detailRecord.date" label="Tanggal" type="datetime-local" disabled />
         <FormField :model-value="inputtedByDisplay" label="Inputted By" disabled />
-        <FormField :model-value="detailRecord.checked_by" label="Checked By" disabled />
-        <FormField :model-value="detailRecord.acknowledged_by" label="Acknowledged By" disabled />
+        <RecordVerificationStatus
+          label="Checked By"
+          :verifier-id="detailRecord.checked_by"
+          :verifier-name="detailRecord.checked_by_name"
+          pending-label="Belum diperiksa Supervisor"
+        />
+        <RecordVerificationStatus
+          label="Acknowledged By"
+          :verifier-id="detailRecord.acknowledged_by"
+          :verifier-name="detailRecord.acknowledged_by_name"
+          pending-label="Belum dikonfirmasi Mill Management"
+        />
         <FormField :model-value="detailRecord.note" label="Catatan" disabled />
 
         <section class="detail-rows-section" aria-label="Kernel Plant Detail">

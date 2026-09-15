@@ -64,17 +64,12 @@ describe('syncService — syncAllRecords()', () => {
 
     const summary = await syncAllRecords(PRODUCTION_LINE_ID)
 
-    expect(summary).toEqual({
-      weighbridge: [],
-      grading: [],
-      cagesTrack: [],
-      threshing: [],
-      pressing: [],
-      depricarping: [],
-      kernelPlant: [],
-      syncedCount: 0,
-      failedCount: 0,
-    })
+    // byStation now carries all 18 stations (2026-09-14), so assert the
+    // outcome rather than pinning an exhaustive station list here.
+    expect(summary.items).toEqual([])
+    expect(summary.syncedCount).toBe(0)
+    expect(summary.failedCount).toBe(0)
+    expect(Object.keys(summary.byStation)).toHaveLength(18)
     expect(apiClient.post).not.toHaveBeenCalled()
   })
 
@@ -124,7 +119,7 @@ describe('syncService — syncAllRecords()', () => {
       `UPDATE weighbridge_record SET status = 'synced', server_id = ? WHERE id = ?`,
       ['server-wb-1', 'local-wb-1'],
     )
-    expect(summary.weighbridge).toEqual([{ id: 'local-wb-1', label: 'WB-001', ok: true }])
+    expect(summary.byStation.weighbridge).toEqual([{ id: 'local-wb-1', label: 'WB-001', ok: true }])
     expect(summary.syncedCount).toBe(1)
     expect(summary.failedCount).toBe(0)
   })
@@ -140,7 +135,7 @@ describe('syncService — syncAllRecords()', () => {
 
     const summary = await syncAllRecords(PRODUCTION_LINE_ID)
 
-    expect(summary.weighbridge).toEqual([
+    expect(summary.byStation.weighbridge).toEqual([
       { id: 'local-wb-1', label: 'WB-001', ok: false, reason: 'WB Card Number wajib diisi.' },
     ])
     expect(summary.failedCount).toBe(1)
@@ -195,7 +190,7 @@ describe('syncService — syncAllRecords()', () => {
         details: [{ grading_parameter_id: 'param-1', quantity: 100 }],
       }),
     )
-    expect(summary.grading).toEqual([{ id: 'local-gr-1', label: 'GR-001', ok: true }])
+    expect(summary.byStation.grading).toEqual([{ id: 'local-gr-1', label: 'GR-001', ok: true }])
   })
 
   it('fails a Grading record without POSTing when its parent Weighbridge record has not been synced', async () => {
@@ -214,7 +209,7 @@ describe('syncService — syncAllRecords()', () => {
 
     const summary = await syncAllRecords(PRODUCTION_LINE_ID)
 
-    expect(summary.grading).toEqual([
+    expect(summary.byStation.grading).toEqual([
       {
         id: 'local-gr-1',
         label: 'GR-001',
@@ -301,7 +296,7 @@ describe('syncService — syncAllRecords()', () => {
       `UPDATE threshing_record SET status = 'synced', server_id = ? WHERE id = ?`,
       ['server-th-1', 'local-th-1'],
     )
-    expect(summary.threshing).toEqual([{ id: 'local-th-1', label: 'TH-001', ok: true }])
+    expect(summary.byStation.threshing).toEqual([{ id: 'local-th-1', label: 'TH-001', ok: true }])
   })
 
   it('syncs a saved Pressing record with its detail rows, then marks it synced with the server id', async () => {
@@ -339,7 +334,7 @@ describe('syncService — syncAllRecords()', () => {
       `UPDATE pressing_record SET status = 'synced', server_id = ? WHERE id = ?`,
       ['server-pr-1', 'local-pr-1'],
     )
-    expect(summary.pressing).toEqual([{ id: 'local-pr-1', label: 'PR-001', ok: true }])
+    expect(summary.byStation.pressing).toEqual([{ id: 'local-pr-1', label: 'PR-001', ok: true }])
   })
 
   it('syncs a saved Depricarping record with its detail rows (downtime_minutes/findings), then marks it synced', async () => {
@@ -377,7 +372,7 @@ describe('syncService — syncAllRecords()', () => {
       `UPDATE depricarping_record SET status = 'synced', server_id = ? WHERE id = ?`,
       ['server-dp-1', 'local-dp-1'],
     )
-    expect(summary.depricarping).toEqual([{ id: 'local-dp-1', label: 'DP-001', ok: true }])
+    expect(summary.byStation.depricarping).toEqual([{ id: 'local-dp-1', label: 'DP-001', ok: true }])
   })
 
   it('syncs a saved Kernel Plant record with its detail rows, then marks it synced with the server id', async () => {
@@ -414,7 +409,7 @@ describe('syncService — syncAllRecords()', () => {
       `UPDATE kernel_plant_record SET status = 'synced', server_id = ? WHERE id = ?`,
       ['server-kp-1', 'local-kp-1'],
     )
-    expect(summary.kernelPlant).toEqual([{ id: 'local-kp-1', label: 'KP-001', ok: true }])
+    expect(summary.byStation.kernelPlant).toEqual([{ id: 'local-kp-1', label: 'KP-001', ok: true }])
   })
 
   it('reports a failed Pressing record with the API error message, and does not update local status', async () => {
@@ -428,7 +423,7 @@ describe('syncService — syncAllRecords()', () => {
 
     const summary = await syncAllRecords(PRODUCTION_LINE_ID)
 
-    expect(summary.pressing).toEqual([
+    expect(summary.byStation.pressing).toEqual([
       { id: 'local-pr-1', label: 'PR-001', ok: false, reason: 'Presser ID wajib diisi.' },
     ])
     expect(summary.failedCount).toBe(1)

@@ -524,14 +524,14 @@ describe('FormCagesTrackView', () => {
   })
 
   // 8
-  it('disables the Checked By toggle for a non-supervisor user', async () => {
+  it('hides the Checked By toggle from a non-supervisor user (2026-09-14)', async () => {
     setCurrentUser('operator')
     getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
 
     const wrapper = mount(FormCagesTrackView)
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="checked-by-toggle"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="checked-by-toggle"]').exists()).toBe(false)
   })
 
   it('enables the Checked By toggle for a supervisor user and sets checked_by to the current user id when checked', async () => {
@@ -549,14 +549,14 @@ describe('FormCagesTrackView', () => {
   })
 
   // 9
-  it('disables the Acknowledged By toggle for a non-mill_management user (supervisor)', async () => {
+  it('hides the Acknowledged By toggle from a non-mill_management user (2026-09-14)', async () => {
     setCurrentUser('supervisor')
     getDraftWithTippedTimesMock.mockResolvedValueOnce({ record: makeDraftRecord(), tippedTimes: [] })
 
     const wrapper = mount(FormCagesTrackView)
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="acknowledged-by-toggle"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="acknowledged-by-toggle"]').exists()).toBe(false)
   })
 
   it('enables the Acknowledged By toggle for a mill_management user', async () => {

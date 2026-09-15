@@ -31,6 +31,7 @@ import sterilizerRecordRepo, {
 } from '@/services/sterilizerRecordRepo'
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
+import RecordVerificationStatus from '@/components/RecordVerificationStatus.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -366,8 +367,18 @@ function goToMonitor() {
         <section class="detail-section">
           <h2 class="section-title">Verifikasi</h2>
           <p><strong>Inputted By:</strong> {{ inputtedByDisplay }}</p>
-          <p><strong>Checked By:</strong> {{ detailRecord.checked_by || '-' }}</p>
-          <p><strong>Acknowledged By:</strong> {{ detailRecord.acknowledged_by || '-' }}</p>
+          <RecordVerificationStatus
+          label="Checked By"
+          :verifier-id="detailRecord.checked_by"
+          :verifier-name="detailRecord.checked_by_name"
+          pending-label="Belum diperiksa Supervisor"
+        />
+          <RecordVerificationStatus
+          label="Acknowledged By"
+          :verifier-id="detailRecord.acknowledged_by"
+          :verifier-name="detailRecord.acknowledged_by_name"
+          pending-label="Belum dikonfirmasi Mill Management"
+        />
           <p><strong>Note:</strong> {{ detailRecord.note || '-' }}</p>
         </section>
       </div>

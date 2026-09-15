@@ -26,9 +26,13 @@
  *
  *  - "Verifikasi" section: "Inputted By" is a plain read-only display of
  *    authStore.currentUser?.name. "Saya verifikasi data ini" (Checked By)
- *    is a checkbox toggle, interactive ONLY for supervisor. "Saya
- *    menyetujui data ini" (Acknowledged By) is the same toggle pattern,
- *    interactive ONLY for mill_management. Both re-enforced at the repo
+ *    is a checkbox toggle shown ONLY to supervisor. "Saya menyetujui data
+ *    ini" (Acknowledged By) is the same toggle pattern, shown ONLY to
+ *    mill_management. UPDATED 2026-09-14: both were previously
+ *    rendered-but-disabled for every other role, which put two permanently
+ *    dead checkboxes in front of the Operator doing the data entry; they
+ *    are now hidden outright for roles that cannot write them, and the
+ *    saved state is shown on Data Preview instead. Both re-enforced at the repo
  *    level (processQualityControlRecordRepo.ts's saveDraft()/
  *    pauseDraftWithFormData() role-stripping) as defense-in-depth. `note`
  *    (optional free text) also lives in this section.
@@ -100,6 +104,7 @@ import processQualityControlRecordRepo, {
 import FormField from '@/components/FormField.vue'
 import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import SearchableSelect, { type SearchableSelectOption } from '@/components/SearchableSelect.vue'
+import { syncAfterSave } from '@/services/writeThroughSync'
 
 const route = useRoute()
 const router = useRouter()
@@ -465,6 +470,11 @@ async function onSimpan(): Promise<void> {
       [...pendingDeletionIds.value],
       authStore.currentUser?.role,
     )
+    // Write-through saving (2026-09-14): push straight to the server
+    // when this mill has it enabled. Silent by design — the record is
+    // already saved locally, so a failure here just means it waits for
+    // the next manual sync.
+    await syncAfterSave('process_quality_control_record', recordId)
     router.push({ name: 'monitor-process-quality-control' })
   } catch (err) {
     if (err instanceof ProcessQualityControlDetailRequiredError) {
@@ -711,25 +721,25 @@ function goToMonitorProcessQualityControl(): void {
           <p class="readonly-display" data-testid="inputted-by-display">{{ authStore.currentUser?.name ?? '-' }}</p>
         </div>
 
-        <div class="verify-toggle">
+        <div v-if="isSupervisor" class="verify-toggle">
           <input
             id="checked-by-toggle"
             type="checkbox"
             data-testid="checked-by-toggle"
             :checked="Boolean(form.checked_by)"
-            :disabled="!isSupervisor || actionInProgress"
+            :disabled="actionInProgress"
             @change="toggleCheckedByMe"
           />
           <label for="checked-by-toggle">Saya verifikasi data ini (Checked By)</label>
         </div>
 
-        <div class="verify-toggle">
+        <div v-if="isMillManagement" class="verify-toggle">
           <input
             id="acknowledged-by-toggle"
             type="checkbox"
             data-testid="acknowledged-by-toggle"
             :checked="Boolean(form.acknowledged_by)"
-            :disabled="!isMillManagement || actionInProgress"
+            :disabled="actionInProgress"
             @change="toggleAcknowledgedByMe"
           />
           <label for="acknowledged-by-toggle">Saya menyetujui data ini (Acknowledged By)</label>

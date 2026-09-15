@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-09-14"
   },
   "actors": [
     {
@@ -20,14 +20,14 @@
     {
       "id": "actor-mill-management",
       "name": "Mill Management",
-      "description": "Mereview data operasional, mengakses dashboard dan laporan level manajemen, mengekspor data, input data stasiun dari web, mengisi field Acknowledged By, dan mengatur Mills Setting untuk mill (business unit) miliknya.",
-      "permissions": "Review, dashboard, laporan manajemen, ekspor data; input data stasiun (web); isi Acknowledged By; kelola Mills Setting (mill sendiri)"
+      "description": "Mereview data operasional, mengakses dashboard dan laporan level manajemen, mengekspor data, input data stasiun dari web DAN mobile, mengisi field Acknowledged By, dan mengatur Mills Setting untuk mill (business unit) miliknya. Akses mobile ditetapkan sebagai keputusan produk 2026-09-14 — sebelumnya actor ini didokumentasikan sebagai web-only, padahal AuthService tidak pernah membatasi login mobile per role, sehingga Mill Management sudah bisa masuk sejak awal tanpa disengaja; keputusan ini menjadikannya disengaja dan dikunci oleh test (tests/Feature/Api/LoginMobileTest.php).",
+      "permissions": "Review, dashboard, laporan manajemen, ekspor data; input data stasiun (web & mobile); isi Acknowledged By (web & mobile); kelola Mills Setting (mill sendiri)"
     },
     {
       "id": "actor-admin",
       "name": "Admin",
-      "description": "Mengelola user & role, master data operasional (Corporate/Company/Business Unit/Station/Machinery), Mills Setting untuk seluruh mill, serta dapat input/edit data form stasiun dari web.",
-      "permissions": "Full access — kelola user/role, master data, Mills Setting (semua mill), setup stasiun & mesin, input/edit data stasiun (web)"
+      "description": "Mengelola user & role, master data operasional (Corporate/Company/Business Unit/Station/Machinery), Mills Setting untuk seluruh mill, serta dapat input/edit data form stasiun dari web. Secara teknis juga dapat login ke mobile (AuthService tidak membatasi role, dan Admin tidak terikat satu business unit) — bukan alur kerja yang dirancang untuk actor ini, tapi tidak diblokir.",
+      "permissions": "Full access — kelola user/role, master data, Mills Setting (semua mill), setup stasiun & mesin, input/edit data stasiun (web); isi Checked By & Acknowledged By (keputusan 2026-09-14)"
     }
   ]
 }

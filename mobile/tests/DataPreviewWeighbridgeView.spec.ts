@@ -145,8 +145,10 @@ function makeRecord(overrides: Partial<WeighbridgeRecord> & { id: string }): Wei
     tare_weight: 5000,
     net_weight: 10000,
     quantity: 1,
-    checked_by: 'Supervisor Satu',
-    acknowledged_by: 'Mill Manager',
+    checked_by: 'user-spv',
+    checked_by_name: 'Supervisor Satu',
+    acknowledged_by: 'user-mm',
+    acknowledged_by_name: 'Mill Manager',
     status: 'saved',
     created_by: 'user-1',
     created_at: '2026-08-17T07:00:00.000Z',
@@ -494,8 +496,6 @@ describe('DataPreviewWeighbridgeView', () => {
       ['#field-berat-kosong-tare-weight', '5000'],
       ['#field-berat-bersih-net-weight', '10000'],
       ['#field-kuantitas-tandan', '1'],
-      ['#field-checked-by', 'Supervisor Satu'],
-      ['#field-acknowledged-by', 'Mill Manager'],
     ]
 
     for (const [selector, expectedValue] of fieldChecks) {
@@ -504,6 +504,11 @@ describe('DataPreviewWeighbridgeView', () => {
       expect((field.element as HTMLInputElement).value).toBe(expectedValue)
       expect(field.attributes('disabled')).toBeDefined()
     }
+
+    // Verification is no longer a disabled <input> holding a uuid — it is
+    // RecordVerificationStatus, which resolves a name (2026-09-14).
+    expect(wrapper.text()).toContain('Oleh Supervisor Satu')
+    expect(wrapper.text()).toContain('Oleh Mill Manager')
 
     // 'Tanggal & Waktu Dispatch' and 'Tujuan Muatan' are receive-only
     // absent: neither field is rendered for a receive-type record.

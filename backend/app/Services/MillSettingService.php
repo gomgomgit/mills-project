@@ -137,12 +137,14 @@ class MillSettingService
             'app_name' => array_key_exists('app_name', $data) ? trim((string) $data['app_name']) : null,
             'logo' => $logo,
             'home_page_image' => $homePageImage,
+            'immediate_sync_enabled' => $data['immediate_sync_enabled'] ?? null,
         ];
 
         Validator::make($payload, [
             'app_name' => ['nullable', 'string', 'max:255'],
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
             'home_page_image' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'immediate_sync_enabled' => ['nullable', 'boolean'],
         ], [
             'app_name.max' => 'Nama aplikasi maksimal 255 karakter.',
             'logo.file' => 'Logo harus berupa file.',
@@ -167,6 +169,13 @@ class MillSettingService
 
         if ($homePageImage !== null) {
             $attributes['home_page_image'] = $this->storeFile($homePageImage, self::HOME_IMAGE_DIRECTORY);
+        }
+
+        // Absent key = leave the current value alone (same contract as the
+        // fields above), so a caller that only uploads a logo cannot
+        // silently switch a mill's sync mode off.
+        if (array_key_exists('immediate_sync_enabled', $data) && $data['immediate_sync_enabled'] !== null) {
+            $attributes['immediate_sync_enabled'] = filter_var($data['immediate_sync_enabled'], FILTER_VALIDATE_BOOLEAN);
         }
 
         $attributes['updated_by'] = $user->id;
@@ -346,6 +355,11 @@ class MillSettingService
             'home_page_image' => $millSetting->home_page_image
                 ? Storage::disk(self::LOGO_DISK)->url($millSetting->home_page_image)
                 : null,
+            // Read by the mobile app on every online mill-setting fetch to
+            // decide whether a local save should also push to the server
+            // straight away (2026-09-14). Always present, never null, so a
+            // client never has to guess a default.
+            'immediate_sync_enabled' => (bool) $millSetting->immediate_sync_enabled,
             'created_at' => optional($millSetting->created_at)->toIso8601String(),
         ];
     }

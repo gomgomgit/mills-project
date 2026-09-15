@@ -72,7 +72,7 @@ class MillSettingController extends Controller
         $millSetting = $this->service->update(
             $request->user(),
             $businessUnitId,
-            $request->only(['app_name']),
+            $request->only(['app_name', 'immediate_sync_enabled']),
             $request->file('logo'),
             $request->file('home_page_image'),
         );

@@ -20,6 +20,8 @@ export interface MillSetting {
   logo: string | null
   homePageImage: string | null
   jumlahCages: number | null
+  /** Write-through saving: push each save to the server right away (2026-09-14). */
+  immediateSyncEnabled: boolean
 }
 
 interface MillSettingRow {
@@ -29,6 +31,7 @@ interface MillSettingRow {
   logo: string | null
   home_page_image: string | null
   jumlah_cages: number | null
+  immediate_sync_enabled: number | boolean | null
 }
 
 function toMillSetting(row: MillSettingRow): MillSetting {
@@ -39,6 +42,8 @@ function toMillSetting(row: MillSettingRow): MillSetting {
     logo: row.logo,
     homePageImage: row.home_page_image,
     jumlahCages: row.jumlah_cages,
+    // SQLite stores this as INTEGER 0/1; a mocked row may use a real boolean.
+    immediateSyncEnabled: Boolean(row.immediate_sync_enabled),
   }
 }
 

@@ -274,3 +274,45 @@ it('current: rejects unauthenticated requests', function () {
 
     $response->assertStatus(401);
 });
+
+// Write-through saving toggle (2026-09-14). The mobile app reads this on
+// every online mill-setting fetch to decide whether a local save should
+// also push to the server immediately — so the field must always be
+// present and boolean, never absent or null, or the client would have to
+// guess a default.
+it('always exposes immediate_sync_enabled on the current mill setting, defaulting to false', function () {
+    Sanctum::actingAs($this->operator);
+
+    $response = $this->getJson('/api/mill-settings/current');
+
+    $response->assertOk();
+    $response->assertJsonPath('immediate_sync_enabled', false);
+});
+
+it('reflects the toggle once a mill turns it on', function () {
+    MillSetting::factory()->create([
+        'business_unit_id' => $this->businessUnit->id,
+        'immediate_sync_enabled' => true,
+    ]);
+
+    Sanctum::actingAs($this->operator);
+
+    $this->getJson('/api/mill-settings/current')
+        ->assertOk()
+        ->assertJsonPath('immediate_sync_enabled', true);
+});
+
+it('updates the toggle through the API', function () {
+    $this->actingAs($this->admin, 'web')->patchJson("/api/mill-settings/{$this->businessUnit->id}", [
+        'immediate_sync_enabled' => true,
+    ])->assertOk()->assertJsonPath('immediate_sync_enabled', true);
+
+    expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->firstOrFail()->immediate_sync_enabled)
+        ->toBeTrue();
+});
+
+it('rejects a non-boolean toggle value', function () {
+    $this->actingAs($this->admin, 'web')->patchJson("/api/mill-settings/{$this->businessUnit->id}", [
+        'immediate_sync_enabled' => 'kadang-kadang',
+    ])->assertStatus(422);
+});

@@ -227,6 +227,8 @@ export interface GradingRecord {
   note: string | null
   checked_by: string | null
   acknowledged_by: string | null
+  checked_by_name?: string | null
+  acknowledged_by_name?: string | null
   status: GradingRecordStatus
   created_by: string
   created_at: string

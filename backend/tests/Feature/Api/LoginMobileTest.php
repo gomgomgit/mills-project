@@ -19,6 +19,7 @@
  * error_code field. See known_issues.
  */
 
+use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\User;
 
@@ -174,4 +175,53 @@ it('returns 403 when business_unit_id does not match the user', function () {
     $response->assertJson([
         'message' => 'Business area yang dipilih tidak sesuai dengan akses Anda.',
     ]);
+});
+
+// Product decision 2026-09-14 — Mill Management explicitly joins Station
+// Operator and Supervisor as a mobile role.
+//
+// This used to work only by ACCIDENT: AuthService never gated the mobile
+// branch by role at all, so every role could obtain a token while the
+// actor-index documented mobile as Operator + Supervisor only. This test
+// makes the allowance deliberate, so a future "lock mobile down to its
+// documented roles" change has to confront Mill Management on purpose
+// rather than silently locking them out.
+it('issues a mobile token for every role that is meant to use the app', function (UserRole $role) {
+    $user = User::factory()
+        ->role($role)
+        ->password('Passw0rd!')
+        ->forBusinessUnit($this->businessUnit)
+        ->create();
+
+    $response = $this->postJson('/api/login', [
+        'username' => $user->username,
+        'password' => 'Passw0rd!',
+        'device_name' => 'Samsung A54',
+    ]);
+
+    $response->assertOk();
+    $response->assertJsonPath('user.role', $role->value);
+    expect($response->json('token'))->toBeString()->not->toBeEmpty();
+})->with([
+    'operator' => UserRole::Operator,
+    'supervisor' => UserRole::Supervisor,
+    'mill management' => UserRole::MillManagement,
+]);
+
+// Admin is the one role with no business unit of its own — it still logs in
+// (unrestricted across mills by design, see AuthService), just with no
+// business_unit payload. Kept separate from the dataset above because the
+// factory setup differs, not because the outcome does.
+it('issues a mobile token for an Admin, with no business unit attached', function () {
+    $user = User::factory()->role(UserRole::Admin)->password('Passw0rd!')->create(['business_unit_id' => null]);
+
+    $response = $this->postJson('/api/login', [
+        'username' => $user->username,
+        'password' => 'Passw0rd!',
+        'device_name' => 'Samsung A54',
+    ]);
+
+    $response->assertOk();
+    $response->assertJsonPath('user.role', UserRole::Admin->value);
+    $response->assertJsonPath('business_unit', null);
 });

@@ -542,14 +542,18 @@ describe('DataPreviewGradingView', () => {
     expect(detailRowsList.text()).toContain('Brondolan Segar')
     expect(detailRowsList.text()).toContain('Masak')
 
-    // 'Checked By' / 'Acknowledged By' are deliberately never rendered on
-    // this screen (Form Grading collects neither field) — assert their
-    // absence across the whole rendered output, not just as FormField
-    // selectors.
+    // 'Checked By' is still never rendered here — Grading collects it at no
+    // layer (GradingRecordService::applyVerification() on the backend).
     expect(wrapper.find('#field-checked-by').exists()).toBe(false)
-    expect(wrapper.find('#field-acknowledged-by').exists()).toBe(false)
     expect(wrapper.text().toLowerCase()).not.toContain('checked by')
-    expect(wrapper.text().toLowerCase()).not.toContain('acknowledged by')
+
+    // UPDATED 2026-09-14: 'Acknowledged By' IS now rendered, because Mill
+    // Management can set it from the web or from this screen's own approve
+    // action even though the mobile form never collects it. The old
+    // disabled FormField stays gone — it is a RecordVerificationStatus now.
+    expect(wrapper.find('#field-acknowledged-by').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Acknowledged By')
+    expect(wrapper.text()).toContain('Belum dikonfirmasi Mill Management')
   })
 
   it("shows a 'record tidak ditemukan' error + Back button when the record is not found by id in detail mode", async () => {

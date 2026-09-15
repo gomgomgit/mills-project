@@ -46,6 +46,8 @@ describe('millSettingRepo — getMillSetting()', () => {
         logo: 'storage/logo.png',
         home_page_image: 'storage/home.png',
         jumlah_cages: 10,
+        // SQLite INTEGER 0/1 — the repo coerces it to a real boolean.
+        immediate_sync_enabled: 1,
       },
     ])
 
@@ -58,6 +60,7 @@ describe('millSettingRepo — getMillSetting()', () => {
       logo: 'storage/logo.png',
       homePageImage: 'storage/home.png',
       jumlahCages: 10,
+      immediateSyncEnabled: true,
     }
     expect(result).toEqual(expected)
   })

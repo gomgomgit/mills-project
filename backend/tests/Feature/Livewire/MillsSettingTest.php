@@ -122,3 +122,47 @@ it('Belum ada station: shows an empty stations list without error', function () 
         ->set('selectedBusinessUnitId', $this->businessUnit->id)
         ->assertSet('stations', []);
 });
+
+// Write-through saving toggle (product decision 2026-09-14) — per-mill,
+// server-side, so an Admin can switch a mill's mobile devices between
+// "push on every save" and "wait for the Sinkronisasi button" without a
+// mobile rebuild. Defaults off so no existing mill changes behaviour.
+it('defaults the immediate-sync toggle to off for a mill that never set it', function () {
+    Livewire::actingAs($this->admin)
+        ->test(MillsSetting::class)
+        ->assertSet('immediate_sync_enabled', false);
+});
+
+it('persists the immediate-sync toggle and reloads it', function () {
+    // An Admin picks the mill first (selecting one reloads the form), so the
+    // toggle is set AFTER the selection, not before.
+    Livewire::actingAs($this->admin)
+        ->test(MillsSetting::class)
+        ->set('selectedBusinessUnitId', $this->businessUnit->id)
+        ->set('immediate_sync_enabled', true)
+        ->call('save')
+        ->assertHasNoErrors();
+
+    expect(MillSetting::where('business_unit_id', $this->businessUnit->id)->firstOrFail()->immediate_sync_enabled)->toBeTrue();
+
+    // Reload in a fresh component instance — the saved value must come back.
+    Livewire::actingAs($this->admin)
+        ->test(MillsSetting::class)
+        ->set('selectedBusinessUnitId', $this->businessUnit->id)
+        ->assertSet('immediate_sync_enabled', true);
+});
+
+it('leaves the toggle untouched when another field is saved without it', function () {
+    $setting = MillSetting::factory()->create([
+        'business_unit_id' => $this->businessUnit->id,
+        'immediate_sync_enabled' => true,
+    ]);
+
+    app(\App\Services\MillSettingService::class)->update(
+        $this->admin,
+        $this->businessUnit->id,
+        ['app_name' => 'Nama Baru'],
+    );
+
+    expect($setting->fresh()->immediate_sync_enabled)->toBeTrue();
+});

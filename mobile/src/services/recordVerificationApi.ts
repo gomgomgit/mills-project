@@ -80,10 +80,19 @@ export async function setVerification(
 
   const column = level === 'checked' ? 'checked_by' : 'acknowledged_by'
   const stored = level === 'checked' ? response.data.checked_by : response.data.acknowledged_by
+  const storedName = level === 'checked' ? response.data.checked_by_name : response.data.acknowledged_by_name
 
-  // Table name is a caller-supplied constant from the view, never user
-  // input; the values stay parameterised.
-  await run(`UPDATE ${localTable} SET ${column} = ? WHERE id = ?`, [stored, record.id])
+  // The NAME is mirrored alongside the id because there is no local `user`
+  // table to resolve an id against offline — Data Preview would otherwise
+  // have nothing but a uuid to show. See localSchema.ts's
+  // migrateRecordTablesForVerifierNames().
+  //
+  // Table/column names are caller-supplied constants from the view, never
+  // user input; the values stay parameterised.
+  await run(
+    `UPDATE ${localTable} SET ${column} = ?, ${column}_name = ? WHERE id = ?`,
+    [stored, storedName, record.id],
+  )
 
   return response.data
 }

@@ -22,6 +22,7 @@ import apiClient from '@/services/apiClient'
 import { run } from '@/services/localDb'
 import { setVerification, serverIdOf, isNetworkError } from '@/services/recordVerificationApi'
 import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
+import RecordVerificationStatus from '@/components/RecordVerificationStatus.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const SYNCED_RECORD = {
@@ -64,7 +65,13 @@ describe('recordVerificationApi.setVerification()', () => {
       level: 'checked',
       value: true,
     })
-    expect(run).toHaveBeenCalledWith('UPDATE cages_track_record SET checked_by = ? WHERE id = ?', ['u-1', 'local-1'])
+    // The name is mirrored next to the id — Data Preview has no local user
+    // table to resolve a uuid against offline (localSchema.ts's
+    // migrateRecordTablesForVerifierNames()).
+    expect(run).toHaveBeenCalledWith(
+      'UPDATE cages_track_record SET checked_by = ?, checked_by_name = ? WHERE id = ?',
+      ['u-1', 'User', 'local-1'],
+    )
   })
 
   it('refuses a record that has never been synced — there is no server row to verify', async () => {
@@ -153,5 +160,52 @@ describe('RecordVerificationActions — role rule mirrors the backend', () => {
     await new Promise((r) => setTimeout(r, 0))
 
     expect(w.emitted('updated')).toHaveLength(1)
+  })
+})
+
+describe('RecordVerificationStatus — read-only display on Data Preview', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setActivePinia(createPinia())
+  })
+
+  function mountStatus(props: Record<string, unknown>, role = 'operator') {
+    const auth = useAuthStore()
+    auth.user = {
+      id: 'u-1',
+      username: 'u',
+      name: 'User Satu',
+      role: role as 'operator' | 'supervisor' | 'mill_management' | 'admin',
+      business_unit_id: 'bu-1',
+    }
+
+    return mount(RecordVerificationStatus, {
+      props: { label: 'Checked By', pendingLabel: 'Belum diperiksa Supervisor', ...props },
+    })
+  }
+
+  it('says it is not verified yet when there is no verifier', () => {
+    expect(mountStatus({ verifierId: null, verifierName: null }).text()).toContain(
+      'Belum diperiksa Supervisor',
+    )
+  })
+
+  it('names the verifier when the name was stored locally', () => {
+    const w = mountStatus({ verifierId: 'user-spv', verifierName: 'Supervisor Satu' })
+    expect(w.text()).toContain('Oleh Supervisor Satu')
+    expect(w.text()).not.toContain('Belum diperiksa')
+  })
+
+  it('falls back to the auth store when the verifier is the current user', () => {
+    // An Operator who verified nothing still benefits: this is how a
+    // Supervisor sees their own name without any stored *_by_name.
+    const w = mountStatus({ verifierId: 'u-1', verifierName: null }, 'supervisor')
+    expect(w.text()).toContain('Oleh User Satu')
+  })
+
+  it('never shows a raw uuid when the name cannot be resolved offline', () => {
+    const w = mountStatus({ verifierId: '9f8a-uuid-of-someone-else', verifierName: null })
+    expect(w.text()).not.toContain('9f8a-uuid-of-someone-else')
+    expect(w.text()).toContain('Sudah diverifikasi')
   })
 })

@@ -560,8 +560,10 @@ describe('DataPreviewCagesTrackView', () => {
       cages_out: 20,
       cages_tipped: 18,
       note: 'Catatan detail',
-      checked_by: 'Supervisor Satu',
-      acknowledged_by: 'Mill Management Satu',
+      checked_by: 'user-spv',
+      checked_by_name: 'Supervisor Satu',
+      acknowledged_by: 'user-mm',
+      acknowledged_by_name: 'Mill Management Satu',
       status: 'saved',
     })
     const tippedRows = [
@@ -588,8 +590,6 @@ describe('DataPreviewCagesTrackView', () => {
       ['#field-cages-out', '20'],
       ['#field-cages-tipped', '18'],
       ['#field-inputted-by', 'Operator Satu'],
-      ['#field-checked-by', 'Supervisor Satu'],
-      ['#field-acknowledged-by', 'Mill Management Satu'],
       ['#field-catatan', 'Catatan detail'],
     ]
 
@@ -599,6 +599,11 @@ describe('DataPreviewCagesTrackView', () => {
       expect((field.element as HTMLInputElement).value).toBe(expectedValue)
       expect(field.attributes('disabled')).toBeDefined()
     }
+
+    // Verification is no longer a disabled <input> holding a uuid — it is
+    // RecordVerificationStatus, which resolves a name (2026-09-14).
+    expect(wrapper.text()).toContain('Oleh Supervisor Satu')
+    expect(wrapper.text()).toContain('Oleh Mill Management Satu')
 
     const rowsList = wrapper.find('[data-testid="tipped-time-rows-list"]')
     expect(rowsList.exists()).toBe(true)

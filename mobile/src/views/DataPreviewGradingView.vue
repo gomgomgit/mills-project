@@ -47,8 +47,12 @@
  *    rendered anywhere in this screen (Form Grading has no Checked
  *    By/Acknowledged By section at all as of the entity-catalog v2
  *    rewrite — see gradingRecordRepo.ts's own header comment — so nothing
- *    meaningful would ever be shown there; `acknowledged_by` is likewise
- *    omitted for the same reason).
+ *    meaningful would ever be shown there). UPDATED 2026-09-14:
+ *    `acknowledged_by` IS now shown in detail mode, because it can be set
+ *    from outside this form — by Mill Management on the web, or via this
+ *    screen's own RecordVerificationActions — so its state is real
+ *    information even though the mobile form never collects it. Checked By
+ *    stays omitted: Grading genuinely never collects it at any layer.
  *
  * Because the mode is route-driven (not a one-time `onMounted` read of
  * `route.params.id`), a `watch()` on the id param (immediate: true) drives
@@ -129,6 +133,7 @@ import gradingRecordRepo, {
 import StatusBadge, { type BadgeStatus } from '@/components/StatusBadge.vue'
 import FormField from '@/components/FormField.vue'
 import RecordVerificationActions from '@/components/RecordVerificationActions.vue'
+import RecordVerificationStatus from '@/components/RecordVerificationStatus.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -595,6 +600,15 @@ function goToMonitorGrading(): void {
         <FormField :model-value="detailRecord.netto" label="Netto" type="number" disabled />
         <FormField :model-value="detailRecord.quantity" label="Kuantitas" type="number" disabled />
         <FormField :model-value="detailRecord.note" label="Catatan" disabled />
+
+        <!-- Acknowledged only — Grading never collects Checked By (see
+             GradingRecordService::applyVerification() on the backend). -->
+        <RecordVerificationStatus
+          label="Acknowledged By"
+          :verifier-id="detailRecord.acknowledged_by"
+          :verifier-name="detailRecord.acknowledged_by_name"
+          pending-label="Belum dikonfirmasi Mill Management"
+        />
 
         <!-- business_logic step 2 — grading_detail rows, read-only. Not
              GradingDetailGrid.vue (that component is edit-only and

@@ -225,20 +225,21 @@ describe('DataPreviewPressingView — detail mode', () => {
     expect(wrapper.find('[data-testid="record-not-found"]').exists()).toBe(true)
   })
 
-  it('renders Checked By and Acknowledged By read-only regardless of the current role', async () => {
+  it('shows the verifier name when known and a pending notice when not (2026-09-14)', async () => {
     routeState.params = { id: 'rec-1' }
     getDraftWithDetailsMock.mockResolvedValue({
-      record: makeRecord({ checked_by: 'Supervisor Satu', acknowledged_by: 'Mill Mgmt Satu' }),
+      record: makeRecord({ checked_by: 'user-spv', checked_by_name: 'Supervisor Satu', acknowledged_by: '', acknowledged_by_name: '' }),
       details: makeAllDetailRows(),
     })
 
     const wrapper = mount(DataPreviewPressingView)
     await flushPromises()
 
-    // FormField renders values as disabled <input>s, not text nodes — so
-    // assert against the input elements' `value`, not wrapper.text().
-    expect((wrapper.find('#field-checked-by').element as HTMLInputElement).value).toBe('Supervisor Satu')
-    expect((wrapper.find('#field-acknowledged-by').element as HTMLInputElement).value).toBe('Mill Mgmt Satu')
+    // RecordVerificationStatus replaced the old disabled <input> that
+    // rendered the raw checked_by uuid (2026-09-14): a known verifier shows
+    // as a name, an unverified one says so explicitly.
+    expect(wrapper.text()).toContain('Oleh Supervisor Satu')
+    expect(wrapper.text()).toContain('Belum dikonfirmasi Mill Management')
   })
 
   it('navigates back to list mode (not Monitor Pressing) when Back is pressed in detail mode', async () => {

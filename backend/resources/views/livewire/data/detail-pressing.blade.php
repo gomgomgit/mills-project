@@ -49,54 +49,58 @@
 
         <div class="pr-detail-section">
             <h4 class="pr-detail-section__title">Pressing Detail</h4>
-            <table class="pr-detail-table" data-testid="pressing-detail-grid">
-                <thead>
-                    <tr>
-                        <th>Time-Slot</th>
-                        <th>Digester Temp</th>
-                        <th>Digester Level</th>
-                        <th>Press Motor Current</th>
-                        <th>Cone Hydraulic Pressure</th>
-                        <th>Dilution Water Temp</th>
-                        <th>Downtime Reason</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($record['details'] as $row)
-                        <tr data-testid="pressing-detail-row-{{ $row['id'] }}">
-                            <td>{{ $row['time_slot'] }}</td>
-                            <td>{{ $row['digester_temp_c'] ?? '-' }}</td>
-                            <td>{{ $row['digester_level_percent'] ?? '-' }}</td>
-                            <td>{{ $row['press_motor_current_amps'] ?? '-' }}</td>
-                            <td>{{ $row['cone_hydraulic_pressure_bar'] ?? '-' }}</td>
-                            <td>{{ $row['dilution_water_temp_c'] ?? '-' }}</td>
-                            <td>{{ $row['downtime_reason'] ?? '-' }}</td>
+            <div class="pr-table-scroll">
+                <table class="pr-detail-table" data-testid="pressing-detail-grid">
+                    <thead>
+                        <tr>
+                            <th>Time-Slot</th>
+                            <th>Digester Temp</th>
+                            <th>Digester Level</th>
+                            <th>Press Motor Current</th>
+                            <th>Cone Hydraulic Pressure</th>
+                            <th>Dilution Water Temp</th>
+                            <th>Downtime Reason</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($record['details'] as $row)
+                            <tr data-testid="pressing-detail-row-{{ $row['id'] }}">
+                                <td>{{ $row['time_slot'] }}</td>
+                                <td>{{ $row['digester_temp_c'] ?? '-' }}</td>
+                                <td>{{ $row['digester_level_percent'] ?? '-' }}</td>
+                                <td>{{ $row['press_motor_current_amps'] ?? '-' }}</td>
+                                <td>{{ $row['cone_hydraulic_pressure_bar'] ?? '-' }}</td>
+                                <td>{{ $row['dilution_water_temp_c'] ?? '-' }}</td>
+                                <td>{{ $row['downtime_reason'] ?? '-' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="pr-detail-section">
             <h4 class="pr-detail-section__title">Target Operasional</h4>
-            <table class="pr-target-table" data-testid="operational-target-table">
-                <thead>
-                    <tr>
-                        <th>Parameter/Metric</th>
-                        <th>Target Operating Range</th>
-                        <th>Critical Trigger / Action Limit</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($operationalTargets as $target)
+            <div class="pr-table-scroll">
+                <table class="pr-target-table" data-testid="operational-target-table">
+                    <thead>
                         <tr>
-                            <td>{{ $target->parameter_metric }}</td>
-                            <td>{{ $target->target_operating_range }}</td>
-                            <td>{{ $target->critical_trigger_action_limit }}</td>
+                            <th>Parameter/Metric</th>
+                            <th>Target Operating Range</th>
+                            <th>Critical Trigger / Action Limit</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($operationalTargets as $target)
+                            <tr>
+                                <td>{{ $target->parameter_metric }}</td>
+                                <td>{{ $target->target_operating_range }}</td>
+                                <td>{{ $target->critical_trigger_action_limit }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="pr-detail-section">
@@ -138,6 +142,7 @@
         .pr-detail-field { display: flex; flex-direction: column; gap: 4px; }
         .pr-detail-field__label { font-size: 12px; color: var(--color-text-muted, #6b7280); }
         .pr-detail-field__value { font-size: 14px; color: var(--color-text, #1f2937); font-weight: 500; }
+        .pr-table-scroll { width: 100%; overflow-x: auto; }
         .pr-detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .pr-detail-table th, .pr-detail-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--color-border, #d1d5db); white-space: nowrap; }
         .pr-target-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: auto; }

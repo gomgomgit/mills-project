@@ -49,60 +49,64 @@
 
         <div class="kp-detail-section">
             <h4 class="kp-detail-section__title">Kernel Plant Detail</h4>
-            <table class="kp-detail-table" data-testid="kernel-plant-detail-grid">
-                <thead>
-                    <tr>
-                        <th>Time-Slot</th>
-                        <th>Ripple Mill 1</th>
-                        <th>Ripple Mill 2</th>
-                        <th>Claybath/Hydro SG</th>
-                        <th>Kernel Silo 1 Temp</th>
-                        <th>Kernel Silo 2 Temp</th>
-                        <th>Kernel Moisture</th>
-                        <th>Shell Loss</th>
-                        <th>Downtime (Mins)</th>
-                        <th>Findings</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($record['details'] as $row)
-                        <tr data-testid="kernel-plant-detail-row-{{ $row['id'] }}">
-                            <td>{{ $row['time_slot'] }}</td>
-                            <td>{{ $row['ripple_mill_1_amps'] ?? '-' }}</td>
-                            <td>{{ $row['ripple_mill_2_amps'] ?? '-' }}</td>
-                            <td>{{ $row['claybath_hydro_sg'] ?? '-' }}</td>
-                            <td>{{ $row['kernel_silo_1_temp_c'] ?? '-' }}</td>
-                            <td>{{ $row['kernel_silo_2_temp_c'] ?? '-' }}</td>
-                            <td>{{ $row['kernel_moisture_percent'] ?? '-' }}</td>
-                            <td>{{ $row['shell_loss_percent'] ?? '-' }}</td>
-                            <td>{{ $row['downtime_minutes'] ?? '-' }}</td>
-                            <td>{{ $row['findings'] ?? '-' }}</td>
+            <div class="kp-table-scroll">
+                <table class="kp-detail-table" data-testid="kernel-plant-detail-grid">
+                    <thead>
+                        <tr>
+                            <th>Time-Slot</th>
+                            <th>Ripple Mill 1</th>
+                            <th>Ripple Mill 2</th>
+                            <th>Claybath/Hydro SG</th>
+                            <th>Kernel Silo 1 Temp</th>
+                            <th>Kernel Silo 2 Temp</th>
+                            <th>Kernel Moisture</th>
+                            <th>Shell Loss</th>
+                            <th>Downtime (Mins)</th>
+                            <th>Findings</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($record['details'] as $row)
+                            <tr data-testid="kernel-plant-detail-row-{{ $row['id'] }}">
+                                <td>{{ $row['time_slot'] }}</td>
+                                <td>{{ $row['ripple_mill_1_amps'] ?? '-' }}</td>
+                                <td>{{ $row['ripple_mill_2_amps'] ?? '-' }}</td>
+                                <td>{{ $row['claybath_hydro_sg'] ?? '-' }}</td>
+                                <td>{{ $row['kernel_silo_1_temp_c'] ?? '-' }}</td>
+                                <td>{{ $row['kernel_silo_2_temp_c'] ?? '-' }}</td>
+                                <td>{{ $row['kernel_moisture_percent'] ?? '-' }}</td>
+                                <td>{{ $row['shell_loss_percent'] ?? '-' }}</td>
+                                <td>{{ $row['downtime_minutes'] ?? '-' }}</td>
+                                <td>{{ $row['findings'] ?? '-' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="kp-detail-section">
             <h4 class="kp-detail-section__title">Target Operasional</h4>
-            <table class="kp-target-table" data-testid="operational-target-table">
-                <thead>
-                    <tr>
-                        <th>Equipment / Parameter</th>
-                        <th>Target Benchmark</th>
-                        <th>Corrective Action Plan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($operationalTargets as $target)
+            <div class="kp-table-scroll">
+                <table class="kp-target-table" data-testid="operational-target-table">
+                    <thead>
                         <tr>
-                            <td>{{ $target->equipment_parameter }}</td>
-                            <td>{{ $target->target_benchmark }}</td>
-                            <td>{{ $target->corrective_action_plan }}</td>
+                            <th>Equipment / Parameter</th>
+                            <th>Target Benchmark</th>
+                            <th>Corrective Action Plan</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($operationalTargets as $target)
+                            <tr>
+                                <td>{{ $target->equipment_parameter }}</td>
+                                <td>{{ $target->target_benchmark }}</td>
+                                <td>{{ $target->corrective_action_plan }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="kp-detail-section">
@@ -144,6 +148,7 @@
         .kp-detail-field { display: flex; flex-direction: column; gap: 4px; }
         .kp-detail-field__label { font-size: 12px; color: var(--color-text-muted, #6b7280); }
         .kp-detail-field__value { font-size: 14px; color: var(--color-text, #1f2937); font-weight: 500; }
+        .kp-table-scroll { width: 100%; overflow-x: auto; }
         .kp-detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .kp-detail-table th, .kp-detail-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--color-border, #d1d5db); white-space: nowrap; }
         .kp-target-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: auto; }

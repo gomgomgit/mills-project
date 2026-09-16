@@ -100,7 +100,7 @@
         .dash-card__label { margin: 0 0 8px; font-size: 14px; color: #6b7280; }
         .dash-card__value { margin: 0 0 8px; font-size: 32px; font-weight: 700; }
         .dash-card__meta { margin: 0; font-size: 13px; color: #6b7280; }
-        .dash-table-wrap { background: #fff; border: 1px solid #d1d5db; border-radius: 12px; overflow: hidden; }
+        .dash-table-wrap { background: #fff; border: 1px solid #d1d5db; border-radius: 12px; overflow-x: auto; }
         .dash-table { width: 100%; border-collapse: collapse; }
         .dash-table th, .dash-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e5e7eb; font-size: 14px; }
         .dash-table th { background: #f9fafb; font-weight: 600; color: #6b7280; }

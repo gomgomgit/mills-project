@@ -181,7 +181,7 @@
         .tf-section--block { display: flex; flex-direction: column; gap: 12px; }
         .tf-section > *:not(.tf-field) { grid-column: 1 / -1; }
         .tf-field--full { grid-column: 1 / -1; }
-        @media (max-width: 640px) { .tf-section { grid-template-columns: 1fr; } }
+        @media (max-width: 767px) { .tf-section { grid-template-columns: 1fr; } }
         .tf-section__title { margin: 0; font-size: 16px; font-weight: 700; }
         .tf-field { display: flex; flex-direction: column; gap: 4px; }
         .tf-field__label { font-size: 13px; font-weight: 500; color: var(--color-text, #1f2937); }

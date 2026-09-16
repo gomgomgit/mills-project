@@ -179,7 +179,7 @@
         .cf-section--wide { display: flex; flex-direction: column; gap: 12px; }
         .cf-section > *:not(.cf-field) { grid-column: 1 / -1; }
         .cf-field--full { grid-column: 1 / -1; }
-        @media (max-width: 640px) { .cf-section { grid-template-columns: 1fr; } }
+        @media (max-width: 767px) { .cf-section { grid-template-columns: 1fr; } }
         .cf-section__title { margin: 0; font-size: 16px; font-weight: 700; }
         .cf-field { display: flex; flex-direction: column; gap: 4px; }
         .cf-field__label { font-size: 13px; font-weight: 500; color: var(--color-text, #1f2937); }

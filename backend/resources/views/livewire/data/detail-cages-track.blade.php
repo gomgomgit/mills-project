@@ -72,26 +72,28 @@
         <div class="ct-detail-section">
             <h4 class="ct-detail-section__title">Cages Tipped Time</h4>
             @if (count($record['tipped_times']) > 0)
-                <table class="ct-detail-table" data-testid="cages-tipped-time-grid">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Cage Dicentang</th>
-                            <th>Total Cages</th>
-                            <th>Cages Remain</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($record['tipped_times'] as $row)
+                <div class="ct-table-scroll">
+                    <table class="ct-detail-table" data-testid="cages-tipped-time-grid">
+                        <thead>
                             <tr>
-                                <td>{{ str_pad((string) $row['tipped_hour'], 2, '0', STR_PAD_LEFT) }}:00</td>
-                                <td>{{ $row['checked_cage_numbers'] ?: '-' }}</td>
-                                <td>{{ $row['total_cages'] }}</td>
-                                <td>{{ $row['cages_remain'] }}</td>
+                                <th>Time</th>
+                                <th>Cage Dicentang</th>
+                                <th>Total Cages</th>
+                                <th>Cages Remain</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach ($record['tipped_times'] as $row)
+                                <tr>
+                                    <td>{{ str_pad((string) $row['tipped_hour'], 2, '0', STR_PAD_LEFT) }}:00</td>
+                                    <td>{{ $row['checked_cage_numbers'] ?: '-' }}</td>
+                                    <td>{{ $row['total_cages'] }}</td>
+                                    <td>{{ $row['cages_remain'] }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             @else
                 <p class="ct-detail-empty">Belum ada data Cages Tipped Time.</p>
             @endif
@@ -215,6 +217,7 @@
             color: var(--color-text, #1f2937);
             font-weight: 500;
         }
+        .ct-table-scroll { width: 100%; overflow-x: auto; }
 
         .ct-detail-table {
             width: 100%;

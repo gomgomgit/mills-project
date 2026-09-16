@@ -440,7 +440,7 @@
             color: var(--ms-text-muted);
         }
 
-        @media (max-width: 560px) {
+        @media (max-width: 767px) {
             .ms-form-grid {
                 grid-template-columns: 1fr;
             }

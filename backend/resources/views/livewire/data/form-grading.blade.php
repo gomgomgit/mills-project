@@ -145,43 +145,45 @@
                     </div>
                 @endif
 
-                <table class="fg-detail-table" data-testid="grading-detail-grid">
-                    <thead>
-                        <tr>
-                            <th>Quality Parameter</th>
-                            <th>Qty</th>
-                            <th>UOM</th>
-                            <th>Percentage</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($detailRows as $index => $row)
-                            <tr data-testid="grading-detail-row-{{ $index }}">
-                                <td>
-                                    <select wire:model.live="detailRows.{{ $index }}.grading_parameter_id" class="fg-input" data-testid="detail-parameter-select-{{ $index }}">
-                                        <option value="">Pilih Quality Parameter</option>
-                                        @foreach ($this->availableParameterOptions($index) as $option)
-                                            <option value="{{ $option['id'] }}">{{ $option['name'] }}</option>
-                                        @endforeach
-                                    </select>
-                                </td>
-                                <td>
-                                    <input type="number" step="any" wire:model.live="detailRows.{{ $index }}.quantity" class="fg-input" data-testid="detail-quantity-input-{{ $index }}">
-                                </td>
-                                <td>
-                                    <input type="text" value="{{ $this->rowUom($index) }}" class="fg-input" data-testid="detail-uom-{{ $index }}" disabled>
-                                </td>
-                                <td>
-                                    <input type="text" value="{{ $this->rowPercentage($index) }}" class="fg-input" data-testid="detail-percentage-{{ $index }}" disabled>
-                                </td>
-                                <td>
-                                    <button type="button" wire:click="removeDetailRow({{ $index }})" class="fg-button fg-button--secondary" data-testid="remove-row-button-{{ $index }}">Hapus</button>
-                                </td>
+                <div class="fg-table-scroll">
+                    <table class="fg-detail-table" data-testid="grading-detail-grid">
+                        <thead>
+                            <tr>
+                                <th>Quality Parameter</th>
+                                <th>Qty</th>
+                                <th>UOM</th>
+                                <th>Percentage</th>
+                                <th></th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach ($detailRows as $index => $row)
+                                <tr data-testid="grading-detail-row-{{ $index }}">
+                                    <td>
+                                        <select wire:model.live="detailRows.{{ $index }}.grading_parameter_id" class="fg-input" data-testid="detail-parameter-select-{{ $index }}">
+                                            <option value="">Pilih Quality Parameter</option>
+                                            @foreach ($this->availableParameterOptions($index) as $option)
+                                                <option value="{{ $option['id'] }}">{{ $option['name'] }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" step="any" wire:model.live="detailRows.{{ $index }}.quantity" class="fg-input" data-testid="detail-quantity-input-{{ $index }}">
+                                    </td>
+                                    <td>
+                                        <input type="text" value="{{ $this->rowUom($index) }}" class="fg-input" data-testid="detail-uom-{{ $index }}" disabled>
+                                    </td>
+                                    <td>
+                                        <input type="text" value="{{ $this->rowPercentage($index) }}" class="fg-input" data-testid="detail-percentage-{{ $index }}" disabled>
+                                    </td>
+                                    <td>
+                                        <button type="button" wire:click="removeDetailRow({{ $index }})" class="fg-button fg-button--secondary" data-testid="remove-row-button-{{ $index }}">Hapus</button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
 
                 <button type="button" wire:click="addDetailRow" class="fg-button fg-button--secondary" data-testid="add-row-button">+ Tambah Baris</button>
             </div>
@@ -216,7 +218,7 @@
         .fg-section { background: #fff; border: 1px solid var(--color-border, #d1d5db); border-radius: 8px; padding: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 20px; }
         .fg-section > *:not(.fg-field) { grid-column: 1 / -1; }
         .fg-field--full { grid-column: 1 / -1; }
-        @media (max-width: 640px) { .fg-section { grid-template-columns: 1fr; } }
+        @media (max-width: 767px) { .fg-section { grid-template-columns: 1fr; } }
         .fg-section__title { margin: 0; font-size: 16px; font-weight: 700; }
         .fg-field { display: flex; flex-direction: column; gap: 4px; }
         .fg-field__label { font-size: 13px; font-weight: 500; color: var(--color-text, #1f2937); }
@@ -228,6 +230,7 @@
         .fg-input:disabled { background: #f3f4f6; color: var(--color-text-muted, #6b7280); }
         .fg-checkbox { display: flex; align-items: center; gap: 8px; font-size: 14px; }
         .fg-actions { display: flex; justify-content: flex-end; }
+        .fg-table-scroll { width: 100%; overflow-x: auto; }
         .fg-detail-table { width: 100%; border-collapse: collapse; }
         .fg-detail-table th { text-align: left; font-size: 12px; font-weight: 600; color: var(--color-text-muted, #6b7280); padding: 6px 8px; border-bottom: 1px solid var(--color-border, #d1d5db); }
         .fg-detail-table td { padding: 6px 8px; vertical-align: top; }

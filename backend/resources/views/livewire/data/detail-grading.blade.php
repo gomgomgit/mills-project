@@ -96,26 +96,28 @@
         <div class="dg-detail-section">
             <h4 class="dg-detail-section__title">Grading Detail</h4>
             @if (count($record['details']) > 0)
-                <table class="dg-detail-table" data-testid="grading-detail-grid">
-                    <thead>
-                        <tr>
-                            <th>Quality Parameter</th>
-                            <th>Qty</th>
-                            <th>UOM</th>
-                            <th>Percentage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($record['details'] as $detail)
+                <div class="dg-table-scroll">
+                    <table class="dg-detail-table" data-testid="grading-detail-grid">
+                        <thead>
                             <tr>
-                                <td>{{ $detail['grading_parameter_name'] ?: '-' }}</td>
-                                <td>{{ $detail['quantity'] }}</td>
-                                <td>{{ $detail['uom'] }}</td>
-                                <td>{{ $detail['percentage'] }}%</td>
+                                <th>Quality Parameter</th>
+                                <th>Qty</th>
+                                <th>UOM</th>
+                                <th>Percentage</th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach ($record['details'] as $detail)
+                                <tr>
+                                    <td>{{ $detail['grading_parameter_name'] ?: '-' }}</td>
+                                    <td>{{ $detail['quantity'] }}</td>
+                                    <td>{{ $detail['uom'] }}</td>
+                                    <td>{{ $detail['percentage'] }}%</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             @else
                 <p class="dg-detail-empty">Belum ada data penilaian.</p>
             @endif
@@ -231,6 +233,7 @@
             color: var(--color-text, #1f2937);
             font-weight: 500;
         }
+        .dg-table-scroll { width: 100%; overflow-x: auto; }
 
         .dg-detail-table {
             width: 100%;

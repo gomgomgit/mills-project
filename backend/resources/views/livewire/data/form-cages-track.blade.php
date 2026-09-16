@@ -118,55 +118,57 @@
                     <span class="fc-field__hint" data-testid="jumlah-cages-hint">Jumlah kolom checklist (N = {{ $jumlahCages }}) mengacu ke jumlah Machinery pada station Cages Track lini produksi ini.</span>
                 @endif
 
-                <table class="fc-detail-table" data-testid="cages-tipped-time-grid">
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Cage Checklist</th>
-                            <th>Total Cages</th>
-                            <th>Cages Remain</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($detailRows as $index => $row)
-                            <tr data-testid="cages-tipped-time-row-{{ $index }}">
-                                <td>
-                                    <select wire:model.live="detailRows.{{ $index }}.tipped_hour" class="fc-input" data-testid="detail-hour-select-{{ $index }}">
-                                        <option value="">Pilih Time</option>
-                                        @foreach ($this->availableHourOptions($index) as $hour)
-                                            <option value="{{ $hour }}">{{ sprintf('%02d:00', $hour) }}</option>
-                                        @endforeach
-                                    </select>
-                                </td>
-                                <td>
-                                    <div class="fc-cage-grid" data-testid="detail-cage-checklist-{{ $index }}">
-                                        @for ($cage = 1; $cage <= $jumlahCages; $cage++)
-                                            <label class="fc-checkbox fc-checkbox--cage">
-                                                <input
-                                                    type="checkbox"
-                                                    wire:click="toggleCage({{ $index }}, {{ $cage }})"
-                                                    @checked(in_array($cage, $row['checked_cage_numbers'] ?? [], true))
-                                                    data-testid="detail-cage-{{ $index }}-{{ $cage }}"
-                                                >
-                                                {{ $cage }}
-                                            </label>
-                                        @endfor
-                                    </div>
-                                </td>
-                                <td>
-                                    <input type="text" value="{{ $this->rowTotalCages($index) }}" class="fc-input" data-testid="detail-total-cages-{{ $index }}" disabled>
-                                </td>
-                                <td>
-                                    <input type="text" value="{{ $this->rowCagesRemain($index) }}" class="fc-input" data-testid="detail-cages-remain-{{ $index }}" disabled>
-                                </td>
-                                <td>
-                                    <button type="button" wire:click="removeDetailRow({{ $index }})" class="fc-button fc-button--secondary" data-testid="remove-row-button-{{ $index }}">Hapus</button>
-                                </td>
+                <div class="fc-table-scroll">
+                    <table class="fc-detail-table" data-testid="cages-tipped-time-grid">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Cage Checklist</th>
+                                <th>Total Cages</th>
+                                <th>Cages Remain</th>
+                                <th></th>
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach ($detailRows as $index => $row)
+                                <tr data-testid="cages-tipped-time-row-{{ $index }}">
+                                    <td>
+                                        <select wire:model.live="detailRows.{{ $index }}.tipped_hour" class="fc-input" data-testid="detail-hour-select-{{ $index }}">
+                                            <option value="">Pilih Time</option>
+                                            @foreach ($this->availableHourOptions($index) as $hour)
+                                                <option value="{{ $hour }}">{{ sprintf('%02d:00', $hour) }}</option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <div class="fc-cage-grid" data-testid="detail-cage-checklist-{{ $index }}">
+                                            @for ($cage = 1; $cage <= $jumlahCages; $cage++)
+                                                <label class="fc-checkbox fc-checkbox--cage">
+                                                    <input
+                                                        type="checkbox"
+                                                        wire:click="toggleCage({{ $index }}, {{ $cage }})"
+                                                        @checked(in_array($cage, $row['checked_cage_numbers'] ?? [], true))
+                                                        data-testid="detail-cage-{{ $index }}-{{ $cage }}"
+                                                    >
+                                                    {{ $cage }}
+                                                </label>
+                                            @endfor
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <input type="text" value="{{ $this->rowTotalCages($index) }}" class="fc-input" data-testid="detail-total-cages-{{ $index }}" disabled>
+                                    </td>
+                                    <td>
+                                        <input type="text" value="{{ $this->rowCagesRemain($index) }}" class="fc-input" data-testid="detail-cages-remain-{{ $index }}" disabled>
+                                    </td>
+                                    <td>
+                                        <button type="button" wire:click="removeDetailRow({{ $index }})" class="fc-button fc-button--secondary" data-testid="remove-row-button-{{ $index }}">Hapus</button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
 
                 <button type="button" wire:click="addDetailRow" class="fc-button fc-button--secondary" data-testid="add-row-button" @disabled(! $this->canAddRow())>+ Tambah Baris</button>
             </div>
@@ -212,7 +214,7 @@
         .fc-section { background: #fff; border: 1px solid var(--color-border, #d1d5db); border-radius: 8px; padding: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 20px; }
         .fc-section > *:not(.fc-field) { grid-column: 1 / -1; }
         .fc-field--full { grid-column: 1 / -1; }
-        @media (max-width: 640px) { .fc-section { grid-template-columns: 1fr; } }
+        @media (max-width: 767px) { .fc-section { grid-template-columns: 1fr; } }
         .fc-section__title { margin: 0; font-size: 16px; font-weight: 700; }
         .fc-field { display: flex; flex-direction: column; gap: 4px; }
         .fc-field__label { font-size: 13px; font-weight: 500; color: var(--color-text, #1f2937); }
@@ -226,6 +228,7 @@
         .fc-checkbox--cage { display: inline-flex; padding: 2px 6px; }
         .fc-cage-grid { display: flex; flex-wrap: wrap; gap: 4px; max-width: 360px; }
         .fc-actions { display: flex; justify-content: flex-end; }
+        .fc-table-scroll { width: 100%; overflow-x: auto; }
         .fc-detail-table { width: 100%; border-collapse: collapse; }
         .fc-detail-table th { text-align: left; font-size: 12px; font-weight: 600; color: var(--color-text-muted, #6b7280); padding: 6px 8px; border-bottom: 1px solid var(--color-border, #d1d5db); }
         .fc-detail-table td { padding: 6px 8px; vertical-align: top; }

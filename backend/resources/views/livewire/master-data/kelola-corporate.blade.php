@@ -677,7 +677,7 @@
             color: var(--kc-text-muted);
         }
 
-        @media (max-width: 560px) {
+        @media (max-width: 767px) {
             .kc-form-grid {
                 grid-template-columns: 1fr;
             }

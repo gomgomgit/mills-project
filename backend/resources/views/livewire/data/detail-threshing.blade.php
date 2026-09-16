@@ -49,54 +49,58 @@
 
         <div class="th-detail-section">
             <h4 class="th-detail-section__title">Threshing Detail</h4>
-            <table class="th-detail-table" data-testid="threshing-detail-grid">
-                <thead>
-                    <tr>
-                        <th>Time-Slot</th>
-                        <th>FFB Throughput</th>
-                        <th>Drum Speed</th>
-                        <th>Motor Current</th>
-                        <th>Unstripped Bunch</th>
-                        <th>Oil Loss</th>
-                        <th>Downtime Reason</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($record['details'] as $row)
-                        <tr data-testid="threshing-detail-row-{{ $row['id'] }}">
-                            <td>{{ $row['time_slot'] }}</td>
-                            <td>{{ $row['ffb_throughput_mt_hour'] ?? '-' }}</td>
-                            <td>{{ $row['thresher_drum_speed_rpm'] ?? '-' }}</td>
-                            <td>{{ $row['motor_current_amps'] ?? '-' }}</td>
-                            <td>{{ $row['unstripped_bunch_count_percent'] ?? '-' }}</td>
-                            <td>{{ $row['empty_bunch_oil_loss_percent'] ?? '-' }}</td>
-                            <td>{{ $row['downtime_reason'] ?? '-' }}</td>
+            <div class="th-table-scroll">
+                <table class="th-detail-table" data-testid="threshing-detail-grid">
+                    <thead>
+                        <tr>
+                            <th>Time-Slot</th>
+                            <th>FFB Throughput</th>
+                            <th>Drum Speed</th>
+                            <th>Motor Current</th>
+                            <th>Unstripped Bunch</th>
+                            <th>Oil Loss</th>
+                            <th>Downtime Reason</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($record['details'] as $row)
+                            <tr data-testid="threshing-detail-row-{{ $row['id'] }}">
+                                <td>{{ $row['time_slot'] }}</td>
+                                <td>{{ $row['ffb_throughput_mt_hour'] ?? '-' }}</td>
+                                <td>{{ $row['thresher_drum_speed_rpm'] ?? '-' }}</td>
+                                <td>{{ $row['motor_current_amps'] ?? '-' }}</td>
+                                <td>{{ $row['unstripped_bunch_count_percent'] ?? '-' }}</td>
+                                <td>{{ $row['empty_bunch_oil_loss_percent'] ?? '-' }}</td>
+                                <td>{{ $row['downtime_reason'] ?? '-' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="th-detail-section">
             <h4 class="th-detail-section__title">Target Operasional</h4>
-            <table class="th-target-table" data-testid="operational-target-table">
-                <thead>
-                    <tr>
-                        <th>Parameter</th>
-                        <th>Standard Operational Target</th>
-                        <th>Action Plan on Deviation</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($operationalTargets as $target)
+            <div class="th-table-scroll">
+                <table class="th-target-table" data-testid="operational-target-table">
+                    <thead>
                         <tr>
-                            <td>{{ $target->parameter }}</td>
-                            <td>{{ $target->standard_operational_target }}</td>
-                            <td>{{ $target->action_plan_on_deviation }}</td>
+                            <th>Parameter</th>
+                            <th>Standard Operational Target</th>
+                            <th>Action Plan on Deviation</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($operationalTargets as $target)
+                            <tr>
+                                <td>{{ $target->parameter }}</td>
+                                <td>{{ $target->standard_operational_target }}</td>
+                                <td>{{ $target->action_plan_on_deviation }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="th-detail-section">
@@ -138,6 +142,7 @@
         .th-detail-field { display: flex; flex-direction: column; gap: 4px; }
         .th-detail-field__label { font-size: 12px; color: var(--color-text-muted, #6b7280); }
         .th-detail-field__value { font-size: 14px; color: var(--color-text, #1f2937); font-weight: 500; }
+        .th-table-scroll { width: 100%; overflow-x: auto; }
         .th-detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .th-detail-table th, .th-detail-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--color-border, #d1d5db); white-space: nowrap; }
         .th-target-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: auto; }

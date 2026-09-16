@@ -171,7 +171,7 @@
         .sf-section--wide { display: flex; flex-direction: column; gap: 12px; }
         .sf-section > *:not(.sf-field) { grid-column: 1 / -1; }
         .sf-field--full { grid-column: 1 / -1; }
-        @media (max-width: 640px) { .sf-section { grid-template-columns: 1fr; } }
+        @media (max-width: 767px) { .sf-section { grid-template-columns: 1fr; } }
         .sf-section__title { margin: 0; font-size: 16px; font-weight: 700; }
         .sf-field { display: flex; flex-direction: column; gap: 4px; }
         .sf-field__label { font-size: 13px; font-weight: 500; color: var(--color-text, #1f2937); }

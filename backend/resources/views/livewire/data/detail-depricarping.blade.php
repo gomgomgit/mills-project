@@ -49,62 +49,66 @@
 
         <div class="dp-detail-section">
             <h4 class="dp-detail-section__title">Depricarping Detail</h4>
-            <table class="dp-detail-table" data-testid="depricarping-detail-grid">
-                <thead>
-                    <tr>
-                        <th>Time-Slot</th>
-                        <th>Fan Static Pressure</th>
-                        <th>Polishing Drum Speed</th>
-                        <th>Air Velocity</th>
-                        <th>Fibre Moisture</th>
-                        <th>Kernel Recovery in Fibre</th>
-                        <th>Nut Silo 1 Temp</th>
-                        <th>Nut Silo 2 Temp</th>
-                        <th>Downtime (Mins)</th>
-                        <th>Findings</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($record['details'] as $row)
-                        <tr data-testid="depricarping-detail-row-{{ $row['id'] }}">
-                            <td>{{ $row['time_slot'] }}</td>
-                            <td>{{ $row['fan_static_pressure_mmh2o'] ?? '-' }}</td>
-                            <td>{{ $row['polishing_drum_speed_rpm'] ?? '-' }}</td>
-                            <td>{{ $row['air_velocity_ms'] ?? '-' }}</td>
-                            <td>{{ $row['fibre_moisture_percent'] ?? '-' }}</td>
-                            <td>{{ $row['kernel_recovery_in_fibre_percent'] ?? '-' }}</td>
-                            <td>{{ $row['nut_silo_1_temp_c'] ?? '-' }}</td>
-                            <td>{{ $row['nut_silo_2_temp_c'] ?? '-' }}</td>
-                            <td>{{ $row['downtime_minutes'] ?? '-' }}</td>
-                            <td>{{ $row['findings'] ?? '-' }}</td>
+            <div class="dp-table-scroll">
+                <table class="dp-detail-table" data-testid="depricarping-detail-grid">
+                    <thead>
+                        <tr>
+                            <th>Time-Slot</th>
+                            <th>Fan Static Pressure</th>
+                            <th>Polishing Drum Speed</th>
+                            <th>Air Velocity</th>
+                            <th>Fibre Moisture</th>
+                            <th>Kernel Recovery in Fibre</th>
+                            <th>Nut Silo 1 Temp</th>
+                            <th>Nut Silo 2 Temp</th>
+                            <th>Downtime (Mins)</th>
+                            <th>Findings</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($record['details'] as $row)
+                            <tr data-testid="depricarping-detail-row-{{ $row['id'] }}">
+                                <td>{{ $row['time_slot'] }}</td>
+                                <td>{{ $row['fan_static_pressure_mmh2o'] ?? '-' }}</td>
+                                <td>{{ $row['polishing_drum_speed_rpm'] ?? '-' }}</td>
+                                <td>{{ $row['air_velocity_ms'] ?? '-' }}</td>
+                                <td>{{ $row['fibre_moisture_percent'] ?? '-' }}</td>
+                                <td>{{ $row['kernel_recovery_in_fibre_percent'] ?? '-' }}</td>
+                                <td>{{ $row['nut_silo_1_temp_c'] ?? '-' }}</td>
+                                <td>{{ $row['nut_silo_2_temp_c'] ?? '-' }}</td>
+                                <td>{{ $row['downtime_minutes'] ?? '-' }}</td>
+                                <td>{{ $row['findings'] ?? '-' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="dp-detail-section">
             <h4 class="dp-detail-section__title">Target Operasional</h4>
-            <table class="dp-target-table" data-testid="operational-target-table">
-                <thead>
-                    <tr>
-                        <th>Parameter/Metric</th>
-                        <th>Target Range</th>
-                        <th>Critical Limit</th>
-                        <th>Operational Consequence / Justification</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($operationalTargets as $target)
+            <div class="dp-table-scroll">
+                <table class="dp-target-table" data-testid="operational-target-table">
+                    <thead>
                         <tr>
-                            <td>{{ $target->parameter_metric }}</td>
-                            <td>{{ $target->target_range }}</td>
-                            <td>{{ $target->critical_limit }}</td>
-                            <td>{{ $target->operational_consequence_justification }}</td>
+                            <th>Parameter/Metric</th>
+                            <th>Target Range</th>
+                            <th>Critical Limit</th>
+                            <th>Operational Consequence / Justification</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($operationalTargets as $target)
+                            <tr>
+                                <td>{{ $target->parameter_metric }}</td>
+                                <td>{{ $target->target_range }}</td>
+                                <td>{{ $target->critical_limit }}</td>
+                                <td>{{ $target->operational_consequence_justification }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="dp-detail-section">
@@ -146,6 +150,7 @@
         .dp-detail-field { display: flex; flex-direction: column; gap: 4px; }
         .dp-detail-field__label { font-size: 12px; color: var(--color-text-muted, #6b7280); }
         .dp-detail-field__value { font-size: 14px; color: var(--color-text, #1f2937); font-weight: 500; }
+        .dp-table-scroll { width: 100%; overflow-x: auto; }
         .dp-detail-table { width: 100%; border-collapse: collapse; font-size: 13px; }
         .dp-detail-table th, .dp-detail-table td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--color-border, #d1d5db); white-space: nowrap; }
         .dp-target-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: auto; }

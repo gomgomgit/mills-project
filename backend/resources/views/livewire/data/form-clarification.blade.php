@@ -160,7 +160,7 @@
         .pf-section--block { display: flex; flex-direction: column; gap: 12px; }
         .pf-section > *:not(.pf-field) { grid-column: 1 / -1; }
         .pf-field--full { grid-column: 1 / -1; }
-        @media (max-width: 640px) { .pf-section { grid-template-columns: 1fr; } }
+        @media (max-width: 767px) { .pf-section { grid-template-columns: 1fr; } }
         .pf-section__title { margin: 0; font-size: 16px; font-weight: 700; }
         .pf-field { display: flex; flex-direction: column; gap: 4px; }
         .pf-field__label { font-size: 13px; font-weight: 500; color: var(--color-text, #1f2937); }

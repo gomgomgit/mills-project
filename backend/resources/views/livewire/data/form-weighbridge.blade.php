@@ -186,7 +186,7 @@
         .fw-section { background: #fff; border: 1px solid var(--color-border, #d1d5db); border-radius: 8px; padding: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px 20px; }
         .fw-section > *:not(.fw-field) { grid-column: 1 / -1; }
         .fw-field--full { grid-column: 1 / -1; }
-        @media (max-width: 640px) { .fw-section { grid-template-columns: 1fr; } }
+        @media (max-width: 767px) { .fw-section { grid-template-columns: 1fr; } }
         .fw-section__title { margin: 0; font-size: 16px; font-weight: 700; }
         .fw-field { display: flex; flex-direction: column; gap: 4px; }
         .fw-field__label { font-size: 13px; font-weight: 500; color: var(--color-text, #1f2937); }

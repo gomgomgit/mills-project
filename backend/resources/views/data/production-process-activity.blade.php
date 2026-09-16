@@ -19,7 +19,7 @@
                 max-width: 1200px;
             }
 
-            @media (max-width: 640px) {
+            @media (max-width: 767px) {
                 .station-grid {
                     grid-template-columns: repeat(3, minmax(0, 1fr));
                     max-width: none;

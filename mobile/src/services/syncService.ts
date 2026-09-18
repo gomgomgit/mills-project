@@ -317,7 +317,7 @@ const STATION_PUSH_CONFIGS: StationPushConfig[] = [
     idPayloadKey: 'kernel_plant_id',
     detailTable: 'kernel_plant_detail',
     detailFk: 'kernel_plant_record_id',
-    detailColumns: ['time_slot', 'ripple_mill_1_efficiency_percent', 'ripple_mill_2_efficiency_percent', 'claybath_hydro_sg', 'kernel_silo_1_temp_c', 'kernel_silo_2_temp_c', 'kernel_moisture_percent', 'shell_loss_percent', 'downtime_minutes', 'findings'],
+    detailColumns: ['time_slot', 'ripple_mill_1_amps', 'ripple_mill_2_amps', 'claybath_hydro_sg', 'kernel_silo_1_temp_c', 'kernel_silo_2_temp_c', 'kernel_moisture_percent', 'shell_loss_percent', 'downtime_minutes', 'findings'],
     detailOrderBy: 'time_slot',
   },
   {

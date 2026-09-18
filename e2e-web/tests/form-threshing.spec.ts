@@ -1,0 +1,128 @@
+/**
+ * FormThreshingTest (Browser/Playwright) — screen-057--form-threshing-web /
+ * usecase-057--form-threshing-web.
+ *
+ * Playwright spec, one test per test_scenarios' browser_test step. Mirrors
+ * tests/Browser/FormCagesTrackTest.php's conventions — REVISED 2026-08-24
+ * (entity-catalog v12): the Threshing Detail grid is now a dynamic
+ * add-row/remove-row grid (the user explicitly rejected the original fixed
+ * 24-row design), so this now exercises "Tambah Baris" + the Time-Slot
+ * <select> exactly like FormCagesTrackTest.php's Cages Tipped Time grid.
+ *
+ * GENERATED BUT NOT EXECUTED IN THIS ENVIRONMENT — see
+ * tests/Browser/DataBrowserThreshingTest.php's docblock for the full
+ * rationale.
+ *
+ * Test data assumption: authenticated Supervisor session
+ * (threshtest-supervisor01 / Passw0rd!), a Production Line named
+ * "PL Mill A" with an active Threshing station, a second Production Line
+ * "PL Tanpa Threshing" with no active Threshing station, and a pre-seeded
+ * Threshing record with Thresher ID "TH-BROWSER-EDIT" under "PL Mill A".
+ */
+
+import { test, expect } from '@playwright/test'
+import { login, PASSWORD } from './support/auth'
+
+const CREATE_PATH = '/data/threshing/create';
+const PRODUCTION_LINE_NAME = 'PL Mill A';
+
+
+test.describe('Form Threshing (Web)', () => {
+  // Scenario: "berhasil"
+  test('klik Tambah Data, isi form lengkap termasuk 1 kolom bacaan, klik Simpan, halaman Detail menampilkan record baru', async ({ page }) => {
+    await login(page, 'threshtest-supervisor01', PASSWORD);
+    await page.goto('/data/threshing');
+    await page.locator('[data-testid="add-data-button"]').click();
+    await page.waitForURL(CREATE_PATH);
+
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
+    const uniqueSuffix = Date.now();
+    await page.locator('[data-testid="thresher-id-input"]').fill(`TH-BROWSER-${uniqueSuffix}`);
+    await page.locator('[data-testid="add-row-button"]').click();
+    await page.locator('[data-testid="time-slot-select-0"]').selectOption('07:00');
+    await page.locator('[data-testid="ffb-throughput-0"]').fill('45.5');
+    await page.locator('[data-testid="save-button"]').click();
+
+    await page.waitForURL((url) => url.pathname.startsWith('/data/threshing/') && !url.pathname.endsWith('/create'));
+    await expect(page.locator('[data-testid="detail-thresher-id"]')).toContainText(`TH-BROWSER-${uniqueSuffix}`);
+  });
+
+  // Scenario: "Field Wajib Belum Lengkap"
+  test('kosongkan field wajib, klik Simpan, error inline muncul', async ({ page }) => {
+    await login(page, 'threshtest-supervisor01', PASSWORD);
+    await page.goto(CREATE_PATH);
+
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
+    await page.locator('[data-testid="save-button"]').click();
+
+    await expect(page.locator('.tf-field__error')).toContainText('Thresher ID');
+  });
+
+  // Scenario: "Belum Ada Baris Terisi"
+  test('isi header lengkap tanpa mengisi kolom bacaan apapun, klik Simpan, pesan error khusus muncul', async ({ page }) => {
+    await login(page, 'threshtest-supervisor01', PASSWORD);
+    await page.goto(CREATE_PATH);
+
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
+    await page.locator('[data-testid="thresher-id-input"]').fill('TH-NO-DETAIL');
+    await page.locator('[data-testid="save-button"]').click();
+
+    await expect(page.locator('[data-testid="detail-error"]')).toBeVisible();
+  });
+
+  // Scenario: "Production Line Tanpa Station Threshing Aktif"
+  test('pilih Production Line tanpa station threshing, klik Simpan, error ditampilkan', async ({ page }) => {
+    await login(page, 'threshtest-supervisor01', PASSWORD);
+    await page.goto(CREATE_PATH);
+
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: 'PL Tanpa Threshing' });
+    await page.locator('[data-testid="thresher-id-input"]').fill('TH-NO-STATION');
+    await page.locator('[data-testid="add-row-button"]').click();
+    await page.locator('[data-testid="time-slot-select-0"]').selectOption('07:00');
+    await page.locator('[data-testid="ffb-throughput-0"]').fill('10');
+    await page.locator('[data-testid="save-button"]').click();
+
+    await expect(page.locator('[data-testid="general-error"]')).toBeVisible();
+  });
+
+  // Scenario: "Tambah/Hapus Baris Dinamis" — REVISED 2026-08-24
+  // (entity-catalog v12): the grid starts empty and grows one row at a
+  // time via "Tambah Baris", mirroring Cages Tipped Time exactly.
+  test('grid Threshing Detail dimulai kosong, bertambah satu baris tiap klik Tambah Baris, dan bisa dihapus', async ({ page }) => {
+    await login(page, 'threshtest-supervisor01', PASSWORD);
+    await page.goto(CREATE_PATH);
+
+    await expect(page.locator('[data-testid="threshing-detail-grid"] tbody tr')).toHaveCount(0);
+
+    await page.locator('[data-testid="add-row-button"]').click();
+    await expect(page.locator('[data-testid="threshing-detail-grid"] tbody tr')).toHaveCount(1);
+
+    await page.locator('[data-testid="add-row-button"]').click();
+    await expect(page.locator('[data-testid="threshing-detail-grid"] tbody tr')).toHaveCount(2);
+
+    await page.locator('[data-testid="remove-row-button-0"]').click();
+    await expect(page.locator('[data-testid="threshing-detail-grid"] tbody tr')).toHaveCount(1);
+  });
+
+  // Scenario: "Edit Record Threshing — berhasil"
+  test('klik Edit dari Detail, ubah field, klik Simpan, Detail menampilkan nilai baru', async ({ page }) => {
+    await login(page, 'threshtest-supervisor01', PASSWORD);
+    await page.goto('/data/threshing');
+    await page.locator('.th-table__row', { hasText: 'TH-BROWSER-EDIT' }).click();
+    await page.locator('[data-testid="edit-button"]').click();
+
+    await page.locator('[data-testid="thresher-id-input"]').fill('TH-BROWSER-EDIT-DONE');
+    await page.locator('[data-testid="save-button"]').click();
+
+    await page.waitForURL((url) => !url.pathname.endsWith('/edit'));
+    await expect(page.locator('body')).toContainText('TH-BROWSER-EDIT-DONE');
+  });
+
+  // Scenario: "Record Tidak Ditemukan (mode edit)"
+  test('navigasi ke id yang tidak valid, halaman menampilkan error', async ({ page }) => {
+    await login(page, 'threshtest-supervisor01', PASSWORD);
+    await page.goto('/data/threshing/00000000-0000-0000-0000-000000000000/edit');
+
+    await expect(page.locator('[data-testid="record-not-found"]')).toBeVisible();
+  });
+});

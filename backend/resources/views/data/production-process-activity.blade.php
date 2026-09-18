@@ -12,11 +12,17 @@
                 --radius-card: 12px;
             }
 
+            /* Fixed 3 columns at every width (2026-09-17), matching the
+               agreed grid layout and mobile's StationGrid.vue. auto-fill
+               used to pack ~7 tiles per row on desktop, so the tile ORDER
+               was right but the rows read differently from the layout. The
+               max-width keeps tiles tile-sized instead of stretching to a
+               third of a wide screen. */
             .station-grid {
                 display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                grid-template-columns: repeat(3, minmax(0, 1fr));
                 gap: 16px;
-                max-width: 1200px;
+                max-width: 640px;
             }
 
             @media (max-width: 767px) {
@@ -134,35 +140,14 @@
         above describes; that history is kept for context, not as the
         current tile sequence.
 
-        2026-09-01 (hide) — 8 of the 18 tiles temporarily hidden from this
-        grid per product decision (Engine Room, Storage Tank, Effluent
-        Plant, CPO Dispatch, Kernel Dispatch, Process Water, Solid Waste
-        Disposal, Process Quality Control) — commented out below, not
-        deleted, mirroring mobile's stationRepo.ts HIDDEN_STATION_TYPES
-        list. The underlying stations remain fully active/functional
-        (their Data Browser routes still resolve if visited directly);
-        only this grid's tile is hidden. Remove the surrounding comment
-        block below to re-enable a given tile.
+        2026-09-01 → 2026-09-16 (hide, then fully reverted) — 8 tiles were
+        temporarily hidden here by product decision, re-enabled in four
+        batches, and the hide mechanism was removed outright on 2026-09-16
+        along with mobile's stationRepo.ts HIDDEN_STATION_TYPES counterpart.
+        All 18 tiles now render unconditionally; there is no hide switch on
+        either side any more. Kept as a note because the tiles below carry
+        no marker of ever having been conditional.
 
-        2026-09-04 (re-enable) — Engine Room and Storage Tank re-enabled
-        per user request; un-commented below and removed from mobile's
-        stationRepo.ts HIDDEN_STATION_TYPES. 12 of 18 active tiles now
-        render: Weighbridge, Pressing, Storage Tank, Grading, Clarification,
-        Cages Track, Engine Room, Sterilizer, Boiler Room, Kernel Plant,
-        Threshing, Depricarping. The remaining 6 (Effluent Plant, CPO
-        Dispatch, Kernel Dispatch, Process Water, Solid Waste Disposal,
-        Process Quality Control) stay hidden.
-
-        2026-09-11 (re-enable) — Effluent Plant and CPO Dispatch re-enabled
-        per user request; un-commented below and removed from mobile's
-        stationRepo.ts HIDDEN_STATION_TYPES. 14 of 18 tiles now render; the
-        remaining 4 (Kernel Dispatch, Process Water, Solid Waste Disposal,
-        Process Quality Control) stay hidden.
-
-        2026-09-14 (re-enable) — Kernel Dispatch and Process Water re-enabled
-        per user request; un-commented below and removed from mobile's
-        stationRepo.ts HIDDEN_STATION_TYPES. 16 of 18 tiles now render; only
-        Solid Waste Disposal and Process Quality Control stay hidden.
     --}}
     <div class="station-grid">
         <a href="{{ route('data.weighbridge') }}" class="station-tile active">
@@ -229,17 +214,13 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="8"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
             Depricarping
         </a>
-        {{-- Solid Waste Disposal temporarily hidden (2026-09-01, product decision) — station stays active, just not shown as a tile here.
-        <a href="{{ route('data.solid-waste-disposal') }}" class="station-tile active">
+                <a href="{{ route('data.solid-waste-disposal') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h16"></path><path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"></path><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
             Solid Waste Disposal
         </a>
-        --}}
-        {{-- Process Quality Control temporarily hidden (2026-09-01, product decision) — station stays active, just not shown as a tile here.
-        <a href="{{ route('data.process-quality-control') }}" class="station-tile active">
+                <a href="{{ route('data.process-quality-control') }}" class="station-tile active">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
             Process Quality Control
         </a>
-        --}}
     </div>
 </x-layouts.app>

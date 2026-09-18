@@ -25,7 +25,12 @@ export default defineConfig({
   retries: 0,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:5173',
+    // Must track vite.config.ts's `server.port`. That moved 5173 -> 5174 on
+    // 2026-09-14 (5173 is taken by another project on the dev machine) and
+    // this file was not updated with it, so `npm run dev` came up on 5174
+    // while Playwright waited on 5173 until the 30s webServer timeout —
+    // every e2e run would have hung rather than failed with a clear reason.
+    baseURL: 'http://localhost:5174',
     trace: 'retain-on-failure',
   },
   projects: [
@@ -36,7 +41,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:5173',
+    url: 'http://localhost:5174',
     reuseExistingServer: true,
     timeout: 30_000,
   },

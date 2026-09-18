@@ -82,8 +82,11 @@ test.describe('Form Kernel Plant (screen-044)', () => {
   })
 
   test('Input Data Kernel Plant — Checked By Khusus Supervisor (Operator tidak dapat mengisi)', async ({ page }) => {
-    await expect(page.getByTestId('checked-by-toggle')).toBeDisabled()
-    await expect(page.getByTestId('acknowledged-by-toggle')).toBeDisabled()
+    // 2026-09-14: both toggles are now HIDDEN from roles that cannot write
+    // them, not rendered-and-disabled. These specs had never run, so the
+    // change landed without this contract being visibly broken.
+    await expect(page.getByTestId('checked-by-toggle')).toHaveCount(0)
+    await expect(page.getByTestId('acknowledged-by-toggle')).toHaveCount(0)
   })
 
   test('Input Data Kernel Plant — Pause Progress', async ({ page }) => {

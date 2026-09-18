@@ -259,7 +259,7 @@ describe('StationGrid', () => {
   })
 
   // Depricarping/Kernel Plant were temporarily hidden from this grid
-  // (2026-08-24, narrowed 2026-08-25) via a `TEMPORARILY_HIDDEN_TYPES` Set
+  // (2026-08-24, narrowed 2026-08-25) via a hide list that no longer exists
   // in StationGrid.vue, same as Threshing/Pressing were before
   // 2026-08-25. All 5 are now re-enabled and render like any other active
   // station — no type-specific filtering remains in the component.

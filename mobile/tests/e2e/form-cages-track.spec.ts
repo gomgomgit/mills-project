@@ -121,8 +121,9 @@ test.describe('Form Cages Track (screen-012)', () => {
     await page.getByTestId('cage-checkbox-0-1').check()
     await page.getByTestId('cage-checkbox-0-2').check()
 
-    expect(await page.getByTestId('checked-by-toggle').isDisabled()).toBe(true)
-    expect(await page.getByTestId('acknowledged-by-toggle').isDisabled()).toBe(true)
+    // 2026-09-14: hidden from roles that cannot write them, not disabled.
+    await expect(page.getByTestId('checked-by-toggle')).toHaveCount(0)
+    await expect(page.getByTestId('acknowledged-by-toggle')).toHaveCount(0)
 
     await page.getByTestId('row-total-cages-0').textContent().then((t) => expect(t).toContain('2'))
     // cages_remain = the Cages Track station's machinery_count
@@ -144,7 +145,7 @@ test.describe('Form Cages Track (screen-012)', () => {
     await fillRequiredHeaderFields(page)
     expect(await page.getByTestId('checked-by-toggle').isDisabled()).toBe(false)
     await page.getByTestId('checked-by-toggle').check()
-    expect(await page.getByTestId('acknowledged-by-toggle').isDisabled()).toBe(true)
+    await expect(page.getByTestId('acknowledged-by-toggle')).toHaveCount(0)
 
     await page.getByTestId('add-tipped-time-row-button').click()
     await selectSearchableOption(page, 'tipped-hour-select-0', hourLabel(7))
@@ -260,7 +261,7 @@ test.describe('Form Cages Track (screen-012)', () => {
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/cages-track\/form\/(.+)/)
 
-    await expect(page.getByTestId('checked-by-toggle')).toBeDisabled()
+    await expect(page.getByTestId('checked-by-toggle')).toHaveCount(0)
   })
 
   test('Form Cages Track — Acknowledged By Khusus Mill Management', async ({ page }) => {
@@ -269,7 +270,7 @@ test.describe('Form Cages Track (screen-012)', () => {
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/cages-track\/form\/(.+)/)
 
-    await expect(page.getByTestId('acknowledged-by-toggle')).toBeDisabled()
+    await expect(page.getByTestId('acknowledged-by-toggle')).toHaveCount(0)
     await expect(page.getByTestId('checked-by-toggle')).toBeEnabled()
   })
 

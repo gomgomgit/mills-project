@@ -46,19 +46,12 @@
  * applies to any tile — repurposed below into an assertion that no
  * placeholder/disabled tile renders at all.
  *
- * 2026-09-04 (re-enable) — Engine Room and Storage Tank re-enabled per user
- * request (2 of the 8 tiles hidden 2026-09-01). 12 of 18 active tiles now
- * render; the remaining 6 (Effluent Plant, CPO Dispatch, Kernel Dispatch,
- * Process Water, Solid Waste Disposal, Process Quality Control) stay hidden.
- *
- * 2026-09-11 (re-enable) — Effluent Plant and CPO Dispatch re-enabled per
- * user request. 14 of 18 active tiles now render; the remaining 4 (Kernel
- * Dispatch, Process Water, Solid Waste Disposal, Process Quality Control)
- * stay hidden.
- *
- * 2026-09-14 (re-enable) — Kernel Dispatch and Process Water re-enabled per
- * user request. 16 of 18 active tiles now render; only Solid Waste Disposal
- * and Process Quality Control stay hidden.
+ * 2026-09-01 → 2026-09-16 (hide, then fully reverted) — 8 tiles were
+ * temporarily hidden by product decision and re-enabled in four batches;
+ * the hide mechanism was then removed outright. The old "does not render
+ * the hidden tiles" scenario is inverted below into "every one of the 18
+ * IS reachable", so the grid's completeness stays covered by a test even
+ * though nothing can hide a tile any more.
  */
 
 use App\Enums\UserRole;
@@ -72,7 +65,7 @@ beforeEach(function () {
 });
 
 // Scenario: "Pilih Stasiun (Web) — berhasil"
-it('berhasil: renders the 16 visible active station tiles linking to their Data Browser routes, all routed', function () {
+it('berhasil: renders all 18 active station tiles linking to their Data Browser routes, all routed', function () {
     $response = $this->actingAs($this->supervisor, 'web')->get('/production-process-activity');
 
     $response->assertOk();
@@ -92,6 +85,8 @@ it('berhasil: renders the 16 visible active station tiles linking to their Data 
     $response->assertSee(route('data.cpo-dispatch'), false);
     $response->assertSee(route('data.kernel-dispatch'), false);
     $response->assertSee(route('data.process-water'), false);
+    $response->assertSee(route('data.solid-waste-disposal'), false);
+    $response->assertSee(route('data.process-quality-control'), false);
     $response->assertSee('Weighbridge');
     $response->assertSee('Grading');
     $response->assertSee('Cages Track');
@@ -108,6 +103,8 @@ it('berhasil: renders the 16 visible active station tiles linking to their Data 
     $response->assertSee('CPO Dispatch');
     $response->assertSee('Kernel Dispatch');
     $response->assertSee('Process Water');
+    $response->assertSee('Solid Waste Disposal');
+    $response->assertSee('Process Quality Control');
     // No tile links to the javascript:void(0) placeholder any more — every
     // visible tile has a real route() href (see the assertions above).
     $response->assertDontSee('javascript:void(0)', false);
@@ -128,18 +125,24 @@ it('never leaks raw Blade comment delimiters or comment prose into the rendered 
     $response->assertDontSee('comment markers');
 });
 
-// Scenario: 2026-09-01 (hide), narrowed 2026-09-04 (re-enable Engine Room/
-// Storage Tank), 2026-09-11 (Effluent Plant/CPO Dispatch) and 2026-09-14
-// (Kernel Dispatch/Process Water) — 2 stations remain temporarily hidden from
-// this grid per product decision. They remain fully active/functional (own
-// Data Browser screens still resolve if visited directly, covered by their own
-// screen tests) — this only asserts they don't render HERE.
-it('does not render the 2 remaining temporarily-hidden station tiles on this grid', function () {
+// Inverted from the old "these must NOT render" assertion once the hide
+// mechanism was removed (2026-09-16): every one of the 18 canonical stations
+// must be reachable from this grid. Guards against a station silently
+// dropping out of the tile list again.
+it('renders every one of the 18 canonical stations — none hidden', function () {
     $response = $this->actingAs($this->supervisor, 'web')->get('/production-process-activity');
 
     $response->assertOk();
-    $response->assertDontSee('Solid Waste Disposal');
-    $response->assertDontSee('Process Quality Control');
+
+    foreach ([
+        'weighbridge', 'grading', 'cages-track', 'threshing', 'pressing',
+        'depricarping', 'kernel-plant', 'sterilizer', 'boiler-room',
+        'engine-room', 'clarification', 'storage-tank', 'effluent-plant',
+        'process-water', 'process-quality-control', 'solid-waste-disposal',
+        'cpo-dispatch', 'kernel-dispatch',
+    ] as $station) {
+        $response->assertSee(route("data.{$station}"), false);
+    }
 });
 
 // Scenario: "Pilih Stasiun (Web) — Klik Stasiun Disabled" — repurposed

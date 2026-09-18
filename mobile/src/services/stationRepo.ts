@@ -1,32 +1,6 @@
 import { query } from '@/services/localDb'
 
 /**
- * Station types temporarily hidden from the Station List grid (product
- * decision, 2026-09-01) — the underlying stations remain fully active
- * (`is_active = true`) and fully functional (Monitor/Form/Data Preview,
- * sync, existing drafts, etc. all keep working); they are simply not
- * offered as a selectable tile on this screen. Mirrors the same
- * "temporarily hidden" pattern used earlier this project for
- * Threshing/Pressing/Depricarping/Kernel Plant (later re-enabled) —
- * remove an entry from this list to re-enable that station's tile.
- *
- * 2026-09-04 — Engine Room and Storage Tank re-enabled per user request
- * (removed from this list); 6 remain hidden.
- *
- * 2026-09-11 — Effluent Plant and CPO Dispatch re-enabled per user request
- * (removed from this list); 4 remain hidden.
- *
- * 2026-09-14 — Kernel Dispatch and Process Water re-enabled per user request
- * (removed from this list); 2 remain hidden.
- */
-const HIDDEN_STATION_TYPES = [
-  'solid-waste-disposal',
-  'process-quality-control',
-] as const
-
-const HIDDEN_STATION_TYPES_SQL = HIDDEN_STATION_TYPES.map((t) => `'${t}'`).join(', ')
-
-/**
  * stationRepo — screen-006--station-list / usecase-006--station-list
  * "Pilih Stasiun" business_logic step 1.
  *
@@ -136,10 +110,9 @@ function toStationSlot(row: StationRow): StationSlot {
  * Loads all station grid slots for the given business unit — the full set
  * of 18 synced rows, ALL 18 active real station types, 0 placeholders (as
  * of 2026-09-01 — Sterilizer was the last one promoted), per business_logic
- * step 1. 2 of the 18 (see `HIDDEN_STATION_TYPES` above) are filtered out
- * of the result entirely as of 2026-09-01, narrowed 2026-09-04, 2026-09-11
- * and 2026-09-14 (product decision to temporarily hide them from this grid)
- * — they remain fully active/functional, just not returned by this query.
+ * step 1. Every station is returned — a per-type hide list existed from
+ * 2026-09-01, was narrowed four times, and was removed entirely on
+ * 2026-09-16 once all 18 were wanted on the grid.
  *
  * Ordered by a FIXED canonical grid order (uiux-spec ver 2,
  * screen_type_patterns[type=list].body_area — mobile "list" sub-pattern),
@@ -157,7 +130,6 @@ export async function getActiveAndPlaceholderStations(businessUnitId: string): P
     `SELECT id, business_unit_id, name, type, is_active, icon
      FROM station
      WHERE business_unit_id = ?
-       AND type NOT IN (${HIDDEN_STATION_TYPES_SQL})
        AND id = (
          SELECT s2.id FROM station s2
          WHERE s2.business_unit_id = station.business_unit_id AND s2.type = station.type
@@ -211,7 +183,6 @@ export async function getActiveAndPlaceholderStationsForProductionLine(
     `SELECT id, business_unit_id, name, type, is_active, icon
      FROM station
      WHERE production_line_id = ?
-       AND type NOT IN (${HIDDEN_STATION_TYPES_SQL})
        AND id = (
          SELECT s2.id FROM station s2
          WHERE s2.production_line_id = station.production_line_id AND s2.type = station.type

@@ -1,34 +1,39 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-09-22"
   },
   "auth": {
     "mechanism": "Laravel Sanctum (token-based) untuk mobile/API + Laravel session cookie untuk web (Livewire)",
     "session_strategy": "Web: session cookie standar Laravel. Mobile: Sanctum personal access token disimpan lokal, tetap valid saat offline setelah login online pertama kali.",
-    "notes": "Token mobile tidak auto-expire selama device offline (sesuai requirement offline-first); re-validasi terjadi saat sync/aksi online berikutnya."
+    "notes": "Token mobile tidak auto-expire selama device offline (sesuai requirement offline-first); re-validasi terjadi saat sync/aksi online berikutnya. Route ekspor (GET /api/{stasiun}-records/export) menumpuk middleware group 'web' di atas 'api' karena dipanggil sebagai navigasi <a href> dari halaman Livewire: grup 'api' hanya memulai session bila Sanctum mengenali host Referer di config('sanctum.stateful'), sehingga host yang tidak terdaftar (localhost:8000, IP LAN, domain produksi) menghasilkan 401 Unauthenticated (ditemukan & diperbaiki 2026-09-22)."
   },
   "error_format": {
-    "structure": "{ \"message\": \"Error message\", \"errors\": { \"field\": [\"detail error\"] } }",
-    "example": "{ \"message\": \"Validasi gagal\", \"errors\": { \"wb_card_number\": [\"Kolom wajib diisi\"] } }",
-    "notes": "Validation error (422) selalu menyertakan errors per-field; error umum lain (401/403/404/500) hanya menyertakan message."
+    "structure": "{ \"message\": \"Error message\", \"code\": \"ERROR_CODE\", \"errors\": { \"field\": [\"detail error\"] } }",
+    "example": "{ \"message\": \"Periode Oktober 2026 sudah ditutup. Hubungi Admin untuk membuka kembali periode ini.\", \"code\": \"PERIOD_CLOSED\" }",
+    "notes": "Validation error (422) selalu menyertakan errors per-field; error umum lain (401/403/404/500) hanya menyertakan message. Field `code` (machine-readable, UPPER_SNAKE_CASE) ditambahkan 2026-09-22 dan WAJIB disertakan pada error bisnis yang harus dibedakan klien secara otomatis — bukan sekadar ditampilkan ke user. Kode pertama yang wajib: PERIOD_CLOSED (lihat other_decisions). Alasan penambahan: klien mobile tidak bisa membedakan penolakan sementara dari error validasi permanen hanya dari teks message, sehingga berisiko membuang record dari antrean sync. Penambahan bersifat aditif — response lama yang hanya berisi message/errors tetap valid."
   },
   "pagination": {
     "strategy": "Offset-based (page + per_page)",
     "defaults": "page=1, per_page=20, max per_page=100",
-    "notes": "Semua endpoint list (Data Browser Weighbridge/Grading/Cages Track, dst.) mengembalikan metadata pagination di response."
+    "notes": "Semua endpoint list (Data Browser Weighbridge/Grading/Cages Track, dst.) mengembalikan metadata pagination di response. Endpoint laporan periode (screen-129 s/d screen-139) tidak dipaginasi — rekapnya per hari dalam satu periode, jumlah barisnya terbatas pada panjang periode."
   },
   "naming_conventions": {
     "api_endpoints": "kebab-case, plural — mis. /api/weighbridge-records",
     "db_tables": "snake_case plural — mis. weighbridge_records, grading_details",
     "db_columns": "snake_case — mis. created_at, business_unit_id",
-    "notes": ""
+    "notes": "Error code pada field `code` memakai UPPER_SNAKE_CASE — mis. PERIOD_CLOSED, INVALID_DATE_RANGE, EXPORT_FAILED."
   },
   "integrations": [],
   "other_decisions": [
     "Timestamps disimpan UTC format ISO 8601",
     "File upload (machinery picture, logo) disimpan di Laravel Filesystem local disk (on-premise), path/URL disimpan di kolom string",
-    "ID entitas yang bisa dibuat offline di mobile (record stasiun) menggunakan UUID agar stabil saat sync ke server pusat"
+    "ID entitas yang bisa dibuat offline di mobile (record stasiun) menggunakan UUID agar stabil saat sync ke server pusat",
+    "KUNCI PERIODE TERTUTUP (2026-09-22): bila sebuah Periode Pelaporan (entitas period) berstatus closed, seluruh record stasiun yang kolom date-nya jatuh di dalam [start_date, end_date] periode itu tidak boleh dibuat, diubah, maupun diverifikasi (checked_by/acknowledged_by ikut terkunci). Penentuan periode memakai record.date — tanggal kejadian di pabrik — BUKAN created_at atau waktu sync.",
+    "Penegakan kunci periode WAJIB di layer service backend pada create(), update(), dan aksi verifikasi — tidak cukup di UI. Alasannya konkret: aplikasi mobile mengirim record satu per satu langsung ke POST /api/{stasiun}-records, sehingga kunci yang hanya dipasang di layar dapat dilewati sepenuhnya.",
+    "Penolakan akibat periode tertutup memakai HTTP 422 dengan code=PERIOD_CLOSED. Klien mobile WAJIB memperlakukan kode ini sebagai penolakan SEMENTARA: record tetap tertahan di antrean sync lokal, tidak dibuang, dan ikut terkirim lagi secara otomatis setelah Admin membuka kembali periode. Ini berbeda dari error validasi biasa yang menuntut perbaikan data oleh operator.",
+    "Hanya actor-admin yang boleh menutup dan membuka kembali Periode Pelaporan. Karena verifikasi ikut terkunci, layar Kelola Periode Pelaporan (screen-128) menampilkan jumlah record yang belum terverifikasi sebagai peringatan sebelum penutupan dikonfirmasi.",
+    "Laporan periode per stasiun (Full Cycle) tahap pertama mencakup 5 stasiun — Sterilizer, Cages & Tracks, Boiler Room, Clarification, Storage Tank — tetapi aturan kunci periode dirancang generik dan berlaku untuk seluruh 18 stasiun sejak awal, bukan hanya kelima stasiun tersebut."
   ]
 }

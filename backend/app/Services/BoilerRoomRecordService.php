@@ -381,42 +381,107 @@ class BoilerRoomRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = BoilerRoomDetail::query()
+            ->whereIn('boiler_room_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('boilerRoomDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'boilerRoomDetails' => fn ($detailQuery) => $detailQuery->orderBy('time_slot'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Boiler Room ID',
                     'Date',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Status',
+                    'Time-Slot',
+                    'Steam Pressure (bar)',
+                    'Steam Temp (°C)',
+                    'Feed Water Temp (°C)',
+                    'Feed Water Tank Level (%)',
+                    'Boiler Water Level (%)',
+                    'Water TDS (ppm)',
+                    'Water pH',
+                    'Fuel Feed Rate',
+                    'ID Fan Load',
+                    'SA Fan Load',
+                    'Exhaust Gas Temp (°C)',
+                    'Dust Collector Differential Pressure (mmH2O)',
+                    'Blowdown Executed',
+                    'Sootblowing Executed',
+                    'Findings',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var BoilerRoomRecord $record */
-                    fputcsv($handle, [
-                        $record->boiler_room_id,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var BoilerRoomRecord $record */
+                        $context = [
+                            $record->boiler_room_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->boilerRoomDetails;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 16, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var BoilerRoomDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                $detail->time_slot,
+                                $detail->steam_pressure_bar,
+                                $detail->steam_temp_c,
+                                $detail->feed_water_temp_c,
+                                $detail->feed_water_tank_level_percent,
+                                $detail->boiler_water_level_percent,
+                                $detail->water_tds_ppm,
+                                $detail->water_ph,
+                                $detail->fuel_feed_rate,
+                                $detail->id_fan_load,
+                                $detail->sa_fan_load,
+                                $detail->exhaust_gas_temp_c,
+                                $detail->dust_collector_differential_pressure_mmh2o,
+                                $detail->blowdown_executed,
+                                $detail->sootblowing_executed,
+                                $detail->findings,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

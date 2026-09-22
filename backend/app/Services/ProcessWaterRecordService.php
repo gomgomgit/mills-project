@@ -360,42 +360,103 @@ class ProcessWaterRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = ProcessWaterDetail::query()
+            ->whereIn('process_water_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('processWaterDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'processWaterDetails' => fn ($detailQuery) => $detailQuery->orderBy('time_slot'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Process Water ID',
                     'Date',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Status',
+                    'Time-Slot',
+                    'Shift',
+                    'Inspector ID',
+                    'Raw Water Flow (m³/h)',
+                    'Clarified Water Flow (m³/h)',
+                    'Softener Inlet pH',
+                    'Softener Outlet Hardness (ppm)',
+                    'Alum Dosing (kg/h)',
+                    'Polymer Dosing (g/h)',
+                    'Boiler Feed Tank Temp (°C)',
+                    'Boiler Feed Water pH',
+                    'Boiler Feed TDS (ppm)',
+                    'Action Taken/Status',
+                    'Findings',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var ProcessWaterRecord $record */
-                    fputcsv($handle, [
-                        $record->process_water_id,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var ProcessWaterRecord $record */
+                        $context = [
+                            $record->process_water_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->processWaterDetails;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 14, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var ProcessWaterDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                $detail->time_slot,
+                                $detail->shift,
+                                $detail->inspector_id,
+                                $detail->raw_water_flow_m3h,
+                                $detail->clarified_water_flow_m3h,
+                                $detail->softener_inlet_ph,
+                                $detail->softener_outlet_hardness_ppm,
+                                $detail->alum_dosing_kgh,
+                                $detail->polymer_dosing_gh,
+                                $detail->boiler_feed_tank_temp_c,
+                                $detail->boiler_feed_water_ph,
+                                $detail->boiler_feed_tds_ppm,
+                                $detail->action_taken_status,
+                                $detail->findings,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

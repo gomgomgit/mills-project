@@ -274,45 +274,112 @@ class SolidWasteDisposalRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->withCount('solidWasteDisposalDetails')
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = SolidWasteDisposalDetail::query()
+            ->whereIn('solid_waste_disposal_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('solidWasteDisposalDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->withCount('solidWasteDisposalDetails')
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'solidWasteDisposalDetails' => fn ($detailQuery) => $detailQuery->orderBy('event_date'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Solid Waste Disp. ID',
                     'Date',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Jumlah Kejadian',
                     'Status',
+                    'Tanggal Kejadian',
+                    'Shift',
+                    'Weighbridge Ticket No',
+                    'Vehicle No',
+                    'Driver Name',
+                    'Solid Waste Type',
+                    'Source Station',
+                    'Gross Weight (MT)',
+                    'Tare Weight (MT)',
+                    'Net Weight (MT)',
+                    'Disposal/Utilization Site',
+                    'Purpose/End Use',
+                    'Gate Pass No',
+                    'Security Seal No',
+                    'Operator ID',
+                    'Remarks',
+                    'Findings',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var SolidWasteDisposalRecord $record */
-                    fputcsv($handle, [
-                        $record->solid_waste_disposal_id,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->solid_waste_disposal_details_count,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var SolidWasteDisposalRecord $record */
+                        $context = [
+                            $record->solid_waste_disposal_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->solid_waste_disposal_details_count,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->solidWasteDisposalDetails;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 17, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var SolidWasteDisposalDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                optional($detail->event_date)->toDateString(),
+                                $detail->shift,
+                                $detail->weighbridge_ticket_no,
+                                $detail->vehicle_no,
+                                $detail->driver_name,
+                                $detail->solid_waste_type,
+                                $detail->source_station,
+                                $detail->gross_weight_mt,
+                                $detail->tare_weight_mt,
+                                $detail->net_weight_mt,
+                                $detail->disposal_utilization_site,
+                                $detail->purpose_end_use,
+                                $detail->gate_pass_no,
+                                $detail->security_seal_no,
+                                $detail->operator_id,
+                                $detail->remarks,
+                                $detail->findings,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

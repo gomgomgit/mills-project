@@ -278,45 +278,120 @@ class KernelDispatchRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->withCount('kernelDispatchDetails')
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = KernelDispatchDetail::query()
+            ->whereIn('kernel_dispatch_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('kernelDispatchDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->withCount('kernelDispatchDetails')
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'kernelDispatchDetails' => fn ($detailQuery) => $detailQuery->orderBy('event_date'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Kernel Dispatch ID',
                     'Date',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Jumlah Kejadian',
                     'Status',
+                    'Tanggal Kejadian',
+                    'Shift',
+                    'Weighbridge Ticket No',
+                    'Waybill Number',
+                    'Transporter/Contractor',
+                    'Vehicle Plate No',
+                    'Driver Name',
+                    'Silo Source ID',
+                    'Destination/Buyer',
+                    'Gross Weight (MT)',
+                    'Tare Weight (MT)',
+                    'Net Weight (MT)',
+                    'Kernel Moisture (%)',
+                    'Dirt/Impurities (%)',
+                    'FFA (%)',
+                    'Broken Kernel (%)',
+                    'Security Seal No (Top)',
+                    'Security Seal No (Bottom)',
+                    'Weighbridge Operator ID',
+                    'Remarks/Gate Status',
+                    'Findings',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var KernelDispatchRecord $record */
-                    fputcsv($handle, [
-                        $record->kernel_dispatch_id,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->kernel_dispatch_details_count,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var KernelDispatchRecord $record */
+                        $context = [
+                            $record->kernel_dispatch_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->kernel_dispatch_details_count,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->kernelDispatchDetails;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 21, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var KernelDispatchDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                optional($detail->event_date)->toDateString(),
+                                $detail->shift,
+                                $detail->weighbridge_ticket_no,
+                                $detail->waybill_number,
+                                $detail->transporter_contractor,
+                                $detail->vehicle_plate_no,
+                                $detail->driver_name,
+                                $detail->silo_source_id,
+                                $detail->destination_buyer,
+                                $detail->gross_weight_mt,
+                                $detail->tare_weight_mt,
+                                $detail->net_weight_mt,
+                                $detail->kernel_moisture_percent,
+                                $detail->dirt_impurities_percent,
+                                $detail->ffa_percent,
+                                $detail->broken_kernel_percent,
+                                $detail->security_seal_no_top,
+                                $detail->security_seal_no_bottom,
+                                $detail->weighbridge_operator_id,
+                                $detail->remarks_gate_status,
+                                $detail->findings,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

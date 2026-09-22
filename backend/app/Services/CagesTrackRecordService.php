@@ -371,47 +371,94 @@ class CagesTrackRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->withCount('cagesTippedTimes')
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = CagesTippedTime::query()
+            ->whereIn('cages_track_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('cagesTippedTimes')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->withCount('cagesTippedTimes')
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'cagesTippedTimes' => fn ($detailQuery) => $detailQuery->orderBy('tipped_hour'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
-                // Header row. Explicit $separator/$enclosure/$escape (PHP
-                // 8.4 deprecates relying on fputcsv()'s default $escape).
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Cages Track Number',
                     'Date',
+                    'Tippler Start Time',
+                    'Tippler Stop Time',
+                    'Cages Out',
+                    'Cages Tipped',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Jumlah Cage/Lori Tercatat',
                     'Status',
+                    'Time',
+                    'Cage Dicentang',
+                    'Total Cages',
+                    'Cages Remain',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var CagesTrackRecord $record */
-                    fputcsv($handle, [
-                        $record->cages_track_number,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->cages_tipped_times_count,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var CagesTrackRecord $record */
+                        $context = [
+                            $record->cages_track_number,
+                            optional($record->date)->toDateString(),
+                            optional($record->tippler_start_time)->toDateTimeString(),
+                            optional($record->tippler_stop_time)->toDateTimeString(),
+                            $record->cages_out,
+                            $record->cages_tipped,
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->cages_tipped_times_count,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->cagesTippedTimes;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 4, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var CagesTippedTime $detail */
+                            fputcsv($handle, array_merge($context, [
+                                $detail->tipped_hour,
+                                $detail->checked_cage_numbers,
+                                $detail->total_cages,
+                                $detail->cages_remain,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

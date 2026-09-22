@@ -282,45 +282,120 @@ class CpoDispatchRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->withCount('cpoDispatchDetails')
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = CpoDispatchDetail::query()
+            ->whereIn('cpo_dispatch_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('cpoDispatchDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->withCount('cpoDispatchDetails')
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'cpoDispatchDetails' => fn ($detailQuery) => $detailQuery->orderBy('event_date'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'CPO Dispatch ID',
                     'Date',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Jumlah Kejadian',
                     'Status',
+                    'Tanggal Kejadian',
+                    'Shift',
+                    'Time In',
+                    'Time Out',
+                    'Waybill Number',
+                    'Tanker Plate No',
+                    'Transport Company',
+                    'Driver Name',
+                    'Storage Tank Source',
+                    'Seal No (Top)',
+                    'Seal No (Bottom)',
+                    'Gross Weight (MT)',
+                    'Tare Weight (MT)',
+                    'Net Weight (MT)',
+                    'FFA (%)',
+                    'Moisture (%)',
+                    'Impurities (%)',
+                    'DOBI',
+                    'Destination/Buyer',
+                    'Weighbridge Operator',
+                    'Findings',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var CpoDispatchRecord $record */
-                    fputcsv($handle, [
-                        $record->cpo_dispatch_id,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->cpo_dispatch_details_count,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var CpoDispatchRecord $record */
+                        $context = [
+                            $record->cpo_dispatch_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->cpo_dispatch_details_count,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->cpoDispatchDetails;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 21, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var CpoDispatchDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                optional($detail->event_date)->toDateString(),
+                                $detail->shift,
+                                $detail->time_in,
+                                $detail->time_out,
+                                $detail->waybill_number,
+                                $detail->tanker_plate_no,
+                                $detail->transport_company,
+                                $detail->driver_name,
+                                $detail->storage_tank_source,
+                                $detail->seal_no_top,
+                                $detail->seal_no_bottom,
+                                $detail->gross_weight_mt,
+                                $detail->tare_weight_mt,
+                                $detail->net_weight_mt,
+                                $detail->ffa_percent,
+                                $detail->moisture_percent,
+                                $detail->impurities_percent,
+                                $detail->dobi,
+                                $detail->destination_buyer,
+                                $detail->weighbridge_operator,
+                                $detail->findings,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

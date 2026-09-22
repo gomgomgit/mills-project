@@ -315,54 +315,98 @@ class GradingRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = GradingDetail::query()
+            ->whereIn('grading_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('gradingDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'weighbridgeRecord:id,wb_card_number',
+                    'gradingDetails.gradingParameter',
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
-                // Header row. Explicit $separator/$enclosure/$escape (PHP
-                // 8.4 deprecates relying on fputcsv()'s default $escape).
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Grading Number',
                     'Date',
-                    'Vehicle Number',
-                    'Driver Name',
+                    'WB Card Number',
+                    'License Plate No',
+                    'Vehicle Code',
                     'Estate/Supplier',
                     'Division',
-                    'Block',
+                    'Netto',
+                    'Quantity',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Status',
+                    'Quality Parameter',
+                    'Qty',
+                    'UOM',
+                    'Percentage (%)',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var GradingRecord $record */
-                    fputcsv($handle, [
-                        $record->grading_number,
-                        optional($record->date)->toDateString(),
-                        $record->vehicle_number,
-                        $record->driver_name,
-                        $record->estate_supplier,
-                        $record->division,
-                        $record->block,
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var GradingRecord $record */
+                        $context = [
+                            $record->grading_number,
+                            optional($record->date)->toDateString(),
+                            $record->weighbridgeRecord?->wb_card_number,
+                            $record->license_plate_no,
+                            $record->vehicle_code,
+                            $record->estate_supplier,
+                            $record->division,
+                            $record->netto,
+                            $record->quantity,
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->gradingDetails->sortBy(fn ($detail) => $detail->gradingParameter?->sort_order ?? 0);
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 4, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var GradingDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                $detail->gradingParameter?->name,
+                                $detail->quantity,
+                                $detail->uom?->value,
+                                $detail->percentage,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

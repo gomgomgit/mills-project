@@ -382,42 +382,115 @@ class EffluentPlantRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = EffluentPlantDetail::query()
+            ->whereIn('effluent_plant_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('effluentPlantDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'effluentPlantDetails' => fn ($detailQuery) => $detailQuery->orderBy('time_slot'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Effluent Plant ID',
                     'Date',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Status',
+                    'Time-Slot',
+                    'Anaerobic Pond 1 pH',
+                    'Anaerobic Pond 1 Temp (°C)',
+                    'Anaerobic Pond 2 pH',
+                    'Anaerobic Pond 2 Temp (°C)',
+                    'Cooling Pond pH',
+                    'Cooling Pond Temp (°C)',
+                    'Biogas Flare Status',
+                    'Biogas Flow Rate (m³/h)',
+                    'Raw POME Feed Rate (m³/h)',
+                    'Effluent Discharge Flow Rate (m³/h)',
+                    'Final Discharge pH',
+                    'Final Discharge BOD (mg/L)',
+                    'Final Discharge COD (mg/L)',
+                    'Final Discharge TSS (mg/L)',
+                    'Dosing Pump 1 Status',
+                    'Chemical Consumed (kg/L)',
+                    'Sludge Dewatering Status',
+                    'Remarks/Maintenance Actions',
+                    'Findings',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var EffluentPlantRecord $record */
-                    fputcsv($handle, [
-                        $record->effluent_plant_id,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var EffluentPlantRecord $record */
+                        $context = [
+                            $record->effluent_plant_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->effluentPlantDetails;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 20, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var EffluentPlantDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                $detail->time_slot,
+                                $detail->anaerobic_pond_1_ph,
+                                $detail->anaerobic_pond_1_temp_c,
+                                $detail->anaerobic_pond_2_ph,
+                                $detail->anaerobic_pond_2_temp_c,
+                                $detail->cooling_pond_ph,
+                                $detail->cooling_pond_temp_c,
+                                $detail->biogas_flare_status,
+                                $detail->biogas_flow_rate_m3h,
+                                $detail->raw_pome_feed_rate_m3h,
+                                $detail->effluent_discharge_flow_rate_m3h,
+                                $detail->final_discharge_ph,
+                                $detail->final_discharge_bod_mgl_lab,
+                                $detail->final_discharge_cod_mgl_lab,
+                                $detail->final_discharge_tss_mgl_lab,
+                                $detail->dosing_pump_1_status,
+                                $detail->chemical_consumed_kgl,
+                                $detail->sludge_dewatering_status,
+                                $detail->remarks_maintenance_actions,
+                                $detail->findings,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

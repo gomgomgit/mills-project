@@ -363,42 +363,89 @@ class ThreshingRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = ThreshingDetail::query()
+            ->whereIn('threshing_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('threshingDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'threshingDetails' => fn ($detailQuery) => $detailQuery->orderBy('time_slot'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Thresher ID',
                     'Date',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Status',
+                    'Time-Slot',
+                    'FFB Throughput (MT/Hour)',
+                    'Drum Speed (RPM)',
+                    'Motor Current (A)',
+                    'Unstripped Bunch (%)',
+                    'Oil Loss (%)',
+                    'Downtime Reason',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var ThreshingRecord $record */
-                    fputcsv($handle, [
-                        $record->thresher_id,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var ThreshingRecord $record */
+                        $context = [
+                            $record->thresher_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->threshingDetails;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 7, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var ThreshingDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                $detail->time_slot,
+                                $detail->ffb_throughput_mt_hour,
+                                $detail->thresher_drum_speed_rpm,
+                                $detail->motor_current_amps,
+                                $detail->unstripped_bunch_count_percent,
+                                $detail->empty_bunch_oil_loss_percent,
+                                $detail->downtime_reason,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

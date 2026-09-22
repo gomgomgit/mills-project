@@ -1,8 +1,8 @@
 {
-  "ver": 15,
+  "ver": 16,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-09-22"
   },
   "entities": [
     {
@@ -6083,6 +6083,127 @@
         "remarks": "",
         "created_at": "2024-01-15T07:00:00Z",
         "updated_at": "2024-01-15T08:10:00Z"
+      }
+    },
+    {
+      "id": "period",
+      "name": "Periode Pelaporan",
+      "description": "Rentang tanggal pelaporan resmi per mill (Business Unit) dan jenis stasiun — satuan periode untuk seluruh laporan Full Cycle per Stasiun (screen-128 s/d screen-139). Cakupannya mill + station_type, BUKAN Production Line: satu periode berlaku untuk semua Production Line di mill tersebut (keputusan user 2026-09-22). station_type kosong berarti periode berlaku untuk semua jenis stasiun di mill itu. Saat status closed, tidak ada record stasiun yang tanggal kejadiannya jatuh di dalam rentang ini yang boleh dibuat, diubah, maupun diverifikasi. Hanya Admin yang boleh menutup dan membuka kembali periode. Berdiri di luar hierarki Corporate -> Company -> Business Unit -> Production Line -> Station.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID."
+        },
+        {
+          "name": "business_unit_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Business Unit — mill pemilik periode. Periode selalu dimiliki tepat satu mill."
+        },
+        {
+          "name": "station_type",
+          "type": "enum(weighbridge, grading, cages-track, threshing, pressing, depricarping, kernel-plant, solid-waste-disposal, process-water, kernel-dispatch, cpo-dispatch, effluent-plant, storage-tank, engine-room, boiler-room, clarification, process-quality-control, sterilizer, other)",
+          "required": false,
+          "description": "Jenis stasiun yang dicakup periode ini, mengikuti enum station.type. NULL berarti periode berlaku untuk SEMUA jenis stasiun di mill tersebut. Tidak ada FK ke station atau production_line — cakupan periode sengaja di level jenis stasiun, bukan unit stasiun maupun line."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Nama periode yang ditampilkan di pemilih laporan, mis. 'Oktober 2026'."
+        },
+        {
+          "name": "start_date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal awal periode (inklusif). Dibandingkan terhadap kolom date record stasiun."
+        },
+        {
+          "name": "end_date",
+          "type": "date",
+          "required": true,
+          "description": "Tanggal akhir periode (inklusif). Dibandingkan terhadap kolom date record stasiun."
+        },
+        {
+          "name": "status",
+          "type": "enum(draft, open, closed)",
+          "required": true,
+          "description": "Status periode. draft = belum dipakai; open = periode berjalan, input/edit/verifikasi diizinkan; closed = terkunci penuh, tidak ada record masuk, berubah, maupun diverifikasi."
+        },
+        {
+          "name": "closed_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User (role admin) yang menutup periode. Dikosongkan kembali saat periode dibuka ulang."
+        },
+        {
+          "name": "closed_at",
+          "type": "timestamp",
+          "required": false,
+          "description": "Waktu periode ditutup. Dikosongkan kembali saat periode dibuka ulang."
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke User yang membuat record."
+        },
+        {
+          "name": "updated_by",
+          "type": "uuid",
+          "required": false,
+          "description": "FK ke User yang terakhir memperbarui record."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "business-unit",
+          "type": "one-to-many",
+          "description": "Satu Business Unit (mill) dapat memiliki banyak Periode Pelaporan; setiap periode milik tepat satu mill."
+        },
+        {
+          "entity_id": "user",
+          "type": "one-to-many",
+          "description": "Satu User (Admin) dapat menutup banyak periode lewat closed_by; setiap periode tertutup dicatat satu penutup."
+        }
+      ],
+      "constraints": [
+        "end_date harus >= start_date",
+        "Rentang tanggal tidak boleh tumpang tindih untuk kombinasi (business_unit_id, station_type) yang sama. Periode ber-station_type NULL mencakup semua jenis stasiun, sehingga juga tidak boleh tumpang tindih dengan periode ber-station_type spesifik di mill yang sama.",
+        "name unik per (business_unit_id, station_type)",
+        "Transisi status yang diizinkan: draft -> open, open -> closed, closed -> open (buka kembali). Menutup dan membuka kembali hanya boleh dilakukan actor-admin.",
+        "closed_by dan closed_at wajib terisi saat status = closed, dan dikosongkan saat periode dibuka kembali",
+        "KUNCI PERIODE TERTUTUP: record stasiun mana pun (18 entitas *-record) yang kolom date-nya jatuh di dalam [start_date, end_date] milik periode berstatus closed untuk (business_unit_id, station_type) yang cocok tidak boleh di-INSERT, di-UPDATE, maupun diubah kolom checked_by/acknowledged_by-nya. Penentuan periode memakai record.date (tanggal kejadian di pabrik), BUKAN created_at atau waktu sync.",
+        "Penegakan kunci wajib di layer service backend (create/update/verifikasi), bukan hanya di UI — aplikasi mobile mengirim record langsung ke POST /api/{stasiun}-records sehingga kunci di layar bisa dilewati."
+      ],
+      "test_fixture": {
+        "id": "prd-001",
+        "business_unit_id": "bu-001",
+        "station_type": "sterilizer",
+        "name": "Oktober 2026",
+        "start_date": "2026-09-21",
+        "end_date": "2026-10-20",
+        "status": "open",
+        "closed_by": null,
+        "closed_at": null,
+        "created_by": "usr-001",
+        "updated_by": null,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
       }
     }
   ]

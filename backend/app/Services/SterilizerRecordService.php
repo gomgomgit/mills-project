@@ -308,45 +308,106 @@ class SterilizerRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->withCount('sterilizerDetails')
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = SterilizerDetail::query()
+            ->whereIn('sterilizer_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('sterilizerDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->withCount('sterilizerDetails')
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'sterilizerDetails' => fn ($detailQuery) => $detailQuery->orderBy('sterilizer_no'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Sterilizer ID',
                     'Date',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Jumlah Siklus',
                     'Status',
+                    'Sterilizer No',
+                    'Close Door Time',
+                    'Peak 1 Time',
+                    'Exhaust 1 Time',
+                    'Peak 2 Time',
+                    'Exhaust 2 Time',
+                    'Peak 3 Time',
+                    'Exhaust 3 Time',
+                    'Open Door Time',
+                    'Duration (Minutes)',
+                    'Number of Cages',
+                    'Cages Status',
+                    'Checked by SPV',
+                    'Remarks',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var SterilizerRecord $record */
-                    fputcsv($handle, [
-                        $record->sterilizer_id,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->sterilizer_details_count,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var SterilizerRecord $record */
+                        $context = [
+                            $record->sterilizer_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->sterilizer_details_count,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->sterilizerDetails;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 14, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var SterilizerDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                $detail->sterilizer_no,
+                                $detail->close_door_time,
+                                $detail->peak_1_time,
+                                $detail->exhaust_1_time,
+                                $detail->peak_2_time,
+                                $detail->exhaust_2_time,
+                                $detail->peak_3_time,
+                                $detail->exhaust_3_time,
+                                $detail->open_door_time,
+                                $detail->duration_minutes,
+                                $detail->number_of_cages,
+                                $detail->cages_status,
+                                $detail->checked_by_spv,
+                                $detail->remarks,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

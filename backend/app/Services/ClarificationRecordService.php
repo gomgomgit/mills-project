@@ -353,42 +353,91 @@ class ClarificationRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = ClarificationDetail::query()
+            ->whereIn('clarification_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('clarificationDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'clarificationDetails' => fn ($detailQuery) => $detailQuery->orderBy('time_slot'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Clarification ID',
                     'Date',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Status',
+                    'Time-Slot',
+                    'Clarification Tank Temp (°C)',
+                    'Oil Tank Temperature (°C)',
+                    'Sludge Tank Temp (°C)',
+                    'Buffer Tank Level (%)',
+                    'Pure Oil Production Rate (Ton/Hour)',
+                    'Downtime (Mins)',
+                    'Findings',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var ClarificationRecord $record */
-                    fputcsv($handle, [
-                        $record->clarification_id,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var ClarificationRecord $record */
+                        $context = [
+                            $record->clarification_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->clarificationDetails;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 8, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var ClarificationDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                $detail->time_slot,
+                                $detail->clarification_tank_temp_c,
+                                $detail->oil_tank_temperature_c,
+                                $detail->sludge_tank_temp_c,
+                                $detail->buffer_tank_level_percent,
+                                $detail->pure_oil_production_rate_ton_hour,
+                                $detail->downtime_mins,
+                                $detail->findings,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

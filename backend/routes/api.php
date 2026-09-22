@@ -114,7 +114,17 @@ Route::middleware(['auth:web,sanctum', 'role:admin,supervisor,mill_management,op
 // mill_management, admin per screen_tech_spec.actor_permissions).
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/weighbridge-records', [WeighbridgeRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+// EXPORT ROUTES — the 'web' middleware group is stacked on top of 'api'
+// (same reason as POST /api/login above): the export links are plain <a
+// href> navigations from a Livewire page, and the 'api' group only starts a
+// session when Sanctum's EnsureFrontendRequestsAreStateful recognises the
+// Referer host in config('sanctum.stateful'). Any host not listed there —
+// localhost:8000, a LAN IP, the production domain — got 401 Unauthenticated
+// on every export while the page itself rendered fine (reproduced
+// 2026-09-22). Stacking 'web' starts the session unconditionally, so the
+// export no longer depends on a Referer header or on the deployment host
+// being listed. Safe for GET: VerifyCsrfToken only checks mutating methods.
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/weighbridge-records/export', [WeighbridgeRecordController::class, 'export']);
 
 // screen-019--detail-weighbridge-web
@@ -149,7 +159,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // screen-016's registration pattern exactly.
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/grading-records', [GradingRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/grading-records/export', [GradingRecordController::class, 'export']);
 
 // screen-018--data-browser-cages-track-web
@@ -159,7 +169,7 @@ Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
 // screen-016/screen-017's registration pattern exactly.
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/cages-track-records', [CagesTrackRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/cages-track-records/export', [CagesTrackRecordController::class, 'export']);
 
 // screen-021--detail-cages-track-web
@@ -452,7 +462,7 @@ Route::middleware(['auth:web', 'role:admin'])->group(function () {
 // screen-018--data-browser-cages-track-web's registration pattern exactly.
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/threshing-records', [ThreshingRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/threshing-records/export', [ThreshingRecordController::class, 'export']);
 
 // screen-053--detail-threshing-web
@@ -479,7 +489,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // screen-049--data-browser-threshing-web's registration pattern exactly.
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/pressing-records', [PressingRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/pressing-records/export', [PressingRecordController::class, 'export']);
 
 // screen-054--detail-pressing-web
@@ -506,7 +516,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // screen-050--data-browser-pressing-web's registration pattern exactly.
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/depricarping-records', [DepricarpingRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/depricarping-records/export', [DepricarpingRecordController::class, 'export']);
 
 // screen-055--detail-depricarping-web
@@ -533,7 +543,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // screen-051--data-browser-depricarping-web's registration pattern exactly.
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/kernel-plant-records', [KernelPlantRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/kernel-plant-records/export', [KernelPlantRecordController::class, 'export']);
 
 // screen-056--detail-kernel-plant-web
@@ -558,7 +568,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // exactly — event-log station, no fixed grid.
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/solid-waste-disposal-records', [SolidWasteDisposalRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/solid-waste-disposal-records/export', [SolidWasteDisposalRecordController::class, 'export']);
 
 // screen-101--detail-solid-waste-disposal-web
@@ -585,7 +595,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // Depricarping/Kernel Plant).
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/process-water-records', [ProcessWaterRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/process-water-records/export', [ProcessWaterRecordController::class, 'export']);
 
 // screen-102--detail-process-water-web
@@ -611,7 +621,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // Waste Disposal (unbounded detail rows, no fixed grid).
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/kernel-dispatch-records', [KernelDispatchRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/kernel-dispatch-records/export', [KernelDispatchRecordController::class, 'export']);
 
 // screen-103--detail-kernel-dispatch-web
@@ -637,7 +647,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // Dispatch (unbounded detail rows, no fixed grid).
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/cpo-dispatch-records', [CpoDispatchRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/cpo-dispatch-records/export', [CpoDispatchRecordController::class, 'export']);
 
 // screen-104--detail-cpo-dispatch-web
@@ -663,7 +673,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // operational-target reference table).
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/effluent-plant-records', [EffluentPlantRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/effluent-plant-records/export', [EffluentPlantRecordController::class, 'export']);
 
 // screen-105--detail-effluent-plant-web
@@ -689,7 +699,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // operational-target reference table).
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/storage-tank-records', [StorageTankRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/storage-tank-records/export', [StorageTankRecordController::class, 'export']);
 
 // screen-106--detail-storage-tank-web
@@ -715,7 +725,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // operational-target reference table).
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/engine-room-records', [EngineRoomRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/engine-room-records/export', [EngineRoomRecordController::class, 'export']);
 
 // screen-107--detail-engine-room-web
@@ -741,7 +751,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // operational-target reference table).
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/boiler-room-records', [BoilerRoomRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/boiler-room-records/export', [BoilerRoomRecordController::class, 'export']);
 
 // screen-108--detail-boiler-room-web
@@ -767,7 +777,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // operational-target reference table).
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/clarification-records', [ClarificationRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/clarification-records/export', [ClarificationRecordController::class, 'export']);
 
 // screen-109--detail-clarification-web
@@ -793,7 +803,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // Clarification (no operational-target reference table).
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/process-quality-control-records', [ProcessQualityControlRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/process-quality-control-records/export', [ProcessQualityControlRecordController::class, 'export']);
 
 // screen-110--detail-process-quality-control-web
@@ -822,7 +832,7 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // backend + mobile implementation.
 Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/sterilizer-records', [SterilizerRecordController::class, 'index']);
-Route::middleware(['auth:web', 'role:supervisor,mill_management,admin'])
+Route::middleware(['web', 'auth:web', 'role:supervisor,mill_management,admin'])
     ->get('/sterilizer-records/export', [SterilizerRecordController::class, 'export']);
 
 // screen-125--detail-sterilizer-web

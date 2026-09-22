@@ -378,42 +378,111 @@ class StorageTankRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = StorageTankDetail::query()
+            ->whereIn('storage_tank_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('storageTankDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'storageTankDetails' => fn ($detailQuery) => $detailQuery->orderBy('time_slot'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Storage Tank ID',
                     'Date',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Status',
+                    'Time-Slot',
+                    'CPO Sounding Depth (mm)',
+                    'Water Dip/Bottom Depth (mm)',
+                    'Net Oil Depth (mm)',
+                    'Oil Temperature - Top (°C)',
+                    'Oil Temperature - Middle (°C)',
+                    'Oil Temperature - Bottom (°C)',
+                    'Average Temperature (°C)',
+                    'Calculated Volume (m³)',
+                    'Calculated Weight (MT)',
+                    'FFA (%)',
+                    'Moisture Content (%)',
+                    'Impurities/Dirt (%)',
+                    'DOBI Index',
+                    'Steam Heating Valve Status',
+                    'Tank Structural Condition',
+                    'Inspector Name',
+                    'Findings',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var StorageTankRecord $record */
-                    fputcsv($handle, [
-                        $record->storage_tank_id,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var StorageTankRecord $record */
+                        $context = [
+                            $record->storage_tank_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->storageTankDetails;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 18, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var StorageTankDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                $detail->time_slot,
+                                $detail->cpo_sounding_depth_mm,
+                                $detail->water_dip_bottom_depth_mm,
+                                $detail->net_oil_depth_mm,
+                                $detail->oil_temperature_top_c,
+                                $detail->oil_temperature_middle_c,
+                                $detail->oil_temperature_bottom_c,
+                                $detail->average_temperature_c,
+                                $detail->calculated_volume_m3,
+                                $detail->calculated_weight_mt,
+                                $detail->ffa_percent,
+                                $detail->moisture_content_percent,
+                                $detail->impurities_dirt_percent,
+                                $detail->dobi_index,
+                                $detail->steam_heating_valve_status,
+                                $detail->tank_structural_condition,
+                                $detail->inspector_name,
+                                $detail->findings,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

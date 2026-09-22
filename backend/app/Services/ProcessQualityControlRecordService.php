@@ -357,42 +357,109 @@ class ProcessQualityControlRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = ProcessQualityControlDetail::query()
+            ->whereIn('process_quality_control_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('processQualityControlDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'processQualityControlDetails' => fn ($detailQuery) => $detailQuery->orderBy('time_slot'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Process QC ID',
                     'Date',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Status',
+                    'Time-Slot',
+                    'Shift',
+                    'Fruit Press Oil Loss in Sludge (%)',
+                    'Fruit Press Oil Loss in Fibre (%)',
+                    'Purifier & Clarification Balance Inlet Temp (°C)',
+                    'Purifier & Clarification Balance Backpressure (Bar)',
+                    'Vacuum Drying Station Drier Temp (°C)',
+                    'Vacuum Drying Station Vacuum Pressure (Bar)',
+                    'Decanter/Centrifuge Feed Rate (MT/h)',
+                    'Decanter/Centrifuge Oil Loss in Cake (%)',
+                    'Final Storage FFA (%)',
+                    'Final Storage Moisture Content (%)',
+                    'Final Storage Impurities/Dirt (%)',
+                    'Final Storage DOBI Index',
+                    'QC Inspector ID',
+                    'QC Engineering Corrective Actions/Remarks',
+                    'Findings',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var ProcessQualityControlRecord $record */
-                    fputcsv($handle, [
-                        $record->process_qc_id,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var ProcessQualityControlRecord $record */
+                        $context = [
+                            $record->process_qc_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->processQualityControlDetails;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 17, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var ProcessQualityControlDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                $detail->time_slot,
+                                $detail->shift,
+                                $detail->fruit_press_oil_loss_in_sludge_percent,
+                                $detail->fruit_press_oil_loss_in_fibre_percent,
+                                $detail->purifier_clarification_balance_inlet_temp_c,
+                                $detail->purifier_clarification_balance_backpressure_bar,
+                                $detail->vacuum_drying_station_drier_temp_c,
+                                $detail->vacuum_drying_station_vacuum_pressure_bar,
+                                $detail->decanter_centrifuge_feed_rate_mth,
+                                $detail->decanter_centrifuge_oil_loss_in_cake_percent,
+                                $detail->final_storage_ffa_percent,
+                                $detail->final_storage_moisture_content_percent,
+                                $detail->final_storage_impurities_dirt_percent,
+                                $detail->final_storage_dobi_index,
+                                $detail->qc_inspector_id,
+                                $detail->qc_engineering_corrective_actions,
+                                $detail->findings,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

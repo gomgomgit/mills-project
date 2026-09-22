@@ -383,42 +383,131 @@ class EngineRoomRecordService
      */
     public function export(array $filters, string $format): StreamedResponse
     {
-        $query = $this->buildFilteredQuery($filters)
-            ->with(['checkedBy:id,name', 'acknowledgedBy:id,name'])
-            ->orderByDesc('date');
+        $baseQuery = $this->buildFilteredQuery($filters);
 
-        $total = $query->count();
+        // The row limit counts EXPORTED lines, not header records: the file
+        // writes one line per detail row, plus a single line for a record that
+        // has no detail rows at all so an empty day stays visible.
+        $detailRowCount = EngineRoomDetail::query()
+            ->whereIn('engine_room_record_id', (clone $baseQuery)->select('id'))
+            ->count();
+        $recordsWithoutDetails = (clone $baseQuery)->doesntHave('engineRoomDetails')->count();
 
-        if ($total > self::EXPORT_ROW_LIMIT) {
+        if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
             throw new ExportFailedException();
         }
 
         try {
-            $records = $query->get();
+            $query = $baseQuery
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'engineRoomDetails' => fn ($detailQuery) => $detailQuery->orderBy('time_slot'),
+                ])
+                ->orderByDesc('date')
+                ->orderBy('id');
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
-            return response()->streamDownload(function () use ($records) {
+            return response()->streamDownload(function () use ($query) {
                 $handle = fopen('php://output', 'w');
 
+                // Header row. Explicit $separator/$enclosure/$escape (PHP 8.4
+                // deprecates relying on fputcsv()'s default $escape). The
+                // record's context columns repeat on every detail line, so the
+                // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
                     'Engine Room ID',
                     'Date',
+                    'Note',
                     'Checked By',
                     'Acknowledged By',
                     'Status',
+                    'Time-Slot',
+                    'Steam Turbine Inlet Pressure (bar)',
+                    'Steam Turbine Inlet Temp (°C)',
+                    'Steam Turbine Exhaust Pressure (bar)',
+                    'Steam Turbine RPM',
+                    'Steam Turbine Alternator Bearing Temp 1 (°C)',
+                    'Steam Turbine Alternator Bearing Temp 2 (°C)',
+                    'Diesel Gen 1 Status',
+                    'Diesel Gen 1 Load (kW)',
+                    'Diesel Gen 1 Amperage (A)',
+                    'Diesel Gen 1 Jacket Water Temp (°C)',
+                    'Diesel Gen 1 Lube Oil Pressure (bar)',
+                    'Diesel Gen 2 Status',
+                    'Diesel Gen 2 Load (kW)',
+                    'Diesel Gen 2 Amperage (A)',
+                    'Diesel Gen 2 Jacket Water Temp (°C)',
+                    'Diesel Gen 2 Lube Oil Pressure (bar)',
+                    'Electrical Sync Total Factory Load (kW)',
+                    'Electrical Sync System Frequency (Hz)',
+                    'Electrical Sync Power Factor (PF)',
+                    'Electrical Sync Busbar Voltage (V)',
+                    'Air Compressor 1 Pressure (bar)',
+                    'Compressor 2 Pressure (bar)',
+                    'Battery Charger/UPS Voltage (V)',
+                    'Fuel Tank Level (Liters/%)',
+                    'Daily Energy Export (kWh)',
+                    'Action Taken/Maintenance Remark',
+                    'Findings',
                 ], ',', '"', '\\');
 
-                foreach ($records as $record) {
-                    /** @var EngineRoomRecord $record */
-                    fputcsv($handle, [
-                        $record->engine_room_id,
-                        optional($record->date)->toDateString(),
-                        $record->checkedBy?->name,
-                        $record->acknowledgedBy?->name,
-                        $record->status?->value,
-                    ], ',', '"', '\\');
-                }
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var EngineRoomRecord $record */
+                        $context = [
+                            $record->engine_room_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->status?->value,
+                        ];
+
+                        $details = $record->engineRoomDetails;
+
+                        if ($details->isEmpty()) {
+                            fputcsv($handle, array_merge($context, array_fill(0, 28, null)), ',', '"', '\\');
+
+                            continue;
+                        }
+
+                        foreach ($details as $detail) {
+                            /** @var EngineRoomDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                $detail->time_slot,
+                                $detail->steam_turbine_inlet_pressure_bar,
+                                $detail->steam_turbine_inlet_temp_c,
+                                $detail->steam_turbine_exhaust_pressure_bar,
+                                $detail->steam_turbine_rpm,
+                                $detail->steam_turbine_alternator_bearing_temp_1_c,
+                                $detail->steam_turbine_alternator_bearing_temp_2_c,
+                                $detail->diesel_gen_1_status,
+                                $detail->diesel_gen_1_load_kw,
+                                $detail->diesel_gen_1_amperage_a,
+                                $detail->diesel_gen_1_jacket_water_temp_c,
+                                $detail->diesel_gen_1_lube_oil_pressure_bar,
+                                $detail->diesel_gen_2_status,
+                                $detail->diesel_gen_2_load_kw,
+                                $detail->diesel_gen_2_amperage_a,
+                                $detail->diesel_gen_2_jacket_water_temp_c,
+                                $detail->diesel_gen_2_lube_oil_pressure_bar,
+                                $detail->electrical_sync_total_factory_load_kw,
+                                $detail->electrical_sync_system_frequency_hz,
+                                $detail->electrical_sync_power_factor,
+                                $detail->electrical_sync_busbar_voltage_v,
+                                $detail->air_compressor_1_pressure_bar,
+                                $detail->compressor_2_pressure_bar,
+                                $detail->battery_charger_ups_voltage_v,
+                                $detail->fuel_tank_level,
+                                $detail->daily_energy_export_kwh,
+                                $detail->action_taken_maintenance_remark,
+                                $detail->findings,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
 
                 fclose($handle);
             }, $filename, [

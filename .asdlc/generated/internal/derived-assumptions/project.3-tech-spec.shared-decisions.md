@@ -7,3 +7,12 @@
 - pagination.strategy / pagination.defaults / pagination.notes ← diturunkan dari konvensi pagination bawaan Laravel, tidak dinyatakan eksplisit di arch-spec
 - naming_conventions (api_endpoints, db_tables, db_columns) ← diturunkan dari tech stack Laravel/MySQL, tidak dinyatakan eksplisit di arch-spec
 - other_decisions (timestamps UTC ISO 8601, file storage Laravel Filesystem local disk, UUID untuk entitas offline mobile) ← diturunkan dari constraints/goals di PRD, bukan pernyataan eksplisit di shared-decisions
+
+## v5 — 2026-09-22
+
+- error_format.structure += field `code` (UPPER_SNAKE_CASE, machine-readable) ← user stated mobile must be able to tell "periode ditutup" apart from an ordinary validation error so the record is not dropped from the sync queue; adding a `code` field to the shared error envelope is the agent's way of making that possible. Note this also closes a long-standing major known_issue on screen-001 ("ApiExceptionHandler belum mengeluarkan field error_code yang machine-readable"). Additive change — existing message/errors responses stay valid
+- other_decisions += HTTP 422 dengan code=PERIOD_CLOSED sebagai penolakan sementara ← user stated the behaviour (ditolak, data tertahan di HP, ikut sync lagi setelah dibuka); the specific status code and code name are the agent's
+- naming_conventions.notes += error code memakai UPPER_SNAKE_CASE ← agent-derived, follows the existing INVALID_DATE_RANGE / EXPORT_FAILED codes already used in the api-index
+- pagination.notes += endpoint laporan periode tidak dipaginasi ← agent decision; user never discussed pagination for the new report screens
+- auth.notes += catatan route ekspor menumpuk middleware 'web' ← documents the 401 root cause found and fixed earlier in this same session; user asked "kenapa unauthenticated saat export?" but did not ask for it to be recorded in shared-decisions
+- autopilot: seluruh sub-bagian shared-decisions lain (auth mechanism, pagination strategy, naming conventions, integrations) dibawa apa adanya dari v4 tanpa konfirmasi ulang, sesuai Step 6 fast-path

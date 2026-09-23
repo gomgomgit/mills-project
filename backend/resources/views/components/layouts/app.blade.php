@@ -107,6 +107,64 @@
             white-space: nowrap;
         }
 
+        /* ---------- Collapsible nav group ----------
+           Uses native <details>/<summary> — no JS, keyboard-operable for free,
+           same element the daily mill report already uses for its table toggle.
+           The group is rendered with `open` from Blade whenever one of its
+           children is the current route, so landing on Kelola Company shows
+           the group already expanded rather than hiding where you are. */
+        .shell-nav-group > summary {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: var(--radius-input);
+            color: #d1d5db;
+            font-size: 14px;
+            min-height: 44px;
+            cursor: pointer;
+            user-select: none;
+            list-style: none;
+        }
+
+        /* Hide the default disclosure triangle in both engine families —
+           the chevron below is the affordance instead. */
+        .shell-nav-group > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .shell-nav-group > summary::marker {
+            content: '';
+        }
+
+        .shell-nav-group > summary:hover,
+        .shell-nav-group > summary:focus-visible {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+        }
+
+        .shell-nav-group__chevron {
+            margin-left: auto;
+            width: 14px !important;
+            height: 14px !important;
+            opacity: 0.75;
+            transition: transform 0.15s ease;
+        }
+
+        .shell-nav-group[open] > summary .shell-nav-group__chevron {
+            transform: rotate(90deg);
+        }
+
+        .shell-nav-group__items {
+            list-style: none;
+            margin: 4px 0 0 19px;
+            padding: 0 0 0 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            border-left: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
         .shell-main {
             flex: 1;
             display: flex;
@@ -216,6 +274,24 @@
             .shell-sidebar__nav a {
                 justify-content: center;
             }
+
+            /* Icon-only rail: the group header centres like every other item,
+               the chevron and the indent guide would only add noise with no
+               label to attach to. The group still opens on click, revealing
+               its four child icons. */
+            .shell-nav-group > summary {
+                justify-content: center;
+            }
+
+            .shell-nav-group__chevron {
+                display: none;
+            }
+
+            .shell-nav-group__items {
+                margin-left: 0;
+                padding-left: 0;
+                border-left: none;
+            }
         }
 
         /* ---------- Phone (<768px): sidebar becomes an off-canvas drawer ---------- */
@@ -248,6 +324,22 @@
 
             .shell-sidebar__nav a {
                 justify-content: flex-start;
+            }
+
+            /* Drawer shows labels again, so the group gets its chevron and
+               indent guide back too. */
+            .shell-nav-group > summary {
+                justify-content: flex-start;
+            }
+
+            .shell-nav-group__chevron {
+                display: inline;
+            }
+
+            .shell-nav-group__items {
+                margin-left: 19px;
+                padding-left: 14px;
+                border-left: 1px solid rgba(255, 255, 255, 0.12);
             }
 
             .shell-backdrop {
@@ -287,10 +379,25 @@
             <li><a href="{{ route('production-process-activity') }}"{!! request()->routeIs('production-process-activity') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 11 6 11 8 5 12 16 14 11 18 11"/></svg><span class="label">Production Process Activity</span></a></li>
             <li><a href="{{ route('reports.management') }}"{!! request()->routeIs('reports.management') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="17" x2="4" y2="9"/><line x1="10" y1="17" x2="10" y2="3"/><line x1="16" y1="17" x2="16" y2="12"/></svg><span class="label">Laporan Manajemen</span></a></li>
             <li><a href="{{ route('master-data.tree-view') }}"{!! request()->routeIs('master-data.tree-view') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h3.6l1.4 1.7h7A1.5 1.5 0 0 1 17 7.2v7.3A1.5 1.5 0 0 1 15.5 16h-12A1.5 1.5 0 0 1 2 14.5v-9z"/></svg><span class="label">Master Data Tree View</span></a></li>
-            <li><a href="{{ route('master-data.corporates') }}"{!! request()->routeIs('master-data.corporates') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="10" height="16" rx="1"/><line x1="8" y1="6" x2="8" y2="6"/><line x1="12" y1="6" x2="12" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/></svg><span class="label">Kelola Corporate</span></a></li>
-            <li><a href="{{ route('master-data.companies') }}"{!! request()->routeIs('master-data.companies') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="6" height="11"/><rect x="10" y="2" width="7" height="16"/></svg><span class="label">Kelola Company</span></a></li>
-            <li><a href="{{ route('master-data.business-units') }}"{!! request()->routeIs('master-data.business-units') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="1.5"/><path d="M7 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="2" y1="12" x2="18" y2="12"/></svg><span class="label">Kelola Business Unit</span></a></li>
-            <li><a href="{{ route('master-data.production-lines') }}"{!! request()->routeIs('master-data.production-lines') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="10" x2="14" y2="10"/><polyline points="10 6 14 10 10 14"/></svg><span class="label">Kelola Production Line</span></a></li>
+            {{-- Corporate -> Company -> Business Unit -> Production Line are one
+                 hierarchy and were four separate sidebar entries; folded into a single
+                 collapsible group to shorten the rail. Opens automatically when the
+                 current route is one of them, so the active page is never hidden. --}}
+            <li class="shell-nav-group-wrap">
+                <details class="shell-nav-group"{!! request()->routeIs('master-data.corporates', 'master-data.companies', 'master-data.production-lines', 'master-data.business-units') ? ' open' : '' !!}>
+                    <summary>
+                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2" width="5" height="4" rx="1"/><rect x="2" y="14" width="5" height="4" rx="1"/><rect x="13" y="14" width="5" height="4" rx="1"/><path d="M10 6v4M4.5 14v-2a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v2"/></svg>
+                        <span class="label">Struktur Organisasi</span>
+                        <svg class="shell-nav-group__chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 4 13 10 7 16"/></svg>
+                    </summary>
+                    <ul class="shell-nav-group__items">
+                    <li><a href="{{ route('master-data.corporates') }}"{!! request()->routeIs('master-data.corporates') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="10" height="16" rx="1"/><line x1="8" y1="6" x2="8" y2="6"/><line x1="12" y1="6" x2="12" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/></svg><span class="label">Kelola Corporate</span></a></li>
+                    <li><a href="{{ route('master-data.companies') }}"{!! request()->routeIs('master-data.companies') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="6" height="11"/><rect x="10" y="2" width="7" height="16"/></svg><span class="label">Kelola Company</span></a></li>
+                    <li><a href="{{ route('master-data.business-units') }}"{!! request()->routeIs('master-data.business-units') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="16" height="10" rx="1.5"/><path d="M7 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/><line x1="2" y1="12" x2="18" y2="12"/></svg><span class="label">Kelola Business Unit</span></a></li>
+                    <li><a href="{{ route('master-data.production-lines') }}"{!! request()->routeIs('master-data.production-lines') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="10" x2="14" y2="10"/><polyline points="10 6 14 10 10 14"/></svg><span class="label">Kelola Production Line</span></a></li>
+                    </ul>
+                </details>
+            </li>
             <li><a href="{{ route('master-data.stations') }}"{!! request()->routeIs('master-data.stations') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 18s6-5.5 6-10a6 6 0 1 0-12 0c0 4.5 6 10 6 10z"/><circle cx="10" cy="8" r="2"/></svg><span class="label">Kelola Station</span></a></li>
             <li><a href="{{ route('master-data.machinery-groups') }}"{!! request()->routeIs('master-data.machinery-groups') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2 2 6l8 4 8-4-8-4z"/><path d="M2 14l8 4 8-4"/><path d="M2 10l8 4 8-4"/></svg><span class="label">Kelola Machinery Group</span></a></li>
             <li><a href="{{ route('master-data.machinery') }}"{!! request()->routeIs('master-data.machinery') ? ' class="active"' : '' !!}><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="3"/><path d="M10 2v2M10 16v2M18 10h-2M4 10H2M15.5 4.5l-1.4 1.4M5.9 14.1l-1.4 1.4M15.5 15.5l-1.4-1.4M5.9 5.9 4.5 4.5"/></svg><span class="label">Kelola Machinery</span></a></li>

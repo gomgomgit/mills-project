@@ -1,0 +1,99 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "screen-129--laporan-sterilizer-web",
+  "name": "Laporan Sterilizer (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Sterilizer untuk Supervisor, Mill Management, dan Admin di web. Pengguna memilih satu Periode Pelaporan, lalu melihat rangkuman visual kinerja sterilisasi sepanjang periode itu — bukan sekadar daftar data mentah, melainkan tampilan yang langsung terbaca seperti dashboard: kartu angka utama di atas, tren harian, perbandingan antar unit sterilizer, daftar siklus yang durasinya menyimpang, lalu tabel rekap harian lengkap di bawah untuk yang ingin menelusuri angkanya. Satu siklus Sterilizer adalah satu perebusan penuh — pintu ditutup, tiga kali puncak tekanan dan tiga kali pembuangan, lalu pintu dibuka — sehingga laporan ini menjawab: berapa banyak perebusan dilakukan, berapa lori yang matang, berapa lama rata-rata perebusan, seberapa patuh terhadap pola tiga puncak, dan perebusan mana yang menyimpang dari kebiasaan.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun' (sementara mengarah langsung ke laporan ini; akan digantikan grid pemilihan stasiun screen-140)",
+    "Grid pemilihan stasiun pada Laporan Stasiun (screen-140), setelah layar tersebut dibangun"
+  ],
+  "information_displayed": [
+    "Pemilih Mill — hanya tampil untuk Admin, karena Admin tidak terikat pada satu mill; Supervisor dan Mill Management tidak melihat pemilih ini dan otomatis memakai mill masing-masing",
+    "Pemilih Periode Pelaporan — daftar periode milik mill yang sedang dilihat dan mencakup jenis stasiun Sterilizer (termasuk periode bercakupan semua stasiun), terbaru di atas, beserta rentang tanggalnya",
+    "Empat angka utama periode: Total Siklus Rebus, Total Lori Direbus, Durasi Rata-rata perebusan, dan Kepatuhan Triple-Peak dalam persen",
+    "Tren harian jumlah siklus rebus sepanjang periode, ditampilkan sebagai batang per tanggal sehingga hari sibuk dan hari kosong langsung terlihat",
+    "Distribusi durasi perebusan per hari: durasi tersingkat, rata-rata, dan terlama",
+    "Perbandingan antar unit Sterilizer (Sterilizer No): jumlah siklus, lori direbus, dan durasi rata-rata masing-masing unit",
+    "Daftar siklus dengan durasi di luar kebiasaan, beserta tanggal, unit, durasi, dan jumlah lori — disertai keterangan ambang batas yang dipakai agar pembaca tahu dasar penyaringannya",
+    "Tabel rekap harian lengkap (dapat dibuka/tutup) berisi angka per tanggal, ditutup baris Total periode",
+    "Keterangan periode yang sedang ditampilkan: nama, rentang tanggal, dan statusnya (Draft / Terbuka / Tertutup)",
+    "Pesan kosong yang mengarahkan bila belum ada Periode Pelaporan untuk mill tersebut, atau bila periode terpilih tidak memuat data Sterilizer sama sekali"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Mill",
+      "description": "Khusus Admin: memilih mill mana yang laporannya ingin dilihat, karena Admin tidak terikat pada satu mill. Mengganti mill memuat ulang daftar periode dan seluruh angka",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Periode Pelaporan",
+      "description": "Memilih periode yang ingin dilihat; seluruh angka, grafik, dan tabel dihitung ulang untuk rentang tanggal periode tersebut",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup tabel rekap harian",
+      "description": "Menyembunyikan atau menampilkan tabel rincian per tanggal, agar rangkuman visual di atas tetap ringkas saat tidak diperlukan",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor laporan",
+      "description": "Mengunduh data siklus Sterilizer sepanjang periode terpilih ke CSV/Excel, satu baris per siklus rebus dengan kolom konteks harian diulang di tiap baris",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Laporan hanya dapat diakses Supervisor, Mill Management, dan Admin; Operator tidak memiliki akses web sama sekali, konsisten dengan Production Process Activity",
+    "Supervisor dan Mill Management otomatis dibatasi pada mill (business unit) miliknya sendiri — tidak ada pilihan mill lain, konsisten dengan Laporan Manajemen dan Mills Setting",
+    "Admin tidak terikat pada satu mill, sehingga Admin — dan hanya Admin — mendapat pemilih Mill; tanpa pemilih itu Admin tidak akan pernah melihat data apa pun. Bila Admin belum memilih mill, laporan menampilkan pesan yang meminta pemilihan mill terlebih dahulu",
+    "Periode yang dapat dipilih hanyalah periode milik mill yang sedang dilihat dan mencakup jenis stasiun Sterilizer, yaitu periode ber-jenis-stasiun Sterilizer maupun periode yang berlaku untuk semua jenis stasiun",
+    "Rentang laporan mengikuti tanggal mulai dan tanggal selesai periode terpilih, inklusif di kedua ujung",
+    "Keanggotaan sebuah data dalam periode ditentukan oleh tanggal kejadian di pabrik, bukan tanggal data diinput maupun tanggal data dikirim dari aplikasi mobile",
+    "Satu siklus rebus dihitung dari satu baris detail Sterilizer; jumlah lori diambil dari isian jumlah lori pada siklus tersebut",
+    "Durasi perebusan memakai durasi yang sudah dihitung sistem dari waktu pintu ditutup sampai pintu dibuka, bukan dihitung ulang di layar ini",
+    "Siklus yang durasinya belum terisi tetap dihitung pada Total Siklus Rebus, tetapi dikeluarkan dari perhitungan durasi rata-rata, terendah, dan tertinggi; jumlah siklus yang dikeluarkan wajib disebutkan agar angka rata-rata tidak menyesatkan",
+    "Kepatuhan Triple-Peak dihitung sebagai persentase siklus yang ketiga waktu puncak dan ketiga waktu pembuangannya terisi lengkap; siklus dengan salah satu waktu kosong dianggap tidak patuh",
+    "Siklus dengan durasi menyimpang ditentukan dari sebaran durasi periode itu sendiri, dan ambang yang dipakai wajib ditampilkan di layar agar angka yang muncul dapat dipertanggungjawabkan",
+    "Laporan bersifat baca saja — tidak ada aksi yang mengubah data Sterilizer dari layar ini",
+    "Status periode (Draft / Terbuka / Tertutup) ditampilkan sebagai keterangan, tetapi tidak membatasi apa pun di layar ini: laporan periode tertutup tetap dapat dilihat dan diekspor"
+  ],
+  "usecase_ids": [
+    "usecase-129--laporan-sterilizer-web"
+  ],
+  "edge_cases": [
+    "Admin membuka laporan tanpa memilih mill → pesan yang meminta pemilihan mill terlebih dahulu, bukan empty state yang membingungkan maupun error",
+    "Belum ada satu pun Periode Pelaporan untuk mill yang sedang dilihat → pesan kosong yang mengarahkan agar Admin membuat periode terlebih dahulu di Kelola Periode Pelaporan, bukan halaman error",
+    "Periode terpilih tidak memuat satu pun data Sterilizer → seluruh angka utama tampil nol dengan pesan 'belum ada data pada periode ini', grafik tidak dipaksa menggambar batang kosong",
+    "Seluruh siklus dalam periode memiliki durasi sama persis → tidak ada siklus yang dianggap menyimpang, dan kartu siklus menyimpang menyatakan hal itu alih-alih tampil kosong tanpa penjelasan",
+    "Sebagian siklus belum terisi waktu buka pintu sehingga durasinya kosong → siklus tersebut tetap dihitung pada Total Siklus namun dikeluarkan dari perhitungan durasi, dan jumlah yang dikeluarkan disebutkan agar angka rata-rata tidak menyesatkan",
+    "Periode sangat panjang sehingga tren harian memuat banyak tanggal → grafik tetap terbaca, tidak melebar keluar layar",
+    "Pengguna membuka laporan di layar selebar ponsel → kartu dan tabel menyesuaikan, tidak ada gulir horizontal pada halaman",
+    "Supervisor atau Mill Management membuka laporan sementara periode yang ada hanya milik mill lain → daftar periode tampil kosong dan pesan kosong muncul, bukan data mill lain",
+    "Data Sterilizer ada tetapi seluruhnya belum terverifikasi → laporan tetap menampilkan angkanya; verifikasi bukan syarat tampil"
+  ],
+  "test_priority": "medium",
+  "open_questions": []
+}

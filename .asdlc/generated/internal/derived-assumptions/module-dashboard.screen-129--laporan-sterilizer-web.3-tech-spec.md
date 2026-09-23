@@ -1,0 +1,13 @@
+# Derived Assumptions Log — module-dashboard.screen-129--laporan-sterilizer-web.3-tech-spec
+
+## v1 — 2026-09-23
+
+- route = "/reports/sterilizer" ← KOREKSI. Instruksi awal saya ke test-spec-writer-agent menyebut "/laporan/sterilizer"; pemeriksaan routes/web.php menunjukkan Laporan Manajemen terdaftar sebagai /reports/management dan TIDAK ADA satu pun route ber-prefix /laporan. Koreksi dikirim ke agent lewat pesan, tapi datang setelah ia selesai — seluruh 15 browser_test.route diperbaiki manual saat menulis artefak ini
+- 4 endpoint terpisah (business-units/options, periods, summary, export) ← pemecahan ini pilihan agen; user tidak pernah membahas bentuk API. Endpoint options ada SEMATA karena Admin ber-business_unit_id NULL
+- outlier memakai Tukey fence (IQR), min_sample_size = 8 ← user meminta "siklus di luar durasi normal" tanpa mendefinisikan normal. Agen memilih IQR atas dasar teknis: mean ± 2SD terdistorsi oleh outlier itu sendiri sehingga satu siklus ekstrem menyembunyikan dirinya. Angka 8 sebagai sampel minimum adalah pilihan agen — di bawah itu kuartil tidak bermakna
+- keamanan lintas mill ditutup dua titik dengan sifat BERBEDA ← agent-derived: (1) business_unit_id klien DIABAIKAN untuk Supervisor/Mill Management dan tetap balas 200 dengan data mill sendiri, sengaja bukan 403 agar tidak membocorkan keberadaan mill lain; (2) period_id mill lain ditolak 403. Pilihan "200 bukan 403" pada titik pertama adalah keputusan agen dan layak ditinjau bila ada kebijakan keamanan yang lebih ketat
+- avg/min/max durasi bernilai null (bukan 0) saat tidak ada siklus berdurasi ← agar tidak tertukar dengan durasi nol menit yang secara fisik berbeda artinya
+- daily hanya memuat tanggal yang punya siklus, tanggal kosong tidak dibuatkan baris nol ← pilihan agen; alternatifnya (mengisi seluruh tanggal periode) akan membuat tren harian penuh batang nol pada periode panjang
+- batas ekspor 50.000 dihitung dari jumlah SIKLUS, bukan record header ← menerapkan pelajaran commit 8611974 ke layar baru; tech spec tidak menyebutnya, agen menurunkannya dari pola yang sudah diperbaiki
+- CELAH CAKUPAN yang dilaporkan test-spec-writer-agent dan DITERIMA apa adanya, tidak ditambal: (1) batas 50.000 baris hanya ter-cover unit test karena tidak ada bdd_scenario yang memicunya; (2) 403 pada business-units/options untuk non-Admin juga hanya unit test. Menambahkan BDD dadakan hanya untuk menutup angka cakupan akan mengaburkan bahwa Phase 2 memang tidak membahas keduanya
+- ekstraksi CSS md-* dari daily-mill-report ke partial bersama ← keputusan agen; user meminta "UI seperti dashboard yang pernah dibuat", dan menduplikasi 174 baris CSS ke 5 laporan + versi mobile adalah utang yang tidak perlu

@@ -1,0 +1,256 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "usecase-129--laporan-sterilizer-web",
+  "name": "Lihat Laporan Periode Sterilizer (Web)",
+  "description": "Supervisor, Mill Management, atau Admin membuka laporan periode stasiun Sterilizer di web, memilih sebuah Periode Pelaporan (Admin memilih mill terlebih dahulu), lalu membaca rangkuman visual kinerja sterilisasi sepanjang periode itu: empat angka utama, tren harian jumlah siklus, distribusi durasi, perbandingan antar unit Sterilizer, daftar siklus yang durasinya menyimpang, dan tabel rekap harian. Laporan dapat diekspor ke CSV/Excel. Bersifat baca saja.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah login ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin",
+    "Terdapat minimal satu Periode Pelaporan pada mill yang dilihat yang mencakup jenis stasiun Sterilizer"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Membuka laporan Sterilizer dari menu sidebar Laporan Stasiun"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Menentukan mill yang dilihat: mill milik pengguna untuk Supervisor dan Mill Management, atau mill yang dipilih Admin lewat pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menampilkan daftar Periode Pelaporan milik mill tersebut yang mencakup jenis stasiun Sterilizer, terbaru di atas, dan memilih yang teratas secara otomatis"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Memilih periode yang ingin dilihat bila berbeda dari pilihan otomatis"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Menghitung seluruh angka untuk rentang tanggal periode terpilih secara inklusif, memakai tanggal kejadian pada data Sterilizer"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Menampilkan empat angka utama periode: total siklus rebus, total lori direbus, durasi rata-rata, dan kepatuhan triple-peak dalam persen"
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Menampilkan tren harian jumlah siklus, distribusi durasi per hari, dan perbandingan antar unit Sterilizer"
+    },
+    {
+      "step": 8,
+      "actor": "System",
+      "description": "Menampilkan daftar siklus yang durasinya menyimpang beserta keterangan ambang batas yang dipakai"
+    },
+    {
+      "step": 9,
+      "actor": "actor-supervisor",
+      "description": "Membuka tabel rekap harian untuk menelusuri angka per tanggal, lalu menutupnya kembali bila tidak diperlukan"
+    },
+    {
+      "step": 10,
+      "actor": "actor-supervisor",
+      "description": "Menekan Ekspor untuk mengunduh data siklus sepanjang periode ke CSV atau Excel"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Admin belum memilih mill",
+      "trigger": "Pada langkah 2, pengguna berperan Admin dan belum memilih mill mana pun",
+      "steps": [
+        "Pemilih Mill tampil kosong menunggu pilihan",
+        "Sistem menampilkan pesan yang meminta pemilihan mill terlebih dahulu",
+        "Daftar periode dan seluruh angka belum digambar"
+      ]
+    },
+    {
+      "name": "Belum ada Periode Pelaporan",
+      "trigger": "Pada langkah 3, tidak ada satu pun periode pada mill yang dilihat yang mencakup jenis stasiun Sterilizer",
+      "steps": [
+        "Pemilih periode tampil kosong",
+        "Sistem menampilkan pesan yang mengarahkan agar Admin membuat Periode Pelaporan terlebih dahulu",
+        "Tidak ada angka maupun grafik yang digambar, dan halaman tidak menampilkan error"
+      ]
+    },
+    {
+      "name": "Periode tanpa data Sterilizer",
+      "trigger": "Pada langkah 5, tidak ada satu pun siklus Sterilizer yang tanggal kejadiannya berada dalam rentang periode",
+      "steps": [
+        "Seluruh angka utama tampil nol",
+        "Sistem menampilkan pesan bahwa belum ada data pada periode ini",
+        "Grafik tren dan perbandingan tidak dipaksa menggambar batang kosong"
+      ]
+    },
+    {
+      "name": "Sebagian siklus belum punya durasi",
+      "trigger": "Pada langkah 6, sebagian siklus belum terisi waktu buka pintu sehingga durasinya kosong",
+      "steps": [
+        "Siklus tersebut tetap dihitung pada total siklus rebus",
+        "Siklus tersebut dikeluarkan dari perhitungan durasi rata-rata, minimum, dan maksimum",
+        "Sistem menyebutkan berapa siklus yang dikeluarkan agar angka rata-rata tidak menyesatkan"
+      ]
+    },
+    {
+      "name": "Seluruh durasi seragam",
+      "trigger": "Pada langkah 8, seluruh siklus dalam periode memiliki durasi yang sama sehingga tidak ada yang menyimpang",
+      "steps": [
+        "Kartu siklus menyimpang menyatakan bahwa tidak ada siklus di luar kebiasaan",
+        "Ambang batas tetap ditampilkan",
+        "Kartu tidak tampil kosong tanpa penjelasan"
+      ]
+    },
+    {
+      "name": "Supervisor dan Mill Management hanya melihat millnya sendiri",
+      "trigger": "Pada langkah 2, pengguna berperan Supervisor atau Mill Management dan terdapat periode milik mill lain",
+      "steps": [
+        "Tidak ada pemilih Mill yang ditampilkan",
+        "Daftar periode hanya memuat periode milik mill pengguna",
+        "Angka yang dihitung hanya berasal dari stasiun milik mill tersebut"
+      ]
+    },
+    {
+      "name": "Operator mencoba mengakses",
+      "trigger": "Pada langkah 1, pengguna berperan Operator",
+      "steps": [
+        "Sistem menolak akses",
+        "Tidak ada data laporan yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Periode berstatus Tertutup",
+      "trigger": "Pada langkah 4, periode yang dipilih berstatus Tertutup",
+      "steps": [
+        "Laporan tetap ditampilkan seperti biasa",
+        "Status Tertutup ditampilkan sebagai keterangan periode",
+        "Ekspor tetap dapat dilakukan"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat rangkuman kinerja sterilisasi untuk periode terpilih tanpa perlu menelusuri data mentah",
+    "Tidak ada data Sterilizer yang berubah — laporan bersifat baca saja",
+    "Bila diekspor, berkas berisi satu baris per siklus rebus sepanjang periode dengan kolom konteks harian diulang di tiap baris"
+  ],
+  "business_rules": [
+    "Hanya Supervisor, Mill Management, dan Admin yang dapat mengakses; Operator tidak punya akses web",
+    "Supervisor dan Mill Management otomatis dibatasi pada mill miliknya sendiri",
+    "Admin tidak terikat satu mill sehingga mendapat pemilih Mill; tanpa memilih mill, laporan belum menampilkan angka",
+    "Periode yang dapat dipilih hanya yang mencakup jenis stasiun Sterilizer, termasuk periode bercakupan semua jenis stasiun",
+    "Rentang laporan inklusif di kedua ujung dan memakai tanggal kejadian, bukan tanggal input atau sync",
+    "Siklus tanpa durasi tetap dihitung pada total siklus tetapi dikeluarkan dari perhitungan durasi, dan jumlahnya disebutkan",
+    "Kepatuhan triple-peak dihitung dari kelengkapan ketiga waktu puncak dan ketiga waktu pembuangan",
+    "Ambang siklus menyimpang diturunkan dari sebaran durasi periode itu sendiri dan wajib ditampilkan di layar",
+    "Laporan bersifat baca saja",
+    "Status periode ditampilkan sebagai keterangan tetapi tidak membatasi tampilan maupun ekspor"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — success",
+      "given": "Supervisor sudah login ke aplikasi web dan terdapat minimal satu Periode Pelaporan pada millnya yang mencakup jenis stasiun Sterilizer",
+      "when": "Supervisor membuka laporan Sterilizer dari menu Laporan Stasiun, membiarkan atau mengubah pilihan periode, menelusuri tabel rekap harian, lalu menekan Ekspor",
+      "then": "Sistem menampilkan empat angka utama periode (total siklus rebus, total lori direbus, durasi rata-rata, kepatuhan triple-peak), tren harian jumlah siklus, distribusi durasi, perbandingan antar unit Sterilizer, serta daftar siklus menyimpang lengkap dengan ambang batasnya; berkas ekspor berisi satu baris per siklus rebus sepanjang periode dengan kolom konteks harian diulang di tiap baris, dan tidak ada data Sterilizer yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — Admin belum memilih mill",
+      "given": "Admin sudah login ke aplikasi web dan tidak terikat pada satu mill mana pun",
+      "when": "Admin membuka laporan Sterilizer tanpa memilih mill terlebih dahulu",
+      "then": "Pemilih Mill tampil menunggu pilihan dan sistem menampilkan pesan yang meminta pemilihan mill terlebih dahulu, tanpa menggambar daftar periode maupun angka apa pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — Admin memilih mill lalu melihat laporannya",
+      "given": "Admin sudah login ke aplikasi web dan terdapat beberapa mill yang masing-masing punya Periode Pelaporan mencakup jenis stasiun Sterilizer",
+      "when": "Admin memilih salah satu mill pada pemilih Mill",
+      "then": "Daftar periode dimuat ulang hanya berisi periode milik mill tersebut, dan seluruh angka dihitung hanya dari stasiun milik mill itu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — Belum ada Periode Pelaporan",
+      "given": "Pengguna sudah login ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin",
+      "when": "Tidak ada satu pun Periode Pelaporan pada mill yang dilihat yang mencakup jenis stasiun Sterilizer saat halaman laporan dibuka",
+      "then": "Pemilih periode tampil kosong dan sistem menampilkan pesan yang mengarahkan agar Admin membuat Periode Pelaporan terlebih dahulu, tanpa menggambar angka maupun grafik dan tanpa memunculkan error"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — Periode tanpa data Sterilizer",
+      "given": "Pengguna sudah login ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan terdapat Periode Pelaporan yang mencakup jenis stasiun Sterilizer",
+      "when": "Periode terpilih tidak memuat satu pun siklus Sterilizer yang tanggal kejadiannya berada dalam rentang periode",
+      "then": "Seluruh angka utama tampil nol dan sistem menampilkan pesan bahwa belum ada data pada periode ini, sementara grafik tren dan perbandingan tidak dipaksa menggambar batang kosong"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — Sebagian siklus belum punya durasi",
+      "given": "Pengguna sudah login ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan terdapat Periode Pelaporan yang mencakup jenis stasiun Sterilizer",
+      "when": "Sebagian siklus pada periode terpilih belum terisi waktu buka pintu sehingga durasinya kosong",
+      "then": "Siklus tersebut tetap dihitung pada total siklus rebus namun dikeluarkan dari perhitungan durasi rata-rata, minimum, dan maksimum, dan sistem menyebutkan berapa siklus yang dikeluarkan agar angka rata-rata tidak menyesatkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — Seluruh durasi seragam",
+      "given": "Pengguna sudah login ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan terdapat Periode Pelaporan yang mencakup jenis stasiun Sterilizer",
+      "when": "Seluruh siklus dalam periode terpilih memiliki durasi yang sama sehingga tidak ada satu pun yang menyimpang",
+      "then": "Kartu siklus menyimpang menyatakan bahwa tidak ada siklus di luar kebiasaan dan tetap menampilkan ambang batas yang dipakai, sehingga kartu tidak tampil kosong tanpa penjelasan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — Supervisor dan Mill Management hanya melihat millnya sendiri",
+      "given": "Supervisor atau Mill Management sudah login ke aplikasi web dan terdapat Periode Pelaporan milik mill lain selain millnya",
+      "when": "Pengguna tersebut membuka laporan Sterilizer dan melihat daftar periode yang tersedia",
+      "then": "Tidak ada pemilih Mill yang ditampilkan, daftar periode hanya memuat periode milik mill pengguna, dan seluruh angka dihitung hanya dari stasiun milik mill tersebut"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — Operator mencoba mengakses",
+      "given": "Pengguna terautentikasi dengan peran Operator",
+      "when": "Operator mencoba membuka halaman laporan periode Sterilizer di web",
+      "then": "Sistem menolak akses dan tidak ada data laporan yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — Periode berstatus Tertutup",
+      "given": "Pengguna sudah login ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan terdapat Periode Pelaporan berstatus Tertutup yang mencakup jenis stasiun Sterilizer",
+      "when": "Pengguna memilih periode yang berstatus Tertutup",
+      "then": "Laporan tetap ditampilkan seperti biasa dengan status Tertutup muncul sebagai keterangan periode, dan ekspor tetap dapat dilakukan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — periode yang tidak mencakup jenis stasiun Sterilizer tidak dapat dipilih",
+      "given": "Pengguna sudah login ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan pada millnya terdapat periode khusus jenis stasiun lain, periode khusus Sterilizer, serta periode bercakupan semua jenis stasiun",
+      "when": "Pengguna membuka pemilih Periode Pelaporan pada laporan Sterilizer",
+      "then": "Pemilih hanya memuat periode yang mencakup jenis stasiun Sterilizer termasuk periode bercakupan semua jenis stasiun, sedangkan periode khusus jenis stasiun lain tidak muncul sebagai pilihan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — rentang inklusif memakai tanggal kejadian",
+      "given": "Pengguna sudah login ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan terdapat siklus Sterilizer tepat pada tanggal awal periode, tepat pada tanggal akhir periode, sehari sebelum periode, serta siklus di luar periode yang baru diinput atau disinkronkan selama periode berlangsung",
+      "when": "Sistem menghitung angka laporan untuk periode terpilih",
+      "then": "Siklus pada tanggal awal dan tanggal akhir ikut terhitung karena rentang inklusif di kedua ujung, sedangkan siklus di luar rentang tidak terhitung walaupun tanggal input atau tanggal sync-nya jatuh di dalam periode"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — kepatuhan triple-peak turun saat waktu puncak atau pembuangan tidak lengkap",
+      "given": "Pengguna sudah login ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode terpilih memuat siklus dengan ketiga waktu puncak dan ketiga waktu pembuangan lengkap serta siklus yang salah satu waktunya kosong",
+      "when": "Sistem menghitung angka kepatuhan triple-peak untuk periode terpilih",
+      "then": "Hanya siklus dengan ketiga waktu puncak dan ketiga waktu pembuangan lengkap yang dihitung patuh, sehingga persentase kepatuhan turun sesuai proporsi siklus yang tidak lengkap dan tidak ditampilkan sebagai 100 persen"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — ambang siklus menyimpang wajib ditampilkan di layar",
+      "given": "Pengguna sudah login ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan periode terpilih memuat sebaran durasi dengan beberapa siklus yang jauh dari kebiasaan",
+      "when": "Pengguna membaca kartu daftar siklus menyimpang",
+      "then": "Sistem menampilkan siklus yang menyimpang berdasarkan ambang yang diturunkan dari sebaran durasi periode itu sendiri, dan nilai ambang tersebut selalu tertulis di layar sehingga pengguna tahu dasar penandaannya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Web) — laporan bersifat baca saja",
+      "given": "Pengguna sudah login ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin dan laporan periode Sterilizer sudah tampil dengan data",
+      "when": "Pengguna mencoba mengubah angka, siklus, atau data harian dari halaman laporan",
+      "then": "Sistem tidak menyediakan aksi ubah, tambah, maupun hapus pada halaman laporan dan tidak ada data Sterilizer yang berubah setelah kunjungan tersebut"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-129--laporan-sterilizer-web"
+  ]
+}

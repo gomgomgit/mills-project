@@ -1,0 +1,1143 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "screen-129--laporan-sterilizer-web",
+  "name": "Laporan Sterilizer (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/sterilizer",
+  "auth_requirement": "role: supervisor, mill_management, admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Otomatis dibatasi pada business unit miliknya sendiri; business_unit_id yang dikirim klien diabaikan server"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Otomatis dibatasi pada business unit miliknya sendiri; business_unit_id yang dikirim klien diabaikan server"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill lewat pemilih Mill; business_unit_id wajib dikirim"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Operator adalah aktor mobile-only, tidak punya akses web sama sekali"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "usecase_name": "Lihat Laporan Periode Sterilizer (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/sterilizer-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — khusus Admin, karena hanya Admin yang tidak terikat satu mill",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor bukan admin — Supervisor dan Mill Management tidak butuh endpoint ini karena millnya sudah tetap"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/sterilizer-reports/periods",
+          "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Sterilizer pada mill yang dilihat",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "WAJIB untuk Admin. Untuk Supervisor dan Mill Management nilai ini DIABAIKAN — server memakai business_unit_id milik user, sehingga mengirim mill lain tidak membocorkan apa pun"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "station_type": "string|null",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "actor admin tidak mengirim business_unit_id — errors.business_unit_id terisi, bukan mengembalikan daftar kosong secara diam-diam"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor operator"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/sterilizer-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode: KPI, tren harian, perbandingan antar unit, dan siklus menyimpang",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode Pelaporan yang dilaporkan"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string",
+                "business_unit_name": "string"
+              },
+              "kpi": {
+                "total_cycles": "integer",
+                "total_cages": "integer",
+                "avg_duration_minutes": "float|null",
+                "min_duration_minutes": "integer|null",
+                "max_duration_minutes": "integer|null",
+                "cycles_without_duration": "integer",
+                "triple_peak_compliance_percent": "float"
+              },
+              "daily": [
+                {
+                  "date": "date",
+                  "cycles": "integer",
+                  "cages": "integer",
+                  "avg_duration": "float|null",
+                  "min_duration": "integer|null",
+                  "max_duration": "integer|null"
+                }
+              ],
+              "by_unit": [
+                {
+                  "sterilizer_no": "string",
+                  "cycles": "integer",
+                  "cages": "integer",
+                  "avg_duration": "float|null"
+                }
+              ],
+              "outliers": {
+                "method": "iqr",
+                "lower_bound": "float|null",
+                "upper_bound": "float|null",
+                "min_sample_size": 8,
+                "sample_size": "integer",
+                "insufficient_data": "boolean",
+                "items": [
+                  {
+                    "date": "date",
+                    "sterilizer_no": "string",
+                    "duration_minutes": "integer",
+                    "number_of_cages": "integer",
+                    "cages_status": "string|null"
+                  }
+                ]
+              },
+              "total": {
+                "cycles": "integer",
+                "cages": "integer",
+                "avg_duration": "float|null"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain bagi Supervisor/Mill Management, atau actor operator"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id kosong"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — dihitung saat periode dipilih",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/sterilizer-reports/export",
+          "description": "Ekspor seluruh siklus Sterilizer sepanjang periode ke CSV/Excel, satu baris per siklus",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode Pelaporan yang diekspor"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "csv | excel"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_note": "StreamedResponse berisi berkas; header Content-Disposition attachment"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain, atau actor operator"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "jumlah BARIS EKSPOR (siklus) melebihi 50.000 — dihitung dari baris siklus, bukan jumlah record header"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "resolveBusinessUnit: actor supervisor/mill_management → pakai auth()->user()->business_unit_id dan ABAIKAN query business_unit_id; actor admin → wajib ambil dari query, if kosong: return 422 VALIDATION_ERROR errors.business_unit_id",
+        "listPeriods: SELECT Period WHERE business_unit_id = <hasil resolve> AND (station_type = 'sterilizer' OR station_type IS NULL) ORDER BY start_date DESC → map station_type_label dari station_types.name atau 'Semua Stasiun' bila null → return (array kosong bila tidak ada, bukan 404)",
+        "authorizePeriod: findOrFail period_id → 404 jika tidak ada → if actor supervisor/mill_management AND period.business_unit_id <> user.business_unit_id: return 403 FORBIDDEN → actor admin lolos untuk mill mana pun",
+        "summary: ambil sterilizer_details JOIN sterilizer_records ON detail.sterilizer_record_id JOIN stations ON record.station_id WHERE stations.business_unit_id = period.business_unit_id AND stations.type = 'sterilizer' AND record.date BETWEEN period.start_date AND period.end_date (INKLUSIF dua ujung, memakai record.date — tanggal kejadian — BUKAN created_at)",
+        "summary KPI: total_cycles = COUNT(detail); total_cages = SUM(number_of_cages); cycles_without_duration = COUNT(duration_minutes IS NULL)",
+        "summary durasi: avg/min/max dihitung HANYA dari detail yang duration_minutes NOT NULL → bila tidak ada satupun, ketiganya null (bukan 0, agar tidak tertukar dengan durasi nol menit)",
+        "summary triple-peak: patuh = peak_1_time, peak_2_time, peak_3_time, exhaust_1_time, exhaust_2_time, exhaust_3_time SEMUA non-null → percent = 100 * patuh / total_cycles → if total_cycles === 0: percent = 0 tanpa pembagian nol",
+        "summary outliers (metode Tukey/IQR): kumpulkan durasi non-null, urutkan → if count < 8 (min_sample_size): insufficient_data = true, bounds null, items kosong → else Q1 = persentil 25, Q3 = persentil 75, IQR = Q3 - Q1, lower = Q1 - 1.5*IQR, upper = Q3 + 1.5*IQR → items = siklus dengan duration_minutes < lower OR > upper",
+        "summary daily: GROUP BY record.date, hanya tanggal yang punya siklus (tanggal kosong tidak dibuatkan baris nol)",
+        "summary by_unit: GROUP BY detail.sterilizer_no; avg_duration per unit hanya dari siklus berdurasi",
+        "export: authorizePeriod → hitung jumlah baris siklus dalam rentang → if > 50.000: return 422 EXPORT_FAILED → stream satu baris per siklus dengan kolom konteks record diulang tiap baris"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Daftar periode untuk pemilih, dan pembacaan rentang tanggal periode terpilih"
+        },
+        {
+          "entity_id": "sterilizer-detail",
+          "operation": "SELECT",
+          "description": "Sumber seluruh angka — satu baris = satu siklus rebus"
+        },
+        {
+          "entity_id": "sterilizer-record",
+          "operation": "SELECT",
+          "description": "JOIN untuk memperoleh tanggal kejadian, status, dan kolom konteks ekspor"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk menyaring ke business unit periode dan tipe stasiun sterilizer"
+        },
+        {
+          "entity_id": "station-type",
+          "operation": "SELECT",
+          "description": "Resolusi station_type_label pada daftar periode"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin, dan resolusi business_unit_name pada header laporan"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Admin membuka laporan tanpa memilih mill",
+          "handling": "GET periods mengembalikan 422 VALIDATION_ERROR dengan errors.business_unit_id; Livewire tidak memanggil endpoint sampai mill dipilih dan menampilkan pesan pemandu"
+        },
+        {
+          "condition": "Supervisor/Mill Management mengirim business_unit_id mill lain",
+          "handling": "Nilai diabaikan sepenuhnya — server memakai business_unit_id milik user. Response tetap 200 berisi data mill sendiri, bukan 403, agar tidak membocorkan keberadaan mill lain"
+        },
+        {
+          "condition": "Supervisor/Mill Management menembak period_id milik mill lain",
+          "handling": "403 FORBIDDEN — ini jalur kebocoran yang sesungguhnya dan ditutup di authorizePeriod"
+        },
+        {
+          "condition": "Mill belum punya Periode Pelaporan yang mencakup Sterilizer",
+          "handling": "GET periods mengembalikan data: [] dengan HTTP 200; UI menampilkan pesan pengarah ke Kelola Periode Pelaporan, bukan 404"
+        },
+        {
+          "condition": "Periode valid tetapi tidak memuat satu pun siklus Sterilizer",
+          "handling": "HTTP 200 dengan seluruh KPI nol, daily/by_unit/outliers.items kosong, avg/min/max null; UI menampilkan pesan 'belum ada data pada periode ini' dan tidak menggambar batang kosong"
+        },
+        {
+          "condition": "Sebagian siklus belum terisi waktu buka pintu",
+          "handling": "Siklus tetap masuk total_cycles, dikeluarkan dari avg/min/max, dan jumlahnya dilaporkan lewat cycles_without_duration yang WAJIB ditampilkan di dekat kartu durasi"
+        },
+        {
+          "condition": "Seluruh durasi dalam periode seragam",
+          "handling": "IQR = 0 sehingga lower_bound = upper_bound = nilai durasi itu; insufficient_data tetap false dan items kosong — UI menyatakan 'tidak ada siklus di luar kebiasaan' sambil tetap menampilkan ambangnya"
+        },
+        {
+          "condition": "Siklus berdurasi kurang dari 8",
+          "handling": "insufficient_data = true, bounds null, items kosong — UI menyatakan data terlalu sedikit untuk menilai penyimpangan, bukan menandai outlier dari sampel kecil"
+        },
+        {
+          "condition": "Ekspor melebihi 50.000 baris siklus",
+          "handling": "422 EXPORT_FAILED. Batas dihitung dari jumlah SIKLUS, bukan jumlah record header — satu record harian bisa memuat belasan siklus, jadi menghitung header akan melewatkan batas sesungguhnya"
+        },
+        {
+          "condition": "Periode berstatus Draft atau Tertutup",
+          "handling": "Tidak membatasi apa pun — laporan tetap tampil dan tetap bisa diekspor; status hanya ditampilkan sebagai badge keterangan"
+        }
+      ],
+      "business_rules_applied": [
+        "Hanya Supervisor, Mill Management, dan Admin yang dapat mengakses; Operator ditolak 403 di seluruh endpoint",
+        "Supervisor dan Mill Management terkunci pada millnya sendiri, dan input business_unit_id dari klien diabaikan server",
+        "Admin wajib memilih mill; tanpa itu 422, bukan hasil kosong yang menyesatkan",
+        "Pemilih periode hanya memuat periode ber-station_type 'sterilizer' atau NULL (semua jenis stasiun)",
+        "Rentang periode inklusif di kedua ujung dan memakai record.date (tanggal kejadian), bukan created_at maupun waktu sync",
+        "Siklus tanpa durasi tetap dihitung pada total siklus tetapi dikeluarkan dari perhitungan durasi, dan jumlahnya dilaporkan",
+        "Kepatuhan triple-peak menuntut keenam waktu (3 peak + 3 exhaust) terisi lengkap",
+        "Ambang siklus menyimpang memakai metode kuartil (Tukey) yang diturunkan dari sebaran periode itu sendiri, dan bounds selalu dikembalikan agar dapat ditampilkan di layar",
+        "Seluruh endpoint hanya GET — laporan bersifat baca saja, tidak ada jalur yang mengubah data Sterilizer",
+        "Status periode tidak membatasi tampilan maupun ekspor"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "resolveBusinessUnit mengabaikan business_unit_id dari query untuk Supervisor",
+          "given": "auth()->user() berperan supervisor dengan business_unit_id = 'BU-A'; query membawa business_unit_id = 'BU-B'",
+          "expect": "mengembalikan 'BU-A' (nilai dari user), bukan 'BU-B'; tidak ada exception"
+        },
+        {
+          "description": "resolveBusinessUnit mengabaikan business_unit_id dari query untuk Mill Management",
+          "given": "auth()->user() berperan mill_management dengan business_unit_id = 'BU-A'; query membawa business_unit_id = 'BU-B'",
+          "expect": "mengembalikan 'BU-A'; tidak ada exception"
+        },
+        {
+          "description": "resolveBusinessUnit memakai business_unit_id dari query untuk Admin",
+          "given": "auth()->user() berperan admin (business_unit_id null); query membawa business_unit_id = 'BU-B'",
+          "expect": "mengembalikan 'BU-B'"
+        },
+        {
+          "description": "resolveBusinessUnit melempar 422 VALIDATION_ERROR saat Admin tidak mengirim business_unit_id",
+          "given": "auth()->user() berperan admin; query tanpa business_unit_id",
+          "expect": "throw ValidationException → HTTP 422, code = 'VALIDATION_ERROR', errors.business_unit_id terisi; TIDAK mengembalikan null/hasil kosong diam-diam"
+        },
+        {
+          "description": "businessUnitOptions menolak aktor non-admin dengan 403 FORBIDDEN",
+          "given": "auth()->user() berperan supervisor",
+          "expect": "throw AuthorizationException → HTTP 403, code = 'FORBIDDEN'"
+        },
+        {
+          "description": "businessUnitOptions mengembalikan daftar mill untuk Admin",
+          "given": "auth()->user() berperan admin; businessUnitRepo mengembalikan 3 business unit",
+          "expect": "mengembalikan array 3 item berbentuk {id, name}"
+        },
+        {
+          "description": "listPeriods menyertakan periode ber-station_type 'sterilizer'",
+          "given": "BU-A punya periode P1 dengan station_type = 'sterilizer'",
+          "expect": "hasil memuat P1"
+        },
+        {
+          "description": "listPeriods menyertakan periode ber-station_type NULL (berlaku semua jenis stasiun)",
+          "given": "BU-A punya periode P2 dengan station_type = NULL",
+          "expect": "hasil memuat P2"
+        },
+        {
+          "description": "listPeriods TIDAK menyertakan periode jenis stasiun lain",
+          "given": "BU-A punya periode P3 dengan station_type = 'boiler-room'",
+          "expect": "hasil tidak memuat P3"
+        },
+        {
+          "description": "listPeriods mengurutkan hasil berdasarkan start_date DESC",
+          "given": "BU-A punya periode start_date 2026-07-01, 2026-09-01, 2026-08-01 (semua mencakup sterilizer)",
+          "expect": "urutan hasil: 2026-09-01, 2026-08-01, 2026-07-01"
+        },
+        {
+          "description": "listPeriods mengembalikan array kosong bila mill belum punya periode yang mencakup Sterilizer",
+          "given": "BU-A tidak punya periode apa pun yang station_type-nya 'sterilizer' atau NULL",
+          "expect": "mengembalikan [] tanpa exception (bukan 404, bukan error)"
+        },
+        {
+          "description": "listPeriods hanya mengembalikan periode milik business unit yang di-resolve, bukan mill lain",
+          "given": "Supervisor BU-A; BU-B punya periode sterilizer P9",
+          "expect": "hasil tidak memuat P9"
+        },
+        {
+          "description": "authorizePeriod melempar 404 NOT_FOUND saat period_id tidak ada",
+          "given": "periodRepo.find('unknown-uuid') mengembalikan null",
+          "expect": "throw ModelNotFoundException → HTTP 404, code = 'NOT_FOUND'"
+        },
+        {
+          "description": "authorizePeriod melempar 403 FORBIDDEN saat Supervisor mengakses periode milik mill lain",
+          "given": "auth()->user() supervisor business_unit_id = 'BU-A'; periode P9 milik business_unit_id = 'BU-B'",
+          "expect": "throw AuthorizationException → HTTP 403, code = 'FORBIDDEN'; tidak ada data ringkasan yang dikembalikan"
+        },
+        {
+          "description": "authorizePeriod melempar 403 FORBIDDEN saat Mill Management mengakses periode milik mill lain",
+          "given": "auth()->user() mill_management business_unit_id = 'BU-A'; periode P9 milik 'BU-B'",
+          "expect": "throw AuthorizationException → HTTP 403, code = 'FORBIDDEN'"
+        },
+        {
+          "description": "authorizePeriod melempar 403 FORBIDDEN untuk aktor Operator",
+          "given": "auth()->user() berperan operator; periode P1 milik business unit operator tersebut",
+          "expect": "throw AuthorizationException → HTTP 403, code = 'FORBIDDEN' (Operator tidak punya akses web sama sekali)"
+        },
+        {
+          "description": "authorizePeriod meloloskan Admin untuk periode mill mana pun",
+          "given": "auth()->user() berperan admin; periode P9 milik 'BU-B'",
+          "expect": "tidak melempar exception; proses lanjut ke perhitungan summary"
+        },
+        {
+          "description": "summary menyertakan siklus tepat pada start_date dan tepat pada end_date (rentang inklusif dua ujung)",
+          "given": "periode 2026-09-01..2026-09-30; sterilizer_records.date = 2026-09-01 (1 siklus) dan 2026-09-30 (1 siklus)",
+          "expect": "kpi.total_cycles = 2; daily memuat entri untuk 2026-09-01 dan 2026-09-30"
+        },
+        {
+          "description": "summary mengecualikan siklus sehari sebelum start_date dan sehari sesudah end_date",
+          "given": "periode 2026-09-01..2026-09-30; record pada 2026-08-31 dan 2026-10-01",
+          "expect": "kpi.total_cycles = 0; daily = []"
+        },
+        {
+          "description": "summary memakai sterilizer_records.date, bukan created_at",
+          "given": "record A: date = 2026-09-15 (di dalam periode) tetapi created_at = 2026-10-05 (setelah periode berakhir, hasil sync terlambat); record B: date = 2026-08-20 (di luar periode) tetapi created_at = 2026-09-10 (di dalam periode)",
+          "expect": "record A TERHITUNG, record B TIDAK terhitung; kpi.total_cycles hanya menghitung detail milik record A"
+        },
+        {
+          "description": "summary hanya mengambil stasiun milik business unit periode dan bertipe 'sterilizer'",
+          "given": "dalam rentang tanggal ada record dari stasiun BU lain, dan record dari stasiun BU yang sama tetapi stations.type = 'boiler-room'",
+          "expect": "keduanya dikecualikan; hanya detail dari stations.business_unit_id = period.business_unit_id AND stations.type = 'sterilizer' yang dihitung"
+        },
+        {
+          "description": "summary menghitung total_cycles dari jumlah baris detail dan total_cages dari SUM(number_of_cages)",
+          "given": "3 detail sterilizer dengan number_of_cages = 10, 12, 8",
+          "expect": "kpi.total_cycles = 3; kpi.total_cages = 30; total.cycles = 3; total.cages = 30"
+        },
+        {
+          "description": "summary mengeluarkan siklus tanpa duration_minutes dari avg/min/max dan melaporkan jumlahnya",
+          "given": "5 detail: duration_minutes = 90, 100, 110, NULL, NULL",
+          "expect": "kpi.total_cycles = 5; kpi.cycles_without_duration = 2; kpi.avg_duration_minutes = 100; kpi.min_duration_minutes = 90; kpi.max_duration_minutes = 110 (dua NULL tidak ikut menurunkan rata-rata)"
+        },
+        {
+          "description": "summary mengembalikan avg/min/max null saat tidak ada satu pun siklus berdurasi",
+          "given": "4 detail, seluruhnya duration_minutes = NULL",
+          "expect": "kpi.avg_duration_minutes = null, min = null, max = null; kpi.cycles_without_duration = 4; kpi.total_cycles = 4 (bukan 0)"
+        },
+        {
+          "description": "summary menghitung triple_peak_compliance_percent 100 saat keenam waktu lengkap di semua siklus",
+          "given": "4 detail dengan peak_1/2/3 dan exhaust_1/2/3 seluruhnya terisi",
+          "expect": "kpi.triple_peak_compliance_percent = 100.0"
+        },
+        {
+          "description": "triple_peak_compliance_percent turun saat salah satu dari enam waktu kosong",
+          "given": "4 detail: 3 lengkap keenam waktunya, 1 detail dengan exhaust_3 = NULL",
+          "expect": "kpi.triple_peak_compliance_percent = 75.0 — siklus dengan satu waktu kosong dihitung tidak patuh, tidak dibulatkan menjadi 100"
+        },
+        {
+          "description": "triple_peak_compliance_percent = 0 saat total_cycles = 0 (tanpa pembagian nol)",
+          "given": "periode tanpa satu pun detail sterilizer",
+          "expect": "kpi.triple_peak_compliance_percent = 0; tidak ada DivisionByZeroError"
+        },
+        {
+          "description": "summary mengembalikan seluruh KPI nol dan koleksi kosong saat periode tidak memuat data Sterilizer",
+          "given": "periode valid, tidak ada detail sterilizer di rentang tanggalnya",
+          "expect": "kpi.total_cycles = 0, total_cages = 0, cycles_without_duration = 0, avg/min/max = null, triple_peak = 0; daily = [], by_unit = [], outliers.items = []; tetap HTTP 200, bukan 404"
+        },
+        {
+          "description": "outliers menandai insufficient_data saat jumlah siklus berdurasi kurang dari 8",
+          "given": "7 detail dengan duration_minutes terisi (plus beberapa detail berdurasi NULL)",
+          "expect": "outliers.insufficient_data = true, outliers.sample_size = 7, outliers.min_sample_size = 8, lower_bound = null, upper_bound = null, items = []"
+        },
+        {
+          "description": "outliers menghitung batas Tukey dan menandai siklus di luar batas saat sample >= 8",
+          "given": "10 durasi: 88,90,91,92,93,94,95,96,97,200 → Q1 = persentil 25, Q3 = persentil 75, IQR = Q3-Q1, lower = Q1-1.5*IQR, upper = Q3+1.5*IQR",
+          "expect": "outliers.method = 'iqr', insufficient_data = false, lower_bound & upper_bound terisi angka, items memuat siklus durasi 200 (> upper_bound) beserta {date, sterilizer_no, duration_minutes, number_of_cages, cages_status}"
+        },
+        {
+          "description": "outliers mengembalikan items kosong (bukan insufficient_data) saat seluruh durasi seragam",
+          "given": "10 detail seluruhnya duration_minutes = 95",
+          "expect": "insufficient_data = false; IQR = 0 sehingga lower_bound = 95 dan upper_bound = 95; items = [] — tidak ada siklus yang ditandai menyimpang, dan batas tetap dikembalikan agar bisa ditampilkan di layar"
+        },
+        {
+          "description": "daily dikelompokkan per sterilizer_records.date dan hanya memuat tanggal yang punya siklus",
+          "given": "periode 2026-09-01..2026-09-05; siklus hanya pada 2026-09-02 (2 siklus) dan 2026-09-04 (1 siklus)",
+          "expect": "daily berisi tepat 2 entri (2026-09-02 cycles=2, 2026-09-04 cycles=1); tanggal tanpa siklus tidak dibuatkan baris nol"
+        },
+        {
+          "description": "by_unit dikelompokkan per sterilizer_no dengan cycles, cages, dan avg_duration per unit",
+          "given": "detail: sterilizer_no 1 (2 siklus, 20 lori), sterilizer_no 2 (1 siklus, 9 lori)",
+          "expect": "by_unit berisi 2 entri dengan sterilizer_no 1 → cycles=2, cages=20 dan sterilizer_no 2 → cycles=1, cages=9; avg_duration per unit hanya dari siklus berdurasi"
+        },
+        {
+          "description": "export menghasilkan satu baris per SIKLUS dengan kolom konteks record diulang tiap baris",
+          "given": "1 sterilizer_record (date, note, checked_by, acknowledged_by, status) dengan 3 detail siklus",
+          "expect": "3 baris ekspor; kolom Sterilizer ID, Date, Note, Checked By, Acknowledged By, Status berisi nilai yang sama pada ketiga baris; kolom siklus berbeda per baris"
+        },
+        {
+          "description": "export melempar 422 EXPORT_FAILED saat jumlah BARIS EKSPOR melebihi 50.000",
+          "given": "periode memuat 5.000 sterilizer_records dengan rata-rata 11 detail per record = 55.000 baris siklus (jumlah record header hanya 5.000, di bawah batas)",
+          "expect": "throw → HTTP 422, code = 'EXPORT_FAILED'; batas dihitung dari 55.000 baris siklus, bukan dari 5.000 record header"
+        },
+        {
+          "description": "export tetap berhasil untuk periode berstatus closed",
+          "given": "periode P1 dengan status = 'closed', memuat detail sterilizer dalam rentangnya",
+          "expect": "berkas ekspor dihasilkan normal; status periode tidak membatasi ekspor maupun tampilan"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "Supervisor BU-A; periode P1 milik BU-A berstatus 'open' 2026-09-01..2026-09-30; terdapat 12 detail sterilizer bertanggal dalam rentang dari stasiun bertipe sterilizer milik BU-A, 10 di antaranya berdurasi",
+          "expect": "mengembalikan struktur summary lengkap: period, kpi terisi (total_cycles=12, cycles_without_duration=2), daily non-kosong, by_unit non-kosong, outliers {method:'iqr', bounds terisi, insufficient_data:false, sample_size:10}, total"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "sterilizer-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "sterilizer-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Laporan ini tidak bisa menampilkan apa pun tanpa Periode Pelaporan yang dibuat di sana; pesan kosongnya secara eksplisit mengarahkan ke layar itu"
+    },
+    {
+      "screen_id": "screen-122--form-sterilizer",
+      "reason": "Sumber data laporan — siklus rebus diinput Operator lewat form mobile ini"
+    },
+    {
+      "screen_id": "screen-126--form-sterilizer-web",
+      "reason": "Sumber data alternatif — siklus rebus juga dapat diinput dari web"
+    },
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Pintu masuk yang direncanakan; sampai layar itu dibangun, sidebar mengarah langsung ke laporan ini"
+    }
+  ],
+  "implementation_notes": [
+    "Route /reports/sterilizer, BUKAN /laporan/sterilizer. Konvensi repo: Laporan Manajemen terdaftar sebagai /reports/management di routes/web.php dan tidak ada satu pun route ber-prefix /laporan. Catatan ini penting karena instruksi awal ke test-spec-writer-agent sempat menyebut /laporan/sterilizer dan seluruh browser_test.route hasilnya sudah dikoreksi di artefak ini.",
+    "CSS: blok <style> md-* yang saat ini inline di resources/views/dashboard/partials/daily-mill-report.blade.php (baris 542–716, 174 baris) HARUS diekstrak ke partial bersama, mis. resources/views/dashboard/partials/report-styles.blade.php, lalu di-@include dari daily-mill-report DAN dari layar ini. Jangan menduplikasi. Tampilan daily-mill-report wajib tidak berubah sedikit pun setelah ekstraksi — DashboardHomeTest harus tetap hijau.",
+    "Mock visual acuan ada di .asdlc/generated/2-business-spec/screens/html/screen-129--laporan-sterilizer-web.html. Mock memakai prefix rp-* dengan shared assets Phase 1; implementasi memakai md-* dari report-styles aplikasi. Yang ditiru adalah SUSUNAN dan kepadatan informasinya, bukan nama kelasnya.",
+    "Metode ambang outlier memakai kuartil (Tukey fence), BUKAN rata-rata ± 2 simpangan baku. Alasannya menentukan: simpangan baku ikut membesar oleh siklus menyimpang itu sendiri, sehingga satu siklus 500 menit justru menyembunyikan dirinya. Kuartil kebal terhadap itu dan ambangnya terbaca manusia. Tidak ada master target operasional untuk Sterilizer (SterilizerOperationalTarget tidak ada, berbeda dari Threshing/Pressing/Depricarping/Kernel Plant), jadi ambang memang wajib diturunkan dari data.",
+    "min_sample_size = 8 untuk perhitungan outlier. Di bawah itu kuartil tidak bermakna, dan menandai outlier dari sampel kecil lebih menyesatkan daripada tidak menandai sama sekali. UI menyatakan datanya terlalu sedikit.",
+    "Keamanan lintas mill ditutup di DUA titik yang berbeda sifatnya: (1) business_unit_id dari klien DIABAIKAN untuk Supervisor/Mill Management — responsnya tetap 200 berisi data mill sendiri, sengaja bukan 403 agar tidak membocorkan keberadaan mill lain; (2) period_id milik mill lain DITOLAK 403 di authorizePeriod — ini jalur kebocoran sesungguhnya. Test scenario untuk ini sengaja dibuat dua langkah dan JANGAN disederhanakan menjadi satu.",
+    "Admin ber-business_unit_id NULL (diverifikasi pada tabel users), sehingga tanpa pemilih Mill Admin tidak akan pernah melihat data. Ini sebabnya endpoint business-units/options ada dan hanya untuk Admin.",
+    "Batas ekspor 50.000 dihitung dari jumlah SIKLUS, bukan jumlah record header — satu record harian dapat memuat belasan siklus. Ini jebakan yang sama persis dengan yang diperbaiki pada commit 8611974 untuk ekspor 17 stasiun.",
+    "CELAH CAKUPAN yang dilaporkan test-spec-writer-agent dan diterima apa adanya: (1) batas 50.000 baris ekspor hanya ter-cover unit test, tidak ada bdd_scenario yang memicunya; (2) 403 pada business-units/options untuk non-Admin juga hanya unit test. Keduanya bukan lubang implementasi — hanya berarti integration test tidak menyentuhnya. Tidak ditambal dengan BDD dadakan.",
+    "Seluruh endpoint hanya GET. Tidak boleh ada POST/PUT/PATCH/DELETE pada prefix /api/sterilizer-reports — laporan bersifat baca saja dan test scenario terakhir memverifikasi jumlah baris sterilizer_records/sterilizer_details identik sebelum dan sesudah render.",
+    "Sidebar: entri 'Laporan Stasiun' yang mengarah langsung ke /reports/sterilizer bersifat SEMENTARA sampai screen-140 dibangun. Ditempatkan setelah 'Laporan Manajemen'. Sidebar repo ini tidak menyaring menu per role — ikuti pola yang ada, catat sebagai known_issue seperti screen-128. Catatan: sidebar baru saja diubah (grup 'Struktur Organisasi' memakai <details>/<summary>), jadi baca file terkini sebelum menyisipkan."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — success",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Supervisor, biarkan periode teratas terpilih otomatis, panggil toggleRekapHarian, lalu panggil export('csv')",
+        "assert": "empat kartu KPI terender, tren harian, distribusi durasi, perbandingan antar unit, dan kartu siklus menyimpang beserta nilai ambangnya tampil; tabel rekap harian terbuka dengan baris Total; export mengembalikan StreamedResponse CSV; tidak ada data Sterilizer yang berubah"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Supervisor, buka /reports/sterilizer, biarkan periode teratas terpilih, klik toggle tabel rekap harian, lalu klik tombol Ekspor dan pilih CSV",
+        "assert": "Empat kartu angka utama terlihat dengan nilai numerik, grafik tren harian dan perbandingan unit tergambar, kartu siklus menyimpang menampilkan teks ambang batas, tabel rekap harian terlihat dengan baris Total, dan unduhan berkas CSV terpicu"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Admin belum memilih mill",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Admin tanpa menyetel properti businessUnitId",
+        "assert": "pemilih Mill terender dengan nilai kosong, pesan permintaan memilih mill terlebih dahulu tampil, pemilih periode dan seluruh blok KPI/grafik tidak terender, dan tidak ada error yang ditampilkan"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Admin lalu buka /reports/sterilizer tanpa memilih mill",
+        "assert": "Dropdown Mill terlihat dalam keadaan belum terpilih, pesan yang meminta pemilihan mill terlebih dahulu terlihat, dan tidak ada kartu KPI maupun grafik di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Admin memilih mill lalu melihat laporannya",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Admin, set('businessUnitId', <id mill A>)",
+        "assert": "daftar periode ter-refresh dan hanya memuat periode milik mill A, periode teratas terpilih otomatis, dan seluruh KPI yang terender dihitung hanya dari stasiun milik mill A"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Admin, buka /reports/sterilizer, pilih mill A pada dropdown Mill",
+        "assert": "Dropdown Periode terisi ulang hanya dengan periode milik mill A, pesan 'pilih mill' hilang, dan kartu KPI serta grafik muncul dengan angka milik mill A"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Belum ada Periode Pelaporan",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Supervisor pada mill tanpa periode yang mencakup Sterilizer",
+        "assert": "pemilih periode terender kosong, pesan yang mengarahkan agar Admin membuat Periode Pelaporan terlebih dahulu tampil, tidak ada kartu KPI maupun grafik yang terender, dan tidak ada exception"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Supervisor pada mill tanpa Periode Pelaporan yang mencakup Sterilizer, buka /reports/sterilizer",
+        "assert": "Dropdown Periode terlihat kosong, pesan arahan membuat Periode Pelaporan terlihat, tidak ada grafik atau kartu angka, dan tidak ada halaman error 404/500"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Periode tanpa data Sterilizer",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode valid tanpa satu pun siklus Sterilizer di rentangnya>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Supervisor, set('periodId', <periode tanpa data>)",
+        "assert": "empat kartu KPI terender bernilai nol, pesan 'belum ada data pada periode ini' tampil, dan blok grafik tren maupun perbandingan unit tidak merender batang kosong"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Supervisor, buka /reports/sterilizer, pilih periode yang tidak memuat data Sterilizer",
+        "assert": "Kartu angka utama menampilkan 0, pesan 'belum ada data pada periode ini' terlihat, dan area grafik tidak menampilkan batang kosong"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Sebagian siklus belum punya durasi",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan 5 siklus: 3 berdurasi 90/100/110, 2 tanpa duration_minutes>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Supervisor, set('periodId', <periode dengan sebagian siklus tanpa durasi>)",
+        "assert": "kartu Total Siklus Rebus menampilkan 5, kartu Durasi Rata-rata menampilkan 100 (bukan rata-rata yang terdilusi), dan keterangan jumlah siklus yang dikeluarkan (2 siklus) tampil di dekat kartu durasi"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Supervisor, buka /reports/sterilizer, pilih periode yang sebagian siklusnya belum terisi waktu buka pintu",
+        "assert": "Total Siklus Rebus tetap menghitung seluruh siklus, Durasi Rata-rata dihitung tanpa siklus berdurasi kosong, dan teks jumlah siklus yang dikeluarkan terlihat di layar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Seluruh durasi seragam",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan 10 siklus yang seluruh duration_minutes-nya 95>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Supervisor, set('periodId', <periode berdurasi seragam>)",
+        "assert": "kartu siklus menyimpang terender dengan teks eksplisit 'tidak ada siklus di luar kebiasaan' beserta nilai lower_bound dan upper_bound; kartu tidak terender kosong dan tidak menampilkan pesan data tidak cukup"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Supervisor, buka /reports/sterilizer, pilih periode yang seluruh siklusnya berdurasi sama",
+        "assert": "Kartu siklus menyimpang terlihat berisi pernyataan tidak ada siklus di luar kebiasaan, nilai ambang batas tetap tertulis di kartu, dan tidak ada daftar siklus"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Supervisor dan Mill Management hanya melihat millnya sendiri",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "<uuid mill LAIN (BU-B)>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode milik BU-B>"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Supervisor BU-A pada instance yang juga punya periode BU-B",
+        "assert": "pemilih Mill tidak terender sama sekali, koleksi periode hanya memuat periode BU-A, dan angka KPI hanya berasal dari stasiun BU-A"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Supervisor mill A, buka /reports/sterilizer, buka dropdown Periode Pelaporan",
+        "assert": "Tidak ada dropdown Mill di halaman, dropdown Periode hanya memuat periode mill A, nama mill lain tidak muncul di mana pun, dan angka yang tampil hanya milik mill A"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Operator mencoba mengakses",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode pada mill Operator>"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "actingAs(operator) lalu Livewire::test(LaporanSterilizer::class)",
+        "assert": "komponen menolak dengan 403 dan tidak merender satu pun kartu KPI, grafik, atau tabel rekap"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Operator lalu coba buka /reports/sterilizer langsung lewat URL",
+        "assert": "Halaman menampilkan penolakan akses (403) atau dialihkan keluar dari laporan, dan tidak ada angka, grafik, maupun tabel data Sterilizer yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Periode berstatus Tertutup",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode berstatus closed yang memuat data Sterilizer>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step1.period.id}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Supervisor, set('periodId', <periode closed>), lalu panggil export('csv')",
+        "assert": "seluruh KPI dan grafik terender normal, badge status periode menampilkan 'Tertutup', tombol Ekspor tidak disabled, dan export mengembalikan StreamedResponse CSV tanpa error PERIOD_CLOSED"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Supervisor, buka /reports/sterilizer, pilih periode berstatus Tertutup, lalu klik Ekspor",
+        "assert": "Laporan tampil lengkap seperti periode terbuka, label status 'Tertutup' terlihat sebagai keterangan periode, dan unduhan berkas ekspor tetap terpicu"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — periode yang tidak mencakup jenis stasiun Sterilizer tidak dapat dipilih",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Supervisor pada mill yang punya periode Sterilizer, periode semua-stasiun (station_type NULL), dan periode stasiun lain",
+        "assert": "opsi pemilih periode memuat periode ber-station_type 'sterilizer' dan periode ber-station_type NULL, dan TIDAK memuat periode ber-station_type stasiun lain; urutan start_date terbaru di atas"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Supervisor, buka /reports/sterilizer, buka dropdown Periode Pelaporan",
+        "assert": "Dropdown memuat periode Sterilizer dan periode bercakupan semua jenis stasiun, periode khusus jenis stasiun lain tidak muncul, dan opsi terurut dari periode terbaru di paling atas"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — rentang inklusif memakai tanggal kejadian",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode 2026-09-01..2026-09-30; dataset: siklus date=2026-09-01, date=2026-09-30, date=2026-08-31, date=2026-09-15 dengan created_at=2026-10-05, date=2026-08-20 dengan created_at=2026-09-10>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Supervisor, set('periodId', <periode dengan dataset batas>)",
+        "assert": "total siklus hanya mencakup siklus bertanggal 2026-09-01, 2026-09-30, dan 2026-09-15 (yang di-sync belakangan); tabel rekap memuat baris 2026-09-01 dan 2026-09-30, tidak memuat 2026-08-31 maupun 2026-08-20"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Supervisor, buka /reports/sterilizer, pilih periode 2026-09-01..2026-09-30 lalu buka tabel rekap harian",
+        "assert": "Baris tanggal awal dan tanggal akhir periode terlihat, siklus di luar rentang tidak muncul walaupun baru diinput atau disinkronkan selama periode berlangsung, dan Total periode konsisten dengan baris yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — kepatuhan triple-peak turun saat waktu puncak atau pembuangan tidak lengkap",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan 4 siklus: 3 lengkap peak_1..3 & exhaust_1..3, 1 dengan exhaust_3 NULL>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Supervisor, set('periodId', <periode dengan satu siklus tidak lengkap>)",
+        "assert": "kartu Kepatuhan Triple-Peak menampilkan 75% dan bukan 100%"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Supervisor, buka /reports/sterilizer, pilih periode yang memuat siklus dengan salah satu waktu puncak/pembuangan kosong",
+        "assert": "Kartu Kepatuhan Triple-Peak menampilkan persentase di bawah 100 yang sebanding dengan jumlah siklus tidak lengkap"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — ambang siklus menyimpang wajib ditampilkan di layar",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan >= 8 siklus berdurasi dan beberapa durasi ekstrem>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Supervisor, set('periodId', <periode dengan pencilan>)",
+        "assert": "kartu siklus menyimpang merender nilai lower_bound dan upper_bound sebagai teks ambang, dan daftar siklus hanya berisi yang durasinya di luar kedua batas lengkap dengan tanggal, sterilizer_no, durasi, dan jumlah lori"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Supervisor, buka /reports/sterilizer, pilih periode dengan durasi bervariasi lalu baca kartu siklus menyimpang",
+        "assert": "Nilai ambang batas bawah dan atas tertulis di kartu, dan setiap baris siklus yang tercantum memang durasinya di luar ambang tersebut"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — laporan bersifat baca saja",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan data>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.period.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "Livewire::test(LaporanSterilizer::class) sebagai Supervisor, set('periodId', <periode dengan data>), lalu telusuri seluruh method publik komponen",
+        "assert": "komponen tidak mengekspos method create/update/delete/verify apa pun, hanya pemilih dan toggle serta export; jumlah baris sterilizer_records dan sterilizer_details identik sebelum dan sesudah render"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "Login sebagai Supervisor, buka /reports/sterilizer pada periode berisi data, telusuri seluruh kartu dan tabel rekap harian",
+        "assert": "Tidak ada tombol Tambah, Ubah, Hapus, maupun field yang dapat diedit; tidak ada sel tabel yang menerima input; dan data Sterilizer di database tidak berubah setelah kunjungan"
+      }
+    }
+  ]
+}

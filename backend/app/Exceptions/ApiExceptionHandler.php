@@ -16,10 +16,37 @@ use Throwable;
  * ApiExceptionHandler — centralised JSON error formatting (error-handler,
  * shared-modules).
  *
- * Implements shared_decisions.error_format exactly:
- *   { "message": "Error message", "errors": { "field": ["detail error"] } }
+ * Implements shared_decisions.error_format:
+ *   { "message": "Error message", "code": "ERROR_CODE", "errors": { "field": ["detail error"] } }
  * `errors` is only present for 422 validation failures; every other error
- * (401 / 403 / 404 / 500 / ...) returns `message` only.
+ * (401 / 403 / 404 / 500 / ...) returns `message` (plus `code` where one is
+ * known).
+ *
+ * `code` — ADDED 2026-09-22 with screen-128--kelola-periode-pelaporan, and
+ * deliberately ADDITIVE: no existing key changes shape or value, and no
+ * response that had no code before gains one unless it falls into one of
+ * the two cases below.
+ *
+ *   1. The exception opts in by implementing App\Exceptions\HasErrorCode
+ *      (PeriodOverlapException, PeriodClosedImmutableException,
+ *      PeriodAlreadyClosedException, PeriodNotClosedException) — its
+ *      errorCode() is emitted verbatim. Every pre-existing exception in
+ *      this namespace (ExportFailedException,
+ *      ProductionLineHasStationsException, ...) does NOT implement it and
+ *      therefore renders exactly as it did before.
+ *   2. Four framework-level codes this handler derives itself from the
+ *      condition it is already branching on: VALIDATION_ERROR (422
+ *      ValidationException), UNAUTHENTICATED (401), FORBIDDEN (403),
+ *      NOT_FOUND (404).
+ *
+ * Unhandled 500s stay code-less on purpose — there is no meaningful
+ * machine-readable code for "something broke", and inventing one would
+ * invite clients to branch on it.
+ *
+ * NOT COVERED HERE: App\Http\Middleware\EnsureRole builds its own 401/403
+ * JSON responses directly and never reaches this handler, so a role-gated
+ * route's rejection carries `message` only. See the screen-128 4-implement
+ * known_issues.
  *
  * Wired into bootstrap/app.php's withExceptions() — only renders a JSON
  * response when the request expects JSON (API routes, or an explicit
@@ -42,6 +69,7 @@ class ApiExceptionHandler
         if ($e instanceof ValidationException) {
             return response()->json([
                 'message' => $e->getMessage() ?: 'Validasi gagal.',
+                'code' => 'VALIDATION_ERROR',
                 'errors' => $e->errors(),
             ], 422);
         }
@@ -49,12 +77,14 @@ class ApiExceptionHandler
         if ($e instanceof AuthenticationException) {
             return response()->json([
                 'message' => 'Unauthenticated.',
+                'code' => 'UNAUTHENTICATED',
             ], 401);
         }
 
         if ($e instanceof AuthorizationException) {
             return response()->json([
                 'message' => $e->getMessage() ?: 'Anda tidak memiliki akses untuk aksi ini.',
+                'code' => 'FORBIDDEN',
             ], 403);
         }
 
@@ -71,15 +101,22 @@ class ApiExceptionHandler
         if ($e instanceof NotFoundHttpException && $e->getPrevious() instanceof ModelNotFoundException) {
             return response()->json([
                 'message' => static::defaultMessageFor(404),
+                'code' => 'NOT_FOUND',
             ], 404);
         }
 
         if ($e instanceof HttpExceptionInterface) {
             $status = $e->getStatusCode();
 
-            return response()->json([
-                'message' => $e->getMessage() ?: static::defaultMessageFor($status),
-            ], $status);
+            $payload = ['message' => $e->getMessage() ?: static::defaultMessageFor($status)];
+
+            $code = static::codeFor($e, $status);
+
+            if ($code !== null) {
+                $payload['code'] = $code;
+            }
+
+            return response()->json($payload, $status);
         }
 
         // Generic/unhandled throwable — never leak internals in production.
@@ -88,6 +125,29 @@ class ApiExceptionHandler
         return response()->json([
             'message' => $debug ? $e->getMessage() : 'Terjadi kesalahan pada server.',
         ], 500);
+    }
+
+    /**
+     * The machine-readable `code` for an HTTP exception, or null when
+     * there is none — in which case the response keeps its historical
+     * message-only shape.
+     *
+     * Opt-in (HasErrorCode) wins over the status-derived fallback, so an
+     * exception that carries its own 403/404-status code still emits that
+     * code rather than the generic FORBIDDEN/NOT_FOUND.
+     */
+    protected static function codeFor(Throwable $e, int $status): ?string
+    {
+        if ($e instanceof HasErrorCode) {
+            return $e->errorCode();
+        }
+
+        return match ($status) {
+            401 => 'UNAUTHENTICATED',
+            403 => 'FORBIDDEN',
+            404 => 'NOT_FOUND',
+            default => null,
+        };
     }
 
     protected static function defaultMessageFor(int $status): string

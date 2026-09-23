@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kelola Periode Pelaporan | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only — no colour/radius/shadow literals, CSS variables only */
+    .pp-filter-bar {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--space-md);
+      margin-bottom: var(--space-lg);
+      flex-wrap: wrap;
+    }
+    .pp-filter-bar .input-group { min-width: 220px; }
+    .pp-table-card { margin-bottom: var(--space-xl); }
+    .pp-form-card { margin-bottom: var(--space-xl); }
+    .pp-dialog-card { margin-bottom: var(--space-xl); max-width: 520px; }
+    .pp-row-actions { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
+    .pp-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+    }
+    .pp-pagination-pages { display: flex; gap: var(--space-xs); }
+    .pp-hint {
+      font-size: var(--font-size-xs);
+      color: var(--color-muted-foreground, #71717a);
+      margin-top: var(--space-xs);
+    }
+    .pp-dialog-label { font-size: var(--font-size-sm); }
+    .actors-note {
+      font-size: var(--font-size-xs);
+      color: var(--color-muted-foreground, #71717a);
+      font-style: italic;
+      margin-top: var(--space-lg);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span>Mill Smart Log</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="#"><span class="label">Dashboard</span></a>
+        <a class="nav-item" href="#"><span class="label">Data Stasiun</span></a>
+        <a class="nav-item active" href="#"><span class="label">Master Data</span></a>
+        <a class="nav-item" href="#"><span class="label">User &amp; Role Management</span></a>
+        <a class="nav-item" href="#"><span class="label">Pengaturan Akun</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-title">Master Data &gt; Kelola Periode Pelaporan</div>
+        <div class="topbar-end">
+          <span>Admin</span>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="page-header">
+          <h1 class="page-title">Kelola Periode Pelaporan</h1>
+          <div class="page-actions">
+            <button class="btn btn-primary" type="button">+ Tambah Periode</button>
+          </div>
+        </div>
+
+        <div class="pp-filter-bar">
+          <div class="input-group">
+            <label class="input-label" for="filter-bu">Business Unit</label>
+            <select class="input" id="filter-bu">
+              <option selected>Semua Business Unit</option>
+              <option>Kilang Sawit Tenang</option>
+              <option>Kilang Sawit Utara</option>
+              <option>Kilang Sawit Selatan</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label class="input-label" for="filter-status">Status</label>
+            <select class="input" id="filter-status">
+              <option selected>Semua Status</option>
+              <option>Draft</option>
+              <option>Terbuka</option>
+              <option>Tertutup</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Daftar Periode Pelaporan -->
+        <div class="card pp-table-card">
+          <div class="card-header">Daftar Periode Pelaporan</div>
+          <div class="card-body" style="padding:0">
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nama</th>
+                    <th>Business Unit</th>
+                    <th>Jenis Stasiun</th>
+                    <th>Tanggal Mulai</th>
+                    <th>Tanggal Selesai</th>
+                    <th>Status</th>
+                    <th>Ditutup Oleh</th>
+                    <th>Waktu Ditutup</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Periode Juli 2026</td>
+                    <td>Kilang Sawit Tenang</td>
+                    <td>Semua Stasiun</td>
+                    <td>01 Jul 2026</td>
+                    <td>31 Jul 2026</td>
+                    <td><span class="badge badge-destructive">Tertutup</span></td>
+                    <td>Rahmat Hidayat</td>
+                    <td>02 Agu 2026 09:14</td>
+                    <td>
+                      <div class="pp-row-actions">
+                        <button class="btn btn-outline btn-sm" type="button">Buka Kembali</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Periode Agustus 2026</td>
+                    <td>Kilang Sawit Tenang</td>
+                    <td>Weighbridge</td>
+                    <td>01 Agu 2026</td>
+                    <td>31 Agu 2026</td>
+                    <td><span class="badge badge-success">Terbuka</span></td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>
+                      <div class="pp-row-actions">
+                        <button class="btn btn-outline btn-sm" type="button">Edit</button>
+                        <button class="btn btn-warning btn-sm" type="button">Tutup Periode</button>
+                        <button class="btn btn-destructive btn-sm" type="button">Hapus</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>Periode September 2026</td>
+                    <td>Kilang Sawit Utara</td>
+                    <td>Semua Stasiun</td>
+                    <td>01 Sep 2026</td>
+                    <td>30 Sep 2026</td>
+                    <td><span class="badge badge-neutral">Draft</span></td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>
+                      <div class="pp-row-actions">
+                        <button class="btn btn-outline btn-sm" type="button">Edit</button>
+                        <button class="btn btn-warning btn-sm" type="button">Tutup Periode</button>
+                        <button class="btn btn-destructive btn-sm" type="button">Hapus</button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="pp-pagination">
+              <span class="pp-hint">Menampilkan 1–3 dari 12 periode</span>
+              <div class="pp-pagination-pages">
+                <button class="btn btn-outline btn-sm" type="button">Sebelumnya</button>
+                <button class="btn btn-primary btn-sm" type="button">1</button>
+                <button class="btn btn-outline btn-sm" type="button">2</button>
+                <button class="btn btn-outline btn-sm" type="button">3</button>
+                <button class="btn btn-outline btn-sm" type="button">Berikutnya</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Tambah/Edit Periode -->
+        <div class="card pp-form-card">
+          <div class="card-header">Edit Periode — Periode Agustus 2026 (Kilang Sawit Tenang)</div>
+          <div class="card-body">
+            <form class="form">
+              <div class="form-row">
+                <div class="input-group">
+                  <label class="input-label" for="pp-bu">Business Unit <span class="required">*</span></label>
+                  <select class="input" id="pp-bu">
+                    <option selected>Kilang Sawit Tenang</option>
+                    <option>Kilang Sawit Utara</option>
+                    <option>Kilang Sawit Selatan</option>
+                  </select>
+                </div>
+                <div class="input-group">
+                  <label class="input-label" for="pp-station-type">Jenis Stasiun</label>
+                  <select class="input" id="pp-station-type">
+                    <option>Semua Jenis Stasiun</option>
+                    <option selected>Weighbridge</option>
+                    <option>Grading</option>
+                    <option>Cages Track</option>
+                    <option>Threshing</option>
+                    <option>Pressing</option>
+                    <option>Depricarping</option>
+                    <option>Kernel Plant</option>
+                  </select>
+                  <p class="pp-hint">Opsional — dikosongkan berarti periode berlaku untuk semua jenis stasiun di mill ini.</p>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="input-group">
+                  <label class="input-label" for="pp-nama">Nama Periode <span class="required">*</span></label>
+                  <input class="input" type="text" id="pp-nama" value="Periode Agustus 2026">
+                  <p class="pp-hint">Harus unik dalam satu kombinasi mill + jenis stasiun.</p>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="input-group">
+                  <label class="input-label" for="pp-mulai">Tanggal Mulai <span class="required">*</span></label>
+                  <input class="input" type="date" id="pp-mulai" value="2026-08-01">
+                </div>
+                <div class="input-group">
+                  <label class="input-label" for="pp-selesai">Tanggal Selesai <span class="required">*</span></label>
+                  <input class="input" type="date" id="pp-selesai" value="2026-08-31">
+                  <p class="pp-hint">Tidak boleh lebih awal dari tanggal mulai, dan rentangnya tidak boleh tumpang tindih dengan periode lain pada mill + jenis stasiun yang sama.</p>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button class="btn btn-ghost" type="button">Batal</button>
+                <button class="btn btn-primary" type="submit">Simpan</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Dialog konfirmasi Tutup Periode -->
+        <div class="card pp-dialog-card">
+          <div class="card-header">Tutup Periode — Periode Agustus 2026</div>
+          <div class="card-body">
+            <div class="alert alert-warning">
+              <div class="alert-title">32 data stasiun belum terverifikasi dalam rentang periode ini</div>
+              <p class="pp-dialog-label">
+                Setelah periode ditutup, verifikasi ikut terkunci — data tersebut akan tetap berstatus
+                belum terverifikasi sampai periode dibuka kembali.
+              </p>
+            </div>
+            <p class="pp-dialog-label">
+              Menutup periode <strong>01 Agu 2026 – 31 Agu 2026</strong> pada
+              <strong>Kilang Sawit Tenang · Weighbridge</strong> akan mengunci seluruh data stasiun
+              yang tanggal kejadiannya berada di dalam rentang tersebut: tidak bisa diinput baru,
+              tidak bisa diubah, dan tidak bisa diverifikasi.
+            </p>
+          </div>
+          <div class="card-footer">
+            <div class="form-actions">
+              <button class="btn btn-ghost" type="button">Batal</button>
+              <button class="btn btn-warning" type="button">Ya, Tutup Periode</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="actors-note">
+          Actors: Admin &nbsp;·&nbsp;
+          Entry points: Menu sidebar 'Kelola Periode Pelaporan'
+        </p>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

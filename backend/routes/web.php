@@ -624,4 +624,17 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/data/sterilizer/{id}/edit', \App\Livewire\Data\FormSterilizer::class)
     ->name('data.sterilizer.edit');
+
+// screen-128--kelola-periode-pelaporan
+// Session-guarded ('auth') + role-guarded (admin only, per
+// screen_tech_spec.actor_permissions — supervisor / mill_management /
+// operator all have can_access=false for this screen, closure actions
+// included). Mirrors screen-027/028/029/030/031/033's registration
+// pattern exactly — EnsureRole::forbidden() aborts(403) with Laravel's
+// default HTML error page for any non-admin session before
+// App\Livewire\MasterData\KelolaPeriodePelaporan ever mounts.
+Route::middleware(['auth', 'role:admin'])
+    ->get('/master-data/periods', \App\Livewire\MasterData\KelolaPeriodePelaporan::class)
+    ->name('master-data.periods');
+
 // === ASDLC_ROUTES_END ===

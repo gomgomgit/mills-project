@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\MachineryController;
 use App\Http\Controllers\Api\MachineryGroupController;
 use App\Http\Controllers\Api\ManagementReportController;
 use App\Http\Controllers\Api\MillSettingController;
+use App\Http\Controllers\Api\PeriodController;
 use App\Http\Controllers\Api\PressingRecordController;
 use App\Http\Controllers\Api\DepricarpingRecordController;
 use App\Http\Controllers\Api\KernelPlantRecordController;
@@ -859,5 +860,29 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // service's own role rule is even reached.
 Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
     ->patch('/records/{stationType}/{id}/verification', [RecordVerificationController::class, 'update']);
+
+// screen-128--kelola-periode-pelaporan (usecase-128 CRUD + usecase-140
+// tutup/buka kembali). Admin-only across the board, per
+// screen_tech_spec.actor_permissions — supervisor / mill_management /
+// operator all have can_access=false, closure actions included (Mill
+// Management consumes the period reports but may not close the books).
+//
+// IMPORTANT — route ordering: GET /periods/business-units/options MUST be
+// registered BEFORE the parameterised /periods/{id} routes below, or
+// Laravel matches the literal "business-units" segment against {id}.
+// Same requirement as /production-lines/business-units/options and
+// /mill-settings/current. The two literal sub-resources of {id}
+// (/unverified-count, /close, /reopen) carry a distinct extra segment, so
+// they cannot collide with PATCH/DELETE /periods/{id}.
+Route::middleware(['auth:web', 'role:admin'])->group(function () {
+    Route::get('/periods', [PeriodController::class, 'index']);
+    Route::get('/periods/business-units/options', [PeriodController::class, 'businessUnitOptions']);
+    Route::post('/periods', [PeriodController::class, 'store']);
+    Route::get('/periods/{id}/unverified-count', [PeriodController::class, 'unverifiedCount']);
+    Route::post('/periods/{id}/close', [PeriodController::class, 'close']);
+    Route::post('/periods/{id}/reopen', [PeriodController::class, 'reopen']);
+    Route::patch('/periods/{id}', [PeriodController::class, 'update']);
+    Route::delete('/periods/{id}', [PeriodController::class, 'destroy']);
+});
 
 // === ASDLC_ROUTES_END ===

@@ -1,0 +1,203 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-22"
+  },
+  "id": "usecase-140--tutup-buka-periode-pelaporan",
+  "name": "Tutup & Buka Kembali Periode Pelaporan",
+  "description": "Admin menutup sebuah Periode Pelaporan untuk mengunci angkanya, dan bila perlu membukanya kembali. Menutup periode mengunci seluruh data stasiun yang tanggal kejadiannya berada di dalam rentang periode: tidak ada data baru yang boleh masuk, tidak ada yang boleh diubah, dan verifikasi pun ikut terkunci. Karena verifikasi ikut terkunci, sebelum konfirmasi sistem menampilkan jumlah data yang belum terverifikasi dalam rentang tersebut. Membuka kembali periode mengembalikan semua kemampuan itu.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login ke aplikasi web",
+    "Periode yang akan ditutup sudah ada dan belum berstatus Tertutup",
+    "Untuk membuka kembali: periode sudah berstatus Tertutup"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Membuka halaman Kelola Periode Pelaporan dan memilih periode yang akan ditutup"
+    },
+    {
+      "step": 2,
+      "actor": "actor-admin",
+      "description": "Menekan aksi 'Tutup Periode'"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menghitung jumlah data stasiun dalam rentang periode yang belum terverifikasi"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Menampilkan dialog konfirmasi yang memuat jumlah data belum terverifikasi tersebut beserta penjelasan bahwa setelah tertutup data tidak bisa diinput, diubah, maupun diverifikasi"
+    },
+    {
+      "step": 5,
+      "actor": "actor-admin",
+      "description": "Mengonfirmasi penutupan"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Mengubah status periode menjadi Tertutup serta mencatat siapa yang menutup dan kapan"
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Menolak setiap upaya memasukkan, mengubah, atau memverifikasi data stasiun yang tanggal kejadiannya berada di dalam rentang periode tersebut"
+    },
+    {
+      "step": 8,
+      "actor": "actor-admin",
+      "description": "Bila diperlukan, menekan 'Buka Kembali Periode' pada periode yang sudah tertutup"
+    },
+    {
+      "step": 9,
+      "actor": "System",
+      "description": "Mengubah status kembali menjadi Terbuka, menghapus catatan penutup dan waktu penutupan, serta kembali mengizinkan input, perubahan, dan verifikasi data di dalam rentang periode"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Admin membatalkan penutupan",
+      "trigger": "Pada langkah 5, Admin menutup dialog konfirmasi tanpa mengonfirmasi",
+      "steps": [
+        "Status periode tidak berubah",
+        "Data di dalam rentang periode tetap dapat diinput, diubah, dan diverifikasi"
+      ]
+    },
+    {
+      "name": "Masih banyak data belum terverifikasi",
+      "trigger": "Pada langkah 3, ditemukan data dalam rentang periode yang belum terverifikasi",
+      "steps": [
+        "Dialog konfirmasi menampilkan jumlahnya secara eksplisit",
+        "Admin tetap boleh melanjutkan penutupan secara sadar",
+        "Data tersebut akan tetap berstatus belum terverifikasi sampai periode dibuka kembali"
+      ]
+    },
+    {
+      "name": "Data mobile menyusul setelah periode ditutup",
+      "trigger": "Setelah langkah 6, Operator mengirim data yang diisi offline dan tanggal kejadiannya berada di dalam rentang periode yang sudah tertutup",
+      "steps": [
+        "Sistem menolak penerimaan data tersebut",
+        "Aplikasi mobile menampilkan pesan bahwa periode sudah ditutup dan Admin perlu dihubungi",
+        "Data tetap tersimpan di perangkat dan tidak dibuang dari antrean",
+        "Data terkirim otomatis setelah Admin membuka kembali periode"
+      ]
+    },
+    {
+      "name": "Upaya verifikasi pada periode tertutup",
+      "trigger": "Setelah langkah 6, Supervisor atau Mill Management mencoba memverifikasi data yang tanggal kejadiannya berada di dalam rentang periode tertutup",
+      "steps": [
+        "Sistem menolak aksi verifikasi",
+        "Status verifikasi data tidak berubah",
+        "Pesan menjelaskan bahwa periode sudah ditutup"
+      ]
+    },
+    {
+      "name": "Menutup periode yang sudah tertutup",
+      "trigger": "Pada langkah 2, periode yang dipilih ternyata sudah berstatus Tertutup",
+      "steps": [
+        "Aksi Tutup Periode tidak tersedia untuk periode tersebut",
+        "Yang tersedia hanya aksi Buka Kembali Periode"
+      ]
+    },
+    {
+      "name": "Dua Admin menutup periode bersamaan",
+      "trigger": "Pada langkah 6, Admin lain lebih dahulu menutup periode yang sama",
+      "steps": [
+        "Penutupan kedua tidak menimpa catatan penutup yang pertama",
+        "Sistem menampilkan bahwa periode sudah ditutup beserta penutup dan waktunya"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Periode berstatus Tertutup dengan catatan siapa yang menutup dan kapan; seluruh data stasiun dalam rentangnya terkunci dari input, perubahan, dan verifikasi",
+    "Setelah dibuka kembali: periode berstatus Terbuka, catatan penutupan terhapus, dan data dalam rentangnya kembali dapat diinput, diubah, serta diverifikasi",
+    "Angka pada laporan periode yang sudah tertutup tidak berubah lagi selama periode tetap tertutup"
+  ],
+  "business_rules": [
+    "Hanya Admin yang boleh menutup dan membuka kembali periode",
+    "Sebelum konfirmasi penutupan, jumlah data yang belum terverifikasi dalam rentang periode wajib ditampilkan",
+    "Periode tertutup mengunci input, perubahan, dan verifikasi data stasiun dalam rentangnya",
+    "Penentuan apakah sebuah data berada dalam periode memakai tanggal kejadian di pabrik, bukan tanggal data diinput atau dikirim",
+    "Data mobile yang ditolak karena periode tertutup tidak boleh dibuang dari antrean perangkat",
+    "Membuka kembali periode menghapus catatan penutup dan waktu penutupan"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — success",
+      "given": "Admin sudah login ke aplikasi web dan terdapat periode pelaporan yang belum berstatus Tertutup",
+      "when": "Admin memilih periode tersebut, menekan 'Tutup Periode', dan mengonfirmasi dialog yang menampilkan jumlah data stasiun belum terverifikasi dalam rentang periode",
+      "then": "Periode berubah menjadi Tertutup dengan catatan siapa yang menutup dan kapan, seluruh data stasiun yang tanggal kejadiannya berada dalam rentang periode terkunci dari input, perubahan, dan verifikasi, dan angka laporan periode tersebut tidak berubah lagi selama periode tetap tertutup"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — buka kembali periode yang sudah tertutup",
+      "given": "Admin sudah login ke aplikasi web dan terdapat periode pelaporan yang sudah berstatus Tertutup",
+      "when": "Admin menekan 'Buka Kembali Periode' pada periode tersebut",
+      "then": "Status periode kembali menjadi Terbuka, catatan penutup dan waktu penutupan terhapus, dan data stasiun dalam rentang periode kembali dapat diinput, diubah, serta diverifikasi"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — Admin membatalkan penutupan",
+      "given": "Admin sudah login ke aplikasi web dan terdapat periode pelaporan yang belum berstatus Tertutup",
+      "when": "Admin menutup dialog konfirmasi penutupan tanpa mengonfirmasi",
+      "then": "Status periode tidak berubah dan data di dalam rentang periode tetap dapat diinput, diubah, dan diverifikasi"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — masih banyak data belum terverifikasi",
+      "given": "Admin sudah login ke aplikasi web dan terdapat periode pelaporan yang belum berstatus Tertutup serta berisi data stasiun yang belum terverifikasi",
+      "when": "Admin menekan 'Tutup Periode' pada periode tersebut",
+      "then": "Dialog konfirmasi menampilkan jumlah data belum terverifikasi secara eksplisit, Admin tetap boleh melanjutkan penutupan secara sadar, dan data tersebut tetap berstatus belum terverifikasi sampai periode dibuka kembali"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — data mobile menyusul setelah periode ditutup",
+      "given": "Periode pelaporan sudah berstatus Tertutup dan Operator memiliki data offline di perangkat yang tanggal kejadiannya berada dalam rentang periode tersebut",
+      "when": "Aplikasi mobile Operator mengirimkan data offline tersebut ke server",
+      "then": "Sistem menolak penerimaan data, aplikasi mobile menampilkan pesan bahwa periode sudah ditutup dan Admin perlu dihubungi, data tetap tersimpan di perangkat tanpa dibuang dari antrean, dan terkirim otomatis setelah Admin membuka kembali periode"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — upaya verifikasi pada periode tertutup",
+      "given": "Periode pelaporan sudah berstatus Tertutup dan masih terdapat data stasiun belum terverifikasi dalam rentang periode tersebut",
+      "when": "Supervisor atau Mill Management mencoba memverifikasi data yang tanggal kejadiannya berada dalam rentang periode tertutup",
+      "then": "Sistem menolak aksi verifikasi, status verifikasi data tidak berubah, dan pesan menjelaskan bahwa periode sudah ditutup"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — menutup periode yang sudah tertutup",
+      "given": "Admin sudah login ke aplikasi web dan periode yang dipilih sudah berstatus Tertutup",
+      "when": "Admin membuka daftar aksi pada periode tersebut",
+      "then": "Aksi 'Tutup Periode' tidak tersedia untuk periode tersebut dan yang tersedia hanya aksi 'Buka Kembali Periode'"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — dua Admin menutup periode bersamaan",
+      "given": "Dua Admin sama-sama login dan membuka periode pelaporan yang sama yang belum berstatus Tertutup",
+      "when": "Admin kedua mengonfirmasi penutupan setelah Admin pertama lebih dahulu menutup periode yang sama",
+      "then": "Penutupan kedua tidak menimpa catatan penutup yang pertama dan sistem menampilkan bahwa periode sudah ditutup beserta penutup dan waktunya"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — pengguna selain Admin menutup periode",
+      "given": "Pengguna non-Admin (Operator, Supervisor, atau Mill Management) sudah login dan terdapat periode pelaporan yang belum berstatus Tertutup",
+      "when": "Pengguna tersebut mencoba menutup atau membuka kembali periode pelaporan",
+      "then": "Sistem menolak aksi tersebut, status periode tidak berubah, dan pesan menjelaskan bahwa hanya Admin yang boleh menutup dan membuka kembali periode"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — mengubah data stasiun pada periode tertutup",
+      "given": "Periode pelaporan sudah berstatus Tertutup dan terdapat data stasiun yang tanggal kejadiannya berada dalam rentang periode tersebut",
+      "when": "Pengguna mencoba menginput data baru atau mengubah data stasiun yang sudah ada pada tanggal kejadian di dalam rentang periode tertutup",
+      "then": "Sistem menolak penyimpanan, data stasiun tidak berubah, dan pesan menjelaskan bahwa periode sudah ditutup"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — data diinput setelah periode ditutup namun tanggal kejadiannya di luar rentang",
+      "given": "Periode pelaporan sudah berstatus Tertutup",
+      "when": "Pengguna menginput data stasiun yang tanggal kejadiannya berada di luar rentang periode tertutup, meskipun tanggal input atau pengirimannya setelah periode ditutup",
+      "then": "Sistem menerima data tersebut karena penentuan keanggotaan periode memakai tanggal kejadian di pabrik, bukan tanggal data diinput atau dikirim"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-128--kelola-periode-pelaporan"
+  ]
+}

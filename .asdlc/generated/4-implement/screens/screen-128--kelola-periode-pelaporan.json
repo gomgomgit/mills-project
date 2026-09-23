@@ -1,0 +1,149 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-22"
+  },
+  "id": "screen-128--kelola-periode-pelaporan",
+  "name": "Kelola Periode Pelaporan",
+  "module_id": "module-master-data",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-22T16:29:43Z",
+      "passed": 56,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-22T16:29:43Z",
+      "passed": 20,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-22T16:29:43Z",
+      "passed": 20,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-22T16:28:57Z",
+      "passed": 15,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/PeriodService.php",
+    "backend/app/Services/PeriodClosureService.php",
+    "backend/app/Http/Controllers/Api/PeriodController.php",
+    "backend/database/factories/PeriodFactory.php",
+    "backend/app/Models/Period.php",
+    "backend/app/Enums/PeriodStatus.php",
+    "backend/app/Models/StationType.php",
+    "backend/app/Exceptions/HasErrorCode.php",
+    "backend/app/Exceptions/PeriodOverlapException.php",
+    "backend/app/Exceptions/PeriodClosedImmutableException.php",
+    "backend/app/Exceptions/PeriodAlreadyClosedException.php",
+    "backend/app/Exceptions/PeriodNotClosedException.php",
+    "backend/app/Exceptions/ApiExceptionHandler.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/database/migrations/2026_09_22_000029_create_station_types_table.php",
+    "backend/database/migrations/2026_09_22_000030_create_periods_table.php",
+    "backend/app/Services/StationService.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/PeriodServiceTest.php",
+    "backend/tests/Unit/Services/PeriodClosureServiceTest.php",
+    "backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php",
+    "backend/tests/Feature/StationTypeCatalogTest.php",
+    "e2e-web/tests/kelola-periode-pelaporan.spec.ts"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/MasterData/KelolaPeriodePelaporan.php",
+    "backend/resources/views/livewire/master-data/kelola-periode-pelaporan.blade.php",
+    "backend/resources/views/master-data/periods.blade.php",
+    "backend/resources/views/components/layouts/app.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/KelolaPeriodePelaporanTest.php"
+  ],
+  "implementation_notes": [
+    "PERUBAHAN SKEMA DI TENGAH JALAN: run pertama dihentikan setelah menulis 4 exception + HasErrorCode, karena user memutuskan station_type harus memakai tabel master + FK, bukan string dengan validasi aplikasi. Migration 2026_09_22_000029 membuat tabel station_types (19 baris: 18 tipe kanonis urut proses + 'other'), MEMBUANG CHECK constraint stations_type_check, lalu memasang FK stations.type -> station_types.code. Migration periods digeser 000029 -> 000030 dan station_type-nya ikut FK ke master yang sama. Run kedua menulis sisanya di atas skema baru.",
+    "FK menunjuk station_types.code, BUKAN id UUID — menyimpang dari pola FK di skema ini secara sengaja. Nilai stations.type tetap 'sterilizer' dsb., sehingga 34 string literal di service/seeder/factory/test plus kode mobile tidak perlu diubah sama sekali. FK ke UUID akan menuntut penulisan ulang semuanya plus migrasi data. Terverifikasi terhadap PostgreSQL: penulisan tipe ngawur langsung lewat SQL ditolak SQLSTATE[23503].",
+    "Pembagian tugas enum vs tabel: App\\Enums\\StationType TETAP ADA dan masih benar dipakai saat logika menyebut satu tipe spesifik (mis. aturan is_active untuk 'other' di StationService). Tabel adalah DATA untuk validasi input, dropdown, dan label. StationService::validate() diubah dari Rule::in(enum) menjadi Rule::exists('station_types','code'). tests/Feature/StationTypeCatalogTest.php (6 test) mengunci sinkronisasi keduanya — menambah case enum tanpa baris tabel, atau sebaliknya, langsung merahkan suite.",
+    "station_type di layar ini: validasi ['nullable','string',Rule::exists('station_types','code')] — nullable lebih dulu. Dropdown diisi PeriodService::stationTypeOptions() dari StationType::where('is_active',true)->orderBy('sort_order'), opsi pertama kosong berlabel 'Semua Stasiun'. station_type_label dari station_types.name (join by code, memoised pluck). App\\Enums\\StationType tidak direferensikan sama sekali di layar ini.",
+    "findOverlapping() dipakai bersama create dan update: business_unit_id = ?, dan hanya bila station_type baru non-null dipasang (station_type = ? OR station_type IS NULL); start_date <= :new_end AND end_date >= :new_start, batas INKLUSIF; id <> :excludeId saat update. station_type baru yang null tidak memasang predikat station_type sama sekali — itulah arm '? IS NULL'. Kedua arah diverifikasi test.",
+    "close() memakai UPDATE BERSYARAT persis sesuai tech spec: Period::where('id',$id)->where('status','<>','closed')->update([...]), affected rows dicek, 0 → PeriodAlreadyClosedException yang menyebut nama penutup pertama beserta waktunya. findOrFail() sebelumnya hanya untuk memisahkan 404 dari 409, bukan guard. Tidak ada read-then-write.",
+    "unverifiedCount() join stations on record.station_id, filter stations.business_unit_id + stations.type, tanggal inklusif, (checked_by IS NULL OR acknowledged_by IS NULL). Daftar tipe saat station_type NULL diambil dari tabel station_types (active, urut sort_order), bukan hardcode. Model per tipe diresolusi lewat whitelist RecordVerificationService::modelForStationType() yang sudah ada, bukan map duplikat.",
+    "TEMUAN SKEMA yang tidak ada di tech spec: 17 dari 18 tabel record memakai kolom `date`, tetapi weighbridge_records memakai `record_datetime`. Ditangani konstanta PeriodClosureService::RECORD_DATE_COLUMN_OVERRIDES. Tanpa ini, hitungan Weighbridge akan selalu 0 secara diam-diam.",
+    "Tipe 'other' ada di station_types tetapi tidak punya tabel record — di-skip saat menghitung, bukan melempar exception.",
+    "Dukungan field `code` di ApiExceptionHandler bersifat STRICTLY ADITIF: hanya untuk exception yang implement HasErrorCode plus 4 kode framework (VALIDATION_ERROR/UNAUTHENTICATED/FORBIDDEN/NOT_FOUND) dari cabang yang memang sudah ada. Error 500 tanpa handler tetap tanpa `code`. Tidak ada key lama yang berubah bentuk — dikonfirmasi suite penuh dan pengecekan bahwa tidak satu pun dari 33 assertExactJson menyasar error response.",
+    "Dua service, bukan satu: CRUD (usecase-128) di PeriodService, penutupan (usecase-140) di PeriodClosureService. Hanya jalur penutupan yang perlu tahu 18 tabel record.",
+    "Konvensi UI diikuti: tidak ada input disabled/readonly; <input type=\"date\"> (bisa diketik manual sekaligus punya picker). Baris berstatus closed hanya merender aksi 'Buka Kembali Periode'. Reopen memakai konfirmasi inline seperti delete; close memakai modal karena harus menampilkan angka belum-terverifikasi lebih dulu. Tombol konfirmasi tetap enabled berapa pun angkanya — peringatan, bukan penghalang.",
+    "Label status Indonesia hanya di UI (Draft / Terbuka / Tertutup); nilai tersimpan tetap draft|open|closed.",
+    "resources/views/master-data/periods.blade.php dibuat meski tidak ada di implementation_plan — #[Layout('master-data.periods')] tidak dapat merender tanpanya, dan setiap layar master-data lain punya wrapper one-liner yang sama. Konsekuensi mekanis dari pola yang ditiru, dilaporkan eksplisit oleh agent ketimbang diselipkan diam-diam.",
+    "Auto-fix 1 putaran (dari maks 5). Bug yang diperbaiki nyata dan PostgreSQL-only: KelolaPeriodePelaporan::buildValidator() meneruskan $this->business_unit_id string kosong mentah ke closure unique-rule → SQLSTATE[22P02] invalid input syntax for type uuid → HTTP 500 alih-alih error inline. Diperbaiki dengan normalisasi '' → null + whereNull pada cabang null, mengikuti pola $stationType yang sudah ada di file yang sama. Aturan unique tidak melemah (diverifikasi manual terhadap PostgreSQL).",
+    "PENGUNCIAN PERIODE TERTUTUP TIDAK DIIMPLEMENTASIKAN di run ini, sesuai cakupan. Layar ini hanya menetapkan status periode. Penolakan input/edit/verifikasi record stasiun dengan 422 code=PERIOD_CLOSED harus ditambahkan ke create()/update()/verifikasi pada service ke-18 stasiun plus jalur sync mobile — lihat usecase-141--kunci-input-periode-tertutup. TODO tercatat di docblock PeriodClosureService.",
+    "CATATAN MEMBACA test_results.unit.coverage = 0: angka itu penanda 'tidak terukur', mengikuti konvensi 39 screen lain di proyek ini, BUKAN berarti coverage nol. Lihat known_issues butir pertama."
+  ],
+  "deferred_items": [
+    {
+      "description": "Penegakan kunci periode tertutup pada 18 service record stasiun dan jalur sync mobile (422 code=PERIOD_CLOSED) — usecase-141--kunci-input-periode-tertutup",
+      "reason": "Di luar cakupan screen-128; layar ini hanya menetapkan status periode. 4 test_scenario yang mengujinya sengaja di-skip dengan alasan eksplisit, tidak dihapus, sebagai kontrak yang mengikat pekerjaan berikutnya."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Coverage unit test 80% TIDAK TERVERIFIKASI — runtime PHP ini tidak punya driver xdebug maupun pcov (dicek dengan php -m, bukan asumsi), sehingga gate tidak dijalankan: bukan 'lolos' dan bukan 'gagal'. Nilai 0 pada test_results.unit.coverage adalah penanda 'tidak terukur' mengikuti konvensi 39 screen lain, bukan coverage nol. Status complete ditetapkan mengikuti preseden proyek yang sama: 38 screen lain berstatus complete dengan known_issue identik, karena tidak satu pun screen di proyek ini pernah punya coverage terukur. Secara kualitatif seluruh method publik dan setiap cabang guard kedua service dieksekusi oleh 56 test / 161 assertion.",
+      "severity": "major"
+    },
+    {
+      "description": "Grading record selalu terhitung belum terverifikasi pada unverifiedCount — grading_records tidak pernah mengisi checked_by (lihat RecordVerificationService::NO_CHECKED_BY_MODELS), sehingga di bawah definisi spec 'checked_by IS NULL OR acknowledged_by IS NULL' setiap grading record dalam rentang ikut terhitung meski sudah di-acknowledge penuh. Spec diimplementasikan apa adanya. BUTUH KEPUTUSAN PRODUK: bila maksudnya 'verifikasi belum lengkap', grading perlu dihitung dengan acknowledged_by IS NULL saja.",
+      "severity": "major"
+    },
+    {
+      "description": "Cacat idempotensi pada spec browser Playwright — semua scenario kecuali 13 memakai jendela tanggal jauh di masa depan ber-RUN_OFFSET dan tidak membersihkan barisnya; scenario 13 wajib memakai jendela tetap 2026-08-01..2026-08-15 agar menabrak record unverified dari seed. Akibatnya akumulasi baris dapat mendorong target scenario 13 ke halaman 2 paginasi, dan bila scenario 13 terputus sebelum cleanup, barisnya tertinggal dan membuat run berikutnya gagal karena overlap. Tidak diperbaiki karena file test tidak boleh diubah setelah dibuat. Perbaikan untuk siklus revisi: bungkus cleanup scenario 13 dalam afterEach/try-finally, atau hapus baris senama di awal scenario 13.",
+      "severity": "major"
+    },
+    {
+      "description": "Parity gap SQLite vs PostgreSQL — phpunit.xml memaksa DB_CONNECTION=sqlite :memory:, dan SQLite menerima perbandingan string kosong pada kolom uuid. Akibatnya bug fix round 1 (22P02 pada business_unit_id kosong) HIJAU di unit/component test padahal nyata di PostgreSQL; hanya browser test terhadap PG yang menangkapnya. Kelas bug 'string kosong ke kolom typed' pada prinsipnya tidak tertangkap selama suite berjalan di SQLite. Perlu keputusan terpisah, mis. menjalankan sebagian suite terhadap PostgreSQL di CI.",
+      "severity": "major"
+    },
+    {
+      "description": "4 dari 20 test_scenario tidak dapat hijau di layar ini (by design) — 'data mobile menyusul setelah periode ditutup', 'upaya verifikasi pada periode tertutup', 'mengubah data stasiun pada periode tertutup', 'data diinput setelah periode ditutup namun tanggal kejadiannya di luar rentang'. Keempatnya memanggil POST/PATCH /api/sterilizer-records yang penegakan PERIOD_CLOSED-nya ditunda ke usecase-141. Di-skip dengan alasan eksplisit di file test, tidak dihapus — ini kontrak yang mengikat pekerjaan lanjutan.",
+      "severity": "major"
+    },
+    {
+      "description": "Sidebar web tidak menyaring menu per role — 'Kelola Periode Pelaporan' ikut terlihat oleh Supervisor dan Mill Management, baru ditolak 403 saat diklik, identik dengan 12 menu master-data lain. Pola repo diikuti secara sengaja ketimbang membuat pengecualian satu-satunya; user sudah diberi tahu dan memilih melanjutkan.",
+      "severity": "minor"
+    },
+    {
+      "description": "EnsureRole membangun JSON 401/403 sendiri tanpa lewat ApiExceptionHandler, sehingga penolakan role mengembalikan {message} saja, bukan {message, code:'FORBIDDEN'} seperti disiratkan tabel error_codes tech spec. Menambahkannya akan mengubah bentuk response setiap route ber-role di seluruh aplikasi — jauh di luar blast radius layar ini. Dilaporkan, tidak dikerjakan.",
+      "severity": "minor"
+    },
+    {
+      "description": "Kelas bug 22P02 masih mungkin dari string non-UUID — closure unique-rule kini aman untuk '' dan null, tetapi business_unit_id berisi string sembarang bukan-UUID (payload Livewire yang dimanipulasi klien) masih dapat memicu 22P02 sebelum rule exists menolaknya. Tidak ada test yang menutupinya.",
+      "severity": "minor"
+    },
+    {
+      "description": "Keunikan nama untuk periode ber-scope NULL hanya ditegakkan di service — PostgreSQL menganggap tiap NULL berbeda, sehingga index UNIQUE(business_unit_id, station_type, name) tidak menangkap duplikat nama pada periode semua-tipe. Insert langsung ke DB yang melewati service akan lolos.",
+      "severity": "minor"
+    },
+    {
+      "description": "PERIOD_NOT_CLOSED (reopen pada periode yang belum tertutup) tidak punya bdd_scenario yang memetakannya — hanya terjangkau lewat unit test. Sudah ditandai di tech spec juga.",
+      "severity": "minor"
+    },
+    {
+      "description": "unverifiedCount menyentuh hingga 18 tabel per panggilan — sengaja on-demand (hanya saat dialog konfirmasi dibuka, tidak pernah pada list). Bila kelak lambat, tech spec menyarankan menyimpan snapshot angka saat periode ditutup.",
+      "severity": "minor"
+    },
+    {
+      "description": "Browser scenario 6 ('Belum ada Business Unit') di-skip — mustahil dijalankan di browser tanpa mengosongkan DB fixture yang dipakai seluruh suite. Skenario yang sama tetap diassert sungguhan di Livewire component test dan Feature API test.",
+      "severity": "minor"
+    },
+    {
+      "description": "State DB dev diubah oleh run ini (transparansi): 31 baris leftover pada tabel periods yang dibuat browser test dihapus agar scenario 13 dapat hijau. Terverifikasi aman — tidak ada seeder yang pernah membuat baris periods, 0 FK mereferensikannya, 0 baris non-test yang cocok filter. Fixture tidak tersentuh, tidak ada migrate:fresh/db:wipe/truncate.",
+      "severity": "minor"
+    }
+  ]
+}

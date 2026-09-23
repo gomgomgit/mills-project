@@ -1,5 +1,5 @@
 {
-  "ver": 16,
+  "ver": 17,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-09-22"
@@ -699,6 +699,83 @@
       }
     },
     {
+      "id": "station-type",
+      "name": "Station Type",
+      "description": "Master data jenis stasiun yang boleh dimiliki sebuah mill — 18 tipe kanonis (weighbridge s/d process-quality-control, dalam urutan proses fisik) plus 'other' yang bersifat historis. Ditambahkan 2026-09-22 menggantikan pengaturan lama di mana daftar tipe hidup di dua tempat yang harus diedit bersamaan: CHECK constraint pada stations.type dan App\\Enums\\StationType. Pengaturan lama itu menuntut migration setiap kali satu tipe ditambahkan — sudah terjadi tiga kali (2026_08_23_000001, 2026_08_31_000001, 2026_09_01_000026). Dengan tabel ini, menambah jenis stasiun cukup INSERT satu baris. station.type dan period.station_type keduanya berupa foreign key ke kolom `code` tabel ini — SENGAJA ke `code`, bukan ke `id`, agar nilai 'sterilizer' dan kawan-kawan yang sudah dipakai di 34 tempat pada kode, seeder, factory, test, dan aplikasi mobile tetap berlaku tanpa perlu diubah.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true,
+          "description": "Identifier unik, dibuat sebagai UUID. Tidak dipakai sebagai target FK — lihat `code`."
+        },
+        {
+          "name": "code",
+          "type": "string",
+          "required": true,
+          "description": "Kode mesin jenis stasiun, mis. 'cages-track'. UNIK, dan menjadi TARGET FOREIGN KEY bagi station.type serta period.station_type."
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": true,
+          "description": "Nama tampilan, mis. 'Cages Track'. Sumbernya ProductionLineService::DEFAULT_STATIONS."
+        },
+        {
+          "name": "sort_order",
+          "type": "integer",
+          "required": true,
+          "description": "Urutan tampilan pada grid stasiun (Station List mobile, Production Process Activity web). Mengikuti urutan proses fisik TBS masuk → CPO keluar, bukan alfabetis."
+        },
+        {
+          "name": "is_active",
+          "type": "boolean",
+          "required": true,
+          "description": "Memungkinkan sebuah jenis dipensiunkan tanpa menghapus barisnya — stasiun yang sudah ada tetap memegang FK-nya, jenisnya saja yang berhenti ditawarkan."
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record dibuat."
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "required": true,
+          "description": "Waktu record terakhir diperbarui."
+        }
+      ],
+      "relationships": [
+        {
+          "entity_id": "station",
+          "type": "one-to-many",
+          "description": "Satu jenis stasiun dipakai oleh banyak Station; setiap Station memiliki tepat satu jenis. Join lewat station.type = station_type.code."
+        },
+        {
+          "entity_id": "period",
+          "type": "one-to-many",
+          "description": "Satu jenis stasiun dapat dicakup banyak Periode Pelaporan. Periode ber-station_type NULL mencakup semua jenis dan tidak terhubung ke baris manapun di sini."
+        }
+      ],
+      "constraints": [
+        "code harus unik — ini yang membuatnya sah menjadi target foreign key",
+        "Penghapusan ditolak (RESTRICT) bila masih ada station atau period yang memakainya",
+        "Perubahan code mengalir (CASCADE) ke station.type dan period.station_type yang memakainya",
+        "Isi tabel ini harus sinkron dengan App\\Enums\\StationType: setiap case enum wajib punya baris di sini, dan sebaliknya. Tabel adalah DATA (validasi input, dropdown, label); enum adalah KODE (dipakai saat logika menyebut satu tipe spesifik). Dikunci oleh tests/Feature/StationTypeCatalogTest.php",
+        "Validasi input station.type dan period.station_type memakai Rule::exists('station_types','code'), BUKAN Rule::in(enum) — agar penambahan jenis stasiun tidak menuntut perubahan kode"
+      ],
+      "test_fixture": {
+        "id": "sty-001",
+        "code": "sterilizer",
+        "name": "Sterilizer",
+        "sort_order": 40,
+        "is_active": true,
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z"
+      }
+    },
+    {
       "id": "station",
       "name": "Station",
       "description": "Stasiun produksi mill, di bawah Production Line — 18 aktif di MVP per Production Line (Weighbridge, Grading, Cages Track, Threshing, Pressing, Depricarping, Kernel Plant, Solid Waste Disposal, Process Water, Kernel Dispatch, CPO Dispatch, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Clarification, Process Quality Control, Sterilizer) — seluruh stasiun kanonis kini aktif, tidak ada placeholder tersisa (revisi 2026-09-01, promosi Sterilizer). Field code/description/no_of_machinery_group ditambah dari ERD; field type tetap dipertahankan (TIDAK ada di ERD literal) karena krusial bagi mobile app (screen-006 Station List dan Monitor 007-009/037-040) yang sudah diimplementasikan dan diverifikasi berdasarkan field ini.",
@@ -741,9 +818,9 @@
         },
         {
           "name": "type",
-          "type": "enum(weighbridge, grading, cages-track, threshing, pressing, depricarping, kernel-plant, solid-waste-disposal, process-water, kernel-dispatch, cpo-dispatch, effluent-plant, storage-tank, engine-room, boiler-room, clarification, process-quality-control, sterilizer, other)",
+          "type": "string",
           "required": true,
-          "description": "Tipe stasiun. Direvisi 2026-09-01: 'sterilizer' ditambahkan (promosi placeholder terakhir) — tidak ada lagi tipe berstatus placeholder; 'other' dipertahankan di enum untuk kompatibilitas historis meski tidak ada di ERD literal — dipakai langsung oleh screen-006/007/008/009/037-060+ mobile yang sudah/akan diimplementasikan. Direvisi 2026-08-31: 10 tipe baru ditambahkan (6 promosi dari placeholder 'other' + 4 stasiun baru)."
+          "description": "Jenis stasiun. Sejak 2026-09-22 berupa FOREIGN KEY ke station_types.code (sebelumnya enum DB-level dengan CHECK constraint yang harus dilebarkan lewat migration setiap ada tipe baru). Nilainya tidak berubah — tetap 'weighbridge', 'sterilizer', dan seterusnya. Validasi input memakai Rule::exists('station_types','code')."
         },
         {
           "name": "no_of_machinery_group",
@@ -791,12 +868,18 @@
           "entity_id": "machinery-group",
           "type": "one-to-many",
           "description": "Satu Station dapat memiliki banyak Machinery Group."
+        },
+        {
+          "entity_id": "station-type",
+          "type": "one-to-one",
+          "description": "Setiap Station merujuk tepat satu Station Type lewat kolom `type` (FK ke station_types.code)."
         }
       ],
       "constraints": [
         "Hanya station bertipe weighbridge/grading/cages-track/threshing/pressing/depricarping/kernel-plant/solid-waste-disposal/process-water/kernel-dispatch/cpo-dispatch/effluent-plant/storage-tank/engine-room/boiler-room/clarification/process-quality-control/sterilizer yang is_active=true di MVP (18 tipe aktif, seluruh stasiun kanonis) — tidak ada lagi tipe placeholder yang is_active=false.",
         "code unik jika diisi",
-        "production_line_id harus milik business_unit_id yang sama"
+        "production_line_id harus milik business_unit_id yang sama",
+        "type harus ada di master station_types (foreign key, RESTRICT on delete)"
       ],
       "test_fixture": {
         "id": "stn-001",
@@ -6106,7 +6189,7 @@
           "name": "station_type",
           "type": "enum(weighbridge, grading, cages-track, threshing, pressing, depricarping, kernel-plant, solid-waste-disposal, process-water, kernel-dispatch, cpo-dispatch, effluent-plant, storage-tank, engine-room, boiler-room, clarification, process-quality-control, sterilizer, other)",
           "required": false,
-          "description": "Jenis stasiun yang dicakup periode ini, mengikuti enum station.type. NULL berarti periode berlaku untuk SEMUA jenis stasiun di mill tersebut. Tidak ada FK ke station atau production_line — cakupan periode sengaja di level jenis stasiun, bukan unit stasiun maupun line."
+          "description": "Jenis stasiun yang dicakup periode ini. FOREIGN KEY ke station_types.code (2026-09-22). NULL berarti periode berlaku untuk SEMUA jenis stasiun di mill tersebut — FK mengizinkan NULL sehingga cakupan 'semua stasiun' tidak menuntut baris khusus di master. Tidak ada FK ke station maupun production_line: cakupan periode sengaja di level jenis stasiun."
         },
         {
           "name": "name",
@@ -6179,6 +6262,11 @@
           "entity_id": "user",
           "type": "one-to-many",
           "description": "Satu User (Admin) dapat menutup banyak periode lewat closed_by; setiap periode tertutup dicatat satu penutup."
+        },
+        {
+          "entity_id": "station-type",
+          "type": "one-to-many",
+          "description": "Periode dapat dipersempit ke satu jenis stasiun lewat station_type (FK ke station_types.code); NULL berarti mencakup semua jenis."
         }
       ],
       "constraints": [
@@ -6188,7 +6276,8 @@
         "Transisi status yang diizinkan: draft -> open, open -> closed, closed -> open (buka kembali). Menutup dan membuka kembali hanya boleh dilakukan actor-admin.",
         "closed_by dan closed_at wajib terisi saat status = closed, dan dikosongkan saat periode dibuka kembali",
         "KUNCI PERIODE TERTUTUP: record stasiun mana pun (18 entitas *-record) yang kolom date-nya jatuh di dalam [start_date, end_date] milik periode berstatus closed untuk (business_unit_id, station_type) yang cocok tidak boleh di-INSERT, di-UPDATE, maupun diubah kolom checked_by/acknowledged_by-nya. Penentuan periode memakai record.date (tanggal kejadian di pabrik), BUKAN created_at atau waktu sync.",
-        "Penegakan kunci wajib di layer service backend (create/update/verifikasi), bukan hanya di UI — aplikasi mobile mengirim record langsung ke POST /api/{stasiun}-records sehingga kunci di layar bisa dilewati."
+        "Penegakan kunci wajib di layer service backend (create/update/verifikasi), bukan hanya di UI — aplikasi mobile mengirim record langsung ke POST /api/{stasiun}-records sehingga kunci di layar bisa dilewati.",
+        "station_type, bila diisi, harus ada di master station_types (foreign key, RESTRICT on delete)"
       ],
       "test_fixture": {
         "id": "prd-001",

@@ -251,7 +251,13 @@ class StationService
             'business_unit_id' => ['required', 'string', Rule::exists('business_units', 'id')],
             'production_line_id' => ['required', 'string', Rule::exists('production_lines', 'id')],
             'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', Rule::in(array_map(fn (StationType $case) => $case->value, StationType::cases()))],
+            // Validated against the station_types master table rather than
+            // App\Enums\StationType (2026-09-22): adding a station type is now
+            // an INSERT, and hardcoding the enum here would have kept this
+            // rule stale the moment a type was added without a code change.
+            // The enum is still used below for the one rule that names a
+            // specific type (`other`), where a typo must be a fatal error.
+            'type' => ['required', Rule::exists('station_types', 'code')],
             'is_active' => ['required', 'boolean'],
             'code' => ['nullable', 'string', 'max:255', $codeUniqueRule],
             // Free-text field max length matches this codebase's universal

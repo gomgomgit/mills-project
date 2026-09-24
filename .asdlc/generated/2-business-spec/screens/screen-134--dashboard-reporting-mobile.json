@@ -1,0 +1,78 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "screen-134--dashboard-reporting-mobile",
+  "name": "Dashboard & Reporting (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Layar wadah di aplikasi mobile yang memisahkan dua hal yang selama ini belum punya tempat: melihat ringkasan operasional (Dashboard) dan melihat laporan periode per stasiun (Reporting). Dibuka dari kartu 'Dashboard & Reporting' di Home, lalu menawarkan tepat dua pilihan itu. Layar ini murni navigasi — tidak menampilkan satu angka pun dan tidak memuat data apa pun, sehingga tetap terbuka sepenuhnya saat perangkat offline. Untuk sementara kedua pilihan masih nonaktif: layar Dashboard mobile dan pemilih stasiun Reporting (screen-141) belum dibangun. Keduanya tetap ditampilkan, bukan disembunyikan, supaya pengguna tahu apa yang akan ada di sini.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Kartu menu 'Dashboard & Reporting' di layar Home",
+    "Tombol kembali dari layar Reporting — Pilih Stasiun, begitu layar itu dibangun"
+  ],
+  "information_displayed": [
+    "Jejak navigasi 'Home / Dashboard & Reporting' dengan segmen Home yang dapat ditekan",
+    "Judul layar",
+    "Kartu pilihan 'Dashboard' berikon, saat ini nonaktif",
+    "Kartu pilihan 'Reporting' berikon, saat ini nonaktif",
+    "Penanda 'Belum tersedia' pada kartu yang tujuannya belum dibangun",
+    "Pesan singkat ketika pengguna menekan kartu yang belum tersedia"
+  ],
+  "available_actions": [
+    {
+      "action": "Buka Dashboard",
+      "description": "Menuju ringkasan operasional versi mobile. Belum tersedia — menekannya memunculkan pesan bahwa layar itu belum dibangun, bukan diam tanpa reaksi.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka Reporting",
+      "description": "Menuju pemilihan stasiun untuk melihat laporan periodenya. Belum tersedia — menekannya memunculkan pesan bahwa layar itu belum dibangun.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Kembali ke Home",
+      "description": "Menekan segmen 'Home' pada jejak navigasi mengembalikan pengguna ke layar Home.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini terbuka untuk semua peran yang dapat masuk ke aplikasi mobile — Operator, Supervisor, Mill Management, dan Admin. Tidak ada pembatasan per peran di sini karena layar ini tidak menampilkan data apa pun; pembatasan yang sesungguhnya berada di layar tujuan masing-masing.",
+    "Pilihan yang tujuannya belum dibangun tetap ditampilkan dalam keadaan nonaktif, tidak disembunyikan. Pengguna berhak tahu apa yang direncanakan ada di sini.",
+    "Menekan pilihan yang belum tersedia harus memberi tanggapan berupa pesan singkat, bukan diam tanpa reaksi — mengikuti perilaku tile stasiun nonaktif yang sudah berlaku di aplikasi mobile ini. Diam membuat pengguna mengira aplikasinya rusak.",
+    "Layar ini tidak memuat data dari mana pun, sehingga tetap dapat dibuka penuh saat perangkat offline. Ini penting karena Operator bekerja di area tanpa sinyal.",
+    "Layar ini memerlukan sesi yang aktif — pengguna yang belum masuk diarahkan ke Login, sama seperti seluruh layar mobile lain selain Login."
+  ],
+  "usecase_ids": [
+    "usecase-134--dashboard-reporting-mobile"
+  ],
+  "edge_cases": [
+    "Pengguna menekan kartu yang belum tersedia berkali-kali — pesan yang sama muncul kembali, tidak menumpuk dan tidak membuat layar berpindah.",
+    "Sesi berakhir ketika layar ini terbuka — penjagaan sesi global mengarahkan ke Login pada perpindahan berikutnya, sama seperti layar mobile lain; layar ini tidak menangani sendiri.",
+    "Perangkat sedang offline — tidak ada bedanya, karena layar ini tidak memuat data apa pun."
+  ],
+  "test_priority": "low",
+  "open_questions": []
+}

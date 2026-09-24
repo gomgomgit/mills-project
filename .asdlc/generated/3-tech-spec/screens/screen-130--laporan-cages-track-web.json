@@ -1,0 +1,1414 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "screen-130--laporan-cages-track-web",
+  "name": "Laporan Cages & Tracks (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/cages-track",
+  "auth_requirement": "role: supervisor, mill_management, admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Otomatis dibatasi pada business unit miliknya sendiri; business_unit_id yang dikirim klien diabaikan server"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Otomatis dibatasi pada business unit miliknya sendiri; business_unit_id yang dikirim klien diabaikan server"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill lewat pemilih Mill; business_unit_id wajib dikirim"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Operator tidak punya akses web; jalur laporannya ada di mobile (screen-136)"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "usecase_name": "Lihat Laporan Periode Cages & Tracks (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/cages-track-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — khusus Admin, karena hanya Admin yang tidak terikat satu mill",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor bukan admin — Supervisor dan Mill Management tidak butuh endpoint ini karena millnya sudah tetap"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cages-track-reports/periods",
+          "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Cages & Tracks pada mill yang dilihat",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "WAJIB untuk Admin. Untuk Supervisor dan Mill Management nilai ini DIABAIKAN — server memakai business_unit_id milik user, sehingga mengirim mill lain tidak membocorkan apa pun"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "station_type": "string|null",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "actor admin tidak mengirim business_unit_id — errors.business_unit_id terisi, bukan mengembalikan daftar kosong secara diam-diam"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "actor supervisor/mill_management yang business_unit_id akunnya null — pesan menghubungi Admin. businessUnitRepo->all() TIDAK pernah dipanggil, agar akun tanpa mill tidak pernah jatuh ke daftar seluruh mill"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor operator"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cages-track-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode: KPI, sebaran per jam, tren harian, antrean tersisa, dan rekap harian",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode Pelaporan yang dilaporkan"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /periods — wajib bagi Admin, diabaikan bagi peran lain"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string",
+                "business_unit_name": "string"
+              },
+              "kpi": {
+                "total_cages_tipped": "integer",
+                "total_cages_out": "integer",
+                "avg_cages_per_day": "float",
+                "peak_hour": "integer|null",
+                "peak_hour_cages": "integer",
+                "idle_operating_hours": "integer",
+                "longest_gap_hours": "integer|null",
+                "longest_gap_date": "date|null",
+                "avg_tippler_duration_hours": "float|null",
+                "days_with_records": "integer",
+                "days_without_valid_window": "integer"
+              },
+              "hourly": [
+                {
+                  "hour": "integer (0..23)",
+                  "cages": "integer",
+                  "within_operating_window": "boolean"
+                }
+              ],
+              "daily": [
+                {
+                  "date": "date",
+                  "cages_tipped": "integer",
+                  "cages_out": "integer",
+                  "operating_hours": "float|null",
+                  "idle_operating_hours": "integer|null",
+                  "longest_gap_hours": "integer|null",
+                  "min_remaining": "integer|null"
+                }
+              ],
+              "queue": {
+                "min_remaining": "integer|null",
+                "avg_remaining": "float|null"
+              },
+              "total": {
+                "cages_tipped": "integer",
+                "cages_out": "integer",
+                "days": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain bagi Supervisor/Mill Management, atau actor operator"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id kosong"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — dihitung saat periode dipilih",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cages-track-reports/export",
+          "description": "Ekspor seluruh rincian penumpahan per jam sepanjang periode ke CSV, satu baris per jam penumpahan dengan kolom konteks record diulang",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode Pelaporan yang diekspor"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "csv | excel"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /summary"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_note": "StreamedResponse berisi berkas; header Content-Disposition attachment. Kolom: Tanggal, Nomor Cages Track, Tippler Mulai, Tippler Berhenti, Jam, Nomor Lori Diperiksa, Lori Ditumpahkan, Lori Tersisa, Lori Keluar (record), Status, Catatan"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain, atau actor operator"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "jumlah BARIS EKSPOR (baris cages_tipped_times) melebihi 50.000 — dihitung dari baris rincian per jam, bukan jumlah record header"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "format di luar csv|excel"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "resolveBusinessUnit: actor supervisor/mill_management -> pakai auth()->user()->business_unit_id dan ABAIKAN query business_unit_id; bila business_unit_id user null -> 422 VALIDATION_ERROR dengan pesan menghubungi Admin, dan businessUnitRepo->all() TIDAK dipanggil (gagal tertutup). actor admin -> wajib ambil dari query, bila kosong: 422 VALIDATION_ERROR errors.business_unit_id. actor operator -> 403 FORBIDDEN di seluruh endpoint.",
+        "listPeriods: SELECT Period WHERE business_unit_id = <hasil resolve> AND (station_type = 'cages-track' OR station_type IS NULL) ORDER BY start_date DESC -> map station_type_label dari station_types.name atau 'Semua Stasiun' bila null -> return array kosong bila tidak ada (bukan 404).",
+        "authorizePeriod: findOrFail period_id -> 404 jika tidak ada -> if actor supervisor/mill_management AND period.business_unit_id <> user.business_unit_id: 403 FORBIDDEN -> actor admin lolos untuk mill mana pun.",
+        "summary base: ambil cages_track_records JOIN stations ON record.station_id WHERE stations.business_unit_id = period.business_unit_id AND stations.type = 'cages-track' AND whereDate(record.date) >= period.start_date AND whereDate(record.date) <= period.end_date (INKLUSIF dua ujung, memakai record.date -- tanggal kejadian -- BUKAN created_at maupun waktu sync). Lalu eager-load relasi cages_tipped_times tiap record. SATU TANGGAL DAPAT PUNYA BEBERAPA RECORD (satu per cages_track_number / per stasiun); seluruh agregasi per hari menggabungkan semuanya.",
+        "GRAIN -- ini titik paling mudah salah: total_cages_tipped dijumlahkan dari cages_tipped_times.total_cages (baris rincian per jam), sedangkan total_cages_out dijumlahkan dari cages_track_records.cages_out (baris HEADER, satu per record). Keduanya berada pada grain yang berbeda. Menjumlahkan cages_out di atas hasil JOIN ke rincian akan mengalikannya sebanyak jumlah baris jam pada record itu. Jumlahkan cages_out dengan iterasi record, bukan iterasi rincian.",
+        "summary: cages_track_records.cages_tipped (angka ringkasan pada header) TIDAK PERNAH dipakai sebagai sumber angka penumpahan mana pun. Seluruh angka penumpahan berasal dari baris rincian per jam. Keduanya dapat berbeda bila Operator mengoreksi salah satunya, dan rincian per jam adalah yang tercatat per kejadian.",
+        "summary KPI dasar: days_with_records = jumlah tanggal berbeda yang punya record (termasuk tanggal yang record-nya tidak punya satu pun baris rincian); avg_cages_per_day = total_cages_tipped / days_with_records, dibulatkan 1 desimal; if days_with_records === 0: avg = 0 tanpa pembagian nol.",
+        "summary hourly: SELALU 24 entri hour 0..23 berurutan, walau sebagian atau seluruhnya nol -- agar bentuk grafik tidak berubah antar periode. cages per jam = SUM(cages_tipped_times.total_cages) atas seluruh record sepanjang periode dengan tipped_hour = jam itu. peak_hour = jam dengan cages tertinggi; bila seri (cages sama) ambil jam TERKECIL supaya deterministik; if total_cages_tipped === 0: peak_hour = null dan peak_hour_cages = 0.",
+        "JENDELA OPERASI per record -- dihitung dari TIMESTAMP PENUH tippler_start_time dan tippler_stop_time, BUKAN dari komponen jamnya. Keduanya bertipe datetime dan diisi lewat input datetime-local, sehingga shift malam sudah membawa tanggal berikutnya pada stop-nya dan selisihnya wajar positif tanpa aritmetika melingkar. duration_minutes = stop->diffInMinutes(start). Bila tippler_stop_time NULL, ATAU stop <= start (data cacat -- validator hari ini tidak mewajibkan stop setelah start), jendela record itu dinyatakan TIDAK DAPAT DIHITUNG; jangan pernah memancarkan durasi negatif atau nol menit sebagai angka sah.",
+        "HIMPUNAN JAM OPERASI -- di sinilah aritmetika melingkar memang benar, dan HANYA di sini. tipped_hour adalah integer 0..23 tanpa tanggal, jadi jam ditelusuri maju dari start->hour sebanyak ceil(duration_minutes/60) langkah, modulo 24, dibatasi paling banyak 24 jam berbeda. Contoh 22:00->04:00 menghasilkan {22,23,0,1,2,3}. hourly[].within_operating_window = true bila jam itu termasuk himpunan jam operasi pada MINIMAL satu tanggal sepanjang periode.",
+        "JENDELA OPERASI per TANGGAL: sebuah tanggal punya jendela yang pasti HANYA bila SELURUH record pada tanggal itu jendelanya dapat dihitung. Bila ada satu saja yang tidak, tanggal itu dikeluarkan dari perhitungan durasi DAN dari perhitungan jam menganggur, lalu dihitung ke days_without_valid_window. Gagal tertutup: lebih baik tidak melaporkan angka daripada melaporkan angka yang diam-diam kehilangan sebagian jam operasi. daily[].operating_hours dan daily[].idle_operating_hours untuk tanggal itu = null.",
+        "avg_tippler_duration_hours = rata-rata operating_hours HANYA atas tanggal yang jendelanya pasti. Bila tidak ada satu pun tanggal semacam itu: null, BUKAN 0 -- nol berarti 'tippler tidak pernah jalan', null berarti 'tidak dapat dihitung'. days_without_valid_window selalu ditampilkan berdampingan dengan angka ini, supaya rata-rata tidak pernah terbaca tanpa tahu berapa hari yang tidak dihitung. Catatan: CagesTrackRecordService::validate() hari ini MEWAJIBKAN tippler_stop_time, jadi jalur NULL berasal dari baris lama/impor, bukan dari alur input normal -- tetap ditangani, tetapi bukan jalur umum.",
+        "idle_operating_hours per tanggal = jumlah jam di dalam himpunan jam operasi tanggal itu yang TIDAK punya satu pun baris rincian. Jam DI LUAR himpunan itu tidak pernah dihitung. Menghitung seluruh 24 jam akan membuat mill satu shift selalu terlihat menganggur 16 jam -- angka yang benar tetapi menyesatkan. kpi.idle_operating_hours = jumlah atas seluruh tanggal yang jendelanya pasti; tanggal tanpa jendela pasti menyumbang nol, bukan diperkirakan.",
+        "longest_gap per tanggal = selisih terbesar antara jam penumpahan BERTURUT-TURUT pada tanggal itu, atas GABUNGAN seluruh record tanggal itu, setelah jam di-dedup. PENTING: jam diurutkan menurut WAKTU BERLALU SEJAK JENDELA OPERASI DIBUKA, bukan menurut nilai numeriknya. Offset sebuah jam = (jam - jam_jangkar + 24) % 24, dengan jam_jangkar = komponen jam dari tippler_start_time paling awal pada tanggal itu; selisih berturut-turut pada daftar terurut itu sama dengan (j2 - j1 + 24) % 24, yaitu jam berlalu sesungguhnya. Mengurutkan integer 0..23 secara numerik BENAR untuk shift siang dan SALAH untuk shift malam: tippler 22:00->04:00 yang menumpahkan tiap jam mencatat jam 22,23,0,1 yang terurut numerik menjadi [0,1,22,23] dengan langkah terbesar 21 — mill yang tidak pernah berhenti dilaporkan menganggur 21 jam, dan itu KPI utama layar ini. Tanggal yang jendelanya TIDAK dapat dihitung tidak punya jangkar, dan mengarang satu berarti mengada-adakan batas shift yang tidak pernah dicatat — tanggal itu memakai urutan numerik biasa. Tanggal dengan kurang dari 2 jam penumpahan berbeda -> null (tidak menyumbang kandidat), BUKAN 0. TIDAK PERNAH lintas tanggal: jeda semalam bukan jeda operasional. kpi.longest_gap_hours = maksimum atas seluruh tanggal, longest_gap_date = tanggal tempat maksimum itu terjadi (paling awal bila seri); bila tidak ada kandidat: keduanya null, BUKAN 0.",
+        "queue: cages_remain adalah potret per jam (armada lori stasiun dikurangi yang ditumpahkan pada jam itu), bukan antrean yang menumpuk, sehingga TIDAK PERNAH dijumlahkan. queue.min_remaining = MIN(cages_remain) atas seluruh baris rincian sepanjang periode; queue.avg_remaining = rata-rata atas seluruh baris rincian, 1 desimal. Bila tidak ada baris rincian: keduanya null. Kolom cages_remain bertipe NOT NULL di skema, jadi tidak ada cabang null per baris.",
+        "summary daily: satu baris per TANGGAL yang punya record, diurutkan menaik. Tanggal yang punya record tetapi tidak punya satu pun baris rincian TETAP dibuatkan baris dengan cages_tipped = 0 dan TETAP masuk penyebut avg_cages_per_day -- membuangnya membuat rata-rata harian terlihat lebih baik daripada kenyataan. Tanggal tanpa record sama sekali tidak dibuatkan baris nol.",
+        "Seluruh agregasi dijalankan di PHP atas baris mentah, BUKAN lewat SUM/AVG/GROUP BY di SQL. Alasannya menentukan: perilaku agregat SQL atas kolom nullable dan atas selisih timestamp berbeda antara SQLite (dipakai test) dan PostgreSQL (produksi), dan aturan null-bukan-nol di atas justru yang paling mudah hilang di perbedaan itu.",
+        "export: authorizePeriod -> hitung jumlah baris cages_tipped_times dalam rentang -> if > 50.000: 422 EXPORT_FAILED -> stream lewat chunk(200), satu baris per jam penumpahan, dengan kolom konteks record (tanggal, nomor cages track, tippler mulai, tippler berhenti, lori keluar, status, catatan) DIULANG pada tiap baris, mengikuti konvensi ekspor repo."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Daftar periode untuk pemilih, dan pembacaan rentang tanggal periode terpilih"
+        },
+        {
+          "entity_id": "cages-tipped-time",
+          "operation": "SELECT",
+          "description": "Sumber SELURUH angka penumpahan — satu baris = satu jam penumpahan pada satu record"
+        },
+        {
+          "entity_id": "cages-track-record",
+          "operation": "SELECT",
+          "description": "Header harian — tanggal kejadian, jendela operasi tippler, cages_out, status, dan kolom konteks ekspor"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk menyaring ke business unit periode dan tipe stasiun cages-track"
+        },
+        {
+          "entity_id": "station-type",
+          "operation": "SELECT",
+          "description": "Resolusi station_type_label pada daftar periode"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin, dan resolusi business_unit_name pada hero"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Periode tidak memuat satu pun penumpahan",
+          "handling": "200 dengan seluruh KPI nol, hourly tetap 24 entri bernilai 0, daily = [], peak_hour/longest_gap_hours/avg_tippler_duration_hours = null. Livewire menampilkan empty-period dan TIDAK merender grafik kosong"
+        },
+        {
+          "condition": "Hari punya record tetapi tidak punya satu pun baris rincian per jam",
+          "handling": "Baris daily tetap dibuat dengan cages_tipped = 0 dan tanggal itu TETAP masuk penyebut avg_cages_per_day"
+        },
+        {
+          "condition": "Seluruh hari jendela operasinya tidak dapat dihitung",
+          "handling": "avg_tippler_duration_hours = null (bukan 0) dan days_without_valid_window = jumlah hari ber-record; UI menulis 'tidak tersedia', bukan angka"
+        },
+        {
+          "condition": "Penumpahan hanya terjadi pada satu jam sepanjang periode",
+          "handling": "longest_gap_hours = null dan longest_gap_date = null; UI menulis bahwa tidak ada jeda yang dapat dihitung, BUKAN '0 jam'"
+        },
+        {
+          "condition": "Operasi tippler melewati tengah malam",
+          "handling": "Durasi dari selisih timestamp penuh (sudah positif karena stop membawa tanggal berikutnya); himpunan jam operasi ditelusuri melingkar modulo 24 dan dibatasi 24 jam berbeda"
+        },
+        {
+          "condition": "tippler_stop_time NULL, atau stop <= start (data cacat)",
+          "handling": "Jendela record dinyatakan tidak dapat dihitung; tanggalnya keluar dari durasi DAN dari jam menganggur, dan masuk days_without_valid_window. Tidak pernah memancarkan durasi negatif"
+        },
+        {
+          "condition": "Admin membuka laporan tanpa memilih mill",
+          "handling": "GET periods/summary mengembalikan 422 VALIDATION_ERROR dengan errors.business_unit_id; Livewire tidak memanggil endpoint sampai mill dipilih dan menampilkan mill-required-hint"
+        },
+        {
+          "condition": "Supervisor/Mill Management mengirim business_unit_id mill lain",
+          "handling": "Nilai diabaikan sepenuhnya — server memakai business_unit_id milik user. Response tetap 200 berisi data mill sendiri, BUKAN 403, agar tidak membocorkan keberadaan mill lain"
+        },
+        {
+          "condition": "Supervisor/Mill Management menembak period_id milik mill lain",
+          "handling": "403 FORBIDDEN — di sini memang ada upaya akses ke objek tertentu yang harus ditolak, berbeda dari kasus business_unit_id di atas"
+        },
+        {
+          "condition": "Akun Supervisor/Mill Management belum terhubung ke mill",
+          "handling": "422 VALIDATION_ERROR dengan pesan menghubungi Admin; businessUnitRepo->all() TIDAK dipanggil sehingga daftar seluruh mill tidak pernah bocor ke peran yang seharusnya terikat satu mill"
+        },
+        {
+          "condition": "Mill belum punya satu pun periode yang mencakup Cages & Tracks",
+          "handling": "200 dengan data kosong; UI menampilkan no-periods berisi arahan menghubungi Admin, period-select kosong"
+        },
+        {
+          "condition": "Periode sangat panjang sehingga rekap hariannya puluhan baris",
+          "handling": "Rekap harian memakai <details> yang tertutup secara bawaan dan dapat dibuka; tabelnya menggulir di dalam kartunya sendiri, halaman tidak pernah menggulir horizontal"
+        },
+        {
+          "condition": "Periode berstatus tertutup",
+          "handling": "Tetap dapat dilihat dan diekspor sepenuhnya — kunci periode mengatur penulisan data, bukan pembacaan laporan. Tombol Ekspor tidak dinonaktifkan"
+        }
+      ],
+      "business_rules_applied": [
+        "Hanya Supervisor, Mill Management, dan Admin yang dapat mengakses; Operator ditolak 403 di seluruh endpoint",
+        "Supervisor dan Mill Management terkunci pada millnya sendiri, dan input business_unit_id dari klien diabaikan server",
+        "Admin wajib memilih mill; tanpa itu 422, bukan hasil kosong yang menyesatkan",
+        "Pemilih periode hanya memuat periode ber-station_type 'cages-track' atau NULL (semua jenis stasiun)",
+        "Status periode tidak membatasi pembacaan — periode tertutup tetap dapat dilihat dan diekspor",
+        "Rentang periode inklusif di kedua ujung dan memakai record.date (tanggal kejadian), bukan created_at maupun waktu sync",
+        "Seluruh angka penumpahan berasal dari baris rincian per jam, tidak pernah dari angka ringkasan pada record harian",
+        "Jam menganggur hanya dihitung di dalam jendela operasi tippler, tidak pernah atas 24 jam penuh",
+        "Jeda terpanjang dihitung di dalam satu tanggal, tidak pernah lintas tanggal",
+        "Hari yang jendela operasinya tidak dapat dihitung dikeluarkan dari rata-rata durasi, dan jumlahnya ditampilkan bersama rata-rata itu",
+        "Antrean lori tersisa adalah potret per jam — dilaporkan sebagai terendah dan rata-rata, tidak pernah dijumlahkan",
+        "Layar hanya membaca; tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "melempar 401 ketika sesi tidak terautentikasi",
+          "given": "auth()->user() mengembalikan null saat memanggil CagesTrackReportService::summary()",
+          "expect": "throw AuthenticationException dengan error_code UNAUTHENTICATED (http 401)"
+        },
+        {
+          "description": "melempar 403 ketika peran bukan supervisor/mill_management/admin",
+          "given": "user terautentikasi dengan role 'station_operator'",
+          "expect": "throw AuthorizationException dengan error_code FORBIDDEN (http 403); tidak ada query data stasiun yang dieksekusi"
+        },
+        {
+          "description": "resolveBusinessUnit memakai users.business_unit_id untuk Supervisor dan mengabaikan parameter klien",
+          "given": "user role 'supervisor' dengan business_unit_id = BU-A, request membawa business_unit_id = BU-B",
+          "expect": "mengembalikan BU-A; seluruh query difilter ke BU-A; nilai BU-B tidak pernah dipakai; tidak ada exception"
+        },
+        {
+          "description": "resolveBusinessUnit memakai users.business_unit_id untuk Mill Management dan mengabaikan parameter klien",
+          "given": "user role 'mill_management' dengan business_unit_id = BU-A, request membawa business_unit_id = BU-B",
+          "expect": "mengembalikan BU-A; tidak ada data BU-B yang ikut teragregasi"
+        },
+        {
+          "description": "melempar 422 ketika Admin tidak mengirim business_unit_id",
+          "given": "user role 'admin' (business_unit_id null pada akun), request tanpa parameter business_unit_id",
+          "expect": "throw ValidationException dengan error_code VALIDATION_ERROR (http 422), errors.business_unit_id terisi"
+        },
+        {
+          "description": "resolveBusinessUnit memakai parameter klien ketika Admin mengirimkannya",
+          "given": "user role 'admin', request membawa business_unit_id = BU-B yang valid",
+          "expect": "mengembalikan BU-B; agregasi dijalankan atas stasiun milik BU-B"
+        },
+        {
+          "description": "akun terikat mill tanpa business_unit_id gagal tertutup dan tidak pernah memanggil businessUnitRepo->all()",
+          "given": "user role 'supervisor' dengan business_unit_id null; businessUnitRepo dipasang sebagai spy",
+          "expect": "throw ValidationException ber-error_code VALIDATION_ERROR dengan pesan menghubungi Admin; spy mencatat NOL panggilan all() — daftar seluruh mill tidak pernah tersusun"
+        },
+        {
+          "description": "authorizePeriod melempar 403 ketika period_id milik mill lain",
+          "given": "periodRepo.find(period_id) mengembalikan Period dengan business_unit_id = BU-B sedangkan business unit efektif = BU-A",
+          "expect": "throw AuthorizationException dengan error_code FORBIDDEN (http 403); tidak ada angka yang dihitung"
+        },
+        {
+          "description": "authorizePeriod melempar 404 ketika periode tidak ada",
+          "given": "periodRepo.find(period_id) mengembalikan null",
+          "expect": "throw NotFoundException dengan error_code NOT_FOUND (http 404)"
+        },
+        {
+          "description": "Admin lolos authorizePeriod untuk mill mana pun",
+          "given": "user role 'admin', period milik BU-B, business_unit_id query = BU-B",
+          "expect": "tidak ada exception; agregasi berjalan atas BU-B"
+        },
+        {
+          "description": "daftar periode hanya memuat station_type 'cages-track' atau NULL",
+          "given": "business unit punya periode berjenis 'cages-track', periode station_type NULL, dan periode berjenis 'sterilizer'",
+          "expect": "hasil hanya berisi periode 'cages-track' dan periode NULL; periode 'sterilizer' tidak ikut"
+        },
+        {
+          "description": "daftar periode dibatasi pada business unit yang berlaku",
+          "given": "terdapat periode cages-track milik BU-A dan BU-B, business unit efektif = BU-A",
+          "expect": "hanya periode milik BU-A yang dikembalikan"
+        },
+        {
+          "description": "daftar periode kosong mengembalikan array kosong, bukan 404",
+          "given": "business unit tidak punya satu pun periode cages-track maupun periode NULL",
+          "expect": "mengembalikan [] dengan http 200; tidak ada exception"
+        },
+        {
+          "description": "rentang periode inklusif memakai whereDate pada kolom date",
+          "given": "periode 2026-03-01..2026-03-31 dan ada cages_track_records tepat pada 2026-03-01 dan 2026-03-31",
+          "expect": "kedua record ikut terambil; whereDate('date','>=',start) dan whereDate('date','<=',end), bukan perbandingan timestamp yang memotong hari batas"
+        },
+        {
+          "description": "record dibatasi pada stasiun milik business unit yang berlaku",
+          "given": "cages_track_records berasal dari stasiun BU-A dan BU-B, business unit efektif = BU-A",
+          "expect": "hanya record stasiun BU-A yang masuk agregasi; total tidak tercampur data BU-B"
+        },
+        {
+          "description": "seluruh angka penumpahan dihitung dari cages_tipped_times.total_cages, bukan dari cages_track_records.cages_tipped",
+          "given": "satu record dengan cages_tipped = 100 sementara baris rincian cages_tipped_times berjumlah total_cages = 70",
+          "expect": "kpi.total_cages_tipped = 70; angka ringkasan 100 diabaikan sepenuhnya"
+        },
+        {
+          "description": "GRAIN: total_cages_out dijumlahkan per record, tidak terkalikan jumlah baris rincian",
+          "given": "satu record dengan cages_out = 50 yang punya 8 baris cages_tipped_times",
+          "expect": "kpi.total_cages_out = 50, BUKAN 400. Ini yang gagal bila cages_out dijumlahkan di atas hasil JOIN ke rincian"
+        },
+        {
+          "description": "total_cages_out menjumlahkan seluruh record pada satu tanggal",
+          "given": "satu tanggal punya 3 record (3 cages_track_number) dengan cages_out 20, 30, dan 40",
+          "expect": "daily[] tanggal itu punya cages_out = 90; total_cages_out ikut 90"
+        },
+        {
+          "description": "beberapa record pada satu tanggal digabung menjadi satu baris daily",
+          "given": "tanggal 2026-03-02 punya 2 record dari cages_track_number berbeda, masing-masing punya baris rincian",
+          "expect": "daily berisi SATU entri untuk 2026-03-02 dengan cages_tipped = jumlah kedua record"
+        },
+        {
+          "description": "sebaran per jam selalu mengembalikan 24 entri walaupun sebagian jam nol",
+          "given": "hanya ada baris rincian pada tipped_hour 7, 8, dan 9",
+          "expect": "hourly berisi tepat 24 entri hour 0..23 berurutan; hour selain 7/8/9 bernilai cages = 0"
+        },
+        {
+          "description": "sebaran per jam menandai within_operating_window sesuai jendela operasi tippler",
+          "given": "satu-satunya record punya tippler_start_time 2026-03-02 06:00 dan tippler_stop_time 2026-03-02 18:00",
+          "expect": "hourly hour 6..17 bertanda within_operating_window = true; hour lainnya false"
+        },
+        {
+          "description": "durasi jendela dihitung dari selisih timestamp penuh, bukan dari komponen jam",
+          "given": "tippler_start_time 2026-03-02 06:00, tippler_stop_time 2026-03-02 18:00",
+          "expect": "daily[].operating_hours = 12.0"
+        },
+        {
+          "description": "operasi melintasi tengah malam menghasilkan durasi positif karena stop membawa tanggal berikutnya",
+          "given": "record.date = 2026-03-02 dengan tippler_start_time 2026-03-02 22:00 dan tippler_stop_time 2026-03-03 04:00",
+          "expect": "daily[] untuk 2026-03-02 punya operating_hours = 6.0 (bukan -18); himpunan jam operasi = {22,23,0,1,2,3}"
+        },
+        {
+          "description": "stop <= start diperlakukan sebagai jendela tidak dapat dihitung, bukan durasi negatif",
+          "given": "tippler_start_time 2026-03-02 22:00 dan tippler_stop_time 2026-03-02 04:00 (tanggal sama, stop lebih kecil)",
+          "expect": "operating_hours untuk tanggal itu = null dan tanggal itu masuk days_without_valid_window; TIDAK PERNAH memancarkan angka negatif"
+        },
+        {
+          "description": "himpunan jam operasi dibatasi paling banyak 24 jam berbeda",
+          "given": "tippler_start_time 2026-03-02 06:00 dan tippler_stop_time 2026-03-04 06:00 (rentang 48 jam)",
+          "expect": "himpunan jam operasi berisi 24 jam berbeda (0..23), tidak berulang dan tidak melebihi 24"
+        },
+        {
+          "description": "tanggal dikeluarkan seluruhnya bila SATU record pada tanggal itu jendelanya tidak dapat dihitung",
+          "given": "tanggal 2026-03-02 punya 2 record: satu dengan stop_time terisi, satu dengan stop_time NULL",
+          "expect": "operating_hours dan idle_operating_hours untuk 2026-03-02 = null; tanggal itu masuk days_without_valid_window; gagal tertutup, bukan memakai record yang sebagian"
+        },
+        {
+          "description": "hari dengan jendela tidak pasti dikeluarkan dari rata-rata durasi dan dari jam menganggur",
+          "given": "3 tanggal: dua tanggal jendelanya pasti, satu tanggal stop_time NULL",
+          "expect": "avg_tippler_duration_hours dihitung hanya dari 2 tanggal; tanggal NULL tidak menyumbang idle_operating_hours; days_without_valid_window = 1"
+        },
+        {
+          "description": "idle_operating_hours hanya menghitung jam di dalam jendela operasi",
+          "given": "tippler 06:00–18:00 pada satu tanggal, baris rincian hanya pada jam 6, 7, 8",
+          "expect": "idle_operating_hours = 9 (jam 9..17 yang kosong); jam 0..5 dan 18..23 di luar jendela TIDAK dihitung"
+        },
+        {
+          "description": "idle_operating_hours tidak menghitung satu pun jam di luar jendela walau seharian kosong",
+          "given": "tippler 08:00–12:00, tidak ada satu pun baris rincian pada tanggal itu",
+          "expect": "idle_operating_hours = 4 (jam 8..11), bukan 24"
+        },
+        {
+          "description": "idle_operating_hours dihitung terhadap himpunan melingkar pada operasi lintas tengah malam",
+          "given": "tippler 2026-03-02 22:00 – 2026-03-03 04:00, baris rincian hanya pada tipped_hour 22 dan 1",
+          "expect": "idle_operating_hours = 4 (jam 23, 0, 2, 3); jam 5..21 tidak dihitung"
+        },
+        {
+          "description": "longest_gap_hours mengambil selisih terbesar antar tipped_hour berturut-turut dalam satu tanggal",
+          "given": "satu tanggal dengan tipped_hour 6, 8, 14",
+          "expect": "longest_gap_hours = 6 (14 - 8); bukan 2"
+        },
+        {
+          "description": "jeda pada shift malam diukur dari pembukaan jendela, bukan dari urutan numerik jam",
+          "given": "satu tanggal dengan tippler_start 2026-03-02 22:00, tippler_stop 2026-03-03 04:00, dan penumpahan pada tipped_hour 22, 23, 0, 1",
+          "expect": "longest_gap_hours = 1 (offset terhadap jangkar 22 menjadi [0,1,2,3]); BUKAN 21 yang dihasilkan urutan numerik [0,1,22,23]"
+        },
+        {
+          "description": "jeda nyata di dalam jendela malam tetap terukur",
+          "given": "tippler 2026-03-02 22:00 – 2026-03-03 04:00 dengan penumpahan hanya pada tipped_hour 22 dan 1",
+          "expect": "longest_gap_hours = 3 — 22:00 ke 01:00 memang tiga jam berlalu"
+        },
+        {
+          "description": "tanggal tanpa jendela yang dapat dihitung kembali ke urutan numerik",
+          "given": "tanggal dengan tippler_stop_time NULL dan penumpahan pada tipped_hour 6 dan 14",
+          "expect": "longest_gap_hours = 8 memakai urutan numerik; days_without_valid_window = 1. Mengarang jangkar berarti mengada-adakan batas shift"
+        },
+        {
+          "description": "longest_gap_hours menggabungkan jam dari seluruh record pada tanggal yang sama",
+          "given": "tanggal 2026-03-02 punya record A dengan tipped_hour 6 dan 12, serta record B dengan tipped_hour 9",
+          "expect": "jam digabung menjadi {6,9,12} sehingga longest_gap_hours = 3, bukan 6 dari record A saja"
+        },
+        {
+          "description": "longest_gap_hours tidak dihitung lintas tanggal",
+          "given": "tanggal A punya tipped_hour 6 dan 7; tanggal B punya tipped_hour 20 dan 21",
+          "expect": "longest_gap_hours = 1; selisih antar tanggal tidak pernah menjadi kandidat"
+        },
+        {
+          "description": "tanggal dengan hanya satu jam penumpahan tidak menyumbang jeda",
+          "given": "tanggal A punya satu tipped_hour (10); tanggal B punya tipped_hour 6 dan 9",
+          "expect": "longest_gap_hours = 3 dari tanggal B; daily tanggal A punya longest_gap_hours = null"
+        },
+        {
+          "description": "longest_gap_hours bernilai null ketika seluruh periode hanya punya satu jam penumpahan",
+          "given": "sepanjang periode hanya ada satu baris rincian pada satu tipped_hour",
+          "expect": "kpi.longest_gap_hours = null dan longest_gap_date = null; BUKAN 0"
+        },
+        {
+          "description": "longest_gap_date menunjuk tanggal tempat jeda terpanjang terjadi",
+          "given": "tanggal 2026-03-02 punya jeda 3 jam, tanggal 2026-03-05 punya jeda 7 jam",
+          "expect": "longest_gap_hours = 7 dan longest_gap_date = '2026-03-05'"
+        },
+        {
+          "description": "longest_gap_date memilih tanggal paling awal ketika dua tanggal berjeda sama",
+          "given": "tanggal 2026-03-02 dan 2026-03-05 sama-sama berjeda 5 jam",
+          "expect": "longest_gap_date = '2026-03-02' (deterministik)"
+        },
+        {
+          "description": "antrean tersisa dihitung sebagai potret per jam, tidak dijumlahkan antar jam",
+          "given": "tiga baris rincian dengan cages_remain 12, 5, 9",
+          "expect": "queue.min_remaining = 5 dan queue.avg_remaining = 8.7; tidak ada nilai 26 hasil penjumlahan"
+        },
+        {
+          "description": "antrean bernilai null ketika tidak ada satu pun baris rincian",
+          "given": "periode punya record tetapi tidak punya satu pun baris cages_tipped_times",
+          "expect": "queue.min_remaining = null dan queue.avg_remaining = null"
+        },
+        {
+          "description": "avg_tippler_duration_hours hanya dari tanggal yang jendelanya pasti",
+          "given": "tanggal A durasi 10 jam, tanggal B durasi 8 jam, tanggal C stop_time NULL",
+          "expect": "avg_tippler_duration_hours = 9.0 (penyebut 2, bukan 3); days_without_valid_window = 1"
+        },
+        {
+          "description": "avg_tippler_duration_hours bernilai null ketika tidak ada satu pun tanggal berjendela pasti",
+          "given": "seluruh tanggal dalam periode punya tippler_stop_time NULL",
+          "expect": "avg_tippler_duration_hours = null dan days_without_valid_window = jumlah seluruh tanggal ber-record; BUKAN 0"
+        },
+        {
+          "description": "tanggal ber-record tanpa baris rincian tetap terhitung sebagai hari operasi dengan cages_tipped 0",
+          "given": "periode berisi 3 tanggal ber-record; salah satunya tidak punya satu pun baris cages_tipped_times",
+          "expect": "daily berisi 3 entri; tanggal itu punya cages_tipped = 0 dan tetap masuk penyebut avg_cages_per_day"
+        },
+        {
+          "description": "avg_cages_per_day memakai jumlah tanggal ber-record termasuk tanggal tanpa penumpahan",
+          "given": "3 tanggal ber-record dengan total penumpahan 90 lori, satu tanggal di antaranya nol",
+          "expect": "avg_cages_per_day = 30.0 (90/3), bukan 45.0 (90/2)"
+        },
+        {
+          "description": "tanggal tanpa record sama sekali tidak dibuatkan baris daily bernilai nol",
+          "given": "periode 2026-03-01..2026-03-10 tetapi hanya 2026-03-02 dan 2026-03-05 yang punya record",
+          "expect": "daily berisi tepat 2 entri; delapan tanggal lainnya tidak muncul; days_with_records = 2"
+        },
+        {
+          "description": "peak_hour mengembalikan jam dengan lori terbanyak beserta jumlahnya",
+          "given": "hourly: jam 7 = 20 lori, jam 8 = 45 lori, jam 9 = 30 lori",
+          "expect": "peak_hour = 8 dan peak_hour_cages = 45"
+        },
+        {
+          "description": "peak_hour memilih jam terkecil ketika dua jam berjumlah sama",
+          "given": "hourly: jam 7 = 45 lori dan jam 14 = 45 lori",
+          "expect": "peak_hour = 7 (deterministik), peak_hour_cages = 45"
+        },
+        {
+          "description": "periode tanpa satu pun penumpahan mengembalikan seluruh angka nol dengan penanda kosong",
+          "given": "tidak ada cages_track_records maupun cages_tipped_times pada rentang periode",
+          "expect": "total_cages_tipped = 0, total_cages_out = 0, avg_cages_per_day = 0, peak_hour = null, peak_hour_cages = 0, idle_operating_hours = 0, longest_gap_hours = null, avg_tippler_duration_hours = null, hourly tetap 24 entri bernilai 0, daily = [], total.days = 0"
+        },
+        {
+          "description": "agregasi dijalankan di PHP, bukan lewat SQL aggregate",
+          "given": "dataset dengan tippler_stop_time NULL dan tanggal tanpa baris rincian dijalankan di SQLite",
+          "expect": "hasil identik dengan dijalankan di PostgreSQL; query hanya SELECT baris mentah tanpa SUM/AVG/GROUP BY maupun aritmetika timestamp di sisi SQL"
+        },
+        {
+          "description": "ekspor melakukan streaming chunk(200) dengan satu baris per jam penumpahan",
+          "given": "periode berisi 450 baris cages_tipped_times",
+          "expect": "respons text/csv streaming; chunk(200) dipanggil 3 kali; 450 baris data dihasilkan dengan kolom konteks record (tanggal, nomor cages track, tippler mulai, tippler berhenti, lori keluar, status, catatan) diulang pada tiap baris"
+        },
+        {
+          "description": "ekspor menolak jumlah baris melebihi batas",
+          "given": "periode berisi lebih dari 50.000 baris cages_tipped_times",
+          "expect": "throw ExportFailedException dengan error_code EXPORT_FAILED (http 422); batas dihitung dari baris rincian, bukan jumlah record header"
+        },
+        {
+          "description": "ekspor menolak format yang tidak didukung",
+          "given": "request ekspor dengan format = 'xlsx'",
+          "expect": "throw ValidationException dengan error_code VALIDATION_ERROR (http 422)"
+        },
+        {
+          "description": "mengembalikan hasil rekap lengkap ketika seluruh kondisi terpenuhi",
+          "given": "user Supervisor terikat BU-A, periode cages-track valid milik BU-A, tersedia cages_track_records beserta baris cages_tipped_times yang lengkap",
+          "expect": "mengembalikan struktur { period, kpi, hourly (24 entri), daily, queue, total } dengan seluruh KPI terisi dan tidak ada data stasiun yang berubah"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "cages-track-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "cages-tipped-time",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Laporan ini tidak dapat menampilkan apa pun tanpa Periode Pelaporan yang dibuat di sana; pesan kosongnya secara eksplisit mengarahkan ke layar itu"
+    },
+    {
+      "screen_id": "screen-012--form-cages-track",
+      "reason": "Sumber data laporan — baris rincian penumpahan per jam diinput Operator lewat form mobile ini"
+    },
+    {
+      "screen_id": "screen-024--form-cages-track-web",
+      "reason": "Sumber data laporan versi web — Supervisor menginput record dan rincian per jam yang sama"
+    },
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Satu-satunya jalan masuk ke layar ini: tile Cages & Tracks pada grid Laporan Stasiun. REPORT_ROUTES di StationReportService harus ditambah satu baris agar tile-nya aktif"
+    }
+  ],
+  "implementation_notes": [
+    "Route /reports/cages-track, BUKAN /laporan/cages-track. Konvensi repo memakai prefix /reports (lihat reports.management, reports.stations, reports.sterilizer di routes/web.php); tidak ada satu pun route ber-prefix /laporan.",
+    "Tile Cages & Tracks di screen-140 baru menyala setelah peta konstanta REPORT_ROUTES di StationReportService ditambah satu entri. Itu memang bentuk yang dipilih di screen-140 supaya menambah laporan stasiun berarti menambah satu baris, bukan menyebar pengecekan ke blade — tetapi artinya laporan ini tidak akan pernah tercapai lewat UI bila baris itu lupa ditambahkan, walau seluruh test laporannya hijau.",
+    "CSS memakai partial bersama resources/views/dashboard/partials/report-styles.blade.php lewat <x-slot:styles> di view halaman — BUKAN @include di dalam komponen Livewire. Alasannya ditemukan mahal di screen-140: partial ini memancarkan <style>, dan Livewire 3 memasang wire:id pada elemen ter-render PERTAMA, sehingga menaruhnya di dalam/di atas root membuat seluruh wire:model berhenti bekerja. Component test tidak menangkapnya; browser test menangkapnya.",
+    "Dua modifier CSS baru perlu ditambahkan ke report-styles.blade.php, bukan ditulis inline di blade: .md-kpis--3 (sejajar .md-kpis--4 yang sudah ada, untuk baris KPI kedua berisi 3 kartu) dan .md-trendchart__col--off (sejajar .md-trendchart__col--low, untuk jam di luar jendela operasi pada grafik 24 jam, lengkap dengan legendanya).",
+    "Grafik 24 jam dan tren harian memakai .md-trendchart. Pada 2026-09-24 partial itu diperbaiki: .md-trendchart sekarang height (bukan min-height) dan .md-trendchart__col adalah grid `auto 1fr auto` dengan height 100%. Sebelum perbaikan, tinggi batang berbentuk persen tidak pernah ter-resolve dan SELURUH batang jatuh ke min-height 4px — grafiknya rata. Jangan mengembalikan min-height, dan jangan menaruh label tambahan di dalam baris 1fr.",
+    "GRAIN adalah bahaya utama layar ini: cages_out ada pada cages_track_records (header, satu per record), sedangkan total_cages ada pada cages_tipped_times (rincian per jam). Menjumlahkan cages_out di atas hasil JOIN ke rincian akan mengalikannya sebanyak jumlah baris jam. Ada unit test khusus untuk ini (cages_out 50 dengan 8 baris rincian harus menghasilkan 50, bukan 400).",
+    "tippler_start_time dan tippler_stop_time bertipe datetime penuh dan diisi lewat input datetime-local, sehingga shift malam sudah membawa tanggal berikutnya. Durasi = selisih timestamp, TIDAK PERNAH selisih komponen jam. Aritmetika melingkar modulo 24 hanya berlaku untuk HIMPUNAN jam operasi, karena tipped_hour adalah integer 0..23 tanpa tanggal. Mencampur keduanya menghasilkan durasi -18 jam untuk shift 22:00–04:00.",
+    "CagesTrackRecordService::validate() hari ini MEWAJIBKAN tippler_stop_time ('required','date'), walau kolomnya nullable di skema dan tidak ada aturan after:tippler_start_time. Artinya: (a) hari tanpa waktu berhenti berasal dari baris lama/impor, bukan alur input normal — ditangani secara defensif, bukan sebagai jalur umum; (b) stop <= start TETAP MUNGKIN lolos validasi, karena itu diperlakukan sebagai jendela tidak dapat dihitung, bukan durasi negatif.",
+    "Satu tanggal dapat punya beberapa record (satu per cages_track_number). Seluruh agregasi per hari menggabungkan record-record itu: jam penumpahan di-union lalu di-dedup sebelum menghitung jeda, dan cages_out dijumlahkan per record. Sebuah tanggal dinyatakan berjendela pasti HANYA bila seluruh record pada tanggal itu jendelanya dapat dihitung — gagal tertutup.",
+    "Seluruh agregasi dijalankan di PHP atas baris mentah, bukan lewat SUM/AVG/GROUP BY di SQL. Test berjalan di SQLite dan produksi di PostgreSQL; justru aturan null-bukan-nol dan aritmetika timestamp yang paling mudah berbeda di antara keduanya.",
+    "Mock visual acuan ada di .asdlc/generated/2-business-spec/screens/html/screen-130--laporan-cages-track-web.html. Mock memakai kosakata md-* yang sama dengan aplikasi. Yang ditiru adalah SUSUNAN dan kepadatan informasinya.",
+    "Keamanan lintas mill ditutup di DUA titik yang berbeda sifatnya, sama seperti screen-129: (1) business_unit_id dari klien DIABAIKAN untuk Supervisor/Mill Management — responsnya tetap 200 berisi data mill sendiri, karena tidak ada upaya akses objek tertentu yang perlu ditolak; (2) period_id milik mill lain DITOLAK 403 — di sini memang ada objek tertentu yang ditembak. Mudah salah diseragamkan menjadi 403 dua-duanya.",
+    "Endpoint memakai prefix /api/cages-track-reports/* dan akan dipakai ULANG apa adanya oleh screen-136 (versi mobile), persis seperti /api/sterilizer-reports/* dipakai ulang oleh screen-135. Konsekuensinya sudah diketahui: saat screen-136 dikerjakan, keempat route ini perlu dilebarkan agar menyertakan operator, sementara route WEB /reports/cages-track tetap tanpa operator.",
+    "Jeda terpanjang memakai jangkar jendela operasi. Versi pertama spec ini mengurutkan tipped_hour secara numerik; itu benar untuk shift siang dan salah untuk shift malam — tippler 22:00->04:00 yang menumpahkan tiap jam dilaporkan berjeda 21 jam. Ditemukan setelah implementasi (implementasinya setia pada spec yang salah), diperbaiki di spec DAN di kode pada 2026-09-24: lihat hoursInWindowOrder() dan anchorHourOf() di CagesTrackReportService, serta unit test 'summary measures an overnight gap from the window start'."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — berhasil sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen sebagai Supervisor terikat mill, lalu pilih periode lewat data-testid period-select",
+        "assert": "mill-select tidak dirender, mill-current menampilkan nama mill akun, report-kpis tampil dengan kpi-total-tipped, kpi-total-out, kpi-avg-per-day, kpi-peak-hour, kpi-idle-hours, kpi-longest-gap, kpi-tippler-duration, days-without-valid-window; hourly-distribution, daily-trend, queue-card, dan daily-recap tampil; tidak ada perubahan data stasiun"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk sebagai Supervisor, buka /reports/cages-track, pilih periode pada period-select",
+        "assert": "mill-current tampil, mill-select tidak ada, report-kpis beserta seluruh kartu KPI, hourly-distribution, daily-trend, queue-card, dan daily-recap terlihat; daily-recap dapat ditutup dan dibuka kembali"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — berhasil sebagai Admin",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data[0].id}}",
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen sebagai Admin, pilih mill pada mill-select lalu pilih periode pada period-select",
+        "assert": "mill-select dirender berisi seluruh mill; setelah mill dan periode dipilih, report-kpis dan seluruh kartu tampil selengkap pengguna terikat mill"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk sebagai Admin, buka /reports/cages-track, pilih mill pada mill-select, lalu pilih periode",
+        "assert": "mill-select terlihat dan berisi opsi mill; setelah keduanya dipilih, report-kpis, hourly-distribution, daily-trend, queue-card, dan daily-recap terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — ekspor rincian per jam ke CSV",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen dengan periode terpilih lalu panggil aksi export-csv",
+        "assert": "komponen mengembalikan StreamedResponse ber-Content-Type text/csv dengan nama berkas memuat nama periode; isi berisi satu baris per jam penumpahan dengan kolom konteks record diulang; tidak ada data stasiun yang berubah"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track dengan periode terpilih lalu klik export-csv",
+        "assert": "unduhan terpicu, nama berkas berekstensi .csv, dan halaman tetap menampilkan rekap yang sama"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — Periode tanpa data",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode tanpa satu pun penumpahan>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen lalu pilih periode yang tidak memuat satu pun penumpahan",
+        "assert": "empty-period tampil dengan keterangan belum ada data; seluruh kartu KPI menampilkan nol; hourly-distribution dan daily-trend tidak dirender sebagai grafik kosong"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track lalu pilih periode yang tidak memuat penumpahan",
+        "assert": "empty-period terlihat, kpi-total-tipped dan kpi-total-out menampilkan 0, dan tidak ada grafik kosong yang dirender"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — Hari dengan record tetapi tanpa rincian per jam",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan satu tanggal ber-record tanpa baris rincian>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen lalu pilih periode yang memuat tanggal ber-record tanpa satu pun baris rincian per jam",
+        "assert": "daily-recap tetap memuat baris untuk tanggal itu dengan lori ditumpahkan 0; tanggal itu ikut menjadi penyebut kpi-avg-per-day, bukan dibuang"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track, pilih periode tersebut, lalu buka daily-recap",
+        "assert": "baris tanggal itu terlihat pada daily-recap dengan nilai 0, dan kpi-avg-per-day mencerminkan pembagian yang menyertakan tanggal itu"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — Seluruh hari tanpa waktu berhenti tippler",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode yang seluruh harinya tippler_stop_time NULL>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen lalu pilih periode yang tidak satu pun harinya punya jendela operasi yang pasti",
+        "assert": "kpi-tippler-duration menampilkan keterangan tidak tersedia (bukan angka 0) dan days-without-valid-window menampilkan jumlah hari yang dikeluarkan"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track lalu pilih periode tersebut",
+        "assert": "kpi-tippler-duration berteks tidak tersedia dan days-without-valid-window terlihat menampilkan jumlah hari yang dikecualikan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — Penumpahan hanya pada satu jam",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan tepat satu jam penumpahan>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen lalu pilih periode yang penumpahannya hanya terjadi pada satu jam",
+        "assert": "insufficient-gap tampil dengan keterangan tidak ada jeda yang dapat dihitung, dan kpi-longest-gap tidak menampilkan angka 0 jam"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track lalu pilih periode tersebut",
+        "assert": "insufficient-gap terlihat pada kartu kpi-longest-gap dan teks '0 jam' tidak muncul di sana"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — Operasi melewati tengah malam",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan record tippler_start 2026-03-02 22:00 dan tippler_stop 2026-03-03 04:00>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen lalu pilih periode yang memuat hari dengan jendela operasi melintasi tengah malam",
+        "assert": "daily-recap menampilkan jam operasi hari itu sebagai 6 jam (positif, bukan negatif), kpi-tippler-duration positif, dan kpi-idle-hours dihitung terhadap himpunan jam melingkar {22,23,0,1,2,3}"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track, pilih periode tersebut, lalu buka daily-recap",
+        "assert": "tidak ada nilai jam operasi bertanda minus di daily-recap maupun kpi-tippler-duration, dan kpi-idle-hours menampilkan angka yang wajar untuk himpunan melingkar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — Admin belum memilih mill",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen sebagai Admin tanpa memilih mill apa pun",
+        "assert": "mill-required-hint tampil berisi arahan memilih mill lebih dulu; report-kpis tidak dirender"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk sebagai Admin lalu buka /reports/cages-track tanpa memilih mill",
+        "assert": "mill-required-hint terlihat dan report-kpis tidak terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — Akun terikat mill tetapi mill-nya kosong",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen sebagai Supervisor yang business_unit_id akunnya null",
+        "assert": "no-mill-for-account tampil berisi pesan menghubungi Admin; mill-select TIDAK dirender sebagai gantinya; report-kpis tidak dirender"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk sebagai Supervisor tanpa mill lalu buka /reports/cages-track",
+        "assert": "no-mill-for-account terlihat, mill-select tidak ada, dan tidak ada angka rekap yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — Mill belum punya periode",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen untuk mill yang belum punya satu pun periode mencakup Cages & Tracks",
+        "assert": "no-periods tampil berisi arahan menghubungi Admin; period-select kosong; report-kpis tidak dirender"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track dengan mill yang belum punya periode cages-track",
+        "assert": "no-periods terlihat, period-select tidak punya opsi, dan tidak ada angka rekap yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — Mencoba melihat mill lain",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "<uuid mill lain>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode milik mill lain>",
+            "business_unit_id": "<uuid mill lain>"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen sebagai Supervisor terikat BU-A lalu paksakan property business unit ke BU-B",
+        "assert": "mill-current tetap menampilkan BU-A; seluruh angka berasal dari BU-A; tidak ada data BU-B yang muncul; periode milik BU-B tidak dapat dipilih"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk sebagai Supervisor terikat BU-A lalu buka /reports/cages-track?business_unit_id=<uuid BU-B>",
+        "assert": "mill-current tetap menampilkan mill akun (BU-A) dan tidak ada data BU-B yang terlihat di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — Operator mencoba membuka layar web ini",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen sebagai user berperan station_operator",
+        "assert": "komponen menolak akses (AuthorizationException / 403) dan tidak merender report-kpis maupun data stasiun apa pun"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk sebagai Station Operator lalu buka /reports/cages-track",
+        "assert": "halaman menampilkan penolakan akses (403) atau dialihkan, dan tidak ada data rekap yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — Periode tertutup",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode berstatus closed>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/export"
+          },
+          "request_example": {
+            "period_id": "<uuid periode berstatus closed>",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen lalu pilih periode berstatus tertutup dan panggil aksi export-csv",
+        "assert": "hero-status menampilkan status tertutup, report-kpis tetap tampil penuh, dan export-csv tetap mengembalikan respons CSV"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track, pilih periode tertutup, lalu klik export-csv",
+        "assert": "hero-status berteks tertutup, seluruh kartu KPI terlihat, tombol export-csv tidak dinonaktifkan, dan unduhan tetap terpicu"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — periode yang tidak mencakup Cages & Tracks tidak boleh muncul",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen untuk mill yang punya campuran periode: berjenis cages-track, berjenis NULL (semua stasiun), dan berjenis sterilizer",
+        "assert": "period-select hanya memuat periode cages-track dan periode station_type NULL; periode sterilizer tidak ada di antara opsi"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track lalu buka period-select",
+        "assert": "opsi period-select hanya memuat periode yang mencakup Cages & Tracks; nama periode sterilizer tidak muncul dan tidak dapat dipilih"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — rentang periode harus inklusif",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan penumpahan tepat pada start_date dan end_date>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen lalu pilih periode yang punya penumpahan tepat pada tanggal mulai dan tanggal akhir",
+        "assert": "kpi-total-tipped mencakup kedua hari batas; daily-trend dan daily-recap memuat baris untuk start_date dan end_date; hourly-distribution memuat kontribusi kedua hari itu"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track, pilih periode tersebut, lalu buka daily-recap",
+        "assert": "baris tanggal mulai dan tanggal akhir keduanya terlihat pada daily-recap dan totalnya sesuai, tidak ada hari batas yang terpotong"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — angka ringkasan record harian tidak boleh dipakai sebagai sumber penumpahan",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan cages_track_records.cages_tipped berbeda dari jumlah cages_tipped_times.total_cages>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen lalu pilih periode yang memuat hari dengan angka ringkasan record berbeda dari jumlah baris rincian per jamnya",
+        "assert": "kpi-total-tipped dan daily-recap menampilkan jumlah dari baris rincian per jam; angka ringkasan record yang berbeda tidak pernah muncul di layar"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track lalu pilih periode tersebut",
+        "assert": "kpi-total-tipped menampilkan jumlah rincian per jam dan bukan angka ringkasan record harian"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — lori keluar tidak boleh terkalikan jumlah baris rincian",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan satu record cages_out 50 dan 8 baris rincian>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen lalu pilih periode yang memuat satu record ber-cages_out 50 dengan delapan baris rincian per jam",
+        "assert": "kpi-total-out menampilkan 50, BUKAN 400; angka lori keluar berasal dari header record, bukan dari hasil gabung ke baris rincian"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track lalu pilih periode tersebut",
+        "assert": "kpi-total-out menampilkan 50 dan tidak menampilkan kelipatan jumlah baris rincian"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — jam tanpa penumpahan tidak boleh dihitung di luar jam operasi tippler",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan hari tippler 06:00–18:00 dan penumpahan hanya jam 6,7,8>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen lalu pilih periode yang memuat hari dengan tippler beroperasi hanya sebagian dari 24 jam",
+        "assert": "kpi-idle-hours hanya menghitung jam kosong di dalam jendela operasi; jam di luar jendela tidak ikut; hourly-distribution menandai jam di luar jendela sebagai bukan jam operasi"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track lalu pilih periode tersebut",
+        "assert": "kpi-idle-hours menampilkan angka yang jauh lebih kecil dari 24 dan sesuai lebar jendela operasi, serta hourly-distribution membedakan jam di dalam dan di luar jendela"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — jeda terpanjang tidak boleh dihitung lintas hari",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan hari A berakhir pagi dan hari B mulai malam>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen lalu pilih periode yang memuat jeda panjang antara penumpahan terakhir satu hari dan penumpahan pertama hari berikutnya",
+        "assert": "kpi-longest-gap menampilkan jeda terbesar di dalam satu tanggal saja; selisih antar tanggal tidak menjadi nilainya; keterangan tanggal jeda menunjuk satu tanggal, bukan rentang dua hari"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track lalu pilih periode tersebut",
+        "assert": "kpi-longest-gap menampilkan jeda intra-hari beserta tanggalnya dan bukan angka besar hasil selisih lintas hari"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Web) — antrean tersisa tidak boleh diakumulasi",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<uuid periode dengan beberapa baris rincian ber-cages_remain>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrack",
+        "action": "render komponen lalu pilih periode yang memuat beberapa baris rincian per jam dengan antrean lori tersisa berbeda-beda",
+        "assert": "queue-card menampilkan nilai terendah dan rata-rata sebagai potret per jam; nilai yang tampil tidak sama dengan penjumlahan antar jam"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka /reports/cages-track lalu pilih periode tersebut",
+        "assert": "queue-card menampilkan antrean terendah dan rata-rata dalam rentang nilai per jam yang wajar, bukan total akumulatif"
+      }
+    }
+  ]
+}

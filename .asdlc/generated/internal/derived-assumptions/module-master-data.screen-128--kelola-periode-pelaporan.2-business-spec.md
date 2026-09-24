@@ -10,3 +10,16 @@
 - available_actions = 7 aksi (filter, tambah, edit, hapus, tutup, buka kembali, navigasi halaman) ← user named only tutup/buka kembali explicitly; full CRUD + pagination derived from the master-data screen pattern
 - edge_cases = 9 kasus ← all agent-derived from the constraints. Two are worth a second look: "Mengubah rentang tanggal periode yang sedang Terbuka sehingga data yang sudah ada menjadi masuk atau keluar dari periode → diizinkan selama tidak menimbulkan tumpang tindih" (agent chose to allow this; it silently changes which records a future close would lock), and "Dua Admin menutup periode yang sama bersamaan → penutupan kedua tidak menimpa catatan penutup pertama" (concurrency behaviour never discussed)
 - usecase_ids = usecase-128 + usecase-140 ← IDs and names were already fixed in bus-1-scope; their full content (flows, preconditions, postconditions) is drafted here by the agent and was not individually confirmed, per autopilot
+
+## v2 — 2026-09-23
+
+Revisi: menambahkan aksi **Buka Periode** (Draft → Terbuka). User menyatakan keputusannya
+secara eksplisit ("tambahkan aksi Buka Periode, Admin saja"); butir di bawah ini adalah
+turunan agent di sekitar keputusan itu.
+
+- `business_rules` "siklus Draft → Terbuka → Tertutup, **tidak ada jalan kembali dari Terbuka ke Draft**" ← user tidak menyebut arah sebaliknya. Dipilih searah karena Draft berarti "masih disiapkan"; sekali periode dinyatakan berjalan, memundurkannya akan mengaburkan arti statusnya sendiri. Kalau ternyata perlu, ini keputusan yang gampang dibalik selama belum ada data.
+- `business_rules` "periode **Terbuka tetap dapat diubah dan dihapus** seperti Draft" ← konsekuensi yang tidak dinyatakan user tapi harus ditegaskan, karena `PeriodService::update()` dan `delete()` saat ini hanya menolak status `closed`. Tanpa aturan tertulis ini, seseorang bisa menyangka Terbuka juga mengunci, lalu "memperbaikinya" dan merusak perilaku yang benar.
+- `business_rules` "membuka periode **hanya mengubah status**, tidak menyentuh data stasiun" ← ditulis eksplisit agar aksi ini tidak kelak dibebani validasi data seperti yang dilakukan Tutup Periode (yang memang menghitung data belum terverifikasi). Keduanya mudah dianggap simetris padahal tidak.
+- Penolakan pada periode **Tertutup** mengarahkan Admin ke aksi "Buka Kembali Periode" ← dua aksi ini mudah tertukar; pesannya harus menyebut yang benar, bukan sekadar menolak.
+- `edge_cases` dua butir baru (dua Admin bersamaan, periode sudah tertutup) ← turunan agent, menyalin bentuk penjagaan bersamaan yang sudah dipakai `close()`.
+- Transisi ini ditulis sebagai **usecase terpisah** `usecase-144--buka-periode-pelaporan`, bukan ditambahkan ke `usecase-140` ← keputusan agent. usecase-140 punya 9 langkah alur dan 6 alternative flow yang triggernya merujuk nomor langkah ("Pada langkah 5", "Pada langkah 3"). Menyisipkan transisi baru di awalnya memaksa penomoran ulang dan membuat seluruh rujukan itu meleset. Memisahkannya menghindari churn yang justru rawan salah.

@@ -36,6 +36,19 @@ const routes: RouteRecordRaw[] = [
     meta: { public: false },
   },
   {
+    // screen-134--dashboard-reporting-mobile /
+    // usecase-134--dashboard-reporting-mobile "Buka Dashboard & Reporting
+    // (Mobile)". meta.public is deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; all mobile
+    // actors). Fills in the `dashboard-reporting` route name
+    // HomeView.vue's 'dashboard-reporting' menu card now navigates to,
+    // replacing its previous showComingSoon action.
+    path: '/dashboard-reporting',
+    name: 'dashboard-reporting',
+    component: () => import('@/views/DashboardReportingView.vue'),
+    meta: { public: false },
+  },
+  {
     // screen-004--ganti-password-mobile / usecase-004--ganti-password-mobile.
     // meta.public is deliberately false — the auth guard below requires an
     // authenticated session, matching screen_tech_spec.auth_requirement
@@ -769,6 +782,64 @@ const routes: RouteRecordRaw[] = [
     path: '/stations/sterilizer/preview/:id?',
     name: 'data-preview-sterilizer',
     component: () => import('@/views/DataPreviewSterilizerView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-141--reporting-pilih-stasiun-mobile /
+    // usecase-143--reporting-pilih-stasiun-mobile "Pilih Stasiun untuk
+    // Laporan (Mobile)" — pemilih stasiun untuk laporan mobile, pintu
+    // masuk satu-satunya ke layar laporan periode tiap stasiun.
+    // meta.public false: layar ini menuntut sesi aktif, dan penjagaan
+    // global di bawah inilah yang mengalihkan pengguna tanpa sesi ke
+    // 'login' sebelum komponennya sempat dipasang.
+    //
+    // Rute ini pula yang menghidupkan kartu 'Reporting' di screen-134
+    // (DashboardReportingView.vue) — lihat MENU_OPTIONS di sana.
+    path: '/reports',
+    name: 'report-stations',
+    component: () => import('@/views/ReportingPilihStasiunView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-135--laporan-sterilizer-mobile /
+    // usecase-135--laporan-sterilizer-mobile "Lihat Laporan Periode
+    // Sterilizer (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor, mill_management, admin) — the global auth guard below
+    // is exactly the "penjagaan sesi" business_logic step 1 refers to.
+    //
+    // 2026-09-23 — pintu masuknya kini ADA: rute 'report-stations' di atas
+    // (screen-141) menampilkan grid stasiun, dan tile Sterilizer-lah yang
+    // menavigasi ke sini. Sebelum itu layar ini hanya dapat dicapai lewat
+    // alamatnya langsung, karena kartu 'Reporting' di screen-134 sengaja
+    // dibiarkan mati ketimbang mendarat diam-diam pada satu stasiun yang
+    // ditulis keras.
+    path: '/reports/sterilizer',
+    name: 'report-sterilizer',
+    component: () => import('@/views/LaporanSterilizerView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-136--laporan-cages-track-mobile /
+    // usecase-136--laporan-cages-track-mobile "Lihat Laporan Periode
+    // Cages & Tracks (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor, mill_management, admin) — the global auth guard below
+    // is exactly the "penjagaan sesi" business_logic step 1 refers to.
+    //
+    // Operator termasuk di dalamnya, dan itu memang perluasan yang
+    // dikerjakan layar ini: keempat rute /api/cages-track-reports/*
+    // dilebarkan ke 'auth:web,sanctum' + peran operator, sementara rute
+    // WEB /reports/cages-track (screen-130) sengaja tetap tanpa Operator.
+    //
+    // Pintu masuknya sudah ada sejak awal: rute 'report-stations' di atas
+    // (screen-141) menampilkan grid stasiun, dan tile Cages & Tracks-lah
+    // yang menavigasi ke sini — entri 'cages-track' pada REPORT_ROUTES di
+    // ReportingPilihStasiunView.vue adalah satu-satunya penentu tile itu
+    // hidup atau mati.
+    path: '/reports/cages-track',
+    name: 'report-cages-track',
+    component: () => import('@/views/LaporanCagesTrackView.vue'),
     meta: { public: false },
   },
 ]

@@ -637,4 +637,70 @@ Route::middleware(['auth', 'role:admin'])
     ->get('/master-data/periods', \App\Livewire\MasterData\KelolaPeriodePelaporan::class)
     ->name('master-data.periods');
 
+// screen-129--laporan-sterilizer-web (usecase-129 — Laporan Periode
+// Sterilizer). Session-guarded + role-guarded to supervisor /
+// mill_management / admin per screen_tech_spec.actor_permissions.
+//
+// Route is /reports/sterilizer, NOT /laporan/sterilizer — the repo's
+// convention for report screens is the English /reports/* prefix
+// (/reports/management, screen-026), and no route in this file uses
+// /laporan.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/sterilizer', \App\Livewire\Dashboard\LaporanSterilizer::class)
+    ->name('reports.sterilizer');
+
+// screen-140--laporan-stasiun-web (usecase-142 — Pilih Stasiun untuk
+// Laporan). Pintu masuk tunggal ke seluruh laporan periode per stasiun,
+// dan satu-satunya entri sidebar untuk keluarga laporan itu.
+//
+// Session-guarded + role-guarded to supervisor / mill_management / admin
+// per screen_tech_spec.actor_permissions — sama persis dengan screen-129.
+// Operator adalah aktor mobile-only tanpa akses web sama sekali.
+//
+// Route is /reports, NOT /laporan — the repo's convention for report
+// screens is the English /reports/* prefix (/reports/management,
+// /reports/sterilizer).
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports', \App\Livewire\Dashboard\LaporanStasiun::class)
+    ->name('reports.stations');
+
+// screen-130--laporan-cages-track-web (usecase-130 — Laporan Periode
+// Cages & Tracks). Session-guarded + role-guarded to supervisor /
+// mill_management / admin per screen_tech_spec.actor_permissions —
+// Operator is a mobile-only actor with no web access at all; its reporting
+// path is screen-136 (mobile).
+//
+// Route is /reports/cages-track, NOT /laporan/cages-track — the repo's
+// convention for report screens is the English /reports/* prefix
+// (/reports/management, /reports/stations, /reports/sterilizer), and no
+// route in this file uses /laporan.
+//
+// Reachable from the UI ONLY through the Cages & Tracks tile on
+// screen-140 (/reports), which lights up because
+// StationReportService::REPORT_ROUTES now maps the 'cages-track' code to
+// this route name.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/cages-track', \App\Livewire\Dashboard\LaporanCagesTrack::class)
+    ->name('reports.cages-track');
+
+// screen-131--laporan-boiler-room-web (usecase-131 — Laporan Periode Boiler
+// Room). Session-guarded + role-guarded to supervisor / mill_management /
+// admin per screen_tech_spec.actor_permissions — Operator has no web access
+// at all. Unlike Cages & Tracks, Operator is refused on the API side too:
+// its mobile reporting path (screen-137) has not been built.
+//
+// Route is /reports/boiler-room, NOT /laporan/boiler-room — the repo's
+// convention for report screens is the English /reports/* prefix
+// (/reports/management, /reports/stations, /reports/sterilizer,
+// /reports/cages-track), and no route in this file uses /laporan.
+//
+// Reachable from the UI ONLY through the Boiler Room tile on screen-140
+// (/reports), which lights up because StationReportService::REPORT_ROUTES
+// now maps the 'boiler-room' code to this route name. Without that one line
+// the report exists, every test here passes, and the screen stays
+// unreachable.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/boiler-room', \App\Livewire\Dashboard\LaporanBoilerRoom::class)
+    ->name('reports.boiler-room');
+
 // === ASDLC_ROUTES_END ===

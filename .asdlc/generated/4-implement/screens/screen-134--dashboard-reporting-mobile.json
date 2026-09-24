@@ -1,0 +1,98 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "screen-134--dashboard-reporting-mobile",
+  "name": "Dashboard & Reporting (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-23T08:12:00Z",
+      "passed": 15,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-23T08:12:00Z",
+      "passed": 15,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-23T08:20:00Z",
+      "passed": 9,
+      "failed": 0
+    }
+  },
+  "files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/DashboardReportingView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/HomeView.vue"
+  ],
+  "test_files_generated": [
+    "mobile/tests/e2e/dashboard-reporting.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/DashboardReportingView.spec.ts",
+    "mobile/tests/HomeView.spec.ts",
+    "mobile/tests/e2e/home.spec.ts"
+  ],
+  "implementation_notes": [
+    "Nol berkas backend. Layar ini tidak punya satu pun endpoint — api_contracts[0].endpoints kosong, seluruh api_test kosong, mengikuti preseden screen-006--station-list.",
+    "MENU_OPTIONS adalah satu konstanta yang menggerakkan v-for; routeName null berarti layar tujuannya belum dibangun. Menghidupkan sebuah kartu kelak berarti mengisi routeName-nya, BUKAN menyentuh template.",
+    "Kartu nonaktif memakai aria-disabled=\"true\", bukan atribut disabled native — alasannya tertulis di components/StationGrid.vue: disabled menelan ketukan sehingga pengguna tidak mendapat umpan balik apa pun, dan pada layar sentuh diam tidak dapat dibedakan dari aplikasi yang macet. Ini berbeda dari tile nonaktif di web screen-140 yang memang inert, dan perbedaan itu disengaja.",
+    "Pesan info disimpan pada satu ref<string | null> tunggal, bukan daftar. Itulah yang membuat aturan 'pesan tidak menumpuk' benar secara konstruksi, bukan karena ada kode pembersih. Menekan berkali-kali hanya menimpa nilainya.",
+    "Nol pemanggilan data: tidak ada repo, apiClient, localDb, maupun keadaan memuat. Satu unit test secara khusus mengasersi apiClient dan localDb tidak pernah dipanggil — sifat offline-friendly layar ini adalah fiturnya, bukan kebetulan, dan test itu yang menahannya bila kelak seseorang menambah pemuatan data.",
+    "HomeView.vue: kartu 'dashboard-reporting' yang tadinya showComingSoon kini bernavigasi nyata. Ikon SVG-nya dipakai ulang dari MENU_ICONS, tidak ada ikon baru dibuat. Dua kartu lain tidak disentuh. Konsekuensinya HomeView.spec.ts dan e2e/home.spec.ts ikut disesuaikan: kasus 'dashboard-reporting' dikeluarkan dari daftar placeholder dan diganti satu test navigasi.",
+    "IKON PER KARTU — diperbaiki setelah memeriksa tangkapan layar render nyata. Versi pertama menulis satu SVG keras di dalam v-for, sehingga kedua kartu memakai ikon grafik batang yang sama: Reporting tidak mendapat ikon dokumen seperti spec, DAN prinsip 'MENU_OPTIONS satu sumber kebenaran' bocor karena pilihan ketiga kelak akan diam-diam mewarisi ikon kartu pertama. Diganti peta OPTION_ICONS berkunci sama dengan MENU_OPTIONS. Cacat ini lolos dari 15 component test dan 9 browser test — semuanya mengasersi isi dan perilaku, bukan tampilan.",
+    "TEST OFFLINE — apa yang diuji sengaja DIPERSEMPIT, dan alasannya ditulis panjang di berkas test. Skenario aslinya 'membuka layar dalam keadaan offline' TIDAK DAPAT direproduksi di bawah Vite dev server: seluruh rute memakai lazy import dan dev server menyajikan modul tanpa cache, sehingga membuka rute — lewat goto maupun navigasi sisi klien — selalu menuntut pengambilan chunk lewat jaringan. Keduanya dicoba dan keduanya gagal. Di Capacitor kebutuhan itu tidak ada karena bundle dimuat dari perangkat. Rute TIDAK dibuat eager-import demi lolos test — itu mengubah kode produksi demi keterbatasan alat uji. Yang diuji sekarang adalah inti klaimnya, dan itu terbukti: begitu layar terbuka ia sama sekali tidak butuh jaringan, dan interaksinya tetap berfungsi penuh saat offline.",
+    "Empat cacat penulisan test yang membuat run pertama merah, seluruhnya di berkas test dan nol di implementasi: dua click() pada kartu ber-aria-disabled butuh { force: true } (Playwright memperlakukan aria-disabled sebagai 'not enabled'); waitForURL('**/login') tidak cocok dengan /login?redirect=... sehingga perlu sufiks **; dan setOffline(true) dipanggil sebelum goto() padahal komentar test itu sendiri menulis sebaliknya.",
+    "Orkestrator Phase 4 benar menolak menjalankan ronde auto-fix untuk keempat cacat itu: code-writer-agent hanya boleh menyentuh berkas implementasi, dan satu-satunya 'perbaikan implementasi' yang bisa ia karang untuk dua cacat pertama adalah mengganti aria-disabled menjadi disabled native — yang persis melanggar syarat spec dan mematikan inti layar ini.",
+    "Rute '/dashboard-reporting' dengan meta.public = false; penjagaan sesi global router yang menanganinya, tidak ada penanganan sesi di dalam komponen. Skenario 'Belum masuk' karena itu diuji pada lapis router, bukan lewat mount().",
+    "Gaya kartu disalin dari HomeView.vue, jejak navigasi dan judul dari StationListView.vue. Tidak ada gaya baru dikarang. Seluruh teks UI Bahasa Indonesia."
+  ],
+  "deferred_items": [
+    {
+      "description": "Menghidupkan kartu 'Dashboard' — layar Dashboard versi mobile belum dibangun.",
+      "reason": "Di luar cakupan. Cukup mengisi routeName pada MENU_OPTIONS begitu layarnya ada."
+    },
+    {
+      "description": "Menghidupkan kartu 'Reporting' — menunggu screen-141 (Reporting: Pilih Stasiun).",
+      "reason": "Di luar cakupan run ini. Cukup mengisi routeName pada MENU_OPTIONS."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Kedua kartu masih nonaktif karena layar tujuannya belum dibangun. Ini keadaan sementara yang disengaja dan terlihat jelas bagi pengguna lewat label 'Belum tersedia', bukan kegagalan — tetapi layar ini belum memberi nilai apa pun sampai screen-141 dan layar Dashboard mobile ada.",
+      "severity": "major"
+    },
+    {
+      "description": "Skenario browser 'membuka layar dalam keadaan offline' tidak dapat direproduksi di bawah Vite dev server karena lazy route chunk; yang diuji adalah 'layar yang sudah terbuka tidak butuh jaringan'. Batasannya terdokumentasi panjang di berkas test beserta peringatan agar tidak 'diperbaiki' dengan eager import. Di Capacitor perilaku aslinya memang benar, tetapi itu belum terbukti oleh test otomatis mana pun.",
+      "severity": "major"
+    },
+    {
+      "description": "Coverage tidak dapat diukur — repo mobile tidak memasang tooling coverage (@vitest/coverage-v8 maupun istanbul tidak ada, tidak ada konfigurasi coverage). Ambang test_strategy.unit_test.coverage_threshold karenanya tidak dapat diverifikasi. Nilai 0 adalah penanda 'tidak terukur', bukan coverage nol.",
+      "severity": "minor"
+    },
+    {
+      "description": "Dua unit test menguji cabang kartu ber-routeName non-null dengan memutasi wrapper.vm.MENU_OPTIONS[i].routeName, karena MENU_OPTIONS adalah konstanta <script setup> yang tidak dapat disuntik. Berfungsi dan terdokumentasi, tetapi satu-satunya tempat test menjangkau internal komponen. Begitu sebuah kartu diaktifkan sungguhan, test ini sebaiknya disederhanakan.",
+      "severity": "minor"
+    },
+    {
+      "description": "Suite e2e mobile penuh dilaporkan agent memuat 19 kegagalan lain di berkas yang tidak disentuh run ini (change-password, data-preview-*, form-*, login, station-list), berpola flakiness lingkungan atau boot webServer. SAYA BELUM MEMVERIFIKASI angka itu sendiri — yang saya jalankan dan verifikasi adalah dashboard-reporting.spec.ts (9/9) dan home.spec.ts (6/6). Keandalan suite e2e mobile secara keseluruhan perlu ditinjau tersendiri.",
+      "severity": "major"
+    },
+    {
+      "description": "Unhandled async error pre-existing dari tests/StationListView.spec.ts (SyncResultDialog.vue memanggil summary.items.filter pada undefined). Tidak menggagalkan test apa pun dan berkas itu tidak disentuh, tetapi ia mengotori keluaran setiap run vitest.",
+      "severity": "minor"
+    }
+  ]
+}

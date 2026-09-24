@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Stasiun (Web) | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* page-specific layout only — no colour/radius/shadow literals, CSS variables only */
+
+    .ls { display: flex; flex-direction: column; gap: var(--space-lg); }
+
+    /* ---------- Langkah 1: pemilih Mill ---------- */
+    .ls-step { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-sm); }
+    .ls-step__num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--space-lg);
+      height: var(--space-lg);
+      flex-shrink: 0;
+      border-radius: var(--radius-chip);
+      background: var(--color-brand);
+      color: var(--color-background);
+      font-size: var(--font-size-xs);
+      font-weight: 700;
+    }
+    .ls-step__num--done { background: var(--color-success); }
+    .ls-step__title { font-size: var(--font-size-lg); font-weight: var(--font-weight-lg); color: var(--color-foreground); }
+    .ls-step__hint { font-size: var(--font-size-sm); color: var(--color-muted-foreground); }
+
+    .ls-millbar {
+      display: flex;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      gap: var(--space-md);
+      padding: var(--space-md) var(--space-lg);
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+    }
+    .ls-millbar .input-group { min-width: 260px; flex: 0 1 320px; }
+    .ls-millbar__spacer { flex: 1 1 var(--space-sm); }
+    .ls-millbar__current {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding-bottom: var(--space-sm);
+      font-size: var(--font-size-sm);
+      color: var(--color-muted-foreground);
+    }
+    .ls-millbar__current svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--color-brand); }
+    .ls-millbar__current strong { color: var(--color-foreground); font-weight: 600; }
+    .ls-note {
+      width: 100%;
+      font-size: var(--font-size-xs);
+      color: var(--color-muted-foreground);
+    }
+
+    /* ---------- Langkah 2: grid stasiun ----------
+       Bahasa visual mengikuti .station-grid / .station-tile pada
+       data/production-process-activity.blade.php: 3 kolom tetap, radius
+       'card', shadow 'card'. Bedanya tile aktif di sini memakai warna
+       merek (keluarga LAPORAN), bukan station-red (keluarga input data). */
+    .station-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-md);
+      max-width: 640px;
+    }
+    @media (max-width: 767px) {
+      .station-grid { max-width: none; gap: var(--space-sm); }
+    }
+
+    .station-tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      min-height: var(--space-touch_target_min);
+      padding: var(--space-lg) var(--space-sm);
+      border: 1px solid transparent;
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      line-height: 1.25;
+      text-align: center;
+      text-decoration: none;
+    }
+    .station-tile svg { width: 22px; height: 22px; }
+
+    .station-tile.active {
+      background: var(--color-brand);
+      color: var(--color-background);
+    }
+    .station-tile.active:hover { background: var(--color-brand-hover); }
+
+    .station-tile.disabled {
+      background: var(--color-surface);
+      border-color: var(--color-border);
+      color: var(--color-muted-foreground);
+      box-shadow: none;
+      font-weight: 500;
+      cursor: default;
+    }
+    .station-tile .placeholder-label {
+      font-size: var(--font-size-xs);
+      font-weight: 400;
+      color: var(--color-muted-foreground);
+    }
+
+    .ls-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-md);
+      margin-top: var(--space-md);
+      font-size: var(--font-size-xs);
+      color: var(--color-muted-foreground);
+    }
+    .ls-legend__item { display: inline-flex; align-items: center; gap: var(--space-xs); }
+    .ls-legend__swatch { width: 12px; height: 12px; border-radius: var(--radius-input); display: inline-block; }
+    .ls-legend__swatch--active { background: var(--color-brand); }
+    .ls-legend__swatch--disabled { background: var(--color-surface); border: 1px solid var(--color-border); }
+
+    .ls-footnote {
+      font-size: var(--font-size-xs);
+      color: var(--color-muted-foreground);
+      font-style: italic;
+      margin-top: var(--space-lg);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="label">Mill Smart Log</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="#"><span class="label">Dashboard</span></a>
+        <a class="nav-item" href="#"><span class="label">Production Process Activity</span></a>
+        <a class="nav-item" href="#"><span class="label">Laporan Manajemen</span></a>
+        <a class="nav-item active" href="#"><span class="label">Laporan Stasiun</span></a>
+        <a class="nav-item" href="#"><span class="label">Master Data Tree View</span></a>
+        <a class="nav-item" href="#"><span class="label">Kelola Station</span></a>
+        <a class="nav-item" href="#"><span class="label">Kelola Periode Pelaporan</span></a>
+        <a class="nav-item" href="#"><span class="label">Kelola User &amp; Role</span></a>
+        <a class="nav-item" href="#"><span class="label">Ganti Password</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-start">
+          <button class="hamburger-btn" type="button" aria-label="Buka menu navigasi">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+          <div class="topbar-title">Laporan Stasiun</div>
+        </div>
+        <div class="topbar-end">
+          <span>Admin</span>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="ls">
+
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">Laporan Stasiun</h1>
+              <p class="ls-step__hint">Pilih mill lebih dulu, lalu pilih stasiun yang laporan periodenya ingin dibuka.</p>
+            </div>
+          </div>
+
+          <!-- ============ Langkah 1 — Pemilih Mill (mill sudah dipilih) ============ -->
+          <section>
+            <div class="ls-step">
+              <span class="ls-step__num ls-step__num--done">1</span>
+              <span class="ls-step__title">Mill</span>
+            </div>
+
+            <div class="ls-millbar">
+              <div class="input-group">
+                <label class="input-label" for="f-mill">Mill (Business Unit)</label>
+                <select class="input" id="f-mill">
+                  <option selected>PKS Sungai Bahar</option>
+                  <option>PKS Tanjung Medan</option>
+                  <option>PKS Bukit Kapur</option>
+                </select>
+              </div>
+
+              <div class="ls-millbar__current">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-5h6v5"/></svg>
+                Mill aktif: <strong>PKS Sungai Bahar</strong> &middot; PT Sawit Nusantara Jaya
+              </div>
+
+              <div class="ls-millbar__spacer"></div>
+
+              <p class="ls-note">Pemilih Mill hanya tampil untuk Admin. Supervisor dan Mill Management langsung memakai mill masing-masing &mdash; mill ditampilkan sebagai keterangan, bukan pilihan. Mengganti mill mengganti seluruh konteks laporan berikutnya.</p>
+            </div>
+          </section>
+
+          <!-- ============ Langkah 2 — Grid stasiun ============ -->
+          <section>
+            <div class="ls-step">
+              <span class="ls-step__num">2</span>
+              <span class="ls-step__title">Stasiun</span>
+            </div>
+            <p class="ls-step__hint" style="margin-bottom: var(--space-md)">18 stasiun, urut mengikuti urutan proses produksi. Stasiun yang laporan periodenya belum dibangun tetap ditampilkan agar cakupan fitur terbaca apa adanya.</p>
+
+            <div class="station-grid">
+              <!-- 1 Weighbridge -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l3 2"></path><path d="M9 3h6"></path></svg>
+                Weighbridge
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 2 Grading -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="4"></rect><rect x="3" y="10" width="18" height="4"></rect><rect x="3" y="16" width="18" height="4"></rect></svg>
+                Grading
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 3 Cages & Track -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="7" width="18" height="13" rx="1"></rect><path d="M3 11h18"></path><path d="M8 7V4h8v3"></path></svg>
+                Cages &amp; Track
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 4 Sterilizer — SATU-SATUNYA TILE AKTIF -->
+              <a href="#" class="station-tile active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="2"></rect><line x1="8" y1="9" x2="16" y2="9"></line><line x1="8" y1="13" x2="16" y2="13"></line></svg>
+                Sterilizer
+              </a>
+              <!-- 5 Threshing -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"></circle><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                Threshing
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 6 Pressing -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 20V10l8-6 8 6v10"></path><line x1="12" y1="14" x2="12" y2="20"></line></svg>
+                Pressing
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 7 Depricarping -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="16" height="16" rx="8"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                Depricarping
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 8 Kernel Plant -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="3" width="14" height="18" rx="1"></rect><line x1="9" y1="8" x2="15" y2="8"></line><line x1="9" y1="12" x2="15" y2="12"></line></svg>
+                Kernel Plant
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 9 Clarification -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                Clarification
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 10 Effluent Plant -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8M12 8v8"></path></svg>
+                Effluent Plant
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 11 Storage Tank -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="6" width="16" height="14" rx="1"></rect><path d="M8 6V4h8v2"></path></svg>
+                Storage Tank
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 12 Engine Room -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="2" width="12" height="20" rx="1"></rect><line x1="6" y1="8" x2="18" y2="8"></line><line x1="6" y1="14" x2="18" y2="14"></line></svg>
+                Engine Room
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 13 Boiler Room -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 21V9a6 6 0 0 1 12 0v12"></path><line x1="6" y1="15" x2="18" y2="15"></line></svg>
+                Boiler Room
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 14 Process Water -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"></path></svg>
+                Process Water
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 15 Solid Waste Disposal -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h16"></path><path d="M6 7V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2"></path><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                Solid Waste Disposal
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 16 Kernel Dispatch -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="9" width="12" height="10" rx="1"></rect><path d="M15 12h6"></path><path d="M18 9l3 3-3 3"></path></svg>
+                Kernel Dispatch
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 17 CPO Dispatch -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="5" width="10" height="14" rx="2"></rect><line x1="3" y1="10" x2="13" y2="10"></line><line x1="3" y1="14" x2="13" y2="14"></line><path d="M15 12h6"></path><path d="M18 9l3 3-3 3"></path></svg>
+                CPO Dispatch
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+              <!-- 18 Process Quality Control -->
+              <span class="station-tile disabled" aria-disabled="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
+                Process Quality Control
+                <span class="placeholder-label">Belum tersedia</span>
+              </span>
+            </div>
+
+            <div class="ls-legend">
+              <span class="ls-legend__item"><span class="ls-legend__swatch ls-legend__swatch--active"></span> Laporan tersedia &mdash; klik untuk membuka</span>
+              <span class="ls-legend__item"><span class="ls-legend__swatch ls-legend__swatch--disabled"></span> Belum tersedia &mdash; tidak dapat ditekan</span>
+              <span class="ls-legend__item">Mill yang dipilih ikut terbawa ke layar laporan, jadi mill tidak ditanyakan dua kali.</span>
+            </div>
+          </section>
+
+          <p class="ls-footnote">
+            Actors: Supervisor, Mill Management, Admin &nbsp;&middot;&nbsp;
+            Entry points: Menu sidebar 'Laporan Stasiun', Kembali dari salah satu layar laporan periode stasiun
+          </p>
+
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

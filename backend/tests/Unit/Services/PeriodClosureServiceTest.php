@@ -11,16 +11,22 @@
  * fail with "Unknown format".
  *
  * COVERAGE MAP — this file covers unit_test_cases 30–46 of the screen
- * tech-spec (usecase-140); cases 1–29 (usecase-128 list/create/update/
- * delete) live in PeriodServiceTest.php. Each test carries its case number.
+ * tech-spec (usecase-140) AND 47–55 (usecase-144 open(), added
+ * 2026-09-23); cases 1–29 (usecase-128 list/create/update/delete) live in
+ * PeriodServiceTest.php. Each test carries its case number.
  *
- * WHY THREE TESTS GO THROUGH HTTP (cases 31, 39, 45): the admin-only rule
+ * WHY FOUR TESTS GO THROUGH HTTP (cases 31, 39, 45, 47): the admin-only rule
  * is route middleware ('auth:web' + 'role:admin' in routes/api.php, see
  * App\Http\Middleware\EnsureRole), never a check inside the service — so
  * asserting it on the service would assert nothing. EnsureRole writes its
  * own JSON response and never reaches ApiExceptionHandler, so its 403
  * carries `message` only and no `code` (screen 4-implement known_issue);
- * these tests assert the status and the unchanged row, not `code`.
+ * these tests assert the status and the unchanged row, not `code`. Case 47
+ * is the same situation stated differently: its tech-spec text names a
+ * "ForbiddenException", but NO SUCH CLASS EXISTS in this codebase and
+ * open() has no role check of its own — the rule lives entirely in
+ * EnsureRole — so the case is realised as an HTTP test against the route,
+ * exactly like 31/39/45.
  *
  * WHAT CLOSING DOES *NOT* DO HERE: this service only sets periods.status.
  * Refusing a station record whose event date falls inside a closed period
@@ -35,6 +41,7 @@ use App\Enums\PeriodStatus;
 use App\Enums\UserRole;
 use App\Exceptions\PeriodAlreadyClosedException;
 use App\Exceptions\PeriodNotClosedException;
+use App\Exceptions\PeriodNotDraftException;
 use App\Models\BoilerRoomRecord;
 use App\Models\BusinessUnit;
 use App\Models\Period;
@@ -43,9 +50,12 @@ use App\Models\SterilizerRecord;
 use App\Models\ThreshingRecord;
 use App\Models\User;
 use App\Services\PeriodClosureService;
+use App\Services\PeriodService;
+use App\Services\RecordVerificationService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
@@ -404,4 +414,298 @@ it('unverifiedCount: mengabaikan tipe stasiun yang tidak punya tabel record (oth
 
     expect($result['unverified_count'])->toBe(0);
     expect($result['breakdown'])->toBe([]);
+});
+
+// ── open — usecase-144 (cases 47–55) ────────────────────────────────────
+//
+// open() is draft -> open and NOTHING else. Its whole concurrency story is
+// one conditional UPDATE ... WHERE id=? AND status='draft'; there is no
+// lock and no transaction, so the tests below assert the WHERE clause and
+// the affected-rows branch directly rather than trusting the happy path.
+
+/** A draft period on Mill Alpha, ready to be opened. */
+function draftPeriodForOpening(BusinessUnit $businessUnit, ?string $stationType = 'sterilizer'): Period
+{
+    return Period::factory()
+        ->forBusinessUnit($businessUnit)
+        ->stationType($stationType)
+        ->named('Draft Oktober 2026 '.($stationType ?? 'semua').'-'.uniqid())
+        ->range('2026-10-01', '2026-10-31')
+        ->draft()
+        ->create();
+}
+
+// Case 47 — realised as an HTTP test on purpose: there is no
+// ForbiddenException class and open() carries no role check; the rule is
+// EnsureRole on the route ('auth:web' + 'role:admin'), so asserting it on
+// the service would assert nothing at all.
+it('open: menolak 403 ketika actor bukan Admin, tanpa menyentuh periode', function (string $role) {
+    $period = draftPeriodForOpening($this->businessUnitA);
+
+    $actor = match ($role) {
+        'supervisor' => $this->supervisor,
+        'mill_management' => $this->millManagement,
+        'operator' => $this->operator,
+    };
+
+    $response = $this->actingAs($actor, 'web')->postJson("/api/periods/{$period->id}/open");
+
+    $response->assertStatus(403);
+    $response->assertJsonMissingPath('status');
+
+    // findOrFail() never ran and no UPDATE was executed — the row is
+    // bit-for-bit what it was.
+    $fresh = $period->fresh();
+    expect($fresh->status)->toBe(PeriodStatus::Draft);
+    expect($fresh->updated_by)->toBeNull();
+})->with([
+    'supervisor' => ['supervisor'],
+    'mill management' => ['mill_management'],
+    'operator' => ['operator'],
+]);
+
+// Case 48
+it('open: melempar 404 ketika periode tidak ditemukan', function () {
+    $queries = [];
+    DB::listen(function ($query) use (&$queries) {
+        $queries[] = $query->sql;
+    });
+
+    expect(fn () => $this->service->open('00000000-0000-0000-0000-000000000000'))
+        ->toThrow(ModelNotFoundException::class);
+
+    // No UPDATE was executed.
+    expect(collect($queries)->filter(fn (string $sql) => str_starts_with(strtolower(trim($sql)), 'update')))
+        ->toHaveCount(0);
+});
+
+// Case 49
+it('open: melempar 409 PERIOD_NOT_DRAFT ketika periode sudah berstatus open', function () {
+    $period = periodForClosure($this->businessUnitA);
+
+    $queries = [];
+    DB::listen(function ($query) use (&$queries) {
+        $queries[] = $query->sql;
+    });
+
+    try {
+        $this->service->open($period->id);
+        $this->fail('Expected PeriodNotDraftException was not thrown.');
+    } catch (PeriodNotDraftException $e) {
+        expect($e->getStatusCode())->toBe(409);
+        expect($e->errorCode())->toBe('PERIOD_NOT_DRAFT');
+        expect($e->getMessage())->toContain('sudah terbuka');
+        // An already-open period must NOT be pointed at reopen — that
+        // pointer belongs to the closed case only.
+        expect($e->getMessage())->not->toContain('Buka Kembali Periode');
+    }
+
+    expect(collect($queries)->filter(fn (string $sql) => str_starts_with(strtolower(trim($sql)), 'update')))
+        ->toHaveCount(0);
+    expect($period->fresh()->status)->toBe(PeriodStatus::Open);
+});
+
+// Case 50
+it('open: melempar 409 PERIOD_NOT_DRAFT untuk periode closed dan mengarahkan ke Buka Kembali Periode', function () {
+    $period = Period::factory()
+        ->forBusinessUnit($this->businessUnitA)
+        ->stationType('sterilizer')
+        ->range('2026-10-01', '2026-10-31')
+        ->closed($this->otherAdmin, '2026-11-01 09:14:00')
+        ->create();
+
+    $queries = [];
+    DB::listen(function ($query) use (&$queries) {
+        $queries[] = $query->sql;
+    });
+
+    try {
+        $this->service->open($period->id);
+        $this->fail('Expected PeriodNotDraftException was not thrown.');
+    } catch (PeriodNotDraftException $e) {
+        expect($e->getStatusCode())->toBe(409);
+        expect($e->errorCode())->toBe('PERIOD_NOT_DRAFT');
+        // A closed period gets a DIFFERENT message from an open one, and it
+        // names the other action explicitly — "Buka Periode" and "Buka
+        // Kembali Periode" are trivially confused.
+        expect($e->getMessage())->toContain('sudah tertutup');
+        expect($e->getMessage())->toContain('Buka Kembali Periode');
+        expect($e->getMessage())->not->toContain('sudah terbuka');
+    }
+
+    expect(collect($queries)->filter(fn (string $sql) => str_starts_with(strtolower(trim($sql)), 'update')))
+        ->toHaveCount(0);
+
+    $fresh = $period->fresh();
+    expect($fresh->status)->toBe(PeriodStatus::Closed);
+    expect($fresh->closed_by)->toBe($this->otherAdmin->id);
+});
+
+// Case 51
+it('open: menjalankan UPDATE berkondisi dengan klausa WHERE status draft, bukan save() model', function () {
+    $period = draftPeriodForOpening($this->businessUnitA);
+
+    $statements = [];
+    DB::listen(function ($query) use (&$statements) {
+        $statements[] = ['sql' => $query->sql, 'bindings' => $query->bindings];
+    });
+
+    $this->service->open($period->id);
+
+    $updates = collect($statements)
+        ->filter(fn (array $s) => str_starts_with(strtolower(trim($s['sql'])), 'update'))
+        ->values();
+
+    // Exactly one UPDATE — not a read-then-save() pair.
+    expect($updates)->toHaveCount(1);
+
+    $sql = strtolower($updates[0]['sql']);
+    expect($sql)->toContain('periods');
+
+    // The guard lives in the WHERE clause: BOTH the id and the status must
+    // be there. A save() on the loaded model would key on the id alone and
+    // would silently overwrite a row another Admin already opened.
+    $where = substr($sql, (int) strpos($sql, ' where '));
+    expect($where)->toContain('id');
+    expect($where)->toContain('status');
+
+    expect($updates[0]['bindings'])->toContain('draft');
+    expect($updates[0]['bindings'])->toContain('open');
+    expect($updates[0]['bindings'])->toContain($this->admin->id);
+});
+
+// Case 52
+it('open: melempar 409 PERIOD_NOT_DRAFT ketika UPDATE berkondisi mengenai 0 baris', function () {
+    $period = draftPeriodForOpening($this->businessUnitA);
+
+    // Simulate the race exactly where it happens: between the findOrFail()
+    // read (which still sees 'draft') and the conditional UPDATE, another
+    // Admin opens the same row straight in the database. The in-memory
+    // model the service holds is therefore stale and the UPDATE matches 0
+    // rows.
+    $raced = false;
+    DB::listen(function ($query) use (&$raced, $period) {
+        if ($raced || ! str_starts_with(strtolower(trim($query->sql)), 'select')) {
+            return;
+        }
+
+        if (! str_contains(strtolower($query->sql), 'periods')) {
+            return;
+        }
+
+        $raced = true;
+        DB::table('periods')->where('id', $period->id)->update(['status' => PeriodStatus::Open->value]);
+    });
+
+    try {
+        $this->service->open($period->id);
+        $this->fail('Expected PeriodNotDraftException was not thrown.');
+    } catch (PeriodNotDraftException $e) {
+        expect($e->getStatusCode())->toBe(409);
+        expect($e->errorCode())->toBe('PERIOD_NOT_DRAFT');
+        // The message names the status the row actually has NOW.
+        expect($e->getMessage())->toContain('sudah terbuka');
+    }
+
+    expect($raced)->toBeTrue();
+
+    // No silent overwrite: the loser never stamped updated_by.
+    $fresh = $period->fresh();
+    expect($fresh->status)->toBe(PeriodStatus::Open);
+    expect($fresh->updated_by)->toBeNull();
+});
+
+// Case 53
+it('open: tidak membaca, memvalidasi, maupun mengubah data stasiun mana pun', function () {
+    $period = draftPeriodForOpening($this->businessUnitA, null);
+
+    $records = SterilizerRecord::factory()
+        ->forStation($this->sterilizerStation)
+        ->onDate('2026-10-10')
+        ->count(3)
+        ->create();
+
+    $before = SterilizerRecord::query()->orderBy('id')->get()->map(fn ($r) => [
+        $r->id, $r->checked_by, $r->acknowledged_by, (string) $r->updated_at,
+    ])->all();
+
+    // The ONLY station-record collaborator this service has is
+    // RecordVerificationService (close() uses it to resolve the 18 record
+    // models). open() must never reach for it.
+    $verification = Mockery::mock(RecordVerificationService::class);
+    $verification->shouldNotReceive('modelForStationType');
+    $verification->shouldNotReceive('canVerify');
+
+    $service = new PeriodClosureService($verification);
+
+    $touchedTables = [];
+    DB::listen(function ($query) use (&$touchedTables) {
+        $touchedTables[] = strtolower($query->sql);
+    });
+
+    $result = $service->open($period->id);
+
+    expect($result['status'])->toBe('open');
+
+    // data_operations are exactly one period SELECT and one period UPDATE —
+    // no *_records table is read or written, unlike close() which counts
+    // unverified records across up to 18 tables.
+    $stationQueries = collect($touchedTables)
+        ->filter(fn (string $sql) => str_contains($sql, '_records'))
+        ->values();
+    expect($stationQueries)->toHaveCount(0);
+
+    $after = SterilizerRecord::query()->orderBy('id')->get()->map(fn ($r) => [
+        $r->id, $r->checked_by, $r->acknowledged_by, (string) $r->updated_at,
+    ])->all();
+
+    expect($after)->toBe($before);
+    expect(SterilizerRecord::count())->toBe($records->count());
+});
+
+// Case 54
+it('open: mengembalikan id dan status open serta mencatat updated_by ketika syarat terpenuhi', function () {
+    $period = draftPeriodForOpening($this->businessUnitA);
+
+    $result = $this->service->open($period->id);
+
+    expect($result)->toBe([
+        'id' => $period->id,
+        'status' => 'open',
+    ]);
+
+    $fresh = $period->fresh();
+    expect($fresh->status)->toBe(PeriodStatus::Open);
+    expect($fresh->updated_by)->toBe($this->admin->id);
+    // Opening is not closing: the closure columns stay empty.
+    expect($fresh->closed_by)->toBeNull();
+    expect($fresh->closed_at)->toBeNull();
+});
+
+// Case 55 — guards a rule that is very easy to "tidy up" into a bug: only
+// 'closed' locks a period. An open period must stay as editable and as
+// deletable as a draft one.
+it('open: periode berstatus open tetap dapat diubah dan dihapus', function () {
+    $periodService = app(PeriodService::class);
+
+    $period = draftPeriodForOpening($this->businessUnitA);
+    $this->service->open($period->id);
+    expect($period->fresh()->status)->toBe(PeriodStatus::Open);
+
+    $updated = $periodService->update($period->id, [
+        'business_unit_id' => $this->businessUnitA->id,
+        'station_type' => 'sterilizer',
+        'name' => 'Oktober 2026 (revisi)',
+        'start_date' => '2026-10-01',
+        'end_date' => '2026-10-31',
+    ]);
+
+    // No PeriodClosedImmutableException — and the status is untouched by the
+    // edit (it is neither validated nor written by PeriodService::validate()).
+    expect($updated['name'])->toBe('Oktober 2026 (revisi)');
+    expect($updated['status'])->toBe('open');
+
+    $periodService->delete($period->id);
+
+    expect(Period::find($period->id))->toBeNull();
 });

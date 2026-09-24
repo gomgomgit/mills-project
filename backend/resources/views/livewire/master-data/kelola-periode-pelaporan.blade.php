@@ -13,7 +13,7 @@
     $formatDate = fn (?string $date) => $date ? \Illuminate\Support\Carbon::parse($date)->format('d/m/Y') : '-';
 @endphp
 
-<div class="kc-page" wire:loading.class="kc-page--busy" wire:target="nextPage,previousPage,save,confirmDelete,confirmClose,confirmReopen,askClose">
+<div class="kc-page" wire:loading.class="kc-page--busy" wire:target="nextPage,previousPage,save,confirmDelete,confirmClose,confirmReopen,askClose,askOpen,confirmOpen">
     <div class="kc-page__header">
         <div>
             <h2 class="kc-page__title">Kelola Periode Pelaporan</h2>
@@ -138,6 +138,20 @@
                                     Buka Kembali Periode
                                 </button>
                             @else
+                                {{--
+                                    "Buka Periode" is offered on DRAFT rows ONLY.
+                                    An already-open row has nothing to open, and a
+                                    closed row is handled by the branch above with
+                                    "Buka Kembali Periode" — a different action with
+                                    different semantics (it also clears
+                                    closed_by/closed_at).
+                                --}}
+                                @if ($period['status'] === 'draft')
+                                    <button type="button" wire:click="askOpen('{{ $period['id'] }}')" class="kc-button kc-button--primary kc-button--sm" data-testid="open-period-button">
+                                        Buka Periode
+                                    </button>
+                                @endif
+
                                 <button type="button" wire:click="openEditForm('{{ $period['id'] }}')" class="kc-button kc-button--ghost kc-button--sm" data-testid="edit-button-{{ $period['id'] }}">
                                     Edit
                                 </button>
@@ -359,6 +373,42 @@
                 </button>
                 <button type="button" wire:click="confirmClose" class="kc-button kc-button--warning" wire:loading.attr="disabled" wire:target="confirmClose" data-testid="confirm-close-button">
                     Ya, Tutup Periode
+                </button>
+            </x-slot:actions>
+        </x-modal>
+    @endif
+
+    @if ($openingId !== null)
+        <x-modal
+            :title="'Buka Periode'.($openingPeriod ? ' — '.$openingPeriod['name'] : '')"
+            backdrop-key="period-open-backdrop"
+        >
+            <div data-testid="open-period-dialog">
+                <p class="kc-dialog__note">
+                    @if ($openingPeriod)
+                        Periode
+                        <strong>{{ $formatDate($openingPeriod['start_date']) }} &ndash; {{ $formatDate($openingPeriod['end_date']) }}</strong>
+                        pada
+                        <strong>{{ $openingPeriod['business_unit_name'] ?? '-' }} &middot; {{ $openingPeriod['station_type_label'] }}</strong>
+                        akan dinyatakan resmi berjalan.
+                    @else
+                        Periode ini akan dinyatakan resmi berjalan.
+                    @endif
+                </p>
+
+                <p class="kc-dialog__note">
+                    Statusnya berubah dari <strong>Draft</strong> menjadi <strong>Terbuka</strong> dan
+                    <strong>tidak dapat dikembalikan ke Draft</strong>. Periode Terbuka tetap dapat diubah
+                    dan dihapus. Tidak ada data stasiun yang berubah.
+                </p>
+            </div>
+
+            <x-slot:actions>
+                <button type="button" wire:click="cancelOpen" class="kc-button kc-button--ghost" data-testid="cancel-open-period">
+                    Batal
+                </button>
+                <button type="button" wire:click="confirmOpen" class="kc-button kc-button--primary" wire:loading.attr="disabled" wire:target="confirmOpen" data-testid="confirm-open-period">
+                    Ya, Buka Periode
                 </button>
             </x-slot:actions>
         </x-modal>

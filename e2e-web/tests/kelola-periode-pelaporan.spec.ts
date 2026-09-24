@@ -1,10 +1,10 @@
 /**
  * Kelola Periode Pelaporan (Browser/Playwright) —
  * screen-128--kelola-periode-pelaporan / usecase-128 (CRUD) +
- * usecase-140 (tutup & buka kembali).
+ * usecase-140 (tutup & buka kembali) + usecase-144 (buka periode draft).
  *
  * One test per test_scenarios entry whose `browser_test` is non-empty
- * (scenarios 1–13 and 16–18). Scenarios 14, 15, 19 and 20 carry an empty
+ * (scenarios 1–13, 16–18 and 21–28, plus the cancelOpen path). Scenarios 14, 15, 19 and 20 carry an empty
  * browser_test — they are mobile-sync / record-locking scenarios and live,
  * skipped, in backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php.
  *
@@ -39,6 +39,7 @@
 
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { deletePeriodsByPrefix } from './support/periods'
 
 const PERIODS_PATH = '/master-data/periods'
 
@@ -54,8 +55,21 @@ const STATION_TYPE = 'Sterilizer'
 /**
  * A per-run day offset, so two runs of this suite never try to create
  * overlapping ranges on the same (mill, station type).
+ *
+ * MONOTONIC ON PURPOSE (one day of period-date space per minute of wall
+ * clock since 2026-01-01), where it used to be `Date.now() % 150000`: the
+ * list is paginated at 20 rows ordered by `start_date DESC`, and the
+ * fixture database keeps every period any previous run created —
+ * including laporan-sterilizer.spec.ts's, which seeds its own windows in
+ * the year-2600 era. A modulo offset lands a fresh run above or below
+ * those older rows at random, and once more than 20 of them sort higher,
+ * the row a test has just created is no longer on page 1 and every
+ * assertion on it fails. An offset that only ever grows keeps the current
+ * run's rows at the top of the first page whatever the database has
+ * accumulated. Two runs started within the same minute still collide —
+ * in practice that window is no worse than the old scheme's.
  */
-const RUN_OFFSET = Math.floor(Date.now() / 1000) % 150000
+const RUN_OFFSET = Math.floor((Date.now() - Date.UTC(2026, 0, 1)) / 60000)
 
 function isoDate(dayOffset: number): string {
   return new Date(Date.UTC(2100, 0, 1) + dayOffset * 86400000).toISOString().slice(0, 10)
@@ -129,6 +143,28 @@ async function createPeriod(
 }
 
 test.describe('Kelola Periode Pelaporan', () => {
+  // Pembersihan — lihat tests/support/periods.ts untuk alasan lengkapnya.
+  // Tanpa ini, periode yang dibuat spec ini menumpuk di database dev
+  // (~15 baris per run) sampai memenuhi halaman 1 daftar yang dipaginasi
+  // 20 baris, lalu baris yang baru dibuat test terdorong ke halaman 2 dan
+  // seluruh suite gagal di createPeriod() sebelum satu pun asersi jalan.
+  // Terbukti terjadi pada 2026-09-23: 117 periode, 116 di antaranya residu.
+  test.afterAll(async ({ browser }) => {
+    const page = await browser.newPage()
+
+    try {
+      await login(page, ADMIN, PASSWORD)
+      const deleted = await deletePeriodsByPrefix(page, ['Periode '])
+      console.log(`[cleanup] kelola-periode-pelaporan: %d periode dihapus`, deleted)
+    } catch (error) {
+      // Kegagalan membersihkan bukan kegagalan produk — jangan pernah
+      // memerahkan suite karenanya.
+      console.warn('[cleanup] kelola-periode-pelaporan: pembersihan gagal:', error)
+    } finally {
+      await page.close()
+    }
+  })
+
   // Scenario 1: "Kelola Periode Pelaporan — success"
   test('menambah periode baru: baris muncul dengan badge Draft dan kolom Ditutup Oleh kosong', async ({ page }) => {
     const { start, end } = uniqueRange(0)
@@ -538,5 +574,273 @@ test.describe('Kelola Periode Pelaporan', () => {
     const row = page.locator('.kc-table__row', { hasText: name })
     await expect(row.locator('.kc-badge')).toHaveText('Draft')
     await expect(row.locator('td').nth(6)).toHaveText('—')
+  })
+
+  // ── usecase-144 (Buka Periode) — scenarios 21–28 ──────────────────────
+  //
+  // SELECTOR WARNING: unlike edit-button-{id} / close-button-{id} /
+  // reopen-button-{id}, the "Buka Periode" button carries a BARE
+  // data-testid (open-period-button) with no id suffix — every draft row on
+  // the page renders the same one. Always scope it to a row locator (or
+  // .first()), never `page.locator('[data-testid="open-period-button"]')`
+  // on its own, or Playwright's strict mode fails as soon as the fixture DB
+  // holds more than one draft period.
+
+  // Scenario 21: "Buka Periode Pelaporan — sukses"
+  test('buka periode draft: dialog konfirmasi lalu badge jadi Terbuka dan tombol Buka Periode hilang', async ({ page }) => {
+    const { start, end } = uniqueRange(16)
+    const name = uniqueName('Buka Sukses')
+
+    await login(page, ADMIN, PASSWORD)
+    await gotoPeriods(page)
+    await createPeriod(page, { name, start, end })
+
+    const row = page.locator('.kc-table__row', { hasText: name })
+    await expect(row.locator('.kc-badge')).toHaveText('Draft')
+
+    await row.locator('[data-testid="open-period-button"]').click()
+
+    const dialog = page.locator('[data-testid="open-period-dialog"]')
+    await expect(dialog).toBeVisible()
+    await expect(dialog).toContainText('tidak dapat dikembalikan ke Draft')
+
+    await page.locator('[data-testid="confirm-open-period"]').click()
+
+    // The dialog closes and the row is now Terbuka.
+    await expect(page.locator('[data-testid="open-period-dialog"]')).toHaveCount(0)
+    const opened = page.locator('.kc-table__row', { hasText: name })
+    await expect(opened.locator('.kc-badge')).toHaveText('Terbuka')
+    await expect(opened.locator('[data-testid="open-period-button"]')).toHaveCount(0)
+    // Opening is not closing: the closure columns stay empty and the edit /
+    // delete actions remain available.
+    await expect(opened.locator('td').nth(6)).toHaveText('—')
+    await expect(opened.locator('td').nth(7)).toHaveText('—')
+    await expect(opened.locator('button', { hasText: 'Edit' })).toBeVisible()
+    await expect(opened.locator('button', { hasText: 'Hapus' })).toBeVisible()
+    await expect(page.locator('[data-testid="success-message"]')).toBeVisible()
+  })
+
+  // Alternative flow "Admin membatalkan pembukaan" — no bdd_scenario of its
+  // own, but the cancel path must not go untested.
+  test('membatalkan dialog Buka Periode: badge tetap Draft dan tombol Buka Periode masih ada', async ({ page }) => {
+    const { start, end } = uniqueRange(17)
+    const name = uniqueName('Batal Buka')
+
+    await login(page, ADMIN, PASSWORD)
+    await gotoPeriods(page)
+    await createPeriod(page, { name, start, end })
+
+    const row = page.locator('.kc-table__row', { hasText: name })
+    await row.locator('[data-testid="open-period-button"]').click()
+    await expect(page.locator('[data-testid="open-period-dialog"]')).toBeVisible()
+
+    await page.locator('[data-testid="cancel-open-period"]').click()
+
+    await expect(page.locator('[data-testid="open-period-dialog"]')).toHaveCount(0)
+    const unchanged = page.locator('.kc-table__row', { hasText: name })
+    await expect(unchanged.locator('.kc-badge')).toHaveText('Draft')
+    await expect(unchanged.locator('[data-testid="open-period-button"]')).toBeVisible()
+  })
+
+  // Scenario 22: "Periode sudah terbuka"
+  test('baris berstatus Terbuka: tombol Buka Periode tidak dirender sama sekali', async ({ page }) => {
+    const { start, end } = uniqueRange(18)
+    const name = uniqueName('Sudah Terbuka')
+
+    await login(page, ADMIN, PASSWORD)
+    await gotoPeriods(page)
+    await createPeriod(page, { name, start, end })
+
+    const row = page.locator('.kc-table__row', { hasText: name })
+    await row.locator('[data-testid="open-period-button"]').click()
+    await page.locator('[data-testid="confirm-open-period"]').click()
+    await expect(page.locator('.kc-table__row', { hasText: name }).locator('.kc-badge')).toHaveText('Terbuka')
+
+    // Still absent after a full reload — the button is driven by the row's
+    // status, not by client-side state. (The forced-action message a stale
+    // list produces is asserted in the concurrent-opening scenario below.)
+    await page.reload()
+    const reloaded = page.locator('.kc-table__row', { hasText: name })
+    await expect(reloaded.locator('.kc-badge')).toHaveText('Terbuka')
+    await expect(reloaded.locator('[data-testid="open-period-button"]')).toHaveCount(0)
+    await expect(reloaded.locator('button', { hasText: 'Tutup Periode' })).toBeVisible()
+  })
+
+  // Scenario 23: "Periode sudah tertutup"
+  test('baris berstatus Tertutup: hanya Buka Kembali Periode yang ditawarkan, bukan Buka Periode', async ({ page }) => {
+    const { start, end } = uniqueRange(19)
+    const name = uniqueName('Buka Tertutup')
+
+    await login(page, ADMIN, PASSWORD)
+    await gotoPeriods(page)
+    await createPeriod(page, { name, start, end })
+
+    await page.locator('.kc-table__row', { hasText: name }).locator('button', { hasText: 'Tutup Periode' }).click()
+    await page.locator('[data-testid="confirm-close-button"]').click()
+
+    const row = page.locator('.kc-table__row', { hasText: name })
+    await expect(row.locator('.kc-badge')).toHaveText('Tertutup')
+    // "Buka Periode" and "Buka Kembali Periode" are two different actions;
+    // a closed row must offer only the latter.
+    await expect(row.locator('[data-testid="open-period-button"]')).toHaveCount(0)
+    await expect(row.locator('button', { hasText: 'Buka Kembali Periode' })).toBeEnabled()
+    // (The 409 message that names "Buka Kembali Periode" for a forced call
+    // is asserted at API and component level — it cannot be produced from a
+    // browser, since the button is never rendered on a closed row.)
+  })
+
+  // Scenario 24: "Periode tidak ditemukan"
+  test('periode dihapus pengguna lain: konfirmasi Buka Periode memberi pesan tidak ditemukan tanpa error 500', async ({ page, browser }) => {
+    const { start, end } = uniqueRange(20)
+    const name = uniqueName('Buka Sudah Dihapus')
+
+    await login(page, ADMIN, PASSWORD)
+    await gotoPeriods(page)
+    await createPeriod(page, { name, start, end })
+
+    // Admin 2, in another context, deletes the row while Admin 1's list
+    // still shows it.
+    const otherContext = await browser.newContext()
+    const otherPage = await otherContext.newPage()
+    await login(otherPage, SECOND_ADMIN, PASSWORD)
+    await gotoPeriods(otherPage)
+    const otherRow = otherPage.locator('.kc-table__row', { hasText: name })
+    await otherRow.locator('button', { hasText: 'Hapus' }).click()
+    await otherRow.locator('button', { hasText: 'Ya, Hapus' }).click()
+    await expect(otherPage.locator('.kc-table__row', { hasText: name })).toHaveCount(0)
+    await otherContext.close()
+
+    // Admin 1 opens the now-orphaned row.
+    await page.locator('.kc-table__row', { hasText: name }).locator('[data-testid="open-period-button"]').click()
+    await page.locator('[data-testid="confirm-open-period"]').click()
+
+    await expect(page.locator('[data-testid="close-error"]')).toContainText(/tidak ditemukan/i)
+    await expect(page.locator('body')).not.toContainText('500')
+    await expect(page.locator('.kc-table__row', { hasText: name })).toHaveCount(0)
+
+    await page.reload()
+    await expect(page.locator('.kc-table__row', { hasText: name })).toHaveCount(0)
+  })
+
+  // Scenario 25: "Dua Admin membuka bersamaan"
+  test('dua Admin membuka bersamaan: hanya yang pertama mengubah status, yang kedua diberi tahu sudah terbuka', async ({ page, browser }) => {
+    const { start, end } = uniqueRange(21)
+    const name = uniqueName('Balapan Buka')
+
+    // Admin B prepares the row and keeps the (now stale) list open.
+    await login(page, ADMIN, PASSWORD)
+    await gotoPeriods(page)
+    await createPeriod(page, { name, start, end })
+
+    // Admin A opens the same period in another browser context, first.
+    const otherContext = await browser.newContext()
+    const otherPage = await otherContext.newPage()
+    await login(otherPage, SECOND_ADMIN, PASSWORD)
+    await gotoPeriods(otherPage)
+    await otherPage.locator('.kc-table__row', { hasText: name }).locator('[data-testid="open-period-button"]').click()
+    await otherPage.locator('[data-testid="confirm-open-period"]').click()
+    await expect(otherPage.locator('.kc-table__row', { hasText: name }).locator('.kc-badge')).toHaveText('Terbuka')
+
+    // Admin B, without reloading, confirms the same opening.
+    await page.locator('.kc-table__row', { hasText: name }).locator('[data-testid="open-period-button"]').click()
+    await page.locator('[data-testid="confirm-open-period"]').click()
+
+    // Told it is already open — no second change, no silent overwrite.
+    await expect(page.locator('[data-testid="close-error"]')).toContainText(/sudah terbuka/i)
+    await expect(page.locator('[data-testid="success-message"]')).toHaveCount(0)
+    await expect(page.locator('.kc-table__row', { hasText: name }).locator('.kc-badge')).toHaveText('Terbuka')
+
+    await page.reload()
+    const refreshed = page.locator('.kc-table__row', { hasText: name })
+    await expect(refreshed.locator('.kc-badge')).toHaveText('Terbuka')
+    await expect(refreshed.locator('[data-testid="open-period-button"]')).toHaveCount(0)
+
+    await otherContext.close()
+  })
+
+  // Scenario 26: "Bukan Admin mencoba membuka periode"
+  test('akses ditolak: non-Admin tidak pernah melihat tombol Buka Periode dan status tetap Draft', async ({ page, browser }) => {
+    const { start, end } = uniqueRange(22)
+    const name = uniqueName('Buka Non Admin')
+
+    await login(page, ADMIN, PASSWORD)
+    await gotoPeriods(page)
+    await createPeriod(page, { name, start, end })
+
+    const otherContext = await browser.newContext()
+    const otherPage = await otherContext.newPage()
+    await login(otherPage, NON_ADMIN, PASSWORD)
+    await otherPage.goto(PERIODS_PATH)
+    await expect(otherPage.locator('body')).toContainText(/403/)
+    await expect(otherPage.locator('[data-testid="open-period-button"]')).toHaveCount(0)
+    await otherContext.close()
+
+    // Re-checked as Admin: the period is exactly as it was.
+    await page.reload()
+    const row = page.locator('.kc-table__row', { hasText: name })
+    await expect(row.locator('.kc-badge')).toHaveText('Draft')
+    await expect(row.locator('[data-testid="open-period-button"]')).toBeVisible()
+  })
+
+  // Scenario 27: "status Terbuka tidak dapat dikembalikan ke Draft"
+  test('form edit periode Terbuka: tidak ada kontrol status dan badge tetap Terbuka setelah simpan', async ({ page }) => {
+    const { start, end } = uniqueRange(23)
+    const name = uniqueName('Tanpa Mundur')
+
+    await login(page, ADMIN, PASSWORD)
+    await gotoPeriods(page)
+    await createPeriod(page, { name, start, end })
+
+    await page.locator('.kc-table__row', { hasText: name }).locator('[data-testid="open-period-button"]').click()
+    await page.locator('[data-testid="confirm-open-period"]').click()
+    await expect(page.locator('.kc-table__row', { hasText: name }).locator('.kc-badge')).toHaveText('Terbuka')
+
+    await page.locator('.kc-table__row', { hasText: name }).locator('button', { hasText: 'Edit' }).click()
+
+    const modal = page.locator('.kcm-modal')
+    await expect(modal).toBeVisible()
+    // The form has no status control of any kind — there is simply no way
+    // back to Draft from the UI.
+    await expect(modal.locator('#status')).toHaveCount(0)
+    await expect(modal).not.toContainText('Draft')
+
+    await page.locator('[data-testid="save-button"]').click()
+    await expect(page.locator('.kcm-modal')).toHaveCount(0)
+
+    await expect(page.locator('.kc-table__row', { hasText: name }).locator('.kc-badge')).toHaveText('Terbuka')
+    await page.reload()
+    await expect(page.locator('.kc-table__row', { hasText: name }).locator('.kc-badge')).toHaveText('Terbuka')
+  })
+
+  // Scenario 28: "periode Terbuka tetap dapat diubah dan dihapus"
+  test('periode Terbuka tetap dapat diubah dan dihapus, tanpa pesan terkunci', async ({ page }) => {
+    const { start, end } = uniqueRange(24)
+    const name = uniqueName('Terbuka Bebas')
+    const renamed = `${name} Revisi`
+
+    await login(page, ADMIN, PASSWORD)
+    await gotoPeriods(page)
+    await createPeriod(page, { name, start, end })
+
+    await page.locator('.kc-table__row', { hasText: name }).locator('[data-testid="open-period-button"]').click()
+    await page.locator('[data-testid="confirm-open-period"]').click()
+    await expect(page.locator('.kc-table__row', { hasText: name }).locator('.kc-badge')).toHaveText('Terbuka')
+
+    // Edit is still available on an open row.
+    await page.locator('.kc-table__row', { hasText: name }).locator('button', { hasText: 'Edit' }).click()
+    await page.locator('#name').fill(renamed)
+    await page.locator('[data-testid="save-button"]').click()
+
+    const renamedRow = page.locator('.kc-table__row', { hasText: renamed })
+    await expect(renamedRow).toBeVisible()
+    await expect(renamedRow.locator('.kc-badge')).toHaveText('Terbuka')
+    await expect(page.locator('[data-testid="delete-error"]')).toHaveCount(0)
+
+    // And so is delete.
+    await renamedRow.locator('button', { hasText: 'Hapus' }).click()
+    await renamedRow.locator('button', { hasText: 'Ya, Hapus' }).click()
+
+    await expect(page.locator('.kc-table__row', { hasText: renamed })).toHaveCount(0)
+    await expect(page.locator('[data-testid="delete-error"]')).toHaveCount(0)
   })
 })

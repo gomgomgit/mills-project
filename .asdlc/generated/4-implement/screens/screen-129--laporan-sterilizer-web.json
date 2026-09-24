@@ -1,0 +1,140 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "screen-129--laporan-sterilizer-web",
+  "name": "Laporan Sterilizer (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-23T04:26:35Z",
+      "passed": 37,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-23T04:22:56Z",
+      "passed": 20,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-23T04:23:01Z",
+      "passed": 15,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-23T04:26:00Z",
+      "passed": 15,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/SterilizerReportService.php",
+    "backend/app/Http/Controllers/Api/SterilizerReportController.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/app/Exceptions/ExportFailedException.php",
+    "backend/app/Livewire/Data/FormSterilizer.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/LaporanSterilizer.php",
+    "backend/resources/views/livewire/dashboard/laporan-sterilizer.blade.php",
+    "backend/resources/views/dashboard/laporan-sterilizer.blade.php",
+    "backend/resources/views/dashboard/partials/report-styles.blade.php",
+    "backend/resources/views/dashboard/partials/daily-mill-report.blade.php",
+    "backend/resources/views/components/layouts/app.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/SterilizerReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanSterilizerTest.php",
+    "e2e-web/tests/laporan-sterilizer.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/LaporanSterilizerTest.php"
+  ],
+  "implementation_notes": [
+    "Ekstraksi CSS — blok <style> 175 baris dipindah apa adanya dari dashboard/partials/daily-mill-report.blade.php ke partial baru dashboard/partials/report-styles.blade.php, di-@include dari daily-mill-report DAN dari blade laporan Sterilizer. Diverifikasi oleh pemanggil terhadap versi HEAD: 154 selector md-* lama utuh seluruhnya, dan sisa daily-mill-report tidak berubah sebaris pun selain <style> diganti @include. Kelas baru (md-filters, md-btn, md-kpis--4, md-trendchart, md-dist, md-units, md-outliers, md-threshold, md-recap, md-table, md-empty, md-chip--status/closed/draft) berada di blok kedua terpisah dalam file yang sama, tanpa menyentuh satu pun selector lama.",
+    "Route web /reports/sterilizer (name reports.sterilizer), middleware ['auth','role:supervisor,mill_management,admin'] — mengikuti konvensi repo /reports/*, bukan /laporan/*. API /api/sterilizer-reports/* hanya GET; POST/PUT/PATCH/DELETE diuji dan semuanya 404/405, sesuai sifat layar baca-saja.",
+    "Dua titik keamanan lintas mill sengaja DIPISAH dan diuji terpisah: resolveBusinessUnit() mengabaikan business_unit_id kiriman klien untuk Supervisor/Mill Management (hasilnya 200 berisi data mill sendiri, bukan 403), sementara authorizePeriod() menolak dengan 403 bila period_id milik mill lain. Jangan disederhanakan jadi satu guard.",
+    "Outlier memakai Tukey fence (metode kuartil/IQR), bukan mean ± 2SD — sesuai keputusan produk: simpangan baku ikut membengkak oleh pencilan itu sendiri sehingga dapat menyembunyikannya, kuartil kebal terhadap itu. Response juga membawa q1, q3, iqr (aditif) agar kotak ambang bisa menyebut kuartilnya. Persentil = interpolasi linear p*(n-1) (PERCENTILE.INC). Di bawah OUTLIER_MIN_SAMPLE_SIZE = 8 durasi, ambang tidak dihitung sama sekali (insufficient_data = true, bounds null).",
+    "Durasi avg/min/max hanya dari duration_minutes non-null; nol siklus berdurasi menghasilkan null, bukan 0. cycles_without_duration ditampilkan tepat di bawah kartu Durasi Rata-rata dan diulang di kotak ambang serta legend distribusi, supaya angka rata-rata tidak pernah dibaca tanpa tahu berapa yang dikeluarkan.",
+    "Rentang periode inklusif memakai whereDate('sterilizer_records.date', ...) — menghindari jebakan perbandingan string yang memotong tanggal akhir.",
+    "Agregasi dilakukan di PHP, bukan SQL: semantik null (avg null vs 0) mudah meleset pada SQL portabel antara PostgreSQL dev dan SQLite test. Satu-satunya jalur tak terbatas (ekspor) tetap streaming dengan chunk(200).",
+    "Ekspor satu baris per siklus dengan 6 kolom konteks record diulang tiap baris, mengikuti pola commit 8611974 untuk 17 ekspor stasiun. Batas 50.000 baris dihitung dari COUNT(sterilizer_details), bukan record header — dibuktikan unit test case 35 dengan 50.001 baris siklus di bawah hanya 2 record header.",
+    "ExportFailedException kini implements HasErrorCode karena ApiExceptionHandler hanya memancarkan field code untuk exception yang opt-in. Perubahan murni aditif dan otomatis memberi code EXPORT_FAILED yang sama pada 18 ekspor stasiun lain.",
+    "Tombol Ekspor memakai wire:click=\"export('csv')\" (aksi Livewire, bukan <a href>) agar berkas yang diunduh dari layar identik dengan berkas dari API. Diverifikasi lewat page.waitForEvent('download') di browser test.",
+    "Status periode tidak membatasi apa pun pada layar ini: Ekspor tidak pernah dinonaktifkan, periode berstatus closed tetap tampil penuh, badge status hanya keterangan. Kunci periode mengatur penulisan data, bukan pembacaan laporan.",
+    "Bahasa UI seluruhnya Indonesia. Responsif: baris filter membungkus, KPI 4 kolom menjadi 2, breakdown unit 2 menjadi 1, tren harian dan tabel rekap menggulir DI DALAM kartunya sehingga halaman tidak punya gulir horizontal sampai lebar 767px."
+  ],
+  "deferred_items": [
+    {
+      "description": "Grid pemilihan stasiun untuk web (screen-140 — Laporan Stasiun Web).",
+      "reason": "Di luar cakupan layar ini. Konsekuensinya entri sidebar 'Laporan Stasiun' untuk sementara menembak langsung ke /reports/sterilizer — lihat known_issue."
+    },
+    {
+      "description": "Penegakan kunci periode tertutup pada 18 service record stasiun dan jalur sync mobile (422 code=PERIOD_CLOSED) — usecase-141--kunci-input-periode-tertutup.",
+      "reason": "Tidak disentuh, sesuai batasan yang ditetapkan sejak screen-128. 4 test_scenario yang mengujinya tetap di-skip dengan alasan eksplisit sebagai kontrak yang mengikat pekerjaan berikutnya."
+    },
+    {
+      "description": "Penyaringan production line per mill di 15 Livewire Form stasiun lain, plus guard sisi-server pada production_line_id di service.",
+      "reason": "Lihat known_issue 1 dan 2. Menyapu 15 form dalam fix round akan melebar jauh dari layar ini, dan guard sisi-server memerlukan keputusan spec lebih dulu karena memerahkan test yang sudah ada."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "DIPERBAIKI 2026-09-23. Layar ini memakai 124 kelas md-* tetapi tidak pernah memuat definisinya — laporan-sterilizer.blade.php tidak punya @include('dashboard.partials.report-styles') maupun blok <style>. Akibatnya halaman Laporan Sterilizer tampil TANPA gaya sejak pertama dibuat, kebalikan dari tuntutan produk 'UI cantik, bukan sekadar list data'. Tidak tertangkap oleh 15 browser test maupun 15 component test karena seluruhnya mengasersi isi dan perilaku, bukan tampilan; juga tidak tertangkap verifikasi ekstraksi CSS, yang hanya membuktikan daily-mill-report tidak berubah. Perbaikan: view halaman dashboard/laporan-sterilizer.blade.php kini memuat partial lewat <x-slot:styles> milik x-layouts.app (konvensi repo). Dibuktikan lewat render nyata — definisi .md-kpi dan .md-hero kini hadir di HTML. CATATAN PENEMPATAN: partial ini memancarkan <style>, dan Livewire 3 memasang wire:id pada elemen ter-render pertama; menaruh @include di dalam atau di atas root komponen berisiko mematikan seluruh wire:model.",
+      "severity": "minor"
+    },
+    {
+      "description": "15 Livewire Form stasiun lain masih memuat daftar production line TANPA penyaringan mill — baris ProductionLine::query()->orderBy('name')->get(['id','name']) yang identik di tiap mount(): FormBoilerRoom, FormCagesTrack, FormClarification, FormCpoDispatch, FormDepricarping, FormEffluentPlant, FormEngineRoom, FormKernelDispatch, FormKernelPlant, FormPressing, FormProcessQualityControl, FormProcessWater, FormSolidWasteDisposal, FormStorageTank, FormThreshing. (FormGrading dan FormWeighbridge tidak terpengaruh — keduanya tidak menyentuh ProductionLine sama sekali; jumlah 16 pada laporan agent tidak akurat, angka terverifikasi adalah 15.) Akibatnya Supervisor/Mill Management dapat mencatat log sheet mill-nya terhadap production line milik mill LAIN, dan setiap pembacaan ber-cakupan mill sesudahnya benar-benar menolak menampilkan record itu. FormSterilizer sudah diperbaiki pada fix round layar ini. Rekomendasi: satu trait bersama ScopesProductionLineOptions di app/Livewire/Data/Concerns/ sebagai pekerjaan terpisah.",
+      "severity": "major"
+    },
+    {
+      "description": "Tidak ada guard sisi-server pada production_line_id — SterilizerRecordService::create() masih menerima id milik mill lain bila payload Livewire dimanipulasi. Penyaringan dropdown menutup jalur UI, bukan jalur API. Menambah guard akan memerahkan 4 FormSterilizerTest yang sudah ada karena memakai supervisor dari factory dengan business unit berbeda, sehingga butuh keputusan spec lebih dulu, bukan tambalan fix round.",
+      "severity": "major"
+    },
+    {
+      "description": "DITUTUP 2026-09-23 oleh screen-140. Sebelumnya entri sidebar 'Laporan Stasiun' mengarah langsung ke /reports/sterilizer sebagai penampung sementara. Kini mengarah ke route('reports.stations') — grid pemilih stasiun — dan komentar Blade bertanda SEMENTARA sudah dihapus. Posisi entri tidak berubah.",
+      "severity": "minor"
+    },
+    {
+      "description": "Coverage unit test 80% TIDAK TERVERIFIKASI — runtime PHP 8.5.4 ini tidak punya driver xdebug maupun pcov, sehingga gate tidak dijalankan: bukan 'lolos' dan bukan 'gagal'. Nilai 0 pada test_results.unit.coverage adalah penanda 'tidak terukur' mengikuti konvensi 39 screen lain, bukan coverage nol. Status complete ditetapkan mengikuti preseden proyek yang sama. Secara kualitatif seluruh method publik dan tiap cabang guard service dieksekusi oleh 37 unit test.",
+      "severity": "minor"
+    },
+    {
+      "description": "Sidebar tidak menyaring menu per role (pola repo, sama seperti screen-128). Penegakan ada di middleware route dan mount() (abort_unless), jadi menekan menu hanya menghasilkan 403, bukan kebocoran data.",
+      "severity": "minor"
+    },
+    {
+      "description": "EnsureRole membuat response 403/401 JSON sendiri tanpa field code, sehingga penolakan Operator di level route hanya membawa message. Sama dengan known_issue screen-128. Test sengaja hanya mengasersi status 403 untuk kasus itu; 403 dari authorizePeriod tetap diasersi membawa code FORBIDDEN.",
+      "severity": "minor"
+    },
+    {
+      "description": "Browser spec tidak membersihkan fixture-nya — periode dan record sterilizer tiap run tidak dihapus. Jendela RUN_OFFSET yang unik membuat re-run aman, tetapi baris menumpuk di database dev (run sebelumnya meninggalkan sekitar 12 periode dan 4 record sterilizer bertahun 2699–2700). Perbaikan untuk siklus revisi: hapus baris ber-RUN_OFFSET di afterAll.",
+      "severity": "minor"
+    },
+    {
+      "description": "selectOption({ index: 1 }) di browser spec kini mengenai 'Line Kode Duplikat' — sisa run kelola-production-line.spec.ts, bukan 'PL Mill A' yang dimaksud seeder. Fungsional tetap benar (mill benar, sterilizer aktif) tapi masih bergantung pada state database dev. Lebih tahan bila memilih berdasarkan label.",
+      "severity": "minor"
+    },
+    {
+      "description": "Skenario browser 'Belum ada Periode Pelaporan' bergantung lingkungan — menelusuri dropdown Mill mencari mill tanpa periode Sterilizer, dan gagal dengan pesan eksplisit bila semua mill sudah punya. Sengaja tidak meng-hardcode nama mill.",
+      "severity": "minor"
+    },
+    {
+      "description": "Kepatuhan triple-peak pada browser test hanya 1/12 (8,3%), bukan 75% seperti yang disebut spec — mengisi 6 input waktu untuk 23 siklus lewat UI akan melipatgandakan waktu setup. Nilai 75% diuji penuh di unit, API, dan component test.",
+      "severity": "minor"
+    },
+    {
+      "description": "Flaky di luar layar ini: DashboardServiceTest > 'it returns success result with correct counts and sums when all conditions pass' (tests/Unit/Services/DashboardServiceTest.php:68) gagal satu kali lalu lulus di 3 re-run terisolasi dan di suite penuh. Akarnya GradingRecordFactory → WeighbridgeRecordFactory memberi record_datetime acak dateTimeBetween('-30 days','now'); sekitar 1 dari 30 kali jatuh di hari ini dan menaikkan count 2 menjadi 3. Non-determinisme factory milik screen-025, bukan regresi dari pekerjaan ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "routes/api.php dan routes/web.php gagal Pint pada aturan ordered_imports — pre-existing sejak HEAD, sengaja tidak dirapikan agar diff tetap sempit.",
+      "severity": "minor"
+    }
+  ]
+}

@@ -1,0 +1,358 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "screen-141--reporting-pilih-stasiun-mobile",
+  "name": "Reporting — Pilih Stasiun (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "/reports",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Tanpa syarat tambahan — layar ini hanya menampilkan nama stasiun, bukan data operasional. Pembatasan sesungguhnya ada di layar laporan tujuan."
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Tanpa syarat tambahan — layar ini hanya menampilkan nama stasiun, bukan data operasional. Pembatasan sesungguhnya ada di layar laporan tujuan."
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Tanpa syarat tambahan — layar ini hanya menampilkan nama stasiun, bukan data operasional. Pembatasan sesungguhnya ada di layar laporan tujuan."
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tanpa syarat tambahan — layar ini hanya menampilkan nama stasiun, bukan data operasional. Pembatasan sesungguhnya ada di layar laporan tujuan."
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "usecase_name": "Pilih Stasiun untuk Laporan (Mobile)",
+      "endpoints": [],
+      "business_logic": [
+        "Rute '/reports' didaftarkan dengan meta.public = false → penjagaan sesi global mengalihkan ke rute 'login' bila tidak ada sesi",
+        "Saat dipasang, baca production line aktif atau business_unit_id dari auth store / penyimpanan lokal",
+        "Panggil stationRepo untuk memperoleh StationSlot[] — NOL pemanggilan apiClient. Bila ada production line aktif pakai getActiveAndPlaceholderStationsForProductionLine, bila tidak pakai getActiveAndPlaceholderStations",
+        "→ bila daftar kosong: tampilkan arahan membuka layar Daftar Stasiun lebih dulu, dan JANGAN menampilkan grid berisi tile",
+        "Tiap stasiun dipetakan ke tile dengan nama, ikon, dan urutan APA ADANYA dari StationSlot[] — tanpa penyusunan ulang maupun penamaan ulang",
+        "Ketersediaan laporan ditentukan SATU konstanta lokal REPORT_ROUTES = { 'sterilizer': 'report-sterilizer' }",
+        "KETERSEDIAAN LAPORAN TIDAK ADA HUBUNGANNYA DENGAN StationSlot.isActive. isActive berarti stasiunnya beroperasi di mill; ketersediaan berarti layar laporan mobile-nya sudah dibangun. Stasiun ber-isActive=true tetap nonaktif bila kodenya tidak ada di REPORT_ROUTES",
+        "Tile tanpa laporan diberi aria-disabled=\"true\" dan label kecil 'Belum tersedia'",
+        "→ tile bertautan ditekan: router.push({ name: REPORT_ROUTES[code] })",
+        "→ tile tanpa laporan ditekan: isi pesan 'Laporan [nama stasiun] belum tersedia.' pada SATU variabel reaktif tunggal, JANGAN berpindah rute. Menekan berkali-kali hanya menimpa nilainya sehingga pesan tidak pernah menumpuk",
+        "Segmen breadcrumb memanggil router.push ke 'home' atau 'dashboard-reporting'"
+      ],
+      "data_operations": [],
+      "edge_case_handling": [
+        {
+          "condition": "Daftar stasiun lokal kosong",
+          "handling": "Tampilkan arahan membuka layar Daftar Stasiun lebih dulu. Ini konsekuensi langsung dari memilih sumber lokal — pengguna yang baru masuk dan belum pernah membuka Daftar Stasiun memang belum punya data. Bukan pesan kesalahan teknis."
+        },
+        {
+          "condition": "Stasiun ber-isActive=true tetapi kodenya tidak ada di REPORT_ROUTES",
+          "handling": "Tetap dirender, tetap nonaktif berlabel 'Belum tersedia'. Ini cabang yang paling mudah salah: hari ini isActive dan ketersediaan kebetulan sama-sama benar untuk Sterilizer, sehingga implementasi yang keliru menyambungkan keduanya akan tetap hijau — sampai ada stasiun aktif yang laporannya belum dibuat, yaitu 17 dari 18 stasiun."
+        },
+        {
+          "condition": "Menekan tile tanpa laporan",
+          "handling": "Isi info-message, rute tidak berubah, tile tetap tampil. Sengaja BUKAN atribut disabled native — lihat StationGrid.vue: disabled menelan ketukan sehingga tidak ada pesan yang muncul."
+        },
+        {
+          "condition": "Menekan berkali-kali",
+          "handling": "Satu variabel reaktif ditimpa berulang; jumlah elemen pesan di DOM tetap satu."
+        },
+        {
+          "condition": "Perangkat offline",
+          "handling": "Tidak berpengaruh sama sekali — nol pemanggilan jaringan. Justru itu yang diuji."
+        },
+        {
+          "condition": "Tidak ada sesi aktif",
+          "handling": "Penjagaan sesi global mengalihkan ke 'login'; komponen tidak pernah dipasang."
+        }
+      ],
+      "business_rules_applied": [
+        "Terbuka untuk semua peran mobile; pembatasan sesungguhnya ada di layar laporan tujuan",
+        "Daftar stasiun dibaca dari perangkat, bukan jaringan",
+        "'Tersedia' berarti layar laporan mobile sudah dibangun — berbeda dari 'aktif'",
+        "Stasiun tanpa laporan tetap ditampilkan nonaktif, tidak disembunyikan",
+        "Menekan stasiun tanpa laporan memberi pesan, bukan diam",
+        "Layar ini tidak meminta pengguna memilih mill",
+        "Layar memerlukan sesi aktif"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "memetakan setiap StationSlot dari penyimpanan lokal menjadi satu tile dengan nama, ikon, dan urutan yang sama persis",
+          "given": "stationRepo.getActiveAndPlaceholderStations(businessUnitId) mengembalikan StationSlot[] berisi 3 entri berurutan [sterilizer, threshing, pressing] lengkap dengan name dan icon",
+          "expect": "grid berisi 3 tile dengan urutan, name, dan icon identik dengan urutan StationSlot[] yang dikembalikan — tidak ada penyusunan ulang maupun penamaan ulang di layar ini"
+        },
+        {
+          "description": "menandai tile tersedia bila kode stasiun ada di konstanta REPORT_ROUTES",
+          "given": "StationSlot { type: 'sterilizer', isActive: true } dan REPORT_ROUTES = { 'sterilizer': 'report-sterilizer' }",
+          "expect": "tile sterilizer dapat ditekan, tanpa aria-disabled, dan tanpa label 'Belum tersedia'"
+        },
+        {
+          "description": "menandai tile nonaktif bila kode stasiun TIDAK ada di REPORT_ROUTES meskipun isActive=true",
+          "given": "StationSlot { type: 'threshing', isActive: true } dan REPORT_ROUTES hanya memuat 'sterilizer'",
+          "expect": "tile threshing beratribut aria-disabled=\"true\" dan berlabel kecil 'Belum tersedia' — isActive=true tidak membuatnya tersedia"
+        },
+        {
+          "description": "ketersediaan laporan ditentukan murni oleh REPORT_ROUTES, terlepas dari nilai isActive",
+          "given": "StationSlot { type: 'sterilizer', isActive: false } dan REPORT_ROUTES memuat 'sterilizer'",
+          "expect": "tile sterilizer tetap dihitung tersedia oleh penentu ketersediaan — isActive tidak ikut dievaluasi dalam keputusan ketersediaan laporan"
+        },
+        {
+          "description": "memilih pembacaan per production line ketika production line aktif tersedia",
+          "given": "auth store / penyimpanan lokal memuat production line aktif",
+          "expect": "stationRepo.getActiveAndPlaceholderStationsForProductionLine(productionLineId) dipanggil; getActiveAndPlaceholderStations(businessUnitId) tidak dipanggil"
+        },
+        {
+          "description": "memilih pembacaan per business unit ketika tidak ada production line aktif",
+          "given": "auth store / penyimpanan lokal hanya memuat business_unit_id",
+          "expect": "stationRepo.getActiveAndPlaceholderStations(businessUnitId) dipanggil dengan businessUnitId dari auth store"
+        },
+        {
+          "description": "tidak melakukan satu pun pemanggilan jaringan saat layar dipasang",
+          "given": "apiClient dimock seluruhnya dan stationRepo mengembalikan StationSlot[] berisi data",
+          "expect": "jumlah pemanggilan apiClient = 0; hanya stationRepo yang dipanggil"
+        },
+        {
+          "description": "menampilkan arahan, bukan grid, ketika daftar lokal kosong",
+          "given": "stationRepo mengembalikan []",
+          "expect": "penanda no-stations tampil berisi arahan membuka layar Daftar Stasiun lebih dulu; grid tidak berisi satu pun tile; tidak ada pesan kesalahan teknis"
+        },
+        {
+          "description": "berpindah rute ketika tile bertautan ditekan",
+          "given": "tile sterilizer tersedia dan router.push dimock",
+          "expect": "router.push dipanggil tepat sekali dengan { name: 'report-sterilizer' }; variabel pesan tetap kosong"
+        },
+        {
+          "description": "menyusun pesan dan tidak berpindah rute ketika tile tanpa laporan ditekan",
+          "given": "tile stasiun bernama 'Threshing' bertanda belum tersedia dan router.push dimock",
+          "expect": "variabel reaktif pesan berisi 'Laporan Threshing belum tersedia.'; router.push tidak dipanggil sama sekali"
+        },
+        {
+          "description": "pesan tidak menumpuk — penekanan berulang hanya menimpa satu variabel tunggal",
+          "given": "tile 'Threshing' ditekan tiga kali berturut-turut, lalu tile 'Pressing' ditekan sekali",
+          "expect": "hanya ada satu elemen pesan yang hidup; nilainya akhirnya 'Laporan Pressing belum tersedia.'; router.push tetap tidak dipanggil"
+        },
+        {
+          "description": "segmen breadcrumb memanggil rute yang sesuai",
+          "given": "router.push dimock dan layar terpasang dengan daftar stasiun berisi data",
+          "expect": "menekan breadcrumb-home memanggil router.push ke 'home'; menekan breadcrumb-dashboard-reporting memanggil router.push ke 'dashboard-reporting'"
+        },
+        {
+          "description": "layar tampil utuh dari data lokal ketika seluruh syarat terpenuhi",
+          "given": "sesi aktif, stationRepo mengembalikan StationSlot[] berisi sterilizer (tersedia) dan beberapa stasiun lain (belum tersedia)",
+          "expect": "grid menampilkan seluruh stasiun, sterilizer dapat ditekan, sisanya aria-disabled berlabel 'Belum tersedia', pesan kosong, dan nol pemanggilan jaringan"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-002--login-mobile",
+      "reason": "Memerlukan sesi mobile yang aktif"
+    },
+    {
+      "screen_id": "screen-134--dashboard-reporting-mobile",
+      "reason": "Satu-satunya pintu masuk — kartu 'Reporting' di sana dihidupkan oleh run ini"
+    },
+    {
+      "screen_id": "screen-006--station-list",
+      "reason": "Sumber daftar stasiun lokal yang sama; bila pengguna belum pernah membukanya, layar ini tidak punya stasiun untuk ditampilkan"
+    },
+    {
+      "screen_id": "screen-135--laporan-sterilizer-mobile",
+      "reason": "Satu-satunya tujuan yang aktif saat ini; 17 tile lainnya menunggu layar laporannya masing-masing"
+    }
+  ],
+  "implementation_notes": [
+    "NOL endpoint, NOL perubahan backend. Daftar stasiun dibaca lewat stationRepo (mobile/src/services/stationRepo.ts) yang murni lokal — nol apiClient, dua pemanggilan localDb.",
+    "KEPUTUSAN RANCANGAN yang perlu diketahui: memakai ulang /api/station-reports/stations milik screen-140 SEMPAT direncanakan demi 'satu sumber', lalu ditolak setelah diperiksa — StationReportService::resolveBusinessUnit() punya pola yang sama dengan SterilizerReportService (menyebut Supervisor dan MillManagement, Operator jatuh ke penolakan) sehingga menuntut pelebaran peran lagi; ia mewajibkan Admin memilih mill untuk daftar yang tidak bergantung mill; dan report_path-nya berisi rute WEB yang tidak berguna di mobile.",
+    "Berkas baru: mobile/src/views/ReportingPilihStasiunView.vue, plus rute di mobile/src/router/index.ts (path '/reports', name 'report-stations', meta.public = false).",
+    "WAJIB: hidupkan kartu 'Reporting' di mobile/src/views/DashboardReportingView.vue — isi routeName-nya menjadi 'report-stations'. Kartu 'Dashboard' HARUS TETAP null/nonaktif. Berkas test screen-134 yang sudah ada (mobile/tests/DashboardReportingView.spec.ts dan mobile/tests/e2e/dashboard-reporting.spec.ts) akan perlu penyesuaian karena keduanya kini mengasersi kedua kartu nonaktif — sesuaikan HANYA bagian kartu Reporting, jangan melemahkan asersi kartu Dashboard.",
+    "REPORT_ROUTES adalah satu konstanta lokal. Menambah laporan stasiun mobile kelak berarti menambah satu baris di peta itu — jangan menyebar pengecekan ke template.",
+    "Gaya tile mengikuti mobile/src/components/StationGrid.vue (grid 3 kolom, ikon SVG per jenis). TAPI keadaan nonaktif di sini BUKAN gaya 'placeholder station' milik StationGrid — melainkan gaya stasiun aktif yang diredupkan, karena maknanya berbeda: di sini 'belum tersedia' berarti laporannya belum dibangun, bukan stasiunnya tidak ada.",
+    "Tile aktif memakai hijau merek #249360 (keluarga LAPORAN), bukan merah #D20000 milik layar input data.",
+    "Breadcrumb tiga segmen: 'Home / Dashboard & Reporting / Reporting', dua yang pertama dapat ditekan. Pola dari StationListView.vue.",
+    "Keadaan nonaktif memakai aria-disabled=\"true\", BUKAN atribut disabled native — alasannya tertulis di StationGrid.vue.",
+    "Pesan info pada SATU ref tunggal, bukan daftar — itu yang membuat aturan 'pesan tidak menumpuk' benar secara konstruksi.",
+    "data-testid: station-grid, station-tile-<code>, info-message, breadcrumb-home, breadcrumb-dashboard-reporting, no-stations. Tidak ada testid baru di luar daftar ini.",
+    "Seluruh teks UI Bahasa Indonesia. Sasaran sentuh minimal 44px, tanpa gulir horizontal halaman.",
+    "Test yang menyentuh localStorage wajib window.localStorage.clear() di beforeEach."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — success",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "DashboardReportingView + ReportingPilihStasiunView",
+        "action": "mount DashboardReportingView dengan router dimock, tekan kartu 'Reporting'; lalu mount ReportingPilihStasiunView dengan stationRepo dimock mengembalikan StationSlot[] berisi sterilizer dan beberapa stasiun lain, tekan station-tile-sterilizer",
+        "assert": "kartu 'Reporting' kini bernavigasi — router.push dipanggil dengan { name: 'report-stations' } dan TIDAK memunculkan pesan 'belum tersedia'; kartu 'Dashboard' TETAP nonaktif (aria-disabled=\"true\") dan penekanannya masih memunculkan pesan belum tersedia tanpa router.push; pada ReportingPilihStasiunView, station-grid menampilkan seluruh stasiun dengan nama, ikon, dan urutan sesuai StationSlot[], breadcrumb-home dan breadcrumb-dashboard-reporting tampil, penekanan station-tile-sterilizer memanggil router.push { name: 'report-sterilizer' }, dan apiClient tidak dipanggil sama sekali"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login lewat helper, buka /dashboard-reporting, tekan kartu 'Reporting', amati grid stasiun, lalu tekan station-tile-sterilizer",
+        "assert": "URL berpindah ke /reports tanpa pesan 'belum tersedia' yang muncul di layar Dashboard & Reporting, sementara kartu 'Dashboard' di sana tetap nonaktif; di /reports station-grid tampil berisi seluruh stasiun beserta breadcrumb 'Home / Dashboard & Reporting / Reporting'; penekanan station-tile-sterilizer membawa ke layar laporan periode Sterilizer; tidak ada request XHR/fetch ke backend yang tercatat sepanjang alur ini"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — Menekan stasiun yang belum tersedia",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "mount dengan stationRepo dimock mengembalikan stasiun 'Threshing' (kode tidak ada di REPORT_ROUTES), tekan station-tile-threshing",
+        "assert": "info-message tampil berisi 'Laporan Threshing belum tersedia.', router.push tidak dipanggil, dan station-tile-threshing tetap tampil dengan aria-disabled=\"true\" serta label 'Belum tersedia'"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login lewat helper, buka /reports, tekan tile stasiun yang berlabel 'Belum tersedia'",
+        "assert": "info-message terlihat berisi pesan 'Laporan <nama stasiun> belum tersedia.', URL tetap /reports, dan tile tersebut masih tampil dengan label 'Belum tersedia'"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — Menekan berkali-kali",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "mount dengan dua stasiun belum tersedia, tekan station-tile-threshing tiga kali berturut-turut lalu station-tile-pressing sekali",
+        "assert": "hanya ada satu elemen info-message di DOM sepanjang pengujian (pesan tidak menumpuk), isinya tertimpa menjadi 'Laporan Pressing belum tersedia.', dan router.push tetap tidak pernah dipanggil"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login lewat helper, buka /reports, tekan tile yang sama tiga kali berturut-turut",
+        "assert": "jumlah elemen info-message tetap satu, isinya tetap pesan yang sama, dan URL tetap /reports tanpa perpindahan layar"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — Belum ada stasiun tersimpan",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "mount dengan stationRepo dimock mengembalikan array kosong",
+        "assert": "no-stations tampil berisi arahan membuka layar Daftar Stasiun lebih dulu, station-grid tidak berisi satu pun station-tile-*, dan tidak ada teks kesalahan teknis maupun pesan jaringan"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login lewat helper dengan penyimpanan lokal stasiun dikosongkan, buka /reports",
+        "assert": "no-stations terlihat berisi arahan membuka Daftar Stasiun, tidak ada tile stasiun yang tampil, dan tidak ada pesan error teknis di layar"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — Perangkat offline",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "mount dengan stationRepo dimock berisi data sementara apiClient dimock menolak setiap pemanggilan (mensimulasikan tanpa jaringan)",
+        "assert": "seluruh tile tetap tampil lengkap, apiClient tidak pernah dipanggil sehingga penolakannya tidak pernah terpicu, dan tidak ada pesan kesalahan jaringan yang dirender"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login lewat helper, set context.setOffline(true), lalu buka /reports",
+        "assert": "station-grid tetap tampil lengkap dalam keadaan offline dan tidak ada banner atau pesan kesalahan jaringan"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — Stasiun aktif di mill namun laporannya belum ada",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "mount dengan stationRepo dimock mengembalikan StationSlot { type: 'threshing', isActive: true }, lalu tekan station-tile-threshing",
+        "assert": "tile threshing tetap dirender, beratribut aria-disabled=\"true\" dan berlabel 'Belum tersedia' meski isActive=true; penekanannya hanya mengisi info-message dan tidak memanggil router.push"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login lewat helper, buka /reports, cari tile stasiun yang aktif di mill namun laporannya belum dibangun, lalu tekan",
+        "assert": "tile tersebut terlihat dengan aria-disabled=\"true\" dan label 'Belum tersedia', penekanannya memunculkan info-message, dan URL tetap /reports"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — Belum masuk",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "router guard (mobile/src/router/index.ts) + ReportingPilihStasiunView",
+        "action": "jalankan penjagaan sesi global untuk rute bernama 'report-stations' (meta.public = false) dengan auth store dalam keadaan tanpa sesi",
+        "assert": "penjagaan mengembalikan pengalihan ke { name: 'login' } dan ReportingPilihStasiunView tidak pernah dipasang"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "buka /reports secara langsung tanpa melakukan login (storage state kosong)",
+        "assert": "browser dialihkan ke layar Login, station-grid tidak pernah terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — Kembali",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "mount dengan router.push dimock, tekan breadcrumb-dashboard-reporting; ulangi mount lalu tekan breadcrumb-home",
+        "assert": "router.push dipanggil dengan { name: 'dashboard-reporting' } pada kasus pertama dan { name: 'home' } pada kasus kedua"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login lewat helper, buka /reports, tekan breadcrumb-dashboard-reporting; kembali ke /reports lalu tekan breadcrumb-home",
+        "assert": "penekanan pertama membawa ke layar Dashboard & Reporting dan penekanan kedua membawa ke layar Home"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — layar tetap terbuka untuk semua peran mobile",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "mount berulang untuk tiap peran mobile (Operator Stasiun, Supervisor, Mill Management, Admin) pada auth store, dengan stationRepo dimock mengembalikan StationSlot[] yang sama",
+        "assert": "untuk keempat peran, daftar tile dan status ketersediaannya identik; tidak ada tile yang disembunyikan, tidak ada pesan penolakan akses, dan tidak ada cabang kode berbasis peran di layar ini"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login lewat helper sebagai Operator Stasiun lalu buka /reports; ulangi untuk Supervisor",
+        "assert": "setiap peran melihat station-grid dengan jumlah tile dan label 'Belum tersedia' yang sama persis, tanpa ada peran yang ditolak atau dialihkan"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — stasiun yang belum tersedia tidak boleh disembunyikan",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "mount dengan stationRepo dimock mengembalikan 5 StationSlot — 1 sterilizer (ada di REPORT_ROUTES) dan 4 stasiun lain (tidak ada di REPORT_ROUTES)",
+        "assert": "jumlah station-tile-* yang dirender tepat 5 — sama dengan jumlah StationSlot; 4 di antaranya aria-disabled=\"true\" berlabel 'Belum tersedia' dan tidak satu pun dihilangkan dari station-grid"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login lewat helper, buka /reports, hitung tile yang tampil dan bandingkan dengan daftar stasiun pada layar Daftar Stasiun",
+        "assert": "jumlah tile di /reports sama dengan jumlah stasiun pada layar Daftar Stasiun, dengan stasiun yang laporannya belum dibangun tetap tampil dalam keadaan nonaktif"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — layar tidak meminta pengguna memilih mill",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "mount dengan stationRepo dimock mengembalikan StationSlot[] berisi data, tanpa interaksi apa pun setelah pemasangan",
+        "assert": "station-grid langsung tampil pada render pertama; tidak ada elemen pemilih mill, dropdown mill, maupun dialog/modal yang dirender; tile dapat ditekan tanpa langkah pemilihan mill apa pun"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login lewat helper, buka /reports, dan langsung tekan station-tile-sterilizer tanpa interaksi lain",
+        "assert": "station-grid terlihat segera setelah layar terbuka, tidak ada dialog atau pemilih mill yang muncul, dan tile langsung dapat ditekan membawa ke layar laporan Sterilizer"
+      }
+    }
+  ]
+}

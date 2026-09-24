@@ -1,0 +1,117 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "screen-135--laporan-sterilizer-mobile",
+  "name": "Laporan Sterilizer (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Sterilizer versi ponsel — ujung dari rantai Full Cycle stasiun itu, tempat data yang diinput Operator akhirnya terbaca sebagai angka. Pengguna memilih periode pelaporan, lalu melihat ringkasan sepanjang periode itu: berapa siklus rebus berjalan, berapa lori direbus, berapa lama rata-ratanya, seberapa patuh terhadap aturan triple-peak, siklus mana yang durasinya di luar kebiasaan, serta rekap per hari dan per unit sterilizer. Angka yang ditampilkan berasal dari sumber yang sama persis dengan laporan versi web, sehingga tidak mungkin berbeda. Berbeda dari layar Dashboard & Reporting yang murni navigasi, layar ini membutuhkan jaringan — dan karena Operator kerap berada di area tanpa sinyal, kegagalan jaringan harus dikatakan terus terang berikut cara mencobanya lagi, bukan dibiarkan diam.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu Reporting di dalam Dashboard & Reporting, setelah memilih stasiun Sterilizer — begitu layar pemilih stasiun dibangun",
+    "Sementara ini: dibuka langsung lewat rutenya, karena layar pemilih stasiun belum ada"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Sterilizer, yaitu periode berjenis Sterilizer maupun periode yang berlaku untuk semua jenis stasiun",
+    "Pemilih Mill — hanya bagi pengguna yang punya lebih dari satu mill, yaitu Admin",
+    "Nama mill yang sedang berlaku, sebagai keterangan bagi pengguna yang terikat satu mill",
+    "Rentang tanggal dan status periode yang sedang dilihat",
+    "Total siklus rebus sepanjang periode",
+    "Total lori yang direbus",
+    "Durasi rata-rata, terpendek, dan terlama, beserta jumlah siklus yang durasinya tidak tercatat",
+    "Kepatuhan triple-peak dalam persen",
+    "Tren jumlah siklus per hari",
+    "Sebaran durasi per hari — terpendek, rata-rata, terlama",
+    "Rekap per unit sterilizer: jumlah siklus, jumlah lori, durasi rata-rata",
+    "Daftar siklus yang durasinya di luar kebiasaan, beserta ambang batas yang dipakai dan cara ambang itu dihitung",
+    "Rekap harian yang dapat dibuka dan ditutup, karena pada periode sebulan daftarnya panjang",
+    "Keterangan ketika periode tidak memuat data sama sekali",
+    "Keterangan ketika mill belum punya satu pun periode pelaporan",
+    "Pesan kegagalan jaringan beserta tombol untuk mencoba lagi"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode mana yang dilihat. Mengganti periode memuat ulang seluruh angka pada layar.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill mana yang dilihat. Hanya tersedia bagi pengguna yang tidak terikat satu mill, yaitu Admin. Mengganti mill memuat ulang daftar periode dan seluruh angkanya.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap harian",
+      "description": "Menyembunyikan atau menampilkan tabel rekap per hari, yang pada periode panjang memakan banyak ruang layar.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian siklus sepanjang periode sebagai berkas CSV, isinya sama persis dengan ekspor dari laporan versi web.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Coba lagi",
+      "description": "Mengulang pemuatan setelah kegagalan jaringan, tanpa harus keluar dan masuk kembali ke layar.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada satu pun aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Semua peran yang dapat masuk ke aplikasi mobile boleh melihat laporan ini, termasuk Operator. Ini keputusan produk: orang yang menginput data berhak melihat hasilnya.",
+    "Pengguna hanya melihat data mill-nya sendiri. Supervisor, Mill Management, dan Operator terikat pada mill di akunnya dan tidak dapat melihat mill lain, bahkan bila mencoba memaksanya lewat permintaan. Admin tidak terikat satu mill sehingga ia memilih.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Sterilizer — periode berjenis Sterilizer, atau periode yang tidak menyebut jenis stasiun sehingga berlaku untuk semua.",
+    "Status periode tidak membatasi apa pun di layar ini. Periode yang sudah ditutup tetap dapat dilihat dan diekspor; kunci periode mengatur penulisan data, bukan pembacaan laporan.",
+    "Angka pada layar ini berasal dari sumber yang sama dengan laporan versi web. Tidak boleh ada perhitungan kedua yang berdiri sendiri, karena dua perhitungan yang terpisah pasti akan menyimpang tanpa ketahuan.",
+    "Rentang periode bersifat inklusif: data pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "Durasi rata-rata hanya dihitung dari siklus yang durasinya tercatat. Jumlah siklus yang durasinya kosong ditampilkan terpisah, supaya rata-rata tidak pernah dibaca tanpa tahu berapa yang dikeluarkan dari perhitungannya.",
+    "Siklus di luar kebiasaan ditentukan dengan metode kuartil, bukan simpangan baku — simpangan baku ikut membengkak oleh pencilan itu sendiri sehingga justru dapat menyembunyikannya. Ambang yang dipakai ditampilkan, bukan disembunyikan.",
+    "Layar ini membutuhkan jaringan. Kegagalan memuat harus dinyatakan dengan jelas beserta cara mencoba lagi — tidak boleh layar kosong tanpa penjelasan, dan tidak boleh diam."
+  ],
+  "usecase_ids": [
+    "usecase-135--laporan-sterilizer-mobile"
+  ],
+  "edge_cases": [
+    "Mill belum punya satu pun periode pelaporan — pemilih periode kosong dengan arahan menghubungi Admin, bukan layar kosong tanpa penjelasan.",
+    "Periode dipilih tetapi tidak memuat satu pun siklus — seluruh angka nol dengan keterangan belum ada data, dan tidak ada grafik kosong yang menyesatkan.",
+    "Seluruh siklus dalam periode durasinya kosong — rata-rata, terpendek, dan terlama tidak ditampilkan sebagai nol melainkan sebagai tidak tersedia, disertai jumlah siklus yang durasinya tidak tercatat.",
+    "Siklus terlalu sedikit untuk menentukan ambang kebiasaan — ambang tidak dihitung sama sekali dan dikatakan demikian, karena menandai pencilan dari segelintir data lebih menyesatkan daripada tidak menandai apa pun.",
+    "Durasi seluruh siklus seragam — tidak ada satu pun siklus di luar kebiasaan, dan ambangnya tetap ditampilkan.",
+    "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
+    "Akun Supervisor, Mill Management, atau Operator yang belum terhubung ke mill mana pun — pesan jelas untuk menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill sebagai gantinya.",
+    "Perangkat kehilangan jaringan saat memuat — pesan kegagalan beserta tombol coba lagi, tanpa kehilangan periode yang sudah dipilih.",
+    "Sesi berakhir saat layar terbuka — pengguna diarahkan ke Login, sama seperti layar mobile lain.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar layar tetap terbaca di ponsel."
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

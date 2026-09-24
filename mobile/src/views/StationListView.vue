@@ -44,7 +44,7 @@
  * color-coding is a secondary affordance, not the primary data this
  * screen needs to render.
  */
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useFloatingClockStore } from '@/stores/floatingClock'
@@ -155,6 +155,63 @@ const MONITOR_ROUTE_NAMES: Partial<Record<StationType, string>> = {
   sterilizer: 'monitor-sterilizer',
 }
 
+/**
+ * Production Line yang terakhir dipilih, diingat per pengguna (2026-09-23).
+ *
+ * BUG YANG DIPERBAIKI: kembali (back) dari layar Monitor sebuah stasiun
+ * memasang ulang layar ini, dan `onMounted` selalu memanggil
+ * `loadProductionLinesAndStations()`. Karena pilihan Production Line tidak
+ * pernah disimpan, cabang `lines.length > 1` menampilkan PEMILIH lagi —
+ * bukan daftar stasiun. Bagi pengguna, tombol back terasa melempar mundur
+ * dua langkah, bukan satu.
+ *
+ * Kunci memuat id pengguna: sebuah Production Line milik satu mill, jadi
+ * pilihan pengguna lain tidak boleh terbawa setelah ganti akun di perangkat
+ * yang sama.
+ *
+ * Nilai yang diingat TIDAK pernah dipercaya begitu saja — ia hanya dipakai
+ * bila masih ada di daftar line yang baru diambil. Line yang dihapus, atau
+ * pengguna yang dipindah mill, kembali memunculkan pemilih seperti biasa.
+ *
+ * localStorage dibungkus try/catch mengikuti pola floatingClock.ts /
+ * aiAssistant.ts: pada mode privat penyimpanan bisa melempar, dan gagal
+ * mengingat pilihan tidak boleh mematahkan layar.
+ */
+function rememberedProductionLineKey(): string | null {
+  const userId = authStore.currentUser?.id
+
+  return userId ? `msl_production_line_${userId}` : null
+}
+
+function readRememberedProductionLineId(): string | null {
+  const key = rememberedProductionLineKey()
+
+  if (!key) {
+    return null
+  }
+
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function rememberProductionLineId(lineId: string): void {
+  const key = rememberedProductionLineKey()
+
+  if (!key) {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(key, lineId)
+  } catch {
+    // localStorage tidak tersedia — pilihan tetap berlaku untuk sesi ini,
+    // hanya tidak bertahan saat layar dipasang ulang.
+  }
+}
+
 onMounted(async () => {
   const businessUnitId = authStore.currentUser?.business_unit_id
 
@@ -190,8 +247,24 @@ onMounted(async () => {
 async function loadProductionLinesAndStations(businessUnitId: string): Promise<void> {
   const lines = await productionLineRepo.fetchCurrentProductionLines().catch(() => [])
 
+  // Diisi di SEMUA cabang, bukan hanya `> 1` seperti sebelumnya: tombol
+  // ganti Production Line di header membaca daftar ini, jadi daftar harus
+  // ada walaupun pemilih awal tidak pernah tampil.
+  productionLines.value = lines
+
   if (lines.length > 1) {
-    productionLines.value = lines
+    // Sudah pernah memilih di perangkat ini? Langsung ke daftar stasiun.
+    // Inilah yang membuat tombol back dari layar Monitor kembali ke daftar
+    // stasiun, bukan terlempar ke pemilih Production Line.
+    const rememberedId = readRememberedProductionLineId()
+    const remembered = lines.find((line) => line.id === rememberedId)
+
+    if (remembered) {
+      await selectProductionLine(remembered, businessUnitId)
+
+      return
+    }
+
     showProductionLinePicker.value = true
 
     return
@@ -237,6 +310,7 @@ async function loadProductionLinesAndStations(businessUnitId: string): Promise<v
 async function selectProductionLine(line: ProductionLineOption, businessUnitId: string): Promise<void> {
   selectedProductionLineId.value = line.id
   showProductionLinePicker.value = false
+  rememberProductionLineId(line.id)
   loading.value = true
   error.value = null
 
@@ -258,6 +332,48 @@ async function onSelectProductionLine(line: ProductionLineOption): Promise<void>
   }
 
   await selectProductionLine(line, businessUnitId)
+}
+
+/**
+ * Ganti Production Line tanpa meninggalkan halaman (2026-09-23).
+ *
+ * Sebelumnya pemilih Production Line hanya tampil SEKALI, pada pemuatan
+ * pertama, lalu hilang permanen begitu satu line dipilih — satu-satunya
+ * cara berpindah line adalah keluar dari layar ini lalu masuk lagi.
+ * Operator yang memegang lebih dari satu line harus bisa berpindah dari
+ * tempat ia berada.
+ *
+ * Yang ditambahkan hanya jalan MASUK kembali ke pemilih yang sudah ada —
+ * perilaku pemilihannya sendiri (selectProductionLine) tidak diubah, dan
+ * pemilih tetap tersembunyi selama tidak ada yang menekan tombolnya.
+ * `canSwitchProductionLine` menuntut minimal dua line: dengan satu line
+ * tidak ada yang bisa dituju, jadi tombolnya tidak dirender sama sekali
+ * ketimbang dirender lalu tidak melakukan apa-apa.
+ */
+const selectedProductionLine = computed<ProductionLineOption | null>(
+  () => productionLines.value.find((line) => line.id === selectedProductionLineId.value) ?? null,
+)
+
+const canSwitchProductionLine = computed(
+  () => productionLines.value.length > 1 && selectedProductionLineId.value !== null,
+)
+
+function openProductionLinePicker(): void {
+  showProductionLinePicker.value = true
+}
+
+/**
+ * Menutup pemilih tanpa mengubah pilihan. Hanya berarti ketika sebuah line
+ * sudah terpilih — pada pemuatan pertama (belum ada pilihan) tidak ada
+ * keadaan yang bisa dikembalikan, sehingga tombol Batal tidak dirender dan
+ * pengguna memang harus memilih dulu.
+ */
+function cancelProductionLinePicker(): void {
+  if (selectedProductionLineId.value === null) {
+    return
+  }
+
+  showProductionLinePicker.value = false
 }
 
 /**
@@ -483,6 +599,35 @@ function closeSyncDialog() {
         <span class="breadcrumb-current" aria-current="page">Production Process Activity</span>
       </nav>
       <h1 class="screen-title">Daftar Stasiun</h1>
+
+      <button
+        v-if="canSwitchProductionLine"
+        type="button"
+        class="production-line-switcher"
+        data-testid="production-line-switcher"
+        :aria-label="`Production Line ${selectedProductionLine?.name ?? ''} — ketuk untuk mengganti`"
+        @click="openProductionLinePicker"
+      >
+        <span class="production-line-switcher-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="6" y1="3" x2="6" y2="15" />
+            <circle cx="18" cy="6" r="3" />
+            <circle cx="6" cy="18" r="3" />
+            <path d="M18 9a9 9 0 0 1-9 9" />
+          </svg>
+        </span>
+
+        <span class="production-line-switcher-text">
+          <span class="production-line-switcher-label">Production Line</span>
+          <span class="production-line-switcher-value">{{ selectedProductionLine?.name ?? '—' }}</span>
+        </span>
+
+        <span class="production-line-switcher-chevron" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </span>
+      </button>
     </div>
 
     <p v-if="loading" class="status-text">Memuat daftar stasiun…</p>
@@ -490,15 +635,35 @@ function closeSyncDialog() {
 
     <div v-else-if="showProductionLinePicker" class="production-line-picker" data-testid="production-line-picker">
       <p class="production-line-picker-title">Pilih Production Line</p>
+      <p class="production-line-picker-hint">{{ productionLines.length }} line tersedia di mill ini</p>
+
       <button
         v-for="line in productionLines"
         :key="line.id"
         type="button"
         class="production-line-option"
+        :class="{ 'production-line-option--selected': line.id === selectedProductionLineId }"
+        :aria-current="line.id === selectedProductionLineId ? 'true' : undefined"
         :data-testid="`production-line-option-${line.id}`"
         @click="onSelectProductionLine(line)"
       >
-        {{ line.name }}
+        <span class="production-line-option-name">{{ line.name }}</span>
+        <span v-if="line.code" class="production-line-option-code">{{ line.code }}</span>
+        <span v-if="line.id === selectedProductionLineId" class="production-line-option-check" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        </span>
+      </button>
+
+      <button
+        v-if="selectedProductionLineId !== null"
+        type="button"
+        class="production-line-picker-cancel"
+        data-testid="production-line-picker-cancel"
+        @click="cancelProductionLinePicker"
+      >
+        Batal
       </button>
     </div>
 
@@ -696,24 +861,131 @@ function closeSyncDialog() {
   color: #dc2626;
 }
 
+/*
+ * Baris pemilih Production Line. Dibuat selebar konten, bukan pill kecil:
+ * ini kontrol CAKUPAN halaman (menentukan stasiun mana yang tampil dan ke
+ * line mana Sinkronisasi menulis), jadi harus terbaca sebagai keadaan
+ * halaman, bukan hiasan di sudut. Ikon + chevron memberi isyarat bahwa
+ * baris ini membuka pilihan — versi pertama hanya berisi tiga teks
+ * sejajar dan tidak terlihat bisa ditekan sama sekali.
+ */
+.production-line-switcher {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 4px;
+  padding: 8px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.production-line-switcher:active {
+  background-color: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.production-line-switcher-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background-color: #e8f5ee;
+  color: #249360;
+  flex-shrink: 0;
+}
+
+.production-line-switcher-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.production-line-switcher-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.production-line-switcher-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.production-line-switcher-chevron {
+  display: grid;
+  place-items: center;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
 .production-line-picker {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+.production-line-option--selected {
+  border-color: #249360;
+  background-color: #e8f5ee;
+  color: #1a6f48;
+}
+
+.production-line-option--selected .production-line-option-code {
+  color: #1a6f48;
+}
+
+.production-line-picker-cancel {
+  min-height: 44px;
+  margin-top: 2px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px;
+  background-color: transparent;
+  color: #6b7280;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
 .production-line-picker-title {
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.production-line-picker-hint {
+  margin: -6px 0 2px;
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .production-line-option {
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
   background-color: #ffffff;
   color: #1f2937;
   font-size: 15px;
@@ -721,6 +993,32 @@ function closeSyncDialog() {
   font-family: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.production-line-option:active {
+  background-color: #f9fafb;
+}
+
+.production-line-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.production-line-option-code {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.production-line-option-check {
+  display: grid;
+  place-items: center;
+  color: #249360;
+  flex-shrink: 0;
 }
 
 .production-line-option:hover {

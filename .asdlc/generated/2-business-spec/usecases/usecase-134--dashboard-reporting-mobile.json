@@ -1,0 +1,159 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "usecase-134--dashboard-reporting-mobile",
+  "name": "Buka Dashboard & Reporting (Mobile)",
+  "description": "Pengguna mobile membuka wadah 'Dashboard & Reporting' dari Home dan memilih salah satu dari dua hal: melihat ringkasan operasional (Dashboard) atau melihat laporan periode per stasiun (Reporting). Layar ini murni navigasi — tidak memuat data apa pun sehingga tetap terbuka penuh saat offline. Untuk sementara kedua pilihan masih nonaktif karena layar tujuannya belum dibangun; keduanya tetap ditampilkan, tidak disembunyikan, dan menekannya memberi pesan singkat alih-alih diam.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi mobile dengan peran apa pun",
+    "Pengguna berada di layar Home"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Pengguna menekan kartu menu 'Dashboard & Reporting' di layar Home"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Sistem membuka layar Dashboard & Reporting dengan jejak navigasi 'Home / Dashboard & Reporting'"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Sistem menampilkan dua kartu pilihan: 'Dashboard' dan 'Reporting'"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Sistem menandai kartu yang layar tujuannya belum dibangun sebagai nonaktif berketerangan 'Belum tersedia' — saat ini kedua kartu"
+    },
+    {
+      "step": 5,
+      "actor": "actor-station-operator",
+      "description": "Pengguna menekan salah satu kartu"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Bila kartu itu aktif, sistem membuka layar tujuannya; bila belum tersedia, sistem menampilkan pesan singkat dan tetap di layar ini"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Menekan kartu yang belum tersedia",
+      "trigger": "Pada langkah 5, kartu yang ditekan bertanda 'Belum tersedia'",
+      "steps": [
+        "Sistem menampilkan pesan singkat bahwa layar itu belum dibangun",
+        "Tidak terjadi perpindahan layar",
+        "Kartu tetap terlihat dan tetap bertanda 'Belum tersedia'"
+      ]
+    },
+    {
+      "name": "Menekan berkali-kali",
+      "trigger": "Pada langkah 5, pengguna menekan kartu yang belum tersedia lebih dari sekali",
+      "steps": [
+        "Pesan yang sama muncul kembali",
+        "Pesan tidak menumpuk",
+        "Tidak terjadi perpindahan layar"
+      ]
+    },
+    {
+      "name": "Kembali ke Home",
+      "trigger": "Kapan saja, pengguna menekan segmen 'Home' pada jejak navigasi",
+      "steps": [
+        "Sistem mengembalikan pengguna ke layar Home"
+      ]
+    },
+    {
+      "name": "Belum masuk",
+      "trigger": "Pada langkah 1, pengguna mencoba membuka layar ini tanpa sesi yang aktif",
+      "steps": [
+        "Penjagaan sesi global mengarahkan pengguna ke layar Login",
+        "Layar Dashboard & Reporting tidak pernah ditampilkan"
+      ]
+    },
+    {
+      "name": "Perangkat offline",
+      "trigger": "Pada langkah 2, perangkat tidak punya sambungan jaringan",
+      "steps": [
+        "Layar tetap terbuka penuh dan kedua kartu tetap tampil",
+        "Tidak ada pesan kesalahan jaringan, karena layar ini tidak memuat data apa pun"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pengguna berada di layar Dashboard & Reporting, atau di layar tujuan bila kartu yang ditekan sudah aktif",
+    "Tidak ada data yang dibaca maupun diubah"
+  ],
+  "business_rules": [
+    "Terbuka untuk semua peran yang dapat masuk ke aplikasi mobile; pembatasan sesungguhnya ada di layar tujuan",
+    "Pilihan yang tujuannya belum dibangun tetap ditampilkan nonaktif, tidak disembunyikan",
+    "Menekan pilihan yang belum tersedia memberi pesan singkat, bukan diam tanpa reaksi",
+    "Layar tidak memuat data apa pun sehingga tetap terbuka penuh saat offline",
+    "Layar memerlukan sesi yang aktif"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Buka Dashboard & Reporting (Mobile) — success",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dengan peran apa pun dan sedang berada di layar Home",
+      "when": "Pengguna menekan kartu menu 'Dashboard & Reporting' di layar Home",
+      "then": "Layar Dashboard & Reporting terbuka dengan jejak navigasi 'Home / Dashboard & Reporting' dan menampilkan dua kartu pilihan, 'Dashboard' dan 'Reporting', tanpa ada data yang dibaca maupun diubah"
+    },
+    {
+      "scenario": "Buka Dashboard & Reporting (Mobile) — Menekan kartu yang belum tersedia",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan berada di layar Dashboard & Reporting",
+      "when": "Pengguna menekan kartu yang bertanda 'Belum tersedia'",
+      "then": "Sistem menampilkan pesan singkat bahwa layar itu belum dibangun, tidak terjadi perpindahan layar, dan kartu tetap terlihat dengan tanda 'Belum tersedia'"
+    },
+    {
+      "scenario": "Buka Dashboard & Reporting (Mobile) — Menekan berkali-kali",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan berada di layar Dashboard & Reporting",
+      "when": "Pengguna menekan kartu yang belum tersedia lebih dari sekali berturut-turut",
+      "then": "Pesan singkat yang sama muncul kembali tanpa menumpuk dan tidak terjadi perpindahan layar"
+    },
+    {
+      "scenario": "Buka Dashboard & Reporting (Mobile) — Kembali ke Home",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan berada di layar Dashboard & Reporting",
+      "when": "Pengguna menekan segmen 'Home' pada jejak navigasi",
+      "then": "Sistem mengembalikan pengguna ke layar Home"
+    },
+    {
+      "scenario": "Buka Dashboard & Reporting (Mobile) — Belum masuk",
+      "given": "Pengguna belum memiliki sesi yang aktif di aplikasi mobile",
+      "when": "Pengguna mencoba membuka layar Dashboard & Reporting",
+      "then": "Penjagaan sesi global mengarahkan pengguna ke layar Login dan layar Dashboard & Reporting tidak pernah ditampilkan"
+    },
+    {
+      "scenario": "Buka Dashboard & Reporting (Mobile) — Perangkat offline",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan berada di layar Home, sementara perangkat tidak punya sambungan jaringan",
+      "when": "Pengguna membuka layar Dashboard & Reporting dalam keadaan offline",
+      "then": "Layar tetap terbuka penuh dengan kedua kartu tampil dan tidak ada pesan kesalahan jaringan, karena layar ini tidak memuat data apa pun"
+    },
+    {
+      "scenario": "Buka Dashboard & Reporting (Mobile) — layar terbuka untuk semua peran mobile",
+      "given": "Pengguna sudah masuk ke aplikasi mobile sebagai Station Operator, Supervisor, Mill Management, atau Admin dan berada di layar Home",
+      "when": "Pengguna dengan peran apa pun tersebut membuka layar Dashboard & Reporting",
+      "then": "Layar terbuka dengan isi yang sama untuk setiap peran dan tidak ada peran yang ditolak, karena pembatasan sesungguhnya berada di layar tujuan"
+    },
+    {
+      "scenario": "Buka Dashboard & Reporting (Mobile) — pilihan yang belum dibangun tetap ditampilkan nonaktif",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan berada di layar Home, sementara layar tujuan 'Dashboard' dan 'Reporting' belum dibangun",
+      "when": "Pengguna membuka layar Dashboard & Reporting",
+      "then": "Kedua kartu tetap ditampilkan dalam keadaan nonaktif berketerangan 'Belum tersedia' dan tidak ada kartu yang disembunyikan dari layar"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-134--dashboard-reporting-mobile"
+  ]
+}

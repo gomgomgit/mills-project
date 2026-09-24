@@ -1,0 +1,298 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "usecase-130--laporan-cages-track-web",
+  "name": "Lihat Laporan Periode Cages & Tracks (Web)",
+  "description": "Pengguna web memilih periode pelaporan lalu melihat rekap stasiun Cages & Tracks sepanjang periode itu. Berbeda dari Sterilizer yang bekerja dalam siklus diskret, stasiun ini berirama jam sehingga yang ditonjolkan adalah POLA WAKTU: jam puncak penumpahan, jam operasi tanpa penumpahan, jeda terpanjang, sebaran per jam, dan antrean lori tersisa — di samping total dan tren harian.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin",
+    "Mill sudah punya minimal satu periode pelaporan yang mencakup stasiun Cages & Tracks"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Pengguna membuka layar Laporan Cages & Tracks dari pemilih stasiun"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Sistem menentukan mill yang berlaku: bila pengguna terikat satu mill, mill itu ditetapkan otomatis; bila Admin, sistem menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Sistem memuat daftar periode yang mencakup stasiun Cages & Tracks"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih salah satu periode"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Sistem menghitung rekap dari baris rincian per jam, bukan dari angka ringkasan record harian"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Sistem menampilkan total lori ditumpahkan dan lori keluar, rata-rata per hari, jam puncak beserta jumlahnya, jumlah jam operasi tanpa penumpahan, jeda terpanjang beserta kapan terjadinya, sebaran 24 jam, tren harian, antrean tersisa terendah dan rata-rata, durasi operasi tippler rata-rata beserta jumlah hari yang waktu berhentinya tidak tercatat, dan rekap harian yang dapat dibuka/tutup"
+    },
+    {
+      "step": 7,
+      "actor": "actor-supervisor",
+      "description": "Bila diperlukan, pengguna menekan Ekspor untuk mengunduh rincian per jam sebagai CSV"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Periode tanpa data",
+      "trigger": "Pada langkah 5, periode yang dipilih tidak memuat satu pun penumpahan",
+      "steps": [
+        "Seluruh angka utama ditampilkan nol",
+        "Sistem menyatakan belum ada data pada periode itu",
+        "Tidak ada grafik kosong yang menyesatkan"
+      ]
+    },
+    {
+      "name": "Hari dengan record tetapi tanpa rincian per jam",
+      "trigger": "Pada langkah 5, sebuah hari punya record namun tidak punya satu pun baris rincian per jam",
+      "steps": [
+        "Hari itu tetap terhitung sebagai hari operasi",
+        "Hari itu dihitung sebagai hari tanpa penumpahan, bukan diabaikan dari perhitungan"
+      ]
+    },
+    {
+      "name": "Seluruh hari tanpa waktu berhenti tippler",
+      "trigger": "Pada langkah 5, tidak satu pun hari punya waktu berhenti tippler tercatat",
+      "steps": [
+        "Durasi operasi rata-rata ditampilkan sebagai tidak tersedia, BUKAN nol",
+        "Jumlah hari yang dikeluarkan dari perhitungan ditampilkan"
+      ]
+    },
+    {
+      "name": "Penumpahan hanya pada satu jam",
+      "trigger": "Pada langkah 5, sepanjang periode penumpahan hanya terjadi pada satu jam saja",
+      "steps": [
+        "Jeda terpanjang tidak dapat dihitung",
+        "Sistem menyatakan tidak ada jeda yang dapat dihitung, BUKAN menampilkan nol jam"
+      ]
+    },
+    {
+      "name": "Operasi melewati tengah malam",
+      "trigger": "Pada langkah 5, jam tippler mulai lebih besar dari jam tippler berhenti",
+      "steps": [
+        "Jam operasi dihitung melintasi pergantian hari",
+        "Durasi tidak pernah bernilai negatif",
+        "Jam tanpa penumpahan dihitung terhadap rentang operasi yang melintas itu"
+      ]
+    },
+    {
+      "name": "Admin belum memilih mill",
+      "trigger": "Pada langkah 2, Admin belum memilih mill apa pun",
+      "steps": [
+        "Angka tidak ditampilkan",
+        "Sistem menampilkan arahan memilih mill lebih dulu"
+      ]
+    },
+    {
+      "name": "Akun terikat mill tetapi mill-nya kosong",
+      "trigger": "Pada langkah 2, akun Supervisor atau Mill Management belum terhubung ke mill mana pun",
+      "steps": [
+        "Sistem menampilkan pesan menghubungi Admin",
+        "Sistem TIDAK menawarkan daftar seluruh mill sebagai gantinya",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode",
+      "trigger": "Pada langkah 3, daftar periode kosong",
+      "steps": [
+        "Pemilih periode kosong dengan arahan menghubungi Admin",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Mencoba melihat mill lain",
+      "trigger": "Pada langkah 5, pengguna yang terikat satu mill mencoba memaksa melihat mill lain lewat parameter permintaan",
+      "steps": [
+        "Sistem tetap menampilkan mill milik akun pengguna",
+        "Tidak ada data mill lain yang terlihat"
+      ]
+    },
+    {
+      "name": "Operator mencoba membuka layar web ini",
+      "trigger": "Pada langkah 1, yang membuka adalah Operator",
+      "steps": [
+        "Akses ditolak",
+        "Tidak ada data yang terlihat"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pada langkah 4, periode yang dipilih berstatus tertutup",
+      "steps": [
+        "Laporan tetap ditampilkan penuh",
+        "Status tertutup ditampilkan sebagai keterangan",
+        "Ekspor tetap dapat dijalankan"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat rekap periode yang dipilih",
+    "Tidak ada satu pun data stasiun yang berubah"
+  ],
+  "business_rules": [
+    "Layar hanya membaca",
+    "Pengguna hanya melihat mill-nya sendiri; hanya Admin yang memilih mill",
+    "Operator tidak punya akses web",
+    "Daftar periode hanya memuat periode yang mencakup Cages & Tracks",
+    "Status periode tidak membatasi apa pun",
+    "Rentang periode inklusif",
+    "Penumpahan dihitung dari baris rincian per jam, bukan dari angka ringkasan record harian",
+    "Jam tanpa penumpahan hanya dihitung di dalam jam operasi tippler, bukan seluruh 24 jam",
+    "Jeda terpanjang dihitung dalam satu hari, tidak lintas hari",
+    "Hari tanpa waktu berhenti tippler dikeluarkan dari perhitungan durasi, dan jumlahnya ditampilkan",
+    "Antrean tersisa adalah potret per jam, bukan antrean yang menumpuk"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — berhasil sebagai Supervisor atau Mill Management",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Supervisor atau Mill Management, akunnya terikat pada satu mill, dan mill itu punya minimal satu periode pelaporan yang mencakup stasiun Cages & Tracks",
+      "when": "Pengguna membuka layar Laporan Cages & Tracks dari pemilih stasiun lalu memilih salah satu periode yang tersedia",
+      "then": "Mill pengguna ditetapkan otomatis tanpa pemilih Mill, dan sistem menampilkan rekap periode terpilih: total lori ditumpahkan dan lori keluar, rata-rata per hari, jam puncak beserta jumlahnya, jumlah jam operasi tanpa penumpahan, jeda terpanjang beserta kapan terjadinya, sebaran 24 jam, tren harian, antrean tersisa terendah dan rata-rata, durasi operasi tippler rata-rata beserta jumlah hari yang waktu berhentinya tidak tercatat, serta rekap harian yang dapat dibuka/tutup — dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — berhasil sebagai Admin",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Admin, tidak terikat pada mill mana pun, dan tersedia mill yang punya minimal satu periode pelaporan yang mencakup stasiun Cages & Tracks",
+      "when": "Admin membuka layar Laporan Cages & Tracks, memilih salah satu mill pada pemilih Mill, lalu memilih salah satu periode yang tersedia",
+      "then": "Sistem menampilkan pemilih Mill berisi seluruh mill, dan setelah mill dan periode dipilih sistem menampilkan rekap periode yang sama lengkapnya seperti pengguna terikat mill, dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — ekspor rincian per jam ke CSV",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan rekap sebuah periode yang mencakup stasiun Cages & Tracks sedang ditampilkan",
+      "when": "Pengguna menekan tombol Ekspor",
+      "then": "Sistem mengunduh berkas CSV berisi rincian per jam sepanjang periode terpilih untuk mill yang berlaku, dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — Periode tanpa data",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang berlaku punya periode pelaporan yang mencakup stasiun Cages & Tracks",
+      "when": "Pengguna memilih periode yang tidak memuat satu pun penumpahan",
+      "then": "Seluruh angka utama ditampilkan nol, sistem menyatakan belum ada data pada periode itu, dan tidak ada grafik kosong yang menyesatkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — Hari dengan record tetapi tanpa rincian per jam",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang berlaku punya periode pelaporan yang mencakup stasiun Cages & Tracks",
+      "when": "Pengguna memilih periode yang di dalamnya ada hari dengan record stasiun namun tanpa satu pun baris rincian per jam",
+      "then": "Hari itu tetap terhitung sebagai hari operasi dan dihitung sebagai hari tanpa penumpahan, bukan diabaikan dari perhitungan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — Seluruh hari tanpa waktu berhenti tippler",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang berlaku punya periode pelaporan yang mencakup stasiun Cages & Tracks",
+      "when": "Pengguna memilih periode yang tidak satu pun harinya punya waktu berhenti tippler tercatat",
+      "then": "Durasi operasi tippler rata-rata ditampilkan sebagai tidak tersedia — bukan nol — dan jumlah hari yang dikeluarkan dari perhitungan ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — Penumpahan hanya pada satu jam",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang berlaku punya periode pelaporan yang mencakup stasiun Cages & Tracks",
+      "when": "Pengguna memilih periode yang sepanjang periodenya penumpahan hanya terjadi pada satu jam saja",
+      "then": "Jeda terpanjang tidak dapat dihitung dan sistem menyatakan tidak ada jeda yang dapat dihitung — bukan menampilkan nol jam"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — Operasi melewati tengah malam",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang berlaku punya periode pelaporan yang mencakup stasiun Cages & Tracks",
+      "when": "Pengguna memilih periode yang di dalamnya ada hari dengan jam tippler mulai lebih besar daripada jam tippler berhenti",
+      "then": "Jam operasi dihitung melintasi pergantian hari, durasi tidak pernah bernilai negatif, dan jumlah jam tanpa penumpahan dihitung terhadap rentang operasi yang melintas tengah malam itu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — Admin belum memilih mill",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Admin yang tidak terikat pada mill mana pun",
+      "when": "Admin membuka layar Laporan Cages & Tracks dan belum memilih mill apa pun",
+      "then": "Tidak ada angka yang ditampilkan dan sistem menampilkan arahan untuk memilih mill lebih dulu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — Akun terikat mill tetapi mill-nya kosong",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Supervisor atau Mill Management, namun akunnya belum terhubung ke mill mana pun",
+      "when": "Pengguna membuka layar Laporan Cages & Tracks",
+      "then": "Sistem menampilkan pesan untuk menghubungi Admin, tidak menawarkan daftar seluruh mill sebagai gantinya, dan tidak ada angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — Mill belum punya periode",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang berlaku sudah ditetapkan",
+      "when": "Sistem memuat daftar periode dan mill itu belum punya satu pun periode yang mencakup stasiun Cages & Tracks",
+      "then": "Pemilih periode kosong disertai arahan menghubungi Admin, dan tidak ada angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — Mencoba melihat mill lain",
+      "given": "Pengguna sudah masuk ke aplikasi web sebagai Supervisor atau Mill Management yang terikat pada satu mill",
+      "when": "Pengguna memaksa memuat laporan mill lain lewat parameter permintaan",
+      "then": "Sistem tetap menampilkan mill milik akun pengguna dan tidak ada data mill lain yang terlihat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — Operator mencoba membuka layar web ini",
+      "given": "Seorang Station Operator memiliki akun pada sistem",
+      "when": "Operator mencoba membuka layar Laporan Cages & Tracks di web",
+      "then": "Akses ditolak dan tidak ada data yang terlihat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — Periode tertutup",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang berlaku punya periode pelaporan yang mencakup stasiun Cages & Tracks",
+      "when": "Pengguna memilih periode yang berstatus tertutup",
+      "then": "Laporan tetap ditampilkan penuh, status tertutup ditampilkan sebagai keterangan, dan Ekspor tetap dapat dijalankan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — periode yang tidak mencakup Cages & Tracks tidak boleh muncul",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang berlaku punya campuran periode: sebagian mencakup stasiun Cages & Tracks, sebagian tidak",
+      "when": "Pengguna membuka pemilih periode pada layar Laporan Cages & Tracks",
+      "then": "Hanya periode yang mencakup stasiun Cages & Tracks yang tampil di pemilih; periode yang tidak mencakup stasiun ini tidak dapat dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — rentang periode harus inklusif",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan ada penumpahan yang tercatat tepat pada tanggal mulai dan tepat pada tanggal akhir periode",
+      "when": "Pengguna memilih periode tersebut",
+      "then": "Penumpahan pada tanggal mulai dan tanggal akhir ikut terhitung dalam total, rata-rata, sebaran 24 jam, tren harian, dan rekap harian — tidak ada hari batas yang terpotong"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — angka ringkasan record harian tidak boleh dipakai sebagai sumber penumpahan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan ada hari yang angka ringkasan pada record hariannya berbeda dari jumlah baris rincian per jamnya",
+      "when": "Pengguna memilih periode yang memuat hari tersebut",
+      "then": "Seluruh angka penumpahan dihitung dari baris rincian per jam, bukan dari angka ringkasan record harian; angka ringkasan yang berbeda itu diabaikan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — jam tanpa penumpahan tidak boleh dihitung di luar jam operasi tippler",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan ada hari yang tippler-nya beroperasi hanya pada sebagian jam dari 24 jam",
+      "when": "Pengguna memilih periode yang memuat hari tersebut",
+      "then": "Jumlah jam operasi tanpa penumpahan hanya dihitung di dalam rentang jam operasi tippler; jam di luar rentang operasi tidak ikut dihitung sebagai jam tanpa penumpahan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — jeda terpanjang tidak boleh dihitung lintas hari",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan ada jeda panjang antara penumpahan terakhir pada satu hari dan penumpahan pertama pada hari berikutnya",
+      "when": "Pengguna memilih periode yang memuat kedua hari tersebut",
+      "then": "Jeda terpanjang dihitung hanya di dalam satu hari; selisih antar hari itu tidak dianggap sebagai jeda dan tidak menjadi nilai jeda terpanjang"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — sebagian hari tanpa waktu berhenti tippler dikeluarkan dari perhitungan durasi",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan pada periode itu sebagian hari punya waktu berhenti tippler tercatat sementara sebagian lainnya tidak",
+      "when": "Pengguna memilih periode tersebut",
+      "then": "Durasi operasi tippler rata-rata dihitung hanya dari hari yang waktu berhentinya tercatat, dan jumlah hari yang dikeluarkan dari perhitungan ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Cages & Tracks (Web) — antrean tersisa tidak boleh diakumulasi",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan ada beberapa baris rincian per jam yang masing-masing mencatat antrean lori tersisa",
+      "when": "Pengguna memilih periode yang memuat baris-baris tersebut",
+      "then": "Antrean tersisa terendah dan rata-rata dihitung sebagai potret per jam; nilai antar jam tidak dijumlahkan atau diakumulasikan menjadi antrean yang menumpuk"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-130--laporan-cages-track-web"
+  ]
+}

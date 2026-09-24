@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
  * PeriodController — screen-128--kelola-periode-pelaporan's API surface:
  * index() / businessUnitOptions() / store() / update() / destroy()
  * (usecase-128) plus unverifiedCount() / close() / reopen()
- * (usecase-140).
+ * (usecase-140) and open() (usecase-144).
  *
  * All validation and business logic is delegated to PeriodService and
  * PeriodClosureService — the exact same services the Livewire component
@@ -145,5 +145,19 @@ class PeriodController extends Controller
     public function reopen(string $id): JsonResponse
     {
         return response()->json($this->closureService->reopen($id));
+    }
+
+    /**
+     * open() — POST /api/periods/{id}/open (usecase-144). Draft → open
+     * via the same conditional-UPDATE contract as close(); 409
+     * PERIOD_NOT_DRAFT when the period is already open, already closed, or
+     * when another Admin opened it first. No station data is touched.
+     *
+     * Like close() and reopen(), this contract lists 404 / 409 / 403 only
+     * — session handling lives in the middleware layer, not here.
+     */
+    public function open(string $id): JsonResponse
+    {
+        return response()->json($this->closureService->open($id));
     }
 }

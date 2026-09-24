@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-22"
+    "updated_at": "2026-09-23"
   },
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
@@ -52,6 +52,13 @@
       ]
     },
     {
+      "action": "Buka Periode",
+      "description": "Mengubah periode yang masih berstatus Draft menjadi Terbuka, menandai bahwa periode itu resmi berjalan dan siap diisi. Hanya berlaku pada periode Draft — periode yang sudah Terbuka atau Tertutup ditolak dengan pesan yang jelas. Tidak mengubah data stasiun apa pun, hanya status periodenya.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
       "action": "Tutup Periode",
       "description": "Mengunci periode sehingga seluruh data stasiun yang tanggal kejadiannya berada di dalam rentang periode tidak bisa lagi diinput, diubah, maupun diverifikasi. Sebelum dikonfirmasi, sistem menampilkan jumlah data yang belum terverifikasi dalam rentang itu sebagai peringatan, sebab verifikasi ikut terkunci",
       "actor_ids": [
@@ -85,11 +92,17 @@
     "Sebelum penutupan dikonfirmasi, sistem wajib menampilkan jumlah data yang belum terverifikasi dalam rentang periode — sebab setelah tertutup verifikasi ikut terkunci dan data tersebut akan tetap berstatus belum terverifikasi sampai periode dibuka kembali",
     "Periode yang sudah Tertutup tidak dapat diubah maupun dihapus; Admin harus membukanya kembali terlebih dahulu",
     "Saat periode dibuka kembali, catatan siapa yang menutup dan kapan ditutup dihapus, dan data di dalam rentangnya kembali dapat diinput, diubah, serta diverifikasi",
-    "Data yang sudah diisi Operator di aplikasi mobile namun belum terkirim saat periode ditutup tidak hilang — tetap tersimpan di perangkat, ditolak sementara oleh sistem, dan terkirim otomatis setelah Admin membuka kembali periode"
+    "Data yang sudah diisi Operator di aplikasi mobile namun belum terkirim saat periode ditutup tidak hilang — tetap tersimpan di perangkat, ditolak sementara oleh sistem, dan terkirim otomatis setelah Admin membuka kembali periode",
+    "Periode baru selalu lahir berstatus Draft. Admin membukanya lewat aksi Buka Periode ketika periode itu resmi berjalan, sehingga ada satu momen sadar yang memisahkan 'masih disiapkan' dari 'sudah berjalan' — bukan periode yang aktif begitu dibuat.",
+    "Aksi Buka Periode hanya berlaku pada periode berstatus Draft. Menjalankannya pada periode yang sudah Terbuka atau sudah Tertutup ditolak dengan pesan yang menyebut status periode saat itu, sejajar dengan cara Buka Kembali Periode menolak periode yang belum tertutup.",
+    "Siklus status periode adalah Draft → Terbuka → Tertutup, dan dari Tertutup dapat kembali ke Terbuka lewat Buka Kembali Periode. Tidak ada jalan kembali dari Terbuka ke Draft — sekali dinyatakan berjalan, periode tidak lagi berstatus persiapan.",
+    "Periode berstatus Terbuka tetap dapat diubah dan dihapus seperti Draft. Hanya status Tertutup yang mengunci periode maupun data di dalam rentangnya.",
+    "Membuka periode hanya mengubah status — tidak menyentuh, memvalidasi, maupun mengubah satu pun data stasiun di dalam rentangnya."
   ],
   "usecase_ids": [
     "usecase-128--kelola-periode-pelaporan",
-    "usecase-140--tutup-buka-periode-pelaporan"
+    "usecase-140--tutup-buka-periode-pelaporan",
+    "usecase-144--buka-periode-pelaporan"
   ],
   "edge_cases": [
     "Menutup periode saat masih ada data belum terverifikasi → tetap diizinkan, tetapi dialog konfirmasi menampilkan jumlahnya secara eksplisit agar Admin memutuskan secara sadar",
@@ -100,7 +113,9 @@
     "Belum ada Business Unit sama sekali → dropdown Business Unit kosong dan form tidak dapat disimpan",
     "Menghapus atau mengubah periode berstatus Tertutup → ditolak dengan pesan yang mengarahkan Admin untuk membuka kembali periode terlebih dahulu",
     "Operator menyimpan data offline saat periode masih terbuka lalu baru terkirim setelah periode ditutup → ditolak sementara oleh sistem, data tetap tertahan di perangkat dan tidak dibuang",
-    "Dua Admin menutup periode yang sama bersamaan → penutupan kedua tidak menimpa catatan penutup pertama"
+    "Dua Admin menutup periode yang sama bersamaan → penutupan kedua tidak menimpa catatan penutup pertama",
+    "Dua Admin menekan Buka Periode pada periode yang sama hampir bersamaan — hanya satu yang berhasil; yang kedua diberi tahu periode itu sudah terbuka, bukan menimpa diam-diam.",
+    "Admin menekan Buka Periode pada periode yang sudah Tertutup — ditolak dengan pesan jelas; untuk membukanya kembali ia harus memakai aksi Buka Kembali Periode, bukan aksi ini."
   ],
   "test_priority": "high",
   "open_questions": []

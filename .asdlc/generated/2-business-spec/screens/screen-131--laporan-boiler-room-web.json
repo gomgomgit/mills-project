@@ -1,0 +1,109 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "screen-131--laporan-boiler-room-web",
+  "name": "Laporan Boiler Room (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Boiler Room di web — ujung rantai Full Cycle stasiun itu. Boiler Room adalah stasiun berirama jam seperti Cages & Tracks, tetapi yang dicatat bukan keluaran melainkan KONDISI: tekanan dan suhu uap, mutu air umpan, suhu gas buang, serta perawatan yang dijalankan. Karena itu laporan ini tidak menjawab 'berapa banyak', melainkan 'seberapa stabil' — apakah tekanan uap terjaga sepanjang periode, apakah TDS dan pH air tetap terkendali, seberapa sering blowdown dan sootblowing benar-benar dilakukan, dan seberapa lengkap pencatatannya. Kelengkapan itu sendiri adalah temuan: boiler yang datanya bolong separuh periode tidak dapat dinilai, dan laporan harus mengatakannya alih-alih menampilkan rata-rata yang terlihat meyakinkan.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun' → pilih stasiun Boiler Room",
+    "Kembali dari layar lain dengan periode yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Boiler Room, yaitu periode berjenis Boiler Room maupun periode yang berlaku untuk semua jenis stasiun",
+    "Pemilih Mill — hanya bagi Admin, yang tidak terikat satu mill",
+    "Nama mill yang berlaku, rentang tanggal, dan status periode",
+    "Tekanan uap sepanjang periode: terendah, rata-rata, tertinggi",
+    "Suhu uap sepanjang periode: terendah, rata-rata, tertinggi",
+    "TDS air sepanjang periode: terendah, rata-rata, tertinggi",
+    "pH air sepanjang periode: terendah, rata-rata, tertinggi",
+    "Suhu gas buang sepanjang periode: terendah, rata-rata, tertinggi",
+    "Jumlah blowdown yang dilakukan sepanjang periode, dan rata-rata per hari",
+    "Jumlah sootblowing yang dilakukan sepanjang periode, dan rata-rata per hari",
+    "Jumlah pembacaan yang menjadi dasar setiap angka di atas — masing-masing metrik punya jumlahnya sendiri",
+    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan sepanjang periode",
+    "Tren harian tekanan uap rata-rata per tanggal",
+    "Tren harian suhu uap rata-rata per tanggal",
+    "Rekap per unit boiler: tekanan rata-rata, suhu rata-rata, jumlah blowdown, jumlah sootblowing, jumlah pembacaan",
+    "Rekap harian yang dapat dibuka dan ditutup",
+    "Keterangan bila periode tidak memuat data",
+    "Tombol Ekspor CSV"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill yang dilihat. Hanya bagi Admin yang tidak terikat satu mill.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap harian",
+      "description": "Menyembunyikan atau menampilkan tabel rekap per hari.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV, satu baris per slot dengan kolom konteks record diulang.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Pengguna hanya melihat data mill-nya sendiri. Supervisor dan Mill Management terikat pada mill di akunnya dan tidak dapat melihat mill lain, bahkan bila mencoba memaksanya lewat permintaan. Admin tidak terikat sehingga ia memilih.",
+    "Operator tidak punya akses ke layar web ini. Jalur laporan bagi Operator ada di mobile.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Boiler Room — periode berjenis Boiler Room, atau periode yang tidak menyebut jenis stasiun.",
+    "Status periode tidak membatasi apa pun. Periode tertutup tetap dapat dilihat dan diekspor.",
+    "Rentang periode inklusif: data pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "SETIAP metrik dihitung dari pembacaan yang terisi untuk metrik ITU SENDIRI. Sebuah baris pengukuran dianggap tercatat bila minimal satu kolomnya terisi, sehingga satu baris dapat mengisi tekanan tetapi mengosongkan pH. Memakai satu penyebut bersama untuk semua metrik akan mengempiskan rata-rata metrik yang jarang diisi.",
+    "Jumlah pembacaan yang mendasari setiap angka ditampilkan berdampingan dengan angkanya. Rata-rata dari tiga pembacaan dan rata-rata dari tiga ratus pembacaan tidak boleh terlihat sama meyakinkan.",
+    "Blowdown dan sootblowing punya TIGA keadaan: dilakukan, tidak dilakukan, dan tidak tercatat. Yang dihitung hanya yang dilakukan; yang tidak tercatat dilaporkan terpisah dan tidak pernah diperlakukan sebagai tidak dilakukan.",
+    "Laju bahan bakar, beban ID fan, dan beban SA fan adalah catatan teks bebas dengan satuan yang bercampur, bukan angka. Ketiganya tidak pernah dirata-rata maupun digrafikkan; hanya muncul apa adanya pada ekspor.",
+    "Laporan ini TIDAK menandai nilai di luar batas. Boiler Room tidak punya master target operasional, dan menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas aman padahal bukan. Yang ditampilkan adalah nilai terendah, rata-rata, tertinggi, dan tren — penilaiannya ada pada manusia.",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki. Periode yang hanya terisi sebagian harus terbaca demikian sebelum angkanya dipercaya."
+  ],
+  "usecase_ids": [
+    "usecase-131--laporan-boiler-room-web"
+  ],
+  "edge_cases": [
+    "Periode tidak memuat satu pun pembacaan — seluruh angka ditampilkan sebagai tidak tersedia dengan keterangan belum ada data, bukan sebagai nol.",
+    "Sebuah metrik tidak pernah diisi sepanjang periode walau metrik lain terisi — metrik itu ditampilkan tidak tersedia dengan jumlah pembacaan nol, sementara metrik lain tetap tampil normal.",
+    "Sebuah hari punya record tetapi seluruh barisnya kosong untuk metrik tertentu — hari itu tidak menyumbang pada rata-rata metrik itu, tetapi tetap terhitung sebagai hari ber-record.",
+    "Seluruh blowdown dan sootblowing tidak tercatat sepanjang periode — jumlahnya ditampilkan nol dengan keterangan bahwa seluruhnya tidak tercatat, dibedakan dari nol yang berarti benar-benar tidak pernah dilakukan.",
+    "Mill punya lebih dari satu unit boiler — angka periode menggabungkan seluruh unit, dan rekap per unit menunjukkan sebarannya.",
+    "Kelengkapan pencatatan sangat rendah, misalnya hanya beberapa slot terisi sepanjang sebulan — laporan tetap menampilkan angkanya tetapi kelengkapannya menonjol, bukan tersembunyi.",
+    "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
+    "Akun Supervisor atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
+    "Mill belum punya satu pun periode yang mencakup Boiler Room — pemilih periode kosong dengan arahan menghubungi Admin.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Boiler Room tidak punya master target operasional, jadi laporan ini sengaja tidak menandai nilai di luar batas. Bila kelak ada batas aman resmi untuk tekanan uap, suhu uap, TDS, dan pH, laporan ini perlu ditinjau ulang agar penyimpangan dapat ditandai. Sampai itu ada, penilaian sepenuhnya pada pembaca."
+  ]
+}

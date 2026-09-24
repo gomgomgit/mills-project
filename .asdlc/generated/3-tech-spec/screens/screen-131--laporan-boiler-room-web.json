@@ -1,0 +1,1575 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "screen-131--laporan-boiler-room-web",
+  "name": "Laporan Boiler Room (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/boiler-room",
+  "auth_requirement": "role: supervisor, mill_management, admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Otomatis dibatasi pada business unit miliknya; business_unit_id dari klien diabaikan server"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Otomatis dibatasi pada business unit miliknya; business_unit_id dari klien diabaikan server"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill; business_unit_id wajib dikirim"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Operator tidak punya akses web. Berbeda dari rangkaian cages-track, TIDAK ada perluasan Operator di sini — versi mobile Boiler Room (screen-137) belum dikerjakan"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "usecase_name": "Lihat Laporan Periode Boiler Room (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/boiler-room-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — khusus Admin, satu-satunya peran yang tidak terikat satu mill",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor bukan admin — peran lain millnya sudah tetap sehingga tidak butuh daftar ini"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/boiler-room-reports/periods",
+          "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Boiler Room pada mill yang dilihat",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "WAJIB untuk Admin. Untuk Supervisor dan Mill Management DIABAIKAN — server memakai business_unit_id akun"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "station_type": "string|null",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "actor admin tidak mengirim business_unit_id"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "akun supervisor/mill_management dengan business_unit_id null — pesan menghubungi Admin, dan daftar seluruh mill TIDAK PERNAH disusun"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor operator — layar ini web, Operator tidak punya akses"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/boiler-room-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode: kelengkapan pencatatan, metrik beserta jumlah pembacaannya masing-masing, perawatan, tren harian, rekap per unit, dan rekap harian",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode Pelaporan yang dilaporkan"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /periods"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string",
+                "business_unit_name": "string"
+              },
+              "coverage": {
+                "filled_slots": "integer",
+                "expected_slots": "integer",
+                "coverage_percent": "float",
+                "boiler_unit_count": "integer",
+                "slots_per_unit_per_day": "integer",
+                "days_in_period": "integer"
+              },
+              "metrics": {
+                "steam_pressure_bar": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "steam_temp_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "water_tds_ppm": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "water_ph": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "exhaust_gas_temp_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "feed_water_temp_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "feed_water_tank_level_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "boiler_water_level_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "dust_collector_differential_pressure_mmh2o": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                }
+              },
+              "maintenance": {
+                "blowdown": {
+                  "executed": "integer",
+                  "not_executed": "integer",
+                  "not_recorded": "integer",
+                  "avg_per_day": "float"
+                },
+                "sootblowing": {
+                  "executed": "integer",
+                  "not_executed": "integer",
+                  "not_recorded": "integer",
+                  "avg_per_day": "float"
+                }
+              },
+              "daily": [
+                {
+                  "date": "date",
+                  "filled_slots": "integer",
+                  "steam_pressure_avg": "float|null",
+                  "steam_temp_avg": "float|null",
+                  "water_tds_avg": "float|null",
+                  "water_ph_avg": "float|null",
+                  "exhaust_gas_temp_avg": "float|null",
+                  "blowdown_executed": "integer",
+                  "sootblowing_executed": "integer"
+                }
+              ],
+              "by_unit": [
+                {
+                  "boiler_room_id": "string",
+                  "reading_count": "integer",
+                  "steam_pressure_avg": "float|null",
+                  "steam_temp_avg": "float|null",
+                  "water_tds_avg": "float|null",
+                  "water_ph_avg": "float|null",
+                  "blowdown_executed": "integer",
+                  "sootblowing_executed": "integer"
+                }
+              ],
+              "total": {
+                "days_with_records": "integer",
+                "reading_rows": "integer"
+              },
+              "_note": "metrics[].min dan max berasal dari PEMBACAAN MENTAH; daily[].*_avg adalah rata-rata harian. Keduanya sengaja berbeda dan wajib diberi label di layar."
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain bagi Supervisor/Mill Management, atau actor operator"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id kosong"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — dihitung saat periode dipilih",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/boiler-room-reports/export",
+          "description": "Ekspor seluruh pembacaan per slot waktu sepanjang periode ke CSV, satu baris per slot",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode Pelaporan yang diekspor"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "csv | excel"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /summary"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_note": "StreamedResponse; Content-Disposition attachment. Kolom konteks record (tanggal, unit boiler, status, catatan) diulang tiap baris, lalu seluruh 15 kolom pengukuran termasuk ketiga kolom teks bebas apa adanya"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain, atau actor operator"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "jumlah BARIS EKSPOR (baris boiler_room_details) melebihi 50.000"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "format di luar csv|excel"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "resolveBusinessUnit: supervisor/mill_management -> pakai auth()->user()->business_unit_id dan ABAIKAN query; bila null -> 422 VALIDATION_ERROR 'Hubungi Admin' dan businessUnitRepo->all() TIDAK dipanggil (gagal tertutup, diuji sebagai spy). admin -> wajib dari query, kosong -> 422. operator -> 403 di seluruh endpoint; ini layar WEB dan TIDAK ada perluasan Operator seperti pada rangkaian cages-track.",
+        "listPeriods: SELECT Period WHERE business_unit_id = <hasil resolve> AND (station_type = 'boiler-room' OR station_type IS NULL) ORDER BY start_date DESC. Array kosong adalah jawaban sah, bukan 404.",
+        "authorizePeriod: findOrFail -> 404 bila tidak ada -> supervisor/mill_management dengan period.business_unit_id berbeda -> 403. Admin lolos untuk mill mana pun.",
+        "summary base: boiler_room_records JOIN stations WHERE stations.business_unit_id = period.business_unit_id AND stations.type = 'boiler-room' AND whereDate(record.date) BETWEEN start_date AND end_date INKLUSIF dua ujung, memakai record.date (tanggal kejadian). Eager-load boiler_room_details tiap record, urut time_slot menaik. SATU TANGGAL DAPAT PUNYA BEBERAPA RECORD — satu per unit boiler (boiler_room_id adalah kolom string pada header).",
+        "PENYEBUT TERPISAH PER METRIK — inti layar ini dan sumber kesalahan yang paling mahal. Kesembilan kolom pengukuran numerik semuanya nullable, dan sebuah baris dianggap TERISI bila minimal SATU dari 15 kolom non-time_slot terisi. Karena itu satu baris dapat mengisi steam_pressure_bar dan mengosongkan water_ph. Setiap metrik dihitung HANYA dari baris yang kolom METRIK ITU non-null, dengan reading_count-nya sendiri. Memakai jumlah baris terisi sebagai penyebut bersama akan mengempiskan rata-rata metrik yang jarang diisi, dan hasilnya tetap terlihat seperti angka yang sah.",
+        "metrics[].min dan metrics[].max diambil dari PEMBACAAN MENTAH, bukan dari rata-rata harian. Laporan ini menjawab 'seberapa stabil'; tekanan yang anjlok ke 12 bar pada satu slot adalah kejadian yang penting justru karena rata-rata harinya tetap terlihat 20. Konsekuensinya angka min/max pada kartu TIDAK dapat direkonsiliasi dengan kolom rata-rata harian di rekap — perbedaan itu disengaja dan WAJIB diberi label di layar, kalau tidak pembaca akan mengira laporannya rusak.",
+        "NULL BUKAN NOL: metrik yang tidak pernah terisi sepanjang periode menghasilkan min/avg/max = null dengan reading_count = 0 — bukan 0/0/0, yang akan terbaca sebagai 'terukur dan hasilnya nol'. Berlaku per metrik secara independen: satu metrik null tidak memengaruhi metrik lain.",
+        "PERAWATAN PUNYA TIGA KEADAAN. blowdown_executed dan sootblowing_executed adalah enum 'y'/'n' NULLABLE. executed = COUNT('y'); not_executed = COUNT('n'); not_recorded = COUNT(NULL). Ketiganya WAJIB berjumlah sama dengan jumlah baris pembacaan. NULL tidak pernah menambah not_executed — memperlakukannya demikian akan melaporkan kelalaian perawatan yang tidak pernah terjadi. avg_per_day = executed / days_with_records.",
+        "KELENGKAPAN PENCATATAN: filled_slots = jumlah baris boiler_room_details yang minimal satu dari 15 kolom non-time_slot-nya terisi. Baris yang seluruh 15 kolomnya null TIDAK dihitung terisi. expected_slots = boiler_unit_count x days_in_period x slots_per_unit_per_day. coverage_percent = 100 * filled / expected. Ini bagian isi laporan, bukan metadata: periode yang terisi 20% tetap menghasilkan rata-rata yang terlihat rapi, dan pembaca harus tahu itu sebelum mempercayainya.",
+        "TIGA KOLOM TEKS BEBAS — fuel_feed_rate, id_fan_load, sa_fan_load — TIDAK PERNAH diagregasi, tidak pernah menjadi min/avg/max, dan tidak pernah muncul pada tren. Satuan pada formulir kertasnya bercampur (Hz/%/ton, A/%) sehingga kolomnya memang string di skema, bukan float. Ketiganya hanya muncul apa adanya pada ekspor.",
+        "TIDAK ADA penandaan nilai di luar batas di mana pun — tanpa warna peringatan, ikon, maupun label pelanggaran. Boiler Room tidak punya master target operasional (tidak ada BoilerRoomOperationalTarget; hanya Threshing/Pressing/Depricarping/Kernel Plant yang punya), dan menurunkan ambang dari data periode itu sendiri untuk tekanan boiler berisiko dibaca sebagai batas keselamatan padahal hanya turunan statistik. Penilaian ada pada manusia.",
+        "time_slot bertipe TIME, bukan integer jam seperti tipped_hour milik Cages & Tracks. Pengurutan dan pengelompokan memakai nilai TIME apa adanya; jangan mengasumsikan slot jatuh tepat di awal jam dan jangan mengonversinya menjadi integer.",
+        "daily: satu baris per TANGGAL yang punya record, menaik, menggabungkan seluruh unit boiler pada tanggal itu. Kolom *_avg adalah rata-rata harian metrik itu, masing-masing dengan penyebut hariannya sendiri. Tanggal ber-record yang seluruh barisnya kosong untuk sebuah metrik menghasilkan null pada kolom itu, tetapi tanggal itu TETAP terhitung sebagai hari ber-record.",
+        "by_unit: GROUP BY boiler_room_id atas seluruh record periode. Unit yang punya record tetapi nol pembacaan terisi TETAP muncul dengan reading_count 0 dan seluruh rata-rata null — menghilangkannya akan menyembunyikan unit yang justru tidak pernah dicatat.",
+        "Seluruh agregasi dijalankan di PHP atas baris mentah, BUKAN lewat SUM/AVG/GROUP BY di SQL. Perilaku agregat SQL atas kolom nullable berbeda antara SQLite (dipakai test) dan PostgreSQL (produksi), dan justru aturan penyebut-terpisah serta null-bukan-nol yang paling mudah hilang di perbedaan itu.",
+        "export: authorizePeriod -> hitung jumlah baris boiler_room_details dalam rentang -> bila > 50.000 -> 422 EXPORT_FAILED -> stream lewat chunk, satu baris per slot waktu, dengan kolom konteks record (tanggal, unit boiler, status, catatan) DIULANG tiap baris mengikuti konvensi ekspor repo, lalu seluruh 15 kolom pengukuran termasuk ketiga kolom teks bebas apa adanya."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Daftar periode untuk pemilih dan rentang tanggal periode terpilih"
+        },
+        {
+          "entity_id": "boiler-room-detail",
+          "operation": "SELECT",
+          "description": "Sumber SELURUH angka pengukuran — satu baris = satu slot waktu"
+        },
+        {
+          "entity_id": "boiler-room-record",
+          "operation": "SELECT",
+          "description": "Header harian — tanggal kejadian, unit boiler (boiler_room_id), status, catatan"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk menyaring ke business unit periode dan tipe stasiun boiler-room"
+        },
+        {
+          "entity_id": "station-type",
+          "operation": "SELECT",
+          "description": "Resolusi station_type_label pada daftar periode"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin dan resolusi nama mill"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Periode tanpa satu pun pembacaan",
+          "handling": "200 dengan seluruh metrik min/avg/max = null dan reading_count 0, coverage.filled_slots = 0, daily = []. UI menampilkan keterangan belum ada data dan TIDAK merender grafik kosong"
+        },
+        {
+          "condition": "Sebuah metrik tidak pernah diisi walau metrik lain terisi",
+          "handling": "Metrik itu null dengan reading_count 0; metrik lain tetap normal dengan reading_count masing-masing. Independen per metrik"
+        },
+        {
+          "condition": "Baris pembacaan yang SELURUH 15 kolomnya null",
+          "handling": "Tidak dihitung sebagai slot terisi pada coverage, dan tidak menyumbang pada metrik mana pun"
+        },
+        {
+          "condition": "blowdown/sootblowing kosong pada sebagian atau seluruh baris",
+          "handling": "Dihitung sebagai not_recorded, terpisah dari not_executed. executed + not_executed + not_recorded selalu sama dengan jumlah baris pembacaan"
+        },
+        {
+          "condition": "Mill punya beberapa unit boiler",
+          "handling": "Angka periode menggabungkan seluruh unit; by_unit memecahnya. Unit ber-record tanpa pembacaan terisi tetap muncul dengan reading_count 0 dan rata-rata null"
+        },
+        {
+          "condition": "Kelengkapan pencatatan sangat rendah",
+          "handling": "Angka tetap dihitung dan ditampilkan, tetapi coverage ditampilkan menonjol di atas seluruh angka lain"
+        },
+        {
+          "condition": "Admin membuka laporan tanpa memilih mill",
+          "handling": "422 VALIDATION_ERROR; Livewire tidak memanggil /summary dan menampilkan arahan memilih mill"
+        },
+        {
+          "condition": "Supervisor/Mill Management mengirim business_unit_id mill lain",
+          "handling": "Nilai diabaikan; respons tetap 200 berisi data mill sendiri, BUKAN 403"
+        },
+        {
+          "condition": "Supervisor/Mill Management menembak period_id mill lain",
+          "handling": "403 FORBIDDEN — di sini ada objek tertentu yang ditembak"
+        },
+        {
+          "condition": "Akun terikat mill dengan business_unit_id null",
+          "handling": "422 VALIDATION_ERROR menghubungi Admin; daftar seluruh mill TIDAK PERNAH disusun (diuji sebagai spy)"
+        },
+        {
+          "condition": "Mill belum punya periode yang mencakup Boiler Room",
+          "handling": "200 dengan daftar kosong; UI menampilkan arahan menghubungi Admin"
+        },
+        {
+          "condition": "Periode berstatus tertutup",
+          "handling": "Tetap dapat dilihat dan diekspor penuh — kunci periode mengatur penulisan data, bukan pembacaan laporan"
+        },
+        {
+          "condition": "Rekap harian puluhan baris",
+          "handling": "Bagian rekap harian TERBUKA secara bawaan dan dapat ditutup lewat tombol, dengan markup dijaga @if sehingga barisnya benar-benar keluar dari DOM saat ditutup. BUKAN <details> tertutup bawaan: <details> yang tertutup tetap menyimpan anaknya di DOM, sehingga skenario 'rekap hilang dari DOM setelah ditutup' mustahil dipenuhi bersamaan. Tabel tetap menggulir di dalam kartunya."
+        }
+      ],
+      "business_rules_applied": [
+        "Hanya Supervisor, Mill Management, dan Admin; Operator ditolak 403 di seluruh endpoint",
+        "Supervisor dan Mill Management terkunci pada millnya; business_unit_id dari klien diabaikan",
+        "Admin wajib memilih mill; tanpa itu 422",
+        "Pemilih periode hanya memuat periode ber-station_type 'boiler-room' atau NULL",
+        "Status periode tidak membatasi pembacaan maupun ekspor",
+        "Rentang periode inklusif dua ujung memakai record.date",
+        "Setiap metrik dihitung dengan penyebutnya sendiri, dan reading_count-nya dilaporkan",
+        "Ekstrem metrik berasal dari pembacaan mentah, sementara rekap harian menampilkan rata-rata harian — keduanya berbeda dan diberi label",
+        "Perawatan punya tiga keadaan; NULL tidak pernah dihitung sebagai tidak dilakukan",
+        "Kolom teks bebas tidak pernah diagregasi",
+        "Tidak ada penandaan nilai di luar batas",
+        "Kelengkapan pencatatan adalah isi laporan, bukan metadata",
+        "Layar hanya membaca"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "returns success result when all conditions pass — periode valid milik mill pengguna dengan pembacaan lengkap",
+          "given": "BoilerRoomReportService::buildSummary() dipanggil dengan user Supervisor ber-business_unit_id=1 dan period_id=10 milik mill 1; periodRepo mengembalikan periode 2026-03-01..2026-03-31 status 'closed'; query boiler_room_records mengembalikan 2 record (boiler_room_id 'BLR-1','BLR-2') dengan total 20 baris boiler_room_details terisi penuh",
+          "expect": "mengembalikan struktur berisi period (id, start_date, end_date, status), business_unit, metrics (steam_pressure_bar, steam_temp_c, water_tds_ppm, water_ph, exhaust_gas_temp_c) masing-masing {min, avg, max, reading_count}, maintenance (blowdown/sootblowing: executed, not_executed, not_recorded, avg_per_day), coverage {filled_slots, expected_slots}, daily, by_unit, daily; tanpa satu pun operasi tulis"
+        },
+        {
+          "description": "setiap metrik memakai penyebutnya sendiri — avg pH dibagi jumlah pH terisi, bukan jumlah baris",
+          "given": "10 baris boiler_room_details: 10 baris mengisi steam_pressure_bar, hanya 4 baris mengisi water_ph (nilai 6.0, 7.0, 7.0, 8.0), 6 baris water_ph = null",
+          "expect": "metrics.water_ph.avg = 7.0 (28.0 / 4), BUKAN 2.8 (28.0 / 10); metrics.water_ph.reading_count = 4 sedangkan metrics.steam_pressure_bar.reading_count = 10"
+        },
+        {
+          "description": "reading_count dilaporkan terpisah per metrik, tidak ada satu penyebut bersama",
+          "given": "10 baris: steam_pressure_bar terisi 10, steam_temp_c terisi 7, water_tds_ppm terisi 5, water_ph terisi 4, exhaust_gas_temp_c terisi 2",
+          "expect": "reading_count tiap metrik = 10, 7, 5, 4, 2 berturut-turut; tidak ada satu nilai reading_count global yang dipakai bersama"
+        },
+        {
+          "description": "min/avg/max sebuah metrik mengabaikan baris null untuk metrik itu tanpa memengaruhi metrik lain",
+          "given": "3 baris: (steam_pressure_bar=20.0, water_ph=null), (steam_pressure_bar=null, water_ph=7.0), (steam_pressure_bar=30.0, water_ph=null)",
+          "expect": "steam_pressure_bar {min:20.0, avg:25.0, max:30.0, reading_count:2}; water_ph {min:7.0, avg:7.0, max:7.0, reading_count:1}"
+        },
+        {
+          "description": "metrik yang tidak pernah diisi sepanjang periode mengembalikan null, bukan nol",
+          "given": "20 baris dengan steam_pressure_bar terisi seluruhnya, water_ph null pada seluruh baris",
+          "expect": "metrics.water_ph = {min: null, avg: null, max: null, reading_count: 0}; BUKAN {min:0, avg:0, max:0}"
+        },
+        {
+          "description": "periode tanpa pembacaan sama sekali mengembalikan seluruh metrik null dan bukan nol",
+          "given": "query boiler_room_records mengembalikan koleksi kosong untuk rentang periode",
+          "expect": "seluruh entri metrics ber-min/avg/max null dan reading_count 0; maintenance executed/not_executed/not_recorded = 0; coverage.filled_slots = 0; daily, by_unit, daily = array kosong; ditandai has_data = false"
+        },
+        {
+          "description": "record ada tetapi seluruh baris detail kosong untuk sebuah metrik — hari tetap terhitung sebagai hari ber-record",
+          "given": "1 record tanggal 2026-03-05 dengan 4 baris detail yang seluruh kolom water_tds_ppm-nya null, sedangkan steam_pressure_bar terisi",
+          "expect": "metrics.water_tds_ppm.reading_count = 0 dan avg null; tanggal 2026-03-05 tetap muncul pada daily dan pada daily steam_pressure_bar"
+        },
+        {
+          "description": "blowdown menghitung hanya 'y'; NULL dilaporkan sebagai not_recorded dan tidak pernah menambah not_executed",
+          "given": "10 baris: 3 baris blowdown_executed='y', 2 baris 'n', 5 baris null",
+          "expect": "maintenance.blowdown = {executed: 3, not_executed: 2, not_recorded: 5}; executed + not_executed + not_recorded = 10 (sama dengan jumlah baris)"
+        },
+        {
+          "description": "sootblowing menghitung hanya 'y'; tiga keadaan dipisah dan berjumlah sama dengan jumlah baris",
+          "given": "10 baris: 1 baris sootblowing_executed='y', 4 baris 'n', 5 baris null",
+          "expect": "maintenance.sootblowing = {executed: 1, not_executed: 4, not_recorded: 5}; jumlah ketiganya = 10"
+        },
+        {
+          "description": "seluruh blowdown/sootblowing null sepanjang periode dibedakan dari benar-benar tidak pernah dilakukan",
+          "given": "12 baris dengan blowdown_executed dan sootblowing_executed null seluruhnya",
+          "expect": "executed = 0, not_executed = 0, not_recorded = 12 untuk kedua perawatan; penanda all_unrecorded = true agar nol dapat dibedakan dari nol yang berarti tidak pernah dilakukan"
+        },
+        {
+          "description": "avg_per_day membagi dengan JUMLAH HARI BER-RECORD, bukan panjang periode",
+          "given": "periode 10 hari kalender, tetapi hanya 5 tanggal yang punya record; kelima tanggal itu masing-masing mencatat satu blowdown 'y'",
+          "expect": "maintenance.blowdown.avg_per_day = 1.0 (5 / 5 hari ber-record), BUKAN 0.5 (5 / 10 hari kalender). coverage.days_in_period tetap 10 dan total.days_with_records tetap 5, sehingga pembaca dapat melihat pembaginya"
+        },
+        {
+          "description": "fuel_feed_rate, id_fan_load, sa_fan_load tidak pernah diagregasi ke struktur metrics",
+          "given": "baris detail dengan fuel_feed_rate='12 ton/jam', id_fan_load='80%', sa_fan_load='sedang'",
+          "expect": "kunci fuel_feed_rate, id_fan_load, sa_fan_load TIDAK ada pada struktur metrics maupun daily maupun by_unit; tidak ada percobaan cast numerik atas nilai teks itu"
+        },
+        {
+          "description": "kolom teks bebas tetap muncul apa adanya pada baris ekspor",
+          "given": "buildExportRows() dipanggil atas baris dengan fuel_feed_rate='12 ton/jam', id_fan_load='80%', sa_fan_load='sedang'",
+          "expect": "baris ekspor memuat ketiga nilai sebagai string persis apa adanya, tanpa normalisasi satuan maupun pembulatan"
+        },
+        {
+          "description": "ekstrem periode diambil dari pembacaan mentah, bukan dari rata-rata harian",
+          "given": "satu tanggal 2026-03-02 punya dua pembacaan steam_pressure_bar 12.0 dan 28.0 (rata-rata harian 20.0); tanggal lain punya pembacaan 19.0 dan 21.0",
+          "expect": "metrics.steam_pressure_bar.min = 12.0 dan max = 28.0 (dari pembacaan mentah), BUKAN 19.0/21.0 atau 20.0 yang berasal dari rata-rata harian"
+        },
+        {
+          "description": "rekap harian tetap menampilkan rata-rata harian walau ekstrem periode dari pembacaan mentah",
+          "given": "tanggal 2026-03-02 punya pembacaan steam_pressure_bar 12.0 dan 28.0",
+          "expect": "daily/daily untuk 2026-03-02 memuat avg 20.0 sementara metrics.steam_pressure_bar.min tetap 12.0 — kedua angka memang berbeda dan itu disengaja"
+        },
+        {
+          "description": "coverage menghitung baris terisi bila minimal satu dari 15 kolom non-time_slot terisi",
+          "given": "4 baris: baris A hanya water_ph terisi, baris B hanya findings terisi, baris C hanya blowdown_executed='n', baris D seluruh 15 kolom null",
+          "expect": "coverage.filled_slots = 3 (A, B, C); baris D tidak dihitung terisi"
+        },
+        {
+          "description": "baris yang seluruh 15 kolomnya null tidak pernah dihitung sebagai slot terisi",
+          "given": "10 baris detail dengan seluruh kolom selain time_slot bernilai null",
+          "expect": "coverage.filled_slots = 0 sedangkan expected_slots tetap dihitung dari jumlah slot yang diharapkan sepanjang periode"
+        },
+        {
+          "description": "expected_slots dilaporkan berdampingan dengan filled_slots pada kelengkapan sangat rendah",
+          "given": "periode 30 hari dengan hanya 6 baris terisi",
+          "expect": "coverage = {filled_slots: 6, expected_slots: <jumlah slot diharapkan>} dan metrik tetap dihitung serta dikembalikan, tidak ditahan"
+        },
+        {
+          "description": "pengelompokan dan pengurutan slot memakai nilai TIME, bukan integer jam",
+          "given": "baris dengan time_slot '06:30:00', '06:00:00', '18:00:00' pada tanggal yang sama",
+          "expect": "urutan hasil per slot = 06:00:00, 06:30:00, 18:00:00; tidak ada casting time_slot ke integer yang menyamakan 06:00 dengan 06:30"
+        },
+        {
+          "description": "UNIQUE(boiler_room_record_id, time_slot) tidak mencegah slot waktu sama pada dua unit boiler berbeda",
+          "given": "dua record pada tanggal sama, boiler_room_id 'BLR-1' dan 'BLR-2', masing-masing punya baris time_slot '08:00:00'",
+          "expect": "kedua baris terhitung; reading_count metrik bertambah 2 untuk slot itu dan keduanya muncul terpisah pada ekspor"
+        },
+        {
+          "description": "angka periode menggabungkan seluruh unit boiler pada satu tanggal",
+          "given": "tanggal 2026-03-03 punya record 'BLR-1' (steam_pressure_bar 20.0) dan 'BLR-2' (steam_pressure_bar 24.0)",
+          "expect": "metrics.steam_pressure_bar.reading_count mencakup kedua pembacaan dan avg periode = 22.0; tidak ada unit yang tersaring diam-diam"
+        },
+        {
+          "description": "rekap per unit memecah angka per boiler_room_id",
+          "given": "record 'BLR-1' dengan 12 pembacaan dan 'BLR-2' dengan 8 pembacaan pada periode yang sama",
+          "expect": "by_unit memuat dua entri ber-boiler_room_id 'BLR-1' dan 'BLR-2' dengan avg tekanan, avg suhu, jumlah blowdown, jumlah sootblowing, dan reading_count masing-masing"
+        },
+        {
+          "description": "unit boiler tanpa pembacaan tetap muncul dengan reading_count 0",
+          "given": "mill punya unit 'BLR-1' dan 'BLR-3'; pada periode ini hanya 'BLR-1' punya pembacaan",
+          "expect": "by_unit tetap memuat entri 'BLR-3' dengan reading_count 0 dan avg null, bukan dihilangkan dari daftar"
+        },
+        {
+          "description": "rentang periode inklusif di kedua ujung dan memakai record.date",
+          "given": "periode 2026-03-01..2026-03-31; ada record tepat pada 2026-03-01 dan tepat pada 2026-03-31, serta satu record 2026-02-28 dan satu 2026-04-01",
+          "expect": "record tanggal 2026-03-01 dan 2026-03-31 ikut terhitung; record 2026-02-28 dan 2026-04-01 tidak; penyaringan memakai whereDate atas kolom date, bukan created_at"
+        },
+        {
+          "description": "record yang date-nya di dalam periode tetap terhitung walau created_at di luar periode",
+          "given": "record ber-date 2026-03-15 namun created_at 2026-04-02 (diinput terlambat)",
+          "expect": "record itu ikut terhitung pada seluruh metrik, tren, rekap, dan ekspor periode Maret"
+        },
+        {
+          "description": "seluruh agregasi dijalankan di PHP atas baris mentah, bukan SUM/AVG/GROUP BY di SQL",
+          "given": "query builder di-spy saat buildSummary() dipanggil",
+          "expect": "query yang dijalankan hanya pengambilan baris mentah (select kolom + where + order by); tidak ada pemanggilan avg()/sum()/groupBy() di lapisan SQL, sehingga perilaku null-bukan-nol sama di SQLite maupun PostgreSQL"
+        },
+        {
+          "description": "daftar periode hanya memuat periode yang mencakup Boiler Room atau berlaku semua jenis stasiun",
+          "given": "listPeriods() dipanggil untuk mill 1 yang punya periode berjenis Boiler Room, periode tanpa jenis stasiun, dan periode berjenis stasiun lain",
+          "expect": "hasil memuat dua periode pertama saja; periode berjenis stasiun lain tidak ikut"
+        },
+        {
+          "description": "mill tanpa periode yang mencakup Boiler Room mengembalikan daftar kosong, bukan galat",
+          "given": "listPeriods() untuk mill yang tidak punya satu pun periode mencakup Boiler Room",
+          "expect": "mengembalikan array kosong tanpa melempar exception"
+        },
+        {
+          "description": "status periode tidak membatasi pembacaan maupun ekspor",
+          "given": "period_id merujuk periode berstatus 'closed' milik mill pengguna",
+          "expect": "buildSummary() dan buildExportRows() mengembalikan hasil penuh dan status 'closed' ikut pada payload; tidak ada exception"
+        },
+        {
+          "description": "throws 403 FORBIDDEN when period_id milik mill lain",
+          "given": "user Supervisor ber-business_unit_id=1; periodRepo mengembalikan periode ber-business_unit_id=2",
+          "expect": "melempar exception FORBIDDEN dengan http_code 403; tidak ada query boiler_room_records yang dijalankan"
+        },
+        {
+          "description": "throws 404 NOT_FOUND when period_id tidak ditemukan",
+          "given": "periodRepo->find(999) mengembalikan null",
+          "expect": "melempar exception NOT_FOUND dengan http_code 404"
+        },
+        {
+          "description": "throws 422 VALIDATION_ERROR when period_id kosong",
+          "given": "buildSummary() dipanggil tanpa period_id",
+          "expect": "melempar exception VALIDATION_ERROR dengan http_code 422"
+        },
+        {
+          "description": "throws 422 VALIDATION_ERROR when Admin tidak menyertakan business_unit_id",
+          "given": "user Admin (business_unit_id null pada akun) memanggil listPeriods()/buildSummary() tanpa parameter business_unit_id",
+          "expect": "melempar exception VALIDATION_ERROR dengan http_code 422 berisi arahan memilih mill lebih dulu"
+        },
+        {
+          "description": "throws 422 VALIDATION_ERROR when akun Supervisor terikat mill yang business_unit_id-nya null, tanpa pernah menyusun daftar seluruh mill",
+          "given": "user Supervisor dengan business_unit_id null; repository daftar mill di-spy",
+          "expect": "melempar exception VALIDATION_ERROR dengan http_code 422 berisi arahan menghubungi Admin; spy daftar seluruh mill TIDAK pernah dipanggil"
+        },
+        {
+          "description": "business_unit_id dari klien diabaikan untuk Supervisor/MillManagement",
+          "given": "user Supervisor ber-business_unit_id=1 memanggil buildSummary() dengan parameter business_unit_id=2 dan period_id milik mill 1",
+          "expect": "mengembalikan data mill 1 secara normal (tidak melempar FORBIDDEN); nilai 2 dari klien tidak pernah dipakai pada query"
+        },
+        {
+          "description": "throws 403 FORBIDDEN when actor berperan Operator",
+          "given": "user berperan Station Operator memanggil buildSummary()/listPeriods()/buildExportRows()",
+          "expect": "melempar exception FORBIDDEN dengan http_code 403 pada ketiga jalur; tidak ada data laporan yang dikembalikan"
+        },
+        {
+          "description": "ekspor menghasilkan satu baris per slot waktu dengan kolom konteks record diulang",
+          "given": "buildExportRows() atas 1 record (date 2026-03-04, boiler_room_id 'BLR-1', status 'closed', note 'uji') berisi 3 baris detail",
+          "expect": "menghasilkan 3 baris CSV; kolom tanggal, unit boiler, status, dan catatan diulang identik pada ketiga baris; baris diurutkan berdasarkan date lalu time_slot"
+        },
+        {
+          "description": "ekspor dialirkan per chunk, tidak memuat seluruh baris sekaligus di memori",
+          "given": "buildExportRows() atas periode dengan 5.000 baris detail",
+          "expect": "baris dihasilkan melalui iterasi chunk/lazy (generator), bukan koleksi tunggal berisi seluruh baris"
+        },
+        {
+          "description": "throws 422 EXPORT_FAILED when baris ekspor melebihi 50.000",
+          "given": "hitungan baris detail pada periode = 50.001",
+          "expect": "melempar exception EXPORT_FAILED dengan http_code 422; tidak ada berkas CSV yang dialirkan"
+        },
+        {
+          "description": "ekspor tepat pada batas 50.000 baris tetap berjalan",
+          "given": "hitungan baris detail pada periode = 50.000",
+          "expect": "ekspor berjalan normal dan menghasilkan 50.000 baris; tidak melempar EXPORT_FAILED"
+        },
+        {
+          "description": "tidak ada penandaan ambang pada hasil layanan",
+          "given": "periode memuat pembacaan ekstrem 5.0 dan 95.0 pada steam_pressure_bar",
+          "expect": "payload tidak memuat kunci apa pun bernuansa ambang (mis. is_out_of_range, severity, threshold_status, alert); nilai dikembalikan netral apa adanya"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "boiler-room-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "boiler-room-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Tanpa Periode Pelaporan yang dibuat di sana, laporan ini tidak punya apa pun untuk ditampilkan"
+    },
+    {
+      "screen_id": "screen-078--form-boiler-room",
+      "reason": "Sumber data — pembacaan per slot waktu diinput Operator lewat form mobile ini"
+    },
+    {
+      "screen_id": "screen-118--form-boiler-room-web",
+      "reason": "Sumber data versi web — Supervisor menginput record dan pembacaan yang sama"
+    },
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Satu-satunya jalan masuk lewat UI: tile Boiler Room pada grid Laporan Stasiun. REPORT_ROUTES di StationReportService harus ditambah satu baris"
+    }
+  ],
+  "implementation_notes": [
+    "Route /reports/boiler-room mengikuti konvensi repo /reports/* (reports.management, reports.stations, reports.sterilizer, reports.cages-track). Tidak ada route ber-prefix /laporan di aplikasi ini.",
+    "Tile Boiler Room di screen-140 baru menyala setelah REPORT_ROUTES di StationReportService ditambah satu entri, diurutkan mengikuti sort_order. Tanpa baris itu laporan hidup, seluruh testnya hijau, dan layarnya tetap tidak terjangkau dari UI. Asersi laporan-stasiun.spec.ts sudah berbentuk INVARIAN sejak 2026-09-24, jadi menambah tile TIDAK akan memerahkannya.",
+    "PENYEBUT TERPISAH PER METRIK adalah inti layar ini. Kesembilan kolom numerik nullable dan sebuah baris dianggap terisi bila minimal satu dari 15 kolom non-time_slot terisi (definisi milik BoilerRoomRecordService). Memakai jumlah baris terisi sebagai penyebut bersama akan mengempiskan metrik yang jarang diisi — dan hasilnya tetap terlihat wajar. Unit test mengunci ini dengan 10 baris tekanan vs 4 baris pH.",
+    "EKSTREM DARI PEMBACAAN MENTAH, bukan dari rata-rata harian. Keputusan diambil pada 2026-09-24: laporan ini menjawab 'seberapa stabil', dan tekanan yang anjlok ke 12 bar pada satu slot adalah kejadian penting justru karena rata-rata harinya tetap terlihat 20. Mock visual memakai ekstrem rata-rata harian demi keterverifikasian dan menyatakannya di kartu — itu KEMUDAHAN MOCK, bukan kontrak. Yang berlaku adalah pembacaan mentah, dan layar WAJIB memberi label bahwa min/max pada kartu tidak dapat direkonsiliasi dengan kolom rata-rata harian di rekap.",
+    "TIGA KEADAAN perawatan punya invarian yang bisa diuji: executed + not_executed + not_recorded HARUS sama persis dengan jumlah baris pembacaan. Memperlakukan NULL sebagai 'n' akan melaporkan kelalaian perawatan yang tidak pernah terjadi.",
+    "TIDAK ADA penandaan nilai di luar batas, dan alasannya ditulis di sini supaya tidak ada yang 'melengkapinya' kelak: tidak ada BoilerRoomOperationalTarget (hanya Threshing/Pressing/Depricarping/Kernel Plant yang punya), dan docblock BoilerRoomRecordService menyatakan ketiadaan itu memang disengaja, sama seperti Engine Room/Storage Tank/Effluent Plant. Angka tekanan boiler yang diwarnai merah akan dibaca sebagai batas keselamatan padahal hanya turunan statistik periode itu sendiri.",
+    "fuel_feed_rate, id_fan_load, sa_fan_load adalah kolom STRING teks bebas — dinyatakan eksplisit di docblock BoilerRoomRecordService baris 49 karena satuan pada formulir kertasnya bercampur (Hz/%/ton, A/%). Merata-ratakannya mustahil, bukan sekadar tidak diinginkan.",
+    "time_slot bertipe TIME, BUKAN integer jam seperti tipped_hour milik Cages & Tracks. Jangan mengonversinya menjadi integer dan jangan mengasumsikan slot jatuh tepat di awal jam.",
+    "CSS memakai partial bersama report-styles.blade.php lewat <x-slot:styles> di view halaman, BUKAN @include di dalam komponen Livewire — alasannya sudah mahal dibayar di screen-140: partial ini memancarkan <style>, dan Livewire 3 memasang wire:id pada elemen ter-render pertama.",
+    "Mock memakai .md-row--2 untuk dua grafik berdampingan (kelas nyata di partial), bukan .md-row--1-1 yang tidak ada. Mock juga menambahkan dua aturan tata letak murni yang perlu dibawa ke partial bila dipakai: .md-card > .md-recap (tabel per-unit menggulir di dalam kartunya) dan white-space: normal pada nilai KPI di bawah 768px, karena label Boiler Room lebih panjang dan tanpa itu kartunya melebar sehingga halaman menggulir mendatar.",
+    "Mock visual acuan ada di .asdlc/generated/2-business-spec/screens/html/screen-131--laporan-boiler-room-web.html, lengkap dengan blok komentar JEJAK ANGKA di dekat </body> yang memuat bobot per hari dan per unit tiap metrik. Angkanya sudah diverifikasi ulang secara independen: Sigma slot 268 (79,8% dari 336), Sigma blowdown 31, Sigma sootblowing 18, kedua grafik tren identik baris-per-baris dengan kolom rekapnya, dan Sigma pembacaan dua unit = 268 = reading_count tekanan.",
+    "Nama medan respons diselaraskan ke konvensi screen-129/130: coverage, metrics, maintenance, daily, by_unit, total. Turunan test semula memakai completeness/daily_trend/per_unit/daily_recap; 38 kemunculan diganti supaya artefak tidak memuat dua nama untuk satu hal.",
+    "Seluruh agregasi dijalankan di PHP atas baris mentah, bukan SUM/AVG/GROUP BY di SQL. Test berjalan di SQLite dan produksi di PostgreSQL, dan justru aturan penyebut-terpisah serta null-bukan-nol yang paling mudah berbeda di antara keduanya.",
+    "KOREKSI SPEC 2026-09-24, dua-duanya kontradiksi internal yang ditemukan agen implementasi, bukan cacat kode: (a) unit_test_cases semula memakai pembagi PANJANG PERIODE untuk avg_per_day sementara business_logic langkah 8 memakai HARI BER-RECORD. Keputusan user: hari ber-record — konsisten dengan avg_cages_per_day milik screen-130 dan dengan label layar yang sudah berbunyi 'per hari ber-record'; kelengkapan pencatatan ditampilkan terpisah sehingga pembaca tahu pembaginya berapa hari. Implementasi sudah benar; yang salah spec-nya. (b) edge_case_handling semula menuntut <details> tertutup bawaan, sementara test_scenarios menuntut rekap ADA saat render pertama dan HILANG dari DOM setelah ditutup. <details> yang tertutup tetap menyimpan anaknya di DOM, jadi ketiganya mustahil dipenuhi bersamaan. Implementasi memakai tombol + markup ber-@if dan memenuhi kedua skenario."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — berhasil sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/periods"
+          },
+          "request_example": {
+            "_context": "Sesi Supervisor terikat mill 1; tidak mengirim business_unit_id karena diambil dari akun"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Memilih periode pertama dari langkah 1; respons memuat metrics beserta reading_count tiap metrik, maintenance, coverage, daily, by_unit, daily",
+            "period_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/export"
+          },
+          "request_example": {
+            "_context": "Mengunduh rincian pembacaan per slot waktu sebagai CSV; memastikan tidak ada data stasiun yang berubah setelahnya",
+            "period_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) sebagai Supervisor terikat mill 1, lalu set periode terpilih ke periode yang punya pembacaan",
+        "assert": "data-testid=\"mill-selector\" tidak ada; data-testid=\"mill-name\" menampilkan nama mill akun; tiap data-testid=\"metric-{nama}-min|avg|max\" terisi dan berdampingan dengan data-testid=\"metric-{nama}-reading-count\"; data-testid=\"maintenance-blowdown-executed\", \"maintenance-sootblowing-executed\", \"recording-coverage\", \"daily-trend-steam-pressure\", \"per-unit-recap\", \"daily-recap\", dan \"export-button\" tampil"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: masuk sebagai Supervisor, buka /reports/boiler-room, pilih periode pada data-testid=\"period-selector\", tunggu laporan termuat, lalu klik data-testid=\"export-button\" dan tangkap unduhan",
+        "assert": "pemilih mill tidak terlihat; kartu metrik, angka jumlah pembacaan, kelengkapan pencatatan, tren harian, rekap per unit, dan rekap harian terlihat; unduhan CSV diterima dan nilai pada layar tidak berubah setelah reload"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — berhasil sebagai Admin",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Sesi Admin; mengambil daftar mill untuk pemilih Mill"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/periods"
+          },
+          "request_example": {
+            "_context": "Admin memilih mill dari langkah 1",
+            "business_unit_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Rekap penuh untuk mill dan periode yang dipilih Admin",
+            "business_unit_id": "{{step1.data.0.id}}",
+            "period_id": "{{step2.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) sebagai Admin, set data-testid=\"mill-selector\" ke mill 1 lalu set periode terpilih",
+        "assert": "data-testid=\"mill-selector\" tampil; daftar periode ter-refresh mengikuti mill terpilih; seluruh kartu metrik dengan reading_count masing-masing, maintenance, recording-coverage, daily-trend, per-unit-recap, daily-recap, dan export-button tampil"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: masuk sebagai Admin, buka /reports/boiler-room, pilih mill pada data-testid=\"mill-selector\", pilih periode, tunggu laporan termuat",
+        "assert": "pemilih mill terlihat; setelah mill dan periode dipilih seluruh bagian laporan terlihat dan tombol Ekspor CSV aktif"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Sesi Admin membuka layar; pemilih Mill dimuat lebih dulu"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Admin belum memilih mill sehingga business_unit_id tidak dikirim",
+            "period_id": 10
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) sebagai Admin tanpa menyetel mill terpilih",
+        "assert": "data-testid=\"mill-selector\" tampil; data-testid=\"select-mill-first-hint\" tampil; data-testid=\"metric-steam-pressure-avg\", \"recording-coverage\", dan \"daily-recap\" tidak ada di DOM"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: masuk sebagai Admin lalu buka /reports/boiler-room tanpa memilih mill",
+        "assert": "pemilih mill dan arahan memilih mill terlebih dahulu terlihat; tidak ada satu pun angka laporan yang terlihat di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — mill belum punya periode",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/periods"
+          },
+          "request_example": {
+            "_context": "Mill aktif tidak punya satu pun periode yang mencakup Boiler Room; diharapkan data berupa array kosong, bukan galat"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Memaksa rekap dengan period_id yang tidak ada sama sekali",
+            "period_id": 999999
+          },
+          "expected_status": 404,
+          "expected_error_code": "NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) sebagai Supervisor pada mill yang tidak punya periode mencakup Boiler Room",
+        "assert": "data-testid=\"period-selector\" tidak punya satu pun option; data-testid=\"no-period-hint\" berisi arahan menghubungi Admin; tidak ada data-testid metrik yang ter-render"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: masuk sebagai Supervisor pada mill tanpa periode Boiler Room lalu buka /reports/boiler-room dan buka pemilih periode",
+        "assert": "pemilih periode kosong, arahan menghubungi Admin terlihat, dan tidak ada angka laporan yang tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — periode tanpa data",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode ada tetapi tidak memuat satu pun boiler_room_record; seluruh metrik harus null dengan reading_count 0, bukan 0/0/0",
+            "period_id": 11
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode terpilih yang tidak memuat pembacaan sama sekali",
+        "assert": "data-testid=\"empty-period-notice\" tampil; setiap data-testid=\"metric-{nama}-avg\" menampilkan tanda tidak tersedia (mis. '-') dan bukan '0'; data-testid=\"daily-trend-steam-pressure\" tidak me-render grafik kosong"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room dan pilih periode yang tidak memuat pembacaan",
+        "assert": "keterangan belum ada data terlihat; tidak ada angka nol pada kartu metrik; tidak ada kanvas grafik kosong yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — sebuah metrik tidak pernah diisi",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode memuat 20 pembacaan steam_pressure_bar namun water_ph null sepanjang periode; metrics.water_ph harus min/avg/max null dengan reading_count 0 sementara steam_pressure_bar normal dengan reading_count 20",
+            "period_id": 12
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode yang water_ph-nya kosong sepanjang periode",
+        "assert": "data-testid=\"metric-water-ph-avg\" menampilkan tanda tidak tersedia dan data-testid=\"metric-water-ph-reading-count\" menampilkan 0; data-testid=\"metric-steam-pressure-avg\" tetap berisi angka dengan reading-count 20"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room lalu pilih periode yang satu metriknya tidak pernah diisi",
+        "assert": "kartu pH terbaca tidak tersedia dengan jumlah pembacaan 0, sedangkan kartu tekanan uap tetap menampilkan angka dengan jumlah pembacaannya sendiri"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — perawatan tidak tercatat",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode memuat 10 baris: blowdown 3 'y', 2 'n', 5 null; diharapkan executed=3, not_executed=2, not_recorded=5 dan jumlah ketiganya = 10; NULL tidak pernah menambah not_executed",
+            "period_id": 13
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode berisi campuran 'y', 'n', dan null pada blowdown/sootblowing",
+        "assert": "data-testid=\"maintenance-blowdown-executed\"=3, \"maintenance-blowdown-not-executed\"=2, \"maintenance-blowdown-not-recorded\"=5; ketiga angka ditampilkan terpisah dan yang tidak tercatat tidak tergabung ke yang tidak dilakukan"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room dan pilih periode dengan perawatan sebagian tidak tercatat",
+        "assert": "tiga keadaan blowdown dan sootblowing terlihat sebagai angka terpisah beserta labelnya, dan jumlah yang tidak tercatat terbaca jelas berbeda dari yang tidak dilakukan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — pencatatan sangat tidak lengkap",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode 30 hari dengan hanya 6 slot terisi; angka tetap dikembalikan dan coverage memuat filled_slots=6 beserta expected_slots; baris yang seluruh 15 kolomnya null tidak dihitung terisi",
+            "period_id": 14
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode yang hanya terisi pada sebagian kecil slot waktu",
+        "assert": "data-testid=\"recording-coverage\" tampil di bagian atas laporan berisi filled_slots dan expected_slots; kartu metrik tetap berisi angka; setiap angka tetap berdampingan dengan data-testid=\"metric-{nama}-reading-count\" yang bernilai kecil"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room lalu pilih periode dengan pencatatan sangat tidak lengkap",
+        "assert": "kelengkapan pencatatan terlihat menonjol tanpa perlu menggulir dan tidak tersembunyi di catatan kaki; angka tetap tampil dengan jumlah pembacaan kecil di sebelahnya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — mill punya beberapa unit boiler",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode memuat record 'BLR-1' dan 'BLR-2' pada tanggal yang sama (time_slot sama diperbolehkan lintas record) serta unit 'BLR-3' tanpa pembacaan; angka periode menggabungkan seluruh unit dan by_unit memuat ketiga unit termasuk 'BLR-3' dengan reading_count 0",
+            "period_id": 15
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode yang punya tiga unit boiler, salah satunya tanpa pembacaan",
+        "assert": "data-testid=\"per-unit-recap\" memuat tiga baris ber-data-testid=\"per-unit-row-BLR-1|BLR-2|BLR-3\"; baris BLR-3 menampilkan reading_count 0 dan nilai tidak tersedia; kartu metrik periode mencerminkan gabungan BLR-1 dan BLR-2"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room dan pilih periode dengan beberapa unit boiler",
+        "assert": "tabel rekap per unit terlihat memuat seluruh unit termasuk unit tanpa pembacaan dengan jumlah pembacaan 0, sementara angka periode di bagian atas merupakan gabungan seluruh unit"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/periods"
+          },
+          "request_example": {
+            "_context": "Sesi Supervisor yang business_unit_id akunnya null; endpoint daftar mill di-spy dan harus tidak pernah terpanggil"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Jalur rekap pun harus ditolak dengan galat yang sama, bukan menampilkan daftar seluruh mill",
+            "period_id": 10
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) sebagai Supervisor dengan business_unit_id null",
+        "assert": "data-testid=\"no-mill-hint\" berisi pesan menghubungi Admin; data-testid=\"mill-selector\" TIDAK ada di DOM (daftar seluruh mill tidak pernah ditawarkan); tidak ada angka laporan ter-render"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: masuk sebagai Supervisor tanpa mill lalu buka /reports/boiler-room",
+        "assert": "pesan menghubungi Admin terlihat; tidak ada dropdown daftar mill di halaman; tidak ada angka laporan yang tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — mencoba melihat mill lain",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Sesi Supervisor mill 1 mengirim business_unit_id mill lain dengan period_id milik mill sendiri; server harus MENGABAIKAN nilai klien dan mengembalikan 200 berisi data mill 1, bukan 403",
+            "business_unit_id": 2,
+            "period_id": 10
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Sesi yang sama meminta period_id milik mill lain; harus ditolak 403",
+            "period_id": 77
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/export"
+          },
+          "request_example": {
+            "_context": "Ekspor atas periode milik mill lain juga harus ditolak 403",
+            "period_id": 77
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) sebagai Supervisor mill 1 lalu set properti mill terpilih ke mill 2 secara paksa dan set periode milik mill 1",
+        "assert": "data-testid=\"mill-name\" tetap menampilkan mill 1; angka yang ter-render berasal dari data mill 1; menyetel periode milik mill lain menghasilkan penolakan dan tidak ada angka mill lain yang ter-render"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: masuk sebagai Supervisor mill 1 lalu buka /reports/boiler-room?business_unit_id=2 dan kemudian /reports/boiler-room?period_id=<periode mill lain>",
+        "assert": "pada permintaan pertama halaman tetap menampilkan mill 1 dengan datanya sendiri; pada permintaan kedua akses ditolak dan tidak ada data mill lain yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — Operator mencoba membuka layar web ini",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/periods"
+          },
+          "request_example": {
+            "_context": "Sesi Station Operator; layar web ini tidak diperluas untuk Operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Sesi Station Operator mencoba rekap",
+            "period_id": 10
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/export"
+          },
+          "request_example": {
+            "_context": "Sesi Station Operator mencoba ekspor",
+            "period_id": 10
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Tanpa sesi sama sekali",
+            "period_id": 10
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) sebagai Station Operator",
+        "assert": "komponen menolak render dengan status terlarang (403); tidak ada satu pun data-testid metrik, rekap per unit, maupun rekap harian di DOM"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: masuk sebagai Station Operator lalu buka /reports/boiler-room",
+        "assert": "halaman menampilkan akses ditolak atau dialihkan keluar; tidak ada satu pun angka laporan Boiler Room yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — periode tertutup",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode berstatus tertutup; laporan harus tampil penuh dan status ikut pada payload",
+            "period_id": 16
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/export"
+          },
+          "request_example": {
+            "_context": "Ekspor atas periode tertutup tetap dapat dijalankan",
+            "period_id": 16
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode berstatus tertutup terpilih",
+        "assert": "data-testid=\"period-status\" menampilkan status tertutup; seluruh kartu metrik dan rekap tetap ter-render; data-testid=\"export-button\" tidak disabled"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room, pilih periode berstatus tertutup, lalu klik tombol Ekspor CSV",
+        "assert": "status tertutup terlihat, laporan tampil penuh, dan unduhan CSV berhasil diterima"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — rekap harian panjang",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode panjang dengan puluhan tanggal ber-record; daily memuat satu entri per tanggal dan angka utama tetap ringkas",
+            "period_id": 17
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/export"
+          },
+          "request_example": {
+            "_context": "Periode yang barisnya melebihi 50.000 saat diekspor",
+            "period_id": 18
+          },
+          "expected_status": 422,
+          "expected_error_code": "EXPORT_FAILED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode panjang, lalu panggil aksi toggle rekap harian dua kali",
+        "assert": "data-testid=\"daily-recap-toggle\" ada; setelah toggle pertama data-testid=\"daily-recap\" tidak ter-render, setelah toggle kedua ter-render lagi; data-testid kartu metrik dan tren tetap ada pada kedua keadaan"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room, pilih periode panjang, klik toggle rekap harian untuk menutup lalu klik lagi untuk membuka",
+        "assert": "tabel rekap harian tersembunyi setelah ditutup dan muncul kembali setelah dibuka; angka utama dan tren tetap terlihat tanpa menggulir panjang"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — layar hanya membaca",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Hanya jalur GET yang tersedia pada prefix /api/boiler-room-reports; bandingkan cacah baris boiler_room_records dan boiler_room_details sebelum dan sesudah permintaan",
+            "period_id": 10
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode berisi pembacaan, telusuri render penuh termasuk rekap per unit dan rekap harian",
+        "assert": "tidak ada data-testid bernuansa tulis (save-button, edit-button, delete-button) di DOM; komponen tidak mengekspos aksi publik yang menulis; cacah baris boiler_room_records dan boiler_room_details tidak berubah setelah render"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room, pilih periode, buka rekap per unit dan rekap harian, telusuri seluruh isi halaman",
+        "assert": "tidak ada tombol simpan, ubah, atau hapus di mana pun; setelah halaman ditutup dan data diperiksa ulang, tidak ada satu pun data stasiun yang berubah"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — daftar periode hanya yang mencakup Boiler Room",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/periods"
+          },
+          "request_example": {
+            "_context": "Mill punya periode berjenis Boiler Room, periode tanpa jenis stasiun, dan periode berjenis stasiun lain; hanya dua jenis pertama yang boleh muncul"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) pada mill dengan campuran jenis periode",
+        "assert": "data-testid=\"period-selector\" memuat persis periode Boiler Room dan periode semua jenis stasiun; periode berjenis stasiun lain tidak ada di daftar option"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room lalu buka pemilih periode",
+        "assert": "hanya periode yang mencakup Boiler Room atau berlaku semua jenis stasiun yang terlihat dan dapat dipilih; periode stasiun lain tidak muncul"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — rentang periode inklusif di kedua ujung",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode 2026-03-01..2026-03-31 dengan pembacaan tepat di 2026-03-01 dan 2026-03-31, plus record umpan di 2026-02-28 dan 2026-04-01 yang harus tersaring; penyaringan memakai whereDate atas record.date, bukan created_at",
+            "period_id": 19
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/export"
+          },
+          "request_example": {
+            "_context": "Hasil ekspor harus memuat baris tanggal awal dan tanggal akhir dan tidak memuat tanggal di luar rentang",
+            "period_id": 19
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode yang punya pembacaan tepat di kedua ujung rentang",
+        "assert": "data-testid=\"daily-recap\" memuat baris tanggal mulai dan tanggal akhir; data-testid=\"daily-trend-steam-pressure\" memuat titik untuk kedua tanggal itu; reading_count metrik mencakup pembacaan kedua ujung dan tidak mencakup tanggal di luar rentang"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room, pilih periode tersebut, buka rekap harian, lalu unduh CSV",
+        "assert": "baris tanggal mulai dan tanggal akhir terlihat pada rekap harian dan ada pada berkas CSV; tidak ada tanggal di luar rentang yang muncul"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — setiap metrik punya penyebutnya sendiri",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode berisi 10 baris: 10 mengisi steam_pressure_bar, hanya 4 mengisi water_ph (6.0, 7.0, 7.0, 8.0); metrics.water_ph.avg harus 7.0 (28.0/4) bukan 2.8 (28.0/10), reading_count pH = 4 dan tekanan = 10; ekstrem periode diambil dari pembacaan mentah 12.0 dan 28.0, bukan dari rata-rata harian",
+            "period_id": 20
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode yang kelengkapan antar metriknya berbeda",
+        "assert": "data-testid=\"metric-water-ph-avg\" menampilkan 7.0 dengan data-testid=\"metric-water-ph-reading-count\"=4; data-testid=\"metric-steam-pressure-avg\" memakai reading-count 10; data-testid=\"metric-steam-pressure-min\" menampilkan 12.0 (pembacaan mentah) sedangkan baris rekap harian tanggal terkait menampilkan rata-rata harian 20.0"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room dan pilih periode dengan kelengkapan metrik yang berbeda, lalu buka rekap harian",
+        "assert": "rata-rata pH terbaca sebagai nilai wajar dengan jumlah pembacaan 4 di sebelahnya, bukan nilai yang mengempis; nilai terendah periode sama dengan pembacaan mentah terendah, sementara rekap harian tetap menampilkan rata-rata harian"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — jumlah pembacaan ditampilkan berdampingan dengan angkanya",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Setiap entri pada metrics wajib memuat kunci reading_count miliknya sendiri; tidak boleh ada satu reading_count global yang dipakai bersama; coverage.filled_slots dan expected_slots juga hadir",
+            "period_id": 20
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode berisi kelengkapan berbeda antar metrik",
+        "assert": "untuk setiap metrik (steam-pressure, steam-temp, water-tds, water-ph, exhaust-gas-temp) terdapat pasangan data-testid=\"metric-{nama}-avg\" dan data-testid=\"metric-{nama}-reading-count\" yang ter-render pada blok yang sama; tidak ada metrik yang tampil tanpa jumlah pembacaan"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room, pilih periode, lalu periksa tiap kartu metrik tanpa membuka rincian apa pun",
+        "assert": "jumlah pembacaan terlihat berdampingan dengan tiap angka pada seluruh kartu metrik, tanpa perlu klik atau hover"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — laju bahan bakar dan beban fan tidak pernah dirata-rata",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode memuat fuel_feed_rate='12 ton/jam', id_fan_load='80%', sa_fan_load='sedang'; payload metrics, daily, by_unit, dan daily TIDAK boleh memuat kunci fuel_feed_rate, id_fan_load, maupun sa_fan_load",
+            "period_id": 21
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/export"
+          },
+          "request_example": {
+            "_context": "Ketiga kolom teks bebas justru WAJIB hadir apa adanya pada CSV, satu baris per slot waktu",
+            "period_id": 21
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode yang kolom teks bebasnya terisi",
+        "assert": "tidak ada data-testid=\"metric-fuel-feed-rate-*\", \"metric-id-fan-load-*\", maupun \"metric-sa-fan-load-*\"; ketiga kolom itu tidak muncul pada data-testid=\"daily-trend-*\" maupun \"per-unit-recap\"; nilainya hanya tampil sebagai teks apa adanya pada rincian pembacaan"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room, pilih periode dengan kolom teks bebas terisi, periksa kartu metrik dan grafik tren, lalu unduh CSV",
+        "assert": "laju bahan bakar dan beban fan tidak muncul sebagai angka rata-rata, min, max, maupun garis tren di halaman; keduanya muncul sebagai teks apa adanya pada CSV"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Boiler Room (Web) — tidak ada penandaan nilai di luar batas",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/boiler-room-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode memuat pembacaan ekstrem 5.0 dan 95.0 pada steam_pressure_bar; payload tidak boleh memuat kunci is_out_of_range, severity, threshold_status, alert, maupun sejenisnya di metrics, daily, by_unit, dan daily",
+            "period_id": 22
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanBoilerRoom",
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode berisi nilai yang sangat ekstrem, lalu periksa markup yang ter-render",
+        "assert": "tidak ada data-testid bernuansa peringatan (mis. \"threshold-badge\", \"out-of-range-icon\", \"alert-label\"); tidak ada kelas warna bahaya (text-red/bg-red/warning) pada kartu metrik, baris tren, rekap per unit, maupun rekap harian; nilai ekstrem ter-render dengan gaya sama seperti nilai lain"
+      },
+      "browser_test": {
+        "route": "/reports/boiler-room",
+        "action": "Playwright: buka /reports/boiler-room, pilih periode dengan nilai ekstrem, lalu periksa kartu metrik, grafik tren, rekap per unit, dan rekap harian",
+        "assert": "tidak ada satu pun nilai yang berwarna peringatan, berikon, atau berlabel pelanggaran; seluruh nilai tampil netral dengan gaya visual yang sama"
+      }
+    }
+  ]
+}

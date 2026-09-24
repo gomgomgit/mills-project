@@ -1,0 +1,172 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "usecase-144--buka-periode-pelaporan",
+  "name": "Buka Periode Pelaporan",
+  "description": "Admin menyatakan sebuah Periode Pelaporan resmi berjalan dengan mengubah statusnya dari Draft menjadi Terbuka. Ini melengkapi siklus status yang selama ini tidak lengkap: periode selalu lahir Draft, tetapi sebelum aksi ini ada, satu-satunya jalan menuju Terbuka adalah memutar lewat menutup lalu membuka kembali. Aksi ini hanya menyentuh status periode — tidak memvalidasi maupun mengubah satu pun data stasiun di dalam rentangnya.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login ke aplikasi web",
+    "Periode yang akan dibuka sudah ada dan masih berstatus Draft"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Membuka halaman Kelola Periode Pelaporan dan memilih periode berstatus Draft"
+    },
+    {
+      "step": 2,
+      "actor": "actor-admin",
+      "description": "Menekan aksi 'Buka Periode' pada baris periode itu"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menampilkan dialog konfirmasi yang menjelaskan bahwa periode akan dinyatakan berjalan dan statusnya tidak dapat dikembalikan ke Draft"
+    },
+    {
+      "step": 4,
+      "actor": "actor-admin",
+      "description": "Mengonfirmasi pembukaan"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Memastikan periode itu benar masih berstatus Draft"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Mengubah status periode menjadi Terbuka tanpa menyentuh data stasiun mana pun"
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Menampilkan status baru pada daftar; aksi 'Buka Periode' tidak lagi ditawarkan untuk periode itu"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Admin membatalkan pembukaan",
+      "trigger": "Pada langkah 4, Admin menutup dialog konfirmasi tanpa mengonfirmasi",
+      "steps": [
+        "Dialog ditutup",
+        "Status periode tidak berubah"
+      ]
+    },
+    {
+      "name": "Periode sudah terbuka",
+      "trigger": "Pada langkah 5, periode yang dipilih ternyata sudah berstatus Terbuka",
+      "steps": [
+        "Sistem menolak dengan pesan yang menyebut periode itu sudah terbuka",
+        "Status periode tidak berubah",
+        "Tidak ada data stasiun yang tersentuh"
+      ]
+    },
+    {
+      "name": "Periode sudah tertutup",
+      "trigger": "Pada langkah 5, periode yang dipilih ternyata sudah berstatus Tertutup",
+      "steps": [
+        "Sistem menolak dengan pesan yang menyebut periode itu sudah tertutup",
+        "Sistem mengarahkan Admin memakai aksi 'Buka Kembali Periode' bila memang ingin membukanya lagi",
+        "Status periode tidak berubah"
+      ]
+    },
+    {
+      "name": "Periode tidak ditemukan",
+      "trigger": "Pada langkah 5, periode yang dirujuk sudah dihapus oleh Admin lain",
+      "steps": [
+        "Sistem memberi tahu periode itu tidak ditemukan",
+        "Tidak ada perubahan apa pun"
+      ]
+    },
+    {
+      "name": "Dua Admin membuka bersamaan",
+      "trigger": "Pada langkah 6, Admin lain lebih dahulu membuka periode yang sama",
+      "steps": [
+        "Hanya satu upaya yang benar-benar mengubah status",
+        "Upaya kedua diberi tahu periode itu sudah terbuka",
+        "Tidak ada penimpaan diam-diam"
+      ]
+    },
+    {
+      "name": "Bukan Admin mencoba membuka periode",
+      "trigger": "Pada langkah 2, yang menekan adalah Supervisor, Mill Management, atau pengguna tanpa sesi",
+      "steps": [
+        "Akses ditolak",
+        "Status periode tidak berubah"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Periode berstatus Terbuka",
+    "Periode tetap dapat diubah dan dihapus, karena hanya status Tertutup yang mengunci",
+    "Tidak ada satu pun data stasiun yang berubah"
+  ],
+  "business_rules": [
+    "Hanya Admin yang boleh membuka periode",
+    "Aksi ini hanya berlaku pada periode berstatus Draft",
+    "Siklus status adalah Draft → Terbuka → Tertutup, dan dari Tertutup kembali ke Terbuka lewat Buka Kembali Periode; tidak ada jalan kembali dari Terbuka ke Draft",
+    "Periode Terbuka tetap dapat diubah dan dihapus seperti Draft",
+    "Membuka periode hanya mengubah status, tidak menyentuh data stasiun"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Buka Periode Pelaporan — sukses",
+      "given": "Admin sudah login ke aplikasi web dan ada Periode Pelaporan yang masih berstatus Draft",
+      "when": "Admin memilih periode Draft itu pada halaman Kelola Periode Pelaporan dan menekan aksi 'Buka Periode'",
+      "then": "Status periode berubah menjadi Terbuka dan tampil demikian pada daftar, aksi 'Buka Periode' tidak lagi ditawarkan untuk periode itu, periode tetap dapat diubah dan dihapus, serta tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Buka Periode Pelaporan — Periode sudah terbuka",
+      "given": "Admin sudah login ke aplikasi web dan periode yang dirujuk ternyata sudah berstatus Terbuka",
+      "when": "Admin menjalankan aksi 'Buka Periode' pada periode tersebut",
+      "then": "Sistem menolak dengan pesan yang menyebut periode itu sudah terbuka, status periode tidak berubah, dan tidak ada data stasiun yang tersentuh"
+    },
+    {
+      "scenario": "Buka Periode Pelaporan — Periode sudah tertutup",
+      "given": "Admin sudah login ke aplikasi web dan periode yang dirujuk ternyata sudah berstatus Tertutup",
+      "when": "Admin menjalankan aksi 'Buka Periode' pada periode tersebut",
+      "then": "Sistem menolak dengan pesan yang menyebut periode itu sudah tertutup dan mengarahkan Admin memakai aksi 'Buka Kembali Periode' bila memang ingin membukanya lagi, sementara status periode tidak berubah"
+    },
+    {
+      "scenario": "Buka Periode Pelaporan — Periode tidak ditemukan",
+      "given": "Admin sudah login ke aplikasi web dan periode yang dirujuk sudah dihapus oleh Admin lain",
+      "when": "Admin menjalankan aksi 'Buka Periode' pada periode yang sudah tidak ada itu",
+      "then": "Sistem memberi tahu periode itu tidak ditemukan dan tidak terjadi perubahan apa pun"
+    },
+    {
+      "scenario": "Buka Periode Pelaporan — Dua Admin membuka bersamaan",
+      "given": "Admin sudah login ke aplikasi web dan sebuah periode berstatus Draft sedang dibuka oleh dua Admin pada saat yang hampir bersamaan",
+      "when": "Kedua Admin menjalankan aksi 'Buka Periode' pada periode yang sama",
+      "then": "Hanya satu upaya yang benar-benar mengubah status menjadi Terbuka, upaya kedua diberi tahu bahwa periode itu sudah terbuka, dan tidak ada penimpaan diam-diam"
+    },
+    {
+      "scenario": "Buka Periode Pelaporan — Bukan Admin mencoba membuka periode",
+      "given": "Ada Periode Pelaporan berstatus Draft, dan pelaku adalah Supervisor, Mill Management, atau pengguna tanpa sesi",
+      "when": "Pelaku non-Admin mencoba menjalankan aksi 'Buka Periode'",
+      "then": "Akses ditolak dan status periode tidak berubah"
+    },
+    {
+      "scenario": "Buka Periode Pelaporan — status Terbuka tidak dapat dikembalikan ke Draft",
+      "given": "Admin sudah login ke aplikasi web dan sebuah periode sudah berstatus Terbuka",
+      "when": "Admin mencoba mengembalikan periode itu ke status Draft",
+      "then": "Sistem menolak karena siklus status hanya berjalan Draft → Terbuka → Tertutup (dan dari Tertutup kembali ke Terbuka lewat 'Buka Kembali Periode'), sehingga status periode tetap Terbuka"
+    },
+    {
+      "scenario": "Buka Periode Pelaporan — periode Terbuka tetap dapat diubah dan dihapus",
+      "given": "Admin sudah login ke aplikasi web dan sebuah periode baru saja dibuka sehingga berstatus Terbuka",
+      "when": "Admin mengubah atau menghapus periode berstatus Terbuka tersebut",
+      "then": "Perubahan maupun penghapusan diterima seperti pada periode Draft, karena hanya status Tertutup yang mengunci periode"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-128--kelola-periode-pelaporan"
+  ]
+}

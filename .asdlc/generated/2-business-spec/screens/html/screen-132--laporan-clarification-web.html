@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Clarification (Web) | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* ============================================================================
+       Kosakata `md-*` bersama — SALINAN STRUKTURAL dari
+       backend/resources/views/dashboard/partials/report-styles.blade.php,
+       kosakata yang sama dipakai Daily Mill Report (screen-025), Laporan
+       Sterilizer (screen-129), Laporan Cages & Tracks (screen-130), Laporan
+       Boiler Room (screen-131), dan Laporan Stasiun (screen-140).
+
+       Mock ini tidak bisa meng-@include partial Blade, jadi kelas yang dipakai
+       disalin ke sini. Bedanya HANYA satu: seluruh nilai warna di partial itu
+       di sini diambil dari design-tokens.css lewat variabel — tidak ada satu
+       pun literal warna, radius, atau shadow di berkas ini.
+
+       Yang dipakai seluruhnya sudah ada di partial (md-hero, md-chip,
+       md-filters, md-kpis--4, md-kpis--3, md-kpi, md-bar, md-row--2, md-card,
+       md-budget, md-trendchart, md-legend, md-legend__swatch, md-threshold,
+       md-details, md-recap, md-table), ditambah aturan TATA LETAK murni
+       `.md-card > .md-recap` yang juga sudah ada di partial (baris 378).
+
+       SATU-SATUNYA tambahan adalah grafik garis tiga seri (`md-lc*`) untuk
+       kartu "Tren Suhu Antar Tangki" — Clarification menuntut ketiga suhu pada
+       SATU bidang gambar supaya SELISIH antar tangki terbaca, dan kosakata
+       lama hanya punya grafik batang seri tunggal. Tambahan ini memakai
+       variabel design-tokens saja: tidak ada satu pun literal warna, radius,
+       atau shadow.
+
+       CATATAN PENTING soal warna: laporan Clarification sengaja TIDAK memuat
+       kelas penanda ambang sama sekali — tidak ada modifier kolom/sel
+       bernuansa peringatan, tidak ada kartu ambang, tidak ada outlier.
+       Clarification tidak punya master target operasional, jadi tidak ada satu
+       pun nilai yang boleh terlihat "aman" atau "bahaya" di layar ini. Ketiga
+       warna seri pada grafik suhu karena itu diambil dari warna merek dan
+       warna teks — bukan dari warna keberhasilan/peringatan.
+       ============================================================================ */
+
+    .md {
+      --md-brand: var(--color-brand);
+      --md-brand-dark: var(--color-brand-hover);
+      --md-brand-soft: color-mix(in srgb, var(--color-brand) 12%, var(--color-background));
+      --md-ink: var(--color-text-primary);
+      --md-muted: var(--color-text-muted);
+      --md-line: var(--color-border);
+      --md-card: var(--color-background);
+      --md-soft: color-mix(in srgb, var(--color-surface) 70%, var(--color-background));
+      --md-track: color-mix(in srgb, var(--color-brand) 8%, var(--color-surface));
+      /* tiga seri suhu — netral secara makna, hanya dibedakan terang-gelap */
+      --md-s1: var(--color-brand);
+      --md-s2: var(--color-text-primary);
+      --md-s3: var(--color-text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+      margin-bottom: var(--space-xl);
+      color: var(--md-ink);
+    }
+    .md small { font-weight: 500; color: var(--md-muted); }
+
+    /* ---------- md-hero ---------- */
+    .md-hero {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: var(--space-md);
+      padding: var(--space-lg) var(--space-xl);
+      border-radius: var(--radius-modal);
+      color: var(--color-background);
+      background:
+        radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--color-brand) 72%, var(--color-background)) 0%, transparent 55%),
+        linear-gradient(135deg, var(--color-brand-hover) 0%, var(--color-brand) 60%, color-mix(in srgb, var(--color-brand) 88%, var(--color-background)) 100%);
+    }
+    .md-hero::after {
+      content: '';
+      position: absolute;
+      right: calc(var(--space-2xl) * -1.25);
+      bottom: calc(var(--space-2xl) * -1.6);
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      border: var(--space-xl) solid color-mix(in srgb, var(--color-background) 7%, transparent);
+    }
+    .md-hero__main { position: relative; z-index: 1; min-width: 0; }
+    .md-hero__eyebrow {
+      margin: 0 0 var(--space-xs);
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      opacity: .85;
+    }
+    .md-hero__title { margin: 0; font-size: var(--font-size-h1); font-weight: var(--font-weight-h1); letter-spacing: -.01em; line-height: 1.2; }
+    .md-hero__subtitle { margin: var(--space-xs) 0 0; font-size: var(--font-size-sm); opacity: .85; }
+    .md-hero__meta { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+
+    /* ---------- md-chip ---------- */
+    .md-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: 7px var(--space-sm);
+      border-radius: var(--radius-chip);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+    }
+    .md-chip svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .md-chip--date {
+      background: color-mix(in srgb, var(--color-background) 16%, transparent);
+      border: 1px solid color-mix(in srgb, var(--color-background) 28%, transparent);
+    }
+    .md-chip--status {
+      background: color-mix(in srgb, var(--color-background) 16%, transparent);
+      border: 1px solid color-mix(in srgb, var(--color-background) 28%, transparent);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-size: var(--font-size-xs);
+    }
+
+    /* ---------- md-filters ---------- */
+    .md-filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: var(--space-sm) var(--space-md);
+      background: var(--md-card);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-modal);
+      padding: var(--space-md) var(--space-lg);
+      box-shadow: var(--shadow-card);
+    }
+    .md-field { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; flex: 1 1 240px; }
+    .md-field__label { font-size: var(--font-size-xs); font-weight: 600; color: var(--md-muted); }
+    .md-field__control {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 9px var(--space-sm);
+      font: inherit;
+      font-size: var(--font-size-sm);
+      color: var(--md-ink);
+      background: var(--color-background);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-button);
+    }
+    .md-field__control:focus { outline: 2px solid var(--md-brand); outline-offset: 1px; border-color: var(--md-brand); }
+    .md-filters__actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-left: auto; }
+    .md-filters__hint { flex: 1 1 100%; margin: 0; font-size: var(--font-size-xs); color: var(--md-muted); }
+    .md-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px var(--space-md);
+      border-radius: var(--radius-button);
+      border: 1px solid var(--md-line);
+      background: var(--color-background);
+      color: var(--md-ink);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      min-height: var(--space-touch_target_min);
+    }
+    .md-btn svg { width: 16px; height: 16px; }
+    .md-btn:hover { border-color: var(--md-brand); color: var(--md-brand-dark); }
+    .md-btn--primary { background: var(--md-brand); border-color: var(--md-brand); color: var(--color-background); }
+    .md-btn--primary:hover { background: var(--md-brand-dark); border-color: var(--md-brand-dark); color: var(--color-background); }
+
+    /* Mill sebagai keterangan (pengguna terikat satu mill), bukan pemilih. */
+    .md-millcurrent {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding-bottom: 9px;
+      font-size: var(--font-size-sm);
+      color: var(--md-muted);
+    }
+    .md-millcurrent svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--md-brand); }
+    .md-millcurrent strong { color: var(--md-ink); font-weight: 600; }
+
+    /* ---------- md-kpis ---------- */
+    .md-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+    .md-kpis--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .md-kpis--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .md-kpi {
+      background: var(--md-card);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-card);
+      padding: var(--space-md);
+      box-shadow: var(--shadow-card);
+      transition: box-shadow .15s, transform .15s;
+      min-width: 0;
+    }
+    .md-kpi:hover { box-shadow: var(--shadow-dropdown); transform: translateY(-1px); }
+    .md-kpi__top { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); }
+    .md-kpi__label { font-size: var(--font-size-sm); font-weight: 600; color: var(--md-muted); }
+    .md-kpi__icon {
+      display: grid;
+      place-items: center;
+      width: var(--space-xl);
+      height: var(--space-xl);
+      border-radius: var(--radius-button);
+      background: var(--md-brand-soft);
+      color: var(--md-brand);
+      flex-shrink: 0;
+    }
+    .md-kpi__icon svg { width: 18px; height: 18px; }
+    .md-kpi__value {
+      margin: var(--space-sm) 0 2px;
+      font-size: var(--font-size-h1);
+      font-weight: var(--font-weight-h1);
+      letter-spacing: -.02em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+    .md-kpi__value span { font-size: var(--font-size-sm); font-weight: 600; color: var(--md-muted); }
+    .md-kpi__meta { margin: 0 0 var(--space-sm); font-size: var(--font-size-sm); color: var(--md-muted); font-variant-numeric: tabular-nums; }
+    .md-kpi__foot { margin: var(--space-xs) 0 0; font-size: var(--font-size-xs); color: var(--md-muted); }
+
+    /* ---------- md-bar ---------- */
+    .md-bar { position: relative; height: var(--space-sm); border-radius: var(--radius-chip); background: var(--md-track); }
+    .md-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--color-brand) 82%, var(--color-background)), var(--color-brand));
+    }
+    .md-bar--lg { height: 12px; }
+
+    /* ---------- md-row / md-card ---------- */
+    .md-row { display: grid; gap: var(--space-lg); align-items: stretch; }
+    .md-row--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .md-card {
+      background: var(--md-card);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-modal);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow-card);
+      min-width: 0;
+    }
+    .md-card__head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: var(--space-xs) var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+    .md-card__head h3 { margin: 0; font-size: var(--font-size-lg); font-weight: 700; }
+    .md-card__hint { font-size: var(--font-size-xs); color: var(--md-muted); }
+
+    /* ---------- md-budget (kartu kelengkapan pencatatan) ---------- */
+    .md-budget { display: flex; flex-direction: column; gap: var(--space-md); }
+    .md-budget__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'label pct' 'bar bar'; gap: 6px var(--space-sm); }
+    .md-budget__label { grid-area: label; display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-xs) var(--space-sm); font-size: var(--font-size-sm); font-weight: 600; }
+    .md-budget__nums { font-size: var(--font-size-sm); font-weight: 500; color: var(--md-muted); font-variant-numeric: tabular-nums; }
+    .md-budget__nums strong { color: var(--md-ink); }
+    .md-budget__row .md-bar { grid-area: bar; }
+    .md-budget__pct { grid-area: pct; font-size: var(--font-size-h2); font-weight: 700; color: var(--md-brand-dark); font-variant-numeric: tabular-nums; line-height: 1; }
+
+    /* ---------- md-trendchart ---------- */
+    .md-trendchart {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--space-xs);
+      min-height: 176px;
+      height: 200px;
+      padding-bottom: var(--space-xs);
+      overflow-x: auto;
+    }
+    .md-trendchart__col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 5px;
+      flex: 1 1 0;
+      min-width: 34px;
+      height: 100%;
+    }
+    .md-trendchart__val { font-size: var(--font-size-xs); font-weight: 700; color: var(--md-muted); font-variant-numeric: tabular-nums; }
+    .md-trendchart__bar {
+      width: 100%;
+      max-width: 34px;
+      min-height: var(--space-xs);
+      border-radius: var(--radius-input) var(--radius-input) calc(var(--radius-input) / 2) calc(var(--radius-input) / 2);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--color-brand) 82%, var(--color-background)), var(--color-brand));
+    }
+    .md-trendchart__lbl { font-size: var(--font-size-xs); color: var(--md-muted); white-space: nowrap; }
+
+    /* ---------- md-legend ---------- */
+    .md-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-sm) var(--space-md);
+      margin-top: 14px;
+      font-size: var(--font-size-xs);
+      color: var(--md-muted);
+      list-style: none;
+      padding: 0;
+    }
+    .md-legend__item { display: inline-flex; align-items: center; gap: var(--space-xs); }
+    .md-legend__swatch { display: inline-block; width: 12px; height: 12px; border-radius: var(--radius-input); flex-shrink: 0; }
+    /* screen-132: satu contoh warna per seri suhu. Ketiganya netral — warna
+       merek dan dua tingkat warna teks — supaya tak satu pun tangki terbaca
+       sebagai "aman" atau "bahaya". */
+    .md-legend__swatch--s1 { background: var(--md-s1); }
+    .md-legend__swatch--s2 { background: var(--md-s2); }
+    .md-legend__swatch--s3 { background: var(--md-s3); }
+
+    /* ---------- md-lc: grafik garis tiga seri (TAMBAHAN screen-132) ----------
+       Ketiga suhu tangki pada satu bidang gambar. Hanya variabel token yang
+       dipakai; tidak ada literal warna, radius, atau shadow. Pembeda antar seri
+       ada dua lapis — warna DAN pola garis — supaya tetap terbaca bagi pembaca
+       yang sulit membedakan warna. */
+    .md-lc { overflow-x: auto; padding-bottom: var(--space-xs); }
+    .md-lc__svg { display: block; width: 100%; min-width: 620px; height: auto; }
+    .md-lc__grid { stroke: var(--md-line); stroke-width: 1; }
+    .md-lc__axis { stroke: var(--md-line); stroke-width: 1; }
+    .md-lc__ytick, .md-lc__xtick { font-family: var(--font-family); font-size: var(--font-size-xs); fill: var(--md-muted); }
+    .md-lc__line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .md-lc__line--s1 { stroke: var(--md-s1); }
+    .md-lc__line--s2 { stroke: var(--md-s2); stroke-dasharray: 7 4; }
+    .md-lc__line--s3 { stroke: var(--md-s3); stroke-dasharray: 2 4; }
+    .md-lc__dot { stroke: var(--color-background); stroke-width: 1.5; }
+    .md-lc__dot--s1 { fill: var(--md-s1); }
+    .md-lc__dot--s2 { fill: var(--md-s2); }
+    .md-lc__dot--s3 { fill: var(--md-s3); }
+
+    /* ---------- md-threshold (dipakai sebagai kotak keterangan, BUKAN ambang) ---------- */
+    .md-threshold {
+      display: flex;
+      gap: var(--space-sm);
+      margin-top: 14px;
+      padding: var(--space-sm) 14px;
+      border-radius: var(--radius-card);
+      background: var(--md-soft);
+      color: var(--md-ink);
+      font-size: var(--font-size-xs);
+      line-height: 1.6;
+    }
+    .md-threshold b { color: var(--md-ink); }
+    .md-threshold svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--md-brand); }
+
+    /* ---------- md-details + md-table ---------- */
+    .md-details { background: var(--md-card); border: 1px solid var(--md-line); border-radius: var(--radius-modal); overflow: hidden; }
+    .md-details > summary {
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-xs) var(--space-md);
+      padding: var(--space-md) var(--space-lg);
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+    }
+    .md-details > summary::-webkit-details-marker { display: none; }
+    .md-details > summary::after {
+      content: '';
+      width: 9px;
+      height: 9px;
+      border-right: 2px solid var(--md-muted);
+      border-bottom: 2px solid var(--md-muted);
+      transform: rotate(45deg);
+      margin-left: auto;
+      transition: transform .15s;
+    }
+    .md-details[open] > summary::after { transform: rotate(-135deg); }
+    .md-details > summary small { font-size: var(--font-size-xs); }
+    .md-details[open] > summary { border-bottom: 1px solid var(--md-line); }
+
+    .md-recap { padding: var(--space-lg); background: var(--md-soft); overflow-x: auto; }
+    .md-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); font-variant-numeric: tabular-nums; }
+    .md-table th, .md-table td { padding: var(--space-sm) var(--space-sm); text-align: right; border-bottom: 1px solid var(--md-line); white-space: nowrap; }
+    .md-table th:first-child, .md-table td:first-child { text-align: left; }
+    .md-table thead th { font-size: var(--font-size-xs); font-weight: 700; color: var(--md-muted); background: var(--md-track); }
+    .md-table tfoot td { font-weight: 700; background: var(--md-track); border-bottom: none; }
+    .md-table .is-muted { color: var(--md-muted); }
+
+    /* Aturan TATA LETAK murni (sudah ada di partial, baris 378): panel md-recap
+       yang bersarang di dalam md-card ditarik sampai tepi kartu, supaya tabel
+       per-unit menggulir mendatar di dalam kartunya sendiri dan halaman tidak
+       pernah punya gulir horizontal. */
+    .md-card > .md-recap {
+      margin: 0 calc(var(--space-lg) * -1) calc(var(--space-lg) * -1);
+      border-radius: 0 0 var(--radius-modal) var(--radius-modal);
+    }
+
+    /* ---------- responsif (mengikuti report-styles) ---------- */
+    @media (max-width: 1100px) {
+      .md-kpis--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .md-kpis--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 1024px) {
+      .md-row--2 { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 767px) {
+      .md { gap: 14px; }
+      .md-hero { padding: var(--space-md); border-radius: var(--radius-card); }
+      .md-hero__title { font-size: var(--font-size-h2); }
+      .md-kpis, .md-kpis--4, .md-kpis--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .md-kpi { padding: var(--space-sm) var(--space-sm) var(--space-md); }
+      /* label KPI Clarification panjang ('ton dari 198 pembacaan laju'), jadi di
+         layar sempit nilainya boleh membungkus — mencegah kartu melebar dan
+         membuat halaman punya gulir mendatar. Aturan tata letak murni. */
+      .md-kpi__value { font-size: var(--font-size-h3); white-space: normal; }
+      .md-kpi__meta { font-size: var(--font-size-xs); }
+      .md-kpi__icon { width: 28px; height: 28px; }
+      .md-card { padding: var(--space-md); border-radius: var(--radius-card); }
+      .md-card > .md-recap { margin: 0 calc(var(--space-md) * -1) calc(var(--space-md) * -1); border-radius: 0 0 var(--radius-card) var(--radius-card); }
+      .md-filters { padding: 14px; border-radius: var(--radius-card); }
+      .md-field { flex: 1 1 100%; }
+      .md-filters__actions { margin-left: 0; width: 100%; }
+      .md-btn { flex: 1 1 auto; justify-content: center; }
+      .md-budget__pct { font-size: var(--font-size-h3); }
+      .md-recap { padding: var(--space-sm); }
+      .md-table { font-size: var(--font-size-xs); }
+      .md-details > summary { padding: var(--space-md); font-size: var(--font-size-body); }
+    }
+
+    /* ---------- catatan aktor (khusus mock, bukan bagian UI) ---------- */
+    .mock-actors {
+      font-size: var(--font-size-xs);
+      color: var(--color-muted-foreground);
+      font-style: italic;
+      margin-top: var(--space-lg);
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="label">Mill Smart Log</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="#"><span class="label">Dashboard</span></a>
+        <a class="nav-item" href="#"><span class="label">Data Stasiun</span></a>
+        <a class="nav-item active" href="#"><span class="label">Laporan Stasiun</span></a>
+        <a class="nav-item" href="#"><span class="label">Master Data</span></a>
+        <a class="nav-item" href="#"><span class="label">User &amp; Role Management</span></a>
+        <a class="nav-item" href="#"><span class="label">Pengaturan Akun</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-start">
+          <button class="hamburger-btn" type="button" aria-label="Buka menu navigasi">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+          <div class="topbar-title">Laporan Stasiun &gt; Clarification</div>
+        </div>
+        <div class="topbar-end">
+          <span>Supervisor</span>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="md">
+
+          <!-- ============ 1. Hero periode ============ -->
+          <section class="md-hero">
+            <div class="md-hero__main">
+              <p class="md-hero__eyebrow">Laporan Periode &middot; Stasiun Clarification</p>
+              <h1 class="md-hero__title">Periode September I 2026</h1>
+              <p class="md-hero__subtitle">PKS Sungai Bahar &middot; 01 Sep 2026 &ndash; 14 Sep 2026 (14 hari)</p>
+            </div>
+            <div class="md-hero__meta">
+              <span class="md-chip md-chip--date">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                01 &ndash; 14 Sep 2026
+              </span>
+              <span class="md-chip md-chip--date">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8z"/><path d="M9 8V5a3 3 0 0 1 6 0v3"/><path d="M8 14h8"/></svg>
+                2 unit clarification
+              </span>
+              <span class="md-chip md-chip--status">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V8a5 5 0 0 1 10 0v3"/><rect x="4" y="11" width="16" height="10" rx="2"/></svg>
+                Periode Terbuka
+              </span>
+            </div>
+          </section>
+
+          <!-- ============ 2. Baris filter ============ -->
+          <section class="md-filters">
+            <div class="md-field">
+              <label class="md-field__label" for="f-periode">Periode Pelaporan</label>
+              <select class="md-field__control" id="f-periode">
+                <option selected>Periode September I 2026 (01 &ndash; 14 Sep 2026) &mdash; Terbuka</option>
+                <option>Periode Agustus II 2026 (16 &ndash; 31 Ags 2026) &mdash; Tertutup</option>
+                <option>Periode Agustus I 2026 (01 &ndash; 15 Ags 2026) &mdash; Tertutup</option>
+                <option>Periode Juli II 2026 (16 &ndash; 31 Jul 2026) &mdash; Tertutup</option>
+              </select>
+            </div>
+
+            <p class="md-millcurrent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V8l5-3v16M14 21V11l5-3v13"/><path d="M9 12h.01M9 16h.01"/></svg>
+              Mill: <strong>PKS Sungai Bahar</strong>
+            </p>
+
+            <div class="md-filters__actions">
+              <button class="md-btn md-btn--primary" type="button">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
+                Ekspor CSV
+              </button>
+            </div>
+
+            <p class="md-filters__hint">Daftar periode hanya memuat periode yang mencakup Clarification. Akun ini terikat pada satu mill, jadi mill ditampilkan sebagai keterangan &mdash; bukan pemilih. Hanya Admin, yang tidak terikat satu mill, yang mendapat pemilih Mill di baris ini.</p>
+          </section>
+
+          <!-- ============ 3. Kelengkapan pencatatan (di ATAS seluruh angka) ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h3>Kelengkapan Pencatatan</h3>
+              <span class="md-card__hint">Baca ini lebih dulu &mdash; di stasiun kontinu, angka produksinya ikut mengecil bersama pencatatan yang bolong</span>
+            </header>
+            <div class="md-budget">
+              <div class="md-budget__row">
+                <div class="md-budget__label">
+                  <span>Slot jam terisi sepanjang periode</span>
+                  <span class="md-budget__nums"><strong>241</strong> dari 672 slot</span>
+                </div>
+                <span class="md-budget__pct">35,9%</span>
+                <div class="md-bar md-bar--lg"><span style="width: 35.9%"></span></div>
+              </div>
+            </div>
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>Produksi minyak murni di layar ini <b>diturunkan</b>, bukan dicatat: tiap pembacaan laju berlaku untuk satu jam slotnya, jadi produksi periode adalah jumlah seluruh laju yang tercatat. Karena itu <b>431 slot yang tidak terisi bukan berarti berproduksi nol</b> &mdash; jam itu dikeluarkan dari perhitungan, dan produksi yang terbaca memang lebih kecil daripada produksi sesungguhnya. Kelengkapan 35,9% ini rendah, dan itu memang keadaannya &mdash; bukan galat perhitungan. <small>Slot yang diharapkan = 2 unit clarification &times; 14 hari &times; 24 slot = 672.</small></span>
+            </div>
+          </section>
+
+          <!-- ============ 4. Produksi, downtime, laju ============ -->
+          <section class="md-kpis md-kpis--3">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Produksi Minyak Murni</span>
+                <span class="md-kpi__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a6 6 0 0 0 6-6c0-4.5-6-11-6-11S6 10.5 6 15a6 6 0 0 0 6 6z"/><path d="M9.5 15.5a2.5 2.5 0 0 0 2.5 2.5"/></svg>
+                </span>
+              </div>
+              <p class="md-kpi__value">1.847,5 <span>ton</span></p>
+              <p class="md-kpi__meta">rata-rata 132,0 ton/hari</p>
+              <p class="md-kpi__foot">diturunkan dari <b>198 pembacaan laju</b></p>
+              <p class="md-kpi__foot"><small>Angka ini tidak dicatat Operator &mdash; ia hasil penjumlahan laju per jam, jadi penyebutnya wajib ikut terbaca.</small></p>
+            </article>
+
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Total Downtime</span>
+                <span class="md-kpi__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                </span>
+              </div>
+              <p class="md-kpi__value">1.284 <span>menit (21,4 jam)</span></p>
+              <p class="md-kpi__meta">rata-rata 91,7 menit/hari</p>
+              <p class="md-kpi__foot">tercatat pada <b>63 jam</b> dari 241 slot terisi</p>
+              <p class="md-kpi__foot"><small>Downtime nol dan downtime tidak tercatat adalah dua hal berbeda &mdash; karena itu jumlah jamnya ditampilkan terpisah dari besarnya.</small></p>
+            </article>
+
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Laju Produksi</span>
+                <span class="md-kpi__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M13.4 10.6L19 5"/><path d="M4 20a9 9 0 1 1 16 0"/></svg>
+                </span>
+              </div>
+              <p class="md-kpi__value">9,33 <span>ton/jam rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 4,10 &middot; tertinggi 14,80</p>
+              <p class="md-kpi__foot">dari <b>198 pembacaan</b> laju</p>
+              <p class="md-kpi__foot"><small>1.847,5 ton &divide; 198 pembacaan = 9,33 ton/jam. Terendah dan tertinggi diambil dari rata-rata harian pada rekap di bawah.</small></p>
+            </article>
+          </section>
+
+          <!-- ============ 5. Suhu antar tangki + level buffer ============ -->
+          <section class="md-kpis md-kpis--4">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Suhu Tangki Clarification</span>
+                <span class="md-kpi__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V4a2 2 0 1 0-4 0v10.8a4 4 0 1 0 4 0z"/></svg>
+                </span>
+              </div>
+              <p class="md-kpi__value">93,4 <span>&deg;C rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 89,5 &middot; tertinggi 95,1</p>
+              <p class="md-kpi__foot">dari <b>236 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Terendah dan tertinggi diambil dari rata-rata harian pada rekap di bawah.</small></p>
+            </article>
+
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Suhu Tangki Minyak</span>
+                <span class="md-kpi__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V4a2 2 0 1 0-4 0v10.8a4 4 0 1 0 4 0z"/><path d="M12 9v6"/></svg>
+                </span>
+              </div>
+              <p class="md-kpi__value">97,2 <span>&deg;C rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 93,2 &middot; tertinggi 98,9</p>
+              <p class="md-kpi__foot">dari <b>229 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>7 pembacaan lebih sedikit daripada suhu clarification &mdash; tiap metrik punya penyebutnya sendiri.</small></p>
+            </article>
+
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Suhu Tangki Sludge</span>
+                <span class="md-kpi__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.8V4a2 2 0 1 0-4 0v10.8a4 4 0 1 0 4 0z"/><path d="M4 20h3M17 20h3"/></svg>
+                </span>
+              </div>
+              <p class="md-kpi__value">87,6 <span>&deg;C rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 83,5 &middot; tertinggi 89,4</p>
+              <p class="md-kpi__foot">dari <b>217 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Satu baris dapat mengisi laju tetapi mengosongkan suhu sludge &mdash; itulah sebabnya penyebutnya lebih kecil.</small></p>
+            </article>
+
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Level Buffer Tank</span>
+                <span class="md-kpi__icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M5 13h14"/><path d="M8 17h8"/></svg>
+                </span>
+              </div>
+              <p class="md-kpi__value">72,4 <span>% rata-rata</span></p>
+              <p class="md-kpi__meta">terendah 58,7 &middot; tertinggi 78,4</p>
+              <p class="md-kpi__foot">dari <b>188 pembacaan</b></p>
+              <p class="md-kpi__foot"><small>Penyebut terkecil di antara seluruh metrik periode ini. Level buffer tidak masuk rekap harian, jadi terendah dan tertinggi di sini diambil langsung dari pembacaan.</small></p>
+            </article>
+          </section>
+
+          <!-- ============ 6. Kartu terbesar: tren suhu antar tangki ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h3>Tren Suhu Antar Tangki</h3>
+              <span class="md-card__hint">Rata-rata per tanggal, dalam &deg;C &middot; 14 tanggal berdata &middot; ketiga tangki pada satu bidang gambar</span>
+            </header>
+            <div class="md-lc">
+              <svg class="md-lc__svg" viewBox="0 0 760 300" role="img" aria-label="Tren harian suhu tangki clarification, tangki minyak, dan tangki sludge sepanjang 14 tanggal">
+            <line class="md-lc__grid" x1="46" y1="260.0" x2="746" y2="260.0"/>
+            <line class="md-lc__grid" x1="46" y1="206.2" x2="746" y2="206.2"/>
+            <line class="md-lc__grid" x1="46" y1="152.4" x2="746" y2="152.4"/>
+            <line class="md-lc__grid" x1="46" y1="98.7" x2="746" y2="98.7"/>
+            <line class="md-lc__grid" x1="46" y1="44.9" x2="746" y2="44.9"/>
+            <text class="md-lc__ytick" x="38" y="264.0" text-anchor="end">82</text>
+            <text class="md-lc__ytick" x="38" y="210.2" text-anchor="end">86</text>
+            <text class="md-lc__ytick" x="38" y="156.4" text-anchor="end">90</text>
+            <text class="md-lc__ytick" x="38" y="102.7" text-anchor="end">94</text>
+            <text class="md-lc__ytick" x="38" y="48.9" text-anchor="end">98</text>
+            <line class="md-lc__axis" x1="46" y1="260" x2="746" y2="260"/>
+            <text class="md-lc__xtick" x="46.0" y="280" text-anchor="middle">01</text>
+            <text class="md-lc__xtick" x="99.8" y="280" text-anchor="middle">02</text>
+            <text class="md-lc__xtick" x="153.7" y="280" text-anchor="middle">03</text>
+            <text class="md-lc__xtick" x="207.5" y="280" text-anchor="middle">04</text>
+            <text class="md-lc__xtick" x="261.4" y="280" text-anchor="middle">05</text>
+            <text class="md-lc__xtick" x="315.2" y="280" text-anchor="middle">06</text>
+            <text class="md-lc__xtick" x="369.1" y="280" text-anchor="middle">07</text>
+            <text class="md-lc__xtick" x="422.9" y="280" text-anchor="middle">08</text>
+            <text class="md-lc__xtick" x="476.8" y="280" text-anchor="middle">09</text>
+            <text class="md-lc__xtick" x="530.6" y="280" text-anchor="middle">10</text>
+            <text class="md-lc__xtick" x="584.5" y="280" text-anchor="middle">11</text>
+            <text class="md-lc__xtick" x="638.3" y="280" text-anchor="middle">12</text>
+            <text class="md-lc__xtick" x="692.2" y="280" text-anchor="middle">13</text>
+            <text class="md-lc__xtick" x="746.0" y="280" text-anchor="middle">14</text>
+            <polyline class="md-lc__line md-lc__line--s3" points="46.0,184.7 99.8,175.3 153.7,194.1 207.5,167.2 261.4,230.4 315.2,180.7 369.1,239.8 422.9,160.5 476.8,187.4 530.6,171.3 584.5,218.3 638.3,195.5 692.2,165.9 746.0,202.2"/>
+            <polyline class="md-lc__line md-lc__line--s1" points="46.0,106.7 99.8,97.3 153.7,117.5 207.5,87.9 261.4,149.8 315.2,100.0 369.1,159.2 422.9,83.9 476.8,109.4 530.6,91.9 584.5,139.0 638.3,114.8 692.2,86.6 746.0,124.2"/>
+            <polyline class="md-lc__line md-lc__line--s2" points="46.0,55.6 99.8,44.9 153.7,66.4 207.5,36.8 261.4,97.3 315.2,51.6 369.1,109.4 422.9,32.8 476.8,58.3 530.6,40.9 584.5,85.2 638.3,62.4 692.2,38.2 746.0,70.4"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="46.0" cy="184.7" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="99.8" cy="175.3" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="153.7" cy="194.1" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="207.5" cy="167.2" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="261.4" cy="230.4" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="315.2" cy="180.7" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="369.1" cy="239.8" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="422.9" cy="160.5" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="476.8" cy="187.4" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="530.6" cy="171.3" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="584.5" cy="218.3" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="638.3" cy="195.5" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="692.2" cy="165.9" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--slg" cx="746.0" cy="202.2" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="46.0" cy="106.7" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="99.8" cy="97.3" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="153.7" cy="117.5" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="207.5" cy="87.9" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="261.4" cy="149.8" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="315.2" cy="100.0" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="369.1" cy="159.2" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="422.9" cy="83.9" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="476.8" cy="109.4" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="530.6" cy="91.9" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="584.5" cy="139.0" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="638.3" cy="114.8" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="692.2" cy="86.6" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--clf" cx="746.0" cy="124.2" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="46.0" cy="55.6" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="99.8" cy="44.9" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="153.7" cy="66.4" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="207.5" cy="36.8" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="261.4" cy="97.3" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="315.2" cy="51.6" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="369.1" cy="109.4" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="422.9" cy="32.8" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="476.8" cy="58.3" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="530.6" cy="40.9" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="584.5" cy="85.2" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="638.3" cy="62.4" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="692.2" cy="38.2" r="3"/>
+            <circle class="md-lc__dot md-lc__dot--oil" cx="746.0" cy="70.4" r="3"/>
+              </svg>
+            </div>
+            <ul class="md-legend">
+              <li class="md-legend__item"><span class="md-legend__swatch md-legend__swatch--s1"></span> Tangki Clarification &mdash; rata-rata 93,4 &deg;C, 236 pembacaan</li>
+              <li class="md-legend__item"><span class="md-legend__swatch md-legend__swatch--s2"></span> Tangki Minyak &mdash; rata-rata 97,2 &deg;C, 229 pembacaan</li>
+              <li class="md-legend__item"><span class="md-legend__swatch md-legend__swatch--s3"></span> Tangki Sludge &mdash; rata-rata 87,6 &deg;C, 217 pembacaan</li>
+            </ul>
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>Ketiga suhu sengaja berbagi satu bidang gambar karena <b>yang dibaca adalah SELISIH antar tangki, bukan nilai masing-masing</b> &mdash; jarak yang terjaga antara tangki minyak di atas, tangki clarification di tengah, dan tangki sludge di bawah itulah tanda proses pemisahan berjalan sebagaimana mestinya. Sepanjang periode ini selisih minyak &ndash; clarification berkisar 3,6 &ndash; 4,0 &deg;C dan selisih clarification &ndash; sludge berkisar 5,7 &ndash; 6,0 &deg;C. <b>Tidak ada nilai yang ditandai di luar batas di layar ini</b> &mdash; Clarification tidak punya master target operasional, dan menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas proses padahal bukan. <small>Sumbu tegak tidak dimulai dari nol &mdash; grafik membandingkan jarak antar tangki, bukan besaran mutlak.</small></span>
+            </div>
+          </section>
+
+          <!-- ============ 7 & 8. Tren produksi + rekap per unit ============ -->
+          <div class="md-row md-row--2">
+            <section class="md-card">
+              <header class="md-card__head">
+                <h3>Tren Harian Produksi</h3>
+                <span class="md-card__hint">Minyak murni per tanggal, dalam ton &middot; 14 tanggal berdata</span>
+              </header>
+              <div class="md-trendchart">
+                <div class="md-trendchart__col"><span class="md-trendchart__val">168,3</span><div class="md-trendchart__bar" style="height: 81.9%"></div><span class="md-trendchart__lbl">01</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">205,6</span><div class="md-trendchart__bar" style="height: 100.0%"></div><span class="md-trendchart__lbl">02</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">112,4</span><div class="md-trendchart__bar" style="height: 54.7%"></div><span class="md-trendchart__lbl">03</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">183,7</span><div class="md-trendchart__bar" style="height: 89.3%"></div><span class="md-trendchart__lbl">04</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">41,0</span><div class="md-trendchart__bar" style="height: 19.9%"></div><span class="md-trendchart__lbl">05</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">151,2</span><div class="md-trendchart__bar" style="height: 73.5%"></div><span class="md-trendchart__lbl">06</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">52,8</span><div class="md-trendchart__bar" style="height: 25.7%"></div><span class="md-trendchart__lbl">07</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">196,5</span><div class="md-trendchart__bar" style="height: 95.6%"></div><span class="md-trendchart__lbl">08</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">130,9</span><div class="md-trendchart__bar" style="height: 63.7%"></div><span class="md-trendchart__lbl">09</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">175,4</span><div class="md-trendchart__bar" style="height: 85.3%"></div><span class="md-trendchart__lbl">10</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">148,0</span><div class="md-trendchart__bar" style="height: 72.0%"></div><span class="md-trendchart__lbl">11</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">118,6</span><div class="md-trendchart__bar" style="height: 57.7%"></div><span class="md-trendchart__lbl">12</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">100,0</span><div class="md-trendchart__bar" style="height: 48.6%"></div><span class="md-trendchart__lbl">13</span></div>
+                <div class="md-trendchart__col"><span class="md-trendchart__val">63,1</span><div class="md-trendchart__bar" style="height: 30.7%"></div><span class="md-trendchart__lbl">14</span></div>
+              </div>
+              <ul class="md-legend">
+                <li class="md-legend__item">Terendah 41,0 ton (05 Sep) &middot; tertinggi 205,6 ton (02 Sep)</li>
+                <li class="md-legend__item">Total periode 1.847,5 ton, diturunkan dari 198 pembacaan laju</li>
+                <li class="md-legend__item"><small>Sumbu tegak dimulai dari nol. Tanggal yang batangnya pendek belum tentu berproduksi rendah &mdash; bisa jadi slot jamnya yang sedikit terisi, lihat kolom Slot Terisi pada rekap harian.</small></li>
+              </ul>
+            </section>
+
+            <section class="md-card">
+              <header class="md-card__head">
+                <h3>Rekap per Unit Clarification</h3>
+                <span class="md-card__hint">Angka periode di atas menggabungkan kedua unit &mdash; tabel ini menunjukkan sebarannya</span>
+              </header>
+              <div class="md-recap">
+                <table class="md-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Unit Clarification</th>
+                      <th scope="col">Produksi (ton)</th>
+                      <th scope="col">Laju rata-rata (ton/jam)</th>
+                      <th scope="col">Suhu Clarification (&deg;C)</th>
+                      <th scope="col">Suhu Minyak (&deg;C)</th>
+                      <th scope="col">Suhu Sludge (&deg;C)</th>
+                      <th scope="col">Downtime (menit)</th>
+                      <th scope="col">Jumlah pembacaan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>CLF-01</td><td>1.024,6</td><td>9,49</td><td>92,9</td><td>96,8</td><td>87,1</td><td>712</td><td>131</td></tr>
+                    <tr><td>CLF-02</td><td>822,9</td><td>9,14</td><td>94,0</td><td>97,7</td><td>88,2</td><td>572</td><td>110</td></tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td>Gabungan 2 unit</td>
+                      <td>1.847,5</td>
+                      <td>9,33</td>
+                      <td>93,4</td>
+                      <td>97,2</td>
+                      <td>87,6</td>
+                      <td>1.284</td>
+                      <td>241</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </section>
+          </div>
+
+          <!-- ============ 9. Rekap harian (tertutup secara bawaan) ============ -->
+          <details class="md-details">
+            <summary>
+              Rekap Harian
+              <small>14 baris &middot; 01 &ndash; 14 Sep 2026 &middot; klik untuk membuka</small>
+            </summary>
+            <div class="md-recap">
+              <table class="md-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tanggal</th>
+                    <th scope="col">Slot Terisi</th>
+                    <th scope="col">Produksi (ton)</th>
+                    <th scope="col">Laju rata-rata (ton/jam)</th>
+                    <th scope="col">Suhu Clarification (&deg;C)</th>
+                    <th scope="col">Suhu Minyak (&deg;C)</th>
+                    <th scope="col">Suhu Sludge (&deg;C)</th>
+                    <th scope="col">Downtime (menit)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>01 Sep 2026</td><td>20</td><td>168,3</td><td>9,90</td><td>93,4</td><td>97,2</td><td>87,6</td><td>96</td></tr>
+                  <tr><td>02 Sep 2026</td><td>24</td><td>205,6</td><td>10,28</td><td>94,1</td><td>98,0</td><td>88,3</td><td>74</td></tr>
+                  <tr><td>03 Sep 2026</td><td>15</td><td>112,4</td><td>9,37</td><td>92,6</td><td>96,4</td><td>86,9</td><td>118</td></tr>
+                  <tr><td>04 Sep 2026</td><td>22</td><td>183,7</td><td>10,21</td><td>94,8</td><td>98,6</td><td>88,9</td><td>61</td></tr>
+                  <tr><td>05 Sep 2026</td><td>12</td><td>41,0</td><td>4,10</td><td>90,2</td><td>94,1</td><td>84,2</td><td>152</td></tr>
+                  <tr><td>06 Sep 2026</td><td>19</td><td>151,2</td><td>9,45</td><td>93,9</td><td>97,5</td><td>87,9</td><td>83</td></tr>
+                  <tr><td>07 Sep 2026</td><td>8</td><td>52,8</td><td>8,80</td><td>89,5</td><td>93,2</td><td>83,5</td><td>137</td></tr>
+                  <tr><td>08 Sep 2026</td><td>23</td><td>196,5</td><td>9,83</td><td>95,1</td><td>98,9</td><td>89,4</td><td>52</td></tr>
+                  <tr><td>09 Sep 2026</td><td>17</td><td>130,9</td><td>9,35</td><td>93,2</td><td>97,0</td><td>87,4</td><td>90</td></tr>
+                  <tr><td>10 Sep 2026</td><td>21</td><td>175,4</td><td>9,74</td><td>94,5</td><td>98,3</td><td>88,6</td><td>68</td></tr>
+                  <tr><td>11 Sep 2026</td><td>10</td><td>148,0</td><td>14,80</td><td>91,0</td><td>95,0</td><td>85,1</td><td>126</td></tr>
+                  <tr><td>12 Sep 2026</td><td>16</td><td>118,6</td><td>9,12</td><td>92,8</td><td>96,7</td><td>86,8</td><td>79</td></tr>
+                  <tr><td>13 Sep 2026</td><td>20</td><td>100,0</td><td>5,88</td><td>94,9</td><td>98,5</td><td>89,0</td><td>58</td></tr>
+                  <tr><td>14 Sep 2026</td><td>14</td><td>63,1</td><td>9,01</td><td>92,1</td><td>96,1</td><td>86,3</td><td>90</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>Total periode</td>
+                    <td>241 <small>dari 672</small></td>
+                    <td>1.847,5</td>
+                    <td>9,33 <small>(rata-rata)</small></td>
+                    <td>93,4 <small>(rata-rata)</small></td>
+                    <td>97,2 <small>(rata-rata)</small></td>
+                    <td>87,6 <small>(rata-rata)</small></td>
+                    <td>1.284</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </details>
+
+        </div>
+
+        <p class="mock-actors">
+          Actors: Supervisor, Mill Management, Admin &nbsp;&middot;&nbsp;
+          Entry points: Menu sidebar &lsquo;Laporan Stasiun&rsquo; &rarr; pilih stasiun Clarification, Kembali dari layar lain dengan periode yang sama masih terpilih
+        </p>
+      </main>
+    </div>
+  </div>
+  <!-- ===========================================================================
+       JEJAK ANGKA (audit) — bukan bagian UI, hanya agar setiap angka di layar ini
+       dapat ditelusuri. Seluruh nilai di bawah diturunkan dengan skrip, tidak dikarang.
+
+       Slot diharapkan = 2 unit clarification x 14 hari x 24 slot = 672.
+       Slot terisi per tanggal (01..14 Sep) = 20, 24, 15, 22, 12, 19, 8, 23, 17, 21, 10, 16, 20, 14
+         jumlah = 241  ->  241/672 = 35,9%   (sengaja rendah; lihat kartu Kelengkapan)
+
+       PRODUKSI DITURUNKAN, BUKAN DICATAT:
+         produksi per tanggal (ton) = 168,3, 205,6, 112,4, 183,7, 41,0, 151,2, 52,8, 196,5, 130,9, 175,4, 148,0, 118,6, 100,0, 63,1
+           jumlah = 1.847,5 ton  (identik baris-per-baris dengan batang Tren Harian Produksi)
+         jumlah pembacaan laju per tanggal = 17, 20, 12, 18, 10, 16, 6, 20, 14, 18, 10, 13, 17, 7
+           jumlah = 198  (<= 241, dan <= slot terisi tiap harinya)
+         laju rata-rata periode = 1.847,5 / 198 = 9,3308... -> 9,33 ton/jam
+           (angka inilah yang mengikat produksi, laju, dan jumlah pembacaan jadi satu)
+         laju harian = produksi hari itu / pembacaan laju hari itu
+           terendah  05 Sep: 41,0 / 10  = 4,10 ton/jam
+           tertinggi 11 Sep: 148,0 / 10 = 14,80 ton/jam
+         rata-rata produksi per hari = 1.847,5 / 14 = 131,96 -> dibulatkan 132,0 ton/hari (dikoreksi 2026-09-24: instruksi awal menyebut 131,9, yang salah bulat)
+
+       DOWNTIME:
+         downtime per tanggal (menit) = 96, 74, 118, 61, 152, 83, 137, 52, 90, 68, 126, 79, 58, 90
+           jumlah = 1.284 menit  ->  1.284/60 = 21,4 jam  ->  1.284/14 = 91,7 menit/hari
+         jumlah jam yang MENCATAT downtime per tanggal = 5, 4, 6, 3, 7, 4, 6, 3, 5, 4, 6, 4, 3, 3
+           jumlah = 63 jam (<= 241, dan tiap harinya <= slot terisi; tiap jam <= 60 menit)
+
+       JUMLAH PEMBACAAN PER METRIK (penyebut masing-masing, sengaja BERBEDA-BEDA):
+         laju              = 198
+         suhu clarification= 20, 23, 15, 21, 11, 19, 8, 22, 17, 20, 10, 16, 20, 14  (jumlah 236)
+         suhu minyak       = 19, 22, 14, 21, 11, 18, 8, 21, 16, 20, 10, 15, 20, 14  (jumlah 229)
+         suhu sludge       = 18, 21, 14, 20, 10, 17, 7, 20, 15, 19, 9, 15, 19, 13  (jumlah 217)
+         level buffer      = 16, 18, 11, 17, 9, 15, 6, 17, 13, 16, 8, 13, 16, 13  (jumlah 188)
+         Seluruhnya <= 241 (slot terisi) dan tiap harinya <= slot terisi hari itu.
+
+       Rata-rata periode tiap suhu = rata-rata BERBOBOT terhadap jumlah pembacaan
+       metrik itu sendiri, bukan rata-rata dari rata-rata harian:
+         clarification 93,4 C | minyak 97,2 C | sludge 87,6 C | buffer 72,4 %
+       Terendah/tertinggi tiap suhu = min/max sesungguhnya dari 14 nilai harian
+       yang tampil pada rekap harian dan pada grafik tren suhu.
+
+       SEBARAN PER UNIT:
+         baris pengukuran : CLF-01 131 + CLF-02 110 = 241  (= slot terisi)
+         pembacaan laju   : CLF-01 108 + CLF-02  90 = 198
+         produksi         : 1.024,6 + 822,9 = 1.847,5 ton
+         downtime         : 712 + 572 = 1.284 menit
+         laju per unit    : 1.024,6/108 = 9,49 ; 822,9/90 = 9,14 ; gabungan 1.847,5/198 = 9,33
+         suhu clarification: (129x92,9 + 107x94,0)/236 = 93,4 C
+         suhu minyak       : (125x96,8 + 104x97,7)/229 = 97,2 C
+         suhu sludge       : (118x87,1 +  99x88,2)/217 = 87,6 C
+
+       Tinggi batang produksi = nilai / 205,6 x 100% (sumbu MULAI DARI NOL).
+       Sumbu tegak grafik suhu = 82..100 C, tidak dimulai dari nol, dan hal itu
+       dinyatakan di kartunya karena yang dibaca adalah selisih antar tangki.
+
+       TIDAK ADA penandaan ambang di berkas ini: tidak ada kartu ambang, tidak ada
+       pewarnaan aman/bahaya, tidak ada outlier/IQR. Clarification tidak punya
+       master target operasional.
+  =========================================================================== -->
+</body>
+</html>

@@ -1,0 +1,808 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "screen-140--laporan-stasiun-web",
+  "name": "Laporan Stasiun (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports",
+  "auth_requirement": "role: supervisor, mill_management, admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Mill ditetapkan dari users.business_unit_id; business_unit_id yang dikirim klien diabaikan server tanpa divalidasi. Tidak dapat memilih mill lain."
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Mill ditetapkan dari users.business_unit_id; business_unit_id yang dikirim klien diabaikan server tanpa divalidasi. Tidak dapat memilih mill lain."
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill lewat pemilih Mill sebelum grid stasiun tampil; business_unit_id wajib dikirim."
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Operator adalah aktor mobile-only, tidak punya akses web sama sekali. Jalur laporannya ada di mobile lewat menu Dashboard & Reporting."
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "usecase_name": "Pilih Stasiun untuk Laporan (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/station-reports/business-units/options",
+          "description": "Daftar mill yang boleh dipilih pada pemilih Mill. Hanya Admin.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "<uuid>",
+                  "name": "<string>"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Tidak ada sesi terautentikasi"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran bukan Admin — peran lain tidak pernah memilih mill"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/station-reports/stations",
+          "description": "Daftar jenis stasiun untuk grid pemilihan, beserta penanda apakah laporan periodenya sudah tersedia dan ke mana tujuannya.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "WAJIB bagi Admin. DIABAIKAN SEPENUHNYA bagi Supervisor & Mill Management — mill mereka diambil dari akun, parameter tidak pernah divalidasi maupun dipakai."
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": {
+                "business_unit": {
+                  "id": "<uuid>",
+                  "name": "<string>"
+                },
+                "stations": [
+                  {
+                    "code": "<string>",
+                    "name": "<string>",
+                    "sort_order": "<int>",
+                    "report_available": "<bool>",
+                    "report_path": "<string|null>"
+                  }
+                ]
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Tidak ada sesi terautentikasi"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran Operator atau peran lain tanpa akses web"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Admin tidak mengirim business_unit_id — errors.business_unit_id = 'Pilih mill terlebih dahulu untuk menampilkan stasiun.'"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Supervisor/Mill Management yang users.business_unit_id-nya kosong — errors.business_unit_id = 'Akun Anda belum terhubung ke mill. Hubungi Admin.'"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "business_unit_id yang dikirim Admin tidak ditemukan"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — daftar kecil (18 baris), tetapi perubahan master jenis stasiun harus langsung terlihat tanpa menunggu kedaluwarsa cache",
+            "rate_limit": "No limit"
+          }
+        }
+      ],
+      "business_logic": [
+        "Pastikan ada sesi terautentikasi → jika tidak: 401 UNAUTHENTICATED",
+        "Baca peran pengguna → jika bukan supervisor / mill_management / admin (termasuk Operator): 403 FORBIDDEN",
+        "Tentukan mill yang berlaku",
+        "→ jika peran supervisor atau mill_management: pakai users.business_unit_id dan ABAIKAN business_unit_id kiriman klien tanpa memvalidasinya",
+        "→ jika peran itu dan users.business_unit_id kosong: 422 VALIDATION_ERROR errors.business_unit_id = 'Akun Anda belum terhubung ke mill. Hubungi Admin.' — JANGAN jatuh ke daftar seluruh mill (gagal tertutup)",
+        "→ jika peran admin dan business_unit_id kosong atau absen: 422 VALIDATION_ERROR errors.business_unit_id = 'Pilih mill terlebih dahulu untuk menampilkan stasiun.'",
+        "→ jika peran admin: pakai business_unit_id kiriman klien",
+        "SELECT business_unit berdasarkan mill yang berlaku → jika tidak ada: 404 NOT_FOUND",
+        "SELECT station_types WHERE code <> 'other' ORDER BY sort_order ASC",
+        "Tiap jenis stasiun diberi report_available = true HANYA bila kodenya ada di peta REPORT_ROUTES (saat ini hanya 'sterilizer'), dan report_path = rute laporan itu dengan business_unit_id ikut terbawa; selain itu report_available = false dan report_path = null — jenisnya tetap dikembalikan, tidak dibuang",
+        "Kembalikan 200 dengan business_unit dan daftar stasiun"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "user",
+          "operation": "SELECT",
+          "description": "SELECT peran dan business_unit_id pengguna yang sedang masuk, untuk menentukan mill yang berlaku"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "SELECT business unit berdasarkan mill yang berlaku — untuk menampilkan namanya dan memastikan mill itu benar-benar ada"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "SELECT seluruh business unit urut nama — hanya pada endpoint options dan hanya untuk Admin"
+        },
+        {
+          "entity_id": "station-type",
+          "operation": "SELECT",
+          "description": "SELECT seluruh jenis stasiun kecuali 'other', urut sort_order ASC"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Admin membuka layar tetapi belum memilih mill",
+          "handling": "422 VALIDATION_ERROR dengan errors.business_unit_id; layar menahan grid dan menampilkan arahan memilih mill. BUKAN 403 — tidak ada pelanggaran otorisasi, hanya input yang belum lengkap."
+        },
+        {
+          "condition": "Belum ada satu pun mill di sistem",
+          "handling": "Endpoint options mengembalikan 200 dengan data kosong; layar menampilkan keterangan bahwa master Business Unit masih kosong. Bukan 404 dan bukan error."
+        },
+        {
+          "condition": "Akun Supervisor atau Mill Management tanpa business_unit_id",
+          "handling": "422 VALIDATION_ERROR dengan pesan menghubungi Admin. Server TIDAK jatuh ke daftar seluruh mill — gagal tertutup, bukan gagal terbuka."
+        },
+        {
+          "condition": "Supervisor mengirim business_unit_id milik mill lain",
+          "handling": "Parameter dibuang tanpa divalidasi; respons 200 berisi mill milik pengguna sendiri. BUKAN 403 — tidak ada upaya akses yang perlu ditolak, karena parameter itu memang tidak pernah dipakai untuk peran ini."
+        },
+        {
+          "condition": "business_unit_id yang dikirim Admin tidak ditemukan",
+          "handling": "404 NOT_FOUND"
+        },
+        {
+          "condition": "Master Jenis Stasiun kosong (tidak ada jenis selain 'other')",
+          "handling": "200 dengan stations: [] — layar menampilkan grid kosong berketerangan, bukan error."
+        },
+        {
+          "condition": "Pengguna menekan tile stasiun yang report_available = false",
+          "handling": "Ditangani di lapisan tampilan: tile dirender tanpa atribut href, dengan aria-disabled=\"true\" dan tanpa wire:click. Tidak ada permintaan yang dikirim, tidak ada perpindahan halaman, tidak ada pesan error."
+        }
+      ],
+      "business_rules_applied": [
+        "Mill harus ditetapkan lebih dulu; selama belum, grid stasiun tidak ditampilkan",
+        "Pemilih Mill hanya untuk pengguna yang punya lebih dari satu pilihan; Supervisor dan Mill Management ditetapkan otomatis dan tidak dapat memilih mill lain",
+        "Daftar stasiun bersumber dari master Jenis Stasiun mengikuti sort_order, bukan daftar tetap di kode",
+        "Jenis stasiun historis 'other' dikecualikan",
+        "Stasiun yang laporannya belum dibangun ditampilkan nonaktif, tidak disembunyikan",
+        "Mill yang ditetapkan ikut terbawa ke layar laporan lewat report_path",
+        "Operator tidak punya akses ke layar ini"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "options: melempar 401 UNAUTHENTICATED ketika tidak ada sesi terautentikasi",
+          "given": "auth()->user() mengembalikan null saat memanggil StationReportService::businessUnitOptions()",
+          "expect": "melempar UnauthenticatedException dengan error_code UNAUTHENTICATED (http 401); tidak ada query ke tabel business_units"
+        },
+        {
+          "description": "options: melempar 403 FORBIDDEN ketika peran bukan Admin",
+          "given": "user terautentikasi dengan role 'supervisor' (idem 'mill_management' dan 'operator')",
+          "expect": "melempar ForbiddenException dengan error_code FORBIDDEN (http 403); daftar mill tidak pernah dibaca"
+        },
+        {
+          "description": "options: mengembalikan daftar mill berisi id dan name ketika pengguna Admin",
+          "given": "user role 'admin'; businessUnitRepo->all() mengembalikan 2 business unit (Mill A, Mill B)",
+          "expect": "mengembalikan array 2 item, tiap item hanya berisi kunci id dan name, urut sesuai repo"
+        },
+        {
+          "description": "options: mengembalikan data kosong (bukan error) ketika belum ada mill di sistem",
+          "given": "user role 'admin'; businessUnitRepo->all() mengembalikan koleksi kosong",
+          "expect": "mengembalikan array kosong []; tidak melempar exception apa pun"
+        },
+        {
+          "description": "stations: melempar 401 UNAUTHENTICATED ketika tidak ada sesi terautentikasi",
+          "given": "auth()->user() mengembalikan null saat memanggil StationReportService::stations(businessUnitId: null)",
+          "expect": "melempar UnauthenticatedException dengan error_code UNAUTHENTICATED (http 401)"
+        },
+        {
+          "description": "stations: melempar 403 FORBIDDEN ketika peran Operator / peran tanpa akses web",
+          "given": "user terautentikasi dengan role 'operator' (idem peran lain di luar supervisor|mill_management|admin)",
+          "expect": "melempar ForbiddenException dengan error_code FORBIDDEN (http 403); tidak ada business unit maupun station_type yang dibaca"
+        },
+        {
+          "description": "stations: Supervisor memakai users.business_unit_id dan mengabaikan business_unit_id kiriman klien",
+          "given": "user role 'supervisor' dengan users.business_unit_id = 'bu-milik-sendiri'; pemanggil mengirim businessUnitId = 'bu-mill-lain' yang valid dan ada di DB",
+          "expect": "businessUnitRepo->find() dipanggil dengan 'bu-milik-sendiri'; hasil business_unit.id = 'bu-milik-sendiri'; parameter klien tidak pernah divalidasi maupun dipakai; tidak melempar Forbidden"
+        },
+        {
+          "description": "stations: Mill Management memakai users.business_unit_id dan mengabaikan business_unit_id kiriman klien",
+          "given": "user role 'mill_management' dengan users.business_unit_id = 'bu-milik-sendiri'; pemanggil mengirim businessUnitId = 'bu-mill-lain'",
+          "expect": "hasil business_unit.id = 'bu-milik-sendiri'; parameter klien dibuang tanpa divalidasi"
+        },
+        {
+          "description": "stations: melempar 422 VALIDATION_ERROR ketika Supervisor/Mill Management punya users.business_unit_id kosong (gagal tertutup)",
+          "given": "user role 'supervisor' (idem 'mill_management') dengan users.business_unit_id = null; businessUnitRepo di-spy",
+          "expect": "melempar ValidationException http 422 error_code VALIDATION_ERROR dengan errors.business_unit_id = 'Akun Anda belum terhubung ke mill. Hubungi Admin.'; businessUnitRepo->all() TIDAK pernah dipanggil sehingga daftar seluruh mill tidak pernah terbentuk"
+        },
+        {
+          "description": "stations: melempar 422 VALIDATION_ERROR ketika Admin tidak mengirim business_unit_id",
+          "given": "user role 'admin'; businessUnitId = null (idem string kosong / parameter absen)",
+          "expect": "melempar ValidationException http 422 error_code VALIDATION_ERROR dengan errors.business_unit_id = 'Pilih mill terlebih dahulu untuk menampilkan stasiun.'; bukan 403"
+        },
+        {
+          "description": "stations: Admin memakai business_unit_id kiriman klien",
+          "given": "user role 'admin' tanpa users.business_unit_id; businessUnitId = 'bu-a'; businessUnitRepo->find('bu-a') mengembalikan Mill A",
+          "expect": "hasil business_unit = { id: 'bu-a', name: 'Mill A' }"
+        },
+        {
+          "description": "stations: melempar 404 NOT_FOUND ketika business_unit_id tidak ditemukan",
+          "given": "user role 'admin'; businessUnitId = 'bu-tidak-ada'; businessUnitRepo->find() mengembalikan null",
+          "expect": "melempar NotFoundException http 404 error_code NOT_FOUND; station_types tidak pernah di-query"
+        },
+        {
+          "description": "stations: mengecualikan jenis stasiun 'other' dari hasil",
+          "given": "user valid dengan mill berlaku; stationTypeRepo berisi 'sterilizer', 'threshing', dan 'other'",
+          "expect": "query memakai kondisi code <> 'other'; hasil stations tidak memuat satu pun item dengan code = 'other', sementara sterilizer dan threshing tetap ada"
+        },
+        {
+          "description": "stations: mengurutkan jenis stasiun berdasarkan sort_order ASC, bukan urutan alfabet atau daftar tetap",
+          "given": "user valid dengan mill berlaku; stationTypeRepo mengembalikan weighbridge(sort_order 1), sterilizer(4), threshing(5) dalam urutan acak",
+          "expect": "hasil stations berurutan weighbridge, sterilizer, threshing sesuai sort_order ASC; jumlah item mengikuti isi master, bukan konstanta 18"
+        },
+        {
+          "description": "stations: menandai report_available=true dan mengisi report_path hanya untuk stasiun yang ada di peta REPORT_ROUTES",
+          "given": "user valid dengan mill berlaku 'bu-a'; REPORT_ROUTES hanya memuat 'sterilizer'; master berisi sterilizer dan threshing",
+          "expect": "item sterilizer punya report_available = true dan report_path berisi rute laporan sterilizer dengan business_unit_id=bu-a ikut terbawa di dalamnya"
+        },
+        {
+          "description": "stations: menandai report_available=false dan report_path null untuk stasiun yang laporannya belum dibangun, tanpa menghilangkannya",
+          "given": "user valid dengan mill berlaku; master berisi threshing yang tidak ada di REPORT_ROUTES",
+          "expect": "item threshing tetap ada di hasil dengan report_available = false dan report_path = null"
+        },
+        {
+          "description": "stations: mengembalikan stations kosong (bukan error) ketika master Jenis Stasiun kosong",
+          "given": "user valid dengan mill berlaku; stationTypeRepo mengembalikan koleksi kosong setelah filter 'other'",
+          "expect": "mengembalikan business_unit terisi dan stations = []; tidak melempar exception apa pun"
+        },
+        {
+          "description": "stations: mengembalikan hasil sukses lengkap ketika semua prasyarat terpenuhi",
+          "given": "user role 'supervisor' dengan users.business_unit_id = 'bu-a' yang ada di DB; master Jenis Stasiun terisi; REPORT_ROUTES memuat 'sterilizer'",
+          "expect": "mengembalikan { business_unit: {id, name}, stations: [ {code, name, sort_order, report_available, report_path} ... ] } urut sort_order, tanpa 'other', dengan sterilizer report_available=true"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-001--login-web",
+      "reason": "Layar memerlukan sesi web yang aktif; peran pengguna menentukan apakah pemilih Mill ditampilkan"
+    },
+    {
+      "screen_id": "screen-029--kelola-business-unit",
+      "reason": "Sumber daftar mill pada pemilih Mill — bila master ini kosong, layar tidak dapat menampilkan grid"
+    },
+    {
+      "screen_id": "screen-129--laporan-sterilizer-web",
+      "reason": "Satu-satunya tujuan navigasi yang aktif saat ini; 17 tile lainnya menunggu layar laporannya masing-masing"
+    }
+  ],
+  "implementation_notes": [
+    "Layar memakai Livewire (pola screen-129 LaporanSterilizer), BUKAN rute view statis seperti screen-035, karena daftar mill dan jenis stasiun berasal dari database dan pemilih Mill mengubah isi halaman.",
+    "Route web /reports dengan name reports.stations; middleware ['auth','role:supervisor,mill_management,admin'] — sama persis dengan screen-129. Konvensi repo /reports/*, bukan /laporan/*.",
+    "WAJIB: entri sidebar 'Laporan Stasiun' di resources/views/components/layouts/app.blade.php saat ini menembak route('reports.sterilizer') dan diberi komentar Blade bertanda SEMENTARA. Arahkan ke route('reports.stations') dan HAPUS komentar itu — ini menutup known_issue #3 pada artefak 4-implement screen-129.",
+    "Penentuan mill di sini berperilaku identik dengan SterilizerReportService::resolveBusinessUnit(). Tulis implementasinya di service layar ini sendiri; JANGAN mengubah berkas screen-129. Penyatuan keduanya ke satu trait/service bersama dicatat sebagai pekerjaan terpisah.",
+    "report_available dan report_path berasal dari SATU peta kode stasiun → nama rute laporan (konstanta REPORT_ROUTES di service). Menambah laporan stasiun baru berarti menambah satu baris di peta itu — jangan menyebar pengecekan ini ke blade.",
+    "WAJIB @include('dashboard.partials.report-styles'). CSS md-* bersama sudah ada di sana; jangan menulis ulang atau menduplikasi. Kelas baru untuk tile ditulis di blok kedua file itu yang sudah ditandai, tanpa menyentuh satu pun selector lama.",
+    "Gaya tile mengikuti .station-grid / .station-tile.active / .station-tile.disabled milik resources/views/data/production-process-activity.blade.php — baca file itu dulu. Tile aktif memakai hijau merek #249360, BUKAN merah #D20000 milik layar itu, karena layar ini masuk keluarga LAPORAN bersama dashboard dan Laporan Sterilizer.",
+    "Ikon SVG per stasiun disalin dari production-process-activity.blade.php agar dua grid stasiun tidak memakai ikon berbeda untuk stasiun yang sama.",
+    "Grid 3 kolom tetap, termasuk di bawah 767px, mengikuti .station-grid. Halaman tidak boleh punya gulir horizontal sampai 767px. Seluruh teks UI Bahasa Indonesia.",
+    "Pegangan test memakai data-testid: mill-select, mill-current, station-grid, station-tile-<code>, mill-required-hint, no-business-units, no-mill-for-account, no-station-types. Tile nonaktif berkelas .disabled, tanpa href, beratribut aria-disabled=\"true\", dan tanpa wire:click.",
+    "Daftar stasiun TIDAK disaring per mill — master Jenis Stasiun bersifat global. Konsekuensinya mill yang tidak punya stasiun tertentu tetap melihat tile-nya. Ini keputusan sadar mengikuti aturan 'tampilkan semua, nonaktifkan yang belum siap', bukan kelalaian.",
+    "Mill terbawa ke laporan lewat query param business_unit_id di dalam report_path. screen-129 BELUM membaca parameter itu, sehingga untuk sementara Admin masih akan memilih mill sekali lagi di layar laporan. Penyesuaian screen-129 adalah pekerjaan terpisah — catat sebagai deferred_item, jangan dikerjakan di run ini.",
+    "Cabang 404 NOT_FOUND (business_unit_id Admin tidak ditemukan) tidak punya pasangan skenario BDD — hanya tercakup unit test. Itu disengaja, bukan celah.",
+    "Skenario 'pengguna terikat mill tidak dapat mengganti mill' HARUS menghasilkan 200 berisi mill sendiri, BUKAN 403. Jangan mengimplementasikannya sebagai otorisasi keras — parameter itu memang tidak pernah dipakai untuk peran tersebut."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — success as Supervisor / Mill Management",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "_sesi": "Supervisor dengan users.business_unit_id = bu-a",
+            "_asersi": "data.business_unit.id = bu-a; data.stations tidak kosong, urut sort_order ASC, tanpa code 'other'; item sterilizer report_available=true dengan report_path memuat business_unit_id=bu-a"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Supervisor yang terhubung ke Mill A, lalu Livewire::test(LaporanStasiun::class)",
+        "assert": "tidak merender [data-testid=\"mill-select\"]; merender [data-testid=\"mill-current\"] berisi nama Mill A; [data-testid=\"station-grid\"] tampil berisi tile urut sort_order; [data-testid=\"station-tile-sterilizer\"] punya href ke laporan sterilizer dengan mill terbawa dan tidak berkelas .disabled"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login sebagai Supervisor Mill A, buka menu sidebar 'Laporan Stasiun' menuju /reports, lalu klik [data-testid=\"station-tile-sterilizer\"]",
+        "assert": "pemilih mill tidak muncul dan [data-testid=\"mill-current\"] menampilkan Mill A tanpa langkah memilih; setelah klik, browser berada di layar Laporan Sterilizer"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — success as Admin",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/business-units/options"
+          },
+          "request_example": {
+            "_sesi": "Admin",
+            "_asersi": "data berisi minimal satu mill dengan kunci id dan name"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}",
+            "_sesi": "Admin",
+            "_asersi": "data.business_unit.id = {{step1.data[0].id}}; data.stations urut sort_order; sterilizer report_available=true dengan report_path membawa business_unit_id yang sama"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Admin, Livewire::test(LaporanStasiun::class) lalu set('businessUnitId', $millA->id)",
+        "assert": "sebelum set: [data-testid=\"mill-select\"] terlihat dan [data-testid=\"station-grid\"] tidak dirender; setelah set: grid dirender dan [data-testid=\"station-tile-sterilizer\"] aktif dengan href memuat business_unit_id Mill A"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login sebagai Admin, buka /reports, pilih Mill A pada [data-testid=\"mill-select\"], lalu klik [data-testid=\"station-tile-sterilizer\"]",
+        "assert": "grid stasiun baru muncul setelah mill dipilih; setelah klik, browser berada di layar Laporan Sterilizer"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — Admin belum memilih mill",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "_sesi": "Admin, tanpa query param",
+            "_asersi": "errors.business_unit_id berisi 'Pilih mill terlebih dahulu untuk menampilkan stasiun.'; status BUKAN 403; tidak ada data stasiun di body"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Admin, Livewire::test(LaporanStasiun::class) tanpa memilih mill apa pun",
+        "assert": "[data-testid=\"mill-required-hint\"] dirender berisi arahan memilih mill lebih dulu; [data-testid=\"station-grid\"] tidak dirender; tidak ada exception"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login sebagai Admin lalu buka /reports dan biarkan [data-testid=\"mill-select\"] pada nilai kosong",
+        "assert": "[data-testid=\"mill-required-hint\"] terlihat; [data-testid=\"station-grid\"] tidak ada di halaman; tidak ada error atau area kosong tanpa penjelasan"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — belum ada mill di sistem",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/business-units/options"
+          },
+          "request_example": {
+            "_sesi": "Admin; tabel business_units kosong",
+            "_asersi": "data = [] dan respons tetap 200; bukan 404 maupun 500"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Admin dengan tabel business_units kosong, Livewire::test(LaporanStasiun::class)",
+        "assert": "[data-testid=\"no-business-units\"] dirender berisi keterangan master Business Unit masih kosong; [data-testid=\"station-grid\"] tidak dirender; [data-testid=\"mill-select\"] tidak menampilkan opsi mill"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login sebagai Admin pada basis data tanpa satu pun business unit, lalu buka /reports",
+        "assert": "[data-testid=\"no-business-units\"] terlihat; [data-testid=\"station-grid\"] tidak ada; tidak ada error teknis"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — akun terikat mill tetapi mill-nya kosong",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "_sesi": "Supervisor dengan users.business_unit_id = null",
+            "_asersi": "errors.business_unit_id berisi 'Akun Anda belum terhubung ke mill. Hubungi Admin.'; body TIDAK memuat daftar mill mana pun (gagal tertutup); status bukan 200 dan bukan 403"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Supervisor yang users.business_unit_id-nya null, Livewire::test(LaporanStasiun::class)",
+        "assert": "[data-testid=\"no-mill-for-account\"] dirender berisi pesan menghubungi Admin; [data-testid=\"mill-select\"] TIDAK dirender (tidak jatuh ke daftar seluruh mill); [data-testid=\"station-grid\"] tidak dirender"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login sebagai Supervisor yang akunnya belum terhubung ke mill, lalu buka /reports",
+        "assert": "[data-testid=\"no-mill-for-account\"] terlihat dengan arahan menghubungi Admin; tidak ada [data-testid=\"mill-select\"] dan tidak ada nama mill lain yang terbaca; [data-testid=\"station-grid\"] tidak ada"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — menekan stasiun yang belum tersedia",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "_sesi": "Supervisor Mill A",
+            "_asersi": "item dengan code 'threshing' punya report_available = false dan report_path = null, sehingga tampilan tidak punya tujuan navigasi"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Supervisor Mill A, Livewire::test(LaporanStasiun::class) lalu periksa markup tile stasiun yang report_available=false",
+        "assert": "[data-testid=\"station-tile-threshing\"] berkelas .disabled, memuat teks 'Belum tersedia', tidak punya atribut href, dan beratribut aria-disabled=\"true\"; tidak ada wire:click terpasang padanya"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login sebagai Supervisor Mill A, buka /reports, lalu klik [data-testid=\"station-tile-threshing\"] yang berketerangan 'Belum tersedia'",
+        "assert": "URL tetap /reports (tidak terjadi perpindahan halaman); tidak ada pesan error yang muncul; teks 'Belum tersedia' tetap tampil pada tile itu"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — master Jenis Stasiun kosong",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "_sesi": "Supervisor Mill A; tabel station_types tidak berisi jenis selain 'other'",
+            "_asersi": "data.business_unit tetap terisi dan data.stations = []; respons 200, bukan 404/500"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Supervisor Mill A dengan master Jenis Stasiun kosong (hanya 'other'), Livewire::test(LaporanStasiun::class)",
+        "assert": "[data-testid=\"station-grid\"] dirender namun tanpa satu pun [data-testid^=\"station-tile-\"]; [data-testid=\"no-station-types\"] dirender berisi keterangan; komponen tidak melempar error"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login sebagai Supervisor Mill A pada basis data yang master Jenis Stasiun-nya kosong, lalu buka /reports",
+        "assert": "grid terlihat kosong dengan [data-testid=\"no-station-types\"] tampil; tidak ada tile stasiun; tidak ada error"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — Operator mencoba membuka layar ini",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "business_unit_id": "<uuid-mill-a>",
+            "_sesi": "Station Operator",
+            "_asersi": "body tidak memuat business_unit maupun stations sama sekali"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/business-units/options"
+          },
+          "request_example": {
+            "_sesi": "Station Operator",
+            "_asersi": "tidak ada daftar mill yang terbaca oleh Operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Station Operator lalu Livewire::test(LaporanStasiun::class)",
+        "assert": "komponen menolak dengan HTTP 403; tidak merender [data-testid=\"station-grid\"], [data-testid=\"mill-select\"], maupun [data-testid=\"mill-current\"]"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login sebagai Station Operator lalu coba buka /reports langsung lewat URL",
+        "assert": "respons halaman 403; tidak ada nama mill maupun tile stasiun yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — pengguna terikat mill tidak dapat mengganti mill",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "business_unit_id": "<uuid-mill-b>",
+            "_sesi": "Supervisor dengan users.business_unit_id = <uuid-mill-a>",
+            "_asersi": "data.business_unit.id = <uuid-mill-a>, BUKAN mill-b; parameter dibuang tanpa divalidasi sehingga status 200 dan bukan 403; report_path tile aktif membawa business_unit_id mill-a; tidak ada nama/ID mill-b di body"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "business_unit_id": "uuid-yang-tidak-ada-sama-sekali",
+            "_sesi": "Supervisor mill-a",
+            "_asersi": "tetap 200 dengan business_unit.id = <uuid-mill-a>; parameter tak dikenal TIDAK memicu 404 karena memang tidak pernah divalidasi untuk peran ini"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Supervisor Mill A, Livewire::test(LaporanStasiun::class) lalu coba set('businessUnitId', $millB->id)",
+        "assert": "[data-testid=\"mill-select\"] tidak pernah dirender untuk peran ini; setelah percobaan set, [data-testid=\"mill-current\"] tetap menampilkan Mill A dan tile tetap mengacu pada Mill A; tidak ada data Mill B yang bocor ke view"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login sebagai Supervisor Mill A, buka /reports, pastikan tidak ada pemilih mill, lalu coba paksa ganti mill lewat query string /reports?business_unit_id=<uuid-mill-b>",
+        "assert": "[data-testid=\"mill-select\"] tidak ada di halaman; [data-testid=\"mill-current\"] tetap Mill A pada kedua kunjungan; nama Mill B tidak muncul di mana pun; halaman tetap dapat diakses (bukan 403)"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — daftar stasiun mengikuti master Jenis Stasiun dan urutan proses produksi",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "_sesi": "Supervisor Mill A; master berisi N jenis stasiun (tanpa 'other')",
+            "_asersi": "jumlah data.stations = N dan urutannya persis menaik menurut sort_order"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "_sesi": "Supervisor Mill A; setelah satu jenis stasiun baru ditambahkan ke master dan sort_order sebuah jenis diubah",
+            "_asersi": "jumlah data.stations = N+1, jenis baru ikut muncul, dan urutan mengikuti sort_order terbaru — membuktikan sumbernya master, bukan daftar tetap di kode"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Supervisor Mill A dengan master Jenis Stasiun yang telah ditambah satu jenis baru dan sort_order-nya diubah, lalu Livewire::test(LaporanStasiun::class)",
+        "assert": "[data-testid=\"station-grid\"] memuat tile untuk jenis stasiun baru tersebut; urutan kemunculan [data-testid^=\"station-tile-\"] di markup sama persis dengan urutan sort_order terbaru; jumlah tile mengikuti master, bukan angka tetap"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "seed master Jenis Stasiun dengan satu jenis tambahan dan sort_order yang diubah, login sebagai Supervisor Mill A, lalu buka /reports",
+        "assert": "urutan tile yang terlihat di [data-testid=\"station-grid\"] sesuai sort_order terbaru dan tile jenis stasiun baru ikut tampil tanpa perubahan kode"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — jenis stasiun historis 'other' dikecualikan",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "_sesi": "Supervisor Mill A; master memuat jenis 'other' bersama jenis lain",
+            "_asersi": "tidak ada item dengan code = 'other' di data.stations; jenis lain (sterilizer, threshing) tetap hadir"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Supervisor Mill A dengan master yang memuat jenis historis 'other', Livewire::test(LaporanStasiun::class)",
+        "assert": "[data-testid=\"station-tile-other\"] tidak dirender sama sekali; tile jenis lain seperti [data-testid=\"station-tile-sterilizer\"] tetap dirender"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login sebagai Supervisor Mill A pada basis data yang masih menyimpan jenis stasiun 'other', lalu buka /reports",
+        "assert": "[data-testid=\"station-tile-other\"] tidak terlihat dan tidak ada tile bernama 'Other'; tile stasiun lain tetap tampil normal"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — stasiun yang belum dibangun tampil nonaktif, bukan disembunyikan",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "_sesi": "Supervisor Mill A; REPORT_ROUTES hanya memuat 'sterilizer'",
+            "_asersi": "seluruh jenis stasiun master (tanpa 'other') hadir di data.stations; hanya sterilizer yang report_available=true dengan report_path terisi, sisanya report_available=false dengan report_path null — tidak ada yang dibuang dari daftar"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Supervisor Mill A, Livewire::test(LaporanStasiun::class)",
+        "assert": "jumlah tile yang dirender sama dengan jumlah jenis stasiun master tanpa 'other'; [data-testid=\"station-tile-threshing\"] hadir dengan kelas .disabled dan teks 'Belum tersedia'; [data-testid=\"station-tile-sterilizer\"] hadir tanpa kelas .disabled dan punya href"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login sebagai Supervisor Mill A lalu buka /reports dan periksa seluruh tile pada [data-testid=\"station-grid\"]",
+        "assert": "tile stasiun yang laporannya belum dibangun tetap terlihat dalam keadaan nonaktif berketerangan 'Belum tersedia' (bukan hilang dari grid); hanya tile sterilizer yang dapat diklik"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — mill yang ditetapkan terbawa ke layar laporan",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/business-units/options"
+          },
+          "request_example": {
+            "_sesi": "Admin; terdapat Mill A dan Mill B",
+            "_asersi": "data memuat minimal dua mill"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}",
+            "_sesi": "Admin",
+            "_asersi": "report_path tile sterilizer membawa business_unit_id = {{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[1].id}}",
+            "_sesi": "Admin",
+            "_asersi": "data.business_unit.id = {{step1.data[1].id}} dan report_path tile sterilizer kini membawa business_unit_id mill terakhir yang ditetapkan, bukan mill pada step 2"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\Dashboard\\LaporanStasiun",
+        "action": "actingAs Admin, Livewire::test(LaporanStasiun::class), set('businessUnitId', $millA->id) lalu set('businessUnitId', $millB->id)",
+        "assert": "setelah pergantian, href pada [data-testid=\"station-tile-sterilizer\"] memuat business_unit_id Mill B dan tidak lagi memuat Mill A; grid dirender ulang mengikuti mill terakhir"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "login sebagai Admin, buka /reports, pilih Mill A pada [data-testid=\"mill-select\"], ganti ke Mill B, lalu klik [data-testid=\"station-tile-sterilizer\"]",
+        "assert": "layar Laporan Sterilizer terbuka memakai Mill B (mill terakhir yang ditetapkan)"
+      }
+    }
+  ]
+}

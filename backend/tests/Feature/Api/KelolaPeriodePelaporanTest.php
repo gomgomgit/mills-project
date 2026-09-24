@@ -4,9 +4,10 @@
  * KelolaPeriodePelaporanTest (Feature/Api) —
  * screen-128--kelola-periode-pelaporan /
  * usecase-128--kelola-periode-pelaporan +
- * usecase-140--tutup-buka-periode-pelaporan.
+ * usecase-140--tutup-buka-periode-pelaporan +
+ * usecase-144--buka-periode-pelaporan.
  *
- * Integration tests for the screen's 8 endpoints
+ * Integration tests for the screen's 9 endpoints
  * (App\Http\Controllers\Api\PeriodController):
  *   GET    /api/periods
  *   GET    /api/periods/business-units/options
@@ -16,8 +17,9 @@
  *   GET    /api/periods/{id}/unverified-count
  *   POST   /api/periods/{id}/close
  *   POST   /api/periods/{id}/reopen
+ *   POST   /api/periods/{id}/open
  *
- * One test per test_scenarios entry of the screen tech-spec (20 total),
+ * One test per test_scenarios entry of the screen tech-spec (28 total),
  * each executing that scenario's api_test steps IN ORDER and asserting
  * every step's expected_status and expected_error_code. Exercises the real
  * route -> EnsureRole -> controller -> PeriodService / PeriodClosureService
@@ -28,8 +30,8 @@
  * `code` field for VALIDATION_ERROR / NOT_FOUND / UNAUTHENTICATED and for
  * every exception implementing App\Exceptions\HasErrorCode
  * (PERIOD_OVERLAP / PERIOD_CLOSED_IMMUTABLE / PERIOD_ALREADY_CLOSED /
- * PERIOD_NOT_CLOSED) — those are asserted here. FORBIDDEN is the one
- * exception: App\Http\Middleware\EnsureRole builds its own JSON response
+ * PERIOD_NOT_CLOSED / PERIOD_NOT_DRAFT) — those are asserted here.
+ * FORBIDDEN is the one exception: App\Http\Middleware\EnsureRole builds its own JSON response
  * and never reaches ApiExceptionHandler, so a role rejection carries
  * `message` only (screen 4-implement known_issue). The 403 scenarios below
  * therefore assert the status and the unchanged data, not `code`.
@@ -671,3 +673,244 @@ it('menerima data yang tanggal kejadiannya di luar rentang periode tertutup', fu
         'details' => [['close_door_time' => '09:00', 'open_door_time' => '10:10']],
     ])->assertStatus(201);
 })->skip('Penegakan PERIOD_CLOSED ada di service 18 stasiun — di luar screen-128, lihat usecase-141--kunci-input-periode-tertutup');
+
+// ── usecase-144 (Buka Periode — POST /api/periods/{id}/open) ────────────
+//
+// Scenarios 21–28 of the screen tech-spec. This endpoint lists 404 / 409 /
+// 403 ONLY — there is deliberately no 401 case, exactly as close/reopen
+// have none: session handling is middleware, not part of this contract.
+
+/** A draft period on Mill Alpha, the only status "Buka Periode" accepts. */
+function draftPeriodForOpenApi(BusinessUnit $businessUnit, string $name = 'Oktober 2026'): Period
+{
+    return Period::factory()
+        ->forBusinessUnit($businessUnit)
+        ->stationType('sterilizer')
+        ->named($name)
+        ->range('2026-10-01', '2026-10-31')
+        ->draft()
+        ->create();
+}
+
+// Scenario 21: "Buka Periode Pelaporan — sukses"
+it('membuka periode draft menjadi open tanpa menyentuh satu pun data stasiun', function () {
+    $period = draftPeriodForOpenApi($this->businessUnitA);
+
+    $records = SterilizerRecord::factory()
+        ->forStation($this->sterilizerStation)
+        ->onDate('2026-10-10')
+        ->count(2)
+        ->create();
+
+    $before = SterilizerRecord::query()->orderBy('id')->get()
+        ->map(fn ($r) => [$r->id, $r->checked_by, $r->acknowledged_by, (string) $r->updated_at])
+        ->all();
+
+    // Step 1 — POST /api/periods/{id}/open -> 200
+    $open = $this->actingAs($this->admin, 'web')->postJson("/api/periods/{$period->id}/open");
+
+    $open->assertOk();
+    $open->assertExactJson([
+        'id' => $period->id,
+        'status' => 'open',
+    ]);
+
+    $fresh = $period->fresh();
+    expect($fresh->status->value)->toBe('open');
+    expect($fresh->updated_by)->toBe($this->admin->id);
+    // Opening is not closing.
+    expect($fresh->closed_by)->toBeNull();
+    expect($fresh->closed_at)->toBeNull();
+
+    // Not one station record was read, validated or changed.
+    $after = SterilizerRecord::query()->orderBy('id')->get()
+        ->map(fn ($r) => [$r->id, $r->checked_by, $r->acknowledged_by, (string) $r->updated_at])
+        ->all();
+    expect($after)->toBe($before);
+    expect(SterilizerRecord::count())->toBe($records->count());
+
+    // The list shows the new status.
+    $list = $this->actingAs($this->admin, 'web')->getJson('/api/periods?status=open');
+    $list->assertOk();
+    $list->assertJsonPath('meta.total', 1);
+    $list->assertJsonPath('data.0.id', $period->id);
+});
+
+// Scenario 22: "Periode sudah terbuka"
+it('menolak 409 PERIOD_NOT_DRAFT ketika periode yang dibuka sudah berstatus open', function () {
+    $period = Period::factory()
+        ->forBusinessUnit($this->businessUnitA)
+        ->stationType('sterilizer')
+        ->named('Oktober 2026')
+        ->range('2026-10-01', '2026-10-31')
+        ->open()
+        ->create();
+
+    // Step 1 — POST open on an already-open period -> 409
+    $open = $this->actingAs($this->admin, 'web')->postJson("/api/periods/{$period->id}/open");
+
+    $open->assertStatus(409);
+    $open->assertJsonPath('code', 'PERIOD_NOT_DRAFT');
+    expect($open->json('message'))->toContain('sudah terbuka');
+    // Only the closed case points at "Buka Kembali Periode".
+    expect($open->json('message'))->not->toContain('Buka Kembali Periode');
+
+    $fresh = $period->fresh();
+    expect($fresh->status->value)->toBe('open');
+    expect($fresh->updated_by)->toBeNull();
+});
+
+// Scenario 23: "Periode sudah tertutup"
+it('menolak 409 PERIOD_NOT_DRAFT untuk periode tertutup dan mengarahkan ke Buka Kembali Periode', function () {
+    $period = Period::factory()
+        ->forBusinessUnit($this->businessUnitA)
+        ->stationType('sterilizer')
+        ->named('Oktober 2026')
+        ->range('2026-10-01', '2026-10-31')
+        ->closed($this->adminA, '2026-11-01 09:14:00')
+        ->create();
+
+    // Step 1 — POST open on a closed period -> 409
+    $open = $this->actingAs($this->admin, 'web')->postJson("/api/periods/{$period->id}/open");
+
+    $open->assertStatus(409);
+    $open->assertJsonPath('code', 'PERIOD_NOT_DRAFT');
+    // A different message from the already-open one, naming the OTHER
+    // action — the two are easy to confuse and a bare refusal makes the
+    // Admin think the period is broken.
+    expect($open->json('message'))->toContain('sudah tertutup');
+    expect($open->json('message'))->toContain('Buka Kembali Periode');
+
+    $fresh = $period->fresh();
+    expect($fresh->status->value)->toBe('closed');
+    expect($fresh->closed_by)->toBe($this->adminA->id);
+
+    // And the action that IS right for a closed period still works.
+    $this->actingAs($this->admin, 'web')->postJson("/api/periods/{$period->id}/reopen")->assertOk();
+});
+
+// Scenario 24: "Periode tidak ditemukan"
+it('mengembalikan 404 NOT_FOUND saat membuka periode yang sudah dihapus Admin lain', function () {
+    $period = draftPeriodForOpenApi($this->businessUnitA, 'Periode Sementara');
+    $periodId = $period->id;
+
+    // Another Admin deletes it first.
+    $this->actingAs($this->admin, 'web')->deleteJson("/api/periods/{$periodId}")->assertOk();
+
+    // Step 1 — POST open on the now-gone period -> 404
+    $open = $this->actingAs($this->admin, 'web')->postJson("/api/periods/{$periodId}/open");
+
+    $open->assertStatus(404);
+    $open->assertJsonPath('code', 'NOT_FOUND');
+
+    expect(Period::find($periodId))->toBeNull();
+    expect(Period::count())->toBe(0);
+});
+
+// Scenario 25: "Dua Admin membuka bersamaan"
+it('pembukaan kedua ditolak 409 dan tidak menimpa catatan Admin pertama', function () {
+    $period = draftPeriodForOpenApi($this->businessUnitA);
+
+    // Step 1 — Admin A wins the race -> 200
+    $first = $this->actingAs($this->adminA, 'web')->postJson("/api/periods/{$period->id}/open");
+    $first->assertOk();
+    $first->assertJsonPath('status', 'open');
+
+    expect($period->fresh()->updated_by)->toBe($this->adminA->id);
+
+    // Step 2 — Admin X confirms the same opening a moment later -> 409;
+    // the conditional UPDATE's WHERE status='draft' matched nothing.
+    $second = $this->actingAs($this->admin, 'web')->postJson("/api/periods/{$period->id}/open");
+    $second->assertStatus(409);
+    $second->assertJsonPath('code', 'PERIOD_NOT_DRAFT');
+    expect($second->json('message'))->toContain('sudah terbuka');
+
+    // No silent overwrite — updated_by is still Admin A's.
+    $fresh = $period->fresh();
+    expect($fresh->status->value)->toBe('open');
+    expect($fresh->updated_by)->toBe($this->adminA->id);
+});
+
+// Scenario 26: "Bukan Admin mencoba membuka periode"
+it('menolak 403 FORBIDDEN pada aksi buka periode untuk Supervisor dan Mill Management', function () {
+    $period = draftPeriodForOpenApi($this->businessUnitA);
+
+    // Step 1 — Supervisor -> 403
+    $this->actingAs($this->supervisor, 'web')
+        ->postJson("/api/periods/{$period->id}/open")
+        ->assertStatus(403);
+
+    // Step 2 — Mill Management -> 403
+    $this->actingAs($this->millManagement, 'web')
+        ->postJson("/api/periods/{$period->id}/open")
+        ->assertStatus(403);
+
+    // Operator too, for completeness — every non-Admin role is refused.
+    $this->actingAs($this->operator, 'web')
+        ->postJson("/api/periods/{$period->id}/open")
+        ->assertStatus(403);
+
+    $fresh = $period->fresh();
+    expect($fresh->status->value)->toBe('draft');
+    expect($fresh->updated_by)->toBeNull();
+});
+
+// Scenario 27: "status Terbuka tidak dapat dikembalikan ke Draft"
+it('tidak menyediakan jalan kembali dari open ke draft lewat PATCH', function () {
+    $period = draftPeriodForOpenApi($this->businessUnitA);
+
+    // Step 1 — open -> 200
+    $this->actingAs($this->admin, 'web')
+        ->postJson("/api/periods/{$period->id}/open")
+        ->assertOk();
+
+    // Step 2 — PATCH trying to push it back to draft -> 200.
+    //
+    // 200, not 422: `status` is simply NOT one of the fields the controller
+    // forwards or PeriodService::validate() accepts, so the attempt is
+    // IGNORED rather than refused. What matters is the outcome — the period
+    // is still open.
+    $patch = $this->actingAs($this->admin, 'web')->patchJson("/api/periods/{$period->id}", [
+        'business_unit_id' => $this->businessUnitA->id,
+        'station_type' => 'sterilizer',
+        'status' => 'draft',
+        'name' => 'Percobaan Mundur',
+        'start_date' => '2026-10-01',
+        'end_date' => '2026-10-31',
+    ]);
+
+    $patch->assertOk();
+    $patch->assertJsonPath('status', 'open');
+    $patch->assertJsonPath('name', 'Percobaan Mundur');
+
+    expect($period->fresh()->status->value)->toBe('open');
+});
+
+// Scenario 28: "periode Terbuka tetap dapat diubah dan dihapus"
+it('periode yang baru dibuka tetap dapat di-PATCH dan di-DELETE', function () {
+    $period = draftPeriodForOpenApi($this->businessUnitA, 'Periode Agustus 2026');
+
+    // Step 1 — open -> 200
+    $this->actingAs($this->admin, 'web')
+        ->postJson("/api/periods/{$period->id}/open")
+        ->assertOk();
+
+    // Step 2 — PATCH -> 200, no PERIOD_CLOSED_IMMUTABLE: only 'closed' locks.
+    $patch = $this->actingAs($this->admin, 'web')->patchJson("/api/periods/{$period->id}", [
+        'business_unit_id' => $this->businessUnitA->id,
+        'station_type' => 'sterilizer',
+        'name' => 'Periode Agustus 2026 (revisi)',
+        'start_date' => '2026-10-01',
+        'end_date' => '2026-10-31',
+    ]);
+    $patch->assertOk();
+    $patch->assertJsonPath('name', 'Periode Agustus 2026 (revisi)');
+    $patch->assertJsonPath('status', 'open');
+
+    // Step 3 — DELETE -> 200
+    $delete = $this->actingAs($this->admin, 'web')->deleteJson("/api/periods/{$period->id}");
+    $delete->assertOk();
+    $delete->assertExactJson(['deleted' => true]);
+
+    expect(Period::find($period->id))->toBeNull();
+});

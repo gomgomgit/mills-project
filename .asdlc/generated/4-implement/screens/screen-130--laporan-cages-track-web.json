@@ -1,0 +1,107 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "screen-130--laporan-cages-track-web",
+  "name": "Laporan Cages & Tracks (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-24T01:05:00Z",
+      "passed": 55,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-24T01:05:00Z",
+      "passed": 27,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-24T01:05:00Z",
+      "passed": 22,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-24T01:34:00Z",
+      "passed": 20,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/CagesTrackReportService.php",
+    "backend/app/Http/Controllers/Api/CagesTrackReportController.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/app/Services/StationReportService.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/LaporanCagesTrack.php",
+    "backend/resources/views/livewire/dashboard/laporan-cages-track.blade.php",
+    "backend/resources/views/dashboard/laporan-cages-track.blade.php",
+    "backend/resources/views/dashboard/partials/report-styles.blade.php",
+    "backend/resources/views/components/layouts/app.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/CagesTrackReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanCagesTrackTest.php",
+    "e2e-web/tests/laporan-cages-track.spec.ts",
+    "e2e-web/tests/laporan-stasiun.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/LaporanCagesTrackTest.php"
+  ],
+  "implementation_notes": [
+    "Carbon 3 mengembalikan selisih BERTANDA, Carbon 2 mengembalikan absolut. Repo memakai nesbot/carbon 3.13.2, dan bentuk literal $stop->diffInMinutes($start) yang ada di briefing menghasilkan -720 menit untuk jendela 06:00->18:00 yang sah — persis nilai negatif yang dilarang spec. Ditulis eksplisit sebagai Carbon::instance($start)->diffInMinutes(Carbon::instance($stop), false) lalu dikembalikan hanya bila > 0. Arah dan flag ditulis penuh agar tidak bergantung pada default yang berubah antar mayor Carbon.",
+    "PERBAIKAN JEDA SHIFT MALAM (pasca-implementasi, 2026-09-24). Tech spec v1 mengunci jeda sebagai selisih tipped_hour berturut-turut dalam urutan numerik. Itu benar untuk shift siang dan salah untuk shift malam: tippler 22:00->04:00 yang menumpahkan tiap jam mencatat jam 22,23,0,1 yang terurut numerik menjadi [0,1,22,23] dengan langkah terbesar 21 — mill yang tidak pernah berhenti dilaporkan menganggur 21 jam, pada KPI utama layar ini. Dibuktikan dengan memanggil longestGapOf([0,1,22,23]) langsung lewat refleksi. Diperbaiki di spec (v2) DAN di kode: hoursInWindowOrder() mengubah jam menjadi offset (jam - jangkar + 24) % 24, anchorHourOf() mengambil jam dari tippler_start_time paling awal pada tanggal itu. Tanggal tanpa jendela yang dapat dihitung sengaja kembali ke urutan numerik — mengarang jangkar berarti mengada-adakan batas shift. 52 unit test lama tetap hijau tanpa diubah, membuktikan kasus siang tidak tersentuh; 3 kasus baru mengunci perilaku malam.",
+    "PERBAIKAN .md-trendchart (2026-09-24, di luar cakupan screen-130 tetapi memblokirnya). Batang grafik memakai tinggi persen inline, sementara .md-trendchart hanya punya min-height dan .md-trendchart__col tidak punya tinggi sama sekali. Persen tidak pernah ter-resolve dan SELURUH batang jatuh ke min-height 4px — grafik tren harian Laporan Sterilizer rata di produksi sejak dibuat. Diukur di peramban: batang 100% dan batang 25% sama-sama 4px. Diperbaiki menjadi .md-trendchart { height: 176px } dan .md-trendchart__col { display: grid; grid-template-rows: auto 1fr auto; height: 100% }, sehingga persen dihitung terhadap baris 1fr saja, di luar label nilai dan label tanggal. Diverifikasi di halaman asli dengan data nyata: 5 siklus -> 95,7px, 7 siklus -> 134,0px, tepat 5:7. Tidak tertangkap satu test pun karena seluruh asersi memeriksa keberadaan elemen, bukan tingginya.",
+    "spec_mismatch DISELESAIKAN (keputusan user 2026-09-24). laporan-stasiun.spec.ts mengunci 'tepat 1 tile aktif', ditulis saat REPORT_ROUTES berisi satu entri; menambah tile Cages & Tracks membuatnya merah. Asersi diganti menjadi invarian: aktif <=> punya href ke /reports/, nonaktif <=> tanpa href + teks 'Belum tersedia', aktif + nonaktif = seluruh tile, minimal satu dari masing-masing. Nama test diperbarui. Empat laporan stasiun lagi direncanakan di fase ini, jadi angka keras akan merah empat kali lagi tanpa mengajarkan apa pun. Dua fixture bernama (sterilizer aktif, threshing nonaktif) dipertahankan supaya invariannya tidak bisa dipenuhi secara hampa oleh grid kosong.",
+    "Guard peran dipasang di SERVICE, bukan hanya di middleware rute — guardAccess() dipanggil di awal resolveBusinessUnit(), authorizePeriod(), summary(), dan export(). Di authorizePeriod() guard berjalan SEBELUM findOrFail agar Operator tidak dapat menyimpulkan sebuah period_id ada dari selisih 403 vs 404. Operator sengaja TIDAK disertakan, berbeda dari SterilizerReportService yang sudah dilebarkan untuk screen-135 (mobile); screen-136 belum ada.",
+    "REPORT_ROUTES diurutkan mengikuti sort_order (cages-track sebelum sterilizer) agar asersi terurut di Feature/Api/LaporanStasiunTest tetap hijau. Jebakannya ditulis sebagai docblock di konstanta itu: tanpa satu baris ini laporan hidup, seluruh testnya hijau, dan tile-nya tetap kelabu — layarnya tidak terjangkau dari UI.",
+    "Partial report-styles di-include lewat <x-slot:styles> pada view halaman, bukan @include di dalam komponen Livewire — alasannya sudah mahal dibayar di screen-140: partial ini memancarkan <style>, dan Livewire 3 memasang wire:id pada elemen ter-render pertama. Tepat dua modifier baru ditambahkan (.md-kpis--3, .md-trendchart__col--off) beserta legendanya.",
+    "Seluruh agregasi dijalankan di PHP atas baris mentah. Ada unit test khusus yang merekam setiap statement SQL selama summary() dan menegakkan tidak ada SUM/AVG/GROUP BY maupun aritmetika timestamp di sisi SQL — test jalan di SQLite, produksi di PostgreSQL, dan justru aturan null-bukan-nol yang paling mudah berbeda di antara keduanya."
+  ],
+  "deferred_items": [
+    {
+      "description": "Laporan Cages & Tracks versi mobile (screen-136).",
+      "reason": "Layar terpisah. Keempat endpoint /api/cages-track-reports/* sengaja dibangun agar dipakai ulang apa adanya, seperti /api/sterilizer-reports/* dipakai ulang screen-135. Saat screen-136 dikerjakan, keempat rute itu perlu dilebarkan menyertakan operator, sementara rute web /reports/cages-track tetap tanpa operator."
+    },
+    {
+      "description": "Coverage unit test tidak terukur.",
+      "reason": "PHP 8.5.4 di mesin ini tanpa xdebug maupun pcov, sehingga ambang unit_test.coverage_threshold 80 tidak dapat dievaluasi. Bukan kegagalan test — 55 unit test lolos penuh."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "php artisan test --coverage keluar dengan exit code 0 dan DIAM — tanpa tabel, tanpa peringatan, tanpa galat — ketika tidak ada driver coverage terpasang (PHP 8.5.4 tanpa xdebug/pcov). Pipeline mana pun yang mengandalkan perintah itu untuk menegakkan ambang coverage sedang lolos tanpa mengukur apa pun. Ini masalah lintas proyek, bukan milik screen-130.",
+      "severity": "medium"
+    },
+    {
+      "description": "test_strategy.integration_test.seed_command = 'php artisan migrate:fresh --seed --env=testing' bersifat destruktif: backend/.env.testing tidak ada, sehingga --env=testing tetap memuat .env dan perintah itu akan men-drop seluruh tabel Postgres dev yang dipakai server :8000. Tidak dijalankan pada run ini (tidak diperlukan — RefreshDatabase + sqlite :memory:). seed_command layak dikoreksi di test-strategy sebelum ada yang menjalankannya apa adanya.",
+      "severity": "medium"
+    },
+    {
+      "description": "Dua skenario browser tidak dapat disemai lewat layar mana pun dan ditulis sebagai test.skip beralasan: (a) 'hari ber-record tanpa rincian per jam' diblokir CagesTrackRecordService::validateDetails() + CagesTrackRecord::booted(); (b) 'akun terikat mill tetapi mill-nya kosong' diblokir UserService::validate() yang mewajibkan business_unit_id untuk seluruh peran non-Admin. Perilakunya tetap tertutup penuh di lapis unit (kasus 42-43 dan kasus spy 7) serta di skenario Api dan Livewire. Yang hilang hanya bukti lewat peramban.",
+      "severity": "medium"
+    },
+    {
+      "description": "avg_tippler_duration_hours untuk tanggal ber-banyak-record menjumlahkan durasi seluruh record: dua cages track paralel masing-masing 12 jam menghasilkan 24,0 jam. Benar sebagai 'total jam operasi tippler pada hari itu', tetapi dapat salah dibaca sebagai 'panjang hari kerja'. Tidak ada unit test yang menyentuhnya, dan spec tidak menyatakan mana yang dimaksud. Layak dikonfirmasi ke pemilik spec.",
+      "severity": "low"
+    },
+    {
+      "description": "Akun terikat mill tanpa business_unit_id yang menembak /summary atau /export langsung mendapat 403 dari authorizePeriod(), bukan 422 'hubungi Admin'. Spec hanya menyebut 422 untuk jalur /periods, dan UI memblokirnya lebih dulu. Tidak dilebarkan agar tidak menyimpang dari spec tanpa keputusan.",
+      "severity": "low"
+    },
+    {
+      "description": "Residu fixture browser: cages_track_records yang dibuat lewat screen-024 tidak pernah dihapus (tidak ada jalur DELETE untuk record stasiun, berbeda dari periode). Diredam dengan RUN_OFFSET berjarak 25 hari terhadap span 20 hari per run, tetapi dua run yang terpisah tepat 100.000 detik (~27,8 jam) masih dapat bertabrakan. Periode sendiri sudah dibersihkan lewat deletePeriodsByPrefix di afterAll.",
+      "severity": "low"
+    },
+    {
+      "description": "unit_test_case 49 menyebut 'chunk(200) dipanggil 3 kali' untuk 450 baris jam, padahal export() mem-chunk query RECORD dan menstream baris jam di dalam callback-nya. Jumlah chunk mengikuti jumlah header, bukan jumlah baris jam. Test menegakkan kontrak yang benar-benar teramati (streamed text/csv, tepat 451 baris termasuk header) dan mencatat deviasinya sebagai komentar.",
+      "severity": "low"
+    }
+  ]
+}

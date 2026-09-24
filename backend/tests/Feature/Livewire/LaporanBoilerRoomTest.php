@@ -1,0 +1,805 @@
+<?php
+
+/**
+ * LaporanBoilerRoomTest (Feature/Livewire) — screen-131--laporan-boiler-room-web /
+ * usecase-131--laporan-boiler-room-web (Laporan Periode Boiler Room).
+ *
+ * Component tests for App\Livewire\Dashboard\LaporanBoilerRoom, one per
+ * test_scenarios entry's `component_test`. Mirrors
+ * tests/Feature/Livewire/LaporanCagesTrackTest.php (screen-130).
+ *
+ * COMPONENT SHAPE (deliberately minimal, and asserted as such): properties
+ * `businessUnitId`, `periodId`, `showRecap`; methods mount(),
+ * toggleRekapHarian(), export($format), render(). There is no
+ * updatedBusinessUnitId() hook — switching mill is handled by
+ * keepSelectionValid() during render, which is why set('businessUnitId',
+ * ...) alone is enough to reload the period list.
+ *
+ * ACCESS CONTROL is closed twice over: the route carries
+ * 'role:supervisor,mill_management,admin' (EnsureRole -> abort 403 before
+ * the component ever mounts), and mount() itself refuses an Operator. The
+ * Operator scenario asserts BOTH, because each guard covers a path the
+ * other does not. There is no mobile Boiler Room report (screen-137), so
+ * unlike Cages & Tracks nothing here was widened for Operator.
+ *
+ * THE MILL IS NEVER NEGOTIABLE FROM THE UI for a bound role: the
+ * "mill lain" scenario forces the public `businessUnitId` property to
+ * another mill and asserts that not one figure moves.
+ *
+ * ----------------------------------------------------------------------
+ * ON THE DAILY RECAP'S DEFAULT STATE — RESOLVED (tech spec v2)
+ * ----------------------------------------------------------------------
+ * The tech spec used to contradict itself: edge_case_handling called the
+ * daily recap a `<details>` CLOSED by default, while the SAME spec's
+ * test_scenarios said the opposite in two places — scenario 1's
+ * component_test requires data-testid="daily-recap" to be PRESENT on first
+ * render, and scenario 14's requires it to be ABSENT after the FIRST toggle
+ * and present again after the second (its browser_test likewise says the
+ * first click "menutup"). Those only make sense from an OPEN start, and a
+ * `<details>` would keep the table in the DOM while merely collapsing it —
+ * which scenario 14 explicitly rejects.
+ *
+ * RESOLUTION: test_scenarios were authoritative. edge_case_handling has
+ * been corrected in tech spec v2 to read "open by default, closed via a
+ * button, markup @if-guarded so the rows leave the DOM" — which is exactly
+ * what these tests assert and what the implementation already does
+ * (showRecap = true, a plain button, @if-guarded markup). No assertion
+ * here changed; only this note did.
+ */
+
+use App\Enums\UserRole;
+use App\Livewire\Dashboard\LaporanBoilerRoom;
+use App\Models\BoilerRoomDetail;
+use App\Models\BoilerRoomRecord;
+use App\Models\BusinessUnit;
+use App\Models\Period;
+use App\Models\Station;
+use App\Models\User;
+use App\Services\BoilerRoomRecordService;
+use Livewire\Livewire;
+
+/**
+ * One boiler_room_records header plus one boiler_room_details row per entry
+ * of $rows, with `time_slot` filled in from the canonical grid by position.
+ *
+ * @param  list<array<string, mixed>>  $rows
+ */
+function laporanBoilerRoomComponentRecord(Station $station, string $date, array $rows = [], array $overrides = []): BoilerRoomRecord
+{
+    $record = BoilerRoomRecord::factory()->forStation($station)->onDate($date)->create(array_merge([
+        'boiler_room_id' => 'BLR-1',
+        'note' => null,
+    ], $overrides));
+
+    $slots = BoilerRoomRecordService::canonicalTimeSlots();
+
+    foreach (array_values($rows) as $index => $row) {
+        BoilerRoomDetail::factory()->forRecord($record)->create(array_merge([
+            'time_slot' => $slots[$index % count($slots)],
+        ], $row));
+    }
+
+    return $record;
+}
+
+/**
+ * $count rows each filling only steam_pressure_bar (plus $extra).
+ *
+ * @return list<array<string, mixed>>
+ */
+function laporanBoilerRoomComponentPressureRows(int $count, float $pressure = 20.0, array $extra = []): array
+{
+    $rows = [];
+
+    for ($index = 0; $index < $count; $index++) {
+        $rows[] = array_merge(['steam_pressure_bar' => $pressure], $extra);
+    }
+
+    return $rows;
+}
+
+/** The five headline metric cards, by their data-testid stem. */
+const LAPORAN_BOILER_ROOM_METRIC_CARDS = [
+    'steam-pressure', 'steam-temp', 'water-tds', 'water-ph', 'exhaust-gas-temp',
+];
+
+beforeEach(function () {
+    $this->businessUnitA = BusinessUnit::factory()->create(['name' => 'Mill Alpha']);
+    $this->businessUnitB = BusinessUnit::factory()->create(['name' => 'Mill Beta']);
+
+    $this->stationA = Station::factory()->forBusinessUnit($this->businessUnitA)->boilerRoom()->create();
+    $this->stationB = Station::factory()->forBusinessUnit($this->businessUnitB)->boilerRoom()->create();
+
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitA)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnitA)->create();
+    $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnitA)->create();
+    $this->admin = User::factory()->role(UserRole::Admin)->create(['business_unit_id' => null]);
+
+    $this->periodA = Period::factory()
+        ->forBusinessUnit($this->businessUnitA)
+        ->stationType('boiler-room')
+        ->range('2026-03-01', '2026-03-31')
+        ->named('Periode Maret Alpha')
+        ->open()
+        ->create();
+});
+
+// =====================================================================
+// Scenario 1: "berhasil sebagai Supervisor atau Mill Management"
+// =====================================================================
+it('berhasil: no mill picker, the mill caption, every metric card with its own reading count, and every section', function () {
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-02', laporanBoilerRoomComponentPressureRows(12, 20.0, [
+        'steam_temp_c' => 260.0,
+        'water_tds_ppm' => 2000.0,
+        'water_ph' => 10.5,
+        'exhaust_gas_temp_c' => 210.0,
+        'blowdown_executed' => 'y',
+    ]), ['boiler_room_id' => 'BLR-1']);
+
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-03', laporanBoilerRoomComponentPressureRows(8, 24.0, [
+        'steam_temp_c' => 280.0,
+        'water_tds_ppm' => 2200.0,
+        'water_ph' => 11.5,
+        'exhaust_gas_temp_c' => 230.0,
+        'sootblowing_executed' => 'y',
+    ]), ['boiler_room_id' => 'BLR-2']);
+
+    foreach ([$this->supervisor, $this->millManagement] as $user) {
+        $component = Livewire::actingAs($user)
+            ->test(LaporanBoilerRoom::class)
+            // The newest period is auto-selected, so the page is useful on
+            // first paint rather than demanding a choice first.
+            ->assertSet('periodId', (string) $this->periodA->id)
+            // Offering a picker they cannot use would be a lie.
+            ->assertDontSeeHtml('data-testid="mill-selector"')
+            ->assertSeeHtml('data-testid="mill-name"')
+            ->assertSee('Mill Alpha')
+            ->assertSeeHtml('data-testid="period-selector"')
+            ->assertSeeHtml('data-testid="recording-coverage"')
+            ->assertSeeHtml('data-testid="maintenance-blowdown-executed"')
+            ->assertSeeHtml('data-testid="maintenance-sootblowing-executed"')
+            ->assertSeeHtml('data-testid="daily-trend-steam-pressure"')
+            ->assertSeeHtml('data-testid="per-unit-recap"')
+            // PRESENT on first render — see the file docblock on the recap's
+            // default state.
+            ->assertSeeHtml('data-testid="daily-recap"')
+            ->assertSeeHtml('data-testid="export-button"')
+            // The label without which the raw extremes read as a broken
+            // report next to the daily averages.
+            ->assertSeeHtml('data-testid="raw-extremes-note"')
+            ->assertDontSeeHtml('data-testid="empty-period-notice"');
+
+        // Every metric card carries min / avg / max AND its own reading
+        // count, side by side — an average over 3 readings and one over 300
+        // must never look equally convincing.
+        foreach (LAPORAN_BOILER_ROOM_METRIC_CARDS as $card) {
+            $component->assertSeeHtml('data-testid="metric-'.$card.'-min"');
+            $component->assertSeeHtml('data-testid="metric-'.$card.'-avg"');
+            $component->assertSeeHtml('data-testid="metric-'.$card.'-max"');
+            $component->assertSeeHtml('data-testid="metric-'.$card.'-reading-count"');
+        }
+
+        $component->assertViewHas('summary', fn ($summary) => $summary['metrics']['steam_pressure_bar']['reading_count'] === 20
+            && $summary['metrics']['steam_pressure_bar']['avg'] === 21.6
+            && $summary['maintenance']['blowdown']['executed'] === 12
+            && $summary['maintenance']['sootblowing']['executed'] === 8
+            && $summary['coverage']['filled_slots'] === 20
+            && count($summary['by_unit']) === 2);
+    }
+});
+
+// =====================================================================
+// Scenario 2: "berhasil sebagai Admin"
+// =====================================================================
+it('admin: the mill picker is rendered, the period list follows the chosen mill, and every section appears', function () {
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-10', laporanBoilerRoomComponentPressureRows(4, 20.0, [
+        'steam_temp_c' => 260.0,
+        'water_tds_ppm' => 2000.0,
+        'water_ph' => 10.0,
+        'exhaust_gas_temp_c' => 200.0,
+    ]));
+
+    $periodB = Period::factory()->forBusinessUnit($this->businessUnitB)->stationType('boiler-room')
+        ->range('2026-03-01', '2026-03-31')->named('Periode Maret Beta')->open()->create();
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(LaporanBoilerRoom::class)
+        // Admin is the one role not bound to a mill, so it gets the picker.
+        ->assertSeeHtml('data-testid="mill-selector"')
+        ->assertSeeHtml('data-testid="select-mill-first-hint"')
+        ->set('businessUnitId', (string) $this->businessUnitA->id);
+
+    // The period list refreshed to the chosen mill, and the newest one of
+    // THAT mill was selected — no updatedBusinessUnitId() hook needed.
+    $component->assertSet('periodId', (string) $this->periodA->id);
+    $component->assertViewHas('periods', fn ($periods) => array_column($periods, 'id') === [(string) $this->periodA->id]);
+    expect($component->viewData('periods'))->not->toContain($periodB->id);
+
+    $component
+        ->assertSeeHtml('data-testid="recording-coverage"')
+        ->assertSeeHtml('data-testid="maintenance-blowdown-executed"')
+        ->assertSeeHtml('data-testid="maintenance-sootblowing-executed"')
+        ->assertSeeHtml('data-testid="daily-trend-steam-pressure"')
+        ->assertSeeHtml('data-testid="per-unit-recap"')
+        ->assertSeeHtml('data-testid="daily-recap"')
+        ->assertSeeHtml('data-testid="export-button"')
+        ->assertDontSeeHtml('data-testid="select-mill-first-hint"');
+
+    foreach (LAPORAN_BOILER_ROOM_METRIC_CARDS as $card) {
+        $component->assertSeeHtml('data-testid="metric-'.$card.'-avg"');
+        $component->assertSeeHtml('data-testid="metric-'.$card.'-reading-count"');
+    }
+});
+
+// =====================================================================
+// Scenario 3: "Admin memilih mill lebih dulu"
+// =====================================================================
+it('admin tanpa mill: the picker and the hint are shown, and not one report figure is rendered', function () {
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-10', laporanBoilerRoomComponentPressureRows(4));
+
+    Livewire::actingAs($this->admin)
+        ->test(LaporanBoilerRoom::class)
+        ->assertSeeHtml('data-testid="mill-selector"')
+        ->assertSeeHtml('data-testid="select-mill-first-hint"')
+        // The page asks for a mill instead of drawing an empty report that
+        // would read as "this mill has no data".
+        ->assertDontSeeHtml('data-testid="metric-steam-pressure-avg"')
+        ->assertDontSeeHtml('data-testid="recording-coverage"')
+        ->assertDontSeeHtml('data-testid="daily-recap"')
+        ->assertDontSeeHtml('data-testid="per-unit-recap"')
+        ->assertDontSeeHtml('data-testid="export-button"')
+        ->assertViewHas('summary', null);
+});
+
+// =====================================================================
+// Scenario 4: "mill belum punya periode"
+// =====================================================================
+it('mill tanpa periode: the period picker has no option at all and the contact-Admin hint is shown', function () {
+    $supervisorB = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitB)->create();
+
+    $component = Livewire::actingAs($supervisorB)->test(LaporanBoilerRoom::class);
+
+    $component
+        ->assertSeeHtml('data-testid="period-selector"')
+        ->assertSeeHtml('data-testid="no-period-hint"')
+        ->assertSee('Kelola Periode Pelaporan')
+        ->assertSet('periodId', '')
+        ->assertDontSeeHtml('data-testid="metric-steam-pressure-avg"')
+        ->assertDontSeeHtml('data-testid="recording-coverage"')
+        ->assertDontSeeHtml('data-testid="per-unit-recap"');
+
+    // Rendered deliberately WITHOUT a placeholder option — an empty picker,
+    // not a fake "belum ada periode" entry.
+    expect($component->html())->not->toContain('<option value="');
+});
+
+// =====================================================================
+// Scenario 5: "periode tanpa data"
+// =====================================================================
+it('periode tanpa data: the empty notice appears, every metric reads as unavailable rather than 0, and no chart is drawn', function () {
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->assertSet('periodId', (string) $this->periodA->id)
+        ->assertSeeHtml('data-testid="empty-period-notice"')
+        // An empty chart would read as a measured flat line.
+        ->assertDontSeeHtml('data-testid="daily-trend-steam-pressure"')
+        ->assertDontSeeHtml('data-testid="daily-trend-steam-temp"')
+        ->assertDontSeeHtml('data-testid="per-unit-recap"')
+        ->assertDontSeeHtml('data-testid="daily-recap"');
+
+    foreach (LAPORAN_BOILER_ROOM_METRIC_CARDS as $card) {
+        // '–', never '0': zero would read as "measured, and it was zero".
+        $component->assertSeeHtml('<span data-testid="metric-'.$card.'-avg">–</span>');
+        $component->assertDontSeeHtml('<span data-testid="metric-'.$card.'-avg">0</span>');
+        $component->assertSeeHtml('<b data-testid="metric-'.$card.'-reading-count">0</b>');
+    }
+
+    $component->assertViewHas('summary', fn ($summary) => $summary['has_data'] === false
+        && $summary['metrics']['steam_pressure_bar']['avg'] === null);
+});
+
+// =====================================================================
+// Scenario 6: "sebuah metrik tidak pernah diisi"
+// =====================================================================
+it('satu metrik kosong: the pH card reads unavailable with 0 readings while the pressure card keeps its own 20', function () {
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-07', laporanBoilerRoomComponentPressureRows(20, 18.0));
+
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->assertSeeHtml('<span data-testid="metric-water-ph-avg">–</span>')
+        ->assertSeeHtml('<b data-testid="metric-water-ph-reading-count">0</b>')
+        // Independent per metric — one empty metric does not touch another.
+        ->assertSeeHtml('<span data-testid="metric-steam-pressure-avg">18,0</span>')
+        ->assertSeeHtml('<b data-testid="metric-steam-pressure-reading-count">20</b>');
+});
+
+// =====================================================================
+// Scenario 7: "perawatan tidak tercatat"
+// =====================================================================
+it('perawatan: the three states are rendered as three separate figures, and not recorded is never merged into not done', function () {
+    $states = ['y', 'y', 'y', 'n', 'n', null, null, null, null, null];
+    $rows = [];
+
+    foreach ($states as $state) {
+        $rows[] = ['steam_pressure_bar' => 20.0, 'blowdown_executed' => $state];
+    }
+
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-08', $rows);
+
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->assertSeeHtml('<span data-testid="maintenance-blowdown-executed">3</span>')
+        ->assertSeeHtml('<span data-testid="maintenance-blowdown-not-executed">2</span>')
+        ->assertSeeHtml('<b data-testid="maintenance-blowdown-not-recorded">5</b>')
+        // Written down as three distinct labelled figures, never one blended
+        // "not done" of 7.
+        ->assertSee('tidak tercatat')
+        ->assertDontSeeHtml('<span data-testid="maintenance-blowdown-not-executed">7</span>')
+        ->assertViewHas('summary', fn ($summary) => $summary['maintenance']['blowdown']['executed'] === 3
+            && $summary['maintenance']['blowdown']['not_executed'] === 2
+            && $summary['maintenance']['blowdown']['not_recorded'] === 5);
+});
+
+// =====================================================================
+// Scenario 8: "pencatatan sangat tidak lengkap"
+// =====================================================================
+it('kelengkapan rendah: the coverage card sits above every figure, and the small reading counts stay beside them', function () {
+    $period = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('boiler-room')
+        ->range('2026-04-01', '2026-04-30')->named('Periode April Tipis')->open()->create();
+
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-04-10', laporanBoilerRoomComponentPressureRows(6, 21.0));
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->set('periodId', (string) $period->id)
+        ->assertSeeHtml('data-testid="recording-coverage"')
+        ->assertSeeHtml('<strong data-testid="coverage-filled-slots">6</strong>')
+        ->assertSeeHtml('data-testid="coverage-expected-slots"')
+        // The figures are still shown — the reader is told how thin they are
+        // instead of being shown nothing.
+        ->assertSeeHtml('<span data-testid="metric-steam-pressure-avg">21,0</span>')
+        ->assertSeeHtml('<b data-testid="metric-steam-pressure-reading-count">6</b>');
+
+    $html = $component->html();
+
+    // ABOVE every other figure, not a footnote: a period filled to a few
+    // per cent still produces tidy-looking averages.
+    expect(strpos($html, 'data-testid="recording-coverage"'))
+        ->toBeLessThan(strpos($html, 'data-testid="report-metrics"'));
+    expect(strpos($html, 'data-testid="recording-coverage"'))
+        ->toBeLessThan(strpos($html, 'data-testid="per-unit-recap"'));
+});
+
+// =====================================================================
+// Scenario 9: "mill punya beberapa unit boiler"
+// =====================================================================
+it('beberapa unit: three rows in the per-unit recap, the unrecorded unit among them with 0 readings', function () {
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-12', [
+        ['time_slot' => '08:00', 'steam_pressure_bar' => 20.0],
+    ], ['boiler_room_id' => 'BLR-1']);
+
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-12', [
+        ['time_slot' => '08:00', 'steam_pressure_bar' => 24.0],
+    ], ['boiler_room_id' => 'BLR-2']);
+
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-12', array_fill(0, 3, []), [
+        'boiler_room_id' => 'BLR-3',
+    ]);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->assertSeeHtml('data-testid="per-unit-recap"')
+        ->assertSeeHtml('data-testid="per-unit-row-BLR-1"')
+        ->assertSeeHtml('data-testid="per-unit-row-BLR-2"')
+        // Dropping it would hide exactly the unit that was never written
+        // down — the one worth seeing.
+        ->assertSeeHtml('data-testid="per-unit-row-BLR-3"');
+
+    $component->assertViewHas('summary', function ($summary) {
+        $blank = collect($summary['by_unit'])->firstWhere('boiler_room_id', 'BLR-3');
+
+        return $blank['reading_count'] === 0
+            && $blank['steam_pressure_avg'] === null
+            // The period cards combine BLR-1 and BLR-2.
+            && $summary['metrics']['steam_pressure_bar']['avg'] === 22.0
+            && $summary['metrics']['steam_pressure_bar']['reading_count'] === 2;
+    });
+
+    // The BLR-3 row renders its emptiness as a dash and a 0, not a fake zero
+    // average.
+    expect($component->html())->toContain('data-testid="per-unit-row-BLR-3"');
+});
+
+// =====================================================================
+// Scenario 10: "akun belum terhubung ke mill"
+// =====================================================================
+it('akun tanpa mill: the contact-Admin notice, NO mill picker at all, and no figures', function () {
+    $noMillSupervisor = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+
+    Livewire::actingAs($noMillSupervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->assertSeeHtml('data-testid="no-mill-hint"')
+        ->assertSee('Hubungi Admin')
+        // FAIL CLOSED: offering the all-mills list to a role that is meant
+        // to be tied to one mill turns a broken master-data row into a
+        // cross-mill leak.
+        ->assertDontSeeHtml('data-testid="mill-selector"')
+        ->assertDontSeeHtml('data-testid="period-selector"')
+        ->assertDontSeeHtml('data-testid="metric-steam-pressure-avg"')
+        ->assertDontSeeHtml('data-testid="recording-coverage"')
+        ->assertDontSeeHtml('data-testid="per-unit-recap"')
+        ->assertViewHas('businessUnitOptions', [])
+        ->assertViewHas('summary', null);
+});
+
+// =====================================================================
+// Scenario 11: "mencoba melihat mill lain"
+// =====================================================================
+it('mill lain: forcing businessUnitId changes nothing, and another mill period is replaced before it is ever read', function () {
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-10', [['steam_pressure_bar' => 20.0]]);
+    laporanBoilerRoomComponentRecord($this->stationB, '2026-03-10', [['steam_pressure_bar' => 900.0]]);
+
+    $periodB = Period::factory()->forBusinessUnit($this->businessUnitB)->stationType('boiler-room')
+        ->range('2026-03-01', '2026-03-31')->named('Periode Maret Beta')->open()->create();
+
+    // The mill is not negotiable from the UI for a bound role:
+    // resolvedBusinessUnitId() never consults $businessUnitId for them.
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->set('businessUnitId', (string) $this->businessUnitB->id)
+        ->assertSeeHtml('data-testid="mill-name"')
+        ->assertSee('Mill Alpha')
+        ->assertDontSee('Mill Beta')
+        ->assertSeeHtml('<span data-testid="metric-steam-pressure-avg">20,0</span>')
+        ->assertDontSee('900');
+
+    $component->assertViewHas('summary', fn ($summary) => $summary['business_unit']['name'] === 'Mill Alpha'
+        && $summary['metrics']['steam_pressure_bar']['avg'] === 20.0);
+
+    // Hand-forcing another mill's period: it is not in this mill's list, so
+    // keepSelectionValid() replaces it before authorizePeriod() ever sees
+    // it — no other mill's figure is ever rendered.
+    $component->set('periodId', (string) $periodB->id)
+        ->assertSet('periodId', (string) $this->periodA->id)
+        ->assertDontSee('Periode Maret Beta')
+        ->assertDontSee('900');
+});
+
+// =====================================================================
+// Scenario 12: "Operator mencoba membuka layar web ini"
+// =====================================================================
+it('operator: the route refuses before mount, and mount() itself refuses too', function () {
+    // Route layer — EnsureRole::forbidden() -> abort(403).
+    $response = $this->actingAs($this->operator, 'web')->get('/reports/boiler-room');
+    $response->assertForbidden();
+    $response->assertDontSee('Laporan Periode');
+
+    // Component layer — mount()'s abort_unless(403) covers the component
+    // being mounted directly, which is exactly how this scenario exercises
+    // it. Livewire's test harness renders the 403 error page instead of the
+    // component, so assert on that.
+    $html = Livewire::actingAs($this->operator)->test(LaporanBoilerRoom::class)->html();
+
+    expect($html)->toContain('Forbidden');
+    expect($html)->not->toContain('data-testid="laporan-boiler-room"');
+    expect($html)->not->toContain('data-testid="report-metrics"');
+    expect($html)->not->toContain('data-testid="per-unit-recap"');
+    expect($html)->not->toContain('data-testid="daily-recap"');
+});
+
+// =====================================================================
+// Scenario 13: "periode tertutup"
+// =====================================================================
+it('periode tertutup: the status is a caption, the report is complete and the export button is never disabled', function () {
+    $closed = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('boiler-room')
+        ->range('2026-05-01', '2026-05-31')->named('Periode Mei Tertutup')->closed()->create();
+
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-05-10', laporanBoilerRoomComponentPressureRows(4, 20.0, [
+        'steam_temp_c' => 260.0,
+        'water_tds_ppm' => 2000.0,
+        'water_ph' => 10.0,
+        'exhaust_gas_temp_c' => 200.0,
+    ]));
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->set('periodId', (string) $closed->id)
+        ->assertSeeHtml('data-testid="period-status"')
+        ->assertSee('Tertutup')
+        ->assertSeeHtml('data-testid="recording-coverage"')
+        ->assertSeeHtml('data-testid="per-unit-recap"')
+        ->assertSeeHtml('data-testid="daily-recap"')
+        // The period lock governs writing data, not reading a report.
+        ->assertSeeHtml('data-testid="export-button"')
+        ->assertDontSeeHtml('disabled');
+
+    $component->call('export', 'csv')->assertFileDownloaded(null, null, 'text/csv');
+});
+
+// =====================================================================
+// Scenario 14: "rekap harian panjang"
+//
+// The FIRST toggle CLOSES the recap and the SECOND re-opens it — which only
+// makes sense from an open start, and is the opposite of what
+// edge_case_handling's "<details> tertutup bawaan" line says. See the file
+// docblock; this test follows test_scenarios, verbatim.
+// =====================================================================
+it('rekap panjang: the toggle hides the recap on the first call and brings it back on the second, cards untouched', function () {
+    foreach (range(1, 20) as $day) {
+        laporanBoilerRoomComponentRecord($this->stationA, sprintf('2026-03-%02d', $day), [
+            ['steam_pressure_bar' => 20.0 + $day, 'steam_temp_c' => 250.0 + $day],
+        ]);
+    }
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->assertSeeHtml('data-testid="daily-recap-toggle"')
+        // OPEN on first render.
+        ->assertSeeHtml('data-testid="daily-recap"')
+        ->assertSeeHtml('data-testid="report-metrics"')
+        ->assertSeeHtml('data-testid="daily-trend-steam-pressure"');
+
+    // First toggle — the table leaves the DOM entirely, rather than being
+    // merely collapsed (which is why this is a button and a Livewire
+    // property, not a <details>).
+    $component->call('toggleRekapHarian')
+        ->assertDontSeeHtml('data-testid="daily-recap"')
+        ->assertSeeHtml('data-testid="daily-recap-toggle"')
+        // The headline figures and the trend survive both states.
+        ->assertSeeHtml('data-testid="report-metrics"')
+        ->assertSeeHtml('data-testid="daily-trend-steam-pressure"');
+
+    // Second toggle — back again.
+    $component->call('toggleRekapHarian')
+        ->assertSeeHtml('data-testid="daily-recap"')
+        ->assertSeeHtml('data-testid="report-metrics"')
+        ->assertSeeHtml('data-testid="daily-trend-steam-pressure"');
+
+    $component->assertViewHas('summary', fn ($summary) => count($summary['daily']) === 20);
+});
+
+// =====================================================================
+// Scenario 15: "layar hanya membaca"
+// =====================================================================
+it('baca saja: no write-flavoured control anywhere, and rendering changes not one row', function () {
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-10', laporanBoilerRoomComponentPressureRows(5, 20.0, [
+        'water_ph' => 7.0,
+        'blowdown_executed' => 'y',
+    ]));
+
+    $recordsBefore = BoilerRoomRecord::count();
+    $detailsBefore = BoilerRoomDetail::count();
+
+    $html = Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->call('toggleRekapHarian')
+        ->call('toggleRekapHarian')
+        ->html();
+
+    foreach (['save-button', 'edit-button', 'delete-button', 'add-row-button', 'remove-row-button'] as $writeish) {
+        expect($html)->not->toContain('data-testid="'.$writeish.'"');
+    }
+
+    // The component's public surface stays a toggle and an export.
+    preg_match_all('/wire:click="([a-zA-Z]+)/', $html, $matches);
+    expect(array_unique($matches[1]))->toEqualCanonicalizing(['toggleRekapHarian', 'export']);
+
+    expect(BoilerRoomRecord::count())->toBe($recordsBefore);
+    expect(BoilerRoomDetail::count())->toBe($detailsBefore);
+});
+
+// =====================================================================
+// Scenario 16: "daftar periode hanya yang mencakup Boiler Room"
+// =====================================================================
+it('pemilih periode: Boiler Room and all-station-types are offered, another station type is not', function () {
+    $allTypes = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType(null)
+        ->range('2026-06-01', '2026-06-30')->named('Periode Semua Stasiun')->open()->create();
+    $otherType = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('sterilizer')
+        ->range('2026-07-01', '2026-07-31')->named('Periode Sterilizer Saja')->open()->create();
+
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class);
+
+    $component
+        ->assertSee('Periode Maret Alpha')
+        ->assertSee('Periode Semua Stasiun')
+        ->assertDontSee('Periode Sterilizer Saja');
+
+    $component->assertViewHas('periods', function ($periods) use ($allTypes, $otherType) {
+        $ids = array_column($periods, 'id');
+
+        return in_array((string) $this->periodA->id, $ids, true)
+            && in_array((string) $allTypes->id, $ids, true)
+            && ! in_array((string) $otherType->id, $ids, true);
+    });
+
+    // Newest first, and a NULL station type is labelled rather than blank.
+    expect($component->viewData('periods')[0]['id'])->toBe((string) $allTypes->id);
+    expect($component->viewData('periods')[0]['station_type_label'])->not->toBe('');
+});
+
+// =====================================================================
+// Scenario 17: "rentang periode inklusif di kedua ujung"
+// =====================================================================
+it('rentang inklusif: the recap and the trend carry both bounds, and nothing from outside them', function () {
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-01', [['steam_pressure_bar' => 10.0]]);
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-31', [['steam_pressure_bar' => 30.0]]);
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-02-28', [['steam_pressure_bar' => 99.0]]);
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-04-01', [['steam_pressure_bar' => 88.0]]);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->assertSeeHtml('data-testid="daily-recap"')
+        ->assertSeeHtml('data-testid="daily-recap-row-2026-03-01"')
+        ->assertSeeHtml('data-testid="daily-recap-row-2026-03-31"')
+        ->assertDontSeeHtml('data-testid="daily-recap-row-2026-02-28"')
+        ->assertDontSeeHtml('data-testid="daily-recap-row-2026-04-01"')
+        // The trend has a column for each of the two bound dates.
+        ->assertSeeHtml('data-testid="daily-trend-steam-pressure-col-2026-03-01"')
+        ->assertSeeHtml('data-testid="daily-trend-steam-pressure-col-2026-03-31"');
+
+    $component->assertViewHas('summary', fn ($summary) => $summary['metrics']['steam_pressure_bar']['reading_count'] === 2
+        && $summary['metrics']['steam_pressure_bar']['min'] === 10.0
+        && $summary['metrics']['steam_pressure_bar']['max'] === 30.0
+        && array_column($summary['daily'], 'date') === ['2026-03-01', '2026-03-31']);
+
+    // The out-of-range readings appear nowhere on the page.
+    expect($component->html())->not->toContain('99,0');
+    expect($component->html())->not->toContain('88,0');
+});
+
+// =====================================================================
+// Scenario 18: "setiap metrik punya penyebutnya sendiri"
+// =====================================================================
+it('penyebut terpisah: the pH card reads 7,0 over 4 readings while the pressure card reads its raw 12,0 low', function () {
+    $pressures = [12.0, 28.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0];
+    $phValues = [6.0, 7.0, 7.0, 8.0, null, null, null, null, null, null];
+    $rows = [];
+
+    foreach ($pressures as $index => $pressure) {
+        $rows[] = ['steam_pressure_bar' => $pressure, 'water_ph' => $phValues[$index]];
+    }
+
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-02', $rows);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        // 28.0 / 4 = 7.0, rendered with its own denominator beside it.
+        ->assertSeeHtml('<span data-testid="metric-water-ph-avg">7,0</span>')
+        ->assertSeeHtml('<b data-testid="metric-water-ph-reading-count">4</b>')
+        ->assertDontSeeHtml('<span data-testid="metric-water-ph-avg">2,8</span>')
+        ->assertSeeHtml('<b data-testid="metric-steam-pressure-reading-count">10</b>')
+        // The card's low comes from the RAW slot reading...
+        ->assertSeeHtml('<span data-testid="metric-steam-pressure-min">12,0</span>')
+        // ...while the recap row for the same date reads the DAILY average.
+        ->assertSeeHtml('data-testid="daily-recap-row-2026-03-02"')
+        // Without this label the reader concludes the report is broken.
+        ->assertSeeHtml('data-testid="raw-extremes-note"')
+        ->assertSee('tidak dapat dicocokkan');
+
+    $component->assertViewHas('summary', function ($summary) {
+        $recap = collect($summary['daily'])->firstWhere('date', '2026-03-02');
+
+        return $summary['metrics']['water_ph']['avg'] === 7.0
+            && $summary['metrics']['water_ph']['reading_count'] === 4
+            && $summary['metrics']['steam_pressure_bar']['reading_count'] === 10
+            && $summary['metrics']['steam_pressure_bar']['min'] === 12.0
+            // 20.0 in the recap, 12.0 on the card. Deliberately different.
+            && $recap['steam_pressure_avg'] === 20.0;
+    });
+
+    // Both numbers are on the page at once, which is exactly why the label
+    // above it exists.
+    expect($component->html())->toContain('20,0');
+    expect($component->html())->toContain('12,0');
+});
+
+// =====================================================================
+// Scenario 19: "jumlah pembacaan ditampilkan berdampingan dengan angkanya"
+// =====================================================================
+it('reading count: every metric card renders its average and its own reading count in the same block', function () {
+    $rows = [];
+
+    for ($index = 0; $index < 10; $index++) {
+        $rows[] = [
+            'steam_pressure_bar' => 20.0,
+            'steam_temp_c' => $index < 7 ? 260.0 : null,
+            'water_tds_ppm' => $index < 5 ? 2000.0 : null,
+            'water_ph' => $index < 4 ? 7.0 : null,
+            'exhaust_gas_temp_c' => $index < 2 ? 210.0 : null,
+        ];
+    }
+
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-05', $rows);
+
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class);
+    $html = $component->html();
+
+    $expected = [
+        'steam-pressure' => 10,
+        'steam-temp' => 7,
+        'water-tds' => 5,
+        'water-ph' => 4,
+        'exhaust-gas-temp' => 2,
+    ];
+
+    foreach ($expected as $card => $count) {
+        $component->assertSeeHtml('data-testid="metric-'.$card.'-avg"');
+        $component->assertSeeHtml('<b data-testid="metric-'.$card.'-reading-count">'.$count.'</b>');
+
+        // Same card, avg first then its count — no metric is shown without
+        // one, and no count is borrowed from another metric.
+        $cardStart = strpos($html, 'data-testid="metric-'.$card.'"');
+        $avgAt = strpos($html, 'data-testid="metric-'.$card.'-avg"');
+        $countAt = strpos($html, 'data-testid="metric-'.$card.'-reading-count"');
+
+        expect($cardStart)->not->toBeFalse();
+        expect($avgAt)->toBeGreaterThan($cardStart);
+        expect($countAt)->toBeGreaterThan($avgAt);
+    }
+});
+
+// =====================================================================
+// Scenario 20: "laju bahan bakar dan beban fan tidak pernah dirata-rata"
+// =====================================================================
+it('teks bebas: no metric card, no trend and no per-unit column for fuel feed rate or fan load', function () {
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-11', [
+        [
+            'steam_pressure_bar' => 20.0,
+            'fuel_feed_rate' => '12 ton/jam',
+            'id_fan_load' => '80%',
+            'sa_fan_load' => 'sedang',
+        ],
+    ]);
+
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class)->html();
+
+    // Their units are mixed on the paper form (Hz / % / tons), so averaging
+    // them is not merely wrong, it is meaningless.
+    foreach (['fuel-feed-rate', 'id-fan-load', 'sa-fan-load'] as $card) {
+        foreach (['min', 'avg', 'max', 'reading-count'] as $part) {
+            expect($html)->not->toContain('data-testid="metric-'.$card.'-'.$part.'"');
+        }
+
+        expect($html)->not->toContain('data-testid="daily-trend-'.$card.'"');
+    }
+
+    // And their values never surface as an aggregate on the page at all —
+    // the export is the only place they appear.
+    expect($html)->not->toContain('12 ton/jam');
+    expect($html)->not->toContain('Laju Bahan Bakar');
+    expect($html)->not->toContain('Beban ID Fan');
+});
+
+// =====================================================================
+// Scenario 21: "tidak ada penandaan nilai di luar batas"
+// =====================================================================
+it('tanpa ambang: extreme values render in the same neutral style, with no badge, icon, label or danger colour', function () {
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-18', [
+        ['steam_pressure_bar' => 5.0, 'steam_temp_c' => 100.0],
+        ['steam_pressure_bar' => 95.0, 'steam_temp_c' => 400.0],
+    ]);
+
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class)->html();
+
+    // The extremes ARE rendered — they are simply not judged.
+    expect($html)->toContain('data-testid="metric-steam-pressure-min"');
+    expect($html)->toContain('5,0');
+    expect($html)->toContain('95,0');
+
+    // Boiler Room has no operational-target master, so a threshold here
+    // would be a statistic dressed up as a safety limit. Judgement is the
+    // reader's — the absence is what gets asserted.
+    foreach ([
+        'threshold-badge', 'out-of-range-icon', 'alert-label', 'threshold-card',
+        'outlier', 'severity',
+    ] as $forbidden) {
+        expect(strtolower($html))->not->toContain($forbidden);
+    }
+
+    foreach ([
+        'text-red', 'bg-red', 'md-chip--danger', 'md-chip--warning',
+        'md-trendchart__col--low', 'md-trendchart__col--high', 'is-danger', 'is-warning',
+    ] as $colour) {
+        expect($html)->not->toContain($colour);
+    }
+});

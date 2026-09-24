@@ -6,6 +6,7 @@ use App\Enums\PeriodStatus;
 use App\Exceptions\PeriodAlreadyClosedException;
 use App\Exceptions\PeriodClosedImmutableException;
 use App\Exceptions\PeriodNotClosedException;
+use App\Exceptions\PeriodNotDraftException;
 use App\Exceptions\PeriodOverlapException;
 use App\Models\Period;
 use App\Services\PeriodClosureService;
@@ -20,7 +21,8 @@ use Livewire\Component;
 
 /**
  * KelolaPeriodePelaporan — screen-128--kelola-periode-pelaporan /
- * usecase-128 (CRUD) + usecase-140 (tutup & buka kembali). Livewire web
+ * usecase-128 (CRUD) + usecase-140 (tutup & buka kembali) + usecase-144
+ * (buka periode draft). Livewire web
  * screen at /master-data/periods, route name `master-data.periods`.
  *
  * Reuses PeriodService and PeriodClosureService — the exact same services
@@ -93,6 +95,16 @@ class KelolaPeriodePelaporan extends Component
     public ?string $deleteErrorMessage = null;
 
     public ?string $confirmingReopenId = null;
+
+    /**
+     * Period currently shown in the open-confirmation dialog (usecase-144).
+     * Draft → open is irreversible (there is no way back to Draft), so it
+     * gets a real dialog rather than the inline confirmation reopen uses.
+     */
+    public ?string $openingId = null;
+
+    /** @var array<string, mixed>|null snapshot of the opening period's row */
+    public ?array $openingPeriod = null;
 
     /** Period currently shown in the close-confirmation dialog. */
     public ?string $closingId = null;
@@ -488,6 +500,81 @@ class KelolaPeriodePelaporan extends Component
         }
 
         $this->confirmingReopenId = null;
+    }
+
+    /**
+     * "Buka Periode" — usecase-144. Only offered on a DRAFT row (the table
+     * renders the button for no other status), and the dialog it opens
+     * spells out that the step cannot be undone: the status cycle runs
+     * draft -> open -> closed, with no way back to draft.
+     *
+     * Deliberately does NOT re-check the status here. The authoritative
+     * refusal lives in PeriodClosureService::open()'s conditional UPDATE,
+     * and duplicating it at this layer would only give a stale row two
+     * chances to produce two different messages. A row deleted in the
+     * meantime simply opens the dialog with no snapshot and fails on
+     * confirm with "tidak ditemukan".
+     */
+    public function askOpen(string $id): void
+    {
+        $this->closeErrorMessage = null;
+        $this->successMessage = null;
+        $this->confirmingDeleteId = null;
+        $this->confirmingReopenId = null;
+
+        $this->openingId = $id;
+        $this->openingPeriod = null;
+
+        $period = Period::with('businessUnit')->find($id);
+
+        if ($period !== null) {
+            $this->openingPeriod = [
+                'id' => $period->id,
+                'name' => $period->name,
+                'business_unit_name' => optional($period->businessUnit)->name,
+                'station_type_label' => app(PeriodService::class)->stationTypeLabel($period->station_type),
+                'start_date' => optional($period->start_date)->toDateString(),
+                'end_date' => optional($period->end_date)->toDateString(),
+            ];
+        }
+    }
+
+    public function cancelOpen(): void
+    {
+        $this->openingId = null;
+        $this->openingPeriod = null;
+        $this->closeErrorMessage = null;
+    }
+
+    /**
+     * "Ya, Buka Periode". Touches the period status and nothing else — no
+     * station record is read, validated or changed here, unlike
+     * confirmClose() which first surfaces an unverified-record count.
+     *
+     * A 409 PERIOD_NOT_DRAFT means the period was not draft after all
+     * (already open, already closed, or opened by another Admin a moment
+     * earlier). The service's message distinguishes those cases — in
+     * particular a closed period is pointed at "Buka Kembali Periode" —
+     * so it is surfaced verbatim, inline, exactly as reopen does.
+     */
+    public function confirmOpen(): void
+    {
+        if ($this->openingId === null) {
+            return;
+        }
+
+        try {
+            app(PeriodClosureService::class)->open($this->openingId);
+            $this->successMessage = 'Periode berhasil dibuka.';
+            $this->closeErrorMessage = null;
+        } catch (PeriodNotDraftException $e) {
+            $this->closeErrorMessage = $e->getMessage();
+        } catch (ModelNotFoundException) {
+            $this->closeErrorMessage = 'Periode tidak ditemukan, mungkin sudah dihapus.';
+        }
+
+        $this->openingId = null;
+        $this->openingPeriod = null;
     }
 
     public function nextPage(): void

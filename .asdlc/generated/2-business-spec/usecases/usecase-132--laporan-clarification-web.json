@@ -1,0 +1,342 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "usecase-132--laporan-clarification-web",
+  "name": "Lihat Laporan Periode Clarification (Web)",
+  "description": "Pengguna web memilih periode pelaporan lalu membaca hasil stasiun Clarification sepanjang periode itu: produksi minyak murni yang diturunkan dari laju per jam, suhu antar tangki, level buffer tank, total downtime, dan seberapa lengkap pencatatannya.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin",
+    "Mill sudah punya minimal satu periode pelaporan yang mencakup stasiun Clarification"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Pengguna membuka layar Laporan Clarification dari pemilih stasiun"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Sistem menetapkan mill dari akun pengguna; khusus Admin, sistem menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Sistem memuat daftar periode yang mencakup stasiun Clarification pada mill itu"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih salah satu periode"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Sistem menurunkan produksi minyak murni dari laju per jam yang tercatat, dan menghitung tiap metrik lain dari pembacaan yang terisi untuk metrik itu sendiri"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Sistem menampilkan total produksi beserta jumlah pembacaan yang mendasarinya, total downtime, suhu ketiga tangki pada satu grafik, level buffer tank, kelengkapan pencatatan, tren harian, rekap per unit, dan rekap harian"
+    },
+    {
+      "step": 7,
+      "actor": "actor-supervisor",
+      "description": "Pengguna dapat mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Admin memilih mill lebih dulu",
+      "trigger": "Pada langkah 2, pengguna berperan Admin",
+      "steps": [
+        "Sistem menampilkan pemilih Mill",
+        "Angka tidak ditampilkan sampai mill dipilih",
+        "Sistem menampilkan arahan memilih mill terlebih dahulu"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode",
+      "trigger": "Pada langkah 3, mill tidak punya periode yang mencakup Clarification",
+      "steps": [
+        "Pemilih periode kosong",
+        "Sistem menampilkan arahan menghubungi Admin",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Periode tanpa data",
+      "trigger": "Pada langkah 5, periode tidak memuat satu pun pembacaan",
+      "steps": [
+        "Seluruh angka ditampilkan tidak tersedia, bukan nol",
+        "Sistem menyatakan belum ada data pada periode itu",
+        "Tidak ada grafik kosong yang menyesatkan"
+      ]
+    },
+    {
+      "name": "Laju produksi tidak pernah tercatat",
+      "trigger": "Pada langkah 5, kolom laju kosong sepanjang periode walau suhu terisi",
+      "steps": [
+        "Total produksi ditampilkan tidak tersedia dengan jumlah pembacaan nol",
+        "Metrik suhu tetap tampil normal dengan jumlah pembacaannya sendiri"
+      ]
+    },
+    {
+      "name": "Jam tanpa catatan laju",
+      "trigger": "Pada langkah 5, sebagian jam tidak mencatat laju produksi",
+      "steps": [
+        "Jam itu dikeluarkan dari perhitungan produksi",
+        "Jam itu TIDAK dianggap berproduksi nol",
+        "Jumlahnya terbaca lewat kelengkapan pencatatan"
+      ]
+    },
+    {
+      "name": "Downtime tercatat bersamaan dengan laju",
+      "trigger": "Pada langkah 5, sebuah jam mencatat downtime sekaligus mencatat laju produksi",
+      "steps": [
+        "Produksi jam itu tetap dihitung dari laju apa adanya",
+        "Downtime jam itu tetap dijumlahkan apa adanya",
+        "Layar menjelaskan bahwa keduanya tidak saling mengurangi"
+      ]
+    },
+    {
+      "name": "Downtime tidak pernah tercatat",
+      "trigger": "Pada langkah 5, kolom downtime kosong sepanjang periode",
+      "steps": [
+        "Total downtime ditampilkan sebagai tidak tercatat",
+        "Keadaan itu dibedakan dari nol yang berarti tidak pernah berhenti"
+      ]
+    },
+    {
+      "name": "Pencatatan sangat tidak lengkap",
+      "trigger": "Pada langkah 5, hanya sebagian kecil slot waktu terisi",
+      "steps": [
+        "Angka tetap ditampilkan",
+        "Kelengkapan pencatatan ditampilkan menonjol",
+        "Pembaca dapat melihat bahwa produksi yang diturunkan ikut mengecil bersama pencatatan yang bolong"
+      ]
+    },
+    {
+      "name": "Mill punya beberapa unit Clarification",
+      "trigger": "Pada langkah 5, terdapat lebih dari satu unit pada mill itu",
+      "steps": [
+        "Angka periode menggabungkan seluruh unit",
+        "Rekap per unit menampilkan sebarannya",
+        "Unit tanpa pembacaan tetap muncul dengan jumlah pembacaan nol"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Pada langkah 2, akun pengguna terikat mill tetapi mill-nya kosong",
+      "steps": [
+        "Sistem menampilkan pesan menghubungi Admin",
+        "Sistem tidak menawarkan daftar seluruh mill",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Mencoba melihat mill lain",
+      "trigger": "Pada langkah 5, permintaan membawa mill selain mill pada akun",
+      "steps": [
+        "Server mengabaikan nilai itu dan memakai mill pada akun",
+        "Angka yang tampil tetap milik mill pengguna",
+        "Periode milik mill lain tidak dapat dibuka"
+      ]
+    },
+    {
+      "name": "Operator mencoba membuka layar web ini",
+      "trigger": "Pada langkah 1, pengguna berperan Operator",
+      "steps": [
+        "Akses ditolak",
+        "Tidak ada data yang terlihat"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pada langkah 4, pengguna memilih periode berstatus tertutup",
+      "steps": [
+        "Laporan tetap tampil penuh",
+        "Status tertutup ditampilkan",
+        "Ekspor tetap dapat dijalankan"
+      ]
+    },
+    {
+      "name": "Rekap harian panjang",
+      "trigger": "Pada langkah 6, periode cukup panjang sehingga rekap hariannya puluhan baris",
+      "steps": [
+        "Rekap harian dapat ditutup",
+        "Angka utama dan tren tetap terbaca tanpa gulir panjang"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat rekap periode yang dipilih",
+    "Tidak ada satu pun data stasiun yang berubah"
+  ],
+  "business_rules": [
+    "Layar hanya membaca; tidak ada aksi tulis",
+    "Supervisor dan Mill Management terkunci pada mill akunnya; Admin memilih",
+    "Operator tidak punya akses ke layar web ini",
+    "Daftar periode hanya yang mencakup Clarification atau berlaku semua jenis stasiun",
+    "Status periode tidak membatasi pembacaan maupun ekspor",
+    "Rentang periode inklusif di kedua ujung",
+    "Produksi diturunkan dari laju per jam, bukan dicatat, sehingga jumlah pembacaan laju ditampilkan berdampingan dengan angkanya",
+    "Jam tanpa catatan laju tidak dianggap berproduksi nol",
+    "Setiap metrik punya penyebutnya sendiri",
+    "Downtime nol dan downtime tidak tercatat adalah dua hal berbeda",
+    "Ketiga suhu tangki ditampilkan pada satu grafik agar selisih antar tangki terbaca",
+    "Tidak ada penandaan nilai di luar batas",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — berhasil sebagai Supervisor atau Mill Management",
+      "given": "Supervisor atau Mill Management sudah masuk ke aplikasi web dan mill pada akunnya sudah punya minimal satu periode pelaporan yang mencakup stasiun Clarification",
+      "when": "Pengguna membuka layar Laporan Clarification dari pemilih stasiun dan memilih salah satu periode yang tersedia",
+      "then": "Sistem menampilkan rekap periode untuk mill pada akun pengguna — total produksi minyak murni beserta jumlah pembacaan laju yang mendasarinya, total downtime, suhu ketiga tangki pada satu grafik, level buffer tank, kelengkapan pencatatan, tren harian, rekap per unit, dan rekap harian — rincian pembacaan per slot waktu dapat diunduh sebagai CSV, dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — berhasil sebagai Admin",
+      "given": "Admin sudah masuk ke aplikasi web dan terdapat mill yang punya minimal satu periode pelaporan mencakup stasiun Clarification",
+      "when": "Admin membuka layar Laporan Clarification, memilih mill pada pemilih Mill, lalu memilih salah satu periode",
+      "then": "Sistem menampilkan rekap periode untuk mill yang dipilih Admin dengan isi yang sama seperti peran lain, ekspor CSV tersedia, dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — Admin memilih mill lebih dulu",
+      "given": "Admin sudah masuk ke aplikasi web dan terdapat mill yang punya periode pelaporan mencakup stasiun Clarification",
+      "when": "Admin membuka layar Laporan Clarification tetapi belum memilih mill mana pun",
+      "then": "Sistem menampilkan pemilih Mill beserta arahan untuk memilih mill terlebih dahulu, dan tidak ada angka yang ditampilkan sampai mill dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — mill belum punya periode",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang aktif tidak punya satu pun periode pelaporan yang mencakup stasiun Clarification",
+      "when": "Sistem memuat daftar periode untuk mill tersebut",
+      "then": "Pemilih periode tampil kosong, sistem menampilkan arahan untuk menghubungi Admin, dan tidak ada angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — periode tanpa data",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Clarification",
+      "when": "Pengguna memilih periode yang tidak memuat satu pun pembacaan Clarification",
+      "then": "Seluruh angka ditampilkan sebagai tidak tersedia dan bukan nol, sistem menyatakan belum ada data pada periode itu, dan tidak ada grafik kosong yang menyesatkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — laju produksi tidak pernah tercatat",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Clarification",
+      "when": "Pengguna memilih periode yang kolom laju produksinya kosong sepanjang periode walaupun pembacaan suhu terisi",
+      "then": "Total produksi ditampilkan sebagai tidak tersedia dengan jumlah pembacaan laju nol, sementara metrik suhu tetap tampil normal dengan jumlah pembacaannya sendiri"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — jam tanpa catatan laju",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Clarification",
+      "when": "Pengguna memilih periode yang sebagian jamnya tidak mencatat laju produksi",
+      "then": "Jam tanpa catatan laju dikeluarkan dari perhitungan produksi dan tidak dianggap berproduksi nol, serta jumlah jam yang hilang itu terbaca melalui kelengkapan pencatatan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — downtime tercatat bersamaan dengan laju",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Clarification",
+      "when": "Pengguna memilih periode yang memuat jam dengan downtime tercatat sekaligus laju produksi tercatat",
+      "then": "Produksi jam itu tetap dihitung dari laju apa adanya, downtime jam itu tetap dijumlahkan apa adanya, dan layar menjelaskan bahwa keduanya tidak saling mengurangi"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — downtime tidak pernah tercatat",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Clarification",
+      "when": "Pengguna memilih periode yang kolom downtime-nya kosong sepanjang periode",
+      "then": "Total downtime ditampilkan sebagai tidak tercatat, dan keadaan itu dibedakan secara jelas dari nilai nol yang berarti tidak pernah berhenti"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — pencatatan sangat tidak lengkap",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Clarification",
+      "when": "Pengguna memilih periode yang hanya sebagian kecil slot waktunya terisi",
+      "then": "Angka tetap ditampilkan, kelengkapan pencatatan ditampilkan menonjol, dan pembaca dapat melihat bahwa produksi yang diturunkan ikut mengecil bersama pencatatan yang bolong"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — mill punya beberapa unit Clarification",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Clarification dengan lebih dari satu unit Clarification",
+      "when": "Pengguna memilih periode pada mill yang punya beberapa unit Clarification",
+      "then": "Angka periode menggabungkan seluruh unit, rekap per unit menampilkan sebarannya, dan unit yang tidak punya pembacaan tetap muncul dengan jumlah pembacaan nol"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — akun belum terhubung ke mill",
+      "given": "Supervisor atau Mill Management sudah masuk ke aplikasi web tetapi akunnya tidak terhubung ke mill mana pun",
+      "when": "Pengguna membuka layar Laporan Clarification dan sistem mencoba menetapkan mill dari akun",
+      "then": "Sistem menampilkan pesan untuk menghubungi Admin, tidak menawarkan daftar seluruh mill, dan tidak ada angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — mencoba melihat mill lain",
+      "given": "Supervisor atau Mill Management sudah masuk ke aplikasi web dan mill pada akunnya punya periode pelaporan yang mencakup stasiun Clarification",
+      "when": "Pengguna mengirim permintaan laporan yang membawa identitas mill selain mill pada akunnya",
+      "then": "Server mengabaikan nilai itu dan tetap memakai mill pada akun, angka yang tampil tetap milik mill pengguna, dan periode milik mill lain tidak dapat dibuka"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — Operator mencoba membuka layar web ini",
+      "given": "Seorang Station Operator sudah masuk ke aplikasi dan mill punya periode pelaporan yang mencakup stasiun Clarification",
+      "when": "Operator mencoba membuka layar Laporan Clarification versi web",
+      "then": "Akses ditolak dan tidak ada data laporan yang terlihat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — periode tertutup",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Clarification yang berstatus tertutup",
+      "when": "Pengguna memilih periode yang berstatus tertutup",
+      "then": "Laporan tetap tampil penuh, status tertutup ditampilkan, dan ekspor CSV tetap dapat dijalankan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — rekap harian panjang",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Clarification dengan rentang yang panjang",
+      "when": "Pengguna melihat hasil periode yang rekap hariannya mencapai puluhan baris",
+      "then": "Rekap harian dapat ditutup, dan angka utama beserta tren tetap terbaca tanpa gulir panjang"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — produksi diturunkan dari laju dan jumlah pembacaannya ditampilkan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Clarification dengan sebagian jam mencatat laju produksi",
+      "when": "Pengguna memilih periode tersebut dan membaca total produksi minyak murni",
+      "then": "Total produksi diturunkan dari laju per jam yang tercatat — bukan dari kolom produksi yang dicatat langsung — dan jumlah pembacaan laju yang mendasarinya ditampilkan berdampingan dengan angkanya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — setiap metrik punya penyebutnya sendiri",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Clarification dengan kelengkapan pengisian yang berbeda antar metrik",
+      "when": "Pengguna memilih periode di mana laju, downtime, suhu tangki, dan level buffer tank terisi pada jumlah slot waktu yang berbeda-beda",
+      "then": "Setiap metrik dihitung hanya dari pembacaan yang terisi untuk metrik itu sendiri dan menampilkan jumlah pembacaannya masing-masing, tanpa memakai satu penyebut bersama untuk semua metrik"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — rentang periode inklusif di kedua ujung",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Clarification dengan pembacaan tepat pada tanggal awal dan tanggal akhir periode",
+      "when": "Pengguna memilih periode tersebut dan membaca angka beserta rekap hariannya",
+      "then": "Pembacaan pada tanggal awal maupun tanggal akhir ikut terhitung, rekap harian memuat kedua tanggal ujung, dan ekspor CSV mencakup slot waktu pada kedua ujung tersebut"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — ketiga suhu tangki pada satu grafik",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Clarification dengan pembacaan suhu pada ketiga tangki",
+      "when": "Pengguna memilih periode tersebut dan melihat bagian suhu tangki",
+      "then": "Ketiga suhu tangki ditampilkan pada satu grafik dengan sumbu yang sama sehingga selisih antar tangki langsung terbaca, bukan pada tiga grafik terpisah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — tidak ada penandaan nilai di luar batas",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Clarification yang memuat nilai ekstrem pada suhu atau level buffer tank",
+      "when": "Pengguna memilih periode yang memuat nilai jauh di atas atau di bawah nilai lazimnya",
+      "then": "Nilai tersebut ditampilkan apa adanya tanpa penandaan, pewarnaan, atau peringatan di luar batas dalam bentuk apa pun"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — layar hanya membaca",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Clarification",
+      "when": "Pengguna menelusuri seluruh bagian layar Laporan Clarification, berganti periode, dan menjalankan ekspor CSV",
+      "then": "Layar tidak menyediakan satu pun aksi tulis seperti ubah, hapus, atau simpan, dan setelah seluruh interaksi tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Clarification (Web) — daftar periode hanya yang mencakup Clarification",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya campuran periode pelaporan: sebagian khusus stasiun lain, sebagian mencakup Clarification, dan sebagian berlaku untuk semua jenis stasiun",
+      "when": "Sistem memuat daftar periode pada layar Laporan Clarification",
+      "then": "Pemilih periode hanya memuat periode yang mencakup stasiun Clarification atau yang berlaku untuk semua jenis stasiun, sedangkan periode khusus stasiun lain tidak muncul"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-132--laporan-clarification-web"
+  ]
+}

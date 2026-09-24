@@ -1,0 +1,83 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "screen-135--laporan-sterilizer-mobile",
+  "name": "Laporan Sterilizer (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "partial",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-24T07:55:00Z",
+      "passed": 0,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-24T07:55:00Z",
+      "passed": 58,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-24T07:55:00Z",
+      "passed": 39,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-24T07:55:00Z",
+      "passed": 18,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/routes/api.php",
+    "backend/app/Services/SterilizerReportService.php"
+  ],
+  "fe_files_generated": [
+    "mobile/src/services/sterilizerReportRepo.ts",
+    "mobile/src/views/LaporanSterilizerView.vue",
+    "mobile/src/router/index.ts"
+  ],
+  "test_files_generated": [
+    "backend/tests/Feature/Api/LaporanSterilizerTest.php",
+    "backend/tests/Unit/Services/SterilizerReportServiceTest.php",
+    "mobile/tests/e2e/laporan-sterilizer.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/LaporanSterilizerView.spec.ts"
+  ],
+  "implementation_notes": [
+    "ARTEFAK INI DITULIS SUSULAN pada 2026-09-24, setelah implementasinya selesai pada 2026-09-23. Phase 4 layar ini berjalan penuh dan hijau, tetapi langkah penulisan artefaknya tidak pernah tuntas sehingga dep-graph menandainya not_started selama sehari — kode ada, catatannya yang hilang. Seluruh angka di bawah adalah hasil PENGUKURAN ULANG pada 2026-09-24, bukan rekonstruksi dari ingatan: component 39 lolos (vitest), browser 18 lolos (playwright), dan 58 lolos pada dua berkas test backend Sterilizer.",
+    "Layar ini MEMAKAI ULANG keempat endpoint /api/sterilizer-reports/* milik screen-129 — keputusan user 2026-09-23: satu sumber angka untuk web dan mobile sehingga mustahil berbeda. Tidak ada endpoint mobile terpisah dan tidak ada tambahan ke api-index.",
+    "PERLUASAN AKSES OPERATOR adalah bagian dari layar ini, dan menyentuh berkas milik screen-129: rute menjadi ['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'], serta SterilizerReportService::resolveBusinessUnit() dan authorizePeriod() dilebarkan menyertakan Operator pada cabang TERIKAT MILL. Rute WEB /reports/sterilizer tidak berubah.",
+    "CATATAN JUJUR TENTANG RUN ITU: briefing saya ke agen menyatakan resolveBusinessUnit() 'sudah menangani seluruh peran non-Admin dengan benar'. Itu KELIRU — fungsinya menyebut Supervisor dan MillManagement satu per satu, dan Operator jatuh ke throw AuthorizationException. Agen berhenti dengan spec_mismatch dan benar melakukannya; kekeliruan itu memakan satu putaran agen penuh. Pelajaran itulah yang membuat saya membaca resolveBusinessUnit() lebih dulu sebelum membriefing screen-136, dan di sanalah ditemukan bahwa melebarkan guardAccess() saja akan menjatuhkan Operator ke cabang Admin.",
+    "SterilizerReportServiceTest Case 16 semula mengunci perilaku lama (Operator ditolak 403) dan harus disesuaikan menjadi dua test: Operator lolos untuk mill sendiri, dan tetap 403 untuk period_id mill lain. Test itu tidak diantisipasi oleh briefing maupun oleh agen — ia ditemukan saat run.",
+    "Dua docblock yang menyatakan 'Operator tidak punya akses web sama sekali' ditulis ulang, mencatat pemisahan API-vs-web dan menegaskan bahwa melebarkan middleware rute saja TIDAK cukup."
+  ],
+  "deferred_items": [
+    {
+      "description": "Unit test untuk lapisan repo (mobile/tests/sterilizerReportRepo.spec.ts).",
+      "reason": "Tidak pernah dibuat. Screen-136 yang setara punya cagesTrackReportRepo.spec.ts berisi 21 kasus yang mengunci hal-hal yang tidak dijaga component test: scopeParams tidak pernah mengirim business_unit_id untuk peran terikat mill, unwrap menerima respons berpembungkus maupun tanpa pembungkus, null bertahan sebagai null, dan repo tidak memuat aritmetika KPI apa pun. Selama berkas ini tidak ada, aturan 'tidak ada perhitungan kedua di sisi ponsel' tidak terjaga oleh test mana pun pada layar Sterilizer."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Lapisan repo sterilizerReportRepo.ts TIDAK punya unit test sama sekali, berbeda dari kembarannya cagesTrackReportRepo.ts yang punya 21 kasus. Akibatnya aturan bisnis 'angka berasal dari endpoint yang sama, tidak ada perhitungan kedua di sisi ponsel' tidak dijaga test apa pun di layar ini — pelanggaran terhadapnya akan lolos diam-diam. Inilah alasan status layar ini PARTIAL, bukan complete.",
+      "severity": "medium"
+    },
+    {
+      "description": "Coverage tidak terukur; tidak ada driver coverage terpasang di mesin ini.",
+      "severity": "medium"
+    },
+    {
+      "description": "Ekspor CSV di ponsel dipertahankan dari pola web tanpa pernah diputuskan apakah mengunduh CSV di HP memang berguna. Mekanismenya anchor + object URL di WebView Capacitor — berjalan, tetapi berkasnya mendarat di tempat yang tidak selalu mudah ditemukan pengguna. Pertanyaan yang sama berlaku untuk screen-136.",
+      "severity": "low"
+    },
+    {
+      "description": "Artefak Phase 4 ini tertinggal sehari di belakang implementasinya. Yang perlu diperhatikan bukan keterlambatannya melainkan bahwa dep-graph SELAMA ITU menyatakan not_started sementara kodenya sudah berjalan di produksi lokal — dep-graph tidak dapat dipakai sendirian untuk menjawab 'apa yang sudah jadi'.",
+      "severity": "low"
+    }
+  ]
+}

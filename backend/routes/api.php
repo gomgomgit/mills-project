@@ -1,34 +1,38 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BoilerRoomRecordController;
+use App\Http\Controllers\Api\BoilerRoomReportController;
 use App\Http\Controllers\Api\BusinessUnitController;
+use App\Http\Controllers\Api\CagesTrackReportController;
 use App\Http\Controllers\Api\CagesTrackRecordController;
+use App\Http\Controllers\Api\ClarificationRecordController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\CorporateController;
-use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\EffluentPlantRecordController;
-use App\Http\Controllers\Api\GradingRecordController;
 use App\Http\Controllers\Api\CpoDispatchRecordController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\DepricarpingRecordController;
+use App\Http\Controllers\Api\EffluentPlantRecordController;
+use App\Http\Controllers\Api\EngineRoomRecordController;
+use App\Http\Controllers\Api\GradingRecordController;
 use App\Http\Controllers\Api\KernelDispatchRecordController;
+use App\Http\Controllers\Api\KernelPlantRecordController;
 use App\Http\Controllers\Api\MachineryController;
 use App\Http\Controllers\Api\MachineryGroupController;
 use App\Http\Controllers\Api\ManagementReportController;
 use App\Http\Controllers\Api\MillSettingController;
 use App\Http\Controllers\Api\PeriodController;
 use App\Http\Controllers\Api\PressingRecordController;
-use App\Http\Controllers\Api\DepricarpingRecordController;
-use App\Http\Controllers\Api\KernelPlantRecordController;
+use App\Http\Controllers\Api\ProcessQualityControlRecordController;
 use App\Http\Controllers\Api\ProcessWaterRecordController;
 use App\Http\Controllers\Api\ProductionLineController;
 use App\Http\Controllers\Api\RecordVerificationController;
 use App\Http\Controllers\Api\SolidWasteDisposalRecordController;
 use App\Http\Controllers\Api\StationController;
-use App\Http\Controllers\Api\StorageTankRecordController;
-use App\Http\Controllers\Api\BoilerRoomRecordController;
-use App\Http\Controllers\Api\ClarificationRecordController;
-use App\Http\Controllers\Api\ProcessQualityControlRecordController;
+use App\Http\Controllers\Api\StationReportController;
 use App\Http\Controllers\Api\SterilizerRecordController;
-use App\Http\Controllers\Api\EngineRoomRecordController;
+use App\Http\Controllers\Api\SterilizerReportController;
+use App\Http\Controllers\Api\StorageTankRecordController;
 use App\Http\Controllers\Api\ThreshingRecordController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WeighbridgeRecordController;
@@ -862,7 +866,8 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
     ->patch('/records/{stationType}/{id}/verification', [RecordVerificationController::class, 'update']);
 
 // screen-128--kelola-periode-pelaporan (usecase-128 CRUD + usecase-140
-// tutup/buka kembali). Admin-only across the board, per
+// tutup/buka kembali + usecase-144 buka periode draft). Admin-only
+// across the board, per
 // screen_tech_spec.actor_permissions — supervisor / mill_management /
 // operator all have can_access=false, closure actions included (Mill
 // Management consumes the period reports but may not close the books).
@@ -871,9 +876,11 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
 // registered BEFORE the parameterised /periods/{id} routes below, or
 // Laravel matches the literal "business-units" segment against {id}.
 // Same requirement as /production-lines/business-units/options and
-// /mill-settings/current. The two literal sub-resources of {id}
-// (/unverified-count, /close, /reopen) carry a distinct extra segment, so
-// they cannot collide with PATCH/DELETE /periods/{id}.
+// /mill-settings/current. The literal sub-resources of {id}
+// (/unverified-count, /close, /reopen, /open) carry a distinct extra
+// segment, so they cannot collide with PATCH/DELETE /periods/{id} — which
+// is exactly why every suffixed route must stay registered BEFORE the
+// PATCH/DELETE /periods/{id} pair below.
 Route::middleware(['auth:web', 'role:admin'])->group(function () {
     Route::get('/periods', [PeriodController::class, 'index']);
     Route::get('/periods/business-units/options', [PeriodController::class, 'businessUnitOptions']);
@@ -881,8 +888,155 @@ Route::middleware(['auth:web', 'role:admin'])->group(function () {
     Route::get('/periods/{id}/unverified-count', [PeriodController::class, 'unverifiedCount']);
     Route::post('/periods/{id}/close', [PeriodController::class, 'close']);
     Route::post('/periods/{id}/reopen', [PeriodController::class, 'reopen']);
+    Route::post('/periods/{id}/open', [PeriodController::class, 'open']);
     Route::patch('/periods/{id}', [PeriodController::class, 'update']);
     Route::delete('/periods/{id}', [PeriodController::class, 'destroy']);
+});
+
+// screen-129--laporan-sterilizer-web (usecase-129 — Laporan Periode
+// Sterilizer), now ALSO serving screen-135--laporan-sterilizer-mobile
+// (usecase-135 — Laporan Periode Sterilizer (Mobile)). Dual-guarded
+// ('auth:web,sanctum', same reasoning as screen-025/026 above) +
+// role-guarded per screen_tech_spec.actor_permissions.
+//
+// 2026-09-23 — `operator` added to the role list for screen-135: the
+// mobile report is deliberately open to the actor who enters the data
+// ("orang yang menginput data berhak melihat hasilnya", screen-135
+// business_rules). This widens the API ONLY. The WEB route
+// /reports/sterilizer in routes/web.php is deliberately left at
+// supervisor / mill_management / admin — Operator has no web UI at all,
+// so a 403 there is still the correct answer.
+//
+// GET-ONLY, deliberately: a report must not expose any path that mutates
+// the Sterilizer data it reports on, so there is no POST/PUT/PATCH/DELETE
+// on this prefix.
+//
+// IMPORTANT — route ordering: none of these are parameterised, so no
+// literal-vs-{id} collision is possible here (unlike /periods/... above).
+//
+// business_unit_id is accepted on /periods but IGNORED for Supervisor /
+// Mill Management (SterilizerReportService::resolveBusinessUnit) — probing
+// another mill still returns 200 with the caller's own data, on purpose:
+// a 403 would confirm the other mill exists. The real cross-mill guard is
+// on period_id, in authorizePeriod(), which does answer 403.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/sterilizer-reports/business-units/options', [SterilizerReportController::class, 'businessUnitOptions']);
+    Route::get('/sterilizer-reports/periods', [SterilizerReportController::class, 'periods']);
+    Route::get('/sterilizer-reports/summary', [SterilizerReportController::class, 'summary']);
+    Route::get('/sterilizer-reports/export', [SterilizerReportController::class, 'export']);
+});
+
+// screen-140--laporan-stasiun-web (usecase-142 — Pilih Stasiun untuk
+// Laporan). Dual-guarded ('auth:web,sanctum', same reasoning as
+// screen-025/026/129 above) + role-guarded to supervisor /
+// mill_management / admin per screen_tech_spec.actor_permissions —
+// Operator is a mobile-only actor with no web report access at all.
+//
+// GET-ONLY, deliberately: this screen only chooses a destination and must
+// not expose any path that mutates data.
+//
+// Note which answer each situation gets, because three are easy to get
+// wrong (StationReportService):
+//   - Supervisor / Mill Management sending ANOTHER mill's business_unit_id
+//     -> 200 with their OWN mill. The parameter is DISCARDED, never
+//     validated, so there is nothing to refuse and no 403 to give.
+//   - Admin with no business_unit_id -> 422 VALIDATION_ERROR, not 403.
+//   - A bound account whose users.business_unit_id is NULL -> 422, and the
+//     list of all mills is never read (fail closed).
+//
+// The options endpoint stays behind the same three-role middleware but is
+// Admin-only in the service: Supervisor / Mill Management get 403 there,
+// since a role bound to one mill has no picker at all.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])->group(function () {
+    Route::get('/station-reports/business-units/options', [StationReportController::class, 'businessUnitOptions']);
+    Route::get('/station-reports/stations', [StationReportController::class, 'stations']);
+});
+
+// screen-130--laporan-cages-track-web (usecase-130 — Laporan Periode
+// Cages & Tracks) AND screen-136--laporan-cages-track-mobile (usecase-136
+// — Lihat Laporan Periode Cages & Tracks (Mobile)). Dual-guarded +
+// role-guarded to supervisor / mill_management / admin / operator, per the
+// actor_permissions of BOTH screens.
+//
+// 2026-09-24 — WIDENED FOR screen-136. The mobile report reuses these four
+// routes AS-IS; there is no mobile-only endpoint, exactly as screen-135
+// reused /api/sterilizer-reports/* above. THREE changes were required
+// together, and none of them is sufficient alone:
+//   1. the `sanctum` guard here — mobile authenticates with a Sanctum
+//      token, not a session cookie, so 'auth:web' alone would 401 every
+//      device;
+//   2. `operator` in this role list AND UserRole::Operator in
+//      CagesTrackReportService::guardAccess(), which refuses two layers
+//      deeper — widening the middleware alone would leave Operator
+//      clearing the route only to be refused by the service, which is
+//      precisely what happened to screen-135;
+//   3. Operator added to the MILL-BOUND branch of
+//      CagesTrackReportService::resolveBusinessUnit(). Admitting Operator
+//      in guardAccess() only would have dropped it into the unbound Admin
+//      branch, letting an Operator pass any business_unit_id and read
+//      another mill's report — a cross-mill leak, not a display defect.
+//
+// ONLY these 4 API routes were widened. The WEB route /reports/cages-track
+// in routes/web.php deliberately stays at supervisor / mill_management /
+// admin — Operator has no web UI at all, so a 403 there is still the
+// correct answer (asserted by Feature/Livewire/LaporanCagesTrackTest and
+// e2e-web/tests/laporan-cages-track.spec.ts, both of which must stay green
+// unchanged).
+//
+// GET-ONLY, deliberately: a report must not expose any path that mutates
+// the Cages & Tracks data it reports on, so there is no
+// POST/PUT/PATCH/DELETE on this prefix.
+//
+// IMPORTANT — route ordering: none of these are parameterised, so no
+// literal-vs-{id} collision is possible here.
+//
+// business_unit_id is accepted on /periods, /summary and /export but is
+// IGNORED for Supervisor / Mill Management / Operator
+// (CagesTrackReportService::resolveBusinessUnit) — probing another mill
+// still returns 200 with the caller's own data, on purpose: a 403 would
+// confirm the other mill exists. The real cross-mill guard is on
+// period_id, in authorizePeriod(), which does answer 403 — including for
+// Operator, which is bound like the other two mill-bound roles.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/cages-track-reports/business-units/options', [CagesTrackReportController::class, 'businessUnitOptions']);
+    Route::get('/cages-track-reports/periods', [CagesTrackReportController::class, 'periods']);
+    Route::get('/cages-track-reports/summary', [CagesTrackReportController::class, 'summary']);
+    Route::get('/cages-track-reports/export', [CagesTrackReportController::class, 'export']);
+});
+
+// screen-131--laporan-boiler-room-web (usecase-131 — Laporan Periode Boiler
+// Room). Mirrors the /api/cages-track-reports group above, with ONE
+// deliberate difference in the role list.
+//
+// NO `operator` HERE, unlike cages-track. That prefix was widened on
+// 2026-09-24 for screen-136 (its mobile report). The mobile Boiler Room
+// report is screen-137 and HAS NOT BEEN BUILT, so there is no caller to
+// widen for — and a role admitted at the middleware while
+// BoilerRoomReportService::guardAccess() still refuses it is exactly the
+// half-done widening that bit screen-129/135. When screen-137 does arrive,
+// three things change together or none of them do: the `sanctum` guard
+// here, `operator` in this list AND in guardAccess(), and Operator added to
+// the MILL-BOUND branch of resolveBusinessUnit() — the last one being the
+// difference between a widening and a cross-mill leak.
+//
+// GET-ONLY, deliberately: a report must not expose any path that mutates
+// the Boiler Room data it reports on, so there is no
+// POST/PUT/PATCH/DELETE on this prefix.
+//
+// IMPORTANT — route ordering: none of these are parameterised, so no
+// literal-vs-{id} collision is possible here.
+//
+// business_unit_id is accepted on /periods, /summary and /export but is
+// IGNORED for Supervisor / Mill Management
+// (BoilerRoomReportService::resolveBusinessUnit) — probing another mill
+// still returns 200 with the caller's own data, on purpose: a 403 would
+// confirm the other mill exists. The real cross-mill guard is on period_id,
+// in authorizePeriod(), which does answer 403.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])->group(function () {
+    Route::get('/boiler-room-reports/business-units/options', [BoilerRoomReportController::class, 'businessUnitOptions']);
+    Route::get('/boiler-room-reports/periods', [BoilerRoomReportController::class, 'periods']);
+    Route::get('/boiler-room-reports/summary', [BoilerRoomReportController::class, 'summary']);
+    Route::get('/boiler-room-reports/export', [BoilerRoomReportController::class, 'export']);
 });
 
 // === ASDLC_ROUTES_END ===

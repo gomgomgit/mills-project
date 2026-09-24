@@ -1,0 +1,312 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "usecase-131--laporan-boiler-room-web",
+  "name": "Lihat Laporan Periode Boiler Room (Web)",
+  "description": "Pengguna web memilih periode pelaporan lalu membaca kondisi Boiler Room sepanjang periode itu — tekanan dan suhu uap, mutu air, suhu gas buang, perawatan yang dijalankan, dan seberapa lengkap pencatatannya.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin",
+    "Mill sudah punya minimal satu periode pelaporan yang mencakup stasiun Boiler Room"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Pengguna membuka layar Laporan Boiler Room dari pemilih stasiun"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Sistem menetapkan mill dari akun pengguna; khusus Admin, sistem menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Sistem memuat daftar periode yang mencakup stasiun Boiler Room pada mill itu"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih salah satu periode"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Sistem menghitung setiap metrik dari pembacaan yang terisi untuk metrik itu sendiri, beserta jumlah pembacaannya masing-masing"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Sistem menampilkan nilai terendah, rata-rata, dan tertinggi tiap metrik, jumlah blowdown dan sootblowing, kelengkapan pencatatan, tren harian, rekap per unit boiler, dan rekap harian"
+    },
+    {
+      "step": 7,
+      "actor": "actor-supervisor",
+      "description": "Pengguna dapat mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Admin memilih mill lebih dulu",
+      "trigger": "Pada langkah 2, pengguna berperan Admin",
+      "steps": [
+        "Sistem menampilkan pemilih Mill",
+        "Angka tidak ditampilkan sampai mill dipilih",
+        "Sistem menampilkan arahan memilih mill terlebih dahulu"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode",
+      "trigger": "Pada langkah 3, mill tidak punya periode yang mencakup Boiler Room",
+      "steps": [
+        "Pemilih periode kosong",
+        "Sistem menampilkan arahan menghubungi Admin",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Periode tanpa data",
+      "trigger": "Pada langkah 5, periode tidak memuat satu pun pembacaan",
+      "steps": [
+        "Seluruh metrik ditampilkan sebagai tidak tersedia, bukan nol",
+        "Sistem menyatakan belum ada data pada periode itu",
+        "Tidak ada grafik kosong yang menyesatkan"
+      ]
+    },
+    {
+      "name": "Sebuah metrik tidak pernah diisi",
+      "trigger": "Pada langkah 5, satu metrik kosong sepanjang periode walau metrik lain terisi",
+      "steps": [
+        "Metrik itu ditampilkan tidak tersedia dengan jumlah pembacaan nol",
+        "Metrik lain tetap tampil normal dengan jumlah pembacaannya sendiri"
+      ]
+    },
+    {
+      "name": "Perawatan tidak tercatat",
+      "trigger": "Pada langkah 5, kolom blowdown atau sootblowing kosong pada sebagian atau seluruh baris",
+      "steps": [
+        "Yang dihitung hanya yang bertanda dilakukan",
+        "Jumlah yang tidak tercatat dilaporkan terpisah",
+        "Yang tidak tercatat tidak pernah dihitung sebagai tidak dilakukan"
+      ]
+    },
+    {
+      "name": "Pencatatan sangat tidak lengkap",
+      "trigger": "Pada langkah 5, hanya sebagian kecil slot waktu terisi sepanjang periode",
+      "steps": [
+        "Angka tetap ditampilkan",
+        "Kelengkapan pencatatan ditampilkan menonjol",
+        "Pembaca dapat melihat bahwa angkanya bersandar pada sedikit pembacaan"
+      ]
+    },
+    {
+      "name": "Mill punya beberapa unit boiler",
+      "trigger": "Pada langkah 5, terdapat lebih dari satu unit boiler pada mill itu",
+      "steps": [
+        "Angka periode menggabungkan seluruh unit",
+        "Rekap per unit menampilkan sebarannya",
+        "Unit tanpa pembacaan tetap muncul dengan jumlah pembacaan nol"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Pada langkah 2, akun pengguna terikat mill tetapi mill-nya kosong",
+      "steps": [
+        "Sistem menampilkan pesan menghubungi Admin",
+        "Sistem tidak menawarkan daftar seluruh mill",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Mencoba melihat mill lain",
+      "trigger": "Pada langkah 5, permintaan membawa mill selain mill pada akun",
+      "steps": [
+        "Server mengabaikan nilai itu dan memakai mill pada akun",
+        "Angka yang tampil tetap milik mill pengguna",
+        "Periode milik mill lain tidak dapat dibuka"
+      ]
+    },
+    {
+      "name": "Operator mencoba membuka layar web ini",
+      "trigger": "Pada langkah 1, pengguna berperan Operator",
+      "steps": [
+        "Akses ditolak",
+        "Tidak ada data yang terlihat"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pada langkah 4, pengguna memilih periode berstatus tertutup",
+      "steps": [
+        "Laporan tetap tampil penuh",
+        "Status tertutup ditampilkan",
+        "Ekspor tetap dapat dijalankan"
+      ]
+    },
+    {
+      "name": "Rekap harian panjang",
+      "trigger": "Pada langkah 6, periode cukup panjang sehingga rekap hariannya puluhan baris",
+      "steps": [
+        "Rekap harian dapat ditutup",
+        "Angka utama dan tren tetap terbaca tanpa gulir panjang"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat rekap periode yang dipilih",
+    "Tidak ada satu pun data stasiun yang berubah"
+  ],
+  "business_rules": [
+    "Layar hanya membaca; tidak ada aksi tulis",
+    "Supervisor dan Mill Management terkunci pada mill akunnya; Admin memilih",
+    "Operator tidak punya akses ke layar web ini",
+    "Daftar periode hanya yang mencakup Boiler Room atau berlaku semua jenis stasiun",
+    "Status periode tidak membatasi pembacaan maupun ekspor",
+    "Rentang periode inklusif di kedua ujung",
+    "Setiap metrik punya penyebutnya sendiri — dihitung hanya dari pembacaan yang terisi untuk metrik itu",
+    "Jumlah pembacaan yang mendasari setiap angka ditampilkan berdampingan dengan angkanya",
+    "Blowdown dan sootblowing punya tiga keadaan; yang tidak tercatat tidak pernah dihitung sebagai tidak dilakukan",
+    "Laju bahan bakar dan beban fan adalah teks bebas, tidak pernah dirata-rata maupun digrafikkan",
+    "Tidak ada penandaan nilai di luar batas, karena Boiler Room tidak punya master target operasional",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — berhasil sebagai Supervisor atau Mill Management",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor atau Mill Management, akunnya terikat pada satu mill, dan mill itu punya minimal satu periode pelaporan yang mencakup stasiun Boiler Room",
+      "when": "Pengguna membuka layar Laporan Boiler Room dari pemilih stasiun lalu memilih salah satu periode yang tersedia",
+      "then": "Sistem menetapkan mill langsung dari akun pengguna tanpa menampilkan pemilih Mill, lalu menampilkan nilai terendah, rata-rata, dan tertinggi tiap metrik beserta jumlah pembacaannya, jumlah blowdown dan sootblowing, kelengkapan pencatatan, tren harian, rekap per unit boiler, dan rekap harian; rincian pembacaan per slot waktu dapat diunduh sebagai CSV dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — berhasil sebagai Admin",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Admin dan terdapat mill yang punya minimal satu periode pelaporan yang mencakup stasiun Boiler Room",
+      "when": "Admin membuka layar Laporan Boiler Room, memilih mill pada pemilih Mill, lalu memilih salah satu periode yang tersedia",
+      "then": "Sistem memuat daftar periode milik mill yang dipilih dan menampilkan rekap periode lengkap — nilai terendah, rata-rata, dan tertinggi tiap metrik beserta jumlah pembacaannya, jumlah blowdown dan sootblowing, kelengkapan pencatatan, tren harian, rekap per unit boiler, dan rekap harian — dengan ekspor CSV tersedia dan tanpa ada data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — Admin memilih mill lebih dulu",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Admin dan belum memilih mill apa pun",
+      "when": "Admin membuka layar Laporan Boiler Room",
+      "then": "Sistem menampilkan pemilih Mill beserta arahan untuk memilih mill terlebih dahulu, dan tidak ada angka laporan yang ditampilkan sampai mill dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — mill belum punya periode",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang aktif tidak punya satu pun periode pelaporan yang mencakup stasiun Boiler Room",
+      "when": "Pengguna membuka layar Laporan Boiler Room untuk mill tersebut",
+      "then": "Pemilih periode tampil kosong, sistem menampilkan arahan untuk menghubungi Admin, dan tidak ada angka laporan yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — periode tanpa data",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Boiler Room namun periode itu belum memuat satu pun pembacaan",
+      "when": "Pengguna memilih periode yang tidak memuat pembacaan sama sekali",
+      "then": "Seluruh metrik ditampilkan sebagai tidak tersedia dan bukan nol, sistem menyatakan belum ada data pada periode itu, serta tidak ada grafik kosong yang menyesatkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — sebuah metrik tidak pernah diisi",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan periode yang dipilih memuat pembacaan di mana satu metrik kosong sepanjang periode sementara metrik lain terisi",
+      "when": "Pengguna memilih periode tersebut dan sistem menghitung setiap metrik",
+      "then": "Metrik yang tidak pernah diisi ditampilkan tidak tersedia dengan jumlah pembacaan nol, sedangkan metrik lain tetap tampil normal dengan jumlah pembacaannya sendiri"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — perawatan tidak tercatat",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan periode yang dipilih memuat pembacaan dengan kolom blowdown atau sootblowing kosong pada sebagian atau seluruh baris",
+      "when": "Pengguna memilih periode tersebut dan sistem menghitung jumlah blowdown dan sootblowing",
+      "then": "Sistem hanya menghitung baris yang bertanda dilakukan, melaporkan jumlah yang tidak tercatat secara terpisah, dan tidak pernah menghitung yang tidak tercatat sebagai tidak dilakukan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — pencatatan sangat tidak lengkap",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan periode yang dipilih hanya terisi pada sebagian kecil slot waktu sepanjang periode",
+      "when": "Pengguna memilih periode tersebut",
+      "then": "Angka tetap ditampilkan, kelengkapan pencatatan ditampilkan secara menonjol, dan pembaca dapat melihat bahwa angka itu bersandar pada sedikit pembacaan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — mill punya beberapa unit boiler",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang aktif punya lebih dari satu unit boiler pada periode yang dipilih",
+      "when": "Pengguna memilih periode tersebut dan sistem menghitung rekap periode",
+      "then": "Angka periode menggabungkan seluruh unit, rekap per unit menampilkan sebaran antar unit, dan unit yang tidak punya pembacaan tetap muncul dengan jumlah pembacaan nol"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — akun belum terhubung ke mill",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor atau Mill Management namun akunnya terikat mill yang kosong",
+      "when": "Pengguna membuka layar Laporan Boiler Room",
+      "then": "Sistem menampilkan pesan untuk menghubungi Admin, tidak menawarkan daftar seluruh mill, dan tidak ada angka laporan yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — mencoba melihat mill lain",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor atau Mill Management dan akunnya terikat pada satu mill tertentu",
+      "when": "Permintaan laporan dikirim dengan membawa mill selain mill pada akun pengguna",
+      "then": "Server mengabaikan nilai mill yang dikirim dan memakai mill pada akun, angka yang tampil tetap milik mill pengguna, dan periode milik mill lain tidak dapat dibuka"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — Operator mencoba membuka layar web ini",
+      "given": "Pengguna sudah masuk dengan peran Station Operator",
+      "when": "Operator mencoba membuka layar Laporan Boiler Room di web",
+      "then": "Akses ditolak dan tidak ada satu pun data laporan yang terlihat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — periode tertutup",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan berstatus tertutup yang mencakup stasiun Boiler Room",
+      "when": "Pengguna memilih periode yang berstatus tertutup",
+      "then": "Laporan tetap tampil penuh, status tertutup ditampilkan, dan ekspor CSV tetap dapat dijalankan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — rekap harian panjang",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan periode yang dipilih cukup panjang sehingga rekap hariannya mencapai puluhan baris",
+      "when": "Sistem menampilkan rekap periode beserta rekap hariannya",
+      "then": "Rekap harian dapat ditutup, dan angka utama serta tren tetap terbaca tanpa perlu menggulir panjang"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — layar hanya membaca",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan periode pelaporan yang mencakup Boiler Room sudah memuat pembacaan",
+      "when": "Pengguna menelusuri seluruh isi layar Laporan Boiler Room, termasuk rekap per unit dan rekap harian",
+      "then": "Layar tidak menyediakan satu pun aksi tulis — tidak ada tombol simpan, ubah, atau hapus — dan setelah layar ditutup tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — daftar periode hanya yang mencakup Boiler Room",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya campuran periode: sebagian mencakup Boiler Room, sebagian berlaku untuk semua jenis stasiun, dan sebagian hanya mencakup stasiun lain",
+      "when": "Pengguna membuka layar Laporan Boiler Room dan membuka pemilih periode",
+      "then": "Pemilih periode hanya memuat periode yang mencakup Boiler Room atau yang berlaku untuk semua jenis stasiun, sedangkan periode yang hanya mencakup stasiun lain tidak muncul dan tidak dapat dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — rentang periode inklusif di kedua ujung",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan periode yang dipilih punya pembacaan tepat pada tanggal mulai dan tepat pada tanggal akhir periode",
+      "when": "Pengguna memilih periode tersebut dan sistem menghitung rekap periode",
+      "then": "Pembacaan pada tanggal mulai dan pada tanggal akhir ikut terhitung dalam seluruh metrik, jumlah pembacaan, tren harian, rekap harian, dan hasil ekspor CSV"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — setiap metrik punya penyebutnya sendiri",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan periode yang dipilih memuat baris pembacaan yang sebagian mengisi tekanan tetapi mengosongkan pH, sehingga tiap metrik punya jumlah pembacaan terisi yang berbeda",
+      "when": "Pengguna memilih periode tersebut dan sistem menghitung nilai terendah, rata-rata, dan tertinggi tiap metrik",
+      "then": "Rata-rata tiap metrik dihitung hanya dari pembacaan yang terisi untuk metrik itu sendiri dengan penyebutnya masing-masing, sehingga metrik yang jarang diisi tidak ikut mengempis akibat memakai satu penyebut bersama dari seluruh baris pembacaan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — jumlah pembacaan ditampilkan berdampingan dengan angkanya",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan periode yang dipilih memuat pembacaan dengan kelengkapan yang berbeda antar metrik",
+      "when": "Sistem menampilkan nilai terendah, rata-rata, dan tertinggi tiap metrik",
+      "then": "Setiap angka ditampilkan berdampingan dengan jumlah pembacaan yang mendasarinya, sehingga pembaca selalu tahu seberapa banyak data di balik tiap angka tanpa perlu membuka rincian"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — laju bahan bakar dan beban fan tidak pernah dirata-rata",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan periode yang dipilih memuat pembacaan dengan kolom laju bahan bakar dan beban fan terisi sebagai teks bebas",
+      "when": "Sistem menghitung dan menampilkan rekap periode",
+      "then": "Laju bahan bakar dan beban fan tidak dirata-rata, tidak dijadikan nilai terendah atau tertinggi, dan tidak muncul pada grafik tren; keduanya hanya tampil sebagai teks apa adanya pada rincian pembacaan dan hasil ekspor CSV"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Boiler Room (Web) — tidak ada penandaan nilai di luar batas",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan periode yang dipilih memuat pembacaan dengan nilai yang secara ekstrem jauh lebih tinggi dan lebih rendah dari nilai lainnya",
+      "when": "Sistem menampilkan metrik, tren harian, rekap per unit, dan rekap harian",
+      "then": "Tidak ada satu pun nilai yang ditandai sebagai di luar batas — tanpa warna peringatan, ikon, maupun label pelanggaran — karena Boiler Room tidak punya master target operasional; seluruh nilai ditampilkan netral apa adanya"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-131--laporan-boiler-room-web"
+  ]
+}

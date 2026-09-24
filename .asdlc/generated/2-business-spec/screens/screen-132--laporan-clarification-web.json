@@ -1,0 +1,113 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "screen-132--laporan-clarification-web",
+  "name": "Laporan Clarification (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Clarification di web. Berbeda dari Sterilizer yang bekerja dalam siklus dan Cages & Tracks yang bekerja dalam kejadian, Clarification adalah stasiun KONTINU: ia mengalir sepanjang jam, dan yang dilaporkan adalah berapa banyak minyak murni yang dihasilkan, seberapa terjaga suhu antar tangki, dan berapa lama alirannya berhenti. Produksi di sini bukan angka yang dicatat melainkan angka yang DITURUNKAN dari laju per jam, sehingga cara menurunkannya ikut menentukan apakah laporannya jujur. Downtime bukan catatan kaki: ia adalah alasan utama produksi meleset dari yang diharapkan.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun' → pilih stasiun Clarification",
+    "Kembali dari layar lain dengan periode yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Clarification maupun periode yang berlaku untuk semua jenis stasiun",
+    "Pemilih Mill — hanya bagi Admin",
+    "Nama mill yang berlaku, rentang tanggal, dan status periode",
+    "Total produksi minyak murni sepanjang periode, diturunkan dari laju per jam",
+    "Rata-rata produksi per hari",
+    "Laju produksi: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
+    "Total downtime sepanjang periode, dan rata-rata per hari",
+    "Jumlah jam yang tercatat mengalami downtime",
+    "Suhu Tangki Clarification: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
+    "Suhu Tangki Minyak: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
+    "Suhu Tangki Sludge: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
+    "Level Buffer Tank: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
+    "Tren harian produksi minyak murni",
+    "Tren suhu antar tangki — ketiga tangki pada satu grafik agar selisihnya terbaca",
+    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan",
+    "Rekap per unit Clarification bila mill punya lebih dari satu",
+    "Rekap harian yang dapat dibuka dan ditutup",
+    "Keterangan bila periode tidak memuat data",
+    "Tombol Ekspor CSV"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill yang dilihat. Hanya bagi Admin.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap harian",
+      "description": "Menyembunyikan atau menampilkan tabel rekap per hari.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV, satu baris per slot dengan kolom konteks record diulang.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Pengguna hanya melihat data mill-nya sendiri. Supervisor dan Mill Management terikat pada mill di akunnya; Admin tidak terikat sehingga ia memilih.",
+    "Operator tidak punya akses ke layar web ini.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Clarification atau yang tidak menyebut jenis stasiun.",
+    "Status periode tidak membatasi apa pun. Periode tertutup tetap dapat dilihat dan diekspor.",
+    "Rentang periode inklusif: data pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "Produksi minyak murni DITURUNKAN, bukan dicatat: setiap pembacaan laju berlaku untuk satu jam slotnya, sehingga produksi periode adalah jumlah seluruh laju yang tercatat. Karena diturunkan, jumlah pembacaan laju ditampilkan berdampingan dengan angkanya — produksi yang dihitung dari 40 pembacaan dan dari 400 pembacaan tidak boleh terlihat sama meyakinkan.",
+    "Jam yang laju produksinya tidak tercatat TIDAK dianggap berproduksi nol. Jam itu dikeluarkan dari perhitungan dan jumlahnya terbaca lewat kelengkapan pencatatan. Menganggapnya nol akan membuat mill yang pencatatannya bolong terlihat seperti mill yang berhenti berproduksi.",
+    "SETIAP metrik dihitung dari pembacaan yang terisi untuk metrik ITU SENDIRI, dengan jumlah pembacaannya masing-masing. Satu baris dapat mengisi laju tetapi mengosongkan suhu sludge.",
+    "Downtime dijumlahkan dari jam-jam yang mencatatnya, dan jumlah jam yang mencatat downtime ditampilkan terpisah dari besarnya. Downtime nol dan downtime tidak tercatat adalah dua hal berbeda.",
+    "Ketiga suhu tangki ditampilkan pada satu grafik yang sama agar selisih antar tangki terbaca — itulah yang menunjukkan apakah proses pemisahan berjalan sebagaimana mestinya, bukan nilai masing-masing tangki secara terpisah.",
+    "Laporan ini tidak menandai nilai di luar batas. Clarification tidak punya master target operasional, dan menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas proses padahal bukan.",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki — terlebih di sini, karena produksi diturunkan dari pembacaan yang ada, sehingga pencatatan yang bolong langsung menurunkan angka produksinya."
+  ],
+  "usecase_ids": [
+    "usecase-132--laporan-clarification-web"
+  ],
+  "edge_cases": [
+    "Periode tidak memuat satu pun pembacaan — seluruh angka ditampilkan tidak tersedia dengan keterangan belum ada data, bukan nol.",
+    "Laju produksi tidak pernah tercatat walau suhu terisi — total produksi ditampilkan tidak tersedia dengan jumlah pembacaan nol, sementara metrik suhu tetap tampil normal.",
+    "Sebuah hari punya record tetapi seluruh barisnya kosong untuk laju — hari itu tidak menyumbang produksi, tetapi tetap terhitung sebagai hari ber-record.",
+    "Downtime tidak pernah tercatat sepanjang periode — total downtime ditampilkan sebagai tidak tercatat, dibedakan dari nol yang berarti tidak pernah berhenti.",
+    "Sebuah jam mencatat downtime tetapi juga mencatat laju produksi — keduanya dilaporkan apa adanya tanpa saling mengurangi, dan perbedaannya dijelaskan di layar.",
+    "Mill punya lebih dari satu unit Clarification — angka periode menggabungkan seluruh unit, dan rekap per unit menunjukkan sebarannya.",
+    "Kelengkapan pencatatan sangat rendah — angka tetap ditampilkan tetapi kelengkapannya menonjol, karena produksi yang diturunkan ikut mengecil bersama pencatatan yang bolong.",
+    "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
+    "Akun Supervisor atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
+    "Mill belum punya satu pun periode yang mencakup Clarification — pemilih periode kosong dengan arahan menghubungi Admin.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Produksi dihitung sebagai jumlah laju per jam tanpa dikurangi downtime pada jam yang sama, mengikuti rumus yang ditetapkan pada penentuan cakupan ('sum laju x 1 jam'). Namun kolom downtime_mins ada pada BARIS YANG SAMA dengan laju, sehingga sebuah jam yang tercatat berhenti 20 menit tetap dihitung berproduksi penuh satu jam — produksi periode menjadi lebih tinggi daripada kenyataan, dan selisihnya tidak terlihat. Alternatifnya mengalikan laju dengan (60 - downtime_mins)/60. Perlu keputusan pemilik proses: apakah laju yang dicatat Operator sudah merupakan laju rata-rata sepanjang jam itu (sehingga downtime sudah tercermin di dalamnya), atau laju sesaat saat mesin berjalan (sehingga downtime harus dikurangkan). Sampai itu diputuskan, laporan memakai rumus apa adanya dan menampilkan total downtime berdampingan dengan produksi supaya pembaca dapat menilainya sendiri.",
+    "Clarification tidak punya master target operasional, jadi laporan ini tidak menandai nilai di luar batas. Bila kelak ada batas proses resmi untuk suhu antar tangki, laporan perlu ditinjau ulang."
+  ]
+}

@@ -1,0 +1,806 @@
+<?php
+
+namespace App\Services;
+
+use App\Enums\StationType as StationTypeEnum;
+use App\Enums\UserRole;
+use App\Exceptions\ExportFailedException;
+use App\Models\BusinessUnit;
+use App\Models\Period;
+use App\Models\StationType;
+use App\Models\SterilizerDetail;
+use App\Models\SterilizerRecord;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
+
+/**
+ * SterilizerReportService — screen-129--laporan-sterilizer-web /
+ * usecase-129--laporan-sterilizer-web (Laporan Periode Sterilizer).
+ *
+ * Shared by the API controller (App\Http\Controllers\Api\
+ * SterilizerReportController) and the Livewire component (App\Livewire\
+ * Dashboard\LaporanSterilizer), exactly like ManagementReportService /
+ * ManagementReportController / ManagementReport — so the web page and the
+ * API can never disagree on a figure.
+ *
+ * READ-ONLY BY CONSTRUCTION: every public method is a SELECT. There is no
+ * write path here and no POST/PUT/PATCH/DELETE route on the
+ * /api/sterilizer-reports prefix — a report must never be able to mutate
+ * the Sterilizer data it reports on.
+ *
+ * CROSS-MILL SECURITY IS CLOSED AT TWO DIFFERENT POINTS, on purpose:
+ *
+ *   1. resolveBusinessUnit() IGNORES the client's business_unit_id for
+ *      Supervisor / Mill Management. Sending another mill's id returns 200
+ *      with the caller's OWN mill data — deliberately not a 403, because a
+ *      403 would confirm that the other mill exists.
+ *   2. authorizePeriod() REJECTS a period belonging to another mill with
+ *      403. This is the real leak path: a period id is a concrete handle to
+ *      another mill's data, so it must be refused rather than silently
+ *      rewritten.
+ *
+ * Admin is the only role not bound to one mill (users.business_unit_id is
+ * NULL for Admin), which is why businessUnitOptions() exists and is
+ * Admin-only: without picking a mill an Admin would never see any data at
+ * all.
+ */
+class SterilizerReportService
+{
+    /**
+     * Export row ceiling, counted in EXPORTED LINES (= sterilization
+     * cycles), not header records — one daily record can carry a dozen
+     * cycles, so counting headers would sail straight past the real limit.
+     * Same trap that was fixed for the 18 station exports in commit
+     * 8611974.
+     */
+    public const EXPORT_ROW_LIMIT = 50000;
+
+    /**
+     * Minimum number of cycles WITH a duration before the Tukey fence is
+     * computed at all. Below this, quartiles carry no meaning and flagging
+     * an "outlier" out of a handful of rows misleads more than it informs —
+     * the UI says the sample is too small instead.
+     */
+    public const OUTLIER_MIN_SAMPLE_SIZE = 8;
+
+    /** Label shown for a period whose station_type is NULL (covers every type). */
+    public const ALL_STATION_TYPES_LABEL = PeriodService::ALL_STATION_TYPES_LABEL;
+
+    /**
+     * code => name from the `station_types` master table, memoised per
+     * service instance (one request / one Livewire render).
+     *
+     * @var array<string, string>|null
+     */
+    protected ?array $stationTypeNames = null;
+
+    /**
+     * business_logic step 1 — resolve which mill the caller is allowed to
+     * look at.
+     *
+     * Supervisor / Mill Management: ALWAYS their own business_unit_id; the
+     * `business_unit_id` query param is ignored outright (not validated,
+     * not compared — ignored), so probing another mill's id is a no-op that
+     * still returns the caller's own data with HTTP 200.
+     *
+     * Admin: the value MUST come from the query. A missing value is a 422
+     * VALIDATION_ERROR with errors.business_unit_id — never a silent null
+     * or an empty result set, which would read as "this mill has no data".
+     *
+     * Operator: same mill-bound treatment as Supervisor / Mill Management —
+     * the mill comes from the account and the query param is discarded.
+     * Widened 2026-09-23 for screen-135 (Laporan Sterilizer Mobile): the
+     * people who key the data in are entitled to read it back. Note the
+     * split this creates — the API endpoints admit Operator, the WEB route
+     * /reports/sterilizer still does not, because Operator has no web UI at
+     * all. Widening the route middleware alone was NOT enough: Operator
+     * cleared the middleware and was then refused here, two layers deeper.
+     *
+     * @throws ValidationException 422 VALIDATION_ERROR (admin, no mill picked)
+     * @throws AuthorizationException 403 FORBIDDEN (no session, or a role
+     *         outside supervisor / mill_management / operator / admin)
+     */
+    public function resolveBusinessUnit(?string $requestedBusinessUnitId): string
+    {
+        $user = auth()->user();
+
+        if ($user === null) {
+            throw new AuthorizationException('Anda tidak memiliki akses untuk aksi ini.');
+        }
+
+        $role = $this->roleOf($user);
+
+        if ($role === UserRole::Supervisor->value
+            || $role === UserRole::MillManagement->value
+            || $role === UserRole::Operator->value) {
+            // Client-supplied business_unit_id is deliberately discarded.
+            return (string) $user->business_unit_id;
+        }
+
+        if ($role === UserRole::Admin->value) {
+            if ($requestedBusinessUnitId === null || $requestedBusinessUnitId === '') {
+                throw ValidationException::withMessages([
+                    'business_unit_id' => ['Pilih mill terlebih dahulu untuk menampilkan laporan.'],
+                ]);
+            }
+
+            return $requestedBusinessUnitId;
+        }
+
+        throw new AuthorizationException('Anda tidak memiliki akses untuk aksi ini.');
+    }
+
+    /**
+     * Mill picker options — ADMIN ONLY. Supervisor and Mill Management are
+     * bound to a single mill and have no use for this list, so asking for
+     * it is a 403 rather than a filtered list.
+     *
+     * @return list<array{id: string, name: string}>
+     *
+     * @throws AuthorizationException 403 FORBIDDEN
+     */
+    public function businessUnitOptions(): array
+    {
+        $user = auth()->user();
+
+        if ($user === null || $this->roleOf($user) !== UserRole::Admin->value) {
+            throw new AuthorizationException('Anda tidak memiliki akses untuk aksi ini.');
+        }
+
+        return BusinessUnit::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (BusinessUnit $businessUnit) => [
+                'id' => (string) $businessUnit->id,
+                'name' => (string) $businessUnit->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * business_logic step 2 — the periods selectable for this mill.
+     *
+     * A period covers Sterilizer when its station_type is 'sterilizer' OR
+     * NULL (NULL = the period applies to every station type in that mill).
+     * Newest first. An empty array is a valid answer — a mill with no
+     * period yet gets [] with HTTP 200 and a UI hint pointing at Kelola
+     * Periode Pelaporan, never a 404.
+     *
+     * @return list<array{id: string, name: string, start_date: string, end_date: string, status: string, station_type: string|null, station_type_label: string}>
+     */
+    public function listPeriods(string $businessUnitId): array
+    {
+        return Period::query()
+            ->where('business_unit_id', $businessUnitId)
+            ->where(function (Builder $query) {
+                $query->where('station_type', StationTypeEnum::Sterilizer->value)
+                    ->orWhereNull('station_type');
+            })
+            ->orderByDesc('start_date')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Period $period) => $this->periodOption($period))
+            ->all();
+    }
+
+    /**
+     * business_logic step 3 — load a period and prove the caller may read
+     * it.
+     *
+     * 404 when the id does not exist. 403 when it belongs to another mill
+     * and the caller is Supervisor / Mill Management — THIS is the real
+     * cross-mill leak path (a period id is a concrete handle to another
+     * mill's data), so unlike the ignored business_unit_id query param it
+     * is refused outright. Admin passes for any mill; Operator is treated
+     * exactly like Supervisor / Mill Management (widened 2026-09-23) — it
+     * passes only for its own mill.
+     *
+     * @throws ModelNotFoundException 404 NOT_FOUND
+     * @throws AuthorizationException 403 FORBIDDEN
+     */
+    public function authorizePeriod(string $periodId): Period
+    {
+        /** @var Period $period */
+        $period = Period::query()->with('businessUnit')->findOrFail($periodId);
+
+        $user = auth()->user();
+
+        if ($user === null) {
+            throw new AuthorizationException('Anda tidak memiliki akses untuk aksi ini.');
+        }
+
+        $role = $this->roleOf($user);
+
+        if ($role === UserRole::Admin->value) {
+            return $period;
+        }
+
+        if ($role !== UserRole::Supervisor->value
+            && $role !== UserRole::MillManagement->value
+            && $role !== UserRole::Operator->value) {
+            throw new AuthorizationException('Anda tidak memiliki akses untuk aksi ini.');
+        }
+
+        if ((string) $period->business_unit_id !== (string) $user->business_unit_id) {
+            throw new AuthorizationException('Anda tidak memiliki akses untuk aksi ini.');
+        }
+
+        return $period;
+    }
+
+    /**
+     * business_logic steps 4-10 — every figure on the screen for one
+     * period: period header, KPI, daily trend, per-unit comparison,
+     * outliers, and the period total.
+     *
+     * Membership is decided by sterilizer_records.date — the date the
+     * sterilization actually happened — INCLUSIVE on both bounds, and never
+     * by created_at or the mobile sync time. A cycle entered late still
+     * belongs to the period it happened in.
+     *
+     * @param  Period|string  $period  model or id (both accepted so callers
+     *                                 that already authorised the period do
+     *                                 not have to re-read it)
+     * @return array{period: array, kpi: array, daily: list<array>, by_unit: list<array>, outliers: array, total: array}
+     */
+    public function summary(Period|string $period): array
+    {
+        $period = $this->resolvePeriod($period);
+
+        $cycles = $this->cyclesFor($period);
+
+        return [
+            'period' => [
+                'id' => (string) $period->id,
+                'name' => (string) $period->name,
+                'start_date' => $period->start_date->toDateString(),
+                'end_date' => $period->end_date->toDateString(),
+                'status' => $this->statusValue($period),
+                'business_unit_name' => (string) ($period->businessUnit?->name ?? ''),
+            ],
+            'kpi' => $this->kpiOf($cycles),
+            'daily' => $this->dailyOf($cycles),
+            'by_unit' => $this->byUnitOf($cycles),
+            'outliers' => $this->outliersOf($cycles),
+            'total' => $this->totalOf($cycles),
+        ];
+    }
+
+    /**
+     * business_logic step 11 — one exported line per CYCLE, with the
+     * record's context columns (Sterilizer ID / Date / Note / Checked By /
+     * Acknowledged By / Status) repeated on every line so the file can be
+     * pivoted directly in a spreadsheet. Same shape as
+     * SterilizerRecordService::export() (commit 8611974), scoped to a
+     * period instead of an ad-hoc filter.
+     *
+     * The 50.000 ceiling counts CYCLES, not header records.
+     *
+     * @throws ExportFailedException 422 EXPORT_FAILED
+     */
+    public function export(Period|string $period, string $format = 'csv'): StreamedResponse
+    {
+        $period = $this->resolvePeriod($period);
+
+        $recordQuery = $this->recordQueryFor($period);
+
+        $cycleRowCount = SterilizerDetail::query()
+            ->whereIn('sterilizer_record_id', (clone $recordQuery)->select('sterilizer_records.id'))
+            ->count();
+
+        if ($cycleRowCount > self::EXPORT_ROW_LIMIT) {
+            throw new ExportFailedException;
+        }
+
+        try {
+            $query = (clone $recordQuery)
+                ->with([
+                    'checkedBy:id,name',
+                    'acknowledgedBy:id,name',
+                    'sterilizerDetails' => fn ($detailQuery) => $detailQuery->orderBy('sterilizer_no'),
+                ])
+                ->orderBy('sterilizer_records.date')
+                ->orderBy('sterilizer_records.id');
+
+            [$contentType, $filename] = $this->fileMetaFor($format, $period);
+
+            return response()->streamDownload(function () use ($query) {
+                $handle = fopen('php://output', 'w');
+
+                // Explicit $separator/$enclosure/$escape — PHP 8.4 deprecates
+                // relying on fputcsv()'s default $escape.
+                fputcsv($handle, [
+                    'Sterilizer ID',
+                    'Date',
+                    'Note',
+                    'Checked By',
+                    'Acknowledged By',
+                    'Status',
+                    'Sterilizer No',
+                    'Close Door Time',
+                    'Peak 1 Time',
+                    'Exhaust 1 Time',
+                    'Peak 2 Time',
+                    'Exhaust 2 Time',
+                    'Peak 3 Time',
+                    'Exhaust 3 Time',
+                    'Open Door Time',
+                    'Duration (Minutes)',
+                    'Number of Cages',
+                    'Cages Status',
+                    'Checked by SPV',
+                    'Remarks',
+                ], ',', '"', '\\');
+
+                $query->chunk(200, function ($records) use ($handle) {
+                    foreach ($records as $record) {
+                        /** @var SterilizerRecord $record */
+                        $context = [
+                            $record->sterilizer_id,
+                            optional($record->date)->toDateString(),
+                            $record->note,
+                            $record->checkedBy?->name,
+                            $record->acknowledgedBy?->name,
+                            $record->status?->value,
+                        ];
+
+                        foreach ($record->sterilizerDetails as $detail) {
+                            /** @var SterilizerDetail $detail */
+                            fputcsv($handle, array_merge($context, [
+                                $detail->sterilizer_no,
+                                $detail->close_door_time,
+                                $detail->peak_1_time,
+                                $detail->exhaust_1_time,
+                                $detail->peak_2_time,
+                                $detail->exhaust_2_time,
+                                $detail->peak_3_time,
+                                $detail->exhaust_3_time,
+                                $detail->open_door_time,
+                                $detail->duration_minutes,
+                                $detail->number_of_cages,
+                                $detail->cages_status,
+                                $detail->checked_by_spv,
+                                $detail->remarks,
+                            ]), ',', '"', '\\');
+                        }
+                    }
+                });
+
+                fclose($handle);
+            }, $filename, [
+                'Content-Type' => $contentType,
+            ]);
+        } catch (ExportFailedException $e) {
+            throw $e;
+        } catch (Throwable $e) {
+            throw new ExportFailedException;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Aggregation
+    // ------------------------------------------------------------------
+
+    /**
+     * Every Sterilizer cycle inside the period, as plain rows.
+     *
+     * Aggregated in PHP rather than in SQL on purpose: the null semantics
+     * this report demands (avg/min/max must be null — not 0 — when no cycle
+     * has a duration; a cycle without a duration still counts towards
+     * total_cycles) are easy to state here and easy to get subtly wrong in
+     * portable SQL across sqlite/pgsql. The row set is bounded by one
+     * reporting period, and the export path — the only unbounded one —
+     * streams in chunks instead.
+     *
+     * @return Collection<int, object>
+     */
+    protected function cyclesFor(Period $period): Collection
+    {
+        return SterilizerDetail::query()
+            ->join('sterilizer_records', 'sterilizer_records.id', '=', 'sterilizer_details.sterilizer_record_id')
+            ->join('stations', 'stations.id', '=', 'sterilizer_records.station_id')
+            ->where('stations.business_unit_id', $period->business_unit_id)
+            ->where('stations.type', StationTypeEnum::Sterilizer->value)
+            // Inclusive on both bounds, on the event date — not created_at.
+            ->whereDate('sterilizer_records.date', '>=', $period->start_date->toDateString())
+            ->whereDate('sterilizer_records.date', '<=', $period->end_date->toDateString())
+            ->orderBy('sterilizer_records.date')
+            ->orderBy('sterilizer_details.sterilizer_no')
+            ->get([
+                'sterilizer_records.date as record_date',
+                'sterilizer_records.sterilizer_id as record_sterilizer_id',
+                'sterilizer_details.sterilizer_no as sterilizer_no',
+                'sterilizer_details.duration_minutes as duration_minutes',
+                'sterilizer_details.number_of_cages as number_of_cages',
+                'sterilizer_details.cages_status as cages_status',
+                'sterilizer_details.close_door_time as close_door_time',
+                'sterilizer_details.open_door_time as open_door_time',
+                'sterilizer_details.peak_1_time as peak_1_time',
+                'sterilizer_details.peak_2_time as peak_2_time',
+                'sterilizer_details.peak_3_time as peak_3_time',
+                'sterilizer_details.exhaust_1_time as exhaust_1_time',
+                'sterilizer_details.exhaust_2_time as exhaust_2_time',
+                'sterilizer_details.exhaust_3_time as exhaust_3_time',
+            ])
+            ->map(fn ($row) => (object) [
+                'date' => $this->dateStringOf($row->record_date),
+                'sterilizer_no' => $row->sterilizer_no !== null ? (string) $row->sterilizer_no : '',
+                'duration_minutes' => $row->duration_minutes !== null ? (int) $row->duration_minutes : null,
+                'number_of_cages' => (int) ($row->number_of_cages ?? 0),
+                'cages_status' => $row->cages_status,
+                'close_door_time' => $row->close_door_time,
+                'open_door_time' => $row->open_door_time,
+                'triple_peak_complete' => $this->isTriplePeakComplete($row),
+            ])
+            ->values();
+    }
+
+    /**
+     * KPI block. total_cycles counts EVERY cycle; avg/min/max come only
+     * from cycles that have a duration, and are null (not 0) when there is
+     * none — 0 would be indistinguishable from a real zero-minute duration.
+     * cycles_without_duration is reported so the average can never be read
+     * as covering more cycles than it does.
+     *
+     * @param  Collection<int, object>  $cycles
+     */
+    protected function kpiOf(Collection $cycles): array
+    {
+        $durations = $this->durationsOf($cycles);
+        $totalCycles = $cycles->count();
+        $compliant = $cycles->filter(fn ($cycle) => $cycle->triple_peak_complete)->count();
+
+        return [
+            'total_cycles' => $totalCycles,
+            'total_cages' => (int) $cycles->sum('number_of_cages'),
+            'avg_duration_minutes' => $this->avgOf($durations),
+            'min_duration_minutes' => $durations->isEmpty() ? null : (int) $durations->min(),
+            'max_duration_minutes' => $durations->isEmpty() ? null : (int) $durations->max(),
+            'cycles_without_duration' => $cycles->filter(fn ($cycle) => $cycle->duration_minutes === null)->count(),
+            // Guarded division: an empty period is 0%, never a
+            // DivisionByZeroError.
+            'triple_peak_compliance_percent' => $totalCycles === 0
+                ? 0.0
+                : round(100 * $compliant / $totalCycles, 1),
+        ];
+    }
+
+    /**
+     * One entry per date that actually has cycles. Dates with no cycle are
+     * NOT padded with zero rows — an empty bar would read as "we measured
+     * nothing that day" rather than "the mill did not run".
+     *
+     * @param  Collection<int, object>  $cycles
+     * @return list<array>
+     */
+    protected function dailyOf(Collection $cycles): array
+    {
+        return $cycles
+            ->groupBy('date')
+            ->map(function (Collection $group, string $date) {
+                $durations = $this->durationsOf($group);
+
+                return [
+                    'date' => $date,
+                    'cycles' => $group->count(),
+                    'cages' => (int) $group->sum('number_of_cages'),
+                    'avg_duration' => $this->avgOf($durations),
+                    'min_duration' => $durations->isEmpty() ? null : (int) $durations->min(),
+                    'max_duration' => $durations->isEmpty() ? null : (int) $durations->max(),
+                    'triple_peak_complete' => $group->filter(fn ($cycle) => $cycle->triple_peak_complete)->count(),
+                    'cycles_without_duration' => $group->filter(fn ($cycle) => $cycle->duration_minutes === null)->count(),
+                ];
+            })
+            ->sortKeys()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Per Sterilizer unit (sterilizer_no). avg_duration per unit again only
+     * from that unit's cycles that have a duration.
+     *
+     * @param  Collection<int, object>  $cycles
+     * @return list<array>
+     */
+    protected function byUnitOf(Collection $cycles): array
+    {
+        return $cycles
+            ->groupBy('sterilizer_no')
+            ->map(function (Collection $group, string $sterilizerNo) {
+                return [
+                    'sterilizer_no' => $sterilizerNo,
+                    'cycles' => $group->count(),
+                    'cages' => (int) $group->sum('number_of_cages'),
+                    'avg_duration' => $this->avgOf($this->durationsOf($group)),
+                    'triple_peak_complete' => $group->filter(fn ($cycle) => $cycle->triple_peak_complete)->count(),
+                ];
+            })
+            ->sortKeys()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Tukey fence (quartile method), NOT mean +/- 2 standard deviations.
+     * The reason is decisive: a standard deviation is inflated by the very
+     * cycles it is meant to expose, so one 500-minute cycle widens the band
+     * enough to hide itself. Quartiles are immune to that, and the bounds
+     * they produce are readable by a human ("74 - 106 minutes") instead of
+     * being an abstract sigma. There is no operational target master for
+     * Sterilizer, so the threshold has to come from the period's own
+     * spread.
+     *
+     * Below OUTLIER_MIN_SAMPLE_SIZE durations the fence is not computed at
+     * all (insufficient_data = true, bounds null) — flagging outliers out
+     * of a handful of rows misleads more than it informs.
+     *
+     * Uniform durations give IQR = 0, so lower = upper = that value, items
+     * are empty, and insufficient_data stays FALSE: the bounds are still
+     * returned so the screen can state the threshold it applied.
+     *
+     * @param  Collection<int, object>  $cycles
+     */
+    protected function outliersOf(Collection $cycles): array
+    {
+        $durations = $this->durationsOf($cycles)->sort()->values();
+        $sampleSize = $durations->count();
+
+        $result = [
+            'method' => 'iqr',
+            'lower_bound' => null,
+            'upper_bound' => null,
+            'min_sample_size' => self::OUTLIER_MIN_SAMPLE_SIZE,
+            'sample_size' => $sampleSize,
+            'insufficient_data' => $sampleSize < self::OUTLIER_MIN_SAMPLE_SIZE,
+            'items' => [],
+        ];
+
+        if ($result['insufficient_data']) {
+            return $result;
+        }
+
+        $q1 = $this->percentileOf($durations, 0.25);
+        $q3 = $this->percentileOf($durations, 0.75);
+        $iqr = $q3 - $q1;
+
+        $result['q1'] = round($q1, 2);
+        $result['q3'] = round($q3, 2);
+        $result['iqr'] = round($iqr, 2);
+        $result['lower_bound'] = round($q1 - 1.5 * $iqr, 2);
+        $result['upper_bound'] = round($q3 + 1.5 * $iqr, 2);
+
+        $result['items'] = $cycles
+            ->filter(fn ($cycle) => $cycle->duration_minutes !== null
+                && ($cycle->duration_minutes < $result['lower_bound'] || $cycle->duration_minutes > $result['upper_bound']))
+            ->sortByDesc('duration_minutes')
+            ->map(fn ($cycle) => [
+                'date' => $cycle->date,
+                'sterilizer_no' => $cycle->sterilizer_no,
+                'duration_minutes' => $cycle->duration_minutes,
+                'number_of_cages' => $cycle->number_of_cages,
+                'cages_status' => $cycle->cages_status,
+                'close_door_time' => $cycle->close_door_time,
+                'open_door_time' => $cycle->open_door_time,
+            ])
+            ->values()
+            ->all();
+
+        return $result;
+    }
+
+    /**
+     * Period total row shown under the daily recap table.
+     *
+     * @param  Collection<int, object>  $cycles
+     */
+    protected function totalOf(Collection $cycles): array
+    {
+        $durations = $this->durationsOf($cycles);
+
+        return [
+            'cycles' => $cycles->count(),
+            'cages' => (int) $cycles->sum('number_of_cages'),
+            'avg_duration' => $this->avgOf($durations),
+            'min_duration' => $durations->isEmpty() ? null : (int) $durations->min(),
+            'max_duration' => $durations->isEmpty() ? null : (int) $durations->max(),
+            'triple_peak_complete' => $cycles->filter(fn ($cycle) => $cycle->triple_peak_complete)->count(),
+            'cycles_without_duration' => $cycles->filter(fn ($cycle) => $cycle->duration_minutes === null)->count(),
+        ];
+    }
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+
+    /**
+     * Linear-interpolated percentile over an already-sorted list, index =
+     * p * (n - 1) — the same definition numpy/Excel's PERCENTILE.INC use,
+     * so a reviewer recomputing the bounds in a spreadsheet gets the
+     * identical number.
+     *
+     * @param  Collection<int, int>  $sorted
+     */
+    protected function percentileOf(Collection $sorted, float $percentile): float
+    {
+        $values = $sorted->values();
+        $count = $values->count();
+
+        if ($count === 0) {
+            return 0.0;
+        }
+
+        if ($count === 1) {
+            return (float) $values->first();
+        }
+
+        $position = $percentile * ($count - 1);
+        $lowerIndex = (int) floor($position);
+        $upperIndex = (int) ceil($position);
+        $fraction = $position - $lowerIndex;
+
+        $lower = (float) $values->get($lowerIndex);
+        $upper = (float) $values->get($upperIndex);
+
+        return $lower + ($upper - $lower) * $fraction;
+    }
+
+    /**
+     * Durations of the cycles that HAVE one. Cycles whose open-door time is
+     * still blank are excluded here and reported separately — they must not
+     * drag an average down to a number nobody can reproduce.
+     *
+     * @param  Collection<int, object>  $cycles
+     * @return Collection<int, int>
+     */
+    protected function durationsOf(Collection $cycles): Collection
+    {
+        return $cycles
+            ->map(fn ($cycle) => $cycle->duration_minutes)
+            ->filter(fn ($duration) => $duration !== null)
+            ->map(fn ($duration) => (int) $duration)
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, int>  $durations
+     */
+    protected function avgOf(Collection $durations): ?float
+    {
+        if ($durations->isEmpty()) {
+            return null;
+        }
+
+        return round($durations->sum() / $durations->count(), 1);
+    }
+
+    /**
+     * Triple-peak compliance demands ALL SIX times — three pressure peaks
+     * and three exhausts. One blank time makes the cycle non-compliant;
+     * there is no partial credit, because a cycle that skipped an exhaust
+     * did not follow the boiling pattern at all.
+     */
+    protected function isTriplePeakComplete(object $row): bool
+    {
+        foreach (['peak_1_time', 'peak_2_time', 'peak_3_time', 'exhaust_1_time', 'exhaust_2_time', 'exhaust_3_time'] as $column) {
+            if (($row->{$column} ?? null) === null || $row->{$column} === '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Base query over the period's Sterilizer records (header rows) — used
+     * by the export path, which streams headers and walks their cycles.
+     */
+    protected function recordQueryFor(Period $period): Builder
+    {
+        return SterilizerRecord::query()
+            ->join('stations', 'stations.id', '=', 'sterilizer_records.station_id')
+            ->where('stations.business_unit_id', $period->business_unit_id)
+            ->where('stations.type', StationTypeEnum::Sterilizer->value)
+            ->whereDate('sterilizer_records.date', '>=', $period->start_date->toDateString())
+            ->whereDate('sterilizer_records.date', '<=', $period->end_date->toDateString())
+            ->select('sterilizer_records.*');
+    }
+
+    protected function resolvePeriod(Period|string $period): Period
+    {
+        if ($period instanceof Period) {
+            return $period->relationLoaded('businessUnit') ? $period : $period->load('businessUnit');
+        }
+
+        /** @var Period $model */
+        $model = Period::query()->with('businessUnit')->findOrFail($period);
+
+        return $model;
+    }
+
+    /**
+     * @return array{id: string, name: string, start_date: string, end_date: string, status: string, station_type: string|null, station_type_label: string}
+     */
+    protected function periodOption(Period $period): array
+    {
+        return [
+            'id' => (string) $period->id,
+            'name' => (string) $period->name,
+            'start_date' => $period->start_date->toDateString(),
+            'end_date' => $period->end_date->toDateString(),
+            'status' => $this->statusValue($period),
+            'station_type' => $period->station_type,
+            'station_type_label' => $this->stationTypeLabel($period->station_type),
+        ];
+    }
+
+    protected function statusValue(Period $period): string
+    {
+        return is_object($period->status) ? $period->status->value : (string) $period->status;
+    }
+
+    /**
+     * Label resolved from the `station_types` master table, not from
+     * App\Enums\StationType — station types are DATA since 2026-09-22, so a
+     * type added by INSERT must render its real name without a code change.
+     */
+    protected function stationTypeLabel(?string $code): string
+    {
+        if ($code === null) {
+            return self::ALL_STATION_TYPES_LABEL;
+        }
+
+        if ($this->stationTypeNames === null) {
+            $this->stationTypeNames = StationType::query()
+                ->get(['code', 'name'])
+                ->pluck('name', 'code')
+                ->all();
+        }
+
+        return $this->stationTypeNames[$code] ?? $code;
+    }
+
+    protected function dateStringOf(mixed $value): string
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        return substr((string) $value, 0, 10);
+    }
+
+    protected function roleOf(object $user): string
+    {
+        return $user->role instanceof UserRole ? $user->role->value : (string) $user->role;
+    }
+
+    /**
+     * Same Content-Type/filename convention as every other export in this
+     * codebase — no XLSX writer package is installed, so format=excel
+     * serves a CSV body under the xlsx mimetype/extension.
+     *
+     * @return array{0: string, 1: string}
+     */
+    protected function fileMetaFor(string $format, Period $period): array
+    {
+        $slug = str($period->name !== '' ? $period->name : 'periode')->slug()->value();
+        $timestamp = now()->format('Ymd_His');
+
+        if ($format === 'excel') {
+            return [
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                "laporan-sterilizer_{$slug}_{$timestamp}.xlsx",
+            ];
+        }
+
+        return [
+            'text/csv',
+            "laporan-sterilizer_{$slug}_{$timestamp}.csv",
+        ];
+    }
+}

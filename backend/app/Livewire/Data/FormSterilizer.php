@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\ProductionLine;
 use App\Services\SterilizerRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -71,7 +72,7 @@ class FormSterilizer extends Component
 
     public function mount(?string $id = null): void
     {
-        $this->productionLineOptions = ProductionLine::query()->orderBy('name')->get(['id', 'name'])->toArray();
+        $this->productionLineOptions = $this->loadProductionLineOptions();
 
         if ($id === null) {
             $this->isEdit = false;
@@ -93,7 +94,7 @@ class FormSterilizer extends Component
 
         $this->form['sterilizer_id'] = $record['sterilizer_id'] ?? '';
         $this->form['note'] = $record['note'] ?? '';
-        $this->form['date'] = $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('Y-m-d') : '';
+        $this->form['date'] = $record['date'] ? Carbon::parse($record['date'])->format('Y-m-d') : '';
 
         $this->stationName = $record['station_name'] ?? null;
         $this->checked = filled($record['checked_by_name']);
@@ -102,6 +103,48 @@ class FormSterilizer extends Component
         $this->detailRows = collect($record['details'])
             ->map(fn (array $row) => collect($row)->only(array_merge(['id'], self::DETAIL_FIELDS))->all())
             ->toArray();
+    }
+
+    /**
+     * loadProductionLineOptions() — feeds the Production Line-select on
+     * create mode, SCOPED TO THE MILL OF THE AUTHENTICATED USER.
+     *
+     * Cross-mill data-integrity guard: a Supervisor / Mill Management /
+     * Operator is bound to exactly one mill (users.business_unit_id), and
+     * a station record they log must belong to that mill — the Production
+     * Line is what resolves the Station here (see
+     * SterilizerRecordService::create()), so an unscoped option list let
+     * them silently write this mill's log sheet against ANOTHER mill's
+     * Production Line. Every mill-scoped read afterwards
+     * (SterilizerReportService, Data Browser) then correctly refuses to
+     * show that record, because it is not their mill's data.
+     *
+     * Admin is the only role not bound to one mill (users.business_unit_id
+     * is nullable for Admin — same reasoning as
+     * SterilizerReportService::resolveBusinessUnit() and
+     * MillSettingService::checkAccess()), so Admin deliberately keeps the
+     * full cross-mill list. A non-Admin without a business_unit_id gets an
+     * empty list rather than the whole table.
+     *
+     * @return array<int, array{id: string, name: string}>
+     */
+    protected function loadProductionLineOptions(): array
+    {
+        $user = auth()->user();
+
+        $query = ProductionLine::query()->orderBy('name');
+
+        if ($user?->role !== UserRole::Admin) {
+            $businessUnitId = $user?->business_unit_id;
+
+            if ($businessUnitId === null || $businessUnitId === '') {
+                return [];
+            }
+
+            $query->where('business_unit_id', $businessUnitId);
+        }
+
+        return $query->get(['id', 'name'])->toArray();
     }
 
     public function addDetailRow(): void
@@ -138,8 +181,8 @@ class FormSterilizer extends Component
         }
 
         try {
-            $close = \Illuminate\Support\Carbon::createFromFormat('H:i', substr($row['close_door_time'], 0, 5));
-            $open = \Illuminate\Support\Carbon::createFromFormat('H:i', substr($row['open_door_time'], 0, 5));
+            $close = Carbon::createFromFormat('H:i', substr($row['close_door_time'], 0, 5));
+            $open = Carbon::createFromFormat('H:i', substr($row['open_door_time'], 0, 5));
         } catch (\Throwable) {
             return null;
         }

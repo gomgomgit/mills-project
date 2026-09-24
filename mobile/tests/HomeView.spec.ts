@@ -153,13 +153,14 @@ describe('HomeView — "Navigasi Home"', () => {
   })
 
   // Scenario: "Navigasi Home — Menu Placeholder Dipilih"
-  // Also satisfies unit_test_cases "menampilkan info 'Segera Hadir' dan
-  // tidak menavigasi ketika menu 'Estimates & Baselines'/'Dashboard &
-  // Reporting' ditekan".
-  it.each([
-    ['menu-card-estimates-baselines', 'Estimates & Baselines'],
-    ['menu-card-dashboard-reporting', 'Dashboard & Reporting'],
-  ] as const)(
+  // Also satisfies unit_test_case "menampilkan info 'Segera Hadir' dan
+  // tidak menavigasi ketika menu 'Estimates & Baselines' ditekan".
+  // 'menu-card-dashboard-reporting' was REMOVED from this placeholder
+  // list (screen-134--dashboard-reporting-mobile, tech spec
+  // screen_dependencies -> screen-005--home): that card no longer shows
+  // "Segera Hadir" — it now navigates to a real screen. See the
+  // dedicated test just below this one.
+  it.each([['menu-card-estimates-baselines', 'Estimates & Baselines']] as const)(
     "scenario: menu placeholder dipilih — tapping '%s' shows 'Segera Hadir' and does not navigate",
     async (testId) => {
       const wrapper = mount(HomeView)
@@ -176,6 +177,26 @@ describe('HomeView — "Navigasi Home"', () => {
       expect(wrapper.findComponent(HomeView).exists()).toBe(true)
     },
   )
+
+  // screen-134--dashboard-reporting-mobile — the 'Dashboard & Reporting'
+  // card's action changed from showComingSoon to a real router.push (see
+  // HomeView.vue's goToDashboardReporting()). This assertion is now stale
+  // for that specific card per the tech spec's screen_dependencies entry
+  // for screen-005--home, so it was carved out of the placeholder
+  // it.each above and replaced with this dedicated test.
+  it("tapping 'menu-card-dashboard-reporting' navigates to the 'dashboard-reporting' route and does not show 'Segera Hadir'", async () => {
+    const wrapper = mount(HomeView)
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="menu-card-dashboard-reporting"]').trigger('click')
+
+    expect(pushMock).toHaveBeenCalledTimes(1)
+    expect(pushMock).toHaveBeenCalledWith({ name: 'dashboard-reporting' })
+    expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Segera Hadir')
+  })
 
   // Scenario: "Navigasi Home — Nama User Tidak Tersedia"
   // Also satisfies unit_test_case "menampilkan teks sambutan fallback

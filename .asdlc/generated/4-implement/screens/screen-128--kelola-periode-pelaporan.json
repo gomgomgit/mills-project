@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-22"
+    "updated_at": "2026-09-23"
   },
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
@@ -10,24 +10,24 @@
   "status": "complete",
   "test_results": {
     "unit": {
-      "run_at": "2026-09-22T16:29:43Z",
-      "passed": 56,
+      "run_at": "2026-09-23T08:35:21Z",
+      "passed": 930,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-09-22T16:29:43Z",
-      "passed": 20,
+      "run_at": "2026-09-23T08:36:32Z",
+      "passed": 28,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-22T16:29:43Z",
-      "passed": 20,
+      "run_at": "2026-09-23T08:36:32Z",
+      "passed": 31,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-09-22T16:28:57Z",
-      "passed": 15,
+      "run_at": "2026-09-23T11:20:00Z",
+      "passed": 24,
       "failed": 0
     }
   },
@@ -49,14 +49,17 @@
     "backend/routes/web.php",
     "backend/database/migrations/2026_09_22_000029_create_station_types_table.php",
     "backend/database/migrations/2026_09_22_000030_create_periods_table.php",
-    "backend/app/Services/StationService.php"
+    "backend/app/Services/StationService.php",
+    "backend/app/Exceptions/PeriodNotDraftException.php",
+    "backend/.env.example"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/PeriodServiceTest.php",
     "backend/tests/Unit/Services/PeriodClosureServiceTest.php",
     "backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php",
     "backend/tests/Feature/StationTypeCatalogTest.php",
-    "e2e-web/tests/kelola-periode-pelaporan.spec.ts"
+    "e2e-web/tests/kelola-periode-pelaporan.spec.ts",
+    "e2e-web/tests/support/periods.ts"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/MasterData/KelolaPeriodePelaporan.php",
@@ -84,7 +87,19 @@
     "resources/views/master-data/periods.blade.php dibuat meski tidak ada di implementation_plan — #[Layout('master-data.periods')] tidak dapat merender tanpanya, dan setiap layar master-data lain punya wrapper one-liner yang sama. Konsekuensi mekanis dari pola yang ditiru, dilaporkan eksplisit oleh agent ketimbang diselipkan diam-diam.",
     "Auto-fix 1 putaran (dari maks 5). Bug yang diperbaiki nyata dan PostgreSQL-only: KelolaPeriodePelaporan::buildValidator() meneruskan $this->business_unit_id string kosong mentah ke closure unique-rule → SQLSTATE[22P02] invalid input syntax for type uuid → HTTP 500 alih-alih error inline. Diperbaiki dengan normalisasi '' → null + whereNull pada cabang null, mengikuti pola $stationType yang sudah ada di file yang sama. Aturan unique tidak melemah (diverifikasi manual terhadap PostgreSQL).",
     "PENGUNCIAN PERIODE TERTUTUP TIDAK DIIMPLEMENTASIKAN di run ini, sesuai cakupan. Layar ini hanya menetapkan status periode. Penolakan input/edit/verifikasi record stasiun dengan 422 code=PERIOD_CLOSED harus ditambahkan ke create()/update()/verifikasi pada service ke-18 stasiun plus jalur sync mobile — lihat usecase-141--kunci-input-periode-tertutup. TODO tercatat di docblock PeriodClosureService.",
-    "CATATAN MEMBACA test_results.unit.coverage = 0: angka itu penanda 'tidak terukur', mengikuti konvensi 39 screen lain di proyek ini, BUKAN berarti coverage nol. Lihat known_issues butir pertama."
+    "CATATAN MEMBACA test_results.unit.coverage = 0: angka itu penanda 'tidak terukur', mengikuti konvensi 39 screen lain di proyek ini, BUKAN berarti coverage nol. Lihat known_issues butir pertama.",
+    "AKSI BUKA PERIODE (usecase-144) ditambahkan 2026-09-23 — melengkapi siklus status yang sebelumnya tidak lengkap. Sebelum ini periode selalu lahir 'draft' dan satu-satunya jalan menuju 'open' adalah memutar: tutup dulu, lalu buka kembali. Terbukti dari data dev saat itu: 51 draft, 13 closed, dan hanya 1 open — satu-satunya 'open' itu sisa browser test reopen, bukan hasil alur normal.",
+    "PeriodClosureService mendapat method open() sebagai transisi KETIGA sejajar close() dan reopen(), plus helper notDraftMessage(?string). Tidak ada service baru. PeriodService tidak disentuh sama sekali.",
+    "PeriodNotDraftException menyalin struktur PeriodNotClosedException persis: extends HttpException, implements HasErrorCode, http 409, errorCode() = 'PERIOD_NOT_DRAFT'.",
+    "UPDATE BERKONDISI, bukan save(): where('id',$id)->where('status','draft')->update([...]) lalu cek affected rows. Tanpa lockForUpdate, tanpa transaksi tambahan — klausa WHERE itu sendiri yang menjadi penjaganya, pola yang sama dengan close(). findOrFail() + cek status di atasnya hanya untuk memisahkan 404 dan status yang jelas salah dari kasus balapan; ia BUKAN penjaganya. Unit test membaca query log dan menuntut klausa WHERE memuat 'id' DAN 'status', sehingga save() akan menggagalkan test.",
+    "Pada jalur affected rows = 0, baris dibaca ulang lebih dulu agar pesan menyebut status yang benar-benar berlaku saat itu, bukan status yang sudah basi.",
+    "Dua pesan galat dibedakan tegas dan diuji secara silang: periode 'open' → menyebut sudah terbuka dan diasersi TIDAK memuat frasa 'Buka Kembali Periode'; periode 'closed' → menyebut sudah tertutup, mengarahkan ke aksi 'Buka Kembali Periode', dan diasersi TIDAK memuat 'sudah terbuka'. Dua aksi ini sangat mudah tertukar.",
+    "Nol data stasiun disentuh: RecordVerificationService di-mock dengan shouldNotReceive, ditambah asersi tidak ada query menyentuh tabel *_records, ditambah snapshot record sebelum/sesudah yang identik. Konstruktor PeriodClosureService memang menyuntik RecordVerificationService, tetapi open() tidak menyentuhnya sama sekali.",
+    "Periode berstatus 'open' TETAP dapat di-PATCH dan di-DELETE — PeriodService tidak disentuh, dan dijaga oleh unit + API + component + browser test. Tidak ada satu pun test yang menuntut 'open' ikut terkunci.",
+    "Endpoint tidak mendaftarkan 401, sejajar close() dan reopen(); penanganan sesi ada di lapisan middleware. 403 ditegakkan lewat route middleware auth:web + role:admin.",
+    "Livewire memakai ulang properti dan alert galat yang sudah ada ($closeErrorMessage, data-testid=\"close-error\"), bukan membuat yang baru. Sukses mengisi $successMessage = 'Periode berhasil dibuka.'",
+    "askOpen() sengaja tidak memvalidasi ulang status — ia hanya mengambil snapshot baris untuk isi dialog. Baris yang sudah dihapus tetap membuka dialog lalu gagal di confirm dengan pesan periode tidak ditemukan.",
+    "Tombol 'Buka Periode' hanya dirender pada cabang @if ($period['status'] === 'draft')."
   ],
   "deferred_items": [
     {
@@ -93,6 +108,38 @@
     }
   ],
   "known_issues": [
+    {
+      "description": "DIPERBAIKI 2026-09-23. Sebelumnya suite browser e2e-web meracuni dirinya sendiri: ketiga spec yang membuat Periode Pelaporan tidak punya afterAll maupun afterEach, sehingga periode dibuat lewat UI lalu ditinggalkan. Laju penumpukan terukur ~15 baris per run terhadap daftar yang dipaginasi 20 baris, sehingga setelah sekitar satu setengah run halaman 1 penuh oleh residu dan baris yang baru dibuat test terdorong ke halaman 2 — toBeVisible() gagal di helper createPeriod() sebelum satu pun asersi perilaku dieksekusi. Terukur pada hari itu: 117 periode, 116 di antaranya residu; setelah dibersihkan suite hijau, tiga run kemudian 40 baris dan 19 test gagal lagi. PERBAIKAN: helper bersama e2e-web/tests/support/periods.ts (deletePeriodsByPrefix) plus afterAll di kelola-periode-pelaporan.spec.ts dan laporan-sterilizer.spec.ts — laporan-stasiun.spec.ts tidak membuat periode sehingga tidak perlu. Periode berstatus closed dibuka kembali dulu lewat POST /reopen sebelum dihapus, karena delete() menolak status closed. Pembersihan tidak pernah menggagalkan test: galat dicatat ke console lalu ditelan. DIBUKTIKAN dengan dua run berturut-turut dari keadaan bersih: keduanya 53 lolos / 0 gagal / 1 dilewati, dan jumlah baris periode kembali ke 1 setiap kali.",
+      "severity": "minor"
+    },
+    {
+      "description": "DIPERBAIKI 2026-09-23. Seluruh rute /api/* tidak dapat dipanggil dari frontend aplikasi sendiri di http://localhost:8000 — dijawab 401. Rute API memakai guard auth:web yang berjalan lewat jalur stateful Sanctum, dan EnsureFrontendRequestsAreStateful::fromFrontend() mengubah tiap entri config('sanctum.stateful') menjadi pola \"<entri>/*\" lalu mencocokkannya dengan Referer BERIKUT PATH-nya. Entri telanjang 'localhost' karena itu menghasilkan 'localhost/*' yang tidak pernah cocok dengan 'localhost:8000/master-data/periods'. Berkas .env menimpa daftar bawaan Laravel dengan localhost,127.0.0.1,127.0.0.1:8000 sehingga menghilangkan localhost:8000 — padahal bawaan Laravel menambahkannya otomatis lewat Sanctum::currentApplicationUrlWithPort(). Gejalanya tidak pernah terlihat karena seluruh layar web memakai Livewire, yang memposting ke rute web dan tidak melewati Sanctum sama sekali. PERBAIKAN: localhost:8000 ditambahkan ke SANCTUM_STATEFUL_DOMAINS di .env DAN .env.example, disertai komentar yang menjelaskan mekanisme pencocokan pola dan mengapa entri telanjang tidak cukup. Diverifikasi dengan enam kasus terhadap fromFrontend(): origin web app localhost:8000 dan 127.0.0.1:8000 kini stateful; origin Vite mobile localhost:5174 dan 127.0.0.1:5174 TETAP tidak stateful sehingga jalur token mobile tidak berubah dan regresi 419 yang diperingatkan komentar lama tidak terulang; domain asing tetap ditolak. Regresi diperiksa: backend 2552/0/4, browser web 53 lolos, mobile vitest 1616 lolos. TINDAK LANJUT YANG BELUM DIKERJAKAN: 18 rute ekspor yang dulu ditambal dengan menambahkan middleware 'web' kemungkinan besar mengobati gejala dari akar yang sama ini; tambalan itu sekarang dapat diuji untuk dicabut, tetapi belum dicoba.",
+      "severity": "minor"
+    },
+    {
+      "description": "data-testid=\"open-period-button\" ditulis tanpa sufiks id, berbeda dari konvensi edit-button-{id} / close-button-{id} / reopen-button-{id} pada layar yang sama. Bila daftar memuat lebih dari satu baris draft, selector menjadi ganda dan browser test perlu scope per baris atau .first(). Ini akibat spesifikasi data-testid yang saya berikan terlalu harfiah — seharusnya mengikuti konvensi berkas itu sendiri.",
+      "severity": "minor"
+    },
+    {
+      "description": "RUN_OFFSET pada e2e-web/tests/kelola-periode-pelaporan.spec.ts diubah dari Date.now()/1000 % 150000 menjadi menit-sejak-2026-01-01 (monotonik). Ini perubahan pada infra test bersama, bukan pada layar. Menghilangkan tabrakan antar-run karena tidak lagi berputar, TETAPI tidak memperbaiki pergeseran di dalam satu run: satu run teramati menghasilkan 382109, 382118, 382119, dan 382120 sekaligus — selisih 11 menit — sehingga alokasi slot bergeser dan test akhir dapat bertabrakan dengan test awal dalam run yang sama.",
+      "severity": "minor"
+    },
+    {
+      "description": "pint menerapkan ordered_imports pada routes/api.php sehingga seluruh blok use tersusun ulang, termasuk import milik pekerjaan screen-129/screen-140 yang belum di-commit. Murni kosmetik, nol perubahan perilaku (route:list dan seluruh test terverifikasi setelahnya), tetapi diff-nya jauh lebih lebar dari satu baris route yang seharusnya.",
+      "severity": "minor"
+    },
+    {
+      "description": "Satu unit_test_case ForbiddenException dipindahkan ke lapisan feature/HTTP: kelas ForbiddenException tidak ada di codebase dan open() tidak punya cek peran sendiri — aturannya murni middleware EnsureRole. Konsekuensinya asersi 'findOrFail tidak pernah dipanggil' dibuktikan secara tidak langsung (baris tidak berubah sama sekali), bukan lewat spy.",
+      "severity": "minor"
+    },
+    {
+      "description": "Coverage tidak terukur — runtime PHP tanpa driver xdebug maupun pcov. Nilai 0 pada test_results.unit.coverage adalah penanda 'tidak terukur' mengikuti konvensi screen lain, bukan coverage nol.",
+      "severity": "minor"
+    },
+    {
+      "description": "403 dari EnsureRole tidak membawa field code (known_issue layar yang sudah ada sejak v1). Test 403 karena itu mengasersi status dan bahwa baris tidak berubah, bukan code.",
+      "severity": "minor"
+    },
     {
       "description": "Coverage unit test 80% TIDAK TERVERIFIKASI — runtime PHP ini tidak punya driver xdebug maupun pcov (dicek dengan php -m, bukan asumsi), sehingga gate tidak dijalankan: bukan 'lolos' dan bukan 'gagal'. Nilai 0 pada test_results.unit.coverage adalah penanda 'tidak terukur' mengikuti konvensi 39 screen lain, bukan coverage nol. Status complete ditetapkan mengikuti preseden proyek yang sama: 38 screen lain berstatus complete dengan known_issue identik, karena tidak satu pun screen di proyek ini pernah punya coverage terukur. Secara kualitatif seluruh method publik dan setiap cabang guard kedua service dieksekusi oleh 56 test / 161 assertion.",
       "severity": "major"
@@ -139,10 +186,6 @@
     },
     {
       "description": "Browser scenario 6 ('Belum ada Business Unit') di-skip — mustahil dijalankan di browser tanpa mengosongkan DB fixture yang dipakai seluruh suite. Skenario yang sama tetap diassert sungguhan di Livewire component test dan Feature API test.",
-      "severity": "minor"
-    },
-    {
-      "description": "State DB dev diubah oleh run ini (transparansi): 31 baris leftover pada tabel periods yang dibuat browser test dihapus agar scenario 13 dapat hijau. Terverifikasi aman — tidak ada seeder yang pernah membuat baris periods, 0 FK mereferensikannya, 0 baris non-test yang cocok filter. Fixture tidak tersentuh, tidak ada migrate:fresh/db:wipe/truncate.",
       "severity": "minor"
     }
   ]

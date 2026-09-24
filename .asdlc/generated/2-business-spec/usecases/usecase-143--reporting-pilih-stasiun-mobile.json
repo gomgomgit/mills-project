@@ -1,0 +1,197 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "usecase-143--reporting-pilih-stasiun-mobile",
+  "name": "Pilih Stasiun untuk Laporan (Mobile)",
+  "description": "Pengguna mobile menekan Reporting di dalam Dashboard & Reporting, melihat daftar stasiun, lalu memilih satu untuk membuka laporan periodenya. Daftar stasiun dibaca dari data yang sudah tersimpan di perangkat — nama, ikon, dan urutan yang sama dengan layar Daftar Stasiun — sehingga layar ini terbuka penuh tanpa sinyal. Stasiun yang laporan mobile-nya belum dibangun tetap ditampilkan nonaktif.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi mobile",
+    "Daftar stasiun sudah tersimpan di perangkat"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Pengguna menekan kartu 'Reporting' di layar Dashboard & Reporting"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Sistem membuka layar pemilih stasiun dengan jejak navigasi 'Home / Dashboard & Reporting / Reporting'"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Sistem membaca daftar stasiun dari data yang tersimpan di perangkat, dengan nama, ikon, dan urutan yang sama seperti layar Daftar Stasiun"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Sistem menandai stasiun yang layar laporan mobile-nya belum dibangun sebagai tile nonaktif berketerangan 'Belum tersedia' — saat ini hanya Sterilizer yang tersedia"
+    },
+    {
+      "step": 5,
+      "actor": "actor-station-operator",
+      "description": "Pengguna menekan tile sebuah stasiun"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Bila laporan stasiun itu sudah ada, sistem membuka layar laporan periodenya; bila belum, sistem menampilkan pesan singkat dan tetap di layar ini"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Menekan stasiun yang belum tersedia",
+      "trigger": "Pada langkah 5, stasiun yang ditekan bertanda 'Belum tersedia'",
+      "steps": [
+        "Sistem menampilkan pesan singkat bahwa laporan stasiun itu belum dibangun",
+        "Tidak terjadi perpindahan layar",
+        "Tile tetap tampil dan tetap bertanda 'Belum tersedia'"
+      ]
+    },
+    {
+      "name": "Menekan berkali-kali",
+      "trigger": "Pada langkah 5, pengguna menekan stasiun yang belum tersedia lebih dari sekali",
+      "steps": [
+        "Pesan yang sama muncul kembali",
+        "Pesan tidak menumpuk",
+        "Tidak terjadi perpindahan layar"
+      ]
+    },
+    {
+      "name": "Belum ada stasiun tersimpan",
+      "trigger": "Pada langkah 3, tidak ada satu pun stasiun tersimpan di perangkat",
+      "steps": [
+        "Sistem menampilkan keterangan yang mengarahkan membuka layar Daftar Stasiun lebih dulu",
+        "Grid stasiun tidak menampilkan satu pun tile",
+        "Tidak ada pesan kesalahan teknis"
+      ]
+    },
+    {
+      "name": "Perangkat offline",
+      "trigger": "Pada langkah 3, perangkat tidak punya sambungan jaringan",
+      "steps": [
+        "Daftar stasiun tetap tampil lengkap karena dibaca dari perangkat",
+        "Tidak ada pesan kesalahan jaringan"
+      ]
+    },
+    {
+      "name": "Stasiun aktif di mill namun laporannya belum ada",
+      "trigger": "Pada langkah 4, sebuah stasiun aktif dan beroperasi di mill pengguna tetapi layar laporan mobile-nya belum dibangun",
+      "steps": [
+        "Tile stasiun itu tetap ditampilkan",
+        "Tile ditandai nonaktif berketerangan 'Belum tersedia'",
+        "Keaktifan stasiun di mill tidak membuatnya dapat ditekan"
+      ]
+    },
+    {
+      "name": "Belum masuk",
+      "trigger": "Pada langkah 1, pengguna mencoba membuka layar ini tanpa sesi yang aktif",
+      "steps": [
+        "Penjagaan sesi global mengarahkan pengguna ke layar Login",
+        "Layar pemilih stasiun tidak pernah ditampilkan"
+      ]
+    },
+    {
+      "name": "Kembali",
+      "trigger": "Kapan saja, pengguna menekan segmen jejak navigasi",
+      "steps": [
+        "Sistem mengembalikan pengguna ke Dashboard & Reporting atau ke Home sesuai segmen yang ditekan"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pengguna berada di layar laporan stasiun yang dipilih, atau tetap di layar ini bila stasiunnya belum tersedia",
+    "Tidak ada data yang dibaca dari jaringan maupun diubah"
+  ],
+  "business_rules": [
+    "Terbuka untuk semua peran mobile; pembatasan sesungguhnya ada di layar laporan tujuan",
+    "Daftar stasiun dibaca dari perangkat, bukan dari jaringan, sehingga layar terbuka penuh saat offline dan namanya konsisten dengan Daftar Stasiun",
+    "'Tersedia' berarti layar laporan MOBILE stasiun itu sudah dibangun — berbeda dari 'aktif' yang berarti stasiunnya beroperasi di mill",
+    "Stasiun yang laporannya belum dibangun tetap ditampilkan nonaktif, tidak disembunyikan",
+    "Menekan stasiun yang belum tersedia memberi pesan, bukan diam",
+    "Layar ini tidak meminta pengguna memilih mill",
+    "Layar memerlukan sesi aktif"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Mobile) — success",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan daftar stasiun sudah tersimpan di perangkat",
+      "when": "Pengguna menekan kartu 'Reporting' di layar Dashboard & Reporting, lalu menekan tile stasiun Sterilizer",
+      "then": "Layar pemilih stasiun terbuka dengan jejak navigasi 'Home / Dashboard & Reporting / Reporting' dan menampilkan seluruh stasiun tersimpan dengan nama, ikon, dan urutan yang sama seperti layar Daftar Stasiun, lalu pengguna dibawa ke layar laporan periode Sterilizer tanpa ada data yang dibaca dari jaringan maupun diubah"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Mobile) — Menekan stasiun yang belum tersedia",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan daftar stasiun sudah tersimpan di perangkat",
+      "when": "Pengguna menekan tile stasiun yang bertanda 'Belum tersedia'",
+      "then": "Sistem menampilkan pesan singkat bahwa laporan stasiun itu belum dibangun, tidak terjadi perpindahan layar, dan tile tetap tampil dengan tanda 'Belum tersedia'"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Mobile) — Menekan berkali-kali",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan daftar stasiun sudah tersimpan di perangkat",
+      "when": "Pengguna menekan tile stasiun yang belum tersedia lebih dari satu kali berturut-turut",
+      "then": "Pesan yang sama muncul kembali tanpa menumpuk dan tidak terjadi perpindahan layar"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Mobile) — Belum ada stasiun tersimpan",
+      "given": "Pengguna sudah masuk ke aplikasi mobile namun belum ada satu pun stasiun tersimpan di perangkat",
+      "when": "Pengguna membuka layar pemilih stasiun dari Dashboard & Reporting",
+      "then": "Sistem menampilkan keterangan yang mengarahkan pengguna membuka layar Daftar Stasiun lebih dulu, grid stasiun tidak menampilkan satu pun tile, dan tidak ada pesan kesalahan teknis"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Mobile) — Perangkat offline",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan daftar stasiun sudah tersimpan di perangkat",
+      "when": "Pengguna membuka layar pemilih stasiun saat perangkat tidak punya sambungan jaringan",
+      "then": "Daftar stasiun tetap tampil lengkap karena dibaca dari perangkat dan tidak ada pesan kesalahan jaringan"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Mobile) — Stasiun aktif di mill namun laporannya belum ada",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan daftar stasiun sudah tersimpan di perangkat, termasuk sebuah stasiun yang aktif dan beroperasi di mill pengguna tetapi layar laporan mobile-nya belum dibangun",
+      "when": "Pengguna membuka layar pemilih stasiun",
+      "then": "Tile stasiun itu tetap ditampilkan namun ditandai nonaktif berketerangan 'Belum tersedia', dan keaktifannya di mill tidak membuatnya dapat ditekan"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Mobile) — Belum masuk",
+      "given": "Pengguna tidak memiliki sesi yang aktif di aplikasi mobile",
+      "when": "Pengguna mencoba membuka layar pemilih stasiun",
+      "then": "Penjagaan sesi global mengarahkan pengguna ke layar Login dan layar pemilih stasiun tidak pernah ditampilkan"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Mobile) — Kembali",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan sedang berada di layar pemilih stasiun",
+      "when": "Pengguna menekan salah satu segmen jejak navigasi",
+      "then": "Sistem mengembalikan pengguna ke Dashboard & Reporting atau ke Home sesuai segmen yang ditekan"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Mobile) — layar tetap terbuka untuk semua peran mobile",
+      "given": "Daftar stasiun sudah tersimpan di perangkat dan pengguna masuk sebagai salah satu peran mobile — Operator Stasiun, Supervisor, Mill Management, atau Admin",
+      "when": "Pengguna membuka layar pemilih stasiun dari Dashboard & Reporting",
+      "then": "Layar terbuka dengan daftar stasiun dan status ketersediaan yang sama persis untuk setiap peran, tanpa ada peran yang ditolak atau dibatasi di layar ini — pembatasan sesungguhnya baru berlaku di layar laporan tujuan"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Mobile) — stasiun yang belum tersedia tidak boleh disembunyikan",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan daftar stasiun tersimpan berisi campuran stasiun yang laporan mobile-nya sudah dibangun dan yang belum",
+      "when": "Pengguna membuka layar pemilih stasiun",
+      "then": "Jumlah tile yang tampil sama dengan jumlah seluruh stasiun tersimpan — stasiun yang laporannya belum dibangun ikut ditampilkan dalam keadaan nonaktif dan tidak dihilangkan dari grid"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Mobile) — layar tidak meminta pengguna memilih mill",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan daftar stasiun sudah tersimpan di perangkat",
+      "when": "Pengguna membuka layar pemilih stasiun dari Dashboard & Reporting",
+      "then": "Grid stasiun langsung tampil tanpa pemilih mill, tanpa dialog, dan tanpa langkah pemilihan mill apa pun sebelum stasiun dapat ditekan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-141--reporting-pilih-stasiun-mobile"
+  ]
+}

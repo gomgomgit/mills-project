@@ -1,0 +1,124 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "screen-140--laporan-stasiun-web",
+  "name": "Laporan Stasiun (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-23T06:01:10Z",
+      "passed": 18,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-23T06:03:05Z",
+      "passed": 16,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-23T06:03:20Z",
+      "passed": 13,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-23T06:52:00Z",
+      "passed": 14,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/StationReportService.php",
+    "backend/app/Http/Controllers/Api/StationReportController.php",
+    "backend/app/Livewire/Dashboard/LaporanStasiun.php",
+    "backend/routes/web.php",
+    "backend/routes/api.php"
+  ],
+  "fe_files_generated": [
+    "backend/resources/views/livewire/dashboard/laporan-stasiun.blade.php",
+    "backend/resources/views/dashboard/laporan-stasiun.blade.php",
+    "backend/resources/views/dashboard/partials/report-styles.blade.php",
+    "backend/resources/views/components/layouts/app.blade.php",
+    "backend/resources/views/dashboard/laporan-sterilizer.blade.php",
+    "backend/resources/views/livewire/dashboard/laporan-sterilizer.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/StationReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanStasiunTest.php",
+    "e2e-web/tests/laporan-stasiun.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/LaporanStasiunTest.php"
+  ],
+  "implementation_notes": [
+    "API hanya 2 endpoint GET di prefix /api/station-reports/* — diverifikasi lewat route:list. Layar ini bisa saja dibangun murni Livewire; endpoint tetap dibuat agar screen-141 (pemilih stasiun di mobile) memakai sumber yang sama persis sehingga daftar stasiun web dan mobile tidak mungkin berbeda.",
+    "REPORT_ROUTES adalah satu konstanta di StationReportService berisi ['sterilizer' => 'reports.sterilizer']; report_path = route($name, ['business_unit_id' => $id]). Tidak ada pengecekan per-stasiun di blade — menambah laporan stasiun baru berarti menambah satu baris. Ditemani EXCLUDED_STATION_TYPE = 'other'.",
+    "Daftar stasiun murni dari master: StationType::where('code','<>','other')->orderBy('sort_order'). Bukan enum, bukan daftar tetap. Smoke test di DB dev menghasilkan 18 item urut 10/20/30/40.",
+    "resolveBusinessUnit() ditulis ulang sendiri di StationReportService dengan perilaku identik milik screen-129; berkas service screen-129 tidak disentuh. Penyatuan keduanya ke satu trait bersama dicatat sebagai pekerjaan terpisah.",
+    "Deviasi sadar dari screen-129 pada kasus tanpa sesi: tech spec layar ini menuntut 401 UNAUTHENTICATED (screen-129 melempar 403). Dipakai AuthenticationException yang dipetakan ApiExceptionHandler ke 401, sesuai dua unit_test_case.",
+    "Tiga perilaku rawan terverifikasi test: (a) Supervisor/Mill Management mengirim business_unit_id mill lain atau uuid tak dikenal tetap mendapat 200 berisi mill sendiri — parameter dibuang tanpa divalidasi, bukan 403 dan bukan 404; (b) akun terikat mill dengan business_unit_id NULL mendapat 422 dan gagal tertutup dibuktikan lewat spy DB::listen — nol query menyentuh business_units maupun station_types di cabang itu; (c) Admin tanpa business_unit_id mendapat 422, bukan 403.",
+    "known_issue #3 artefak screen-129 DITUTUP oleh run ini: entri sidebar 'Laporan Stasiun' kini mengarah ke route('reports.stations') dan komentar Blade bertanda SEMENTARA sudah dihapus. Posisi entri tetap (setelah 'Laporan Manajemen', sebelum 'Master Data Tree View'). Kondisi aktif memakai routeIs('reports.stations','reports.sterilizer') agar menu tetap tersorot pada layar turunannya.",
+    "Kelas CSS baru hanya ditulis di blok <style> KEDUA report-styles.blade.php yang sudah bertanda, berjudul 'TAMBAHAN 2026-09-23 — screen-140'; override 767px disisipkan ke media query yang sudah ada. Nol selector lama disentuh — dikonfirmasi oleh browser test Laporan Sterilizer yang tetap 15/15.",
+    "Ikon SVG disalin persis dari production-process-activity.blade.php untuk 18 kode stasiun, plus satu ikon fallback agar jenis stasiun baru dari master tidak merusak halaman. Tile aktif memakai hijau merek #249360, bukan merah #D20000 milik layar itu, karena layar ini masuk keluarga LAPORAN.",
+    "Grid 3 kolom tetap di setiap lebar; pada <=767px tanpa gulir horizontal halaman. Seluruh teks UI Bahasa Indonesia.",
+    "data-testid lengkap dan diverifikasi per keadaan: Supervisor bermill → mill-current + station-grid + station-tile-* tanpa mill-select; Admin belum memilih → mill-select + mill-required-hint tanpa grid; master mill kosong → tambah no-business-units; Supervisor tanpa mill → hanya no-mill-for-account; master stasiun kosong → grid nol tile + no-station-types. Tile nonaktif adalah <span class=\"station-tile disabled\" aria-disabled=\"true\"> berteks 'Belum tersedia', tanpa href, dan nol wire:click di seluruh halaman.",
+    "mount() memanggil abort_unless($this->canAccess(), 403); keepSelectionValid() membuang businessUnitId basi agar service tidak pernah menjawab 404 untuk pilihan yang tidak pernah dibuat pengguna.",
+    "PENEMPATAN CSS — pelajaran yang mahal pada run ini. Partial report-styles memancarkan <style>. Livewire 3 memasang wire:id pada elemen ter-render PERTAMA, jadi meletakkan @include di atas root div membuat atribut itu menempel pada <style> dan seluruh wire:model berhenti bekerja (pemilih Mill Admin mati total di peramban; ditangkap browser test, TIDAK tertangkap component test karena Livewire::test() tidak melewati semantik root-element peramban). Penempatan akhir yang dipakai kedua layar laporan: di view halaman lewat <x-slot:styles> milik x-layouts.app — konvensi repo yang sama dengan production-process-activity.blade.php. Di sana CSS berada di luar komponen sepenuhnya, sehingga tidak ada masalah single-root dan HTML yang diperiksa Livewire::test() berisi markup saja."
+  ],
+  "deferred_items": [
+    {
+      "description": "Menyatukan penentuan mill (resolveBusinessUnit) screen-129 dan screen-140 ke satu trait atau service bersama.",
+      "reason": "Dua salinan berperilaku identik saat ini. Penyatuannya menyentuh berkas screen-129 yang sengaja dijaga tidak berubah pada run ini."
+    },
+    {
+      "description": "screen-129 membaca query param business_unit_id agar mill yang ditetapkan di layar ini benar-benar terpakai di Laporan Sterilizer.",
+      "reason": "Di luar cakupan; report_path sudah membawa parameternya, tinggal dibaca di sisi screen-129. Lihat known_issue."
+    },
+    {
+      "description": "Menyaring grid stasiun per mill (hanya menampilkan jenis stasiun yang benar-benar dimiliki mill itu).",
+      "reason": "Keputusan sadar sesuai spec: master Jenis Stasiun bersifat global dan aturan layar ini adalah 'tampilkan semua, nonaktifkan yang belum siap'. Diangkat ke user pada checkpoint dan tidak diubah."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "report_path membawa ?business_unit_id=<id> tetapi LaporanSterilizer (screen-129) BELUM membaca query param itu, sehingga Admin masih harus memilih mill sekali lagi setibanya di Laporan Sterilizer. Sudah diantisipasi spec (implementation_note tech spec) — bukan regresi. Browser test 'mill terbawa' karena itu hanya mengasersi bahwa URL tujuan memuat business_unit_id, bukan bahwa layar tujuan memakainya.",
+      "severity": "major"
+    },
+    {
+      "description": "DIPERBAIKI PADA RUN INI, dicatat karena menyangkut layar lain: laporan-sterilizer.blade.php memakai 124 kelas md-* tetapi tidak pernah memuat definisinya — tidak ada @include('dashboard.partials.report-styles') dan tidak ada blok <style>. Halaman Laporan Sterilizer dengan demikian tampil TANPA gaya sejak dibuat, persis kebalikan dari tuntutan produk 'UI cantik, bukan sekadar list data'. Tidak tertangkap oleh 15 browser test maupun 15 component test karena semuanya mengasersi isi dan perilaku, bukan tampilan. Diperbaiki dengan menambahkan <x-slot:styles> pada view halaman kedua laporan; dibuktikan lewat render nyata (definisi .md-kpi dan .md-hero kini ada pada keduanya).",
+      "severity": "major"
+    },
+    {
+      "description": "DashboardServiceTest non-deterministik (pre-existing, bukan regresi): 'it returns success result with correct counts and sums' pada tests/Unit/Services/DashboardServiceTest.php:68 sesekali gagal dengan count 3 dan total 21094.33 alih-alih count 2 dan 8000.0. Lolos saat diisolasi maupun pada re-run suite penuh. Akarnya factory memberi record_datetime acak dateTimeBetween('-30 days','now') sehingga sesekali jatuh di hari ini. Milik screen-025, layak ditriase terpisah karena bisa menyebabkan run merah palsu.",
+      "severity": "major"
+    },
+    {
+      "description": "Coverage unit tidak terukur — runtime PHP 8.5.4 tanpa driver xdebug maupun pcov, sehingga ambang 80% tidak dapat dinilai. Nilai 0 pada test_results.unit.coverage adalah penanda 'tidak terukur' mengikuti konvensi 40 screen sebelumnya, bukan coverage nol. Secara kualitatif seluruh method publik dan tiap cabang guard service dieksekusi 18 unit test.",
+      "severity": "minor"
+    },
+    {
+      "description": "EnsureRole membangun response 403/401 JSON tanpa field code (pre-existing, sama dengan screen-128 dan screen-129). Penolakan Operator di lapisan middleware route karena itu hanya diasersi status 403; 403 yang datang dari service tetap membawa code FORBIDDEN.",
+      "severity": "minor"
+    },
+    {
+      "description": "routes/api.php dan routes/web.php gagal Pint pada aturan ordered_imports — pre-existing sejak HEAD, sengaja tidak dirapikan agar diff tetap sempit (konsisten dengan keputusan screen-129).",
+      "severity": "minor"
+    },
+    {
+      "description": "Daftar stasiun tidak disaring per mill — master Jenis Stasiun bersifat global, sehingga mill yang tidak punya stasiun tertentu tetap melihat tile-nya. Keputusan sadar sesuai spec, diangkat ke user pada checkpoint pra-implementasi dan dibiarkan apa adanya.",
+      "severity": "minor"
+    },
+    {
+      "description": "Tiga skenario browser tidak dapat direproduksi pada database dev bersama dan sengaja TIDAK di-skip; masing-masing mengasersi sisi lain dari cabang yang sama, disertai komentar 'WHY NOT SEEDED' di berkasnya: 'belum ada mill di sistem', 'akun terikat mill tetapi mill-nya kosong', dan 'master Jenis Stasiun kosong' — tidak ada UI yang dapat menciptakan ketiga kondisi itu. Cabang 422 dan gagal-tertutupnya sudah tertutup penuh oleh unit, API, dan component test. Terkait: skenario 'daftar stasiun mengikuti master' di browser hanya membuktikan separuhnya (urutan proses, bukan alfabet); separuh lain diuji di API dan component test yang memang dapat menulis master.",
+      "severity": "minor"
+    },
+    {
+      "description": "Sidebar tetap tidak menyaring menu per role (pola repo). Penegakan ada di middleware route dan mount(); menekan menu sebagai Operator menghasilkan 403, bukan kebocoran data.",
+      "severity": "minor"
+    }
+  ]
+}

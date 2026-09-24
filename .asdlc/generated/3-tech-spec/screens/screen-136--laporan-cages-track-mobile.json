@@ -1,0 +1,1315 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "screen-136--laporan-cages-track-mobile",
+  "name": "Laporan Cages & Tracks (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "/reports/cages-track",
+  "auth_requirement": "authenticated — seluruh peran mobile (operator, supervisor, mill_management, admin)",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien DIABAIKAN. Perluasan akses ini berlaku HANYA untuk 4 rute API, bukan untuk rute web /reports/cages-track"
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill lewat pemilih Mill"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "usecase_name": "Lihat Laporan Periode Cages & Tracks (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/cages-track-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — khusus Admin, karena hanya Admin yang tidak terikat satu mill — DIPAKAI ULANG apa adanya oleh screen-136 (mobile); tidak ada endpoint mobile terpisah",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor bukan admin — Supervisor dan Mill Management tidak butuh endpoint ini karena millnya sudah tetap"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cages-track-reports/periods",
+          "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Cages & Tracks pada mill yang dilihat — DIPAKAI ULANG apa adanya oleh screen-136 (mobile); tidak ada endpoint mobile terpisah",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "WAJIB untuk Admin. Untuk Supervisor dan Mill Management nilai ini DIABAIKAN — server memakai business_unit_id milik user, sehingga mengirim mill lain tidak membocorkan apa pun"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "station_type": "string|null",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "actor admin tidak mengirim business_unit_id — errors.business_unit_id terisi, bukan mengembalikan daftar kosong secara diam-diam"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "actor supervisor/mill_management yang business_unit_id akunnya null — pesan menghubungi Admin. businessUnitRepo->all() TIDAK pernah dipanggil, agar akun tanpa mill tidak pernah jatuh ke daftar seluruh mill"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cages-track-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode: KPI, sebaran per jam, tren harian, antrean tersisa, dan rekap harian — DIPAKAI ULANG apa adanya oleh screen-136 (mobile); tidak ada endpoint mobile terpisah",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode Pelaporan yang dilaporkan"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /periods — wajib bagi Admin, diabaikan bagi peran lain"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string",
+                "business_unit_name": "string"
+              },
+              "kpi": {
+                "total_cages_tipped": "integer",
+                "total_cages_out": "integer",
+                "avg_cages_per_day": "float",
+                "peak_hour": "integer|null",
+                "peak_hour_cages": "integer",
+                "idle_operating_hours": "integer",
+                "longest_gap_hours": "integer|null",
+                "longest_gap_date": "date|null",
+                "avg_tippler_duration_hours": "float|null",
+                "days_with_records": "integer",
+                "days_without_valid_window": "integer"
+              },
+              "hourly": [
+                {
+                  "hour": "integer (0..23)",
+                  "cages": "integer",
+                  "within_operating_window": "boolean"
+                }
+              ],
+              "daily": [
+                {
+                  "date": "date",
+                  "cages_tipped": "integer",
+                  "cages_out": "integer",
+                  "operating_hours": "float|null",
+                  "idle_operating_hours": "integer|null",
+                  "longest_gap_hours": "integer|null",
+                  "min_remaining": "integer|null"
+                }
+              ],
+              "queue": {
+                "min_remaining": "integer|null",
+                "avg_remaining": "float|null"
+              },
+              "total": {
+                "cages_tipped": "integer",
+                "cages_out": "integer",
+                "days": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain bagi Supervisor/Mill Management, Operator DITERIMA sejak screen-136 dan terikat mill akunnya"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id kosong"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — dihitung saat periode dipilih",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/cages-track-reports/export",
+          "description": "Ekspor seluruh rincian penumpahan per jam sepanjang periode ke CSV, satu baris per jam penumpahan dengan kolom konteks record diulang — DIPAKAI ULANG apa adanya oleh screen-136 (mobile); tidak ada endpoint mobile terpisah",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode Pelaporan yang diekspor"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "csv | excel"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /summary"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_note": "StreamedResponse berisi berkas; header Content-Disposition attachment. Kolom: Tanggal, Nomor Cages Track, Tippler Mulai, Tippler Berhenti, Jam, Nomor Lori Diperiksa, Lori Ditumpahkan, Lori Tersisa, Lori Keluar (record), Status, Catatan"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain, Operator DITERIMA sejak screen-136 dan terikat mill akunnya"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "jumlah BARIS EKSPOR (baris cages_tipped_times) melebihi 50.000 — dihitung dari baris rincian per jam, bukan jumlah record header"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "format di luar csv|excel"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "TIDAK ADA logika server baru. Keempat endpoint milik screen-130 dipakai ulang apa adanya; seluruh 18 langkah business_logic screen-130 berlaku tanpa perubahan. Yang berubah hanyalah SIAPA yang boleh memanggilnya.",
+        "PERLUASAN AKSES OPERATOR — empat perubahan, dan melewatkan salah satunya menimbulkan lubang: (1) routes/api.php: middleware menjadi ['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'] — guard sanctum WAJIB karena mobile memakai token, bukan sesi; (2) CagesTrackReportService::guardAccess(): tambahkan UserRole::Operator ke daftar peran yang diterima; (3) CagesTrackReportService::resolveBusinessUnit(): tambahkan Operator ke cabang TERIKAT MILL bersama Supervisor dan MillManagement; (4) sesuaikan test screen-130 yang mengasersi Operator ditolak 403 di API.",
+        "MENGAPA (3) TIDAK BOLEH TERLEWAT: resolveBusinessUnit() bercabang `if (Supervisor || MillManagement) { pakai business_unit_id akun } else { perlakukan sebagai Admin }`. Melebarkan guardAccess() saja menjatuhkan Operator ke cabang Admin, sehingga Operator dapat mengirim business_unit_id mill mana pun dan membacanya. Itu kebocoran lintas mill, bukan cacat tampilan. authorizePeriod() sendiri sudah aman karena hanya Admin yang diperlakukan tidak terikat.",
+        "RUTE WEB TIDAK BERUBAH: /reports/cages-track (Livewire, screen-130) tetap role:supervisor,mill_management,admin. Operator tidak punya UI web. Yang dilebarkan hanya 4 rute API.",
+        "Lapisan klien: mobile/src/services/cagesTrackReportRepo.ts, sejajar sterilizerReportRepo.ts. Fungsi: fetchBusinessUnits(), fetchPeriods(scope?), fetchSummary(periodId, scope?), exportCsv(periodId), saveCsvFile(blob, filename), plus objek gabungan cagesTrackReportRepo sebagai default export.",
+        "scopeParams(scope): mengembalikan {} bila !scope.isAdmin, dan {} bila Admin belum memilih mill; hanya { business_unit_id } bila Admin sudah memilih. Inilah yang membuat perangkat non-Admin TIDAK PERNAH mengirim business_unit_id — pertahanan berlapis di atas penjagaan server, bukan penggantinya.",
+        "unwrap(payload): respons /summary dikirim controller TANPA pembungkus `data`, sementara /periods dan /business-units/options MEMAKAI pembungkus. Repo menerima kedua bentuk supaya tidak pecah bila salah satu berubah. Disalin dari sterilizerReportRepo.",
+        "TIDAK ADA perhitungan ulang KPI di sisi ponsel. Repo hanya memanggil endpoint, membaca pembungkus, menyeragamkan nama medan, dan meneruskan. Aturan bisnis menyatakan dua perhitungan terpisah pasti menyimpang tanpa ketahuan; satu unit test khusus mengunci ketiadaan aritmetika ini.",
+        "NULL BUKAN NOL harus bertahan melewati lapisan klien: avg_tippler_duration_hours, longest_gap_hours, longest_gap_date, dan peak_hour tetap null bila server mengirim null. Mengoersinya menjadi 0 di ponsel akan mengubah 'tidak dapat dihitung' menjadi 'tidak ada' — persis kesalahan yang sudah dicegah di sisi server.",
+        "Penerjemahan galat ada di VIEW, bukan di repo. Repo membiarkan galat axios naik apa adanya (tidak ada kelas galat khusus di repo laporan basis kode ini). LaporanCagesTrackView menangani: status 401 -> arahkan ke Login; galat lain -> pesan kegagalan + tombol coba lagi, dengan periode terpilih dipertahankan.",
+        "Ekspor memakai responseType 'blob' lalu saveCsvFile() dengan anchor + object URL — konvensi web standar yang juga berlaku di WebView Capacitor. Pengambilan data dan penyimpanan berkas sengaja dipisah agar keduanya dapat diuji sendiri-sendiri.",
+        "Pintu masuk: tambahkan satu entri ke REPORT_ROUTES di mobile/src/views/ReportingPilihStasiunView.vue agar tile Cages & Tracks aktif, dan satu rute '/reports/cages-track' bernama 'report-cages-track' di mobile/src/router/index.ts dengan meta.public = false. Tanpa entri REPORT_ROUTES itu layar tidak terjangkau walau seluruh testnya hijau — jebakan yang sama dengan REPORT_ROUTES di sisi web."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Lewat endpoint screen-130 — tidak ada akses basis data langsung dari ponsel"
+        },
+        {
+          "entity_id": "cages-tipped-time",
+          "operation": "SELECT",
+          "description": "Lewat endpoint screen-130"
+        },
+        {
+          "entity_id": "cages-track-record",
+          "operation": "SELECT",
+          "description": "Lewat endpoint screen-130"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "Lewat endpoint screen-130"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin, lewat endpoint screen-130"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Perangkat kehilangan jaringan saat memuat",
+          "handling": "Galat transport naik dari repo; view menampilkan pesan kegagalan + tombol coba lagi dan MEMPERTAHANKAN periode terpilih, sehingga coba lagi memakai period_id yang sama"
+        },
+        {
+          "condition": "Sesi berakhir saat layar terbuka",
+          "handling": "401 UNAUTHENTICATED; view mengarahkan ke Login tanpa sempat merender angka. Bukan kasus coba lagi"
+        },
+        {
+          "condition": "Admin belum memilih mill",
+          "handling": "scopeParams mengembalikan {}, server menjawab 422 VALIDATION_ERROR; view menampilkan arahan memilih mill dan tidak memanggil /summary"
+        },
+        {
+          "condition": "Akun terikat mill tetapi business_unit_id null",
+          "handling": "422 VALIDATION_ERROR dengan pesan menghubungi Admin; pemilih Mill TIDAK dirender sebagai gantinya"
+        },
+        {
+          "condition": "Operator mengirim business_unit_id mill lain",
+          "handling": "Server mengabaikannya dan menjawab 200 berisi data mill sendiri — mengunci bahwa Operator ada di cabang TERIKAT MILL, bukan cabang Admin"
+        },
+        {
+          "condition": "Operator menembak period_id milik mill lain",
+          "handling": "403 FORBIDDEN dari authorizePeriod() — di sini memang ada objek tertentu yang ditembak"
+        },
+        {
+          "condition": "Periode tanpa data / seluruh hari tanpa jendela / satu jam penumpahan saja",
+          "handling": "Server mengirim null pada KPI yang tidak dapat dihitung; repo mempertahankan null dan view menampilkan keterangan, bukan angka 0"
+        },
+        {
+          "condition": "Rekap harian puluhan baris di layar ponsel",
+          "handling": "Bagian rekap dapat ditutup/dibuka murni di sisi klien — menutup dan membuka TIDAK memicu permintaan jaringan baru"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh peran mobile boleh melihat, termasuk Operator",
+        "Operator, Supervisor, dan Mill Management terkunci pada mill akunnya; business_unit_id dari klien diabaikan server",
+        "Admin wajib memilih mill; tanpa itu 422",
+        "Angka berasal dari endpoint yang sama dengan laporan web — tidak ada perhitungan kedua di sisi ponsel",
+        "null bertahan sebagai null melewati lapisan klien",
+        "Status periode tidak membatasi pembacaan maupun ekspor",
+        "Layar hanya membaca; tidak ada aksi tulis",
+        "Kegagalan jaringan dinyatakan beserta cara mencoba lagi, tanpa kehilangan periode terpilih"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "fetchPeriods memanggil tepat GET /api/cages-track-reports/periods dan tidak menyaring jenis stasiun di sisi klien",
+          "given": "apiClient.get di-mock mengembalikan { data: { data: [ { id, name, start_date, end_date, status, station_type, station_type_label } ] } }",
+          "expect": "apiClient.get dipanggil tepat satu kali dengan path '/api/cages-track-reports/periods'; seluruh entri diteruskan apa adanya; TIDAK ada penyaringan station_type di repo — penyaringan cakupan Cages & Tracks sepenuhnya milik server"
+        },
+        {
+          "description": "scopeParams tidak mengirim business_unit_id untuk peran yang terikat mill",
+          "given": "fetchPeriods({ isAdmin: false, businessUnitId: 'BU-A' }) dipanggil",
+          "expect": "params yang dikirim adalah objek KOSONG — kunci business_unit_id tidak ada sama sekali (bukan null, bukan string kosong). Bahkan ketika pemanggil menyertakan businessUnitId, nilai itu tidak ikut dikirim untuk peran non-Admin"
+        },
+        {
+          "description": "scopeParams mengirim business_unit_id hanya ketika Admin sudah memilih mill",
+          "given": "fetchPeriods({ isAdmin: true, businessUnitId: 'BU-B' }) dipanggil",
+          "expect": "params yang dikirim adalah { business_unit_id: 'BU-B' }"
+        },
+        {
+          "description": "scopeParams tidak mengirim business_unit_id ketika Admin belum memilih mill",
+          "given": "fetchPeriods({ isAdmin: true, businessUnitId: null }) dipanggil",
+          "expect": "params yang dikirim adalah objek kosong; repo tidak mengarang nilai mill dan tidak melempar galat sendiri — server yang menjawab 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "fetchSummary memanggil GET /api/cages-track-reports/summary dengan period_id",
+          "given": "fetchSummary('per-1') dipanggil, apiClient.get di-mock mengembalikan payload ringkasan yang sah",
+          "expect": "apiClient.get dipanggil satu kali dengan path '/api/cages-track-reports/summary' dan params { period_id: 'per-1' }"
+        },
+        {
+          "description": "unwrap menerima respons summary TANPA pembungkus data maupun DENGAN pembungkus",
+          "given": "dua pemanggilan: (a) response.data = { kpi: {...}, hourly: [...] }; (b) response.data = { data: { kpi: {...}, hourly: [...] } }",
+          "expect": "keduanya menghasilkan objek ringkasan yang sama. Controller mengirim summary tanpa pembungkus sementara periods dan business-units/options memakai pembungkus; repo tidak boleh pecah bila salah satunya berubah"
+        },
+        {
+          "description": "fetchSummary meneruskan seluruh KPI apa adanya tanpa perhitungan kedua",
+          "given": "respons memuat kpi: { total_cages_tipped: 1284, total_cages_out: 1310, avg_cages_per_day: 91.7, peak_hour: 9, peak_hour_cages: 168, idle_operating_hours: 9 }",
+          "expect": "seluruh nilai pada hasil identik dengan nilai respons, termasuk 91.7 yang TIDAK dihitung ulang dari 1284/14 dan tidak dibulatkan ulang"
+        },
+        {
+          "description": "fetchSummary mempertahankan null pada avg_tippler_duration_hours, bukan mengoersinya menjadi 0",
+          "given": "respons memuat kpi.avg_tippler_duration_hours = null dan kpi.days_without_valid_window = 14",
+          "expect": "hasil mempertahankan null dan meneruskan days_without_valid_window = 14. Nol berarti 'tippler tidak pernah jalan'; null berarti 'tidak dapat dihitung' — perbedaan itu tidak boleh hilang di lapisan klien"
+        },
+        {
+          "description": "fetchSummary mempertahankan null pada longest_gap_hours dan longest_gap_date",
+          "given": "respons memuat kpi.longest_gap_hours = null dan kpi.longest_gap_date = null",
+          "expect": "hasil mempertahankan keduanya null sehingga layar dapat menyatakan 'tidak ada jeda yang dapat dihitung'; angka 0 tidak pernah muncul sebagai penggantinya"
+        },
+        {
+          "description": "fetchSummary mempertahankan peak_hour null pada periode tanpa penumpahan",
+          "given": "respons memuat kpi.peak_hour = null dan kpi.peak_hour_cages = 0",
+          "expect": "peak_hour tetap null; repo tidak menggantinya dengan 0, yang akan terbaca sebagai 'puncaknya jam 00.00'"
+        },
+        {
+          "description": "fetchSummary meneruskan 24 entri hourly beserta penanda within_operating_window",
+          "given": "respons memuat hourly berisi 24 entri { hour, cages, within_operating_window }, sebagian bertanda false",
+          "expect": "hasil memuat tepat 24 entri dalam urutan respons; within_operating_window diteruskan apa adanya; repo TIDAK menghitung sendiri jam mana yang di dalam jendela"
+        },
+        {
+          "description": "fetchSummary tidak mengurutkan ulang maupun menyaring daily, termasuk baris bernilai nol",
+          "given": "respons memuat daily dengan satu entri ber-cages_tipped = 0",
+          "expect": "seluruh baris diteruskan dalam urutan server termasuk baris nol; repo tidak menyaring, tidak mengurutkan ulang, dan tidak menyisipkan tanggal yang tidak dikirim server"
+        },
+        {
+          "description": "fetchSummary meneruskan queue sebagai min dan rata-rata tanpa penjumlahan",
+          "given": "respons memuat queue: { min_remaining: 4, avg_remaining: 11.3 }",
+          "expect": "hasil memuat kedua nilai apa adanya dan TIDAK memuat medan total/jumlah antrean apa pun; repo tidak pernah menjumlahkan potret per jam"
+        },
+        {
+          "description": "fetchSummary meneruskan payload periode kosong apa adanya",
+          "given": "respons memuat seluruh KPI nol, hourly 24 entri bernilai 0, dan daily = []",
+          "expect": "hasil meneruskan nilai-nilai itu tanpa menggantinya dengan nilai bentukan; layar yang memutuskan menampilkan keterangan belum ada data"
+        },
+        {
+          "description": "fetchBusinessUnits memanggil endpoint opsi mill dan membaca pembungkus data",
+          "given": "apiClient.get di-mock mengembalikan { data: { data: [ { id: 'BU-A', name: 'PKS Sungai Bahar' } ] } }",
+          "expect": "apiClient.get dipanggil dengan '/api/cages-track-reports/business-units/options'; hasil berupa [{ id: 'BU-A', name: 'PKS Sungai Bahar' }]"
+        },
+        {
+          "description": "exportCsv meminta responseType blob dan format csv",
+          "given": "exportCsv('per-1') dipanggil",
+          "expect": "apiClient.get dipanggil dengan '/api/cages-track-reports/export', params { period_id: 'per-1', format: 'csv' }, dan responseType 'blob'; repo TIDAK menyusun isi CSV sendiri dari data di layar"
+        },
+        {
+          "description": "saveCsvFile memicu unduhan lewat anchor + object URL dan membersihkannya",
+          "given": "saveCsvFile(blob, 'cages-track.csv') dipanggil dengan document ter-mock",
+          "expect": "URL.createObjectURL dipanggil, anchor ber-download 'cages-track.csv' ditambahkan lalu diklik lalu dihapus dari DOM, dan URL.revokeObjectURL dipanggil. Dipisah dari exportCsv supaya pengambilan data dan penyimpanan berkas dapat diamati sendiri-sendiri"
+        },
+        {
+          "description": "galat dari apiClient diteruskan naik, tidak ditelan menjadi hasil kosong",
+          "given": "apiClient.get menolak dengan galat ber-response.status 403",
+          "expect": "fetchSummary menolak dengan galat yang sama; repo TIDAK mengembalikan objek kosong maupun nilai bawaan. Repo laporan di basis kode ini memang tidak menerjemahkan galat menjadi kelas galat sendiri — penerjemahan 401 menuju Login ada di view, dan itulah yang diuji component test"
+        },
+        {
+          "description": "galat transport tanpa objek response juga diteruskan naik",
+          "given": "apiClient.get menolak tanpa properti response (perangkat kehilangan sinyal)",
+          "expect": "fetchSummary menolak dengan galat yang sama; tidak ada nilai bawaan yang dikembalikan sehingga view dapat menampilkan pesan kegagalan beserta tombol coba lagi"
+        },
+        {
+          "description": "repo tidak memuat satu pun perhitungan KPI di sisi klien",
+          "given": "seluruh fungsi repo dipanggil dengan respons yang sah",
+          "expect": "tidak satu pun fungsi menjalankan agregasi (jumlah, rata-rata, min, maks) atas medan laporan; satu-satunya transformasi adalah penyeragaman nama medan dan pembacaan pembungkus. Ini yang mengunci aturan bisnis 'tidak ada perhitungan kedua di sisi ponsel'"
+        },
+        {
+          "description": "mengembalikan hasil lengkap ketika seluruh kondisi terpenuhi",
+          "given": "apiClient di-mock untuk options, periods, summary, dan export dengan data yang sah",
+          "expect": "fetchBusinessUnits, fetchPeriods, fetchSummary, dan exportCsv masing-masing mengembalikan bentuk yang sesuai respons server, tanpa galat dan tanpa nilai bentukan"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "cages-track-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "cages-tipped-time",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-130--laporan-cages-track-web",
+      "reason": "Memakai ULANG keempat endpoint /api/cages-track-reports/* milik layar itu. Perluasan akses Operator MENGUBAH berkas milik screen-130 (routes/api.php, CagesTrackReportService, dan testnya) — bukan hanya menambah"
+    },
+    {
+      "screen_id": "screen-141--reporting-pilih-stasiun-mobile",
+      "reason": "Satu-satunya pintu masuk. Tile Cages & Tracks baru aktif setelah REPORT_ROUTES di ReportingPilihStasiunView.vue ditambah satu entri"
+    },
+    {
+      "screen_id": "screen-134--dashboard-reporting-mobile",
+      "reason": "Langkah sebelum pemilih stasiun pada rantai navigasi"
+    },
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Tanpa Periode Pelaporan yang dibuat di sana, layar ini tidak punya apa pun untuk ditampilkan"
+    }
+  ],
+  "implementation_notes": [
+    "TIDAK ADA endpoint baru dan TIDAK ADA tambahan ke api-index. Keempat endpoint sudah terdaftar atas nama screen-130. Yang berubah hanya actor_ids-nya, karena Operator kini diterima.",
+    "Empat perubahan perluasan akses harus dikerjakan BERSAMAAN. Yang paling mudah terlewat adalah resolveBusinessUnit(): tanpa menambahkan Operator ke cabang terikat mill, Operator jatuh ke cabang Admin dan dapat membaca mill mana pun. Dikunci oleh test 'mencoba melihat mill lain' langkah 1, yang mengharuskan 200 berisi data mill SENDIRI.",
+    "Guard rute wajib 'auth:web,sanctum', bukan 'auth:web' saja — mobile memakai token Sanctum. Rute sterilizer-reports sudah memakai bentuk ini sejak screen-135; cages-track-reports masih 'auth:web' dan harus disamakan.",
+    "Test screen-130 yang saat ini mengasersi Operator ditolak 403 di API HARUS disesuaikan menjadi: Operator diterima di API, tetapi tetap ditolak di rute web /reports/cages-track. Jangan melemahkan asersi lain, dan jangan menghapus asersi penolakan di sisi web.",
+    "unit_test_cases menyasar mobile/src/services/cagesTrackReportRepo.ts, BUKAN CagesTrackReportService. Perubahan sisi server ditutup oleh integration test (api_test) dan oleh penyesuaian test screen-130.",
+    "Nama fungsi repo mengikuti sterilizerReportRepo.ts APA ADANYA: fetchBusinessUnits (bukan fetchBusinessUnitOptions), fetchPeriods, fetchSummary, exportCsv, saveCsvFile. Diverifikasi langsung di berkas itu.",
+    "Nama medan respons memakai skema screen-130: total_cages_tipped, total_cages_out, avg_cages_per_day, peak_hour, peak_hour_cages, idle_operating_hours, longest_gap_hours, longest_gap_date, avg_tippler_duration_hours, days_with_records, days_without_valid_window, hourly[{hour,cages,within_operating_window}], daily[], queue{min_remaining,avg_remaining}, total{}.",
+    "Kode galat memakai skema yang sama dengan web: VALIDATION_ERROR (422), FORBIDDEN (403), NOT_FOUND (404), UNAUTHENTICATED (401), EXPORT_FAILED (422). Satu endpoint tidak boleh menjawab kode berbeda tergantung siapa yang memanggilnya.",
+    "Skenario 'jaringan gagal' sengaja punya api_test kosong: itu kegagalan transport di sisi klien, bukan perilaku kontrak server. Cakupannya ada di component test dan browser test.",
+    "Browser test memakai Playwright terhadap Vite dev server. Layar Capacitor ini BISA diuji di peramban — jangan menandainya mobile-only lalu menunda.",
+    "Mock visual acuan: .asdlc/generated/2-business-spec/screens/html/screen-136--laporan-cages-track-mobile.html. Ketujuh kolom rekap hariannya sudah diverifikasi identik dengan mock web screen-130.",
+    "KOREKSI 2026-09-24: entri error_codes '403 FORBIDDEN — actor operator' pada /periods sempat terbawa dari salinan screen-130 dan bertentangan dengan actor_permissions (Operator can_access: true) serta dengan endpoint /summary dan /export. Dihapus. Yang otoritatif adalah test scenario 'akun belum terhubung ke mill': Operator menerima 200, atau 422 VALIDATION_ERROR bila akunnya belum terikat mill — tidak pernah 403 pada endpoint ini."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — berhasil dilihat Operator, Supervisor, dan Mill Management",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Operator (users.business_unit_id = BU-A); tanpa parameter business_unit_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan auth store berperan operator/supervisor/mill_management dan business_unit_id terisi, repo di-mock mengembalikan daftar periode lalu payload ringkasan; pilih periode pertama",
+        "assert": "pemilih Mill tidak dirender sama sekali, nama mill tampil sebagai keterangan, seluruh KPI terisi dari payload (total_cages_tipped, total_cages_out, avg_cages_per_day, peak_hour, idle_operating_hours, longest_gap_hours, avg_tippler_duration_hours), hourly 24 entri, daily, queue, dan rekap harian terender, dan tidak ada satu pun kontrol tulis"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk pada Vite dev server sebagai Operator, buka Dashboard & Reporting lalu Reporting, tekan tile Cages & Tracks, pilih periode pertama",
+        "assert": "seluruh bagian laporan tampil satu kolom, lebar konten tidak melampaui viewport sehingga tidak ada gulir horizontal halaman, pemilih Mill tidak tampil, dan tidak ada tombol simpan/ubah/hapus"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — berhasil dilihat Admin setelah memilih mill",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Admin (users.business_unit_id = null)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}",
+            "period_id": "{{step2.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan auth store berperan admin tanpa business_unit_id, repo di-mock mengembalikan opsi mill; pilih satu mill lalu satu periode",
+        "assert": "pemilih Mill dirender, memilih mill memicu pemuatan ulang daftar periode, dan setelah periode dipilih seluruh KPI, hourly, daily, queue, dan rekap harian tampil untuk mill yang dipilih"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk sebagai Admin, buka laporan Cages & Tracks, pilih sebuah mill, lalu pilih sebuah periode",
+        "assert": "angka laporan tampil untuk mill yang dipilih dalam satu kolom tanpa gulir horizontal halaman, dan mengganti mill memuat ulang daftar periode beserta seluruh angkanya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — Operator membuka laporan",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode milik BU-A>",
+            "_context": "Token Sanctum Operator (business_unit_id = BU-A)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan auth store berperan operator dan business_unit_id terisi, lalu pilih sebuah periode",
+        "assert": "laporan terender penuh persis seperti bagi peran lain, pemilih Mill tidak dirender sehingga mill tidak dapat diganti dari layar, dan scopeParams menghasilkan objek kosong sehingga pemanggilan repo tidak menyertakan business_unit_id"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk sebagai Operator dan buka laporan periode Cages & Tracks",
+        "assert": "laporan terbuka penuh tanpa pembatasan bagian mana pun, tidak ada kontrol untuk mengganti mill, dan nama mill yang tampil adalah mill pada akun Operator"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Admin; tanpa parameter business_unit_id"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan auth store berperan admin tanpa business_unit_id dan biarkan pemilih Mill kosong",
+        "assert": "pemilih Mill dirender, tidak satu pun blok KPI atau grafik dirender, arahan memilih mill terlebih dahulu tampil, dan repo.fetchSummary tidak pernah dipanggil"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk sebagai Admin dan buka laporan Cages & Tracks tanpa memilih mill mana pun",
+        "assert": "pemilih Mill tampil, arahan memilih mill terlebih dahulu terbaca, dan tidak ada satu pun angka laporan yang tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — mill belum punya periode",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Supervisor pada mill tanpa satu pun periode mencakup Cages & Tracks"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan repo.fetchPeriods di-mock mengembalikan daftar kosong",
+        "assert": "pemilih periode tampil kosong, arahan menghubungi Admin dirender, tidak ada blok angka maupun grafik, dan repo.fetchSummary tidak pernah dipanggil"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk sebagai pengguna pada mill tanpa periode Cages & Tracks dan buka laporan",
+        "assert": "pemilih periode kosong, pesan arahan menghubungi Admin terbaca, dan layar tidak kosong tanpa penjelasan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — periode tanpa data",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode tanpa satu pun baris rincian penumpahan>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan payload berisi seluruh KPI nol, hourly 24 entri bernilai 0, daily = []",
+        "assert": "seluruh KPI terender 0, peak_hour dan longest_gap_hours terender sebagai keterangan bukan angka, keterangan belum ada data tampil, dan grafik sebaran per jam maupun tren harian tidak dirender sebagai grafik kosong"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka laporan dan pilih periode yang tidak memuat satu pun penumpahan lori",
+        "assert": "angka utama terbaca nol, keterangan belum ada data tampil, dan tidak ada kanvas grafik kosong yang menyesatkan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — hari dengan record tetapi tanpa rincian per jam",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang memuat satu tanggal ber-record tanpa baris rincian per jam>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan daily yang memuat satu entri ber-cages_tipped = 0 dan avg_cages_per_day yang pembaginya mencakup tanggal itu",
+        "assert": "baris tanggal itu tetap terender pada rekap harian dengan nilai 0 (tidak disembunyikan), dan avg_cages_per_day yang ditampilkan sama persis dengan nilai server"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "pilih periode yang di dalamnya ada tanggal ber-record tanpa rincian per jam, lalu buka rekap harian",
+        "assert": "tanggal itu terbaca pada rekap harian dengan lori ditumpahkan 0, dan rata-rata per hari mencerminkan tanggal itu sebagai pembagi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — seluruh hari jendela operasinya tidak dapat dihitung",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang tidak satu pun tanggalnya punya jendela operasi terhitung>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan payload ber-avg_tippler_duration_hours = null dan days_without_valid_window terisi",
+        "assert": "durasi operasi rata-rata terender sebagai penanda tidak tersedia dan BUKAN angka 0, dan days_without_valid_window tampil sebagai keterangan pendamping"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "pilih periode yang seluruh tanggalnya tidak punya jendela operasi tippler yang dapat dihitung",
+        "assert": "kartu durasi operasi rata-rata terbaca tidak tersedia (bukan 0 jam), dan jumlah hari yang dikeluarkan dari perhitungan terbaca di layar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — penumpahan hanya pada satu jam",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode dengan tepat satu jam penumpahan sepanjang periode>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan payload ber-longest_gap_hours = null dan longest_gap_date = null",
+        "assert": "kartu jeda terpanjang terender sebagai keterangan tidak ada jeda yang dapat dihitung, dan teks '0 jam' tidak muncul di kartu itu"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "pilih periode yang sepanjang periode itu hanya punya satu jam penumpahan",
+        "assert": "jeda terpanjang terbaca sebagai tidak dapat dihitung, dan tidak ada angka 0 jam yang ditampilkan sebagai jeda"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — operasi melewati tengah malam",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode dengan tanggal berjendela tippler 22:00 hari itu sampai 04:00 hari berikutnya>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan payload yang memuat tanggal berjendela melintasi tengah malam beserta operating_hours positif dari server",
+        "assert": "operating_hours hari itu terender sebagai nilai positif, longest_gap_hours terender sesuai nilai server tanpa jeda semu yang panjang, dan komponen tidak menghitung ulang selisih jam di sisi klien"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "pilih periode yang memuat tanggal dengan jendela operasi tippler melewati tengah malam",
+        "assert": "jam operasi hari itu terbaca positif (tidak negatif), dan jeda terpanjang tidak melonjak menjadi nilai semu yang panjang"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — mencoba melihat mill lain",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode BU-A>",
+            "business_unit_id": "<BU-B, mill LAIN>",
+            "_context": "Token Sanctum Operator pada BU-A"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode milik BU-B>",
+            "_context": "Token Sanctum Operator pada BU-A"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "<BU-B>",
+            "_context": "Token Sanctum Operator pada BU-A"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan auth store berperan operator dan periksa argumen yang diteruskan ke repo pada setiap pemuatan",
+        "assert": "tidak satu pun pemanggilan repo menyertakan business_unit_id karena scopeParams mengembalikan objek kosong untuk peran non-Admin, dan layar tidak menyediakan jalan apa pun untuk memasukkan mill lain"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk sebagai Operator pada BU-A, buka laporan, lalu amati permintaan jaringan yang dikirim halaman",
+        "assert": "nama mill yang tampil adalah BU-A dan angka yang tampil milik BU-A, serta tidak ada kontrol pada layar yang memungkinkan berpindah mill"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Operator dengan users.business_unit_id = null"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan auth store berperan operator/supervisor/mill_management yang business_unit_id-nya null",
+        "assert": "pesan menghubungi Admin dirender, pemilih Mill TIDAK dirender sebagai gantinya, dan tidak ada blok angka yang dirender"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "masuk sebagai Supervisor yang akunnya belum terhubung ke mill mana pun lalu buka laporan Cages & Tracks",
+        "assert": "pesan menghubungi Admin terbaca, tidak ada daftar seluruh mill yang ditawarkan, dan tidak ada angka laporan yang tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — jaringan gagal",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pilih periode, buat repo.fetchSummary menolak dengan galat transport tanpa objek response, lalu tekan tombol coba lagi setelah mock diubah agar berhasil",
+        "assert": "pesan kegagalan jaringan dan tombol coba lagi dirender, nilai periode terpilih pada pemilih Periode TETAP SAMA setelah kegagalan, dan penekanan coba lagi memanggil ulang repo.fetchSummary dengan period_id yang SAMA lalu merender angka tanpa memaksa pengguna memilih periode lagi"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka laporan, pilih sebuah periode, matikan jaringan pada konteks peramban sehingga permintaan gagal, lalu nyalakan kembali dan tekan tombol coba lagi",
+        "assert": "pesan kegagalan yang jelas beserta tombol coba lagi tampil (bukan layar kosong dan bukan diam), periode yang sudah dipilih masih terpilih, dan setelah coba lagi angka laporan periode itu tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — sesi berakhir",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1",
+            "_context": "tanpa token Sanctum yang sah (token sudah dicabut)"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan router di-mock, lalu buat repo.fetchSummary menolak dengan galat ber-response.status 401",
+        "assert": "router.push dipanggil menuju rute Login, tidak ada blok angka laporan yang sempat dirender, dan pesan kegagalan jaringan biasa TIDAK ditampilkan — sesi berakhir bukan kasus coba lagi. Penerjemahan 401 ini memang tugas view, bukan repo"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka laporan lalu batalkan sesi (hapus token pada penyimpanan) dan picu pemuatan ulang angka dengan memilih periode",
+        "assert": "peramban berpindah ke layar Login dan tidak ada satu pun angka laporan yang tampil sebelum perpindahan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — periode tertutup",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode berstatus closed>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode berstatus closed yang sama>",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan periode terpilih berstatus tertutup",
+        "assert": "seluruh bagian laporan tetap terender penuh, penanda status tertutup dirender, dan tombol Ekspor tetap aktif (tidak dinonaktifkan oleh status periode)"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "pilih periode yang berstatus tertutup lalu jalankan Ekspor",
+        "assert": "laporan tampil penuh, status tertutup terbaca di layar, dan unduhan CSV berjalan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — layar hanya membaca, tanpa aksi tulis",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1",
+            "_context": "bandingkan cuplikan tabel cages_track_records dan cages_tipped_times sebelum dan sesudah permintaan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan laporan terisi penuh, lalu telusuri seluruh bagian dari KPI sampai rekap harian",
+        "assert": "tidak ada elemen form input, tombol simpan, tombol ubah, maupun tombol hapus di seluruh pohon komponen; satu-satunya kontrol adalah pemilih Periode, pemilih Mill (khusus admin), buka/tutup rekap harian, Ekspor, dan Coba lagi"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka laporan hingga tampil penuh dan gulir dari angka utama sampai rekap harian",
+        "assert": "tidak ada satu pun kontrol yang mengubah data stasiun di sepanjang layar, dan data stasiun pada periode itu tetap sama setelah layar ditutup"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — angka ponsel sama persis dengan laporan versi web",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1",
+            "_context": "Token Sanctum Supervisor BU-A;  — jalur mobile"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1",
+            "_context": "Sesi auth:web Supervisor BU-A;  — jalur web, endpoint yang sama persis"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan payload ringkasan tetap, lalu bandingkan setiap angka yang dirender dengan nilai pada payload",
+        "assert": "setiap KPI yang tampil sama persis dengan nilai payload tanpa pembulatan maupun agregasi ulang, dan komponen tidak memanggil fungsi perhitungan KPI apa pun"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka periode yang sama pada layar mobile dan pada laporan web /reports/cages-track milik screen-130 dengan akun Supervisor yang sama",
+        "assert": "total_cages_tipped, total_cages_out, avg_cages_per_day, peak_hour, idle_operating_hours, longest_gap_hours, dan queue bernilai identik pada kedua layar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — periode yang tidak mencakup Cages & Tracks tidak ditawarkan",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Supervisor pada mill yang punya periode cages-track, periode station_type NULL, dan periode sterilizer"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan repo.fetchPeriods di-mock mengembalikan tepat daftar yang sudah disaring server",
+        "assert": "pemilih Periode merender tepat sebanyak entri yang dikembalikan server dalam urutan yang sama, dan komponen TIDAK menjalankan penyaringan station_type sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka pemilih Periode pada laporan Cages & Tracks di mill yang punya beragam cakupan periode",
+        "assert": "hanya periode berjenis Cages & Tracks dan periode berlaku semua jenis stasiun yang terbaca; periode sterilizer tidak muncul"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — rentang periode inklusif di kedua ujung",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode dengan penumpahan tepat pada start_date dan end_date>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan payload yang daily-nya memuat baris pada start_date dan end_date",
+        "assert": "baris tanggal mulai dan tanggal akhir keduanya terender pada rekap harian dan keduanya muncul pada tren harian; komponen tidak memangkas ujung rentang"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "pilih periode yang punya penumpahan tepat pada tanggal mulai dan tanggal akhir",
+        "assert": "kedua tanggal ujung terbaca pada rekap harian dan tren harian, dan total lori ditumpahkan sudah mencakup keduanya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — jam menganggur hanya di dalam jendela operasi tippler",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode dengan jendela tippler 06:00-18:00>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan payload ber-idle_operating_hours dari server dan hourly yang sebagian bertanda within_operating_window false",
+        "assert": "angka idle_operating_hours yang tampil sama persis dengan nilai server, jam di luar jendela dirender dengan penanda visual pembeda, dan komponen TIDAK menghitung sendiri jumlah jam kosong dari hourly"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "pilih periode yang jendela operasi tipplernya lebih pendek daripada satu hari penuh dan baca kartu jam menganggur",
+        "assert": "jam menganggur hanya mencerminkan jam kosong di dalam jendela operasi, dan jam di luar jendela terbaca sebagai di luar jendela — bukan sebagai menganggur"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — jeda terpanjang tidak melintasi pergantian tanggal",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode dengan rentang kosong membentang dari akhir satu tanggal ke awal tanggal berikutnya>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan payload ber-longest_gap_hours dan longest_gap_date dari server",
+        "assert": "nilai jeda dan tanggalnya terender sama persis dengan payload, longest_gap_date adalah satu tanggal tunggal (bukan rentang lintas tanggal), dan komponen tidak menurunkan jeda sendiri dari hourly"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "pilih periode yang punya rentang kosong melewati pergantian tanggal dan baca kartu jeda terpanjang",
+        "assert": "jeda terpanjang terbaca sebagai jeda di dalam satu tanggal beserta tanggalnya, dan rentang kosong lintas tanggal tidak tergabung menjadi satu jeda panjang"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — antrean lori tersisa tidak pernah dijumlahkan",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode dengan cages_remain pada banyak jam>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan payload queue berisi min_remaining dan avg_remaining saja",
+        "assert": "hanya kedua nilai itu yang dirender beserta keterangan potret per jam; tidak ada elemen bertuliskan total/jumlah antrean, dan komponen tidak memanggil reduce penjumlahan atas nilai antrean"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "pilih periode yang punya antrean lori tersisa pada banyak jam lalu baca bagian antrean",
+        "assert": "antrean terbaca sebagai nilai terendah dan rata-rata dengan keterangan potret per jam, dan tidak ada angka total antrean lintas jam di layar"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — rekap harian dapat ditutup agar layar ponsel tetap terbaca",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode sebulan penuh sehingga daily berisi puluhan baris>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan daily 30 baris, hitung pemanggilan repo.fetchSummary, lalu tutup rekap harian dan buka lagi",
+        "assert": "setelah ditutup baris rekap tidak lagi dirender sementara KPI dan grafik tetap dirender; setelah dibuka lagi seluruh 30 baris kembali utuh; jumlah pemanggilan repo.fetchSummary TETAP 1 — tidak ada pemuatan ulang dari server"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "pada viewport ponsel, buka periode sebulan penuh, tutup bagian rekap harian, lalu buka kembali",
+        "assert": "saat tertutup angka utama dan grafik terbaca tanpa gulir panjang, halaman tetap satu kolom tanpa gulir horizontal, saat dibuka kembali seluruh baris rekap tampil utuh, dan tidak ada permintaan jaringan baru"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Cages & Tracks (Mobile) — mengunduh rincian penumpahan per jam sebagai CSV",
+      "usecase_id": "usecase-136--laporan-cages-track-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/cages-track-reports/export"
+          },
+          "request_example": {
+            "period_id": "per-1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanCagesTrackView",
+        "action": "pasang komponen dengan laporan terisi, mock repo.exportCsv dan repo.saveCsvFile, lalu tekan tombol Ekspor",
+        "assert": "repo.exportCsv dipanggil tepat satu kali dengan period_id periode yang sedang dibuka, repo.saveCsvFile dipanggil dengan blob hasilnya, dan komponen TIDAK menyusun isi CSV sendiri dari data di layar"
+      },
+      "browser_test": {
+        "route": "/reports/cages-track",
+        "action": "buka sebuah periode Cages & Tracks lalu jalankan unduh CSV",
+        "assert": "berkas CSV terunduh, isinya satu baris per rincian penumpahan per jam sepanjang periode dengan kolom konteks record diulang, dan tidak ada data stasiun yang berubah setelah ekspor"
+      }
+    }
+  ]
+}

@@ -144,6 +144,17 @@ function goToStationList() {
   router.push({ name: 'station-list' })
 }
 
+/**
+ * screen-134--dashboard-reporting-mobile — the 'Dashboard & Reporting'
+ * card now navigates to its own container screen instead of showing the
+ * "Segera Hadir" placeholder message. That screen (not this one) is
+ * responsible for the "belum tersedia" placeholder state of its own two
+ * sub-choices.
+ */
+function goToDashboardReporting() {
+  router.push({ name: 'dashboard-reporting' })
+}
+
 interface MenuCard {
   key: string
   label: string
@@ -164,7 +175,7 @@ const MENU_CARDS: MenuCard[] = [
   {
     key: 'dashboard-reporting',
     label: 'Dashboard & Reporting',
-    action: showComingSoon,
+    action: goToDashboardReporting,
   },
 ]
 

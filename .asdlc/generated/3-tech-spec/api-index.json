@@ -1,8 +1,8 @@
 {
-  "ver": 49,
+  "ver": 54,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-09-23"
+    "updated_at": "2026-09-24"
   },
   "endpoints": [
     {
@@ -1721,6 +1721,17 @@
       ]
     },
     {
+      "method": "POST",
+      "path": "/api/periods/{id}/open",
+      "description": "Membuka periode yang masih berstatus draft menjadi open",
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "usecase_id": "usecase-144--buka-periode-pelaporan",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
       "method": "GET",
       "path": "/api/sterilizer-reports/business-units/options",
       "description": "Daftar mill untuk pemilih Mill pada Laporan Sterilizer — khusus Admin",
@@ -1728,7 +1739,8 @@
       "usecase_id": "usecase-129--laporan-sterilizer-web",
       "auth_required": true,
       "actor_ids": [
-        "actor-admin"
+        "actor-admin",
+        "actor-station-operator"
       ]
     },
     {
@@ -1741,7 +1753,8 @@
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
-        "actor-admin"
+        "actor-admin",
+        "actor-station-operator"
       ]
     },
     {
@@ -1754,7 +1767,8 @@
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
-        "actor-admin"
+        "actor-admin",
+        "actor-station-operator"
       ]
     },
     {
@@ -1763,6 +1777,131 @@
       "description": "Ekspor siklus Sterilizer sepanjang periode ke CSV/Excel, satu baris per siklus",
       "screen_id": "screen-129--laporan-sterilizer-web",
       "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin",
+        "actor-station-operator"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/station-reports/business-units/options",
+      "description": "Daftar mill yang boleh dipilih pada pemilih Mill layar Laporan Stasiun — hanya Admin",
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/station-reports/stations",
+      "description": "Daftar jenis stasiun untuk grid pemilihan laporan, beserta penanda apakah laporan periodenya sudah tersedia",
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/cages-track-reports/business-units/options",
+      "description": "Daftar mill untuk pemilih Mill pada Laporan Cages & Tracks — khusus Admin",
+      "screen_id": "screen-130--laporan-cages-track-web",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/cages-track-reports/periods",
+      "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Cages & Tracks pada mill yang dilihat",
+      "screen_id": "screen-130--laporan-cages-track-web",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/cages-track-reports/summary",
+      "description": "Seluruh angka Laporan Cages & Tracks untuk satu periode: KPI, sebaran per jam, tren harian, antrean tersisa, rekap harian",
+      "screen_id": "screen-130--laporan-cages-track-web",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/cages-track-reports/export",
+      "description": "Ekspor rincian penumpahan per jam sepanjang periode ke CSV, satu baris per jam penumpahan",
+      "screen_id": "screen-130--laporan-cages-track-web",
+      "usecase_id": "usecase-130--laporan-cages-track-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/boiler-room-reports/business-units/options",
+      "description": "Daftar mill untuk pemilih Mill pada Laporan Boiler Room — khusus Admin",
+      "screen_id": "screen-131--laporan-boiler-room-web",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/boiler-room-reports/periods",
+      "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Boiler Room pada mill yang dilihat",
+      "screen_id": "screen-131--laporan-boiler-room-web",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/boiler-room-reports/summary",
+      "description": "Seluruh angka Laporan Boiler Room untuk satu periode: kelengkapan pencatatan, metrik beserta jumlah pembacaannya, perawatan, tren harian, rekap per unit",
+      "screen_id": "screen-131--laporan-boiler-room-web",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/boiler-room-reports/export",
+      "description": "Ekspor pembacaan per slot waktu sepanjang periode ke CSV, satu baris per slot",
+      "screen_id": "screen-131--laporan-boiler-room-web",
+      "usecase_id": "usecase-131--laporan-boiler-room-web",
       "auth_required": true,
       "actor_ids": [
         "actor-supervisor",

@@ -1,0 +1,203 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "usecase-142--laporan-stasiun-web",
+  "name": "Pilih Stasiun untuk Laporan (Web)",
+  "description": "Pengguna web memilih mill lebih dulu, lalu memilih stasiun, untuk sampai ke layar laporan periode stasiun tersebut. Langkah memilih mill hanya berlaku bagi pengguna yang punya lebih dari satu pilihan: Admin memilih, sedangkan Supervisor dan Mill Management mill-nya ditetapkan otomatis dari akun mereka dan tidak dapat diganti. Grid stasiun bersumber dari master Jenis Stasiun; stasiun yang laporannya belum dibangun tampil sebagai tile nonaktif, bukan disembunyikan.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk dengan peran Supervisor, Mill Management, atau Admin",
+    "Master Jenis Stasiun sudah terisi"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Pengguna membuka menu 'Laporan Stasiun' di sidebar"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Sistem menentukan mill yang berlaku: bila pengguna terikat pada satu mill, mill itu ditetapkan otomatis dan langkah memilih dilewati; bila pengguna tidak terikat mill (Admin), sistem menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "actor-admin",
+      "description": "Admin memilih salah satu mill dari pemilih"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Sistem menampilkan grid stasiun dari master Jenis Stasiun, urut mengikuti urutan proses produksi, tanpa jenis historis 'other'"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Sistem menandai stasiun yang laporan periodenya belum dibangun sebagai tile nonaktif berketerangan 'Belum tersedia'"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Pengguna menekan tile stasiun yang laporannya sudah tersedia"
+    },
+    {
+      "step": 7,
+      "actor": "System",
+      "description": "Sistem membuka layar laporan periode stasiun itu dengan mill yang sudah ditetapkan ikut terbawa, sehingga laporan tidak menanyakan mill untuk kedua kalinya"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Admin belum memilih mill",
+      "trigger": "Pada langkah 3, Admin belum memilih mill apa pun",
+      "steps": [
+        "Grid stasiun tidak ditampilkan",
+        "Sistem menampilkan arahan untuk memilih mill lebih dulu"
+      ]
+    },
+    {
+      "name": "Belum ada mill di sistem",
+      "trigger": "Pada langkah 2, daftar mill yang boleh dilihat Admin kosong",
+      "steps": [
+        "Sistem memberi tahu bahwa master Business Unit masih kosong dan perlu diisi lebih dulu",
+        "Grid stasiun tidak ditampilkan"
+      ]
+    },
+    {
+      "name": "Akun terikat mill tetapi mill-nya kosong",
+      "trigger": "Pada langkah 2, pengguna berperan Supervisor atau Mill Management namun akunnya belum terhubung ke mill mana pun",
+      "steps": [
+        "Sistem menampilkan pesan bahwa akun belum terhubung ke mill dan meminta menghubungi Admin",
+        "Sistem TIDAK menampilkan daftar seluruh mill sebagai gantinya",
+        "Grid stasiun tidak ditampilkan"
+      ]
+    },
+    {
+      "name": "Menekan stasiun yang belum tersedia",
+      "trigger": "Pada langkah 6, pengguna menekan tile stasiun yang laporannya belum dibangun",
+      "steps": [
+        "Tidak terjadi perpindahan halaman",
+        "Tidak ada pesan error; keterangan 'Belum tersedia' tetap tampil pada tile itu"
+      ]
+    },
+    {
+      "name": "Master Jenis Stasiun kosong",
+      "trigger": "Pada langkah 4, master Jenis Stasiun tidak berisi satu pun jenis selain 'other'",
+      "steps": [
+        "Grid ditampilkan kosong dengan keterangan",
+        "Layar tidak menampilkan error"
+      ]
+    },
+    {
+      "name": "Operator mencoba membuka layar ini",
+      "trigger": "Pada langkah 1, yang membuka adalah Operator",
+      "steps": [
+        "Akses ditolak",
+        "Tidak ada data mill maupun stasiun yang terlihat"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pengguna berada di layar laporan periode stasiun yang dipilih",
+    "Mill yang berlaku sudah ditetapkan dan terbawa, tidak ditanyakan ulang"
+  ],
+  "business_rules": [
+    "Mill harus ditetapkan lebih dulu; selama belum, grid stasiun tidak ditampilkan",
+    "Pemilih Mill hanya untuk pengguna yang punya lebih dari satu pilihan; Supervisor dan Mill Management ditetapkan otomatis dan tidak dapat memilih mill lain",
+    "Daftar stasiun bersumber dari master Jenis Stasiun mengikuti urutan proses produksi, bukan daftar tetap",
+    "Jenis stasiun historis 'other' dikecualikan",
+    "Stasiun yang laporannya belum dibangun ditampilkan nonaktif, tidak disembunyikan",
+    "Mill yang ditetapkan ikut terbawa ke layar laporan",
+    "Operator tidak punya akses ke layar ini"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — success as Supervisor / Mill Management",
+      "given": "Pengguna sudah masuk dengan peran Supervisor atau Mill Management, akunnya terhubung ke satu mill, dan master Jenis Stasiun sudah terisi",
+      "when": "Pengguna membuka menu 'Laporan Stasiun' di sidebar lalu menekan tile stasiun yang laporannya sudah tersedia",
+      "then": "Mill pengguna ditetapkan otomatis tanpa langkah memilih, grid stasiun langsung tampil urut mengikuti urutan proses produksi, dan pengguna berada di layar laporan periode stasiun yang dipilih dengan mill tersebut sudah terbawa sehingga tidak ditanyakan ulang"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — success as Admin",
+      "given": "Pengguna sudah masuk dengan peran Admin yang tidak terikat pada satu mill, terdapat mill yang dapat dilihat, dan master Jenis Stasiun sudah terisi",
+      "when": "Admin membuka menu 'Laporan Stasiun', memilih salah satu mill dari pemilih Mill, lalu menekan tile stasiun yang laporannya sudah tersedia",
+      "then": "Grid stasiun tampil setelah mill dipilih dan Admin berada di layar laporan periode stasiun yang dipilih dengan mill pilihannya sudah terbawa sehingga tidak ditanyakan ulang"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — Admin belum memilih mill",
+      "given": "Pengguna sudah masuk sebagai Admin dan master Jenis Stasiun sudah terisi",
+      "when": "Admin membuka layar Laporan Stasiun namun belum memilih mill apa pun pada pemilih Mill",
+      "then": "Grid stasiun tidak ditampilkan dan sistem menampilkan arahan untuk memilih mill lebih dulu"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — belum ada mill di sistem",
+      "given": "Pengguna sudah masuk sebagai Admin dan master Jenis Stasiun sudah terisi",
+      "when": "Admin membuka layar Laporan Stasiun sementara daftar mill yang boleh dilihatnya kosong",
+      "then": "Sistem memberi tahu bahwa master Business Unit masih kosong dan perlu diisi lebih dulu, serta grid stasiun tidak ditampilkan"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — akun terikat mill tetapi mill-nya kosong",
+      "given": "Pengguna sudah masuk dengan peran Supervisor atau Mill Management dan master Jenis Stasiun sudah terisi",
+      "when": "Pengguna membuka layar Laporan Stasiun sementara akunnya belum terhubung ke mill mana pun",
+      "then": "Sistem menampilkan pesan bahwa akun belum terhubung ke mill dan meminta menghubungi Admin, tidak menampilkan daftar seluruh mill sebagai gantinya, dan grid stasiun tidak ditampilkan"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — menekan stasiun yang belum tersedia",
+      "given": "Pengguna sudah masuk dengan peran yang berhak, mill yang berlaku sudah ditetapkan, dan grid stasiun sudah tampil",
+      "when": "Pengguna menekan tile stasiun yang laporan periodenya belum dibangun",
+      "then": "Tidak terjadi perpindahan halaman, tidak ada pesan error, dan keterangan 'Belum tersedia' tetap tampil pada tile tersebut"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — master Jenis Stasiun kosong",
+      "given": "Pengguna sudah masuk dengan peran yang berhak dan mill yang berlaku sudah ditetapkan",
+      "when": "Sistem menampilkan grid stasiun sementara master Jenis Stasiun tidak berisi satu pun jenis selain 'other'",
+      "then": "Grid ditampilkan kosong dengan keterangan dan layar tidak menampilkan error"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — Operator mencoba membuka layar ini",
+      "given": "Pengguna sudah masuk dengan peran Station Operator dan master Jenis Stasiun sudah terisi",
+      "when": "Operator mencoba membuka layar Laporan Stasiun di web",
+      "then": "Akses ditolak dan tidak ada data mill maupun stasiun yang terlihat"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — pengguna terikat mill tidak dapat mengganti mill",
+      "given": "Pengguna sudah masuk dengan peran Supervisor atau Mill Management yang akunnya terhubung ke satu mill, dan master Jenis Stasiun sudah terisi",
+      "when": "Pengguna mencoba mengganti mill yang berlaku ke mill lain (pemilih Mill tidak tersedia, sehingga upaya dilakukan melalui parameter permintaan)",
+      "then": "Mill yang berlaku tetap mill dari akun pengguna, upaya pergantian ditolak, dan tidak ada data mill lain yang terlihat"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — daftar stasiun mengikuti master Jenis Stasiun dan urutan proses produksi",
+      "given": "Pengguna sudah masuk dengan peran yang berhak, mill yang berlaku sudah ditetapkan, dan master Jenis Stasiun sudah terisi",
+      "when": "Master Jenis Stasiun diubah — satu jenis stasiun ditambahkan atau urutan prosesnya diubah — lalu pengguna membuka layar Laporan Stasiun",
+      "then": "Grid stasiun mengikuti isi dan urutan proses produksi terbaru dari master Jenis Stasiun, bukan daftar tetap"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — jenis stasiun historis 'other' dikecualikan",
+      "given": "Pengguna sudah masuk dengan peran yang berhak, mill yang berlaku sudah ditetapkan, dan master Jenis Stasiun berisi jenis historis 'other'",
+      "when": "Pengguna membuka layar Laporan Stasiun dan sistem menampilkan grid stasiun",
+      "then": "Jenis stasiun 'other' tidak muncul pada grid, sementara jenis stasiun lainnya tetap tampil"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — stasiun yang belum dibangun tampil nonaktif, bukan disembunyikan",
+      "given": "Pengguna sudah masuk dengan peran yang berhak, mill yang berlaku sudah ditetapkan, dan master Jenis Stasiun memuat stasiun yang laporan periodenya belum dibangun",
+      "when": "Pengguna membuka layar Laporan Stasiun dan sistem menampilkan grid stasiun",
+      "then": "Stasiun yang laporannya belum dibangun tetap tampil sebagai tile nonaktif berketerangan 'Belum tersedia' dan tidak dihilangkan dari grid"
+    },
+    {
+      "scenario": "Pilih Stasiun untuk Laporan (Web) — mill yang ditetapkan terbawa ke layar laporan",
+      "given": "Pengguna sudah masuk sebagai Admin, terdapat lebih dari satu mill, dan master Jenis Stasiun sudah terisi",
+      "when": "Admin memilih satu mill, menggantinya ke mill lain, lalu menekan tile stasiun yang laporannya sudah tersedia",
+      "then": "Layar laporan periode terbuka memakai mill terakhir yang ditetapkan dan tidak menanyakan mill untuk kedua kalinya"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-140--laporan-stasiun-web"
+  ]
+}

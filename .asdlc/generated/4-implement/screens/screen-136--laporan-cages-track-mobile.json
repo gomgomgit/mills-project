@@ -1,0 +1,102 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "screen-136--laporan-cages-track-mobile",
+  "name": "Laporan Cages & Tracks (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-24T04:10:00Z",
+      "passed": 21,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-24T04:10:00Z",
+      "passed": 28,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-24T04:10:00Z",
+      "passed": 24,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-24T04:10:00Z",
+      "passed": 25,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/routes/api.php",
+    "backend/app/Services/CagesTrackReportService.php",
+    "backend/app/Http/Controllers/Api/CagesTrackReportController.php"
+  ],
+  "fe_files_generated": [
+    "mobile/src/services/cagesTrackReportRepo.ts",
+    "mobile/src/views/LaporanCagesTrackView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/CagesTrackReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanCagesTrackTest.php",
+    "mobile/tests/e2e/laporan-cages-track.spec.ts",
+    "mobile/tests/e2e/reporting-pilih-stasiun.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/cagesTrackReportRepo.spec.ts",
+    "mobile/tests/LaporanCagesTrackView.spec.ts"
+  ],
+  "implementation_notes": [
+    "PERUBAHAN KEAMANAN INTI — Operator ditambahkan ke cabang TERIKAT MILL pada resolveBusinessUnit(), bukan hanya ke guardAccess(). Cabangnya berbentuk 'if (Supervisor || MillManagement) {...} else { perlakukan sebagai Admin }', sehingga melebarkan guardAccess() saja akan menjatuhkan Operator ke cabang Admin — tempat business_unit_id dari klien DIHORMATI — dan Operator dapat membaca laporan mill mana pun. Diverifikasi ulang di kode setelah implementasi: satu disjungsi ditambahkan, badan fungsi tidak disalin dari Sterilizer, dan pemeriksaan gagal-tertutup 422 tetap utuh dan kini juga melindungi Operator.",
+    "Badan resolveBusinessUnit() Sterilizer SENGAJA TIDAK disalin. Versi Sterilizer mengembalikan (string) $user->business_unit_id tanpa pemeriksaan gagal-tertutup, sehingga akun tanpa mill menghasilkan string kosong secara diam-diam alih-alih 422 'Hubungi Admin'. Briefing awal saya menyuruh meniru Sterilizer; agen menolak dan benar. Perbedaan AuthenticationException (401) vs AuthorizationException (403) juga dipertahankan — memang berbeda dari Sterilizer, dan disengaja.",
+    "Guard rute menjadi 'auth:web,sanctum' — ponsel memakai token Sanctum, bukan sesi. Test Operator memakai Sanctum::actingAs(), bukan actingAs($user,'web') seperti idiom test Sterilizer, supaya jalur token yang justru menjadi alasan guard ini ditambahkan benar-benar teruji.",
+    "/business-units/options TETAP 403 untuk Operator — PENYIMPANGAN DISENGAJA dari briefing saya yang menulis '200 di keempat endpoint'. Endpoint itu Admin-only di dalam service, dan Operator terikat mill akunnya sehingga tidak pernah butuh daftar pilihan mill. Membukanya berarti melebarkan izin melampaui kebutuhan tanpa satu pun kasus pakai. Asersi 403-nya dipertahankan dan diperkuat dengan pemeriksaan error_code, karena sumber penolakannya berpindah dari middleware EnsureRole ke service. Akses yang lebih SEMPIT dari yang disetujui, bukan lebih lebar.",
+    "PENJAGA WEB HIJAU TANPA DIUBAH, dan inilah bukti perluasan tidak bocor ke web: Feature/Livewire/LaporanCagesTrackTest.php:515 ('operator: the route refuses before mount, and mount() itself refuses too') dan e2e-web/tests/laporan-cages-track.spec.ts:914 keduanya lolos tanpa satu baris pun disentuh. Sebabnya LaporanCagesTrack::canAccess() punya daftar peran sendiri yang tidak memanggil service.",
+    "Tiga test disesuaikan atas keputusan user 2026-09-24: (a) Unit Case 2 dibalik dari 'Operator ditolak 403' menjadi 'Operator diterima DAN resolveBusinessUnit mengembalikan business_unit_id akunnya, bukan nilai dari klien' — memperkuat, bukan melemahkan; (b) Feature/Api Scenario 13 disesuaikan + 1 kasus baru 'Operator tanpa mill -> 422'; (c) mobile/tests/e2e/reporting-pilih-stasiun.spec.ts diubah dari 'tepat satu tile aktif' menjadi bentuk INVARIAN, sama seperti yang sudah diterapkan ke kembarannya e2e-web/tests/laporan-stasiun.spec.ts, sehingga screen-137/138/139 tidak akan memerahkannya lagi.",
+    "SATU putaran auto-fix, dan tidak ada kode produksi yang diubah untuknya. Kegagalan satu-satunya adalah cacat TEST: expect(api.hits.summary).toBe(1) membaca counter secara sinkron sementara permintaannya masih in-flight — terbukti dari trace (permintaan terkirim), DOM saat gagal ('Memuat ringkasan periode...'), dan reproduksi di bawah beban CPU (2 gagal / 10 di --repeat-each=6, hijau saat terisolasi). Diperbaiki dengan await page.waitForResponse() sebelum membaca counter; asersi tetap toBe(1) persis, tidak ada retry maupun timeout ditambahkan, playwright.config.ts tidak disentuh. Helper pickPeriod() bersama sengaja tidak diubah karena test 'jaringan gagal' memakai route.abort('failed') yang tidak pernah memicu event response — mengubahnya akan menggantung test itu selamanya.",
+    "Temuan jsdom yang berlaku untuk seluruh test collapsible di repo ini: jsdom men-cache getComputedStyle per elemen, sehingga begitu badan rekap terbaca display:none seluruh keturunannya terbaca invisible seterusnya pada pohon DOM yang sama. Asersi 'baris terlihat setelah dibuka' karena itu dibuktikan pada wrapper yang di-mount ulang, memakai isVisible() tepat sekali per pohon. Tanpa itu asersinya bisa lolos secara hampa.",
+    "Viewport browser test disetel eksplisit ke 390x844 lewat test.use() untuk seluruh describe. Project Playwright repo ini Desktop Chrome 1280px, di mana tuntutan 'satu kolom / tanpa gulir mendatar / sasaran sentuh 44px' menjadi hampa — asersinya akan lolos tanpa menguji apa pun.",
+    "Rekap harian memakai komponen CollapsibleSection.vue seperti kembarannya, bukan <details> native. Komponen itu memakai v-show sehingga baris tetap ada di DOM saat tertutup; asersi ditulis sebagai visibilitas, bukan ketiadaan DOM.",
+    "NULL BUKAN NOL bertahan sampai ke layar: peak_hour null menjadi 'tidak tersedia' (bukan '00.00'), longest_gap_hours null menjadi 'tidak dapat dihitung' dengan satuannya disembunyikan supaya string '0 jam' mustahil terbentuk, avg_tippler_duration_hours null menjadi 'tidak tersedia' berdampingan dengan days_without_valid_window.",
+    "Repo klien: nol aritmetika KPI, nol try/catch, tanpa normalizeKpi (Cages & Tracks tidak punya penamaan ganda seperti Sterilizer), tanpa kelas galat kustom. fetchBusinessUnits/fetchPeriods memakai response.data?.data ?? [] langsung; hanya fetchSummary memakai unwrap(). Itu bentuk nyata sterilizerReportRepo, bukan parafrase briefing saya.",
+    "isReportAvailable() di ReportingPilihStasiunView.vue TIDAK disentuh — tidak ada 'station.isActive &&' yang ditambahkan, sesuai peringatan di kepala berkas itu. Prosa yang menjadi basi diperbarui: '17 stasiun lain' menjadi 16, dan 'hari ini hanya Sterilizer' menjadi Sterilizer + Cages & Tracks."
+  ],
+  "deferred_items": [
+    {
+      "description": "Tombol Back dan breadcrumb mengarah ke Dashboard & Reporting, bukan ke pemilih stasiun.",
+      "reason": "Mengikuti kembarannya screen-135 agar kedua layar laporan mobile berperilaku sama. Kalau pemilih stasiun yang diinginkan, perubahannya satu baris dan sebaiknya dilakukan pada kedua layar sekaligus, bukan hanya di sini."
+    },
+    {
+      "description": "Coverage tidak terukur.",
+      "reason": "php artisan test butuh --coverage + Xdebug/PCOV yang tidak terpasang; npm run test adalah vitest run polos tanpa reporter coverage. Tidak ada konfigurasi yang ditambahkan pada run ini. Bukan indikasi kegagalan — 98 test screen-136 lolos penuh."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "19 test e2e mobile gagal, SELURUHNYA pra-ada dan tidak disentuh. Set-nya cocok satu-satu dengan baseline pada file:line yang sama, dan tidak ada yang berubah kelas galatnya. Enam di antaranya (data-preview-*) gagal karena pola glob yang salah tulis di test itu sendiri ('**/stations/x/preview' vs URL sebenarnya) — mudah diperbaiki kapan saja, di luar lingkup run ini.",
+      "severity": "medium"
+    },
+    {
+      "description": "Unhandled rejection saat unit test mobile: TypeError 'Cannot read properties of undefined (reading filter)' di mobile/src/components/SyncResultDialog.vue:36, berasal dari tests/StationListView.spec.ts yang fixture-nya tidak menyediakan summary.items. Pra-ada, signature identik dengan baseline. Vitest memperingatkan galat tak tertangani semacam ini dapat menghasilkan false positive.",
+      "severity": "medium"
+    },
+    {
+      "description": "Coverage tidak terukur di kedua sisi, sehingga ambang unit_test.coverage_threshold pada test-strategy tidak dapat dievaluasi untuk layar ini.",
+      "severity": "medium"
+    },
+    {
+      "description": "pint --test melaporkan satu temuan ordered_imports pada routes/api.php; terverifikasi sudah ada pada berkas sebelum perubahan run ini.",
+      "severity": "low"
+    },
+    {
+      "description": "Ekspor CSV di ponsel dipertahankan dari screen-135 tanpa pernah diputuskan apakah mengunduh CSV di HP memang berguna. Mekanismenya anchor + object URL di WebView Capacitor — berjalan, tetapi berkasnya mendarat di tempat yang tidak selalu mudah ditemukan pengguna. Pertanyaan yang sama berlaku untuk screen-135.",
+      "severity": "low"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+# Derived Assumptions — module-dashboard.screen-130--laporan-cages-track-web.2-business-spec
+
+## v1 — 2026-09-24
+
+Yang Anda tetapkan saat penetapan scope hanyalah garis besar isinya: *"Cages & Tracks (per jam):
+lori di-tip per hari & per jam, puncak & jeda tipping, antrean tersisa, jam tanpa tipping"*.
+Seluruh butir di bawah ini turunan agent dari membaca struktur data nyatanya.
+
+- **Penumpahan dihitung dari baris rincian per jam, bukan dari `cages_tipped` pada record harian** ← keduanya ada di basis data dan bisa berbeda bila Operator mengoreksi salah satunya. Rincian per jam yang benar-benar tercatat per kejadian, jadi itu yang dipakai. Tanpa aturan ini, dua implementasi yang sama-sama "benar" bisa menghasilkan total berbeda.
+- **Jam tanpa penumpahan hanya dihitung di dalam jam operasi tippler** ← menghitung seluruh 24 jam membuat mill satu shift selalu terlihat punya 16 jam menganggur. Angkanya benar, tapi menyesatkan, dan laporan yang menyesatkan akan berhenti dipercaya.
+- **Jeda terpanjang dihitung dalam satu hari, tidak lintas hari** ← jeda semalam bukan jeda operasional. Tanpa batas ini, setiap mill punya "jeda 14 jam" setiap hari dan metriknya kehilangan arti.
+- **`cages_remain` adalah potret per jam, bukan antrean menumpuk** ← diverifikasi ke `CagesTrackRecordService`: nilainya `machineryCountForStation($station->id) - $totalCages`, yaitu armada lori stasiun dikurangi yang ditumpahkan pada jam itu. Nama kolomnya mudah disalahartikan sebagai antrean kumulatif; karena itu laporan menampilkan nilai **terendah** dan rata-rata, bukan jumlah.
+- **Hari tanpa waktu berhenti tippler dikeluarkan dari rata-rata durasi, jumlahnya ditampilkan** ← `tippler_stop_time` nullable. Pola yang sama dengan `cycles_without_duration` di screen-129, disengaja agar kedua laporan bercerita dengan cara yang sama.
+- `edge_cases` **operasi melewati tengah malam** ← `tippler_start_time` dan `tippler_stop_time` adalah timestamp, jadi shift malam menghasilkan jam mulai lebih besar dari jam berhenti. Tanpa penanganan, durasinya negatif dan jam operasinya kacau.
+- `edge_cases` **hari dengan record tetapi nol baris rincian** ← mungkin terjadi karena `CagesTrackRecord` dapat dibuat lalu rinciannya menyusul. Hari itu harus terhitung sebagai hari operasi tanpa penumpahan, bukan hilang dari penyebut.
+- `actors` tanpa Operator ← konsisten dengan screen-129: Operator tidak punya UI web. Jalur mobilenya screen-136, terpisah.
+- `test_priority` = `high` ← 11 aturan (ambang 5+), tiga peran dengan perilaku cakupan mill berbeda, dan empat aturan perhitungan yang masing-masing bisa salah tanpa terlihat dari angka totalnya.
+- `usecase_ids` ← `usecase-130--...` sudah terdaftar di usecase-index sejak penetapan scope; artefaknya baru ditulis pada run ini.

@@ -1,0 +1,15 @@
+# Derived Assumptions — module-dashboard.screen-141--reporting-pilih-stasiun-mobile.2-business-spec
+
+## v1 — 2026-09-23
+
+User menyatakan alurnya: *"didalam reporting, user akan diperlihatkan pilihan stasiun mana yang
+ingin dilihat reporting nya, lalu memilih stasiun"*. Butir di bawah ini turunan agent.
+
+- `business_rules[1]` = **daftar stasiun dibaca dari perangkat, bukan dari jaringan** ← keputusan rancangan yang diambil setelah memeriksa alternatifnya, bukan default. Rencana awal adalah memakai ulang `/api/station-reports/stations` demi "satu sumber". Pemeriksaan menunjukkan itu jalan yang salah: `StationReportService::resolveBusinessUnit()` punya pola yang sama persis dengan `SterilizerReportService` — menyebut Supervisor dan MillManagement, Operator jatuh ke penolakan — sehingga menuntut pelebaran peran lagi; ia juga mewajibkan Admin memilih mill untuk daftar yang **tidak bergantung mill**; dan `report_path`-nya berisi rute **web** yang tidak berguna di mobile. Sementara `stationRepo` sudah lokal (nol `apiClient`), memberi nama, jenis, ikon, dan urutan yang sama dengan layar Daftar Stasiun, dan bekerja offline. Hasilnya: **nol perubahan backend**.
+- `business_rules[2]` = **"tersedia" ≠ "aktif"** ← pembedaan yang tidak dinyatakan user tetapi sangat mudah tertukar. `StationGrid.isActive` berarti stasiunnya beroperasi di mill itu; "tersedia" di layar ini berarti layar laporan **mobile**-nya sudah dibangun. Sebuah stasiun bisa aktif di mill namun laporannya belum ada. Memakai `StationGrid` apa adanya akan mencampur dua makna itu, dan cacatnya tidak akan terlihat sampai ada stasiun yang aktif tapi laporannya belum dibuat.
+- `business_rules[5]` = **tidak ada pemilih Mill di layar ini** ← menyimpang dari web screen-140, dan disengaja. Di web, screen-140 adalah pintu tunggal sehingga mill ditetapkan di depan. Di mobile, screen-135 sudah menangani mill sendiri, dan Admin bukan pengguna mobile yang dirancang (lihat actor-index: "bukan alur kerja yang dirancang untuk actor ini"). Membebani langkah mill bagi peran yang jarang memakai mobile adalah friksi tanpa manfaat. **Perbedaan web-vs-mobile ini perlu ditinjau bila kelak Admin benar-benar dipakai di mobile.**
+- `business_rules[4]` = ketukan pada tile nonaktif memberi **pesan**, bukan diam ← preseden `StationGrid.vue`, sama seperti screen-134. Konsisten di seluruh aplikasi mobile.
+- `business_rules[0]` = terbuka untuk semua peran ← layar ini hanya menampilkan nama stasiun, bukan data operasional.
+- `edge_cases[0]` = **belum ada stasiun tersimpan di perangkat** ← konsekuensi langsung dari memilih sumber lokal. Pengguna yang baru masuk dan belum pernah membuka Daftar Stasiun akan melihat grid kosong; karena itu diberi arahan membuka Daftar Stasiun lebih dulu. Ini harga dari keputusan sumber data, dan ditulis eksplisit agar tidak dikira cacat.
+- `test_priority` = `low` ← navigasi murni, nol data operasional, nol aturan hak akses. Sama seperti screen-134.
+- `usecase_ids` = `usecase-143--...` ← sudah terdaftar di usecase-index sejak penetapan scope; artefaknya baru ditulis pada run ini.

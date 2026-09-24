@@ -1,0 +1,68 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "screen-140--laporan-stasiun-web",
+  "name": "Laporan Stasiun (Web)",
+  "module_id": "module-dashboard",
+  "description": "Pintu masuk tunggal ke seluruh laporan periode per stasiun di web, dan satu-satunya entri sidebar untuk fitur itu. Alurnya dua langkah: pengguna menetapkan dulu mill mana yang ingin dilihat, baru memilih stasiunnya, lalu diantar ke layar laporan stasiun tersebut. Langkah mill hanya muncul bagi pengguna yang benar-benar punya pilihan — Admin tidak terikat satu mill sehingga ia memilih, sedangkan Supervisor dan Mill Management terikat pada mill mereka sendiri sehingga langkah itu dilewati dan mill ditetapkan otomatis. Web tidak memakai wadah 'Dashboard & Reporting' seperti mobile, karena Dashboard dan Laporan Manajemen sudah punya entri sidebarnya sendiri. Mengikuti pola Production Process Activity (screen-035): stasiun yang laporannya belum dibangun tampil sebagai tile nonaktif, bukan disembunyikan, supaya cakupan fitur terbaca apa adanya.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun'",
+    "Kembali dari salah satu layar laporan periode stasiun"
+  ],
+  "information_displayed": [
+    "Pemilih Mill — hanya bagi pengguna yang punya lebih dari satu mill (Admin); berisi daftar mill yang boleh ia lihat",
+    "Nama mill yang sedang berlaku — bagi Supervisor dan Mill Management ditampilkan sebagai keterangan, bukan pemilih, karena mill mereka tidak dapat diganti",
+    "Grid tile stasiun — 18 jenis stasiun dari master Jenis Stasiun, urut mengikuti urutan proses produksi (Weighbridge, Grading, Cages & Track, Sterilizer, Threshing, Pressing, Depricarping, Kernel Plant, Clarification, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Process Water, Solid Waste Disposal, Kernel Dispatch, CPO Dispatch, Process Quality Control)",
+    "Nama stasiun dan ikon pada tiap tile",
+    "Penanda 'Belum tersedia' pada tile stasiun yang laporan periodenya belum dibangun",
+    "Arahan singkat ketika mill belum dipilih, menjelaskan bahwa stasiun baru muncul setelah mill ditentukan"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Mill",
+      "description": "Menetapkan mill mana yang akan dilihat laporannya. Setelah mill dipilih, grid stasiun ditampilkan. Mengganti mill mengganti seluruh konteks laporan berikutnya.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka laporan stasiun",
+      "description": "Menekan tile stasiun yang laporannya sudah tersedia akan mengantar pengguna ke layar laporan periode stasiun itu, dengan mill yang sudah ditetapkan ikut terbawa sehingga laporan tidak menanyakan mill untuk kedua kalinya.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Urutannya mengikat: mill lebih dulu, baru stasiun. Selama mill belum ditetapkan, grid stasiun tidak ditampilkan sama sekali.",
+    "Langkah memilih mill hanya berlaku bagi pengguna yang punya lebih dari satu pilihan. Admin tidak terikat satu mill sehingga pemilih ditampilkan untuknya. Supervisor dan Mill Management terikat pada mill masing-masing: mill ditetapkan otomatis, langkahnya dilewati, dan mereka tidak dapat memilih mill lain.",
+    "Daftar stasiun bersumber dari master Jenis Stasiun dan mengikuti urutan proses produksi yang tercatat di sana, bukan daftar yang ditulis tetap di layar. Menambah jenis stasiun di master otomatis menambah tile di sini.",
+    "Jenis stasiun historis 'other' dikecualikan dari grid — ia bukan stasiun sebenarnya, hanya penampung data lama.",
+    "Stasiun yang laporan periodenya belum dibangun tetap ditampilkan sebagai tile nonaktif berketerangan 'Belum tersedia', tidak disembunyikan. Pengguna berhak tahu stasiun apa saja yang ada dan mana yang belum siap.",
+    "Mill yang sudah ditetapkan ikut terbawa ke layar laporan stasiun, sehingga pengguna tidak diminta memilih mill dua kali dalam satu alur.",
+    "Operator tidak memiliki akses ke layar ini. Jalur laporan bagi Operator ada di mobile, lewat menu Dashboard & Reporting."
+  ],
+  "usecase_ids": [
+    "usecase-142--laporan-stasiun-web"
+  ],
+  "edge_cases": [
+    "Admin membuka layar ini tetapi belum memilih mill — grid stasiun belum muncul, diganti arahan untuk memilih mill lebih dulu; bukan halaman kosong tanpa penjelasan.",
+    "Belum ada satu pun mill di sistem — pengguna diberi tahu bahwa master Business Unit masih kosong dan perlu diisi lebih dulu.",
+    "Supervisor atau Mill Management yang akunnya belum terhubung ke mill mana pun (kesalahan data master) — diberi pesan yang jelas untuk menghubungi Admin, bukan dibiarkan melihat layar kosong atau justru diberi daftar seluruh mill.",
+    "Master Jenis Stasiun kosong — grid ditampilkan kosong dengan keterangan, bukan error.",
+    "Pengguna menekan tile stasiun yang masih 'Belum tersedia' — tidak terjadi perpindahan halaman dan tidak ada pesan error; tile itu memang tidak dapat ditekan.",
+    "Mill yang dipilih belum punya periode pelaporan sama sekali — layar ini tidak menghalangi; kondisi itu ditangani oleh layar laporan stasiun yang dituju."
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

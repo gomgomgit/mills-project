@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-22"
+    "updated_at": "2026-09-23"
   },
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
@@ -835,6 +835,157 @@
           "expect": "UPDATE status='open', closed_by=null, closed_at=null → row dengan kedua kolom penutupan null → 200"
         }
       ]
+    },
+    {
+      "usecase_id": "usecase-144--buka-periode-pelaporan",
+      "usecase_name": "Buka Periode Pelaporan",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/periods/{id}/open",
+          "description": "Membuka periode yang masih berstatus draft menjadi open",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "Period id"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "status": "open"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "id tidak ditemukan"
+              },
+              {
+                "http_code": 409,
+                "error_code": "PERIOD_NOT_DRAFT",
+                "condition": "periode tidak berstatus draft — sudah open, atau sudah closed"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor bukan admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "Pastikan actor adalah Admin → jika bukan: 403 FORBIDDEN",
+        "Period::findOrFail(id) → jika tidak ada: 404 NOT_FOUND",
+        "→ jika status periode BUKAN 'draft': 409 PERIOD_NOT_DRAFT. Pesan menyebut status saat itu, dan khusus periode 'closed' mengarahkan Admin memakai aksi 'Buka Kembali Periode' — dua aksi ini mudah tertukar",
+        "UPDATE BERKONDISI: UPDATE periods SET status='open', updated_by=? WHERE id=? AND status='draft' — persis pola close() (lihat komentar PeriodClosureService baris 120-131). Bila dua Admin menekan bersamaan, tepat satu statement cocok dengan baris berstatus draft",
+        "→ bila affected rows = 0 (Admin lain lebih dulu): 409 PERIOD_NOT_DRAFT, JANGAN menimpa diam-diam",
+        "Muat ulang periode dan kembalikan { id, status }",
+        "TIDAK ADA data stasiun yang dibaca, divalidasi, maupun diubah — berbeda dari close() yang menghitung data belum terverifikasi"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "SELECT periode berdasarkan id untuk memastikan ia ada dan membaca statusnya"
+        },
+        {
+          "entity_id": "period",
+          "operation": "UPDATE",
+          "description": "UPDATE berkondisi status='open' dan updated_by, HANYA pada baris yang masih berstatus 'draft'"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Periode sudah berstatus open",
+          "handling": "409 PERIOD_NOT_DRAFT dengan pesan menyebut periode sudah terbuka"
+        },
+        {
+          "condition": "Periode sudah berstatus closed",
+          "handling": "409 PERIOD_NOT_DRAFT dengan pesan menyebut periode sudah tertutup, ditambah arahan memakai aksi 'Buka Kembali Periode'. Menolak tanpa arahan akan membuat Admin menyangka periodenya rusak."
+        },
+        {
+          "condition": "Periode tidak ditemukan",
+          "handling": "404 NOT_FOUND"
+        },
+        {
+          "condition": "Dua Admin membuka bersamaan",
+          "handling": "UPDATE berkondisi WHERE status='draft'; yang kalah mendapat affected rows = 0 lalu 409 PERIOD_NOT_DRAFT. Tidak ada penguncian baris maupun transaksi tambahan — kondisi pada WHERE itu sendiri yang menjadi penjaganya."
+        },
+        {
+          "condition": "Actor bukan Admin",
+          "handling": "403 FORBIDDEN, sejajar close() dan reopen(). Endpoint ini TIDAK mendaftarkan 401 karena close/reopen pun tidak — penanganan sesi ada di lapisan middleware, bukan di kontrak ini."
+        },
+        {
+          "condition": "Periode berstatus open di-PATCH atau di-DELETE",
+          "handling": "Diizinkan — PeriodService::update() dan delete() hanya menolak status 'closed'. Diuji eksplisit karena mudah sekali 'dirapikan' menjadi ikut mengunci 'open'."
+        }
+      ],
+      "business_rules_applied": [
+        "Hanya Admin yang boleh membuka periode",
+        "Aksi ini hanya berlaku pada periode berstatus draft",
+        "Siklus draft → open → closed; dari closed kembali ke open lewat reopen; tidak ada open → draft",
+        "Periode open tetap dapat diubah dan dihapus",
+        "Membuka periode hanya mengubah status, tidak menyentuh data stasiun"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "melempar 403 FORBIDDEN ketika actor bukan Admin",
+          "given": "actor yang login berperan Supervisor (idem Mill Management); periodRepo belum dipanggil sama sekali",
+          "expect": "melempar ForbiddenException dengan error_code FORBIDDEN (http 403); findOrFail() tidak pernah dipanggil dan tidak ada UPDATE yang dieksekusi"
+        },
+        {
+          "description": "melempar 404 NOT_FOUND ketika periode tidak ditemukan",
+          "given": "actor Admin; Period::findOrFail(id) melempar ModelNotFoundException",
+          "expect": "melempar NotFoundException dengan error_code NOT_FOUND (http 404); tidak ada UPDATE yang dieksekusi"
+        },
+        {
+          "description": "melempar 409 PERIOD_NOT_DRAFT ketika periode sudah berstatus open",
+          "given": "actor Admin; periode yang ditemukan berstatus 'open'",
+          "expect": "melempar PeriodNotDraftException dengan error_code PERIOD_NOT_DRAFT (http 409); pesan menyebut periode sudah terbuka; tidak ada UPDATE yang dieksekusi"
+        },
+        {
+          "description": "melempar 409 PERIOD_NOT_DRAFT ketika periode sudah berstatus closed, dengan arahan memakai 'Buka Kembali Periode'",
+          "given": "actor Admin; periode yang ditemukan berstatus 'closed'",
+          "expect": "melempar PeriodNotDraftException dengan error_code PERIOD_NOT_DRAFT (http 409); pesan menyebut periode sudah tertutup DAN mengarahkan Admin memakai aksi 'Buka Kembali Periode', bukan aksi ini — dua aksi itu mudah tertukar; tidak ada UPDATE yang dieksekusi"
+        },
+        {
+          "description": "menjalankan UPDATE berkondisi dengan klausa WHERE status='draft'",
+          "given": "actor Admin; periode berstatus 'draft'; query builder di-spy",
+          "expect": "tepat satu statement UPDATE periods SET status='open', updated_by=<admin id> WHERE id=<id> AND status='draft' — klausa status='draft' WAJIB ada pada WHERE, sejajar pola close() di PeriodClosureService baris 120-131; BUKAN save() pada model yang sudah dimuat"
+        },
+        {
+          "description": "melempar 409 PERIOD_NOT_DRAFT ketika UPDATE berkondisi mengenai 0 baris (Admin lain lebih dulu)",
+          "given": "actor Admin; periode yang ditemukan berstatus 'draft', namun UPDATE berkondisi mengembalikan affected rows = 0 karena Admin lain sudah membukanya lebih dulu",
+          "expect": "melempar PeriodNotDraftException dengan error_code PERIOD_NOT_DRAFT (http 409); TIDAK menimpa status diam-diam dan tidak mengembalikan hasil sukses"
+        },
+        {
+          "description": "tidak membaca, memvalidasi, maupun mengubah data stasiun mana pun",
+          "given": "actor Admin; periode berstatus 'draft'; seluruh repository/service record stasiun di-spy",
+          "expect": "nol pemanggilan ke repository/service record stasiun — tidak ada penghitungan data belum terverifikasi seperti pada close(); data_operations terbatas pada period SELECT + period UPDATE"
+        },
+        {
+          "description": "mengembalikan hasil sukses ketika seluruh kondisi terpenuhi",
+          "given": "actor Admin; periode berstatus 'draft'; UPDATE berkondisi mengembalikan affected rows = 1",
+          "expect": "mengembalikan { id: <period id>, status: 'open' }; updated_by terisi id Admin; tidak ada exception"
+        },
+        {
+          "description": "periode berstatus open TIDAK ikut terkunci pada update dan delete",
+          "given": "actor Admin; periode berstatus 'open'; PeriodService::update() dan delete() dipanggil",
+          "expect": "keduanya berhasil tanpa melempar PeriodClosedImmutableException — hanya status 'closed' yang mengunci. Ini diuji terpisah karena mudah sekali 'dirapikan' menjadi ikut mengunci 'open'"
+        }
+      ]
     }
   ],
   "shared_entities": [
@@ -891,7 +1042,14 @@
     "Error PERIOD_NOT_CLOSED (reopen pada periode yang belum tertutup) tidak punya bdd_scenario yang memetakannya — tercakup hanya di unit test. Bila ingin coverage integration, Phase 2 perlu menambah satu bdd scenario untuk kasus itu",
     "Sidebar web (resources/views/components/layouts/app.blade.php) tidak menyaring menu per role sama sekali — menu 'Kelola Periode Pelaporan' akan ikut terlihat oleh Supervisor/Mill Management dan baru ditolak 403 saat diklik, sama seperti 12 menu master data lain. Mengikuti pola yang ada secara sengaja; dicatat sebagai known_issue di 4-implement",
     "Menu ditempatkan setelah 'Kelola Machinery' dan sebelum 'Mills Setting' — penutup blok master data, karena Periode berdiri di luar rantai Corporate→Company→Business Unit→Production Line→Station→Machinery Group→Machinery",
-    "Tabel: periods (snake_case plural). Migration berikutnya: 2026_09_22_000029_create_periods_table.php. Model Period, service PeriodService, controller Api/PeriodController, Livewire MasterData/KelolaPeriodePelaporan"
+    "Tabel: periods (snake_case plural). Migration berikutnya: 2026_09_22_000029_create_periods_table.php. Model Period, service PeriodService, controller Api/PeriodController, Livewire MasterData/KelolaPeriodePelaporan",
+    "Aksi Buka Periode (usecase-144) ditambahkan 2026-09-23. PeriodClosureService mendapat method open() ketiga, sejajar close() dan reopen(); JANGAN membuat service baru.",
+    "Exception baru: App\\Exceptions\\PeriodNotDraftException, meniru PeriodNotClosedException persis — extends HttpException, implements HasErrorCode, http 409, errorCode() = 'PERIOD_NOT_DRAFT'.",
+    "Route baru: POST /api/periods/{id}/open, didaftarkan berdampingan dengan /close dan /reopen. Perhatikan urutan rute: seluruh rute ber-sufiks harus tetap sebelum PATCH/DELETE /periods/{id} (lihat komentar routes/api.php baris 872-878).",
+    "Livewire mendapat trio askOpen / cancelOpen / confirmOpen, meniru askReopen / cancelReopen / confirmReopen yang sudah ada. Tombol 'Buka Periode' HANYA dirender untuk baris berstatus draft.",
+    "data-testid baru: open-period-button, open-period-dialog, confirm-open-period, cancel-open-period.",
+    "JANGAN menyentuh 4 test ber-skip di tests/Feature/Api/KelolaPeriodePelaporanTest.php — itu kontrak period-lock usecase-141 yang mengikat pekerjaan berikutnya.",
+    "Skenario 'Admin membatalkan pembukaan' ada di alternative_flows tetapi tidak punya bdd_scenario tersendiri; tetap tulis satu component test memakai cancelOpen() agar jalur batal tidak lolos tanpa uji."
   ],
   "test_scenarios": [
     {
@@ -1910,6 +2068,297 @@
         "route": "",
         "action": "",
         "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Buka Periode Pelaporan — sukses",
+      "usecase_id": "usecase-144--buka-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods/{id}/open"
+          },
+          "request_example": {
+            "id": "{{period_draft}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
+        "action": "Livewire::test() sebagai Admin dengan satu periode berstatus draft, panggil askOpen(periodId) lalu confirmOpen()",
+        "assert": "dialog konfirmasi tampil setelah askOpen; setelah confirmOpen status periode pada daftar menjadi 'Terbuka', tombol 'Buka Periode' tidak lagi dirender untuk baris itu, notifikasi sukses tampil, dan tidak ada data stasiun yang berubah"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "login sebagai Admin, buka /master-data/periods, klik [data-testid=open-period-button] pada baris periode berstatus Draft, lalu klik [data-testid=confirm-open-period] di dalam [data-testid=open-period-dialog]",
+        "assert": "dialog [data-testid=open-period-dialog] tampil lalu tertutup; badge status baris berubah menjadi 'Terbuka'; [data-testid=open-period-button] hilang dari baris itu; tombol edit dan hapus tetap tersedia"
+      }
+    },
+    {
+      "scenario_ref": "Buka Periode Pelaporan — Periode sudah terbuka",
+      "usecase_id": "usecase-144--buka-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods/{id}/open"
+          },
+          "request_example": {
+            "id": "{{period_open}}"
+          },
+          "expected_status": 409,
+          "expected_error_code": "PERIOD_NOT_DRAFT"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
+        "action": "Livewire::test() sebagai Admin, panggil askOpen(periodId) lalu confirmOpen() pada periode yang statusnya sudah 'open' (mis. diubah pihak lain setelah daftar dirender)",
+        "assert": "pesan error tampil menyebut periode itu sudah terbuka; status pada daftar tetap 'Terbuka'; tidak ada notifikasi sukses"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "login sebagai Admin, buka /master-data/periods dengan periode berstatus Terbuka pada daftar",
+        "assert": "[data-testid=open-period-button] tidak dirender pada baris berstatus Terbuka; bila aksi tetap dipaksa lewat backend, pesan error yang menyebut periode sudah terbuka tampil dan badge status tidak berubah"
+      }
+    },
+    {
+      "scenario_ref": "Buka Periode Pelaporan — Periode sudah tertutup",
+      "usecase_id": "usecase-144--buka-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods/{id}/open"
+          },
+          "request_example": {
+            "id": "{{period_closed}}"
+          },
+          "expected_status": 409,
+          "expected_error_code": "PERIOD_NOT_DRAFT"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
+        "action": "Livewire::test() sebagai Admin, panggil askOpen(periodId) lalu confirmOpen() pada periode berstatus 'closed'",
+        "assert": "pesan error menyebut periode itu sudah tertutup DAN mengarahkan memakai aksi 'Buka Kembali Periode'; status tetap 'Tertutup'; baris itu tetap menawarkan 'Buka Kembali Periode', bukan 'Buka Periode'"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "login sebagai Admin, buka /master-data/periods dengan periode berstatus Tertutup pada daftar",
+        "assert": "baris Tertutup hanya menawarkan aksi 'Buka Kembali Periode', [data-testid=open-period-button] tidak ada; bila aksi dipaksa, pesan error menyebut periode sudah tertutup dan mengarahkan ke 'Buka Kembali Periode', badge status tetap 'Tertutup'"
+      }
+    },
+    {
+      "scenario_ref": "Buka Periode Pelaporan — Periode tidak ditemukan",
+      "usecase_id": "usecase-144--buka-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods/{id}/open"
+          },
+          "request_example": {
+            "id": "{{period_dihapus}}"
+          },
+          "expected_status": 404,
+          "expected_error_code": "NOT_FOUND"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
+        "action": "Livewire::test() sebagai Admin, hapus periode dari database lalu panggil askOpen(periodId) dan confirmOpen() pada id yang sudah tidak ada",
+        "assert": "pesan error 'periode tidak ditemukan' tampil, komponen tidak crash, daftar dimuat ulang tanpa baris itu"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "login sebagai Admin, buka /master-data/periods, hapus periode lewat jalur lain, lalu klik [data-testid=open-period-button] pada baris usang dan konfirmasi via [data-testid=confirm-open-period]",
+        "assert": "pesan error 'periode tidak ditemukan' tampil, halaman tetap utuh tanpa error 500, dan daftar tidak lagi memuat periode itu setelah refresh"
+      }
+    },
+    {
+      "scenario_ref": "Buka Periode Pelaporan — Dua Admin membuka bersamaan",
+      "usecase_id": "usecase-144--buka-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods/{id}/open"
+          },
+          "request_example": {
+            "id": "{{period_draft}}",
+            "_aktor": "admin-a"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods/{id}/open"
+          },
+          "request_example": {
+            "id": "{{period_draft}}",
+            "_aktor": "admin-b"
+          },
+          "expected_status": 409,
+          "expected_error_code": "PERIOD_NOT_DRAFT"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
+        "action": "dua instance Livewire::test() sebagai Admin A dan Admin B yang keduanya merender periode Draft yang sama; A menjalankan askOpen+confirmOpen lebih dulu, lalu B menjalankan askOpen+confirmOpen pada id yang sama",
+        "assert": "instance A menerima notifikasi sukses dan status 'Terbuka'; instance B menerima pesan error yang menyebut periode itu sudah terbuka; updated_by di database tetap milik Admin A — tidak tertimpa diam-diam"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "buka /master-data/periods di dua konteks browser sebagai dua Admin yang menampilkan periode Draft yang sama; klik [data-testid=confirm-open-period] pada konteks pertama, lalu pada konteks kedua",
+        "assert": "konteks pertama menunjukkan badge 'Terbuka'; konteks kedua menampilkan pesan periode sudah terbuka dan setelah refresh menunjukkan badge 'Terbuka' yang sama, tanpa perubahan kedua"
+      }
+    },
+    {
+      "scenario_ref": "Buka Periode Pelaporan — Bukan Admin mencoba membuka periode",
+      "usecase_id": "usecase-144--buka-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods/{id}/open"
+          },
+          "request_example": {
+            "id": "{{period_draft}}",
+            "_aktor": "supervisor"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods/{id}/open"
+          },
+          "request_example": {
+            "id": "{{period_draft}}",
+            "_aktor": "mill-management"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
+        "action": "Livewire::test() sebagai Supervisor dan sebagai Mill Management, lalu panggil askOpen(periodId) dan confirmOpen()",
+        "assert": "akses ditolak untuk kedua peran; status periode di database tetap 'draft'; aksi 'Buka Periode' tidak dirender untuk peran non-Admin"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "login sebagai Supervisor lalu buka /master-data/periods",
+        "assert": "Supervisor ditolak mengakses halaman (403) dan tidak pernah melihat [data-testid=open-period-button]; status periode tetap Draft"
+      }
+    },
+    {
+      "scenario_ref": "Buka Periode Pelaporan — status Terbuka tidak dapat dikembalikan ke Draft",
+      "usecase_id": "usecase-144--buka-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods/{id}/open"
+          },
+          "request_example": {
+            "id": "{{period_draft}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/periods/{id}"
+          },
+          "request_example": {
+            "id": "{{period_draft}}",
+            "status": "draft",
+            "name": "Percobaan Mundur"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
+        "action": "Livewire::test() sebagai Admin pada periode berstatus 'open': buka form edit dan simpan, tanpa ada kontrol apa pun untuk mengembalikan status ke Draft",
+        "assert": "form edit tidak menyediakan pilihan status; setelah simpan, status periode tetap 'Terbuka'; tidak ada aksi pada komponen yang dapat menghasilkan status 'draft' dari periode Terbuka. CATATAN: PATCH mengembalikan 200 karena field `status` memang tidak pernah divalidasi maupun ditulis oleh PeriodService::validate() — kiriman itu diabaikan, bukan ditolak"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "login sebagai Admin, buka /master-data/periods, buka form edit periode berstatus Terbuka lalu simpan",
+        "assert": "tidak ada kontrol untuk memilih status Draft di form; badge status baris tetap 'Terbuka' setelah simpan dan setelah reload"
+      }
+    },
+    {
+      "scenario_ref": "Buka Periode Pelaporan — periode Terbuka tetap dapat diubah dan dihapus",
+      "usecase_id": "usecase-144--buka-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods/{id}/open"
+          },
+          "request_example": {
+            "id": "{{period_draft}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/periods/{id}"
+          },
+          "request_example": {
+            "id": "{{period_draft}}",
+            "name": "Periode Agustus 2026 (revisi)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/periods/{id}"
+          },
+          "request_example": {
+            "id": "{{period_draft}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
+        "action": "Livewire::test() sebagai Admin: jalankan askOpen+confirmOpen pada periode Draft, lalu edit nama periode dan simpan, lalu jalankan aksi hapus dan konfirmasi",
+        "assert": "edit berhasil dan nama baru tampil pada daftar; hapus berhasil dan baris hilang; tidak ada PeriodClosedImmutableException yang dilempar — hanya status 'closed' yang mengunci, bukan 'open'"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "login sebagai Admin, buka /master-data/periods, klik [data-testid=open-period-button] lalu [data-testid=confirm-open-period]; setelah badge menjadi 'Terbuka', ubah nama lalu simpan, kemudian jalankan aksi hapus dan konfirmasi",
+        "assert": "tombol edit dan hapus tetap aktif pada baris berstatus Terbuka; nama baru tampil setelah simpan; baris hilang setelah hapus; tidak ada pesan 'periode terkunci'"
       }
     }
   ]

@@ -334,6 +334,10 @@ function makeStation(overrides: Partial<StationSlot> & { id: string }): StationS
 describe('StationListView — "Pilih Stasiun"', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Pilihan Production Line diingat di localStorage per pengguna
+    // (lihat rememberProductionLineId di StationListView.vue), jadi
+    // tanpa ini sebuah test mewarisi pilihan test sebelumnya.
+    window.localStorage.clear()
     fetchCurrentProductionLinesMock.mockResolvedValue([])
     logoutMock.mockResolvedValue(undefined)
     useAuthStoreMock.mockReturnValue({
@@ -428,6 +432,10 @@ describe('StationListView — "Pilih Stasiun"', () => {
 describe('StationListView — breadcrumb', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Pilihan Production Line diingat di localStorage per pengguna
+    // (lihat rememberProductionLineId di StationListView.vue), jadi
+    // tanpa ini sebuah test mewarisi pilihan test sebelumnya.
+    window.localStorage.clear()
     fetchCurrentProductionLinesMock.mockResolvedValue([])
     logoutMock.mockResolvedValue(undefined)
     useAuthStoreMock.mockReturnValue({
@@ -488,6 +496,10 @@ describe('StationListView — breadcrumb', () => {
 describe('StationListView — menu navigasi (hamburger)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Pilihan Production Line diingat di localStorage per pengguna
+    // (lihat rememberProductionLineId di StationListView.vue), jadi
+    // tanpa ini sebuah test mewarisi pilihan test sebelumnya.
+    window.localStorage.clear()
     fetchCurrentProductionLinesMock.mockResolvedValue([])
     logoutMock.mockResolvedValue(undefined)
     useAuthStoreMock.mockReturnValue({
@@ -587,6 +599,10 @@ describe('StationListView — menu navigasi (hamburger)', () => {
 describe('StationListView — draft-status-by-type detection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Pilihan Production Line diingat di localStorage per pengguna
+    // (lihat rememberProductionLineId di StationListView.vue), jadi
+    // tanpa ini sebuah test mewarisi pilihan test sebelumnya.
+    window.localStorage.clear()
     fetchCurrentProductionLinesMock.mockResolvedValue([])
     logoutMock.mockResolvedValue(undefined)
     useAuthStoreMock.mockReturnValue({
@@ -847,6 +863,10 @@ describe('StationListView — draft-status-by-type detection', () => {
 describe('StationListView — Production Line picker step', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // Pilihan Production Line diingat di localStorage per pengguna
+    // (lihat rememberProductionLineId di StationListView.vue), jadi
+    // tanpa ini sebuah test mewarisi pilihan test sebelumnya.
+    window.localStorage.clear()
     logoutMock.mockResolvedValue(undefined)
     useAuthStoreMock.mockReturnValue({
       currentUser: {
@@ -929,6 +949,189 @@ describe('StationListView — Production Line picker step', () => {
     expect(fetchAndCacheStationsForProductionLineMock).toHaveBeenCalledWith('pl-2', 'bu-1')
     expect(getActiveAndPlaceholderStationsForProductionLineMock).toHaveBeenCalledWith('pl-2')
     expect(wrapper.findComponent(StationGrid).props('stations')).toEqual(stations)
+  })
+
+  // Ganti Production Line dari halaman ini (2026-09-23) — sebelumnya
+  // pemilih hanya tampil sekali pada pemuatan pertama, sehingga berpindah
+  // line menuntut keluar dari layar lalu masuk lagi.
+
+  it('shows a Production Line switcher once a line is selected, when more than one line exists', async () => {
+    fetchCurrentProductionLinesMock.mockResolvedValue([
+      { id: 'pl-1', name: 'Line 01', code: null },
+      { id: 'pl-2', name: 'Line 02', code: null },
+    ])
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue([])
+
+    const wrapper = mount(StationListView)
+    await flushPromises()
+
+    // Belum memilih apa pun — belum ada yang bisa ditampilkan sebagai aktif.
+    expect(wrapper.find('[data-testid="production-line-switcher"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="production-line-option-pl-2"]').trigger('click')
+    await flushPromises()
+
+    const switcher = wrapper.get('[data-testid="production-line-switcher"]')
+    expect(switcher.text()).toContain('Line 02')
+  })
+
+  it('does not show the switcher when the business unit has only one Production Line', async () => {
+    fetchCurrentProductionLinesMock.mockResolvedValue([{ id: 'pl-1', name: 'Line 01', code: null }])
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue([])
+
+    const wrapper = mount(StationListView)
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="production-line-switcher"]').exists()).toBe(false)
+  })
+
+  it('reopens the picker from the switcher and loads the newly chosen Production Line', async () => {
+    fetchCurrentProductionLinesMock.mockResolvedValue([
+      { id: 'pl-1', name: 'Line 01', code: null },
+      { id: 'pl-2', name: 'Line 02', code: null },
+    ])
+    const lineOneStations = [makeStation({ id: 'station-1', name: 'Timbangan', type: 'weighbridge', isActive: true })]
+    const lineTwoStations = [makeStation({ id: 'station-2', name: 'Grading', type: 'grading', isActive: true })]
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue(lineOneStations)
+
+    const wrapper = mount(StationListView)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="production-line-option-pl-1"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findComponent(StationGrid).props('stations')).toEqual(lineOneStations)
+
+    await wrapper.get('[data-testid="production-line-switcher"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="production-line-picker"]').exists()).toBe(true)
+
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue(lineTwoStations)
+    await wrapper.get('[data-testid="production-line-option-pl-2"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="production-line-picker"]').exists()).toBe(false)
+    expect(fetchAndCacheStationsForProductionLineMock).toHaveBeenCalledWith('pl-2', 'bu-1')
+    expect(wrapper.findComponent(StationGrid).props('stations')).toEqual(lineTwoStations)
+    expect(wrapper.get('[data-testid="production-line-switcher"]').text()).toContain('Line 02')
+  })
+
+  it('closes the reopened picker on Batal without changing the selected Production Line', async () => {
+    fetchCurrentProductionLinesMock.mockResolvedValue([
+      { id: 'pl-1', name: 'Line 01', code: null },
+      { id: 'pl-2', name: 'Line 02', code: null },
+    ])
+    const stations = [makeStation({ id: 'station-1', name: 'Timbangan', type: 'weighbridge', isActive: true })]
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue(stations)
+
+    const wrapper = mount(StationListView)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="production-line-option-pl-1"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="production-line-switcher"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="production-line-picker-cancel"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="production-line-picker"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="production-line-switcher"]').text()).toContain('Line 01')
+    expect(fetchAndCacheStationsForProductionLineMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.findComponent(StationGrid).props('stations')).toEqual(stations)
+  })
+
+  it('offers no Batal on the first pick, since there is no previous selection to return to', async () => {
+    fetchCurrentProductionLinesMock.mockResolvedValue([
+      { id: 'pl-1', name: 'Line 01', code: null },
+      { id: 'pl-2', name: 'Line 02', code: null },
+    ])
+
+    const wrapper = mount(StationListView)
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="production-line-picker"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="production-line-picker-cancel"]').exists()).toBe(false)
+  })
+
+  it('syncs against the Production Line the user switched TO, not the one first chosen', async () => {
+    fetchCurrentProductionLinesMock.mockResolvedValue([
+      { id: 'pl-1', name: 'Line 01', code: null },
+      { id: 'pl-2', name: 'Line 02', code: null },
+    ])
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue([])
+
+    const wrapper = mount(StationListView)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="production-line-option-pl-1"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="production-line-switcher"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="production-line-option-pl-2"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="sync-button"]').trigger('click')
+    await flushPromises()
+
+    expect(syncAllRecordsMock).toHaveBeenCalledWith('pl-2')
+  })
+
+  // Kembali (back) dari layar Monitor stasiun memasang ulang layar ini.
+  // Sebelum 2026-09-23 pilihan Production Line tidak disimpan, sehingga
+  // pemasangan ulang memunculkan PEMILIH lagi, bukan daftar stasiun —
+  // tombol back terasa mundur dua langkah.
+
+  it('goes straight back to the station grid on remount, instead of the picker, once a line has been chosen', async () => {
+    fetchCurrentProductionLinesMock.mockResolvedValue([
+      { id: 'pl-1', name: 'Line 01', code: null },
+      { id: 'pl-2', name: 'Line 02', code: null },
+    ])
+    const stations = [makeStation({ id: 'station-2', name: 'Grading', type: 'grading', isActive: true })]
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue(stations)
+
+    const first = mount(StationListView)
+    await flushPromises()
+    await first.get('[data-testid="production-line-option-pl-2"]').trigger('click')
+    await flushPromises()
+
+    // Pemasangan ulang = kembali dari layar Monitor stasiun.
+    const second = mount(StationListView)
+    await flushPromises()
+
+    expect(second.find('[data-testid="production-line-picker"]').exists()).toBe(false)
+    expect(second.findComponent(StationGrid).props('stations')).toEqual(stations)
+    expect(second.get('[data-testid="production-line-switcher"]').text()).toContain('Line 02')
+    expect(getActiveAndPlaceholderStationsForProductionLineMock).toHaveBeenLastCalledWith('pl-2')
+  })
+
+  it('shows the picker again when the remembered Production Line no longer exists', async () => {
+    window.localStorage.setItem('msl_production_line_user-1', 'pl-dihapus')
+    fetchCurrentProductionLinesMock.mockResolvedValue([
+      { id: 'pl-1', name: 'Line 01', code: null },
+      { id: 'pl-2', name: 'Line 02', code: null },
+    ])
+
+    const wrapper = mount(StationListView)
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="production-line-picker"]').exists()).toBe(true)
+    expect(getActiveAndPlaceholderStationsForProductionLineMock).not.toHaveBeenCalled()
+  })
+
+  it('does not inherit another user\'s remembered Production Line', async () => {
+    window.localStorage.setItem('msl_production_line_user-lain', 'pl-2')
+    fetchCurrentProductionLinesMock.mockResolvedValue([
+      { id: 'pl-1', name: 'Line 01', code: null },
+      { id: 'pl-2', name: 'Line 02', code: null },
+    ])
+
+    const wrapper = mount(StationListView)
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="production-line-picker"]').exists()).toBe(true)
   })
 
   it('falls back to the legacy business-unit-scoped grid when no Production Lines are known (offline/none yet)', async () => {

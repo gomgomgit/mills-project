@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard &amp; Reporting (Mobile) | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <style>
+    /* ---- Page-specific layout only. Colours/radius/shadow come from tokens. ---- */
+    body {
+      margin: 0;
+      padding: var(--space-lg);
+      background-color: var(--color-surface);
+      font-family: var(--font-family);
+      line-height: var(--line-height-base);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    /* Phone frame — this is a Vue 3 + Capacitor mobile screen, not a web page. */
+    .phone-frame {
+      width: 390px;
+      max-width: 100%;
+      min-height: 760px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding: 0 20px 20px;
+      background-color: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-modal, 16px);
+      box-shadow: var(--shadow-modal, 0 10px 24px rgba(0, 0, 0, 0.16));
+      overflow: hidden;
+    }
+
+    /* ---- Header (disalin dari HomeView.vue) ---- */
+    .home-header {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: var(--space-mobile_header_height);
+      margin: 0 -20px;
+      padding: 0 20px;
+      background-color: var(--color-background);
+    }
+
+    .home-header-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      color: var(--color-brand);
+      flex-shrink: 0;
+    }
+
+    .brand-name {
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-h1);
+      color: var(--color-text-primary);
+    }
+
+    .hamburger-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--space-touch_target_min);
+      height: var(--space-touch_target_min);
+      border: none;
+      border-radius: var(--radius-button, 8px);
+      background-color: transparent;
+      color: var(--color-text-primary);
+      cursor: pointer;
+    }
+
+    /* ---- Breadcrumb + judul (pola StationListView.vue) ---- */
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      align-self: flex-start;
+    }
+
+    .breadcrumb-link {
+      padding: 2px var(--space-xs);
+      border: none;
+      border-radius: var(--space-xs);
+      background-color: transparent;
+      color: var(--color-text-muted);
+      font-size: var(--font-size-caption);
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .breadcrumb-link:hover {
+      text-decoration: underline;
+    }
+
+    .breadcrumb-separator {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+    }
+
+    .breadcrumb-current {
+      padding: 2px var(--space-xs);
+      color: var(--color-text-muted);
+      font-size: var(--font-size-caption);
+      font-weight: 500;
+    }
+
+    .screen-title {
+      margin: 0;
+      font-size: 20px;
+      font-weight: var(--font-weight-h2);
+      color: var(--color-text-primary);
+    }
+
+    /* ---- Pesan info (pola .info-message di HomeView.vue / StationGrid.vue) ---- */
+    .info-message {
+      margin: 0;
+      padding: 10px 12px;
+      border-radius: var(--radius-button, 8px);
+      background-color: var(--color-surface);
+      color: var(--color-text-primary);
+      font-size: 13px;
+    }
+
+    /* ---- Kartu menu (pola .menu-grid / .menu-card di HomeView.vue) ---- */
+    .menu-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .menu-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-height: var(--space-touch_target_min);
+      padding: var(--space-md);
+      box-sizing: border-box;
+      border: none;
+      border-radius: var(--radius-card, 12px);
+      background-color: var(--color-surface);
+      box-shadow: var(--shadow-card, 0 1px 2px rgba(0, 0, 0, 0.06));
+      text-align: left;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .menu-card-icon {
+      flex-shrink: 0;
+      color: var(--color-brand);
+    }
+
+    .menu-card-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .menu-card-label {
+      font-size: 15px;
+      font-weight: var(--font-weight-h2);
+      color: var(--color-text-primary);
+    }
+
+    /*
+      Keadaan nonaktif — SENGAJA bukan <button disabled> native.
+      Lihat komentar di mobile/src/components/StationGrid.vue: memakai
+      aria-disabled="true" supaya ketukan tetap memicu pesan info.
+      Tampilan redup: teks & ikon dimuted, tanpa shadow.
+    */
+    .menu-card[aria-disabled="true"] {
+      box-shadow: none;
+      cursor: default;
+    }
+
+    .menu-card[aria-disabled="true"] .menu-card-icon,
+    .menu-card[aria-disabled="true"] .menu-card-label {
+      color: var(--color-text-muted);
+    }
+
+    .menu-card-hint {
+      font-size: 11px;
+      font-weight: var(--font-weight-caption);
+      color: var(--color-text-muted);
+    }
+
+    .spec-note {
+      width: 390px;
+      max-width: 100%;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <main class="phone-frame">
+
+    <!-- 1. Header brand + hamburger (disalin dari HomeView.vue) -->
+    <header class="home-header">
+      <div class="home-header-brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M8 12l3 3 5-6" />
+        </svg>
+        <span class="brand-name">Mills Smart Log</span>
+      </div>
+
+      <button type="button" class="hamburger-button" aria-label="Buka menu navigasi" data-testid="hamburger-button">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+    </header>
+
+    <!-- 2. Jejak navigasi -->
+    <nav class="breadcrumb" aria-label="Jejak navigasi">
+      <button type="button" class="breadcrumb-link" data-testid="breadcrumb-home">Home</button>
+      <span class="breadcrumb-separator" aria-hidden="true">/</span>
+      <span class="breadcrumb-current" aria-current="page">Dashboard &amp; Reporting</span>
+    </nav>
+
+    <!-- 3. Judul layar -->
+    <h1 class="screen-title">Dashboard &amp; Reporting</h1>
+
+    <!--
+      5. Pesan info yang muncul saat kartu nonaktif ditekan.
+      Ditampilkan terlihat di mock ini sebagai satu contoh keadaan.
+    -->
+    <p class="info-message" role="status" data-testid="info-message">Layar Dashboard belum tersedia.</p>
+
+    <!-- 4. Dua kartu menu bertumpuk -->
+    <section class="menu-grid" aria-label="Pilihan Dashboard &amp; Reporting">
+
+      <!-- Kartu Dashboard — nonaktif, ikon batang grafik (MENU_ICONS['dashboard-reporting']) -->
+      <button type="button" class="menu-card" aria-disabled="true" data-testid="menu-card-dashboard">
+        <svg class="menu-card-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="10" width="4" height="11" />
+          <rect x="10" y="6" width="4" height="15" />
+          <rect x="17" y="3" width="4" height="18" />
+        </svg>
+        <span class="menu-card-text">
+          <span class="menu-card-label">Dashboard</span>
+          <span class="menu-card-hint">Belum tersedia</span>
+        </span>
+      </button>
+
+      <!-- Kartu Reporting — nonaktif, ikon dokumen/laporan -->
+      <button type="button" class="menu-card" aria-disabled="true" data-testid="menu-card-reporting">
+        <svg class="menu-card-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+          <path d="M14 3v5h5" />
+          <line x1="9" y1="13" x2="15" y2="13" />
+          <line x1="9" y1="17" x2="13" y2="17" />
+        </svg>
+        <span class="menu-card-text">
+          <span class="menu-card-label">Reporting</span>
+          <span class="menu-card-hint">Belum tersedia</span>
+        </span>
+      </button>
+
+    </section>
+
+  </main>
+
+  <p class="spec-note" style="font-size:var(--font-size-xs);color:var(--color-muted-foreground);font-style:italic;margin-top:var(--space-lg)">
+    Actors: Station Operator, Supervisor, Mill Management, Admin &nbsp;·&nbsp;
+    Entry points: Kartu menu 'Dashboard &amp; Reporting' di layar Home, Tombol kembali dari layar Reporting — Pilih Stasiun, begitu layar itu dibangun
+  </p>
+
+</body>
+</html>

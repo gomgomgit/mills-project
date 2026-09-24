@@ -43,13 +43,29 @@ test.describe('Home (screen-005)', () => {
   test('Navigasi Home — Menu Placeholder Dipilih', async ({ page }) => {
     await login(page)
 
+    // 'menu-card-dashboard-reporting' was REMOVED from this placeholder
+    // case (screen-134--dashboard-reporting-mobile, tech spec
+    // screen_dependencies -> screen-005--home): that card no longer shows
+    // "Segera Hadir" — it now navigates to a real screen. See the
+    // dedicated test just below this one.
     await page.getByTestId('menu-card-estimates-baselines').click()
     await expect(page.getByTestId('info-message')).toContainText('Segera Hadir')
     await expect(page).toHaveURL(/\/home$/)
+  })
+
+  // screen-134--dashboard-reporting-mobile — the 'Dashboard & Reporting'
+  // card's action changed from showComingSoon to a real navigation to the
+  // 'dashboard-reporting' route. This assertion is now stale for that
+  // specific card per the tech spec's screen_dependencies entry for
+  // screen-005--home, so it was carved out of the placeholder test above
+  // and replaced with this dedicated test.
+  test("Navigasi Home — Menu 'Dashboard & Reporting' Dipilih", async ({ page }) => {
+    await login(page)
 
     await page.getByTestId('menu-card-dashboard-reporting').click()
-    await expect(page.getByTestId('info-message')).toContainText('Segera Hadir')
-    await expect(page).toHaveURL(/\/home$/)
+
+    await page.waitForURL('**/dashboard-reporting')
+    await expect(page.getByTestId('info-message')).toHaveCount(0)
   })
 
   test('Navigasi Home — Nama User Tidak Tersedia', async ({ page }) => {

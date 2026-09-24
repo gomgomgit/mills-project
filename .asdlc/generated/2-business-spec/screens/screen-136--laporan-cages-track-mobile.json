@@ -1,0 +1,122 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "screen-136--laporan-cages-track-mobile",
+  "name": "Laporan Cages & Tracks (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Cages & Tracks versi ponsel — ujung rantai Full Cycle stasiun itu, tempat data yang ditumpahkan Operator jam demi jam akhirnya terbaca sebagai pola. Berbeda dari Sterilizer yang bekerja dalam siklus diskret, Cages & Tracks berirama jam: yang menarik bukan totalnya melainkan KAPAN penumpahan terjadi — jam berapa memuncak, jam berapa berhenti, berapa lama jeda terpanjangnya, berapa lori masih mengantre. Angka yang ditampilkan berasal dari endpoint yang sama persis dengan laporan versi web, sehingga mustahil berbeda. Layar ini membutuhkan jaringan, dan karena Operator kerap bekerja di area tanpa sinyal, kegagalan memuat harus dikatakan terus terang berikut cara mencobanya lagi — bukan layar kosong, bukan diam.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu Reporting di dalam Dashboard & Reporting, lalu memilih tile Cages & Tracks pada layar pemilih stasiun (screen-141)",
+    "Kembali dari layar lain dengan periode yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Cages & Tracks, yaitu periode berjenis Cages & Tracks maupun periode yang berlaku untuk semua jenis stasiun",
+    "Pemilih Mill — hanya bagi Admin, yang tidak terikat satu mill",
+    "Nama mill yang sedang berlaku, sebagai keterangan bagi pengguna yang terikat satu mill",
+    "Rentang tanggal dan status periode yang sedang dilihat",
+    "Total lori yang ditumpahkan sepanjang periode",
+    "Total lori keluar sepanjang periode",
+    "Rata-rata lori ditumpahkan per hari",
+    "Jam puncak penumpahan beserta jumlah lorinya",
+    "Jumlah jam operasi tanpa satu pun penumpahan",
+    "Jeda penumpahan terpanjang dalam jam, beserta tanggal terjadinya",
+    "Sebaran penumpahan per jam sepanjang 24 jam, dengan penanda jam di luar jendela operasi tippler",
+    "Tren harian: lori ditumpahkan per tanggal sepanjang periode",
+    "Antrean lori tersisa — nilai terendah dan rata-rata, dengan keterangan bahwa ini potret per jam",
+    "Durasi operasi tippler rata-rata per hari, beserta jumlah hari yang jendela operasinya tidak dapat dihitung",
+    "Rekap harian yang dapat dibuka dan ditutup, karena pada periode sebulan daftarnya panjang di layar ponsel",
+    "Keterangan ketika periode tidak memuat data sama sekali",
+    "Keterangan ketika mill belum punya satu pun periode yang mencakup Cages & Tracks",
+    "Pesan kegagalan jaringan beserta tombol untuk mencoba lagi"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode mana yang dilihat. Mengganti periode memuat ulang seluruh angka pada layar.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill mana yang dilihat. Hanya bagi Admin yang tidak terikat satu mill. Mengganti mill memuat ulang daftar periode dan seluruh angkanya.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap harian",
+      "description": "Menyembunyikan atau menampilkan tabel rekap per tanggal, yang pada periode panjang memakan hampir seluruh layar ponsel.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian penumpahan per jam sepanjang periode sebagai CSV, isinya sama persis dengan ekspor dari laporan versi web.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Coba lagi",
+      "description": "Mengulang pemuatan setelah kegagalan jaringan, tanpa harus keluar dan masuk kembali ke layar.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada satu pun aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Semua peran yang dapat masuk ke aplikasi mobile boleh melihat laporan ini, termasuk Operator. Ini keputusan produk yang sama dengan Laporan Sterilizer mobile: orang yang menginput data berhak melihat hasilnya.",
+    "Pengguna hanya melihat data mill-nya sendiri. Supervisor, Mill Management, dan Operator terikat pada mill di akunnya dan tidak dapat melihat mill lain, bahkan bila mencoba memaksanya lewat permintaan. Admin tidak terikat sehingga ia memilih.",
+    "Angka pada layar ini berasal dari endpoint yang sama dengan laporan versi web. Tidak boleh ada perhitungan kedua yang berdiri sendiri di sisi ponsel, karena dua perhitungan yang terpisah pasti akan menyimpang tanpa ketahuan.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Cages & Tracks — periode berjenis Cages & Tracks, atau periode yang tidak menyebut jenis stasiun.",
+    "Status periode tidak membatasi apa pun di layar ini. Periode tertutup tetap dapat dilihat dan diekspor; kunci periode mengatur penulisan data, bukan pembacaan laporan.",
+    "Rentang periode bersifat inklusif: data pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "Penumpahan dihitung dari baris rincian per jam, bukan dari angka ringkasan pada record harian.",
+    "Jam tanpa penumpahan hanya dihitung di dalam jendela operasi tippler, tidak pernah sepanjang 24 jam.",
+    "Jeda penumpahan terpanjang dihitung di dalam satu tanggal, tidak pernah lintas tanggal, dan diukur menurut waktu berlalu sejak jendela operasi dibuka — bukan menurut urutan angka jam, yang salah bagi shift yang melewati tengah malam.",
+    "Antrean lori tersisa adalah potret per jam, bukan antrean yang menumpuk, sehingga dilaporkan sebagai nilai terendah dan rata-rata dan tidak pernah dijumlahkan.",
+    "Layar ini membutuhkan jaringan. Kegagalan memuat harus dinyatakan dengan jelas beserta cara mencoba lagi — tidak boleh layar kosong tanpa penjelasan, dan tidak boleh diam."
+  ],
+  "usecase_ids": [
+    "usecase-136--laporan-cages-track-mobile"
+  ],
+  "edge_cases": [
+    "Mill belum punya satu pun periode yang mencakup Cages & Tracks — pemilih periode kosong dengan arahan menghubungi Admin, bukan layar kosong tanpa penjelasan.",
+    "Periode dipilih tetapi tidak memuat satu pun penumpahan — seluruh angka nol dengan keterangan belum ada data, dan tidak ada grafik kosong yang menyesatkan.",
+    "Sebuah tanggal punya record tetapi tidak punya satu pun baris rincian per jam — tanggal itu tetap terhitung sebagai hari operasi tanpa penumpahan, bukan diabaikan.",
+    "Seluruh tanggal dalam periode jendela operasinya tidak dapat dihitung — durasi operasi rata-rata ditampilkan sebagai tidak tersedia, bukan nol.",
+    "Penumpahan hanya terjadi pada satu jam sepanjang periode — tidak ada jeda yang dapat dihitung; dikatakan demikian, bukan ditampilkan sebagai nol jam.",
+    "Operasi tippler melewati tengah malam — jam operasi dan jeda dihitung melintasi pergantian hari, tidak menghasilkan durasi negatif maupun jeda semu yang panjang.",
+    "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
+    "Akun Supervisor, Mill Management, atau Operator yang belum terhubung ke mill mana pun — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
+    "Perangkat kehilangan jaringan saat memuat — pesan kegagalan beserta tombol coba lagi, tanpa kehilangan periode yang sudah dipilih.",
+    "Sesi berakhir saat layar terbuka — pengguna diarahkan ke Login, sama seperti layar mobile lain.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar layar tetap terbaca di ponsel."
+  ],
+  "test_priority": "high",
+  "open_questions": []
+}

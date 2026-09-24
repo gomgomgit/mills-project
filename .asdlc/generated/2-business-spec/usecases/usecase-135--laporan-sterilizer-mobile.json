@@ -1,0 +1,281 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "usecase-135--laporan-sterilizer-mobile",
+  "name": "Lihat Laporan Periode Sterilizer (Mobile)",
+  "description": "Pengguna mobile memilih periode pelaporan lalu melihat ringkasan stasiun Sterilizer sepanjang periode itu: jumlah siklus rebus, jumlah lori, durasi rata-rata/terpendek/terlama, kepatuhan triple-peak, tren harian, sebaran durasi, rekap per unit sterilizer, siklus di luar kebiasaan beserta ambangnya, dan rekap harian. Angka berasal dari sumber yang sama persis dengan laporan versi web. Layar ini hanya membaca dan membutuhkan jaringan.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi mobile",
+    "Mill pengguna sudah punya minimal satu periode pelaporan yang mencakup stasiun Sterilizer"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Pengguna membuka layar Laporan Sterilizer"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Sistem menentukan mill yang berlaku: bila pengguna terikat satu mill, mill itu ditetapkan otomatis; bila tidak terikat (Admin), sistem menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Sistem memuat daftar periode yang mencakup stasiun Sterilizer — periode berjenis Sterilizer maupun periode yang berlaku untuk semua jenis stasiun"
+    },
+    {
+      "step": 4,
+      "actor": "actor-station-operator",
+      "description": "Pengguna memilih salah satu periode"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Sistem memuat ringkasan periode itu dari sumber yang sama dengan laporan versi web"
+    },
+    {
+      "step": 6,
+      "actor": "System",
+      "description": "Sistem menampilkan total siklus, total lori, durasi rata-rata/terpendek/terlama beserta jumlah siklus tanpa durasi, kepatuhan triple-peak, tren harian, sebaran durasi, rekap per unit sterilizer, siklus di luar kebiasaan beserta ambangnya, dan rekap harian yang dapat dibuka/tutup"
+    },
+    {
+      "step": 7,
+      "actor": "actor-station-operator",
+      "description": "Bila diperlukan, pengguna menekan Ekspor untuk mengunduh rincian siklus sebagai CSV"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Mill belum punya periode",
+      "trigger": "Pada langkah 3, daftar periode kosong",
+      "steps": [
+        "Pemilih periode ditampilkan kosong dengan arahan menghubungi Admin",
+        "Tidak ada angka yang ditampilkan",
+        "Tidak ada pesan kesalahan teknis"
+      ]
+    },
+    {
+      "name": "Periode tanpa data",
+      "trigger": "Pada langkah 5, periode yang dipilih tidak memuat satu pun siklus",
+      "steps": [
+        "Seluruh angka utama ditampilkan nol",
+        "Sistem menyatakan belum ada data pada periode itu",
+        "Tidak ada grafik kosong yang menyesatkan"
+      ]
+    },
+    {
+      "name": "Seluruh siklus tanpa durasi",
+      "trigger": "Pada langkah 5, tidak satu pun siklus punya durasi tercatat",
+      "steps": [
+        "Durasi rata-rata, terpendek, dan terlama ditampilkan sebagai tidak tersedia, BUKAN nol",
+        "Jumlah siklus yang durasinya tidak tercatat ditampilkan"
+      ]
+    },
+    {
+      "name": "Siklus terlalu sedikit untuk menentukan ambang",
+      "trigger": "Pada langkah 6, jumlah siklus berdurasi di bawah ambang minimum",
+      "steps": [
+        "Ambang kebiasaan tidak dihitung sama sekali",
+        "Sistem menyatakan datanya belum cukup",
+        "Tidak ada siklus yang ditandai sebagai di luar kebiasaan"
+      ]
+    },
+    {
+      "name": "Durasi seragam",
+      "trigger": "Pada langkah 6, seluruh siklus berdurasi sama",
+      "steps": [
+        "Tidak ada siklus di luar kebiasaan",
+        "Ambang tetap ditampilkan"
+      ]
+    },
+    {
+      "name": "Admin belum memilih mill",
+      "trigger": "Pada langkah 2, Admin belum memilih mill apa pun",
+      "steps": [
+        "Angka tidak ditampilkan",
+        "Sistem menampilkan arahan memilih mill lebih dulu"
+      ]
+    },
+    {
+      "name": "Akun terikat mill tetapi mill-nya kosong",
+      "trigger": "Pada langkah 2, akun Operator/Supervisor/Mill Management belum terhubung ke mill mana pun",
+      "steps": [
+        "Sistem menampilkan pesan menghubungi Admin",
+        "Sistem TIDAK menawarkan daftar seluruh mill sebagai gantinya",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Mencoba melihat mill lain",
+      "trigger": "Pada langkah 5, pengguna yang terikat satu mill mencoba memaksa melihat mill lain lewat parameter permintaan",
+      "steps": [
+        "Sistem tetap menampilkan mill milik akun pengguna",
+        "Tidak ada data mill lain yang terlihat"
+      ]
+    },
+    {
+      "name": "Jaringan gagal",
+      "trigger": "Pada langkah 3 atau 5, permintaan ke server gagal karena perangkat kehilangan jaringan",
+      "steps": [
+        "Sistem menampilkan pesan kegagalan yang jelas",
+        "Sistem menampilkan tombol untuk mencoba lagi",
+        "Periode yang sudah dipilih tidak hilang"
+      ]
+    },
+    {
+      "name": "Sesi berakhir",
+      "trigger": "Kapan saja, sesi pengguna sudah tidak berlaku",
+      "steps": [
+        "Pengguna diarahkan ke layar Login"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pada langkah 4, periode yang dipilih berstatus tertutup",
+      "steps": [
+        "Laporan tetap ditampilkan penuh",
+        "Status tertutup ditampilkan sebagai keterangan",
+        "Ekspor tetap dapat dijalankan"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat ringkasan periode yang dipilih",
+    "Tidak ada satu pun data stasiun yang berubah"
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca; tidak ada aksi yang mengubah data",
+    "Semua peran mobile boleh melihat laporan ini, termasuk Operator",
+    "Pengguna hanya melihat data mill-nya sendiri; hanya Admin yang memilih mill",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Sterilizer",
+    "Status periode tidak membatasi apa pun di layar ini",
+    "Angka berasal dari sumber yang sama dengan laporan versi web",
+    "Rentang periode inklusif",
+    "Durasi rata-rata hanya dari siklus yang durasinya tercatat; jumlah yang dikeluarkan ditampilkan",
+    "Siklus di luar kebiasaan ditentukan dengan metode kuartil, dan ambangnya ditampilkan",
+    "Kegagalan jaringan dinyatakan jelas beserta cara mencoba lagi"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — success",
+      "given": "Pengguna Operator, Supervisor, atau Mill Management sudah masuk ke aplikasi mobile dan mill yang terikat pada akunnya sudah punya minimal satu periode pelaporan yang mencakup stasiun Sterilizer",
+      "when": "Pengguna membuka layar Laporan Sterilizer lalu memilih salah satu periode yang tersedia",
+      "then": "Mill akun ditetapkan otomatis tanpa pemilih Mill, dan sistem menampilkan ringkasan periode itu: total siklus rebus, total lori, durasi rata-rata/terpendek/terlama beserta jumlah siklus tanpa durasi, kepatuhan triple-peak, tren harian, sebaran durasi, rekap per unit sterilizer, siklus di luar kebiasaan beserta ambangnya, dan rekap harian yang dapat dibuka/tutup; rincian siklus dapat diunduh sebagai CSV lewat tombol Ekspor, dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — success as Admin",
+      "given": "Admin sudah masuk ke aplikasi mobile, tidak terikat pada mill mana pun, dan tersedia mill yang sudah punya minimal satu periode pelaporan yang mencakup stasiun Sterilizer",
+      "when": "Admin membuka layar Laporan Sterilizer, memilih salah satu mill pada pemilih Mill, lalu memilih salah satu periode yang tersedia",
+      "then": "Sistem menampilkan pemilih Mill berisi seluruh mill, dan setelah mill dan periode dipilih menampilkan ringkasan periode itu untuk mill tersebut dengan isi yang sama seperti pengguna terikat mill; rincian siklus dapat diunduh sebagai CSV, dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — Mill belum punya periode",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan mill yang berlaku belum punya satu pun periode pelaporan yang mencakup stasiun Sterilizer",
+      "when": "Pengguna membuka layar Laporan Sterilizer dan sistem memuat daftar periode",
+      "then": "Pemilih periode ditampilkan kosong disertai arahan menghubungi Admin, tidak ada angka yang ditampilkan, dan tidak ada pesan kesalahan teknis"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — Periode tanpa data",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan mill-nya punya periode pelaporan yang mencakup stasiun Sterilizer",
+      "when": "Pengguna memilih periode yang tidak memuat satu pun siklus rebus",
+      "then": "Seluruh angka utama ditampilkan nol, sistem menyatakan belum ada data pada periode itu, dan tidak ada grafik kosong yang menyesatkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — Seluruh siklus tanpa durasi",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan mill-nya punya periode pelaporan yang mencakup stasiun Sterilizer",
+      "when": "Pengguna memilih periode yang seluruh siklusnya tidak punya durasi tercatat",
+      "then": "Durasi rata-rata, terpendek, dan terlama ditampilkan sebagai tidak tersedia dan BUKAN nol, serta jumlah siklus yang durasinya tidak tercatat ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — Siklus terlalu sedikit untuk menentukan ambang",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan mill-nya punya periode pelaporan yang mencakup stasiun Sterilizer",
+      "when": "Pengguna memilih periode yang jumlah siklus berdurasinya masih di bawah ambang minimum untuk menghitung kebiasaan",
+      "then": "Ambang kebiasaan tidak dihitung sama sekali, sistem menyatakan datanya belum cukup, dan tidak ada siklus yang ditandai sebagai di luar kebiasaan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — Durasi seragam",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan mill-nya punya periode pelaporan yang mencakup stasiun Sterilizer",
+      "when": "Pengguna memilih periode yang seluruh siklusnya berdurasi sama persis",
+      "then": "Tidak ada siklus yang ditandai di luar kebiasaan, namun ambang kebiasaan tetap ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — Admin belum memilih mill",
+      "given": "Admin sudah masuk ke aplikasi mobile dan tidak terikat pada mill mana pun",
+      "when": "Admin membuka layar Laporan Sterilizer dan belum memilih mill apa pun pada pemilih Mill",
+      "then": "Angka tidak ditampilkan dan sistem menampilkan arahan untuk memilih mill lebih dulu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — Akun terikat mill tetapi mill-nya kosong",
+      "given": "Pengguna Operator, Supervisor, atau Mill Management sudah masuk ke aplikasi mobile tetapi akunnya belum terhubung ke mill mana pun",
+      "when": "Pengguna membuka layar Laporan Sterilizer",
+      "then": "Sistem menampilkan pesan untuk menghubungi Admin, TIDAK menawarkan daftar seluruh mill sebagai gantinya, dan tidak ada angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — Mencoba melihat mill lain",
+      "given": "Pengguna yang terikat satu mill sudah masuk ke aplikasi mobile dan mill-nya punya periode pelaporan yang mencakup stasiun Sterilizer",
+      "when": "Pengguna memaksa memuat ringkasan mill lain lewat parameter permintaan",
+      "then": "Sistem tetap menampilkan ringkasan mill milik akun pengguna dan tidak ada data mill lain yang terlihat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — Jaringan gagal",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan mill-nya punya periode pelaporan yang mencakup stasiun Sterilizer",
+      "when": "Perangkat kehilangan jaringan saat sistem memuat daftar periode atau memuat ringkasan periode",
+      "then": "Sistem menampilkan pesan kegagalan yang jelas beserta tombol untuk mencoba lagi, dan periode yang sudah dipilih tidak hilang"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — Sesi berakhir",
+      "given": "Pengguna sedang berada di layar Laporan Sterilizer pada aplikasi mobile",
+      "when": "Sesi pengguna sudah tidak berlaku saat pengguna berinteraksi dengan layar",
+      "then": "Pengguna diarahkan ke layar Login"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — Periode tertutup",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan mill-nya punya periode pelaporan yang mencakup stasiun Sterilizer dengan status tertutup",
+      "when": "Pengguna memilih periode yang berstatus tertutup",
+      "then": "Laporan tetap ditampilkan penuh, status tertutup ditampilkan sebagai keterangan, dan Ekspor tetap dapat dijalankan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — daftar periode hanya memuat periode yang mencakup Sterilizer",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan mill-nya punya periode berjenis Sterilizer, periode yang berlaku untuk semua jenis stasiun, serta periode yang hanya berlaku untuk jenis stasiun lain",
+      "when": "Pengguna membuka layar Laporan Sterilizer dan membuka pemilih periode",
+      "then": "Pemilih periode hanya memuat periode berjenis Sterilizer dan periode yang berlaku untuk semua jenis stasiun, sedangkan periode untuk jenis stasiun lain tidak dapat dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — angka harus sama dengan laporan versi web",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan tersedia satu periode Sterilizer yang ringkasannya sudah ditampilkan pada laporan versi web",
+      "when": "Pengguna melihat ringkasan periode yang sama pada layar mobile",
+      "then": "Total siklus, total lori, durasi rata-rata/terpendek/terlama, kepatuhan triple-peak, rekap per unit sterilizer, dan rekap harian bernilai sama persis dengan laporan versi web untuk periode itu"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — rentang periode inklusif",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan mill-nya punya periode Sterilizer yang memuat siklus tepat pada tanggal mulai dan tepat pada tanggal akhir periode, serta siklus sehari sebelum dan sehari sesudah periode",
+      "when": "Pengguna memilih periode tersebut",
+      "then": "Siklus pada tanggal mulai dan tanggal akhir ikut terhitung dalam seluruh ringkasan, sedangkan siklus di luar rentang tidak ikut terhitung"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — rata-rata durasi mengabaikan siklus tanpa durasi",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan mill-nya punya periode Sterilizer yang sebagian siklusnya punya durasi tercatat dan sebagian lain tidak",
+      "when": "Pengguna memilih periode tersebut",
+      "then": "Durasi rata-rata, terpendek, dan terlama dihitung hanya dari siklus yang durasinya tercatat, dan jumlah siklus yang dikeluarkan dari perhitungan ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Sterilizer (Mobile) — siklus di luar kebiasaan ditentukan dengan metode kuartil",
+      "given": "Pengguna sudah masuk ke aplikasi mobile dan mill-nya punya periode Sterilizer dengan jumlah siklus berdurasi di atas ambang minimum serta terdapat siklus yang durasinya jauh menyimpang",
+      "when": "Pengguna memilih periode tersebut dan melihat bagian siklus di luar kebiasaan",
+      "then": "Sistem menandai siklus yang durasinya berada di luar ambang kuartil dan menampilkan nilai ambang bawah dan ambang atas yang dipakai"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-135--laporan-sterilizer-mobile"
+  ]
+}

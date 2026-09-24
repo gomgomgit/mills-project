@@ -3,13 +3,15 @@
 /**
  * KelolaPeriodePelaporanTest (Feature/Livewire) —
  * screen-128--kelola-periode-pelaporan / usecase-128 (CRUD) +
- * usecase-140 (tutup & buka kembali).
+ * usecase-140 (tutup & buka kembali) + usecase-144 (buka periode draft).
  *
  * Component tests for App\Livewire\MasterData\KelolaPeriodePelaporan, one
  * per test_scenarios entry whose `component_test` is non-empty (scenarios
- * 1–13 and 16–18; scenarios 14, 15, 19 and 20 carry an empty
+ * 1–13, 16–18 and 21–28; scenarios 14, 15, 19 and 20 carry an empty
  * component_test — they are pure API/mobile-sync scenarios and live,
- * skipped, in tests/Feature/Api/KelolaPeriodePelaporanTest.php). Mirrors
+ * skipped, in tests/Feature/Api/KelolaPeriodePelaporanTest.php), plus one
+ * extra test for the cancelOpen() path, which the business spec lists as
+ * an alternative flow without a bdd_scenario of its own. Mirrors
  * tests/Feature/Livewire/KelolaProductionLineTest.php's structure.
  *
  * BINDING SHAPE: `business_unit_id` and `station_type` are bare top-level
@@ -504,3 +506,307 @@ it('akses ditolak: non-Admin tidak dapat memicu aksi tutup maupun buka kembali',
     'mill management' => ['mill_management'],
     'operator' => ['operator'],
 ]);
+
+// ── usecase-144 (Buka Periode) ──────────────────────────────────────────
+//
+// Scenarios 21–28 plus the cancel path. "Buka Periode" is offered on DRAFT
+// rows only, via a real dialog (askOpen -> openingId/openingPeriod ->
+// confirmOpen), because draft -> open cannot be undone. Errors surface on
+// the EXISTING $closeErrorMessage property (the [data-testid="close-error"]
+// alert), not on a new one; success sets $successMessage.
+
+/** A draft period on Mill Alpha — the only status that offers "Buka Periode". */
+function draftPeriodForOpenComponent(BusinessUnit $businessUnit, string $name = 'Oktober 2026'): Period
+{
+    return Period::factory()
+        ->forBusinessUnit($businessUnit)
+        ->stationType('sterilizer')
+        ->named($name)
+        ->range('2026-10-01', '2026-10-31')
+        ->draft()
+        ->create();
+}
+
+// Scenario 21: "Buka Periode Pelaporan — sukses"
+it('buka periode: dialog konfirmasi tampil, setelah konfirmasi badge jadi Terbuka dan tombol Buka Periode hilang', function () {
+    $period = draftPeriodForOpenComponent($this->businessUnitA);
+
+    SterilizerRecord::factory()->forStation($this->sterilizerStation)->onDate('2026-10-10')->count(2)->create();
+    $recordsBefore = SterilizerRecord::query()->orderBy('id')->get()
+        ->map(fn ($r) => [$r->id, $r->checked_by, $r->acknowledged_by, (string) $r->updated_at])
+        ->all();
+
+    Livewire::actingAs($this->admin)
+        ->test(KelolaPeriodePelaporan::class)
+        // A draft row offers the action.
+        ->assertSeeHtml('data-testid="open-period-button"')
+        ->call('askOpen', $period->id)
+        ->assertSet('openingId', $period->id)
+        ->assertSet('openingPeriod', fn ($snapshot) => is_array($snapshot) && $snapshot['id'] === $period->id)
+        // The dialog spells out that the step cannot be undone.
+        ->assertSeeHtml('data-testid="open-period-dialog"')
+        ->assertSeeHtml('data-testid="confirm-open-period"')
+        ->assertSee('tidak dapat dikembalikan ke Draft')
+        ->call('confirmOpen')
+        ->assertSet('openingId', null)
+        ->assertSet('openingPeriod', null)
+        ->assertSet('closeErrorMessage', null)
+        ->assertSet('successMessage', 'Periode berhasil dibuka.')
+        ->assertViewHas('periods', fn ($rows) => collect($rows)->contains(
+            fn ($row) => $row['id'] === $period->id
+                && $row['status'] === 'open'
+                && $row['closed_by'] === null
+        ))
+        ->assertSee('Terbuka')
+        // The action is no longer offered for that row, while Edit, Tutup
+        // and Hapus stay available.
+        ->assertDontSeeHtml('data-testid="open-period-button"')
+        ->assertSeeHtml("edit-button-{$period->id}")
+        ->assertSeeHtml("close-button-{$period->id}")
+        ->assertSeeHtml("delete-button-{$period->id}");
+
+    expect($period->fresh()->status->value)->toBe('open');
+
+    // Not one station record changed.
+    $recordsAfter = SterilizerRecord::query()->orderBy('id')->get()
+        ->map(fn ($r) => [$r->id, $r->checked_by, $r->acknowledged_by, (string) $r->updated_at])
+        ->all();
+    expect($recordsAfter)->toBe($recordsBefore);
+});
+
+// Alternative flow "Admin membatalkan pembukaan" — no bdd_scenario of its
+// own, but the cancel path must not go untested: it resets the dialog and
+// changes nothing.
+it('membatalkan pembukaan: dialog tertutup, status tetap Draft, tanpa notifikasi sukses', function () {
+    $period = draftPeriodForOpenComponent($this->businessUnitA);
+
+    Livewire::actingAs($this->admin)
+        ->test(KelolaPeriodePelaporan::class)
+        ->call('askOpen', $period->id)
+        ->assertSet('openingId', $period->id)
+        ->assertSeeHtml('data-testid="open-period-dialog"')
+        ->call('cancelOpen')
+        ->assertSet('openingId', null)
+        ->assertSet('openingPeriod', null)
+        ->assertSet('closeErrorMessage', null)
+        ->assertSet('successMessage', null)
+        ->assertDontSeeHtml('data-testid="open-period-dialog"')
+        ->assertViewHas('periods', fn ($rows) => collect($rows)->contains(
+            fn ($row) => $row['id'] === $period->id && $row['status'] === 'draft'
+        ))
+        // The row still offers the action, untouched.
+        ->assertSeeHtml('data-testid="open-period-button"');
+
+    expect($period->fresh()->status->value)->toBe('draft');
+});
+
+// Scenario 22: "Periode sudah terbuka"
+it('buka periode yang sudah terbuka: pesan menyebut sudah terbuka dan status tidak berubah', function () {
+    $period = Period::factory()
+        ->forBusinessUnit($this->businessUnitA)
+        ->stationType('sterilizer')
+        ->named('Oktober 2026')
+        ->range('2026-10-01', '2026-10-31')
+        ->open()
+        ->create();
+
+    Livewire::actingAs($this->admin)
+        ->test(KelolaPeriodePelaporan::class)
+        // An open row never renders the button — this is the forged/stale
+        // call the component still has to survive.
+        ->assertDontSeeHtml('data-testid="open-period-button"')
+        ->call('askOpen', $period->id)
+        ->call('confirmOpen')
+        ->assertStatus(200)
+        ->assertSet('successMessage', null)
+        ->assertSet('openingId', null)
+        ->assertSet('closeErrorMessage', fn ($m) => is_string($m)
+            && str_contains($m, 'sudah terbuka')
+            && ! str_contains($m, 'Buka Kembali Periode'))
+        ->assertViewHas('periods', fn ($rows) => collect($rows)->contains(
+            fn ($row) => $row['id'] === $period->id && $row['status'] === 'open'
+        ));
+
+    expect($period->fresh()->status->value)->toBe('open');
+});
+
+// Scenario 23: "Periode sudah tertutup"
+it('buka periode yang sudah tertutup: pesan mengarahkan ke Buka Kembali Periode dan status tetap Tertutup', function () {
+    $period = Period::factory()
+        ->forBusinessUnit($this->businessUnitA)
+        ->stationType('sterilizer')
+        ->named('Oktober 2026')
+        ->range('2026-10-01', '2026-10-31')
+        ->closed($this->adminA, '2026-11-01 09:14:00')
+        ->create();
+
+    Livewire::actingAs($this->admin)
+        ->test(KelolaPeriodePelaporan::class)
+        ->call('askOpen', $period->id)
+        ->call('confirmOpen')
+        ->assertStatus(200)
+        ->assertSet('successMessage', null)
+        ->assertSet('closeErrorMessage', fn ($m) => is_string($m)
+            && str_contains($m, 'sudah tertutup')
+            && str_contains($m, 'Buka Kembali Periode'))
+        ->assertViewHas('periods', fn ($rows) => collect($rows)->contains(
+            fn ($row) => $row['id'] === $period->id && $row['status'] === 'closed'
+        ))
+        // A closed row offers "Buka Kembali Periode", never "Buka Periode".
+        ->assertSeeHtml("reopen-button-{$period->id}")
+        ->assertDontSeeHtml('data-testid="open-period-button"');
+
+    expect($period->fresh()->status->value)->toBe('closed');
+});
+
+// Scenario 24: "Periode tidak ditemukan"
+it('buka periode yang sudah dihapus: pesan tidak ditemukan, komponen tetap hidup, baris hilang dari daftar', function () {
+    $period = draftPeriodForOpenComponent($this->businessUnitA, 'Periode Sementara');
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(KelolaPeriodePelaporan::class)
+        ->call('askOpen', $period->id)
+        ->assertSet('openingId', $period->id);
+
+    // Another Admin deletes the row while the dialog is open.
+    Period::whereKey($period->id)->delete();
+
+    $component
+        ->call('confirmOpen')
+        ->assertStatus(200)
+        ->assertSet('openingId', null)
+        ->assertSet('openingPeriod', null)
+        ->assertSet('successMessage', null)
+        ->assertSet('closeErrorMessage', fn ($m) => is_string($m) && str_contains($m, 'tidak ditemukan'))
+        ->assertViewHas('periods', fn ($rows) => ! collect($rows)->contains(
+            fn ($row) => $row['id'] === $period->id
+        ));
+});
+
+// Scenario 25: "Dua Admin membuka bersamaan"
+it('dua Admin membuka bersamaan: hanya yang pertama berhasil, yang kedua diberi tahu sudah terbuka', function () {
+    $period = draftPeriodForOpenComponent($this->businessUnitA);
+
+    // Both Admins render the list while the period is still draft.
+    $adminB = Livewire::actingAs($this->admin)
+        ->test(KelolaPeriodePelaporan::class)
+        ->call('askOpen', $period->id)
+        ->assertSet('openingId', $period->id);
+
+    // Admin A gets there first.
+    Livewire::actingAs($this->adminA)
+        ->test(KelolaPeriodePelaporan::class)
+        ->call('askOpen', $period->id)
+        ->call('confirmOpen')
+        ->assertSet('successMessage', 'Periode berhasil dibuka.')
+        ->assertSet('closeErrorMessage', null);
+
+    expect($period->fresh()->updated_by)->toBe($this->adminA->id);
+
+    // Admin B confirms the same opening a moment later.
+    $adminB
+        ->call('confirmOpen')
+        ->assertStatus(200)
+        ->assertSet('successMessage', null)
+        ->assertSet('closeErrorMessage', fn ($m) => is_string($m) && str_contains($m, 'sudah terbuka'))
+        ->assertViewHas('periods', fn ($rows) => collect($rows)->contains(
+            fn ($row) => $row['id'] === $period->id && $row['status'] === 'open'
+        ));
+
+    // Admin B never overwrote Admin A's stamp.
+    $fresh = $period->fresh();
+    expect($fresh->status->value)->toBe('open');
+    expect($fresh->updated_by)->toBe($this->adminA->id);
+});
+
+// Scenario 26: "Bukan Admin mencoba membuka periode"
+it('akses ditolak: non-Admin tidak dapat memicu aksi Buka Periode maupun melihat tombolnya', function (string $role) {
+    $user = match ($role) {
+        'supervisor' => $this->supervisor,
+        'mill_management' => $this->millManagement,
+        'operator' => $this->operator,
+    };
+
+    $period = draftPeriodForOpenComponent($this->businessUnitA, 'Periode Draft');
+
+    // The screen itself is unreachable (EnsureRole aborts 403 before mount),
+    // so the button is never rendered for this actor.
+    $response = $this->actingAs($user, 'web')->get('/master-data/periods');
+    $response->assertForbidden();
+    $response->assertDontSee('open-period-button', false);
+
+    // And the action behind it is refused too.
+    $this->actingAs($user, 'web')
+        ->postJson("/api/periods/{$period->id}/open")
+        ->assertStatus(403);
+
+    $fresh = $period->fresh();
+    expect($fresh->status->value)->toBe('draft');
+    expect($fresh->updated_by)->toBeNull();
+})->with([
+    'supervisor' => ['supervisor'],
+    'mill management' => ['mill_management'],
+    'operator' => ['operator'],
+]);
+
+// Scenario 27: "status Terbuka tidak dapat dikembalikan ke Draft"
+it('periode Terbuka: form edit tidak menyediakan pilihan status dan status tetap Terbuka setelah simpan', function () {
+    $period = draftPeriodForOpenComponent($this->businessUnitA);
+
+    Livewire::actingAs($this->admin)
+        ->test(KelolaPeriodePelaporan::class)
+        ->call('askOpen', $period->id)
+        ->call('confirmOpen')
+        ->assertSet('successMessage', 'Periode berhasil dibuka.')
+        ->call('openEditForm', $period->id)
+        ->assertSet('showForm', true)
+        // The form binds business unit, station type, name and the two
+        // dates — and nothing else. There is no status control at all, so
+        // no component action can produce 'draft' from an open period.
+        ->assertDontSeeHtml('wire:model.live="form.status"')
+        ->assertDontSeeHtml('wire:model="form.status"')
+        ->assertDontSeeHtml('data-testid="status-select"')
+        ->set('form.name', 'Oktober 2026 (revisi)')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertSet('successMessage', 'Periode berhasil diperbarui.')
+        ->assertViewHas('periods', fn ($rows) => collect($rows)->contains(
+            fn ($row) => $row['id'] === $period->id
+                && $row['status'] === 'open'
+                && $row['name'] === 'Oktober 2026 (revisi)'
+        ));
+
+    expect($period->fresh()->status->value)->toBe('open');
+});
+
+// Scenario 28: "periode Terbuka tetap dapat diubah dan dihapus"
+it('periode Terbuka tetap dapat diubah dan dihapus seperti Draft', function () {
+    $period = draftPeriodForOpenComponent($this->businessUnitA, 'Periode Agustus 2026');
+
+    Livewire::actingAs($this->admin)
+        ->test(KelolaPeriodePelaporan::class)
+        ->call('askOpen', $period->id)
+        ->call('confirmOpen')
+        ->assertSet('successMessage', 'Periode berhasil dibuka.')
+        // Edit — accepted, no PERIOD_CLOSED_IMMUTABLE: only 'closed' locks.
+        ->call('openEditForm', $period->id)
+        ->assertSet('showForm', true)
+        ->assertSet('deleteErrorMessage', null)
+        ->set('form.name', 'Periode Agustus 2026 (revisi)')
+        ->call('save')
+        ->assertHasNoErrors()
+        ->assertSet('successMessage', 'Periode berhasil diperbarui.')
+        ->assertViewHas('periods', fn ($rows) => collect($rows)->contains(
+            fn ($row) => $row['id'] === $period->id && $row['name'] === 'Periode Agustus 2026 (revisi)'
+        ))
+        // Delete — accepted too, and the row disappears.
+        ->call('askDelete', $period->id)
+        ->call('confirmDelete')
+        ->assertSet('deleteErrorMessage', null)
+        ->assertSet('successMessage', 'Periode berhasil dihapus.')
+        ->assertViewHas('periods', fn ($rows) => ! collect($rows)->contains(
+            fn ($row) => $row['id'] === $period->id
+        ));
+
+    expect(Period::find($period->id))->toBeNull();
+});

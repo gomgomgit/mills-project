@@ -1,0 +1,101 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "screen-141--reporting-pilih-stasiun-mobile",
+  "name": "Reporting — Pilih Stasiun (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-23T15:10:00Z",
+      "passed": 30,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "",
+      "passed": 0,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-23T15:10:00Z",
+      "passed": 30,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-23T15:18:00Z",
+      "passed": 13,
+      "failed": 0
+    }
+  },
+  "files_generated": [],
+  "fe_files_generated": [
+    "mobile/src/views/ReportingPilihStasiunView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/DashboardReportingView.vue"
+  ],
+  "test_files_generated": [
+    "mobile/tests/e2e/reporting-pilih-stasiun.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/ReportingPilihStasiunView.spec.ts",
+    "mobile/tests/DashboardReportingView.spec.ts",
+    "mobile/tests/e2e/dashboard-reporting.spec.ts"
+  ],
+  "implementation_notes": [
+    "NOL perubahan backend, NOL endpoint, NOL tambahan api-index. Daftar stasiun dibaca lewat stationRepo yang murni lokal.",
+    "KEPUTUSAN RANCANGAN: memakai ulang /api/station-reports/stations milik screen-140 sempat direncanakan demi 'satu sumber', lalu ditolak setelah diperiksa — StationReportService::resolveBusinessUnit() punya pola yang sama dengan SterilizerReportService (menyebut Supervisor dan MillManagement; Operator jatuh ke penolakan) sehingga menuntut pelebaran peran lagi; ia mewajibkan Admin memilih mill untuk daftar yang tidak bergantung mill; dan report_path-nya berisi rute WEB yang tidak berguna di mobile. Sumber lokal memberi semuanya tanpa satu pun dari masalah itu.",
+    "JEBAKAN UTAMA — terverifikasi di kode, bukan dari laporan agent: isReportAvailable() berbunyi `return REPORT_ROUTES[station.type] != null` dan TIDAK menyentuh isActive sama sekali. Satu-satunya kemunculan isActive di berkas itu ada di komentar yang menjelaskan mengapa ia sengaja dikecualikan. Baik :class maupun :aria-disabled diturunkan dari fungsi yang sama, sehingga tidak ada pengecekan kedua yang tersebar di template. Ini penting karena hari ini Sterilizer kebetulan isActive=true DAN punya laporan — implementasi keliru `isActive && REPORT_ROUTES[type]` akan tetap hijau di seluruh test. Dua unit test dengan fixture sengaja 'tidak wajar' menguncinya dari dua arah: isActive=true tanpa entri peta wajib nonaktif, dan isActive=false dengan entri peta tetap tersedia.",
+    "Jalur pembacaan mengikuti StationListView.vue persis: ada production line aktif → getActiveAndPlaceholderStationsForProductionLine, tidak ada → getActiveAndPlaceholderStations. Production line aktif dibaca dari localStorage kunci msl_production_line_{userId} — kunci yang SAMA yang ditulis StationListView, dan sengaja BUKAN productionLineRepo.fetchCurrentProductionLines() yang memanggil jaringan.",
+    "Tile dirender apa adanya lewat satu v-for — tanpa filter, sortir, atau pengelompokan (berbeda dari StationGrid yang membelah aktif/placeholder jadi dua seksi). Nama fixture pada test sengaja bukan turunan `type` (mis. 'Sterilizer Lini A') agar penamaan ulang diam-diam ketahuan.",
+    "Tile nonaktif memakai aria-disabled=\"true\", nol atribut disabled native (diasersi untuk seluruh grid). Gayanya tile aktif yang DIREDUPKAN (#d6f6e5 / #6b7280 / tanpa shadow), BUKAN abu-abu placeholder StationGrid — dua keadaan berbeda tetap dapat dibedakan: abu-abu berarti stasiunnya tidak ada, redup berarti laporannya belum dibangun.",
+    "infoMessage satu ref<string|null> tunggal; test mengasersi jumlah elemen info-message TEPAT SATU setelah setiap klik, bukan hanya di akhir.",
+    "Peta ikon disalin verbatim dari StationGrid.vue (yang tidak mengekspor petanya) agar ikon identik dengan Daftar Stasiun.",
+    "Kartu 'Reporting' di screen-134 dihidupkan (routeName → 'report-stations'); kartu 'Dashboard' TETAP null. Dua berkas test screen-134 disesuaikan hanya pada bagian kartu Reporting; asersi kartu Dashboard nonaktif tidak dilemahkan.",
+    "Test memock apiClient dan localDb agar MENOLAK setiap pemanggilan, lalu mengasersi keduanya tidak pernah dipanggil — nol jaringan dibuktikan, bukan diklaim.",
+    "RANTAI PENUH TERBUKTI di aplikasi nyata: Home → Dashboard & Reporting → Reporting → /reports (18 tile, 17 nonaktif, 1 aktif) → ketuk tile nonaktif memunculkan 'Laporan Weighbridge belum tersedia.' tanpa berpindah → ketuk Sterilizer sampai di /reports/sterilizer."
+  ],
+  "deferred_items": [
+    {
+      "description": "Laporan mobile untuk 17 stasiun lain (screen-136 sampai 139 dan seterusnya).",
+      "reason": "Menghidupkan masing-masing cukup menambah satu baris di konstanta REPORT_ROUTES."
+    },
+    {
+      "description": "Layar Dashboard versi mobile — kartu 'Dashboard' di screen-134 masih nonaktif.",
+      "reason": "Di luar cakupan rangkaian Full Cycle."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "KOPLING YANG PERLU DIKETAHUI, ditemukan saat memeriksa render nyata: pengguna yang baru masuk dan belum pernah membuka Daftar Stasiun melihat layar ini KOSONG dengan arahan membuka Daftar Stasiun lebih dulu. Lebih jauh lagi — dan ini akibat langsung dari pemilih Production Line yang ditambahkan pada sesi yang sama — membuka Daftar Stasiun saja TIDAK CUKUP bila mill punya lebih dari satu production line: stasiun baru tersimpan setelah pengguna memilih salah satu line. Diverifikasi di aplikasi nyata: sebelum memilih line, tile = 0; sesudah memilih, tile = 18. Jadi jalur pertama seorang pengguna baru menuju laporan adalah Home → Daftar Stasiun → pilih Production Line → kembali → Dashboard & Reporting → Reporting. Ini harga dari memilih sumber data lokal; alternatifnya (memanggil API) punya biaya lain yang lebih besar. Layak ditinjau sebagai keputusan produk.",
+      "severity": "major"
+    },
+    {
+      "description": "Label stasiun bernama panjang terpotong di tepi bawah tile — terlihat pada 'Process Quality Control' di tangkapan layar render nyata, dan sebagian tertutup bubble AI yang mengambang. Hanya masalah tampilan, tidak memengaruhi perilaku; tidak tertangkap satu pun dari 43 test karena semuanya mengasersi isi dan perilaku, bukan tata letak.",
+      "severity": "minor"
+    },
+    {
+      "description": "data-testid station-tile-${station.type} dapat kembar bila ada lebih dari satu baris station bertype 'other'. Saat ini nol placeholder tersisa — 18 stasiun semuanya bertype khusus — sehingga tidak terjadi pada data nyata. Bila type 'other' muncul lagi, testid perlu diturunkan dari id.",
+      "severity": "minor"
+    },
+    {
+      "description": "Coverage tidak terukur — vitest dijalankan tanpa --coverage, sehingga ambang test_strategy tidak diverifikasi. Nilai 0 adalah penanda 'tidak terukur', bukan coverage nol.",
+      "severity": "minor"
+    },
+    {
+      "description": "Satu unit_test_case screen-134 ('pesan tertimpa ketika kartu nonaktif LAIN ditekan') membutuhkan dua kartu nonaktif, padahal kini tersisa satu. Test-writer memulihkannya dengan memutasi MENU_OPTIONS — routeName 'Reporting' dikembalikan ke null khusus untuk test itu, terdokumentasi di komentar. Tidak ada unit_test_case yang dihapus, tetapi ini keputusan agent, bukan yang tertulis di spec.",
+      "severity": "minor"
+    },
+    {
+      "description": "Skenario 'membuka layar saat offline' tidak dapat direproduksi di Vite dev server karena rute memakai lazy import — batas lingkungan yang sama dengan screen-134 dan screen-135. Yang diuji: layar dibuka lebih dulu, lalu jaringan diputus, lalu dibuktikan tetap utuh dan interaktif. Larangan 'jangan diperbaiki dengan eager-import' disalin ke berkas test baru.",
+      "severity": "minor"
+    },
+    {
+      "description": "PRE-EXISTING, bukan dari layar ini: satu unhandled rejection dari SyncResultDialog.vue (summary.items undefined) yang muncul lewat tests/StationListView.spec.ts. Seluruh 1686 test tetap hijau, tetapi vitest memperingatkan unhandled error dapat menyebabkan false positive. Layak diberesi tersendiri.",
+      "severity": "minor"
+    }
+  ]
+}

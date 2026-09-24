@@ -1,0 +1,108 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-24"
+  },
+  "id": "screen-131--laporan-boiler-room-web",
+  "name": "Laporan Boiler Room (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-24T07:40:00Z",
+      "passed": 41,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-24T07:40:00Z",
+      "passed": 26,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-24T07:40:00Z",
+      "passed": 21,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-24T07:40:00Z",
+      "passed": 21,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/BoilerRoomReportService.php",
+    "backend/app/Http/Controllers/Api/BoilerRoomReportController.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/app/Services/StationReportService.php",
+    "backend/app/Services/BoilerRoomRecordService.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/LaporanBoilerRoom.php",
+    "backend/resources/views/livewire/dashboard/laporan-boiler-room.blade.php",
+    "backend/resources/views/dashboard/laporan-boiler-room.blade.php",
+    "backend/resources/views/dashboard/partials/report-styles.blade.php",
+    "backend/resources/views/components/layouts/app.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/BoilerRoomReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanBoilerRoomTest.php",
+    "e2e-web/tests/laporan-boiler-room.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/LaporanBoilerRoomTest.php"
+  ],
+  "implementation_notes": [
+    "KOREKSI SPEC, BUKAN KODE. Satu test merah di akhir run pertama ternyata menguji spec yang salah: business_logic langkah 8 membagi avg_per_day dengan HARI BER-RECORD sementara unit_test_cases turunan membagi dengan PANJANG PERIODE. Keduanya sama hanya bila setiap hari periode punya record — dan justru laporan ini ada karena sering tidak. Keputusan user 2026-09-24: hari ber-record, konsisten dengan avg_cages_per_day milik screen-130 dan dengan label layar yang sudah berbunyi demikian. Tech spec dinaikkan ke v2; implementasi tidak disentuh.",
+    "Test pembagi diperKUAT, bukan sekadar ditukar angkanya: fixture sengaja dipegang pada days_in_period = 2 x days_with_records sehingga 1.0 dan 0.5 tidak akan pernah diam-diam berimpit, ditambah asersi pendamping atas coverage.days_in_period dan total.days_with_records serta not->toBe(0.5). Diverifikasi di sumber bahwa maintenanceOf() membagi dengan variabel yang SAMA dengan yang dipublikasikan sebagai total.days_with_records, jadi asersinya mengunci pembagi sungguhan, bukan kebetulan.",
+    "Kontradiksi spec kedua, tidak memblokir: edge_case_handling menuntut rekap harian sebagai <details> tertutup bawaan, sementara test_scenarios menuntut rekap ADA saat render pertama dan HILANG dari DOM setelah ditutup. <details> yang tertutup tetap menyimpan anaknya di DOM, jadi ketiganya mustahil dipenuhi bersamaan. Implementasi memakai tombol + markup ber-@if; prosa spec diperbaiki di v2, nol perubahan kode.",
+    "DEVIASI BERKAS KE-11 (disetujui setelah saya membaca diff-nya): BoilerRoomRecordService::READING_FIELDS dan isRowFilled() dilebarkan protected -> public agar laporan memakai ULANG definisi 'baris terisi' yang sama dengan yang ditegakkan layar input, alih-alih menyalin daftar 15 kolom. Murni aditif, nol perubahan perilaku, dan seluruh 8 berkas test konsumennya tetap hijau (126 lolos). Dua salinan daftar itu adalah persis bagaimana laporan dan formulir mulai berbeda pendapat tentang apa yang tercatat.",
+    "Entri REPORT_ROUTES ditaruh TERAKHIR karena station_types.sort_order boiler-room 90 vs sterilizer 40, dan LaporanStasiunTest melakukan toBe() terurut ketat terhadap array_keys(REPORT_ROUTES). Kunci sekarang ['cages-track','sterilizer','boiler-room'] dan kedua penjaga tetap hijau tanpa satu test pun ditambal — prediksi pra-implementasi bahwa penambahan ini tidak memerahkan apa pun terbukti.",
+    "slots_per_unit_per_day = 24, diambil dari BoilerRoomRecordService::canonicalTimeSlots(), BUKAN 12 seperti pada mock. Mock memang menandai angkanya sendiri sebagai kemudahan mock, bukan kontrak. Nilainya dipublikasikan di coverage, bukan disembunyikan sebagai konstanta.",
+    "Identitas yang dijaga: total.reading_rows == coverage.filled_slots == jumlah by_unit.reading_count == jumlah daily.filled_slots. Cocok dengan aritmetika mock (31 + 12 + 225 = 268).",
+    "buildExportRows() menjaga izin secara eager lalu menghasilkan baris secara lazy. Metode bertipe Generator akan menunda penolakan sampai iterasi pertama, sehingga 403/422 tampak seperti respons kosong yang berhasil.",
+    "NOL penandaan ambang ditegakkan, bukan sekadar tidak dibuat: ketiadaannya DIASERSI menurut nama (is_out_of_range, severity, threshold, alert, outlier, iqr, fence, text-red, bg-red, md-trendchart__col--low/high, is-danger, is-warning), termasuk asersi bahwa kartu metrik berisi nilai ekstrem membawa atribut class yang SAMA dengan kartu biasa. Alasannya ditulis di docblock service DAN di header blade supaya tidak 'dilengkapi' kelak.",
+    "Label wajib 'min/max kartu tidak dapat direkonsiliasi dengan rekap harian' dikirim sebagai data-testid='raw-extremes-note' dan diasersi di skenario Livewire maupun browser. Tanpa itu pembaca akan mencoba mencocokkan keduanya lalu menyimpulkan laporannya rusak.",
+    "Bukti urutan penjaga peran: Operator yang mengirim period_id TIDAK ADA menerima AuthorizationException dan secara eksplisit BUKAN ModelNotFoundException. Itulah yang membuktikan guard peran berjalan sebelum findOrFail, sehingga keberadaan sebuah period_id tidak bocor lewat selisih 403 vs 404.",
+    "CSS: .md-card > .md-recap beserta pasangan 767px-nya dan .md-kpi__value { white-space: normal } ditambahkan ke breakpoint 767px yang SUDAH ADA, hanya di blok <style> kedua. .md-trendchart dan .md-trendchart__col TIDAK disentuh (tetap height 176px + grid auto/1fr/auto) dan komentar penjelasnya utuh. Diverifikasi tidak ada halaman lain yang menyarangkan .md-recap sebagai anak langsung .md-card — sterilizer dan cages-track menaruhnya di dalam <details> — sehingga selector baru ini tidak dapat meregresi keduanya.",
+    "Browser test lolos 21/22 pada eksekusi PERTAMA dengan penyemaian berhasil sekali jalan. afterAll deletePeriodsByPrefix(['BoilerRoom ']) terkonfirmasi di keluaran ('6 periode dihapus', nol residu). support/periods.ts tidak dilebarkan; createPeriod/selectSearchable disalin lokal mengikuti konvensi yang sudah ada."
+  ],
+  "deferred_items": [
+    {
+      "description": "Laporan Boiler Room versi mobile (screen-137).",
+      "reason": "Layar terpisah. Keempat endpoint /api/boiler-room-reports/* sengaja dibangun agar dipakai ulang apa adanya, seperti pola 129->135 dan 130->136. Saat screen-137 dikerjakan, keempat rute perlu dilebarkan menyertakan operator DAN guard menjadi auth:web,sanctum, sementara rute web tetap tanpa operator."
+    },
+    {
+      "description": "Coverage unit test tidak terukur.",
+      "reason": "Tidak ada driver coverage terpasang; php artisan test --coverage keluar 0 dan diam tanpa mengukur apa pun, yang lebih buruk daripada tidak menjalankannya. Bukan indikasi kegagalan — 109 test layar ini lolos penuh."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Coverage unit test tidak terukur, sehingga ambang unit_test.coverage_threshold pada test-strategy tidak dapat dievaluasi untuk layar ini. Ini satu-satunya alasan layar ini tidak dapat disebut terverifikasi sepenuhnya.",
+      "severity": "medium"
+    },
+    {
+      "description": "Skenario browser 'akun tanpa mill' ditulis test.skip beralasan: UserService::validate() mewajibkan business_unit_id untuk seluruh peran non-Admin, sehingga keadaan itu tidak dapat dicapai lewat layar produk sendiri. Tertutup oleh unit SPY case (yang membuktikan allBusinessUnits() tidak pernah dipanggil) serta padanan Api dan Livewire. Preseden sama dengan laporan-cages-track.spec.ts.",
+      "severity": "medium"
+    },
+    {
+      "description": "Skenario browser 9 hanya sebagian dapat disemai: unit ketiga yang punya record tetapi nol pembacaan terisi tidak dapat dibuat lewat screen-118 karena validateDetails() menolak penyimpanan tanpa satu baris sah pun. Didokumentasikan sebagai komentar di dalam test alih-alih di-skip; tertutup oleh unit case 23 dan skenario Api/Livewire 9.",
+      "severity": "low"
+    },
+    {
+      "description": "Skenario browser 11 (query-string lintas mill) inert secara konstruksi karena LaporanBoilerRoom tidak mendeklarasikan property #[Url], sehingga lolos secara trivial. Penjaga lintas mill yang sesungguhnya diuji di lapisan Api (403 atas period_id mill lain) dan Livewire. Keterbatasan yang sama dengan laporan-cages-track.spec.ts.",
+      "severity": "low"
+    },
+    {
+      "description": "format=excel menyajikan badan CSV di bawah mimetype xlsx — konsisten dengan seluruh ekspor lain di repo ini, karena tidak ada penulis XLSX terpasang.",
+      "severity": "low"
+    },
+    {
+      "description": "Flake e2e pada support/auth.ts:36 (login waitForURL) saat run serial lima spec yang panjang. Terdokumentasi di berkas auth.ts itu sendiri. Pengamatan yang layak dicatat: flake-nya BERPINDAH berkas antar-run (laporan-sterilizer pada satu run, dashboard-home + kelola-periode-pelaporan pada run berikutnya), jadi ini masalah waktu pada helper login bersama, bukan milik satu spec. Tiap berkas hijau saat dijalankan terisolasi.",
+      "severity": "medium"
+    }
+  ]
+}

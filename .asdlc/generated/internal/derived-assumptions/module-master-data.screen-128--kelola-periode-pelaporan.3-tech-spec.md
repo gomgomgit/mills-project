@@ -14,3 +14,16 @@
 - test_scenarios: 20 entri, unit_test_cases: 46 (29 + 17) ← diturunkan oleh test-spec-writer-agent dari 20 bdd_scenarios Phase 2, tidak dikonfirmasi satu per satu (autopilot)
 - CATATAN PROSES: v1 sempat ditulis dengan derivasi test yang dibuat langsung oleh command ini karena test-spec-writer-agent tampak mandek (transcript berhenti tumbuh 2,5 menit tanpa hand-back). Agent ternyata selesai tepat setelah v1 ditulis, dan hasilnya lebih lengkap — v2 menggantikan seluruh unit_test_cases dan test_scenarios dengan keluaran agent. Tidak ada isi v1 yang bertahan di bagian itu
 - 4 test_scenario (data mobile menyusul, upaya verifikasi, mengubah data stasiun, data di luar rentang) memakai endpoint record stasiun yang TIDAK ada di api_contracts screen-128 ← keputusan agen untuk mempertahankannya sebagai kontrak lintas-layar alih-alih membuangnya. Konsekuensi nyata di Phase 4: keempatnya tidak akan lolos saat screen-128 diimplementasikan sendirian
+
+## v3 — 2026-09-23
+
+Kontrak baru `POST /api/periods/{id}/open` (usecase-144). Sengaja dibuat cermin `reopen`.
+
+- **Tidak mendaftarkan `401 UNAUTHENTICATED`** ← test-spec-writer sempat mengusulkannya, dan itu keliru. Diverifikasi ke tech spec v2: `close` dan `reopen` hanya mendaftarkan 404/409/403; satu-satunya endpoint periode yang mendaftarkan 401 adalah `GET /api/periods`. Penanganan sesi ada di lapisan middleware, bukan di kontrak ini. Menyamakan lebih penting daripada melengkapi.
+- `error_code` = `PERIOD_NOT_DRAFT` dengan http 409 ← meniru `PERIOD_NOT_CLOSED` milik `reopen`. Exception barunya `PeriodNotDraftException`, salinan struktur `PeriodNotClosedException`.
+- **UPDATE berkondisi `WHERE id=? AND status='draft'`, bukan `save()` pada model** ← kondisi pada WHERE itu sendiri yang menjadi penjaga dua Admin bersamaan; tidak ada penguncian baris maupun transaksi tambahan. Pola ini disalin dari `close()`, yang komentarnya di `PeriodClosureService` baris 120-131 menjelaskan alasannya.
+- **Satu unit test khusus mengasersi nol pemanggilan repository record stasiun** ← `close()` memang menghitung data belum terverifikasi, sehingga `open()` mudah dianggap simetris dan ikut dibebani validasi data. Test itu yang menahannya.
+- **Satu unit test khusus mengasersi periode `open` tetap bisa di-update dan di-delete** ← `PeriodService::update()`/`delete()` hanya menolak `closed`. Sangat mudah seseorang "merapikan" ini menjadi ikut mengunci `open`; test itu yang menangkapnya.
+- Skenario "status Terbuka tidak dapat dikembalikan ke Draft" berakhir **200**, bukan 422 ← diverifikasi ke `PeriodService::validate()`: field `status` tidak pernah divalidasi maupun ditulis, jadi kiriman itu **diabaikan**, bukan ditolak. Perbedaan yang halus tapi penting bagi penulis test.
+- `DELETE` berakhir **200** (`{"deleted": true}`), bukan 204 ← diverifikasi ke `PeriodController::destroy()`.
+- Dialog konfirmasi (`askOpen`/`cancelOpen`/`confirmOpen`) ← meniru pasangan close/reopen yang sudah ada. Jalur batal tidak punya bdd_scenario tersendiri, jadi ditulis sebagai catatan implementasi agar tetap diuji.

@@ -1,0 +1,279 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-23"
+  },
+  "id": "screen-134--dashboard-reporting-mobile",
+  "name": "Dashboard & Reporting (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "/dashboard-reporting",
+  "auth_requirement": "authenticated",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Tanpa syarat tambahan — layar ini tidak menampilkan data apa pun, sehingga tidak ada yang perlu dibatasi di sini"
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Tanpa syarat tambahan"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Tanpa syarat tambahan"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tanpa syarat tambahan"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-134--dashboard-reporting-mobile",
+      "usecase_name": "Buka Dashboard & Reporting (Mobile)",
+      "endpoints": [],
+      "business_logic": [
+        "Rute '/dashboard-reporting' didaftarkan dengan meta.public = false, sehingga penjagaan sesi global di router/index.ts mengalihkan pengunjung tanpa sesi ke rute 'login' sebelum komponen dipasang",
+        "Komponen dipasang TANPA memanggil satu pun repo, apiClient, maupun localDb — tidak ada pemuatan data, tidak ada keadaan memuat, dan tidak ada jalur kegagalan jaringan",
+        "Daftar pilihan berasal dari satu konstanta di komponen: MENU_OPTIONS = [{key:'dashboard', label:'Dashboard', routeName:null}, {key:'reporting', label:'Reporting', routeName:null}]. routeName bernilai null berarti layar tujuannya belum dibangun",
+        "Tiap pilihan dirender sebagai kartu; kartu ber-routeName null diberi kelas nonaktif, aria-disabled=\"true\", dan label kecil 'Belum tersedia'",
+        "→ kartu ditekan dan routeName TIDAK null: router.push({ name: routeName })",
+        "→ kartu ditekan dan routeName null: isi pesan 'Layar [label] belum tersedia.' pada SATU variabel reaktif tunggal dan JANGAN berpindah rute; menekan berkali-kali hanya menimpa nilai variabel itu sehingga pesan tidak pernah menumpuk",
+        "Segmen 'Home' pada jejak navigasi memanggil router.push({ name: 'home' })"
+      ],
+      "data_operations": [],
+      "edge_case_handling": [
+        {
+          "condition": "Pengguna menekan kartu yang belum tersedia",
+          "handling": "Pesan info diisi dan dirender pada elemen data-testid 'info-message'; rute tidak berubah; kartu tetap tampil. Sengaja BUKAN atribut disabled native — lihat komentar StationGrid.vue: disabled akan menelan ketukan sehingga pengguna tidak mendapat umpan balik apa pun."
+        },
+        {
+          "condition": "Pengguna menekan berkali-kali",
+          "handling": "Satu variabel reaktif ditimpa berulang; jumlah elemen pesan di DOM tetap satu."
+        },
+        {
+          "condition": "Tidak ada sesi aktif",
+          "handling": "Penjagaan sesi global router mengalihkan ke rute 'login'; komponen tidak pernah dipasang. Tidak ada penanganan khusus di dalam komponen."
+        },
+        {
+          "condition": "Perangkat offline",
+          "handling": "Tidak berpengaruh — nol pemanggilan jaringan pada layar ini. Tidak ada penanganan khusus, dan justru itu yang diuji."
+        }
+      ],
+      "business_rules_applied": [
+        "Terbuka untuk semua peran yang dapat masuk mobile; pembatasan sesungguhnya ada di layar tujuan",
+        "Pilihan yang belum dibangun tetap ditampilkan nonaktif, tidak disembunyikan",
+        "Menekan pilihan yang belum tersedia memberi pesan, bukan diam",
+        "Layar tidak memuat data apa pun sehingga tetap terbuka penuh saat offline",
+        "Layar memerlukan sesi aktif"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "MENU_OPTIONS menghasilkan tepat dua kartu pilihan berurutan: Dashboard lalu Reporting",
+          "given": "DashboardReportingView dipasang dengan router yang di-mock; tidak ada prop maupun store yang disuntikkan",
+          "expect": "Daftar kartu yang dirender berjumlah 2 dengan data-testid 'menu-card-dashboard' dan 'menu-card-reporting', berlabel 'Dashboard' dan 'Reporting' sesuai urutan konstanta MENU_OPTIONS"
+        },
+        {
+          "description": "Kartu dengan routeName null ditandai nonaktif beserta label 'Belum tersedia'",
+          "given": "MENU_OPTIONS bawaan komponen, kedua entri ber-routeName null",
+          "expect": "Kedua kartu memiliki atribut aria-disabled=\"true\", kelas nonaktif, dan memuat teks 'Belum tersedia'"
+        },
+        {
+          "description": "Kartu dengan routeName tidak null dirender aktif tanpa label 'Belum tersedia'",
+          "given": "MENU_OPTIONS ditimpa sehingga entri 'dashboard' ber-routeName 'dashboard-mobile'",
+          "expect": "Kartu 'menu-card-dashboard' tidak memiliki aria-disabled=\"true\", tidak berkelas nonaktif, dan tidak memuat teks 'Belum tersedia'"
+        },
+        {
+          "description": "Menekan kartu ber-routeName null mengisi pesan info dan TIDAK berpindah rute",
+          "given": "DashboardReportingView terpasang dengan router.push ter-mock; kartu 'menu-card-reporting' ber-routeName null",
+          "expect": "Variabel reaktif pesan info bernilai 'Layar Reporting belum tersedia.' dan dirender pada elemen data-testid 'info-message'; router.push tidak pernah dipanggil"
+        },
+        {
+          "description": "Menekan kartu ber-routeName tidak null memanggil router.push dengan nama rute tujuan",
+          "given": "MENU_OPTIONS ditimpa sehingga entri 'dashboard' ber-routeName 'dashboard-mobile'; router.push ter-mock",
+          "expect": "router.push dipanggil tepat sekali dengan { name: 'dashboard-mobile' }; variabel pesan info tetap kosong dan elemen 'info-message' tidak dirender"
+        },
+        {
+          "description": "Menekan kartu belum tersedia berkali-kali hanya menimpa satu variabel pesan, tidak menumpuk",
+          "given": "DashboardReportingView terpasang; kartu 'menu-card-dashboard' ditekan tiga kali berturut-turut",
+          "expect": "Hanya ada satu elemen data-testid 'info-message' di DOM setelah tiga penekanan, berisi 'Layar Dashboard belum tersedia.'; router.push tetap tidak pernah dipanggil"
+        },
+        {
+          "description": "Menekan kartu berbeda menimpa pesan info sebelumnya, bukan menambah elemen baru",
+          "given": "Kartu 'menu-card-dashboard' ditekan lalu kartu 'menu-card-reporting' ditekan",
+          "expect": "Tetap satu elemen 'info-message' dengan isi akhir 'Layar Reporting belum tersedia.'"
+        },
+        {
+          "description": "Segmen 'Home' pada jejak navigasi memanggil router.push ke rute home",
+          "given": "DashboardReportingView terpasang dengan router.push ter-mock",
+          "expect": "Menekan data-testid 'breadcrumb-home' memanggil router.push tepat sekali dengan { name: 'home' }"
+        },
+        {
+          "description": "Pemasangan komponen tidak memanggil repo, apiClient, maupun localDb",
+          "given": "Modul apiClient dan localDb di-mock dengan mata-mata (spy) pada seluruh metodenya sebelum mount",
+          "expect": "Setelah mount selesai, nol pemanggilan pada apiClient maupun localDb; tidak ada keadaan memuat maupun elemen pesan kesalahan jaringan yang dirender"
+        },
+        {
+          "description": "Render sukses jalur normal: jejak navigasi, judul, dan kedua kartu tampil tanpa pesan info",
+          "given": "Seluruh dependensi komponen valid dan router di-mock normal",
+          "expect": "Elemen 'breadcrumb-home', judul layar, serta kartu 'menu-card-dashboard' dan 'menu-card-reporting' terender; elemen 'info-message' tidak ada sebelum ada interaksi"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-002--login-mobile",
+      "reason": "Layar memerlukan sesi mobile yang aktif; penjagaan sesi global mengalihkan ke sini bila tidak ada"
+    },
+    {
+      "screen_id": "screen-005--home",
+      "reason": "Satu-satunya pintu masuk — kartu 'Dashboard & Reporting' di Home; kartu itu kini harus mengarah ke layar ini, bukan showComingSoon"
+    },
+    {
+      "screen_id": "screen-141--reporting-pilih-stasiun-mobile",
+      "reason": "Tujuan kartu 'Reporting' begitu dibangun; sampai saat itu kartunya nonaktif"
+    }
+  ],
+  "implementation_notes": [
+    "Berkas: mobile/src/views/DashboardReportingView.vue. Rute baru di mobile/src/router/index.ts: path '/dashboard-reporting', name 'dashboard-reporting', meta.public = false.",
+    "WAJIB ubah mobile/src/views/HomeView.vue: kartu MENU_CARDS ber-key 'dashboard-reporting' saat ini action-nya showComingSoon — ganti menjadi navigasi ke rute baru ini. Ikon SVG-nya sudah ada di MENU_ICONS, pakai ulang, jangan membuat ikon baru.",
+    "Gaya kartu disalin dari HomeView.vue: .menu-grid (flex kolom, gap 12px) dan .menu-card (flex baris, gap 14px, min-height 44px, padding 16px, radius 12px, background #f7f7f7, shadow 0 1px 2px rgba(0,0,0,.06)), ikon 24x24 stroke-width 1.5, label 15px/600 warna #1f2937. JANGAN mengarang gaya baru.",
+    "Jejak navigasi dan judul layar disalin dari StationListView.vue: .breadcrumb / .breadcrumb-link / .breadcrumb-separator / .breadcrumb-current, lalu .screen-title. HomeView tidak punya breadcrumb karena ia layar tingkat pertama; layar ini tingkat kedua.",
+    "Keadaan nonaktif memakai aria-disabled=\"true\", BUKAN atribut disabled native — ini pola yang sudah berlaku di StationGrid.vue dan alasannya ditulis di sana: disabled menelan ketukan, sehingga pengguna tidak mendapat pesan apa pun. Di layar sentuh, diam tidak dapat dibedakan dari aplikasi yang macet.",
+    "Pesan info memakai pola .info-message HomeView.vue dengan role=\"status\" agar pembaca layar mengumumkannya.",
+    "MENU_OPTIONS adalah satu konstanta; menghidupkan sebuah kartu berarti mengisi routeName-nya, bukan mengubah template. Menambah pilihan ketiga kelak juga cukup satu baris.",
+    "Layar ini nol pemanggilan data. Jangan menambahkan repo, apiClient, localDb, atau keadaan memuat — salah satu unit test secara khusus mengasersi nol pemanggilan, dan itu disengaja: sifat offline-friendly layar ini adalah fiturnya, bukan kebetulan.",
+    "Seluruh teks UI Bahasa Indonesia.",
+    "Test: component test di mobile/tests/DashboardReportingView.spec.ts (pola *View.spec.ts yang sudah ada), browser test di mobile/tests/e2e/dashboard-reporting.spec.ts memakai helper mobile/tests/e2e/helpers.ts dengan baseURL http://localhost:5174. Browser test mobile MEMANG dapat dijalankan lewat Vite dev server — jangan ditunda dengan alasan 'mobile-only'.",
+    "Skenario 'Belum masuk' adalah satu-satunya yang component test-nya BUKAN mount() — ia menguji penjagaan router, karena komponennya memang tidak pernah dipasang.",
+    "Test yang menyentuh localStorage wajib window.localStorage.clear() di beforeEach — tanpa itu test mewarisi keadaan test sebelumnya (pelajaran dari StationListView.spec.ts)."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Buka Dashboard & Reporting (Mobile) — success",
+      "usecase_id": "usecase-134--dashboard-reporting-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "DashboardReportingView",
+        "action": "mount(DashboardReportingView) dengan router di-mock, tanpa interaksi apa pun",
+        "assert": "jejak navigasi 'Home / Dashboard & Reporting' dan judul layar terender; tepat dua kartu tampil yaitu 'menu-card-dashboard' berlabel 'Dashboard' dan 'menu-card-reporting' berlabel 'Reporting'; tidak ada keadaan memuat, tidak ada pemanggilan apiClient maupun localDb"
+      },
+      "browser_test": {
+        "route": "/dashboard-reporting",
+        "action": "login lewat helper di mobile/tests/e2e/helpers.ts, lalu dari layar Home tekan kartu data-testid 'menu-card-dashboard-reporting'",
+        "assert": "URL menjadi /dashboard-reporting; 'breadcrumb-home' terlihat; kartu 'menu-card-dashboard' dan 'menu-card-reporting' keduanya terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Buka Dashboard & Reporting (Mobile) — Menekan kartu yang belum tersedia",
+      "usecase_id": "usecase-134--dashboard-reporting-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "DashboardReportingView",
+        "action": "mount(DashboardReportingView) dengan router.push ter-mock, lalu klik kartu 'menu-card-reporting' yang ber-routeName null",
+        "assert": "elemen 'info-message' muncul berisi 'Layar Reporting belum tersedia.'; router.push tidak pernah dipanggil; kartu 'menu-card-reporting' tetap terender dengan aria-disabled=\"true\" dan teks 'Belum tersedia'"
+      },
+      "browser_test": {
+        "route": "/dashboard-reporting",
+        "action": "login lewat helper, buka /dashboard-reporting, lalu tekan kartu 'menu-card-reporting'",
+        "assert": "pesan 'info-message' terlihat berisi 'Layar Reporting belum tersedia.'; URL tetap /dashboard-reporting; kartu 'menu-card-reporting' masih terlihat dengan atribut aria-disabled=\"true\" dan teks 'Belum tersedia'"
+      }
+    },
+    {
+      "scenario_ref": "Buka Dashboard & Reporting (Mobile) — Menekan berkali-kali",
+      "usecase_id": "usecase-134--dashboard-reporting-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "DashboardReportingView",
+        "action": "mount(DashboardReportingView), lalu klik kartu 'menu-card-dashboard' tiga kali berturut-turut dengan await nextTick di antaranya",
+        "assert": "jumlah elemen 'info-message' tetap satu dengan isi 'Layar Dashboard belum tersedia.'; router.push tidak pernah dipanggil"
+      },
+      "browser_test": {
+        "route": "/dashboard-reporting",
+        "action": "login lewat helper, buka /dashboard-reporting, lalu tekan kartu 'menu-card-dashboard' tiga kali berturut-turut",
+        "assert": "locator 'info-message' berjumlah tepat satu dan isinya 'Layar Dashboard belum tersedia.'; URL tetap /dashboard-reporting"
+      }
+    },
+    {
+      "scenario_ref": "Buka Dashboard & Reporting (Mobile) — Kembali ke Home",
+      "usecase_id": "usecase-134--dashboard-reporting-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "DashboardReportingView",
+        "action": "mount(DashboardReportingView) dengan router.push ter-mock, lalu klik segmen 'breadcrumb-home' pada jejak navigasi",
+        "assert": "router.push dipanggil tepat sekali dengan { name: 'home' }"
+      },
+      "browser_test": {
+        "route": "/dashboard-reporting",
+        "action": "login lewat helper, buka /dashboard-reporting, lalu tekan 'breadcrumb-home'",
+        "assert": "URL kembali ke rute Home dan kartu 'menu-card-dashboard-reporting' pada layar Home terlihat kembali"
+      }
+    },
+    {
+      "scenario_ref": "Buka Dashboard & Reporting (Mobile) — Belum masuk",
+      "usecase_id": "usecase-134--dashboard-reporting-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "DashboardReportingView",
+        "action": "uji pada lapis router, bukan mount komponen: jalankan penjagaan sesi global router/index.ts terhadap rute bernama 'dashboard-reporting' dengan auth-store tanpa sesi",
+        "assert": "penjagaan mengembalikan pengalihan ke { name: 'login' }; rute '/dashboard-reporting' terdaftar dengan meta.public = false; komponen DashboardReportingView tidak pernah dipasang"
+      },
+      "browser_test": {
+        "route": "/dashboard-reporting",
+        "action": "tanpa memanggil helper login (storage sesi dibersihkan), kunjungi langsung /dashboard-reporting",
+        "assert": "browser dialihkan ke halaman Login; kartu 'menu-card-dashboard' dan 'menu-card-reporting' tidak pernah terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Buka Dashboard & Reporting (Mobile) — Perangkat offline",
+      "usecase_id": "usecase-134--dashboard-reporting-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "DashboardReportingView",
+        "action": "mount(DashboardReportingView) dengan navigator.onLine dipaksa false dan apiClient di-mock agar melempar galat bila dipanggil",
+        "assert": "kedua kartu tetap terender lengkap; tidak ada elemen pesan kesalahan jaringan; apiClient maupun localDb nol pemanggilan sehingga mock pelempar galat tidak pernah tersentuh"
+      },
+      "browser_test": {
+        "route": "/dashboard-reporting",
+        "action": "login lewat helper, set context offline pada Playwright, lalu buka /dashboard-reporting",
+        "assert": "layar terbuka penuh dengan kartu 'menu-card-dashboard' dan 'menu-card-reporting' terlihat; tidak ada pesan kesalahan jaringan yang muncul"
+      }
+    },
+    {
+      "scenario_ref": "Buka Dashboard & Reporting (Mobile) — layar terbuka untuk semua peran mobile",
+      "usecase_id": "usecase-134--dashboard-reporting-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "DashboardReportingView",
+        "action": "mount(DashboardReportingView) berulang lewat test.each untuk peran actor-station-operator, actor-supervisor, actor-mill-management, dan actor-admin pada auth-store yang di-mock",
+        "assert": "untuk setiap peran, keluaran render identik — dua kartu yang sama dengan label dan keadaan nonaktif yang sama; tidak ada cabang penolakan peran dan tidak ada pengalihan yang terjadi"
+      },
+      "browser_test": {
+        "route": "/dashboard-reporting",
+        "action": "login lewat helper sebagai Station Operator lalu sebagai Supervisor (dua kasus uji terpisah), masing-masing membuka /dashboard-reporting",
+        "assert": "pada kedua peran layar terbuka di /dashboard-reporting dengan kartu 'menu-card-dashboard' dan 'menu-card-reporting' terlihat, tanpa pesan akses ditolak"
+      }
+    },
+    {
+      "scenario_ref": "Buka Dashboard & Reporting (Mobile) — pilihan yang belum dibangun tetap ditampilkan nonaktif",
+      "usecase_id": "usecase-134--dashboard-reporting-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "DashboardReportingView",
+        "action": "mount(DashboardReportingView) dengan MENU_OPTIONS bawaan yang kedua entrinya ber-routeName null",
+        "assert": "kedua kartu ada di DOM — tidak satu pun disembunyikan; masing-masing memiliki aria-disabled=\"true\", kelas nonaktif, dan teks 'Belum tersedia'"
+      },
+      "browser_test": {
+        "route": "/dashboard-reporting",
+        "action": "login lewat helper, buka /dashboard-reporting, lalu periksa kedua kartu",
+        "assert": "'menu-card-dashboard' dan 'menu-card-reporting' keduanya terlihat, masing-masing beratribut aria-disabled=\"true\" dan memuat teks 'Belum tersedia'; jumlah kartu menu di layar tepat dua"
+      }
+    }
+  ]
+}

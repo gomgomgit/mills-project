@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\PeriodStatus;
 use App\Exceptions\PeriodAlreadyClosedException;
 use App\Exceptions\PeriodNotClosedException;
+use App\Exceptions\PeriodNotDraftException;
 use App\Models\Period;
 use App\Models\StationType;
 use Illuminate\Database\Eloquent\Model;
@@ -205,6 +206,79 @@ class PeriodClosureService
     }
 
     /**
+     * open() — business_logic steps "open" (usecase-144). Draft → open:
+     * the one conscious step that declares a period officially running.
+     *
+     * SAME CONDITIONAL-UPDATE CONTRACT AS close():
+     *
+     *   UPDATE periods
+     *      SET status='open', updated_by=?
+     *    WHERE id=? AND status='draft'
+     *
+     * plus a check of the affected row count. The WHERE clause IS the
+     * guard — no lockForUpdate(), no extra transaction, and deliberately
+     * not a save() on the already-loaded model. With two Admins confirming
+     * the same opening at the same moment, exactly one statement matches a
+     * still-draft row; the loser gets affected=0 → 409 PERIOD_NOT_DRAFT
+     * rather than a silent overwrite.
+     *
+     * The findOrFail() + status check above it exist only to tell 404 (no
+     * such period) and a plainly wrong status apart from the race — they
+     * are not the guard.
+     *
+     * NOT SYMMETRIC WITH close(): close() counts unverified station
+     * records across up to 18 tables, so it is tempting to give open() a
+     * matching sweep. It has none. Opening reads, validates and mutates
+     * NOTHING outside the `periods` row — data_operations are exactly one
+     * period SELECT and one period UPDATE.
+     *
+     * A period left 'open' also stays fully editable and deletable:
+     * PeriodService::update()/delete() refuse 'closed' only, and that is
+     * intentional — do not extend the lock to 'open'.
+     *
+     * @return array{id: string, status: string}
+     *
+     * @throws ModelNotFoundException
+     * @throws PeriodNotDraftException
+     */
+    public function open(string $id): array
+    {
+        $period = Period::query()->findOrFail($id);
+
+        $status = $this->statusValue($period);
+
+        if ($status !== PeriodStatus::Draft->value) {
+            throw new PeriodNotDraftException($this->notDraftMessage($status));
+        }
+
+        $affected = Period::query()
+            ->where('id', $id)
+            ->where('status', PeriodStatus::Draft->value)
+            ->update([
+                'status' => PeriodStatus::Open->value,
+                'updated_by' => auth()->id(),
+            ]);
+
+        if ($affected === 0) {
+            // Another Admin got there first between the read above and
+            // this statement. Re-read the row so the message names the
+            // status it actually has now.
+            $current = Period::query()->find($id);
+
+            throw new PeriodNotDraftException(
+                $this->notDraftMessage($current !== null ? $this->statusValue($current) : null)
+            );
+        }
+
+        $period = Period::query()->findOrFail($id);
+
+        return [
+            'id' => $period->id,
+            'status' => $this->statusValue($period),
+        ];
+    }
+
+    /**
      * The station types a period covers: its own when set, otherwise every
      * ACTIVE row of the `station_types` master table in process order.
      * Read from the table, never from App\Enums\StationType — adding a
@@ -256,6 +330,24 @@ class PeriodClosureService
                     ->orWhereNull($table.'.acknowledged_by');
             })
             ->count($table.'.id');
+    }
+
+    /**
+     * The refusal message for open() on a non-draft period.
+     *
+     * "Buka Periode" (this action) and "Buka Kembali Periode" (reopen())
+     * are easy to mix up, so the two cases must NOT share a message: an
+     * already-open period is simply told so, while a closed period is
+     * pointed at the other action by name — refusing a closed period
+     * without that pointer makes Admins think the period is broken.
+     */
+    protected function notDraftMessage(?string $status): string
+    {
+        return match ($status) {
+            PeriodStatus::Open->value => 'Periode ini sudah terbuka, sehingga tidak perlu dibuka lagi.',
+            PeriodStatus::Closed->value => 'Periode ini sudah tertutup, sehingga tidak dapat dibuka dengan aksi ini. Gunakan aksi "Buka Kembali Periode" bila ingin membukanya lagi.',
+            default => 'Periode ini tidak berstatus Draft, sehingga tidak dapat dibuka.',
+        };
     }
 
     /**

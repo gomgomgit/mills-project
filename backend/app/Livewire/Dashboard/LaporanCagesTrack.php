@@ -90,7 +90,11 @@ class LaporanCagesTrack extends Component
 
         $service = app(CagesTrackReportService::class);
 
-        return $service->export($service->authorizePeriod($this->periodId), $format);
+        return $service->export(
+            $service->authorizePeriod($this->periodId),
+            $format,
+            $this->resolvedBusinessUnitId(),
+        );
     }
 
     public function render()

@@ -803,3 +803,60 @@ it('tanpa ambang: extreme values render in the same neutral style, with no badge
         expect($html)->not->toContain($colour);
     }
 });
+
+// =====================================================================
+// Scenario 22: "Admin mengunduh CSV setelah memilih mill"
+//
+// REGRESSION — the export path resolves the mill a SECOND time
+// (BoilerRoomReportService::buildExportRows() -> resolveBusinessUnit()),
+// and every earlier export scenario logs in as Supervisor, whose mill
+// comes from auth()->user()->business_unit_id and can therefore never be
+// missing. Admin is the only role whose mill lives in the component's own
+// state, so only an Admin download proves the component threads its
+// RESOLVED mill into the service instead of leaving it null — null is
+// refused with 422 (ValidationException) before a single byte is streamed,
+// which looks to the user like an inert Ekspor button.
+// =====================================================================
+it('admin ekspor: an Admin who picked a mill actually downloads the CSV, and it carries that mill alone', function () {
+    $periodB = Period::factory()->forBusinessUnit($this->businessUnitB)->stationType('boiler-room')
+        ->range('2026-03-01', '2026-03-31')->named('Periode Maret Beta')->open()->create();
+
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-10', laporanBoilerRoomComponentPressureRows(4, 20.0, [
+        'steam_temp_c' => 260.0,
+        'water_tds_ppm' => 2000.0,
+        'water_ph' => 10.0,
+        'exhaust_gas_temp_c' => 200.0,
+    ]), ['boiler_room_id' => 'BLR-ADMIN-ALPHA']);
+
+    laporanBoilerRoomComponentRecord($this->stationB, '2026-03-10', laporanBoilerRoomComponentPressureRows(2, 99.0), [
+        'boiler_room_id' => 'BLR-ADMIN-BETA',
+    ]);
+
+    $recordsBefore = BoilerRoomRecord::count();
+    $detailsBefore = BoilerRoomDetail::count();
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(LaporanBoilerRoom::class)
+        ->set('businessUnitId', (string) $this->businessUnitA->id)
+        ->assertSet('periodId', (string) $this->periodA->id);
+
+    // THE DOWNLOAD MUST ACTUALLY HAPPEN. Asserting "no exception" would be
+    // satisfied by a page that silently returns null; assertFileDownloaded
+    // is only satisfied by a streamed response with the CSV content type.
+    $download = $component->call('export', 'csv');
+    $download->assertFileDownloaded(null, null, 'text/csv');
+
+    $effect = $download->effects['download'];
+    expect($effect['name'])->toEndWith('.csv');
+
+    // The bytes belong to the picked mill and to no other — an Admin export
+    // that fell back to "every mill" would show up right here.
+    $body = base64_decode($effect['content']);
+    expect($body)->toContain('BLR-ADMIN-ALPHA');
+    expect($body)->not->toContain('BLR-ADMIN-BETA');
+
+    // Read-only: exporting changes nothing, and Mill B's period is untouched.
+    expect(BoilerRoomRecord::count())->toBe($recordsBefore);
+    expect(BoilerRoomDetail::count())->toBe($detailsBefore);
+    expect($periodB->fresh())->not->toBeNull();
+});

@@ -57,7 +57,17 @@ class ClarificationRecordService
 
     protected const FORM_FIELDS = ['clarification_id', 'date', 'note'];
 
-    protected const READING_FIELDS = [
+    /**
+     * The 7 non-time_slot columns of clarification_details.
+     *
+     * PUBLIC since 2026-09-25 (screen-132--laporan-clarification-web): the
+     * period report needs the SAME definition of "which columns count as a
+     * reading" that the input screens enforce. Visibility widened rather
+     * than the list copied — two copies of this list is how the report and
+     * the form start disagreeing about what was recorded. Purely additive:
+     * nothing else about the constant changed.
+     */
+    public const READING_FIELDS = [
         'clarification_tank_temp_c', 'oil_tank_temperature_c', 'sludge_tank_temp_c',
         'buffer_tank_level_percent', 'pure_oil_production_rate_ton_hour', 'downtime_mins',
         'findings',
@@ -248,8 +258,13 @@ class ClarificationRecordService
      * A row counts as "filled" when at least one of its READING_FIELDS (all
      * 7 non-time_slot columns — this station has no identifying/context
      * columns to exclude) is non-null/non-empty.
+     *
+     * PUBLIC since 2026-09-25 (screen-132--laporan-clarification-web): this
+     * is THE definition of a filled slot, and ClarificationReportService
+     * reuses it for coverage.filled_slots and for every reading_count rather
+     * than inventing a second one. Purely additive — no behaviour changed.
      */
-    protected function isRowFilled(array $row): bool
+    public function isRowFilled(array $row): bool
     {
         foreach (self::READING_FIELDS as $field) {
             $value = $row[$field] ?? null;
@@ -275,7 +290,28 @@ class ClarificationRecordService
             fn ($row) => $row['time_slot'] !== null && $row['time_slot'] !== '' && $this->isRowFilled($row)
         );
 
-        $keptIds = [];
+        // URUTAN MENENTUKAN — baris basi DIHAPUS SEBELUM baris baru
+        // disisipkan. Sampai 2026-09-25 urutannya terbalik, dan dengan
+        // UNIQUE(clarification_record_id, time_slot) pada tabel detail itu berarti memindahkan
+        // sebuah pembacaan ke slot yang SEDANG DIPAKAI baris lain yang akan
+        // dihapus melanggar constraint dan melempar
+        // UniqueConstraintViolationException. Itu operasi harian: Operator
+        // salah pilih slot lalu membetulkannya.
+        //
+        // Keep-set dihitung dari ID yang SUDAH ADA di payload saja. Baris
+        // baru belum punya ID pada titik ini dan memang tidak perlu
+        // dipertahankan — tidak ada baris lama yang mewakilinya. Memasukkan
+        // ID hasil create() ke sini (bentuk lama) itulah yang memaksa
+        // delete berjalan belakangan.
+        $keptIds = $validRows
+            ->pluck('id')
+            ->filter()
+            ->values()
+            ->all();
+
+        ClarificationDetail::where('clarification_record_id', $record->id)
+            ->whereNotIn('id', $keptIds)
+            ->delete();
 
         foreach ($validRows as $row) {
             $detailAttributes = ['clarification_record_id' => $record->id, 'time_slot' => $row['time_slot']];
@@ -286,16 +322,12 @@ class ClarificationRecordService
 
             if (! empty($row['id']) && ClarificationDetail::where('id', $row['id'])->where('clarification_record_id', $record->id)->exists()) {
                 ClarificationDetail::where('id', $row['id'])->update($detailAttributes);
-                $keptIds[] = $row['id'];
             } else {
-                $detail = ClarificationDetail::create($detailAttributes);
-                $keptIds[] = $detail->id;
+                ClarificationDetail::create($detailAttributes);
             }
         }
 
-        ClarificationDetail::where('clarification_record_id', $record->id)
-            ->whereNotIn('id', $keptIds)
-            ->delete();
+
     }
 
     /**

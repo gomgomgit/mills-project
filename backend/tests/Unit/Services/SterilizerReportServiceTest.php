@@ -619,6 +619,13 @@ it('by_unit groups per sterilizer_no with cycles, cages and its own avg_duration
 
 // Case 34
 it('export writes one line per CYCLE with the record context columns repeated on each line', function () {
+    // DISERAGAMKAN 2026-09-25: export() kini memanggil resolveBusinessUnit()
+    // seperti ketiga service laporan lain. Sebelumnya jalur ekspor Sterilizer
+    // tidak punya penjaga otorisasi sama sekali — bukan hanya tanpa validasi
+    // mill, tetapi tanpa guardAccess() juga — sehingga test ini tidak perlu
+    // login. Celah itu kini tertutup, jadi fixture-nya ikut login.
+    $this->actingAs($this->supervisorA);
+
     sterilizerReportRecord($this->stationA, '2026-09-10', [
         ['sterilizer_no' => '1', 'duration_minutes' => 90],
         ['sterilizer_no' => '2', 'duration_minutes' => 95],
@@ -657,6 +664,13 @@ it('export writes one line per CYCLE with the record context columns repeated on
 
 // Case 35
 it('export throws 422 EXPORT_FAILED when the number of CYCLE lines exceeds 50.000', function () {
+    // DISERAGAMKAN 2026-09-25: export() kini memanggil resolveBusinessUnit()
+    // seperti ketiga service laporan lain. Sebelumnya jalur ekspor Sterilizer
+    // tidak punya penjaga otorisasi sama sekali — bukan hanya tanpa validasi
+    // mill, tetapi tanpa guardAccess() juga — sehingga test ini tidak perlu
+    // login. Celah itu kini tertutup, jadi fixture-nya ikut login.
+    $this->actingAs($this->supervisorA);
+
     // The ceiling counts CYCLES, not header records — one daily record can
     // carry a dozen cycles, which is exactly the trap commit 8611974 fixed
     // for the 17-station export. Two headers, 50.001 cycles.
@@ -693,6 +707,13 @@ it('export throws 422 EXPORT_FAILED when the number of CYCLE lines exceeds 50.00
 
 // Case 36
 it('export still succeeds for a period whose status is closed', function () {
+    // DISERAGAMKAN 2026-09-25: export() kini memanggil resolveBusinessUnit()
+    // seperti ketiga service laporan lain. Sebelumnya jalur ekspor Sterilizer
+    // tidak punya penjaga otorisasi sama sekali — bukan hanya tanpa validasi
+    // mill, tetapi tanpa guardAccess() juga — sehingga test ini tidak perlu
+    // login. Celah itu kini tertutup, jadi fixture-nya ikut login.
+    $this->actingAs($this->supervisorA);
+
     $closed = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('sterilizer')
         ->range('2026-11-01', '2026-11-30')->closed()->create();
 

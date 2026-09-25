@@ -371,6 +371,44 @@ it('sets acknowledged_by to requester id when acknowledged=true and requester ro
     expect($result['acknowledged_by_name'])->toBe($millManagement->name);
 });
 
+// REGRESI 2026-09-25 — urutan upsertDetails().
+//
+// Sampai hari ini upsertDetails() menyisipkan baris baru SEBELUM menghapus
+// baris basi, sehingga memindahkan sebuah pembacaan ke slot yang SEDANG
+// DIPAKAI baris lain yang akan dihapus melanggar
+// UNIQUE(clarification_record_id, time_slot) pada tabel clarification_details dan melempar
+// UniqueConstraintViolationException. Operator yang salah pilih jam lalu
+// membetulkannya menabrak ini.
+//
+// Test ini HARUS merah bila urutannya dikembalikan. Asersinya memeriksa
+// jumlah baris akhir DAN nilainya — "tidak melempar" saja tidak cukup,
+// karena urutan yang salah juga bisa menyisakan baris basi diam-diam.
+it('memindahkan pembacaan ke slot yang sedang dipakai baris yang akan dihapus', function () {
+    $record = ClarificationRecord::factory()->forStation($this->clarificationStation)->create();
+    $moved = ClarificationDetail::factory()->forRecord($record)->timeSlot('07:00')->create(['clarification_tank_temp_c' => 11.0]);
+    ClarificationDetail::factory()->forRecord($record)->timeSlot('08:00')->create(['clarification_tank_temp_c' => 22.0]);
+
+    // Satu baris saja yang dikirim: baris 07:00 dipindah ke 08:00.
+    // Baris 08:00 yang lama harus hilang, dan slot itu ditempati baris 07:00.
+    $result = $this->service->update(
+        $record->id,
+        clarificationFormPayload([
+            'details' => [
+                ['id' => $moved->id, 'time_slot' => '08:00', 'clarification_tank_temp_c' => 88.8],
+            ],
+        ]),
+        $this->creator
+    );
+
+    expect($result['details'])->toHaveCount(1);
+    expect(ClarificationDetail::where('clarification_record_id', $record->id)->count())->toBe(1);
+
+    $remaining = ClarificationDetail::where('clarification_record_id', $record->id)->first();
+    expect($remaining->id)->toBe($moved->id);
+    expect((string) $remaining->time_slot)->toContain('08:00');
+    expect($remaining->clarification_tank_temp_c)->toBe(88.8);
+});
+
 it('updates record and upserts details: inserts new row, updates existing row, deletes removed row', function () {
     $record = ClarificationRecord::factory()->forStation($this->clarificationStation)->create();
     $keptDetail = ClarificationDetail::factory()->forRecord($record)->timeSlot('07:00')->create(['clarification_tank_temp_c' => 60]);

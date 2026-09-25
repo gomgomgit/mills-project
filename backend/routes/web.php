@@ -703,4 +703,26 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/boiler-room', \App\Livewire\Dashboard\LaporanBoilerRoom::class)
     ->name('reports.boiler-room');
 
+// screen-132--laporan-clarification-web (Laporan Periode Clarification).
+//
+// Supervisor / Mill Management / Admin only. Operator is NOT admitted here
+// and is not admitted on /api/clarification-reports either — this is the
+// web report, and its mobile reporting path (screen-138) has not been
+// built.
+//
+// Route is /reports/clarification, NOT /laporan/clarification — the repo's
+// convention for report screens is the English /reports/* prefix
+// (/reports/management, /reports/stations, /reports/sterilizer,
+// /reports/cages-track, /reports/boiler-room), and no route in this file
+// uses /laporan.
+//
+// Reachable from the UI ONLY through the Clarification tile on screen-140
+// (/reports), which lights up because StationReportService::REPORT_ROUTES
+// now maps the 'clarification' code to this route name. Without that one
+// line the report exists, every test here passes, and the screen stays
+// unreachable.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/clarification', \App\Livewire\Dashboard\LaporanClarification::class)
+    ->name('reports.clarification');
+
 // === ASDLC_ROUTES_END ===

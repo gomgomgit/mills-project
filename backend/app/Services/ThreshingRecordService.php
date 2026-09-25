@@ -279,7 +279,28 @@ class ThreshingRecordService
             fn ($row) => $row['time_slot'] !== null && $row['time_slot'] !== '' && $this->isRowFilled($row)
         );
 
-        $keptIds = [];
+        // URUTAN MENENTUKAN — baris basi DIHAPUS SEBELUM baris baru
+        // disisipkan. Sampai 2026-09-25 urutannya terbalik, dan dengan
+        // UNIQUE(threshing_record_id, time_slot) pada tabel detail itu berarti memindahkan
+        // sebuah pembacaan ke slot yang SEDANG DIPAKAI baris lain yang akan
+        // dihapus melanggar constraint dan melempar
+        // UniqueConstraintViolationException. Itu operasi harian: Operator
+        // salah pilih slot lalu membetulkannya.
+        //
+        // Keep-set dihitung dari ID yang SUDAH ADA di payload saja. Baris
+        // baru belum punya ID pada titik ini dan memang tidak perlu
+        // dipertahankan — tidak ada baris lama yang mewakilinya. Memasukkan
+        // ID hasil create() ke sini (bentuk lama) itulah yang memaksa
+        // delete berjalan belakangan.
+        $keptIds = $validRows
+            ->pluck('id')
+            ->filter()
+            ->values()
+            ->all();
+
+        ThreshingDetail::where('threshing_record_id', $record->id)
+            ->whereNotIn('id', $keptIds)
+            ->delete();
 
         foreach ($validRows as $row) {
             $detailAttributes = [
@@ -295,16 +316,12 @@ class ThreshingRecordService
 
             if (! empty($row['id']) && ThreshingDetail::where('id', $row['id'])->where('threshing_record_id', $record->id)->exists()) {
                 ThreshingDetail::where('id', $row['id'])->update($detailAttributes);
-                $keptIds[] = $row['id'];
             } else {
-                $detail = ThreshingDetail::create($detailAttributes);
-                $keptIds[] = $detail->id;
+                ThreshingDetail::create($detailAttributes);
             }
         }
 
-        ThreshingDetail::where('threshing_record_id', $record->id)
-            ->whereNotIn('id', $keptIds)
-            ->delete();
+
     }
 
     /**

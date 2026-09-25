@@ -88,13 +88,17 @@ class SterilizerReportController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
+        $businessUnitId = $this->queryString($request, 'business_unit_id');
+
+        $this->service->resolveBusinessUnit($businessUnitId);
+
         $periodId = $this->requirePeriodId($request);
 
         $period = $this->service->authorizePeriod($periodId);
 
         $format = (string) ($this->queryString($request, 'format') ?? 'csv');
 
-        return $this->service->export($period, $format);
+        return $this->service->export($period, $format, $businessUnitId);
     }
 
     /**

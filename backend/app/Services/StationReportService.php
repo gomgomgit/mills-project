@@ -67,6 +67,12 @@ class StationReportService
         // the screen is simply unreachable from the UI.
         StationTypeEnum::CagesTrack->value => 'reports.cages-track',
         StationTypeEnum::Sterilizer->value => 'reports.sterilizer',
+        // screen-132--laporan-clarification-web. BETWEEN sterilizer and
+        // boiler-room, never appended: station_types.sort_order puts
+        // clarification (70) behind cages-track (30) and sterilizer (40) but
+        // ahead of boiler-room (90), and the ordering of this map is
+        // load-bearing — see the note below.
+        StationTypeEnum::Clarification->value => 'reports.clarification',
         // screen-131--laporan-boiler-room-web. LAST, after sterilizer:
         // station_types.sort_order puts boiler-room (90) behind cages-track
         // (30) and sterilizer (40), and the ordering of this map is

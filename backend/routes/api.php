@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\BusinessUnitController;
 use App\Http\Controllers\Api\CagesTrackReportController;
 use App\Http\Controllers\Api\CagesTrackRecordController;
 use App\Http\Controllers\Api\ClarificationRecordController;
+use App\Http\Controllers\Api\ClarificationReportController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\CorporateController;
 use App\Http\Controllers\Api\CpoDispatchRecordController;
@@ -1037,6 +1038,36 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
     Route::get('/boiler-room-reports/periods', [BoilerRoomReportController::class, 'periods']);
     Route::get('/boiler-room-reports/summary', [BoilerRoomReportController::class, 'summary']);
     Route::get('/boiler-room-reports/export', [BoilerRoomReportController::class, 'export']);
+});
+
+// screen-132--laporan-clarification-web (Laporan Periode Clarification) —
+// four GET endpoints behind 'role:supervisor,mill_management,admin'.
+//
+// OPERATOR IS NOT IN THAT LIST, and that is deliberate rather than an
+// oversight: this is the WEB report, and the mobile Clarification report
+// (screen-138) has not been built, so there is no caller to widen for.
+// ClarificationReportService::guardAccess() refuses Operator two layers
+// deeper as well — widening one without the other is the difference between
+// a widening and a cross-mill leak.
+//
+// GET-ONLY, deliberately: a report must not expose any path that mutates
+// the Clarification data it reports on, so there is no
+// POST/PUT/PATCH/DELETE on this prefix.
+//
+// IMPORTANT — route ordering: none of these are parameterised, so no
+// literal-vs-{id} collision is possible here.
+//
+// business_unit_id is accepted on /periods, /summary and /export but is
+// IGNORED for Supervisor / Mill Management
+// (ClarificationReportService::resolveBusinessUnit) — probing another mill
+// still returns 200 with the caller's own data, on purpose: a 403 would
+// confirm the other mill exists. The real cross-mill guard is on period_id,
+// in authorizePeriod(), which does answer 403.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])->group(function () {
+    Route::get('/clarification-reports/business-units/options', [ClarificationReportController::class, 'businessUnitOptions']);
+    Route::get('/clarification-reports/periods', [ClarificationReportController::class, 'periods']);
+    Route::get('/clarification-reports/summary', [ClarificationReportController::class, 'summary']);
+    Route::get('/clarification-reports/export', [ClarificationReportController::class, 'export']);
 });
 
 // === ASDLC_ROUTES_END ===

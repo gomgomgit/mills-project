@@ -774,3 +774,57 @@ it('baca saja: the component exposes no create/update/delete action and changes 
     expect(CagesTrackRecord::count())->toBe($recordsBefore);
     expect(CagesTippedTime::count())->toBe($detailsBefore);
 });
+
+// =====================================================================
+// Scenario 26: "Admin mengunduh CSV setelah memilih mill"
+//
+// REGRESSION — the export path is the ONE place where the mill is resolved
+// a second time, and every earlier export scenario logs in as Supervisor,
+// whose mill comes from auth()->user()->business_unit_id and can therefore
+// never be missing. Admin is the only role whose mill lives in the
+// component's own state, so only an Admin download proves the component
+// threads its RESOLVED mill into the service instead of leaving it null —
+// which is refused with 422 (ValidationException) before a single byte is
+// streamed, and looks to the user like an inert Ekspor button.
+// =====================================================================
+it('admin ekspor: an Admin who picked a mill actually downloads the CSV, and it carries that mill alone', function () {
+    $periodB = Period::factory()->forBusinessUnit($this->businessUnitB)->stationType('cages-track')
+        ->range('2026-03-01', '2026-03-31')->named('Periode Maret Beta')->create();
+
+    laporanCagesTrackComponentRecord($this->stationA, '2026-03-02', [
+        ['hour' => 6, 'cages' => 3],
+        ['hour' => 7, 'cages' => 2],
+    ], ['cages_track_number' => 'CT-ADMIN-ALPHA', 'cages_out' => 12]);
+
+    laporanCagesTrackComponentRecord($this->stationB, '2026-03-02', [
+        ['hour' => 6, 'cages' => 500],
+    ], ['cages_track_number' => 'CT-ADMIN-BETA', 'cages_out' => 500]);
+
+    $recordsBefore = CagesTrackRecord::count();
+    $detailsBefore = CagesTippedTime::count();
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(LaporanCagesTrack::class)
+        ->set('businessUnitId', (string) $this->businessUnitA->id)
+        ->assertSet('periodId', (string) $this->periodA->id);
+
+    // THE DOWNLOAD MUST ACTUALLY HAPPEN. Asserting "no exception" would be
+    // satisfied by a page that silently returns null; assertFileDownloaded
+    // is only satisfied by a streamed response with the CSV content type.
+    $download = $component->call('export', 'csv');
+    $download->assertFileDownloaded(null, null, 'text/csv');
+
+    $effect = $download->effects['download'];
+    expect($effect['name'])->toEndWith('.csv');
+
+    // The bytes belong to the picked mill and to no other — an Admin export
+    // that fell back to "every mill" would show up right here.
+    $body = base64_decode($effect['content']);
+    expect($body)->toContain('CT-ADMIN-ALPHA');
+    expect($body)->not->toContain('CT-ADMIN-BETA');
+
+    // Read-only: exporting changes nothing, and Mill B's period is untouched.
+    expect(CagesTrackRecord::count())->toBe($recordsBefore);
+    expect(CagesTippedTime::count())->toBe($detailsBefore);
+    expect($periodB->fresh())->not->toBeNull();
+});

@@ -1,0 +1,115 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-25"
+  },
+  "id": "screen-133--laporan-storage-tank-web",
+  "name": "Laporan Storage Tank (Web)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Storage Tank di web. Berbeda dari empat laporan stasiun sebelumnya yang meringkas KEJADIAN sepanjang periode, laporan ini menjawab pertanyaan tentang KEADAAN dan PERUBAHANNYA: berapa stok di awal periode, berapa di akhir, dan berapa yang bergerak di antaranya — per tangki, bukan digabung. Angka pergerakan itu adalah selisih antara dua pembacaan, bukan penjumlahan banyak pembacaan, sehingga yang menentukan bukan berapa banyak data yang ada melainkan apakah pembacaan pertama dan terakhirnya ada. Di samping stok, laporan menampilkan mutu minyak sepanjang periode — FFA, kadar air, kotoran, dan DOBI — serta suhu rata-rata, karena tangki yang stoknya aman tetapi mutunya menurun adalah masalah yang tidak terbaca dari angka stok.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu sidebar 'Laporan Stasiun' → pilih stasiun Storage Tank",
+    "Kembali dari layar lain dengan periode yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Storage Tank maupun periode yang berlaku untuk semua jenis stasiun",
+    "Pemilih Mill — hanya bagi Admin",
+    "Nama mill yang berlaku, rentang tanggal, dan status periode",
+    "Stok awal seluruh tangki pada periode itu, beserta kapan pembacaan pertamanya diambil",
+    "Stok akhir seluruh tangki, beserta kapan pembacaan terakhirnya diambil",
+    "Pergerakan bersih sepanjang periode — selisih stok akhir terhadap stok awal, yang dapat bernilai negatif",
+    "Rekap per tangki: stok awal, stok akhir, pergerakan, jumlah pembacaan, dan tanggal pembacaan pertama dan terakhirnya",
+    "FFA: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
+    "Kadar air: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
+    "Kotoran: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
+    "DOBI: terendah, rata-rata, tertinggi, beserta jumlah pembacaannya",
+    "Suhu rata-rata minyak sepanjang periode, beserta jumlah pembacaannya",
+    "Tren harian mutu minyak — FFA, kadar air, dan DOBI pada satu grafik agar arah perubahannya terbaca bersamaan",
+    "Tren harian stok total seluruh tangki",
+    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan",
+    "Keterangan bila periode tidak memuat data",
+    "Tombol Ekspor CSV"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode yang dilihat. Mengganti periode memuat ulang seluruh angka.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill yang dilihat. Hanya bagi Admin.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap harian",
+      "description": "Menyembunyikan atau menampilkan tabel rekap per hari.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV, satu baris per slot dengan kolom konteks record diulang.",
+      "actor_ids": [
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Pengguna hanya melihat data mill-nya sendiri. Supervisor dan Mill Management terikat pada mill di akunnya; Admin tidak terikat sehingga ia memilih.",
+    "Operator tidak punya akses ke layar web ini.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Storage Tank atau yang tidak menyebut jenis stasiun.",
+    "Status periode tidak membatasi apa pun. Periode tertutup tetap dapat dilihat dan diekspor.",
+    "Rentang periode inklusif: data pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "STOK AWAL adalah pembacaan stok PERTAMA tangki itu di dalam periode, dan STOK AKHIR adalah pembacaan TERAKHIRNYA — diurutkan menurut tanggal lalu slot waktu. Keduanya bukan nilai terendah dan tertinggi, dan bukan pula baris pertama dan terakhir menurut urutan penyimpanan. Tanggal kedua pembacaan itu ditampilkan bersama angkanya, karena stok awal yang diambil pada hari ketiga periode berarti dua hari pertama tidak tercatat.",
+    "PERGERAKAN adalah stok akhir dikurangi stok awal. Nilai negatif berarti stok berkurang dan itu keadaan yang wajar, bukan kesalahan. Pergerakan dihitung PER TANGKI lalu dijumlahkan; menghitungnya dari stok gabungan akan salah bila jumlah tangki yang tercatat berbeda antara awal dan akhir periode.",
+    "Tangki yang hanya punya SATU pembacaan stok sepanjang periode tidak punya pergerakan yang dapat dihitung. Keadaan itu dinyatakan demikian, bukan ditampilkan sebagai pergerakan nol — nol berarti stok tidak berubah, dan itu klaim yang berbeda.",
+    "Stok awal dan akhir diambil dari pembacaan yang stoknya benar-benar terisi. Bila pembacaan paling awal tidak mencatat stok, yang dipakai adalah pembacaan terisi berikutnya, dan tanggalnya ikut ditampilkan.",
+    "SETIAP metrik mutu dihitung dari pembacaan yang terisi untuk metrik ITU SENDIRI, dengan jumlah pembacaannya masing-masing. Satu baris dapat mencatat FFA tetapi mengosongkan DOBI.",
+    "Suhu rata-rata diambil dari kolom suhu rata-rata yang dicatat Operator, bukan dihitung ulang dari suhu atas, tengah, dan bawah. Menghitung ulang akan menciptakan kebenaran kedua yang menyimpang diam-diam dari yang dilihat Operator di layar input.",
+    "FFA, kadar air, dan DOBI ditampilkan pada satu grafik tren yang sama, karena yang menunjukkan mutu memburuk adalah arah ketiganya bersamaan, bukan salah satunya sendirian.",
+    "Laporan ini tidak menandai nilai di luar batas. Storage Tank tidak punya master target operasional, dan menurunkan ambang mutu dari data periode itu sendiri berisiko dibaca sebagai batas mutu resmi padahal bukan.",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki."
+  ],
+  "usecase_ids": [
+    "usecase-133--laporan-storage-tank-web"
+  ],
+  "edge_cases": [
+    "Periode tidak memuat satu pun pembacaan — seluruh angka ditampilkan tidak tersedia dengan keterangan belum ada data, bukan nol.",
+    "Sebuah tangki hanya punya satu pembacaan stok — pergerakannya dinyatakan tidak dapat dihitung, bukan nol.",
+    "Pembacaan paling awal sebuah tangki tidak mencatat stok — stok awal diambil dari pembacaan terisi berikutnya, dan tanggalnya ditampilkan supaya selisih waktunya terbaca.",
+    "Sebuah tangki punya record tetapi tidak satu pun pembacaan stoknya terisi — tangki itu tetap muncul pada rekap dengan stok dan pergerakan tidak tersedia.",
+    "Jumlah tangki yang tercatat di awal periode berbeda dari yang di akhir — pergerakan tetap dihitung per tangki, dan tangki yang hanya muncul di salah satu ujung dinyatakan demikian.",
+    "Pergerakan bernilai negatif — ditampilkan apa adanya sebagai pengurangan stok, tanpa diperlakukan sebagai kesalahan.",
+    "Sebuah metrik mutu tidak pernah diisi sepanjang periode — metrik itu ditampilkan tidak tersedia dengan jumlah pembacaan nol, sementara metrik lain tetap tampil normal.",
+    "Kolom suhu rata-rata kosong walau suhu atas, tengah, dan bawah terisi — suhu rata-rata ditampilkan tidak tersedia, dan laporan tidak menghitungnya sendiri.",
+    "Kelengkapan pencatatan sangat rendah — angka tetap ditampilkan tetapi kelengkapannya menonjol.",
+    "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
+    "Akun Supervisor atau Mill Management yang belum terhubung ke mill — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
+    "Mill belum punya satu pun periode yang mencakup Storage Tank — pemilih periode kosong dengan arahan menghubungi Admin.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar halaman tetap terbaca."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Stok diambil dari kolom berat terhitung (MT). Skema juga menyimpan volume terhitung (m3) dan kedalaman sounding, yang ketiganya dapat terisi terpisah. Laporan memakai berat karena itulah satuan yang lazim dipakai untuk stok CPO, tetapi bila operasional lebih memakai volume, pemilihan kolomnya perlu ditinjau — angkanya akan berbeda dan keduanya sama-sama terlihat sah.",
+    "Storage Tank tidak punya master target operasional, jadi laporan ini tidak menandai nilai mutu di luar batas. FFA dan kadar air punya batas mutu yang lazim dikenal di industri; bila batas resmi hendak dipakai, laporan perlu ditinjau ulang agar penyimpangan dapat ditandai."
+  ]
+}

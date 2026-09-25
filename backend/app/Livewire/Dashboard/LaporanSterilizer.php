@@ -76,7 +76,11 @@ class LaporanSterilizer extends Component
 
         $service = app(SterilizerReportService::class);
 
-        return $service->export($service->authorizePeriod($this->periodId), $format);
+        return $service->export(
+            $service->authorizePeriod($this->periodId),
+            $format,
+            $this->resolvedBusinessUnitId(),
+        );
     }
 
     public function render()

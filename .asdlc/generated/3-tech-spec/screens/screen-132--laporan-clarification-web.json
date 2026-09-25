@@ -1,0 +1,1667 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-25"
+  },
+  "id": "screen-132--laporan-clarification-web",
+  "name": "Laporan Clarification (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/clarification",
+  "auth_requirement": "role: supervisor, mill_management, admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Dibatasi pada business unit miliknya; business_unit_id dari klien diabaikan server"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Dibatasi pada business unit miliknya; business_unit_id dari klien diabaikan server"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Operator tidak punya akses web. TIDAK ada perluasan Operator di sini — versi mobile (screen-138) belum dikerjakan"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "usecase_name": "Lihat Laporan Periode Clarification (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/clarification-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — khusus Admin",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor bukan admin — peran lain millnya sudah tetap"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/clarification-reports/periods",
+          "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Clarification pada mill yang dilihat",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "WAJIB untuk Admin; DIABAIKAN untuk Supervisor dan Mill Management"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "station_type": "string|null",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "actor admin tidak mengirim business_unit_id"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "akun supervisor/mill_management dengan business_unit_id null — pesan menghubungi Admin, daftar seluruh mill TIDAK PERNAH disusun"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor operator — layar web, Operator tidak punya akses"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/clarification-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode: produksi turunan, downtime, metrik beserta jumlah pembacaannya, kelengkapan, tren harian, rekap per unit",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode Pelaporan yang dilaporkan"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /periods"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string",
+                "business_unit_name": "string"
+              },
+              "coverage": {
+                "filled_slots": "integer",
+                "expected_slots": "integer",
+                "coverage_percent": "float",
+                "unit_count": "integer",
+                "slots_per_unit_per_day": "integer",
+                "days_in_period": "integer"
+              },
+              "production": {
+                "total_ton": "float|null",
+                "avg_per_day_ton": "float|null",
+                "reading_count": "integer",
+                "_note": "total_ton DITURUNKAN sebagai SUM(pure_oil_production_rate_ton_hour); tidak ada kolom produksi di skema. null bila reading_count = 0"
+              },
+              "downtime": {
+                "total_mins": "integer|null",
+                "avg_per_day_mins": "float|null",
+                "hours_with_downtime": "integer",
+                "reading_count": "integer",
+                "_note": "total_mins null bila reading_count = 0 (tidak pernah tercatat); 0 bila tercatat dan memang nol. Dua keadaan itu WAJIB dapat dibedakan"
+              },
+              "metrics": {
+                "pure_oil_production_rate_ton_hour": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "clarification_tank_temp_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "oil_tank_temperature_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "sludge_tank_temp_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "buffer_tank_level_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "downtime_mins": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                }
+              },
+              "daily": [
+                {
+                  "date": "date",
+                  "filled_slots": "integer",
+                  "production_ton": "float|null",
+                  "rate_avg": "float|null",
+                  "clarification_tank_temp_avg": "float|null",
+                  "oil_tank_temperature_avg": "float|null",
+                  "sludge_tank_temp_avg": "float|null",
+                  "buffer_tank_level_avg": "float|null",
+                  "downtime_mins": "integer|null",
+                  "_note": "ketiga suhu dikirim per tanggal pada SATU baris agar layar dapat menggambarnya pada satu sumbu — selisih antar tangki itulah yang dibaca"
+                }
+              ],
+              "by_unit": [
+                {
+                  "clarification_id": "string",
+                  "reading_count": "integer",
+                  "production_ton": "float|null",
+                  "rate_avg": "float|null",
+                  "clarification_tank_temp_avg": "float|null",
+                  "oil_tank_temperature_avg": "float|null",
+                  "sludge_tank_temp_avg": "float|null",
+                  "downtime_mins": "integer|null"
+                }
+              ],
+              "total": {
+                "days_with_records": "integer",
+                "reading_rows": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain bagi Supervisor/Mill Management, atau actor operator"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id kosong"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — dihitung saat periode dipilih",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/clarification-reports/export",
+          "description": "Ekspor seluruh pembacaan per slot waktu sepanjang periode ke CSV, satu baris per slot",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode yang diekspor"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "csv | excel"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /summary"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_note": "StreamedResponse; kolom konteks record (tanggal, unit clarification, status, catatan) diulang tiap baris, lalu keenam kolom pengukuran dan findings apa adanya"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain, atau actor operator"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "jumlah baris clarification_details melebihi 50.000"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "format di luar csv|excel"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "resolveBusinessUnit: supervisor/mill_management -> pakai business_unit_id akun, ABAIKAN query; bila null -> 422 'Hubungi Admin' dan businessUnitRepo->all() TIDAK dipanggil (gagal tertutup, diuji sebagai spy). admin -> wajib dari query, kosong -> 422. operator -> 403 di seluruh endpoint; ini layar WEB dan TIDAK ada perluasan Operator.",
+        "listPeriods: SELECT Period WHERE business_unit_id = <resolve> AND (station_type = 'clarification' OR station_type IS NULL) ORDER BY start_date DESC. Array kosong adalah jawaban sah.",
+        "authorizePeriod: guard peran berjalan SEBELUM findOrFail, sehingga Operator dengan period_id tidak ada menerima AuthorizationException dan BUKAN ModelNotFoundException — keberadaan period_id tidak boleh bocor lewat selisih 403 vs 404. Lalu 404 bila tidak ada, 403 bila milik mill lain bagi peran terikat mill.",
+        "summary base: clarification_records JOIN stations WHERE stations.business_unit_id = period.business_unit_id AND stations.type = 'clarification' AND whereDate(record.date) BETWEEN start_date AND end_date INKLUSIF. Eager-load clarification_details urut time_slot menaik. SATU TANGGAL DAPAT PUNYA BEBERAPA RECORD, satu per unit (clarification_id kolom string pada header).",
+        "PRODUKSI DITURUNKAN, BUKAN DICATAT — dan ini sifat yang membedakan layar ini. Skema TIDAK punya kolom produksi; yang ada pure_oil_production_rate_ton_hour dalam ton/jam. Pola hourly grid membuat satu pembacaan berlaku untuk satu jam slotnya, sehingga production.total_ton = SUM(rate) atas baris yang rate-nya non-null. Karena diturunkan, production.reading_count WAJIB dikirim berdampingan: produksi dari 40 pembacaan dan dari 400 pembacaan tidak boleh terlihat sama meyakinkan.",
+        "JAM TANPA CATATAN LAJU BUKAN JAM BERPRODUKSI NOL. Baris yang rate-nya null dikeluarkan dari SUM dan dari penyebut rata-rata laju — tidak menyumbang 0,0. Menganggapnya nol akan membuat mill yang pencatatannya bolong terlihat seperti mill yang berhenti berproduksi, dan keduanya menghasilkan total yang sama sehingga kesalahannya tidak terlihat.",
+        "LAJU DAN DOWNTIME TIDAK SALING MENGURANGI. Sebuah jam yang mencatat laju 10,0 ton/jam DAN downtime 20 menit tetap menyumbang 10,0 ton pada produksi, bukan 10 x 40/60. Ini mengikuti rumus yang ditetapkan pada penentuan cakupan ('sum laju x 1 jam'). KONSEKUENSINYA produksi periode lebih tinggi daripada kenyataan bila laju yang diinput adalah laju sesaat, dan selisihnya tidak terlihat di mana pun — karena itu total downtime WAJIB ditampilkan berdampingan dengan produksi. Pertanyaan apakah downtime harus dikurangkan masih TERBUKA dan menunggu pemilik proses; jangan memutuskannya di kode.",
+        "PENYEBUT TERPISAH PER METRIK. Keenam kolom pengukuran nullable dan sebuah baris dianggap terisi bila minimal satu kolom non-time_slot terisi. Setiap metrik dihitung HANYA dari baris yang kolom metrik ITU non-null, dengan reading_count-nya sendiri. Memakai jumlah baris terisi sebagai penyebut bersama akan mengempiskan metrik yang jarang diisi.",
+        "DOWNTIME NOL BERBEDA DARI DOWNTIME TIDAK TERCATAT. downtime.total_mins = SUM atas baris yang downtime_mins non-null; downtime.reading_count = jumlah baris itu; downtime.hours_with_downtime = jumlah baris yang downtime_mins > 0. Bila reading_count = 0 -> total_mins = null, BUKAN 0. Nol berarti 'tidak pernah berhenti'; null berarti 'tidak diketahui'. Menyatukan keduanya akan melaporkan keandalan yang tidak pernah diukur.",
+        "NULL BUKAN NOL untuk seluruh metrik: metrik yang tidak pernah terisi menghasilkan min/avg/max null dengan reading_count 0, independen per metrik.",
+        "KELENGKAPAN PENCATATAN: filled_slots = jumlah baris clarification_details yang minimal satu kolom non-time_slot-nya terisi; baris yang seluruh kolomnya null TIDAK dihitung. expected_slots = unit_count x days_in_period x slots_per_unit_per_day. Di layar ini kelengkapan lebih menentukan daripada di stasiun lain, karena produksi DITURUNKAN dari pembacaan yang ada — pencatatan yang bolong langsung menurunkan angka produksinya, bukan sekadar menurunkan keyakinan atasnya.",
+        "daily[] mengirim KETIGA suhu tangki pada satu baris per tanggal, sehingga layar dapat menggambarnya pada SATU grafik dengan sumbu yang sama. Yang dibaca adalah SELISIH antar tangki — itulah yang menunjukkan proses pemisahan berjalan. Tiga grafik terpisah memenuhi kalimat 'tren suhu antar tangki' secara harfiah sambil menghilangkan maksudnya.",
+        "by_unit: GROUP BY clarification_id atas seluruh record periode. Unit yang punya record tetapi nol pembacaan terisi TETAP muncul dengan reading_count 0 dan seluruh nilai null — menghilangkannya akan menyembunyikan unit yang justru tidak pernah dicatat.",
+        "TIDAK ADA penandaan nilai di luar batas di mana pun — tanpa kartu ambang, warna aman/bahaya, outlier, maupun IQR. Clarification tidak punya master target operasional (tidak ada ClarificationOperationalTarget; hanya Threshing/Pressing/Depricarping/Kernel Plant yang punya). Ketiadaannya WAJIB diasersi menurut nama, bukan sekadar tidak diimplementasikan — aturan 'jangan menandai' hanya bertahan kalau ada test yang menjaganya.",
+        "time_slot bertipe TIME. Pengurutan dan pengelompokan memakai nilai TIME apa adanya; jangan mengonversinya menjadi integer dan jangan mengasumsikan slot jatuh tepat di awal jam.",
+        "Seluruh agregasi dijalankan di PHP atas baris mentah, BUKAN SUM/AVG/GROUP BY di SQL. Test berjalan di SQLite dan produksi di PostgreSQL, dan justru aturan penyebut-terpisah serta null-bukan-nol yang paling mudah hilang di perbedaan itu.",
+        "export: authorizePeriod -> hitung baris clarification_details dalam rentang -> bila > 50.000 -> 422 EXPORT_FAILED -> stream lewat chunk, satu baris per slot waktu, kolom konteks record diulang tiap baris. Penjagaan izin dilakukan EAGER sebelum generator mulai menghasilkan, agar 403/422 tidak tampak seperti respons kosong yang berhasil."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Daftar periode untuk pemilih dan rentang tanggal periode terpilih"
+        },
+        {
+          "entity_id": "clarification-detail",
+          "operation": "SELECT",
+          "description": "Sumber SELURUH angka — satu baris = satu slot waktu; produksi diturunkan dari kolom laju di sini"
+        },
+        {
+          "entity_id": "clarification-record",
+          "operation": "SELECT",
+          "description": "Header harian — tanggal kejadian, unit (clarification_id), status, catatan"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk menyaring ke business unit periode dan tipe stasiun clarification"
+        },
+        {
+          "entity_id": "station-type",
+          "operation": "SELECT",
+          "description": "Resolusi station_type_label pada daftar periode"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin dan resolusi nama mill"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Periode tanpa satu pun pembacaan",
+          "handling": "200 dengan seluruh metrik null dan reading_count 0, production.total_ton null, downtime.total_mins null, coverage.filled_slots 0, daily = []. UI menampilkan keterangan belum ada data dan TIDAK merender grafik kosong"
+        },
+        {
+          "condition": "Laju tidak pernah tercatat walau suhu terisi",
+          "handling": "production.total_ton null dengan reading_count 0; metrik suhu tetap normal dengan reading_count masing-masing"
+        },
+        {
+          "condition": "Sebagian jam tidak mencatat laju",
+          "handling": "Jam itu dikeluarkan dari SUM dan dari penyebut rata-rata laju — TIDAK menyumbang 0,0. Jumlahnya terbaca lewat coverage"
+        },
+        {
+          "condition": "Satu jam mencatat downtime sekaligus laju",
+          "handling": "Produksi jam itu tetap dihitung dari laju apa adanya dan downtime tetap dijumlahkan apa adanya; keduanya tidak saling mengurangi. Layar menjelaskan hal itu"
+        },
+        {
+          "condition": "Downtime tidak pernah tercatat",
+          "handling": "downtime.total_mins = null dengan reading_count 0 — dibedakan dari 0 yang berarti tercatat dan memang nol"
+        },
+        {
+          "condition": "Baris yang seluruh kolomnya null",
+          "handling": "Tidak dihitung sebagai slot terisi dan tidak menyumbang pada metrik mana pun"
+        },
+        {
+          "condition": "Mill punya beberapa unit Clarification",
+          "handling": "Angka periode menggabungkan seluruh unit; by_unit memecahnya. Unit ber-record tanpa pembacaan tetap muncul dengan reading_count 0"
+        },
+        {
+          "condition": "Kelengkapan pencatatan sangat rendah",
+          "handling": "Angka tetap dihitung, tetapi coverage ditampilkan menonjol di atas seluruh angka lain — di layar ini produksi DITURUNKAN sehingga pencatatan yang bolong langsung menurunkan angkanya"
+        },
+        {
+          "condition": "Admin membuka laporan tanpa memilih mill",
+          "handling": "422 VALIDATION_ERROR; Livewire tidak memanggil /summary dan menampilkan arahan memilih mill"
+        },
+        {
+          "condition": "Supervisor/Mill Management mengirim business_unit_id mill lain",
+          "handling": "Nilai diabaikan; respons tetap 200 berisi data mill sendiri, BUKAN 403"
+        },
+        {
+          "condition": "Supervisor/Mill Management menembak period_id mill lain",
+          "handling": "403 FORBIDDEN"
+        },
+        {
+          "condition": "Akun terikat mill dengan business_unit_id null",
+          "handling": "422 VALIDATION_ERROR menghubungi Admin; daftar seluruh mill TIDAK PERNAH disusun (diuji sebagai spy)"
+        },
+        {
+          "condition": "Periode berstatus tertutup",
+          "handling": "Tetap dapat dilihat dan diekspor penuh"
+        },
+        {
+          "condition": "Rekap harian puluhan baris",
+          "handling": "Dapat ditutup; tabel dan grafik menggulir di dalam kartunya, halaman tidak pernah menggulir horizontal"
+        }
+      ],
+      "business_rules_applied": [
+        "Hanya Supervisor, Mill Management, dan Admin; Operator ditolak 403 di seluruh endpoint",
+        "Supervisor dan Mill Management terkunci pada millnya; business_unit_id dari klien diabaikan",
+        "Admin wajib memilih mill; tanpa itu 422",
+        "Pemilih periode hanya memuat periode ber-station_type 'clarification' atau NULL",
+        "Status periode tidak membatasi pembacaan maupun ekspor",
+        "Rentang periode inklusif dua ujung memakai record.date",
+        "Produksi diturunkan dari laju per jam, dan reading_count-nya dikirim berdampingan",
+        "Jam tanpa catatan laju tidak dianggap berproduksi nol",
+        "Setiap metrik dihitung dengan penyebutnya sendiri",
+        "Downtime nol dan downtime tidak tercatat dapat dibedakan dari respons",
+        "Laju dan downtime tidak saling mengurangi",
+        "Ketiga suhu dikirim per tanggal pada satu baris agar dapat digambar pada satu sumbu",
+        "Tidak ada penandaan nilai di luar batas",
+        "Kelengkapan pencatatan adalah isi laporan, bukan metadata",
+        "Layar hanya membaca"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "production.total_ton = SUM laju per jam — 4 baris 10,0/12,5/8,0/9,5 menghasilkan 40,0 ton dengan production.reading_count = 4",
+          "given": "ClarificationRecordService/repository mengembalikan 1 record dengan 4 clarification_details ber-pure_oil_production_rate_ton_hour 10.0, 12.5, 8.0, 9.5 pada time_slot '06:00:00','07:00:00','08:00:00','09:00:00'",
+          "expect": "result['production']['total_ton'] === 40.0 dan result['production']['reading_count'] === 4; nilai berasal dari penjumlahan laju (ubah salah satu laju menjadi 11.0 -> total 41.0), bukan dari kolom produksi mana pun"
+        },
+        {
+          "description": "tidak ada kolom produksi yang dibaca — produksi murni diturunkan dari laju",
+          "given": "query log/spy aktif atas koneksi saat menghitung summary untuk periode berisi pembacaan laju",
+          "expect": "tidak ada select/atribut bernama production, total_production, produksi_ton pada clarification_details (skema tidak punya kolom itu); satu-satunya sumber angka produksi adalah pure_oil_production_rate_ton_hour"
+        },
+        {
+          "description": "jam tanpa catatan laju tidak dianggap berproduksi nol — 10 baris terisi, hanya 4 mengisi laju",
+          "given": "1 record dengan 10 clarification_details terisi (masing-masing minimal satu kolom non-time_slot); hanya 4 di antaranya mengisi pure_oil_production_rate_ton_hour (10.0, 12.5, 8.0, 9.5), 6 sisanya null pada kolom laju",
+          "expect": "production.reading_count === 4; production.total_ton === 40.0; avg_rate_ton_hour === 10.0 (40.0 / 4), BUKAN 4.0 (40.0 / 10); enam baris tanpa laju tidak menyumbang 0.0 ke rata-rata"
+        },
+        {
+          "description": "laju tidak pernah tercatat sepanjang periode -> produksi null bukan nol",
+          "given": "seluruh clarification_details pada periode memiliki pure_oil_production_rate_ton_hour null, sementara suhu terisi",
+          "expect": "production.total_ton === null, avg_production_per_day_ton === null, min/avg/max_rate === null, production.reading_count === 0"
+        },
+        {
+          "description": "metrik suhu tetap normal meski laju kosong sepanjang periode",
+          "given": "sama seperti kasus di atas; sludge_tank_temp_c terisi pada 9 baris",
+          "expect": "sludge_tank_temp_c.reading_count === 9 dengan min/avg/max terhitung; nilai suhu tidak terpengaruh kosongnya laju"
+        },
+        {
+          "description": "penyebut terpisah per metrik — laju 4 baris vs suhu sludge 9 baris",
+          "given": "10 baris terisi; pure_oil_production_rate_ton_hour terisi pada 4 baris, sludge_tank_temp_c terisi pada 9 baris",
+          "expect": "production.reading_count === 4 dan sludge_tank_temp_c.reading_count === 9; avg laju = total laju / 4; avg suhu sludge = total suhu sludge / 9; tidak ada satu penyebut bersama (mis. 10) dipakai untuk keduanya"
+        },
+        {
+          "description": "keenam metrik masing-masing punya reading_count sendiri",
+          "given": "satu set baris dengan kelengkapan berbeda-beda pada clarification_tank_temp_c (7), oil_tank_temperature_c (5), sludge_tank_temp_c (9), buffer_tank_level_percent (3), pure_oil_production_rate_ton_hour (4), downtime_mins (6)",
+          "expect": "reading_count tiap metrik berturut-turut 7, 5, 9, 3, 4, 6; setiap rata-rata dihitung dengan penyebutnya masing-masing"
+        },
+        {
+          "description": "null bukan nol — metrik yang tidak pernah terisi mengembalikan min/avg/max null dan reading_count 0",
+          "given": "periode dengan buffer_tank_level_percent null pada seluruh baris, sedangkan metrik lain terisi",
+          "expect": "buffer_tank_level_percent.min === null, .avg === null, .max === null, .reading_count === 0; metrik lain tidak terpengaruh (independen per metrik)"
+        },
+        {
+          "description": "downtime tidak pernah tercatat -> downtime.total_mins null, BUKAN 0",
+          "given": "seluruh baris pada periode memiliki downtime_mins null",
+          "expect": "downtime.total_mins === null, avg_downtime_per_day_mins === null, hours_with_downtime === 0, downtime.reading_count === 0"
+        },
+        {
+          "description": "downtime tercatat nol -> total 0 dengan downtime.reading_count > 0, dapat dibedakan dari tidak tercatat",
+          "given": "5 baris dengan downtime_mins = 0 (bukan null)",
+          "expect": "downtime.total_mins === 0 (integer/float nol, bukan null), downtime.reading_count === 5, hours_with_downtime === 0; respons dua keadaan (semua null vs semua nol) berbeda secara nyata pada pasangan (downtime.total_mins, downtime.reading_count)"
+        },
+        {
+          "description": "downtime campuran null / nol / positif",
+          "given": "4 baris dengan downtime_mins = 0, 0, 15, null",
+          "expect": "downtime.total_mins === 15, downtime.reading_count === 3 (hanya yang non-null), hours_with_downtime === 1 (hanya yang > 0)"
+        },
+        {
+          "description": "downtime dan laju tidak saling mengurangi — satu baris berlaju 10,0 sekaligus downtime 20 menit",
+          "given": "1 baris dengan pure_oil_production_rate_ton_hour = 10.0 dan downtime_mins = 20",
+          "expect": "kontribusi produksi baris itu === 10.0 ton (BUKAN 10 * 40/60 = 6.67) dan downtime.total_mins === 20; komentar test menyebut bahwa rumus tanpa pengurangan ini adalah keputusan yang masih menunggu konfirmasi pemilik proses (open_question pada spec layar)"
+        },
+        {
+          "description": "coverage.expected_slots = jumlah unit x hari periode x 24",
+          "given": "periode 3 hari (inklusif) pada mill dengan 2 unit clarification (clarification_id berbeda)",
+          "expect": "coverage.expected_slots === 144 (2 x 3 x 24)"
+        },
+        {
+          "description": "coverage.filled_slots hanya menghitung baris yang minimal satu kolom non-time_slot terisi",
+          "given": "12 clarification_details: 9 punya minimal satu kolom terisi, 3 seluruh kolom non-time_slot null",
+          "expect": "coverage.filled_slots === 9; tiga baris kosong tidak dihitung terisi"
+        },
+        {
+          "description": "definisi baris terisi mendelegasi ke ClarificationRecordService, tidak mendefinisikan ulang",
+          "given": "ClarificationRecordService di-spy/di-mock sebagai penentu 'baris terisi'",
+          "expect": "ClarificationReportService memanggil definisi milik ClarificationRecordService; tidak ada predikat kedua yang menduplikasi aturan terisi di dalam report service"
+        },
+        {
+          "description": "coverage_percent dihitung dari filled_slots / expected_slots",
+          "given": "filled_slots = 9, expected_slots = 144",
+          "expect": "coverage.coverage_percent === 6.25 (dibulatkan sesuai konvensi laporan stasiun lain)"
+        },
+        {
+          "description": "daily[] memuat ketiga suhu per tanggal pada satu seri data yang sebanding",
+          "given": "periode 2 hari dengan pembacaan pada clarification_tank_temp_c, oil_tank_temperature_c, dan sludge_tank_temp_c",
+          "expect": "setiap elemen daily[] memuat date plus ketiga kunci suhu (avg_clarification_tank_temp_c, avg_oil_tank_temperature_c, avg_sludge_tank_temp_c) pada satu objek yang sama sehingga layar dapat menggambar ketiganya pada satu sumbu"
+        },
+        {
+          "description": "daily[] juga memuat produksi harian dan jumlah pembacaannya",
+          "given": "periode 2 hari; hari-1 mencatat laju pada 3 baris, hari-2 tidak mencatat laju sama sekali",
+          "expect": "daily[0].production.total_ton terisi dengan production.reading_count 3; daily[1].production.total_ton === null dengan production.reading_count === 0 (bukan 0.0 ton)"
+        },
+        {
+          "description": "rentang periode inklusif kedua ujung memakai whereDate atas record.date",
+          "given": "periode 2026-03-01 s.d. 2026-03-05; record tepat pada 2026-03-01 dan 2026-03-05, serta record pada 2026-02-28 dan 2026-03-06",
+          "expect": "record tanggal awal dan tanggal akhir ikut terhitung; record 2026-02-28 dan 2026-03-06 dikecualikan; filter memakai whereDate pada clarification_records.date"
+        },
+        {
+          "description": "satu tanggal dengan beberapa record (unit berbeda) digabungkan pada angka periode",
+          "given": "tanggal 2026-03-02 punya 2 record dengan clarification_id 'CLF-01' dan 'CLF-02', masing-masing berlaju total 20,0 dan 15,0",
+          "expect": "angka periode production.total_ton === 35.0; daily untuk 2026-03-02 juga menggabungkan kedua unit"
+        },
+        {
+          "description": "by_unit memecah angka per clarification_id",
+          "given": "data yang sama seperti kasus di atas",
+          "expect": "by_unit memuat 2 entri berkunci 'CLF-01' dan 'CLF-02' dengan production.total_ton 20.0 dan 15.0 beserta reading_count masing-masing"
+        },
+        {
+          "description": "unit ber-record tanpa pembacaan terisi tetap muncul pada by_unit dengan reading_count 0",
+          "given": "unit 'CLF-03' punya record pada periode tetapi seluruh clarification_details-nya kosong (semua kolom non-time_slot null)",
+          "expect": "by_unit tetap memuat entri 'CLF-03' dengan production.reading_count === 0 dan production.total_ton === null; entri tidak dihilangkan dari daftar"
+        },
+        {
+          "description": "time_slot diperlakukan sebagai TIME saat mengurutkan dan mengelompokkan",
+          "given": "clarification_details dengan time_slot '00:30:00', '09:00:00', '10:00:00', '22:15:00' dimasukkan dengan urutan acak",
+          "expect": "urutan keluaran (dan urutan baris ekspor) mengikuti nilai TIME menaik ketat: 00:30:00, 09:00:00, 10:00:00, 22:15:00; tidak ada konversi ke integer jam (kasus 00:30 dan 10:00 membuktikan pengurutan bukan cast integer)"
+        },
+        {
+          "description": "agregasi dilakukan di PHP atas baris mentah, bukan SUM/AVG/GROUP BY di SQL",
+          "given": "query log aktif selama pemanggilan summary pada database SQLite test",
+          "expect": "tidak ada query yang memuat SUM(, AVG(, MIN(, MAX( atau GROUP BY atas clarification_details; service mengambil baris mentah lalu mengagregasi di PHP (menjaga paritas SQLite test vs Postgres produksi)"
+        },
+        {
+          "description": "periode tanpa satu pun pembacaan -> seluruh angka null dan penanda tidak ada data",
+          "given": "periode valid pada mill pengguna tanpa satu pun clarification_record",
+          "expect": "seluruh metrik min/avg/max === null dengan reading_count 0, production.total_ton === null, downtime.total_mins === null, daily === [], by_unit === [], has_data === false"
+        },
+        {
+          "description": "respons tidak memuat penandaan nilai di luar batas dalam bentuk apa pun",
+          "given": "periode memuat nilai ekstrem (sludge_tank_temp_c = 250.0, buffer_tank_level_percent = 0.5)",
+          "expect": "array respons tidak memuat kunci apa pun yang cocok dengan threshold, target, limit, outlier, iqr, is_danger, is_warning, severity, status_flag; nilai ekstrem dikembalikan apa adanya"
+        },
+        {
+          "description": "daftar periode hanya yang mencakup Clarification atau berlaku semua jenis stasiun",
+          "given": "mill punya 4 periode: satu khusus Clarification, satu tanpa jenis stasiun (berlaku semua), dua khusus stasiun lain",
+          "expect": "daftar yang dikembalikan hanya 2 periode (khusus Clarification + berlaku semua); dua periode stasiun lain tidak muncul"
+        },
+        {
+          "description": "mill tanpa periode yang mencakup Clarification mengembalikan daftar kosong, bukan galat",
+          "given": "mill pengguna tidak punya periode yang mencakup Clarification maupun periode berlaku semua stasiun",
+          "expect": "daftar periode === [] tanpa exception; bendera arahan menghubungi Admin tersedia bagi layar"
+        },
+        {
+          "description": "periode berstatus tertutup tetap menghasilkan laporan penuh",
+          "given": "period_id menunjuk periode berstatus closed pada mill pengguna dengan data lengkap",
+          "expect": "summary dikembalikan penuh sama seperti periode terbuka, status periode disertakan pada respons, dan ekspor tidak ditolak karena status"
+        },
+        {
+          "description": "supervisor: business_unit_id dari klien DIABAIKAN, memakai mill pada akun",
+          "given": "actor supervisor terikat mill A; permintaan membawa business_unit_id mill B; period_id milik mill A",
+          "expect": "service memakai mill A, mengembalikan data mill A (bukan 403, bukan data mill B)"
+        },
+        {
+          "description": "mill_management: business_unit_id dari klien DIABAIKAN, memakai mill pada akun",
+          "given": "actor mill_management terikat mill A; permintaan membawa business_unit_id mill B; period_id milik mill A",
+          "expect": "service memakai mill A dan mengembalikan 200 dengan data mill A"
+        },
+        {
+          "description": "period_id milik mill lain -> FORBIDDEN",
+          "given": "actor supervisor terikat mill A; period_id menunjuk periode milik mill B",
+          "expect": "melempar AuthorizationException yang dipetakan ke 403 FORBIDDEN; tidak ada data mill B yang dibaca"
+        },
+        {
+          "description": "akun terikat mill dengan business_unit_id null -> VALIDATION_ERROR, dan daftar seluruh mill TIDAK PERNAH disusun",
+          "given": "actor supervisor dengan business_unit_id null; repository/daftar mill di-spy",
+          "expect": "melempar ValidationException yang dipetakan ke 422 VALIDATION_ERROR; spy daftar seluruh mill tidak pernah dipanggil (nol kali)"
+        },
+        {
+          "description": "Admin tanpa business_unit_id pada permintaan -> VALIDATION_ERROR",
+          "given": "actor admin; permintaan summary tanpa business_unit_id",
+          "expect": "melempar ValidationException yang dipetakan ke 422 VALIDATION_ERROR; tidak ada angka yang dihitung"
+        },
+        {
+          "description": "period_id kosong -> VALIDATION_ERROR",
+          "given": "actor supervisor terikat mill A; permintaan summary tanpa period_id",
+          "expect": "melempar ValidationException yang dipetakan ke 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "period_id tidak ditemukan bagi peran berwenang -> NOT_FOUND",
+          "given": "actor supervisor terikat mill A; period_id 999999 tidak ada di database",
+          "expect": "melempar ModelNotFoundException yang dipetakan ke 404 NOT_FOUND"
+        },
+        {
+          "description": "actor operator ditolak di seluruh operasi laporan",
+          "given": "actor operator; period_id valid milik mill-nya",
+          "expect": "setiap operasi (options mill, daftar periode, summary, export) melempar AuthorizationException yang dipetakan ke 403 FORBIDDEN; tidak ada baris clarification_details yang dibaca"
+        },
+        {
+          "description": "guard peran berjalan SEBELUM findOrFail — Operator dengan period_id tidak ada menerima AuthorizationException, bukan ModelNotFoundException",
+          "given": "actor operator; period_id 999999 yang tidak ada di database",
+          "expect": "melempar AuthorizationException (403 FORBIDDEN), BUKAN ModelNotFoundException (404); urutan pemeriksaan peran mendahului findOrFail"
+        },
+        {
+          "description": "tanpa sesi -> UNAUTHENTICATED",
+          "given": "tidak ada pengguna terautentikasi pada konteks permintaan",
+          "expect": "melempar AuthenticationException yang dipetakan ke 401 UNAUTHENTICATED"
+        },
+        {
+          "description": "ekspor menulis satu baris per slot waktu dengan kolom konteks record diulang",
+          "given": "2 record (unit berbeda) masing-masing 3 clarification_details terisi pada periode",
+          "expect": "keluaran CSV memuat 6 baris data; setiap baris memuat kolom konteks record (tanggal, clarification_id/unit, status, catatan) yang diulang, plus time_slot dan keenam kolom metrik"
+        },
+        {
+          "description": "ekspor berupa streaming, tidak memuat seluruh baris di memori",
+          "given": "periode dengan banyak clarification_details",
+          "expect": "mengembalikan StreamedResponse dengan header Content-Type text/csv dan Content-Disposition attachment; baris ditulis secara bertahap (chunk/cursor), bukan array penuh"
+        },
+        {
+          "description": "ekspor melebihi 50.000 baris -> EXPORT_FAILED",
+          "given": "hitungan baris slot waktu pada periode = 50001",
+          "expect": "melempar exception ekspor yang dipetakan ke 422 EXPORT_FAILED; tidak ada file yang di-stream"
+        },
+        {
+          "description": "ekspor mencakup slot waktu pada kedua ujung periode",
+          "given": "periode 2026-03-01 s.d. 2026-03-05 dengan pembacaan tepat pada 2026-03-01 dan 2026-03-05",
+          "expect": "CSV memuat baris untuk kedua tanggal ujung dan tidak memuat baris di luar rentang"
+        },
+        {
+          "description": "layar hanya membaca — tidak ada operasi tulis pada data stasiun",
+          "given": "pemanggilan berurutan: options mill, daftar periode, summary, export pada data yang sudah ada",
+          "expect": "tidak ada insert/update/delete pada clarification_records maupun clarification_details (diperiksa via query log); checksum/state data stasiun identik sebelum dan sesudah"
+        },
+        {
+          "description": "returns success result when all conditions pass",
+          "given": "actor supervisor terikat mill A; period_id valid milik mill A; data lengkap: 2 unit, 3 hari, pembacaan pada keenam metrik",
+          "expect": "mengembalikan array summary berisi period (id, nama, rentang tanggal, status), business_unit, production (production.total_ton, avg_production_per_day_ton, min/avg/max rate, production.reading_count), downtime (downtime.total_mins, avg_downtime_per_day_mins, hours_with_downtime, downtime.reading_count), metrics untuk clarification_tank_temp_c / oil_tank_temperature_c / sludge_tank_temp_c / buffer_tank_level_percent (min, avg, max, reading_count), coverage (filled_slots, expected_slots, coverage_percent), daily[], dan by_unit[]; tanpa kunci ambang/outlier apa pun"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "clarification-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "clarification-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Tanpa Periode Pelaporan yang dibuat di sana, laporan ini tidak punya apa pun untuk ditampilkan"
+    },
+    {
+      "screen_id": "screen-079--form-clarification",
+      "reason": "Sumber data — pembacaan per slot waktu diinput Operator lewat form mobile ini"
+    },
+    {
+      "screen_id": "screen-119--form-clarification-web",
+      "reason": "Sumber data versi web"
+    },
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Satu-satunya jalan masuk lewat UI: tile Clarification pada grid Laporan Stasiun. REPORT_ROUTES di StationReportService harus ditambah satu baris, DITARUH SESUAI sort_order karena LaporanStasiunTest melakukan toBe() terurut ketat"
+    }
+  ],
+  "implementation_notes": [
+    "Route /reports/clarification mengikuti konvensi repo /reports/*.",
+    "PRODUKSI DITURUNKAN, BUKAN DICATAT — sifat yang membedakan layar ini dari tiga laporan stasiun sebelumnya. Skema TIDAK punya kolom produksi; total_ton = SUM(pure_oil_production_rate_ton_hour) atas baris yang laju-nya non-null, karena satu pembacaan berlaku untuk satu jam slotnya (pola hourly grid milik ClarificationRecordService). reading_count WAJIB dikirim berdampingan.",
+    "JAM TANPA CATATAN LAJU BUKAN JAM BERPRODUKSI NOL — dan ini jebakan yang paling berbahaya di layar ini karena KEDUA TAFSIR MENGHASILKAN TOTAL YANG SAMA. Yang berbeda hanya rata-ratanya: menganggap jam kosong sebagai 0,0 membuat penyebut rata-rata laju membengkak dan angkanya mengempis, sementara totalnya tetap terlihat benar. Unit test mengunci dengan 10 baris terisi dan hanya 4 berlaju.",
+    "LAJU DAN DOWNTIME TIDAK SALING MENGURANGI, mengikuti rumus yang ditetapkan user pada penentuan cakupan ('sum laju x 1 jam'). PERTANYAAN TERBUKA yang belum dijawab pemilik proses: bila laju yang diinput Operator adalah laju SESAAT (bukan rata-rata sepanjang jam), produksi periode menjadi lebih tinggi daripada kenyataan dan selisihnya tidak terlihat di mana pun. Karena itu total downtime WAJIB ditampilkan berdampingan dengan produksi. JANGAN memutuskannya di kode; bila kelak diputuskan sebaliknya, rumusnya menjadi laju x (60 - downtime_mins)/60.",
+    "DOWNTIME NOL BERBEDA DARI TIDAK TERCATAT: total_mins null bila reading_count 0, dan 0 bila tercatat dan memang nol. Kedua keadaan itu WAJIB dapat dibedakan dari respons — menyatukannya akan melaporkan keandalan yang tidak pernah diukur.",
+    "KETIGA SUHU dikirim pada satu baris daily[] per tanggal agar layar dapat menggambarnya pada SATU grafik dengan sumbu yang sama. Yang dibaca adalah SELISIH antar tangki; tiga grafik terpisah memenuhi kalimat 'tren suhu antar tangki' secara harfiah sambil menghilangkan maksudnya.",
+    "Mock memperkenalkan kosakata grafik garis tiga seri md-lc* (SVG inline) karena kosakata lama hanya punya grafik batang seri tunggal. Pembeda antar seri DUA LAPIS — warna dan pola garis (solid/putus/titik) — agar terbaca tanpa mengandalkan warna, dan ketiga warnanya netral secara makna sehingga tidak terbaca sebagai aman/bahaya. Kosakata ini perlu dibawa ke report-styles.blade.php bila dipakai.",
+    "TIDAK ADA penandaan nilai di luar batas, dan KETIADAANNYA WAJIB DIASERSI MENURUT NAMA (threshold, outlier, iqr, is-danger, text-red, dsb), bukan sekadar tidak diimplementasikan. Aturan 'jangan menandai' hanya bertahan kalau ada test yang menjaganya. Tidak ada ClarificationOperationalTarget; hanya Threshing/Pressing/Depricarping/Kernel Plant yang punya master target.",
+    "Guard peran berjalan SEBELUM findOrFail pada authorizePeriod(), dibuktikan lewat jenis exception: Operator dengan period_id tidak ada menerima AuthorizationException dan BUKAN ModelNotFoundException. Pola ini disalin dari screen-131.",
+    "CSS memakai partial bersama report-styles.blade.php lewat <x-slot:styles> di view halaman, BUKAN @include di dalam komponen Livewire.",
+    "JANGAN mengubah .md-trendchart maupun .md-trendchart__col — keduanya diperbaiki 2026-09-24; mengembalikan min-height membuat seluruh batang rata 4px.",
+    "Entri REPORT_ROUTES harus ditaruh sesuai sort_order stasiun, karena LaporanStasiunTest melakukan toBe() terurut ketat terhadap array_keys(REPORT_ROUTES). Asersi e2e laporan-stasiun sudah berbentuk invarian sejak 2026-09-24 sehingga menambah tile tidak memerahkannya.",
+    "Nama medan respons diselaraskan ke skema endpoint: production.total_ton, production.reading_count, downtime.total_mins, downtime.reading_count. Turunan test semula memakai total_production_ton/production_reading_count/total_downtime_mins/downtime_reading_count; 45 kemunculan diganti agar artefak tidak memuat dua nama untuk satu hal.",
+    "Mock visual acuan: .asdlc/generated/2-business-spec/screens/html/screen-132--laporan-clarification-web.html, dengan blok JEJAK ANGKA di kaki berkas. Angkanya sudah diverifikasi independen: Sigma slot 241 (35,9% dari 672), Sigma produksi 1.847,5 ton, Sigma downtime 1.284 menit, dan ikatan 1.847,5 / 198 = 9,33 ton/jam yang mengunci produksi, laju, dan jumlah pembacaan menjadi satu."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — berhasil sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/periods"
+          },
+          "request_example": {
+            "_context": "Sesi Supervisor terikat mill A; memuat daftar periode yang mencakup Clarification"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Memilih periode pertama dari langkah 1; mill diambil dari akun, tidak dikirim klien",
+            "period_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/export"
+          },
+          "request_example": {
+            "_context": "Ekspor CSV rincian per slot waktu untuk periode yang sama; respons streaming text/csv",
+            "period_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) sebagai Supervisor mill A, lalu set('periodId', <id periode>)",
+        "assert": "assertSee data-testid summary-production-total berdampingan dengan summary-production-reading-count; data-testid summary-downtime-total, tank-temperature-chart (satu elemen), buffer-level-summary, recording-coverage, daily-trend, by-unit-table, daily-recap-table, export-csv-button semuanya hadir; assertDontSee identitas mill lain; tidak ada aksi tulis (tidak ada data-testid save/edit/delete)"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor mill A, buka /reports/clarification, pilih periode pertama pada [data-testid=period-selector], tunggu angka termuat, klik [data-testid=export-csv-button]",
+        "assert": "[data-testid=summary-production-total] tampak dengan [data-testid=summary-production-reading-count] di sebelahnya; satu [data-testid=tank-temperature-chart]; [data-testid=recording-coverage] tampak; unduhan CSV terpicu; nama mill A tampil; tidak ada tombol simpan/ubah/hapus di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — berhasil sebagai Admin",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Sesi Admin; memuat daftar mill untuk pemilih Mill"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/periods"
+          },
+          "request_example": {
+            "_context": "Admin memilih satu mill dari langkah 1",
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Admin membaca rekap periode pada mill yang dipilih",
+            "business_unit_id": "{{step1.data[0].id}}",
+            "period_id": "{{step2.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/export"
+          },
+          "request_example": {
+            "_context": "Ekspor CSV tersedia bagi Admin dengan isi yang sama",
+            "business_unit_id": "{{step1.data[0].id}}",
+            "period_id": "{{step2.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) sebagai Admin, set('businessUnitId', <mill>), lalu set('periodId', <periode>)",
+        "assert": "data-testid mill-selector hadir; setelah mill dan periode dipilih seluruh blok laporan tampil sama seperti peran lain (summary-production-total + summary-production-reading-count, tank-temperature-chart tunggal, recording-coverage, by-unit-table, daily-recap-table, export-csv-button)"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Admin, buka /reports/clarification, pilih mill pada [data-testid=mill-selector], pilih periode pada [data-testid=period-selector]",
+        "assert": "Nama mill terpilih tampil; seluruh blok laporan tampil identik dengan peran lain; [data-testid=export-csv-button] aktif dan memicu unduhan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Sesi Admin memanggil summary tanpa business_unit_id — kondisi yang persis dicegah layar dengan arahan memilih mill dulu",
+            "period_id": 1
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) sebagai Admin tanpa memanggil set('businessUnitId', ...)",
+        "assert": "data-testid mill-selector dan mill-required-hint hadir; assertDontSee data-testid summary-production-total, tank-temperature-chart, recording-coverage — tidak ada angka sebelum mill dipilih"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Admin dan buka /reports/clarification tanpa memilih mill",
+        "assert": "[data-testid=mill-required-hint] terlihat berisi arahan memilih mill terlebih dahulu; [data-testid=summary-production-total] tidak ada di DOM"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — mill belum punya periode",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/periods"
+          },
+          "request_example": {
+            "_context": "Sesi Supervisor pada mill yang tidak punya satu pun periode mencakup Clarification maupun periode berlaku semua stasiun"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) sebagai Supervisor pada mill tanpa periode Clarification",
+        "assert": "data-testid period-selector hadir tanpa opsi (kosong); data-testid no-period-hint berisi arahan menghubungi Admin; assertDontSee summary-production-total dan seluruh blok angka"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor pada mill tanpa periode Clarification, buka /reports/clarification",
+        "assert": "[data-testid=period-selector] tidak punya option data; [data-testid=no-period-hint] terlihat; tidak ada kartu angka di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — periode tanpa data",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode valid pada mill pengguna tanpa satu pun clarification_record; harapkan seluruh metrik null dengan has_data=false, bukan nol",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) lalu set('periodId', <periode tanpa data>)",
+        "assert": "data-testid no-data-notice hadir; seluruh data-testid angka menampilkan penanda tidak tersedia (mis. '—'), bukan '0'; data-testid tank-temperature-chart dan daily-trend TIDAK dirender sebagai grafik kosong"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode yang tidak memuat pembacaan",
+        "assert": "[data-testid=no-data-notice] terlihat; [data-testid=summary-production-total] berisi penanda tidak tersedia dan bukan angka 0; tidak ada canvas grafik kosong yang dirender"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — laju produksi tidak pernah tercatat",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode dengan pure_oil_production_rate_ton_hour null pada seluruh baris tetapi suhu terisi; harapkan production.total_ton=null, production.reading_count=0, sedangkan reading_count suhu tetap > 0",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) lalu set('periodId', <periode tanpa laju, suhu terisi>)",
+        "assert": "data-testid summary-production-total menampilkan tidak tersedia dengan summary-production-reading-count bernilai 0; data-testid sludge-temp-avg dan sludge-temp-reading-count tetap menampilkan nilai normal > 0"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode yang kolom lajunya kosong sepanjang periode",
+        "assert": "[data-testid=summary-production-total] menampilkan penanda tidak tersedia dan [data-testid=summary-production-reading-count] menampilkan 0; blok suhu tetap menampilkan angka dengan jumlah pembacaannya sendiri"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — jam tanpa catatan laju",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode dengan 10 baris terisi, hanya 4 mencatat laju 10,0/12,5/8,0/9,5; harapkan production.total_ton=40.0, production.reading_count=4, avg rate=10.0 (40/4 BUKAN 40/10) — enam baris sisanya tidak menyumbang 0,0",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) lalu set('periodId', <periode 10 baris terisi / 4 berlaju>)",
+        "assert": "data-testid summary-production-total menampilkan 40,0 ton; summary-production-reading-count menampilkan 4; production-rate-avg menampilkan 10,0 (bukan 4,0); recording-coverage menampilkan jumlah slot terisi sehingga jam yang hilang terbaca"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode yang sebagian jamnya tidak mencatat laju",
+        "assert": "[data-testid=summary-production-reading-count] menampilkan 4 sementara [data-testid=recording-coverage] menampilkan slot terisi 10; [data-testid=production-rate-avg] menampilkan 10,0 dan bukan 4,0"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — downtime tercatat bersamaan dengan laju",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode memuat satu baris berlaju 10,0 sekaligus downtime_mins=20; harapkan kontribusi produksi tetap 10,0 ton (BUKAN 6,67) dan downtime.total_mins=20 — keduanya tidak saling mengurangi; komentar test mencatat bahwa rumus ini masih menunggu konfirmasi pemilik proses",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) lalu set('periodId', <periode dengan jam berlaju 10,0 dan downtime 20 menit>)",
+        "assert": "data-testid summary-production-total menampilkan 10,0 ton (bukan 6,67); summary-downtime-total menampilkan 20 menit; data-testid downtime-production-note hadir menjelaskan keduanya tidak saling mengurangi"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode yang memuat jam dengan downtime sekaligus laju",
+        "assert": "[data-testid=summary-production-total] menampilkan 10,0 dan [data-testid=summary-downtime-total] menampilkan 20; [data-testid=downtime-production-note] terlihat menerangkan keduanya dilaporkan apa adanya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — downtime tidak pernah tercatat",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode dengan downtime_mins null pada seluruh baris; harapkan downtime.total_mins=null dan downtime.reading_count=0",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode pembanding yang memuat baris downtime_mins=0; harapkan downtime.total_mins=0 dengan downtime.reading_count>0 sehingga kedua keadaan dapat dibedakan dari respons",
+            "period_id": 2
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) set('periodId', <periode downtime seluruhnya null>), lalu set('periodId', <periode downtime nol tercatat>)",
+        "assert": "Pada periode pertama data-testid summary-downtime-total menampilkan 'tidak tercatat' dengan summary-downtime-reading-count 0; pada periode kedua menampilkan 0 menit dengan summary-downtime-reading-count > 0 — teks kedua keadaan berbeda"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode yang downtime-nya tidak pernah tercatat lalu bandingkan dengan periode yang mencatat downtime nol",
+        "assert": "[data-testid=summary-downtime-total] menampilkan 'tidak tercatat' pada periode pertama dan '0' pada periode kedua; [data-testid=summary-downtime-reading-count] membedakan keduanya (0 vs > 0)"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — pencatatan sangat tidak lengkap",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode 3 hari dengan 2 unit (expected_slots = 2 x 3 x 24 = 144) tetapi hanya 9 slot terisi; harapkan coverage.filled_slots=9, expected_slots=144, coverage_percent=6.25, dan angka produksi tetap ditampilkan",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) lalu set('periodId', <periode dengan kelengkapan 6,25%>)",
+        "assert": "data-testid recording-coverage menampilkan 9 dari 144 beserta persentase dan dirender pada blok utama (bukan catatan kaki); data-testid summary-production-total tetap menampilkan angka; data-testid low-coverage-emphasis hadir"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode yang hanya sebagian kecil slot waktunya terisi",
+        "assert": "[data-testid=recording-coverage] terlihat menonjol di area ringkasan atas tanpa gulir; menampilkan filled/expected; angka produksi tetap tampil berdampingan dengan jumlah pembacaannya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — mill punya beberapa unit Clarification",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Mill dengan unit CLF-01 (total laju 20,0), CLF-02 (total laju 15,0), dan CLF-03 (punya record tetapi seluruh barisnya kosong); harapkan angka periode 35,0 ton, by_unit memuat 3 entri, CLF-03 muncul dengan reading_count 0",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) lalu set('periodId', <periode mill multi-unit>)",
+        "assert": "data-testid summary-production-total menampilkan 35,0; data-testid by-unit-table memuat 3 baris CLF-01, CLF-02, CLF-03; baris CLF-03 menampilkan reading_count 0 dan tidak dihilangkan"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor pada mill dengan beberapa unit Clarification, buka /reports/clarification, pilih periode tersebut",
+        "assert": "[data-testid=by-unit-table] memuat satu baris per unit termasuk unit tanpa pembacaan dengan jumlah pembacaan 0; total pada ringkasan atas merupakan gabungan seluruh unit"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/periods"
+          },
+          "request_example": {
+            "_context": "Sesi Supervisor dengan business_unit_id null; harapkan 422 dan spy memastikan daftar seluruh mill TIDAK PERNAH disusun"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Sesi yang sama mencoba summary; tetap 422 dan tidak ada daftar mill yang ditawarkan",
+            "period_id": 1
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) sebagai Supervisor yang business_unit_id-nya null",
+        "assert": "data-testid no-mill-hint berisi pesan menghubungi Admin; assertDontSee data-testid mill-selector (daftar seluruh mill tidak ditawarkan); assertDontSee seluruh data-testid angka"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor yang belum terhubung ke mill, buka /reports/clarification",
+        "assert": "[data-testid=no-mill-hint] terlihat; [data-testid=mill-selector] tidak ada di DOM; tidak ada angka laporan yang dirender"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — mencoba melihat mill lain",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Sesi Supervisor terikat mill A mengirim business_unit_id mill B dengan period_id milik mill A; server MENGABAIKAN nilai klien dan mengembalikan 200 berisi data mill A (bukan 403)",
+            "business_unit_id": 999,
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Sesi yang sama mencoba membuka period_id milik mill B; harapkan 403 FORBIDDEN",
+            "period_id": 777
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) sebagai Supervisor mill A, set('businessUnitId', <id mill B>) lalu set('periodId', <periode mill A>); kemudian set('periodId', <periode mill B>)",
+        "assert": "Blok laporan tetap menampilkan nama mill A dan angka mill A pada pemanggilan pertama; pemanggilan kedua memunculkan data-testid forbidden-notice dan tidak menampilkan satu pun angka mill B"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor mill A, buka /reports/clarification?business_unit_id=<mill B>, pilih periode mill A; lalu coba buka /reports/clarification?period_id=<periode mill B>",
+        "assert": "Halaman pertama menampilkan nama mill A dan angka mill A; percobaan kedua menampilkan penolakan akses tanpa satu pun angka mill B"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — Operator mencoba membuka layar web ini",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Sesi Station Operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/periods"
+          },
+          "request_example": {
+            "_context": "Sesi Station Operator"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Sesi Station Operator dengan period_id valid milik mill-nya",
+            "period_id": 1
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/export"
+          },
+          "request_example": {
+            "_context": "Sesi Station Operator",
+            "period_id": 1
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 5,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Guard peran WAJIB berjalan sebelum findOrFail: Operator dengan period_id yang tidak ada harus menerima 403 FORBIDDEN, BUKAN 404 NOT_FOUND",
+            "period_id": 999999
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 6,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Tanpa sesi sama sekali; harapkan 401 UNAUTHENTICATED",
+            "period_id": 1
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) sebagai Station Operator",
+        "assert": "Melempar AuthorizationException / assertForbidden; tidak ada data-testid laporan yang dirender"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Station Operator lalu buka /reports/clarification",
+        "assert": "Halaman menampilkan penolakan akses (status 403); tidak ada satu pun angka laporan atau menu Laporan Stasiun Clarification yang dapat diakses"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — periode tertutup",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "period_id menunjuk periode berstatus tertutup pada mill pengguna; harapkan laporan penuh dan status tertutup ikut dikembalikan",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/export"
+          },
+          "request_example": {
+            "_context": "Ekspor pada periode tertutup tetap berhasil — status tidak membatasi ekspor",
+            "period_id": "{{step1.data.period.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) lalu set('periodId', <periode berstatus tertutup>)",
+        "assert": "data-testid period-status menampilkan status tertutup; seluruh blok angka tetap tampil penuh; data-testid export-csv-button tidak dinonaktifkan"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode berstatus tertutup lalu klik [data-testid=export-csv-button]",
+        "assert": "[data-testid=period-status] menampilkan tertutup; laporan tampil penuh; unduhan CSV terpicu tanpa penolakan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — rekap harian panjang",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode panjang (mis. 45 hari) sehingga daily[] memuat puluhan entri; harapkan daily[] lengkap per tanggal dan angka ringkasan tetap berada di tingkat atas respons",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) set('periodId', <periode 45 hari>), lalu call('toggleDailyRecap') dua kali",
+        "assert": "Setelah toggle pertama properti dailyRecapOpen === false dan data-testid daily-recap-table tidak dirender; setelah toggle kedua kembali dirender dengan puluhan baris; data-testid summary-production-total dan daily-trend tetap ada pada kedua keadaan"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode panjang, klik [data-testid=daily-recap-toggle] untuk menutup lalu klik lagi untuk membuka",
+        "assert": "[data-testid=daily-recap-table] menghilang setelah klik pertama dan muncul kembali setelah klik kedua; saat tertutup [data-testid=summary-production-total] dan [data-testid=daily-trend] terbaca tanpa gulir panjang"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — produksi diturunkan dari laju dan jumlah pembacaannya ditampilkan",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Kasus pengunci: 4 baris berlaju 10,0 / 12,5 / 8,0 / 9,5 -> production.total_ton=40.0 dan production.reading_count=4; angka WAJIB berasal dari penjumlahan laju karena skema tidak punya kolom produksi",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) lalu set('periodId', <periode 4 baris laju 10,0/12,5/8,0/9,5>)",
+        "assert": "data-testid summary-production-total menampilkan 40,0 ton; data-testid summary-production-reading-count menampilkan 4 dan dirender di dalam kartu yang sama, berdampingan langsung dengan angkanya; data-testid production-derived-note menyatakan produksi diturunkan dari laju per jam"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode yang sebagian jamnya mencatat laju, lalu baca kartu total produksi",
+        "assert": "[data-testid=summary-production-total] menampilkan 40,0 dan [data-testid=summary-production-reading-count] menampilkan 4 pada kartu yang sama (bounding box berdampingan, bukan di catatan kaki halaman); [data-testid=production-derived-note] terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — setiap metrik punya penyebutnya sendiri",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Kasus pengunci penyebut terpisah: laju terisi 4 baris, sludge_tank_temp_c terisi 9 baris, downtime_mins terisi 6 baris, buffer_tank_level_percent terisi 3 baris; harapkan reading_count 4 / 9 / 6 / 3 dan setiap rata-rata memakai penyebutnya sendiri, tanpa satu penyebut bersama",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) lalu set('periodId', <periode dengan kelengkapan berbeda antar metrik>)",
+        "assert": "data-testid summary-production-reading-count=4, sludge-temp-reading-count=9, summary-downtime-reading-count=6, buffer-level-reading-count=3; setiap kartu metrik merender jumlah pembacaannya sendiri berdampingan dengan angkanya; tidak ada satu label jumlah pembacaan global untuk seluruh metrik"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode dengan kelengkapan pengisian berbeda-beda antar metrik",
+        "assert": "Setiap kartu metrik menampilkan jumlah pembacaan berbeda (4, 9, 6, 3) di sebelah angkanya; rata-rata suhu sludge konsisten dengan penyebut 9 dan rata-rata laju dengan penyebut 4"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — rentang periode inklusif di kedua ujung",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode 2026-03-01 s.d. 2026-03-05 dengan pembacaan tepat pada kedua tanggal ujung serta record di 2026-02-28 dan 2026-03-06; filter whereDate(clarification_records.date) inklusif — kedua ujung ikut, dua tanggal luar dikecualikan; daily[] memuat 2026-03-01 dan 2026-03-05",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/export"
+          },
+          "request_example": {
+            "_context": "CSV harus memuat baris slot waktu pada 2026-03-01 dan 2026-03-05 dan tidak memuat 2026-02-28 maupun 2026-03-06",
+            "period_id": "{{step1.data.period.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) lalu set('periodId', <periode 2026-03-01..2026-03-05 dengan data di kedua ujung>)",
+        "assert": "data-testid daily-recap-table memuat baris 2026-03-01 dan 2026-03-05 dan tidak memuat 2026-02-28 maupun 2026-03-06; angka total mencakup kontribusi kedua tanggal ujung"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode dengan pembacaan tepat pada tanggal awal dan akhir, buka rekap harian, lalu klik ekspor",
+        "assert": "[data-testid=daily-recap-table] menampilkan baris tanggal awal dan tanggal akhir; CSV yang terunduh memuat slot waktu pada kedua tanggal ujung"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — ketiga suhu tangki pada satu grafik",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode dengan pembacaan pada clarification_tank_temp_c, oil_tank_temperature_c, dan sludge_tank_temp_c; harapkan setiap elemen daily[] memuat ketiga suhu pada objek yang sama (satu seri data yang sebanding) sehingga layar dapat menggambarnya pada satu sumbu",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) lalu set('periodId', <periode dengan ketiga suhu terisi>)",
+        "assert": "Tepat SATU elemen data-testid tank-temperature-chart dirender; elemen itu membawa ketiga seri (clarification, oil, sludge) pada satu payload/sumbu; assertDontSee data-testid clarification-temp-chart, oil-temp-chart, sludge-temp-chart — tidak ada tiga grafik terpisah"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode dengan pembacaan ketiga suhu tangki, gulir ke bagian suhu",
+        "assert": "page.locator('[data-testid=tank-temperature-chart]') berjumlah tepat 1 dan legendanya memuat ketiga nama tangki; tidak ada elemen grafik suhu kedua/ketiga di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — tidak ada penandaan nilai di luar batas",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Periode memuat nilai ekstrem (sludge_tank_temp_c=250.0, buffer_tank_level_percent=0.5); asersi KETIADAAN menurut nama: respons tidak memuat kunci threshold, target, limit, outlier, iqr, is_danger, is_warning, severity, status_flag; nilai ekstrem dikembalikan apa adanya",
+            "period_id": 1
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) lalu set('periodId', <periode dengan nilai ekstrem>)",
+        "assert": "assertDontSee data-testid threshold-card, outlier-badge, iqr-summary, danger-indicator; HTML yang dirender tidak memuat kelas is-danger, is-warning, text-red, bg-red, text-amber, bg-amber pada elemen nilai metrik; nilai 250,0 dan 0,5 tampil apa adanya"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, pilih periode yang memuat nilai jauh di atas/di bawah nilai lazimnya",
+        "assert": "Locator [data-testid=threshold-card], [data-testid=outlier-badge], [data-testid=iqr-summary], .is-danger, .text-red-600 semuanya berjumlah 0; nilai ekstrem terlihat dengan gaya yang sama seperti nilai lain"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — layar hanya membaca",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/periods"
+          },
+          "request_example": {
+            "_context": "Sesi Supervisor; catat checksum data clarification_records dan clarification_details sebelum rangkaian pemanggilan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Membaca periode pertama",
+            "period_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "_context": "Berganti ke periode kedua",
+            "period_id": "{{step1.data[1].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/export"
+          },
+          "request_example": {
+            "_context": "Menjalankan ekspor; setelah seluruh langkah, query log tidak memuat insert/update/delete pada clarification_records maupun clarification_details dan checksum data identik dengan langkah 1",
+            "period_id": "{{step1.data[1].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) set('periodId', A), set('periodId', B), call('exportCsv')",
+        "assert": "Komponen tidak memiliki metode publik yang menulis (tidak ada save/update/delete/store); assertDontSee data-testid save-button, edit-button, delete-button; jumlah baris clarification_records dan clarification_details serta isinya identik sebelum dan sesudah seluruh interaksi"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor, buka /reports/clarification, telusuri seluruh bagian layar, ganti periode dua kali, klik [data-testid=export-csv-button]",
+        "assert": "Tidak ada tombol/elemen bertipe submit, simpan, ubah, atau hapus di halaman; setelah seluruh interaksi, pembacaan ulang data stasiun via API menunjukkan isi yang sama persis"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — daftar periode hanya yang mencakup Clarification",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/periods"
+          },
+          "request_example": {
+            "_context": "Mill punya 4 periode: satu khusus Clarification, satu tanpa jenis stasiun (berlaku semua), dua khusus stasiun lain; harapkan hanya 2 periode pertama yang dikembalikan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "Livewire::test(LaporanClarification::class) sebagai Supervisor pada mill dengan campuran jenis periode",
+        "assert": "data-testid period-selector memuat tepat 2 opsi: periode khusus Clarification dan periode berlaku semua jenis stasiun; assertDontSee nama kedua periode khusus stasiun lain"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "Login sebagai Supervisor pada mill dengan campuran jenis periode, buka /reports/clarification, buka [data-testid=period-selector]",
+        "assert": "Daftar opsi berisi tepat 2 periode (khusus Clarification + berlaku semua stasiun); periode khusus stasiun lain tidak muncul sebagai opsi"
+      }
+    }
+  ]
+}

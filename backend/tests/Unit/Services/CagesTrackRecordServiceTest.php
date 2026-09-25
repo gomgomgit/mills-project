@@ -487,6 +487,45 @@ it('sets acknowledged_by to requester id when acknowledged=true and requester ro
     expect($result['acknowledged_by_name'])->toBe($millManagement->name);
 });
 
+// REGRESI 2026-09-25 — urutan upsertDetails().
+//
+// Sampai hari ini upsertDetails() menyisipkan baris baru SEBELUM menghapus
+// baris basi, sehingga memindahkan sebuah pembacaan ke slot yang SEDANG
+// DIPAKAI baris lain yang akan dihapus melanggar
+// UNIQUE(cages_track_record_id, tipped_hour) pada tabel cages_tipped_times dan melempar
+// UniqueConstraintViolationException. Operator yang salah pilih jam lalu
+// membetulkannya menabrak ini.
+//
+// Test ini HARUS merah bila urutannya dikembalikan. Asersinya memeriksa
+// jumlah baris akhir DAN nilainya — "tidak melempar" saja tidak cukup,
+// karena urutan yang salah juga bisa menyisakan baris basi diam-diam.
+it('memindahkan pembacaan ke slot yang sedang dipakai baris yang akan dihapus', function () {
+    Machinery::factory()->count(10)->create(['station_id' => $this->cagesTrackStation->id]);
+    $record = CagesTrackRecord::factory()->forStation($this->cagesTrackStation)->create();
+    $moved = CagesTippedTime::factory()->forRecord($record)->create(['tipped_hour' => 7, 'checked_cage_numbers' => '1']);
+    CagesTippedTime::factory()->forRecord($record)->create(['tipped_hour' => 8, 'checked_cage_numbers' => '9']);
+
+    // Satu baris saja yang dikirim: baris jam 7 dipindah ke jam 8.
+    // Baris jam 8 yang lama harus hilang, dan slot itu ditempati baris jam 7.
+    $result = $this->service->update(
+        $record->id,
+        cagesFormPayload([
+            'details' => [
+                ['id' => $moved->id, 'tipped_hour' => 8, 'checked_cage_numbers' => [1, 2, 3]],
+            ],
+        ]),
+        $this->creator
+    );
+
+    expect($result['tipped_times'])->toHaveCount(1);
+    expect(CagesTippedTime::where('cages_track_record_id', $record->id)->count())->toBe(1);
+
+    $remaining = CagesTippedTime::where('cages_track_record_id', $record->id)->first();
+    expect($remaining->id)->toBe($moved->id);
+    expect($remaining->tipped_hour)->toBe(8);
+    expect($remaining->total_cages)->toBe(3);
+});
+
 it('updates record and upserts details: inserts new row, updates existing row, deletes removed row', function () {
     Machinery::factory()->count(10)->create(['station_id' => $this->cagesTrackStation->id]);
     $record = CagesTrackRecord::factory()->forStation($this->cagesTrackStation)->create();

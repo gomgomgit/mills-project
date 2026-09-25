@@ -3,24 +3,41 @@
 namespace App\Livewire\Dashboard;
 
 use App\Enums\UserRole;
-use App\Services\BoilerRoomReportService;
+use App\Services\ClarificationReportService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * LaporanBoilerRoom — screen-131--laporan-boiler-room-web ("Laporan Boiler
- * Room"), route name `reports.boiler-room`, /reports/boiler-room.
+ * LaporanClarification — screen-132--laporan-clarification-web ("Laporan
+ * Clarification"), route name `reports.clarification`,
+ * /reports/clarification.
  *
- * Reuses BoilerRoomReportService — the exact same service the API
- * controller (App\Http\Controllers\Api\BoilerRoomReportController) uses —
+ * Reuses ClarificationReportService — the exact same service the API
+ * controller (App\Http\Controllers\Api\ClarificationReportController) uses —
  * so the page and the API can never report different figures (mirrors
- * LaporanCagesTrack/CagesTrackReportService and LaporanSterilizer/
- * SterilizerReportService).
+ * LaporanBoilerRoom/BoilerRoomReportService).
  *
  * READ-ONLY: the only actions are picking a mill, picking a period,
  * opening/closing the daily recap, and exporting. Nothing here writes to
- * `boiler_room_records` or `boiler_room_details`, and the component
+ * `clarification_records` or `clarification_details`, and the component
  * deliberately exposes no action that reads like one.
+ *
+ * WHAT THE SCREEN MUST NEVER LET THE READER MISREAD — the reason several
+ * things on this page look redundant:
+ *   - Production is DERIVED from the hourly rate column, not recorded, so
+ *     production.reading_count is rendered INSIDE the same card, directly
+ *     beside the total. A total from 4 readings and a total from 400 must
+ *     not look equally convincing.
+ *   - Total downtime is rendered BESIDE production because the two are NOT
+ *     netted against each other (that question is still open with the
+ *     process owner — see ClarificationReportService::productionOf()).
+ *   - A null figure renders as an unavailable marker, NEVER as 0. "Recorded
+ *     and it was zero" and "never recorded" are different answers.
+ *   - Recording coverage is rendered ABOVE every number, because a gap in
+ *     the recording lowers the derived production figure itself.
+ *   - NOTHING on this page is flagged as out of range: no threshold card, no
+ *     safe/danger colouring, no outlier, no IQR. Clarification has no
+ *     operational-target master table.
  *
  * ROLE SHAPES THE FILTER BAR, not just the data:
  *   - Supervisor / Mill Management see NO mill picker at all — their mill is
@@ -37,17 +54,22 @@ use Livewire\Component;
  * THE MILL IS NEVER NEGOTIABLE FROM THE UI for a bound role:
  * resolvedBusinessUnitId() ignores $businessUnitId entirely for them, so
  * forcing the property (or the query string) to another mill changes
- * nothing at all.
+ * nothing at all — the page still shows the caller's own mill, with HTTP
+ * 200, deliberately not a 403.
  *
- * Operator has no web access to this screen AND no API access either —
- * unlike Cages & Tracks, whose API was widened for screen-136. The mobile
- * Boiler Room report is screen-137 and has not been built.
+ * A PERIOD id belonging to another mill IS refused, and visibly: the page
+ * renders an access-denied notice and NOT one figure of the other mill. The
+ * two cases are different on purpose — see the service docblock.
+ *
+ * Operator has no web access to this screen AND no API access either. The
+ * mobile Clarification report is screen-138 and has not been built, so
+ * there is no Operator widening anywhere in this screen.
  *
  * The period picker auto-selects the newest period, so the page is useful on
  * first paint rather than demanding a choice before showing anything.
  */
-#[Layout('dashboard.laporan-boiler-room')]
-class LaporanBoilerRoom extends Component
+#[Layout('dashboard.laporan-clarification')]
+class LaporanClarification extends Component
 {
     /** Admin-only mill selection; ignored entirely for every other role. */
     public string $businessUnitId = '';
@@ -60,17 +82,13 @@ class LaporanBoilerRoom extends Component
      * filter.
      *
      * OPEN BY DEFAULT, and that is a decision rather than a default left
-     * alone: both the component test and the browser test for the
-     * long-recap scenario start by CLOSING it ("toggle pertama -> daily-recap
-     * tidak ter-render", "klik toggle untuk menutup lalu klik lagi untuk
-     * membuka"), which only makes sense from an open start. The tech spec's
-     * edge-case line calls for a `<details>` closed by default; that shape
-     * would keep the table in the DOM while merely collapsing it, which the
-     * same spec's tests explicitly reject. The tests win, and the toggle is
-     * a plain button so the visible state and the rendered DOM can never
-     * disagree.
+     * alone: the long-recap scenario starts by CLOSING the table (first
+     * toggle -> not rendered, second -> rendered again), which only makes
+     * sense from an open start. A plain button rather than <details>, so the
+     * visible state and the rendered DOM can never disagree: closed means
+     * genuinely absent from the DOM, not merely collapsed.
      */
-    public bool $showRecap = true;
+    public bool $dailyRecapOpen = true;
 
     /**
      * Operator is a mobile-only actor with no web access at all, so the
@@ -84,10 +102,22 @@ class LaporanBoilerRoom extends Component
         abort_unless($this->canAccess(), 403);
     }
 
-    /** Opens/closes the daily recap table (no re-query — the data is already loaded). */
-    public function toggleRekapHarian(): void
+    /**
+     * Switching mill drops the period selection rather than carrying it
+     * across: a period belongs to exactly one mill, so keeping it would
+     * either leak or (worse) render an access-denied notice for something
+     * the user did not do. Only a HAND-FORCED period id from another mill
+     * reaches the refusal path in render().
+     */
+    public function updatedBusinessUnitId(): void
     {
-        $this->showRecap = ! $this->showRecap;
+        $this->periodId = '';
+    }
+
+    /** Opens/closes the daily recap table (no re-query — the data is already loaded). */
+    public function toggleDailyRecap(): void
+    {
+        $this->dailyRecapOpen = ! $this->dailyRecapOpen;
     }
 
     /**
@@ -102,24 +132,23 @@ class LaporanBoilerRoom extends Component
      * The selected mill is threaded through EXACTLY as render() threads it
      * into buildSummary() — resolvedBusinessUnitId(), not the raw
      * $businessUnitId property. Without it an Admin export would reach
-     * buildExportRows()'s resolveBusinessUnit(null) and be refused with 422
-     * even though a mill IS selected on screen, so the button would look
-     * inert. The bound roles are unaffected: resolveBusinessUnit() discards
-     * the argument for them, so handing it their own id changes nothing
-     * (still 200, still their own mill), and an Admin who has genuinely
-     * picked no mill still passes null and still gets the documented 422 —
-     * it is never defaulted to a mill.
+     * resolveBusinessUnit(null) and be refused with 422 even though a mill
+     * IS selected on screen, so the button would look inert. The bound roles
+     * are unaffected: resolveBusinessUnit() discards the argument for them,
+     * so handing it their own id changes nothing (still 200, still their own
+     * mill), and an Admin who has genuinely picked no mill still passes null
+     * and still gets the documented 422 — it is never defaulted to a mill.
      *
      * A CLOSED period exports exactly like an open one: the period lock
      * governs writing data, not reading a report.
      */
-    public function export(string $format = 'csv')
+    public function exportCsv(string $format = 'csv')
     {
         if ($this->periodId === '') {
             return null;
         }
 
-        $service = app(BoilerRoomReportService::class);
+        $service = app(ClarificationReportService::class);
 
         return $service->export(
             $service->authorizePeriod($this->periodId),
@@ -130,7 +159,7 @@ class LaporanBoilerRoom extends Component
 
     public function render()
     {
-        $service = app(BoilerRoomReportService::class);
+        $service = app(ClarificationReportService::class);
 
         $isAdmin = $this->isAdmin();
         $businessUnitId = $this->resolvedBusinessUnitId();
@@ -143,13 +172,14 @@ class LaporanBoilerRoom extends Component
         $businessUnitOptions = $isAdmin ? $service->businessUnitOptions() : [];
         $periods = [];
         $summary = null;
+        $forbidden = false;
 
         if ($businessUnitId !== null) {
             $periods = $service->listPeriods($businessUnitId);
 
-            $this->keepSelectionValid($periods);
+            $forbidden = ! $this->keepSelectionValid($periods);
 
-            if ($this->periodId !== '') {
+            if (! $forbidden && $this->periodId !== '') {
                 $summary = $service->buildSummary(
                     $service->authorizePeriod($this->periodId),
                     $businessUnitId,
@@ -157,7 +187,7 @@ class LaporanBoilerRoom extends Component
             }
         }
 
-        return view('livewire.dashboard.laporan-boiler-room', [
+        return view('livewire.dashboard.laporan-clarification', [
             'isAdmin' => $isAdmin,
             'businessUnitOptions' => $businessUnitOptions,
             'businessUnitName' => $this->boundBusinessUnitName(),
@@ -168,6 +198,9 @@ class LaporanBoilerRoom extends Component
             // instead of showing an empty report.
             'needsMillSelection' => $isAdmin && $businessUnitId === null,
             'hasNoMillForAccount' => $hasNoMillForAccount,
+            // A period id that is not among this mill's periods — refused
+            // visibly, with none of the other mill's figures rendered.
+            'forbidden' => $forbidden,
         ]);
     }
 
@@ -231,12 +264,15 @@ class LaporanBoilerRoom extends Component
     }
 
     /**
-     * Guards against a period id that is no longer in the current list —
-     * which is also how switching mill works: no updated* hook is needed,
-     * because the previous mill's period simply is not in the new mill's list
-     * and is replaced by its newest one. That is also what stops a
-     * hand-forced period id from another mill: it is not in the list, so it
-     * is replaced before authorizePeriod() ever sees it.
+     * Auto-selects the newest period when nothing is chosen yet, and reports
+     * whether the current choice is legitimate.
+     *
+     * Returns FALSE when a period id was supplied that is not among this
+     * mill's periods — which, because updatedBusinessUnitId() already clears
+     * the selection on every mill switch, only happens when someone hands in
+     * another mill's period id. That is refused visibly rather than silently
+     * swapped: a silent swap would answer a cross-mill probe with a
+     * different mill's numbers under the id that was asked for.
      *
      * Deliberate: the public surface of this component stays limited to a
      * toggle and an export (plus the three bound properties). A read-only
@@ -244,18 +280,20 @@ class LaporanBoilerRoom extends Component
      *
      * @param  list<array{id: string}>  $periods
      */
-    protected function keepSelectionValid(array $periods): void
+    protected function keepSelectionValid(array $periods): bool
     {
         if ($periods === []) {
             $this->periodId = '';
 
-            return;
+            return true;
         }
 
-        $ids = array_column($periods, 'id');
-
-        if (! in_array($this->periodId, $ids, true)) {
+        if ($this->periodId === '') {
             $this->periodId = (string) $periods[0]['id'];
+
+            return true;
         }
+
+        return in_array($this->periodId, array_column($periods, 'id'), true);
     }
 }

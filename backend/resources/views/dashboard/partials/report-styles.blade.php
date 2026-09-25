@@ -19,6 +19,7 @@
       - livewire/dashboard/laporan-stasiun.blade.php (screen-140)
       - livewire/dashboard/laporan-cages-track.blade.php (screen-130)
       - livewire/dashboard/laporan-boiler-room.blade.php (screen-131)
+      - livewire/dashboard/laporan-clarification.blade.php (screen-132)
 --}}
     <style>
         .md { --md-brand: #249360; --md-brand-dark: #1a6f48; --md-brand-soft: #e8f5ee; --md-ink: #0f172a; --md-muted: #64748b; --md-line: #e2e8f0; --md-card: #ffffff;
@@ -376,6 +377,59 @@
            dalam <details> pada laporan Sterilizer/Cages & Tracks) tidak
            tersentuh karena selector-nya anak langsung .md-card. */
         .md-card > .md-recap { margin: 0 -20px -20px; border-radius: 0 0 16px 16px; }
+
+        /* ================================================================
+           TAMBAHAN 2026-09-25 — screen-132--laporan-clarification-web.
+
+           GRAFIK GARIS TIGA SERI (`md-lc*`). Kosakata lama hanya punya
+           grafik BATANG SERI TUNGGAL (.md-trendchart), sedangkan layar ini
+           harus menggambar suhu tangki clarification, tangki minyak, dan
+           tangki sludge pada SATU bidang gambar dengan SATU sumbu — karena
+           yang dibaca adalah SELISIH antar tangki, bukan nilai
+           masing-masing. Tiga grafik terpisah memenuhi kalimat "tren suhu
+           antar tangki" secara harfiah sambil menghilangkan maksudnya.
+
+           PEMBEDA ANTAR SERI DUA LAPIS — WARNA *DAN* POLA GARIS
+           (utuh / putus / titik) — supaya grafiknya tetap terbaca tanpa
+           mengandalkan warna sama sekali.
+
+           KETIGA WARNANYA NETRAL SECARA MAKNA (warna merek + dua tingkat
+           warna teks): tidak satu pun tangki boleh terbaca sebagai "aman"
+           atau "bahaya". TIDAK ADA penandaan nilai di luar batas di layar
+           ini — tidak ada kartu ambang, pewarnaan aman/bahaya, outlier,
+           maupun IQR — karena Clarification tidak punya master target
+           operasional (tidak ada ClarificationOperationalTarget). Alasan
+           lengkapnya ada di docblock App\Services\ClarificationReportService.
+
+           Dipakai oleh livewire/dashboard/laporan-clarification.blade.php.
+           Jangan menuliskannya inline di blade mana pun.
+           ================================================================ */
+
+        /* Token warna seri. Aturan BARU pada .md — tidak menyentuh satu pun
+           deklarasi lama di blok pertama. */
+        .md { --md-s1: var(--md-brand); --md-s2: var(--md-ink); --md-s3: var(--md-muted); }
+
+        .md-lc { overflow-x: auto; padding-bottom: 6px; }
+        .md-lc__svg { display: block; width: 100%; min-width: 620px; height: auto; }
+        .md-lc__grid { stroke: var(--md-line); stroke-width: 1; }
+        .md-lc__axis { stroke: var(--md-line); stroke-width: 1; }
+        .md-lc__ytick, .md-lc__xtick { font-family: inherit; font-size: 11px; fill: var(--md-muted); }
+        .md-lc__line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        /* Lapis 1: warna. Lapis 2: pola garis. Keduanya, selalu. */
+        .md-lc__line--s1 { stroke: var(--md-s1); }
+        .md-lc__line--s2 { stroke: var(--md-s2); stroke-dasharray: 7 4; }
+        .md-lc__line--s3 { stroke: var(--md-s3); stroke-dasharray: 2 4; }
+        .md-lc__dot { stroke: #fff; stroke-width: 1.5; }
+        .md-lc__dot--s1 { fill: var(--md-s1); }
+        .md-lc__dot--s2 { fill: var(--md-s2); }
+        .md-lc__dot--s3 { fill: var(--md-s3); }
+
+        /* Contoh seri pada legenda. Sengaja MENIRU POLA GARISNYA, bukan
+           sekadar kotak warna: legenda yang hanya berwarna membuat lapis
+           kedua tidak ada gunanya. */
+        .md-legend__swatch--s1 { background: var(--md-s1); }
+        .md-legend__swatch--s2 { background: repeating-linear-gradient(90deg, var(--md-s2) 0 7px, transparent 7px 11px); border-radius: 0; height: 3px; width: 18px; }
+        .md-legend__swatch--s3 { background: repeating-linear-gradient(90deg, var(--md-s3) 0 2px, transparent 2px 6px); border-radius: 0; height: 3px; width: 18px; }
 
         @media (max-width: 1100px) {
             .md-kpis--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -44,6 +44,7 @@ use App\Models\BoilerRoomRecord;
 use App\Models\BusinessUnit;
 use App\Models\Period;
 use App\Models\Station;
+use App\Models\StationType;
 use App\Models\User;
 use App\Services\BoilerRoomRecordService;
 use App\Services\BoilerRoomReportService;
@@ -1005,10 +1006,27 @@ it('rejects unauthenticated requests on every endpoint', function () {
 // strict, ordered toBe(), so a station report added out of sort_order fails
 // there for a reason that has nothing to do with the new report.
 // =====================================================================
-it('reachability: REPORT_ROUTES yields cages-track, sterilizer, boiler-room in that order', function () {
-    expect(array_keys(StationReportService::REPORT_ROUTES))
-        ->toBe(['cages-track', 'sterilizer', 'boiler-room']);
+it('reachability: REPORT_ROUTES stays in station_types.sort_order and carries boiler-room', function () {
+    // NO LITERAL STATION LIST HERE — third time today this is decided the
+    // same way (e2e-web/tests/laporan-stasiun.spec.ts and
+    // mobile/tests/e2e/reporting-pilih-stasiun.spec.ts already went this
+    // route). Four more station reports are coming; a hardcoded
+    // ['cages-track', ...] reddens this file on every one of them without
+    // teaching anything about Boiler Room. The order contract is asserted
+    // against the master instead, so the map still has to be maintained in
+    // sort_order. Strength is unchanged: toBe is strict AND ordered.
+    //
+    // This assertion and the $available one below are a PAIR — they compare
+    // the same list from two directions. Repairing one alone just moves the
+    // identical failure down a few lines.
+    $sortOrderCodes = StationType::whereIn('code', array_keys(StationReportService::REPORT_ROUTES))
+        ->orderBy('sort_order')
+        ->pluck('code')
+        ->all();
 
+    expect(array_keys(StationReportService::REPORT_ROUTES))->toBe($sortOrderCodes);
+
+    expect(StationReportService::REPORT_ROUTES)->toHaveKey('boiler-room');
     expect(StationReportService::REPORT_ROUTES['boiler-room'])->toBe('reports.boiler-room');
 
     // And the endpoint the tile grid reads agrees, in the same order.
@@ -1021,7 +1039,10 @@ it('reachability: REPORT_ROUTES yields cages-track, sterilizer, boiler-room in t
         ->values()
         ->all();
 
-    expect($available)->toBe(['cages-track', 'sterilizer', 'boiler-room']);
+    // Same pairing, other direction: the API returns available codes in
+    // station_types.sort_order, so it must equal the map's keys exactly and
+    // in order. Still toBe — strict and ordered on purpose.
+    expect($available)->toBe(array_keys(StationReportService::REPORT_ROUTES));
 
     $boilerRoom = collect($stations->json('data.stations'))->firstWhere('code', 'boiler-room');
     expect($boilerRoom['report_available'])->toBeTrue();

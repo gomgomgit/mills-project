@@ -283,8 +283,16 @@ class SterilizerReportService
      *
      * @throws ExportFailedException 422 EXPORT_FAILED
      */
-    public function export(Period|string $period, string $format = 'csv'): StreamedResponse
+    public function export(Period|string $period, string $format = 'csv', ?string $requestedBusinessUnitId = null): StreamedResponse
     {
+        // DISERAGAMKAN 2026-09-25 — keempat service laporan kini menerima
+        // mill yang berlaku dan memvalidasinya di lapis service. Sebelumnya
+        // service ini tidak memanggil resolveBusinessUnit() di jalur ekspor
+        // sama sekali, sehingga ekspor Admin lolos tanpa pernah memeriksa
+        // "mill sudah dipilih" — kebalikan dari BoilerRoom, yang justru
+        // menolak Admin karena pemanggilnya lupa meneruskan argumennya.
+        // Ketidakseragaman itulah yang melahirkan kedua cacat sekaligus.
+        $this->resolveBusinessUnit($requestedBusinessUnitId);
         $period = $this->resolvePeriod($period);
 
         $recordQuery = $this->recordQueryFor($period);

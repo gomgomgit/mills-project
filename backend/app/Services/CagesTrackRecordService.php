@@ -290,7 +290,28 @@ class CagesTrackRecordService
             fn ($row) => $row['tipped_hour'] !== null && $row['tipped_hour'] !== '' && ! empty($row['checked_cage_numbers'])
         );
 
-        $keptIds = [];
+        // URUTAN MENENTUKAN — baris basi DIHAPUS SEBELUM baris baru
+        // disisipkan. Sampai 2026-09-25 urutannya terbalik, dan dengan
+        // UNIQUE(cages_track_record_id, tipped_hour) pada tabel detail itu berarti memindahkan
+        // sebuah pembacaan ke slot yang SEDANG DIPAKAI baris lain yang akan
+        // dihapus melanggar constraint dan melempar
+        // UniqueConstraintViolationException. Itu operasi harian: Operator
+        // salah pilih slot lalu membetulkannya.
+        //
+        // Keep-set dihitung dari ID yang SUDAH ADA di payload saja. Baris
+        // baru belum punya ID pada titik ini dan memang tidak perlu
+        // dipertahankan — tidak ada baris lama yang mewakilinya. Memasukkan
+        // ID hasil create() ke sini (bentuk lama) itulah yang memaksa
+        // delete berjalan belakangan.
+        $keptIds = $validRows
+            ->pluck('id')
+            ->filter()
+            ->values()
+            ->all();
+
+        CagesTippedTime::where('cages_track_record_id', $record->id)
+            ->whereNotIn('id', $keptIds)
+            ->delete();
 
         foreach ($validRows as $row) {
             $checkedCages = collect($row['checked_cage_numbers'])->map(fn ($n) => (int) $n)->values();
@@ -306,16 +327,12 @@ class CagesTrackRecordService
 
             if (! empty($row['id']) && CagesTippedTime::where('id', $row['id'])->where('cages_track_record_id', $record->id)->exists()) {
                 CagesTippedTime::where('id', $row['id'])->update($detailAttributes);
-                $keptIds[] = $row['id'];
             } else {
-                $detail = CagesTippedTime::create($detailAttributes);
-                $keptIds[] = $detail->id;
+                CagesTippedTime::create($detailAttributes);
             }
         }
 
-        CagesTippedTime::where('cages_track_record_id', $record->id)
-            ->whereNotIn('id', $keptIds)
-            ->delete();
+
     }
 
     /**

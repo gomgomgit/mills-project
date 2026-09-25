@@ -474,3 +474,57 @@ it('baca saja: the component exposes no create/update/delete action and changes 
     expect(SterilizerRecord::count())->toBe($recordsBefore);
     expect(SterilizerDetail::count())->toBe($detailsBefore);
 });
+
+// =====================================================================
+// Scenario: "Admin mengunduh CSV setelah memilih mill"
+//
+// REGRESSION — the export path is the ONE place where the mill is resolved
+// a second time, and every earlier export scenario logs in as Supervisor,
+// whose mill comes from auth()->user()->business_unit_id and can therefore
+// never be missing. Admin is the only role whose mill lives in the
+// component's own state, so only an Admin download proves the component
+// threads its resolved mill into the service instead of leaving it null —
+// which is refused with 422 (ValidationException) before a single byte is
+// streamed, and looks to the user like an inert Ekspor button.
+// =====================================================================
+it('admin ekspor: an Admin who picked a mill actually downloads the CSV, and it carries that mill alone', function () {
+    $periodB = Period::factory()->forBusinessUnit($this->businessUnitB)->stationType('sterilizer')
+        ->range('2026-09-01', '2026-09-30')->named('Periode September Beta')->create();
+
+    laporanSterilizerComponentRecord($this->stationA, '2026-09-10', [
+        ['sterilizer_no' => '1', 'duration_minutes' => 90],
+        ['sterilizer_no' => '2', 'duration_minutes' => 95],
+    ], ['sterilizer_id' => 'STR-ADMIN-ALPHA']);
+
+    laporanSterilizerComponentRecord($this->stationB, '2026-09-10', [
+        ['sterilizer_no' => '9', 'duration_minutes' => 200],
+    ], ['sterilizer_id' => 'STR-ADMIN-BETA']);
+
+    $recordsBefore = SterilizerRecord::count();
+    $detailsBefore = SterilizerDetail::count();
+
+    $component = Livewire::actingAs($this->admin)
+        ->test(LaporanSterilizer::class)
+        ->set('businessUnitId', (string) $this->businessUnitA->id)
+        ->assertSet('periodId', (string) $this->periodA->id);
+
+    // THE DOWNLOAD MUST ACTUALLY HAPPEN. Asserting "no exception" would be
+    // satisfied by a page that silently returns null; assertFileDownloaded
+    // is only satisfied by a streamed response with the CSV content type.
+    $download = $component->call('export', 'csv');
+    $download->assertFileDownloaded(null, null, 'text/csv');
+
+    $effect = $download->effects['download'];
+    expect($effect['name'])->toEndWith('.csv');
+
+    // The bytes belong to the picked mill and to no other — an Admin export
+    // that fell back to "every mill" would show up right here.
+    $body = base64_decode($effect['content']);
+    expect($body)->toContain('STR-ADMIN-ALPHA');
+    expect($body)->not->toContain('STR-ADMIN-BETA');
+
+    // Read-only: exporting changes nothing, and Mill B's period is untouched.
+    expect(SterilizerRecord::count())->toBe($recordsBefore);
+    expect(SterilizerDetail::count())->toBe($detailsBefore);
+    expect($periodB->fresh())->not->toBeNull();
+});

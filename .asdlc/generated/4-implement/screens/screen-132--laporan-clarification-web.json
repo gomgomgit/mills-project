@@ -1,0 +1,124 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-25"
+  },
+  "id": "screen-132--laporan-clarification-web",
+  "name": "Laporan Clarification (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-25T06:00:00Z",
+      "passed": 45,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-25T06:00:00Z",
+      "passed": 29,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-25T06:00:00Z",
+      "passed": 24,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-25T06:00:00Z",
+      "passed": 23,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/ClarificationReportService.php",
+    "backend/app/Http/Controllers/Api/ClarificationReportController.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/app/Services/StationReportService.php",
+    "backend/app/Services/ClarificationRecordService.php",
+    "backend/app/Livewire/Dashboard/LaporanBoilerRoom.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/LaporanClarification.php",
+    "backend/resources/views/livewire/dashboard/laporan-clarification.blade.php",
+    "backend/resources/views/dashboard/laporan-clarification.blade.php",
+    "backend/resources/views/dashboard/partials/report-styles.blade.php",
+    "backend/resources/views/components/layouts/app.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/ClarificationReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanClarificationTest.php",
+    "backend/tests/Feature/Api/LaporanBoilerRoomTest.php",
+    "e2e-web/tests/laporan-clarification.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/LaporanClarificationTest.php",
+    "backend/tests/Feature/Livewire/LaporanBoilerRoomTest.php",
+    "backend/tests/Feature/Livewire/LaporanCagesTrackTest.php",
+    "backend/tests/Feature/Livewire/LaporanSterilizerTest.php"
+  ],
+  "implementation_notes": [
+    "PRODUKSI DITURUNKAN dari SUM laju; skema tidak punya kolom produksi. Dikunci unit test: 4 baris berlaju 10,0/12,5/8,0/9,5 menghasilkan 40,0 ton dengan reading_count 4, plus satu test terpisah yang menegaskan tidak ada kolom produksi yang dibaca.",
+    "JAM TANPA CATATAN LAJU BUKAN BERPRODUKSI NOL — jebakan paling berbahaya di layar ini karena KEDUA TAFSIR MENGHASILKAN TOTAL YANG SAMA; hanya rata-ratanya yang berbeda. Dikunci dengan 10 baris terisi / 4 berlaju: total tetap 40,0 sementara rata-rata laju 10,0 dengan asersi eksplisit not->toBe(4.0). Dicerminkan di lapis API dan browser.",
+    "LAJU DAN DOWNTIME TIDAK SALING MENGURANGI, mengikuti rumus user. Status TERBUKA-nya ditulis sebagai komentar di unit test, API test, Livewire test, browser test, DAN di productionOf() beserta rumus alternatifnya (laju x (60 - downtime)/60). Tidak diputuskan di kode.",
+    "KOREKSI ATAS LAPORAN AWAL — cacat ekspor Admin ternyata hanya ada di SATU layar, bukan tiga. Diverifikasi ulang secara independen: SterilizerReportService::export() dan CagesTrackReportService::export() bertanda tangan 2 parameter dan NOL panggilan resolveBusinessUnit() di jalur ekspor, sehingga Admin sudah bisa mengekspor dari keduanya sejak semula. Hanya LaporanBoilerRoom.php:110 yang benar-benar kena, dibuktikan merah-tanpa-perbaikan ('Failed asserting that null is not null' di TestsFileDownloads — nol download effect, persis gejala tombol terasa mati). Verifikasi saya sendiri sebelumnya keliru: saya melihat bentuk pemanggilnya lalu menggeneralisasi dari tanda tangan BoilerRoom tanpa memeriksa tiap service.",
+    "Tiga test 'admin ekspor' tetap dipasang di ketiga layar sebagai PAGAR REGRESI, walau dua di antaranya hijau sebelum perbaikan. Keduanya akan merah kelak bila ada yang memindahkan resolveBusinessUnit() ke jalur ekspor kedua service itu — yang justru terjadi bila signature keempat service diseragamkan. Test men-decode isi CSV dan membuktikan isinya memuat penanda Mill A dan TIDAK memuat Mill B, bukan sekadar tidak melempar.",
+    "ASERSI REPORT_ROUTES DIJADIKAN INVARIAN — kejadian KETIGA dari pertanyaan yang sama hari ini. Dua situs kembar ditemukan: LaporanBoilerRoomTest:1010 dan :1024, yang kedua tersembunyi di balik short-circuit yang pertama sehingga memperbaiki satu saja akan langsung memerahkan yang lain dengan diff identik. Keduanya diubah dalam satu tarikan dan catatan 'sepasang' ditulis sebagai komentar. Penyimpangan yang disengaja dari instruksi saya: :1010 tidak diturunkan dari REPORT_ROUTES karena sisi kirinya memang sudah array_keys(REPORT_ROUTES) sehingga menjadi tautologi; diturunkan dari master station_types.sort_order dibatasi pada kunci map, yang lebih kuat — merah bila map dipelihara di luar sort_order atau bila ada kode terpetakan hilang dari master.",
+    "FLAKE YANG DIBAWA RUN INI DIPERBAIKI, DAN DIPERLUAS ke dua situs yang tidak saya sebut (:621 dan :634 masih memakai assertDontSee('900')). Perluasan itu disebut terus terang oleh agen. Premis saya bahwa keduanya redundan TERBUKTI SALAH: agen memverifikasi dengan melepas klausa scoping lintas-mill di ClarificationReportService:1189, dan assertDontSee('Mill Beta') justru LOLOS — nama mill tetap Mill Alpha saat yang bocor adalah DATA, bukan header. Kebocoran by-unit-only merender by-unit-row-CLF-BETA dengan 900,0 sementara header dan total tetap benar. Menghapusnya akan meloloskan kebocoran itu. Diganti menjadi asersi berbasis testid, yang tidak dapat bertabrakan dengan substring UUID secara konstruksi. Asersi berkas naik 358 -> 369.",
+    "Ketiadaan penandaan ambang diasersi menurut nama pada payload JSON DAN pada markup, termasuk atribut class kartu bernilai ekstrem dibandingkan byte-per-byte dengan kartu biasa.",
+    "Guard peran sebelum findOrFail dibuktikan lewat jenis exception: AuthorizationException dengan not->toBeInstanceOf(ModelNotFoundException).",
+    "Grafik tiga suhu: satu elemen tank-temperature-chart dengan sumbu bersama, dan pembeda DUA LAPIS terjaga — browser test mengukur computed stroke DAN strokeDasharray lalu mengasersi tiga nilai berbeda untuk keduanya. Legenda menamai polanya dengan kata ('garis utuh / putus / titik') supaya lapis kedua tidak diam-diam runtuh menjadi warna saja.",
+    "ClarificationRecordService::READING_FIELDS dan isRowFilled() dilebarkan protected -> public, murni aditif, mengikuti preseden screen-131. Daftar kolom TIDAK disalin ke service laporan.",
+    "Entri REPORT_ROUTES disisipkan pada posisi sort_order 70 (cages-track 30, sterilizer 40, clarification 70, boiler-room 90), diverifikasi terhadap migrasi 2026_09_22_000029."
+  ],
+  "deferred_items": [
+    {
+      "description": "Laporan Clarification versi mobile (screen-138).",
+      "reason": "Layar terpisah. Keempat endpoint /api/clarification-reports/* dibangun agar dipakai ulang, mengikuti pola 129->135 dan 130->136."
+    },
+    {
+      "description": "Coverage tidak terukur.",
+      "reason": "Tidak ada xdebug/pcov. Catatan penting yang baru terverifikasi run ini: 'php artisan test --coverage --min=N' TIDAK error tanpa driver — ia diam-diam jalan tanpa tabel dan TANPA menegakkan --min. Gerbang CI mana pun yang bersandar padanya adalah no-op."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "BUG PRODUKSI PRA-ADA, DI LUAR LINGKUP LAYAR INI: CagesTrackRecordService::upsertDetails() meng-INSERT baris detail baru SEBELUM men-DELETE baris basi (create() di dalam loop baris 311, whereNotIn(...)->delete() baru di baris 317). Dengan UNIQUE(cages_track_record_id, tipped_hour), mengubah sebuah jam menjadi jam yang sedang dipakai baris yang akan dihapus melanggar constraint. Akibatnya di test: suite penuh merah sekitar 1 dari 5 kali (agen mengukur 2 gagal dari 9 run) sementara berkas itu hijau 40 run terisolasi, karena state faker unique() bergeser mengikuti seluruh undian sebelumnya. Akibatnya di PRODUKSI: penyuntingan record Cages & Tracks yang memindahkan jam dapat gagal dengan galat basis data.",
+      "severity": "medium"
+    },
+    {
+      "description": "Ketidakseragaman tanda tangan empat service laporan: Sterilizer dan CagesTrack ber-export() 2 parameter tanpa resolveBusinessUnit di jalur ekspor, sementara BoilerRoom dan Clarification 3 parameter dengannya. Selama tidak seragam, kelas bug ekspor-Admin ini dapat lahir lagi ketika seseorang menyamakan satu service tanpa menyentuh komponennya. Parameter ketiga yang opsional adalah akar penyebabnya: null diam-diam berarti 'Admin ditolak', bukan 'tidak disuplai'.",
+      "severity": "medium"
+    },
+    {
+      "description": "Cakupan Admin-export di lapis API belum diperiksa; tests/Feature/Api/ tidak disentuh pada ronde itu.",
+      "severity": "low"
+    },
+    {
+      "description": "Admin yang memaksa period_id milik Mill B sementara pemilih menunjuk Mill A akan mengekspor data Mill B. Bukan regresi — perilaku yang sama sejak awal di seluruh layar laporan.",
+      "severity": "low"
+    },
+    {
+      "description": "Urutan slot waktu di laporan berbeda dari di formulir: canonicalTimeSlots() mengurutkan 07:00-23:00 lalu 00:00-06:00 (hari-mill), sementara laporan mengurutkan TIME menaik sehingga dini hari muncul di depan. Diimplementasikan sesuai spec; butuh keputusan produk.",
+      "severity": "medium"
+    },
+    {
+      "description": "coverage.unit_count diturunkan dari clarification_id yang merupakan string bebas tanpa tabel master: unit yang tidak punya record tidak terlihat sehingga expected_slots menyusut diam-diam, dan salah ketik menggelembungkan hitungan.",
+      "severity": "medium"
+    },
+    {
+      "description": "Definisi 'baris terisi' warisan ClarificationRecordService mencakup kolom findings, sehingga baris bertemuan-saja menambah filled_slots tanpa menyumbang metrik apa pun.",
+      "severity": "low"
+    },
+    {
+      "description": "downtime_mins bertipe float di basis data tetapi dinyatakan integer|null pada skema respons.",
+      "severity": "low"
+    },
+    {
+      "description": "Coverage tidak terukur, sehingga ambang unit_test.coverage_threshold tidak dapat dievaluasi.",
+      "severity": "medium"
+    }
+  ]
+}

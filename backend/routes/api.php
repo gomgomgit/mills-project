@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\StationReportController;
 use App\Http\Controllers\Api\SterilizerRecordController;
 use App\Http\Controllers\Api\SterilizerReportController;
 use App\Http\Controllers\Api\StorageTankRecordController;
+use App\Http\Controllers\Api\StorageTankReportController;
 use App\Http\Controllers\Api\ThreshingRecordController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WeighbridgeRecordController;
@@ -1006,19 +1007,36 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 });
 
 // screen-131--laporan-boiler-room-web (usecase-131 — Laporan Periode Boiler
-// Room). Mirrors the /api/cages-track-reports group above, with ONE
-// deliberate difference in the role list.
+// Room). Mirrors the /api/cages-track-reports group above, role list
+// included.
 //
-// NO `operator` HERE, unlike cages-track. That prefix was widened on
-// 2026-09-24 for screen-136 (its mobile report). The mobile Boiler Room
-// report is screen-137 and HAS NOT BEEN BUILT, so there is no caller to
-// widen for — and a role admitted at the middleware while
-// BoilerRoomReportService::guardAccess() still refuses it is exactly the
-// half-done widening that bit screen-129/135. When screen-137 does arrive,
-// three things change together or none of them do: the `sanctum` guard
-// here, `operator` in this list AND in guardAccess(), and Operator added to
-// the MILL-BOUND branch of resolveBusinessUnit() — the last one being the
-// difference between a widening and a cross-mill leak.
+// 2026-09-25 — WIDENED FOR screen-137 (the mobile Boiler Room report). The
+// mobile report reuses these four routes AS-IS; there is no mobile-only
+// endpoint, exactly as screen-135 reused /api/sterilizer-reports/* and
+// screen-136 reused /api/cages-track-reports/*. The `sanctum` guard was
+// ALREADY on this group, so only the role list moved here — but the
+// widening is still THREE changes that ship together or not at all:
+//   1. `sanctum` in the guard — mobile authenticates with a Sanctum token,
+//      not a session cookie, so 'auth:web' alone would 401 every device
+//      (already present on this group before screen-137);
+//   2. `operator` in this role list AND UserRole::Operator in
+//      BoilerRoomReportService::guardAccess(), which refuses two layers
+//      deeper — widening the middleware alone would leave Operator
+//      clearing the route only to be refused by the service, which is
+//      precisely what happened to screen-129/135;
+//   3. Operator added to the MILL-BOUND branch of
+//      BoilerRoomReportService::resolveBusinessUnit(). Admitting Operator
+//      in guardAccess() only would have dropped it into the unbound Admin
+//      branch, letting an Operator pass any business_unit_id and read
+//      another mill's report — a cross-mill leak, not a display defect.
+//
+// ONLY these 4 API routes were widened. The WEB route /reports/boiler-room
+// in routes/web.php deliberately stays at supervisor / mill_management /
+// admin — Operator has no web UI at all, so a 403 there is still the
+// correct answer (asserted by Feature/Livewire/LaporanBoilerRoomTest and
+// e2e-web/tests/laporan-boiler-room.spec.ts, both of which must stay green
+// unchanged, because LaporanBoilerRoom::canAccess() keeps its own role list
+// and never calls this service).
 //
 // GET-ONLY, deliberately: a report must not expose any path that mutates
 // the Boiler Room data it reports on, so there is no
@@ -1028,12 +1046,13 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
 // literal-vs-{id} collision is possible here.
 //
 // business_unit_id is accepted on /periods, /summary and /export but is
-// IGNORED for Supervisor / Mill Management
+// IGNORED for Supervisor / Mill Management / Operator
 // (BoilerRoomReportService::resolveBusinessUnit) — probing another mill
 // still returns 200 with the caller's own data, on purpose: a 403 would
 // confirm the other mill exists. The real cross-mill guard is on period_id,
-// in authorizePeriod(), which does answer 403.
-Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])->group(function () {
+// in authorizePeriod(), which does answer 403 — including for Operator,
+// which is bound like the other two mill-bound roles.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
     Route::get('/boiler-room-reports/business-units/options', [BoilerRoomReportController::class, 'businessUnitOptions']);
     Route::get('/boiler-room-reports/periods', [BoilerRoomReportController::class, 'periods']);
     Route::get('/boiler-room-reports/summary', [BoilerRoomReportController::class, 'summary']);
@@ -1043,12 +1062,25 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
 // screen-132--laporan-clarification-web (Laporan Periode Clarification) —
 // four GET endpoints behind 'role:supervisor,mill_management,admin'.
 //
-// OPERATOR IS NOT IN THAT LIST, and that is deliberate rather than an
-// oversight: this is the WEB report, and the mobile Clarification report
-// (screen-138) has not been built, so there is no caller to widen for.
-// ClarificationReportService::guardAccess() refuses Operator two layers
-// deeper as well — widening one without the other is the difference between
-// a widening and a cross-mill leak.
+// OPERATOR WAS ADDED 2026-09-25 for screen-138--laporan-clarification-mobile,
+// the mobile Clarification report. Until that screen there was no caller to
+// widen for and the role was deliberately absent; the caller now exists, and
+// the people who key the readings in are entitled to read them back. Same
+// widening SterilizerReportService got for screen-135, CagesTrackReportService
+// for screen-136 and BoilerRoomReportService for screen-137.
+//
+// THE WIDENING IS THREE LINES OF CODE AND THEY ARE ONE CHANGE, NEVER THREE:
+// this middleware list, ClarificationReportService::guardAccess(), and
+// ClarificationReportService::resolveBusinessUnit() — the last of which puts
+// Operator in the MILL-BOUND branch. Widening the first two alone would drop
+// Operator into the Admin branch, where the client's business_unit_id IS
+// honoured, and that is a cross-mill leak rather than a display defect. The
+// guard 'auth:web,sanctum' needed no change: it was already here, because the
+// mobile app authenticates with a Sanctum token rather than a session.
+//
+// The WEB route /reports/clarification in routes/web.php is UNCHANGED and
+// still carries no `operator`: this widening stops at the API. Operator has
+// no web UI at all.
 //
 // GET-ONLY, deliberately: a report must not expose any path that mutates
 // the Clarification data it reports on, so there is no
@@ -1058,16 +1090,69 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
 // literal-vs-{id} collision is possible here.
 //
 // business_unit_id is accepted on /periods, /summary and /export but is
-// IGNORED for Supervisor / Mill Management
+// IGNORED for Supervisor / Mill Management / Operator
 // (ClarificationReportService::resolveBusinessUnit) — probing another mill
 // still returns 200 with the caller's own data, on purpose: a 403 would
 // confirm the other mill exists. The real cross-mill guard is on period_id,
 // in authorizePeriod(), which does answer 403.
-Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])->group(function () {
+//
+// /business-units/options stays ADMIN ONLY and answers 403 for Operator —
+// enforced by the service, not by this middleware. A role bound to one mill
+// has no picker, and handing it the list of every mill would be the very leak
+// the widening avoided.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
     Route::get('/clarification-reports/business-units/options', [ClarificationReportController::class, 'businessUnitOptions']);
     Route::get('/clarification-reports/periods', [ClarificationReportController::class, 'periods']);
     Route::get('/clarification-reports/summary', [ClarificationReportController::class, 'summary']);
     Route::get('/clarification-reports/export', [ClarificationReportController::class, 'export']);
+});
+
+// screen-133--laporan-storage-tank-web (Laporan Periode Storage Tank) —
+// four GET endpoints, shared verbatim with
+// screen-139--laporan-storage-tank-mobile.
+//
+// OPERATOR WAS ADDED 2026-09-25 for screen-139, the mobile Storage Tank
+// report, which reuses THESE four endpoints rather than getting its own —
+// one source of figures for the web report and the phone. The same widening
+// sterilizer-reports got for screen-135, cages-track-reports for
+// screen-136, boiler-room-reports for screen-137 and clarification-reports
+// for screen-138. The people who key the readings in are entitled to read
+// them back.
+//
+// The widening is THREE lines of code, never one: this middleware,
+// StorageTankReportService::guardAccess(), and — the one that is easy to
+// miss — StorageTankReportService::resolveBusinessUnit(), which must place
+// Operator in the MILL-BOUND branch. Widening the first two alone would drop
+// Operator into the Admin branch, where the client's business_unit_id is
+// HONOURED: a cross-mill leak, not a display defect.
+//
+// The WEB route /reports/storage-tank (routes/web.php) is deliberately
+// UNCHANGED and still refuses Operator — there is no Operator web UI, and
+// the widening stops at the API.
+//
+// GET-ONLY, deliberately: a report must not expose any path that mutates
+// the Storage Tank data it reports on, so there is no
+// POST/PUT/PATCH/DELETE on this prefix.
+//
+// IMPORTANT — route ordering: none of these are parameterised, so no
+// literal-vs-{id} collision is possible here.
+//
+// business_unit_id is accepted on /periods, /summary and /export but is
+// IGNORED for every mill-bound role — Operator, Supervisor and Mill
+// Management alike (StorageTankReportService::resolveBusinessUnit) —
+// probing another mill still returns 200 with the caller's own data, on
+// purpose: a 403 would confirm the other mill exists. The real cross-mill
+// guard is on period_id, in authorizePeriod(), which does answer 403.
+//
+// /business-units/options stays ADMIN ONLY and answers 403 for Operator —
+// enforced by the service, not by this middleware. A role bound to one mill
+// has no picker, and handing it the list of every mill would be the very leak
+// the widening avoided.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'])->group(function () {
+    Route::get('/storage-tank-reports/business-units/options', [StorageTankReportController::class, 'businessUnitOptions']);
+    Route::get('/storage-tank-reports/periods', [StorageTankReportController::class, 'periods']);
+    Route::get('/storage-tank-reports/summary', [StorageTankReportController::class, 'summary']);
+    Route::get('/storage-tank-reports/export', [StorageTankReportController::class, 'export']);
 });
 
 // === ASDLC_ROUTES_END ===

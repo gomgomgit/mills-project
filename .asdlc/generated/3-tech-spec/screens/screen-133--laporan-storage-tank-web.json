@@ -1,0 +1,1739 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-25"
+  },
+  "id": "screen-133--laporan-storage-tank-web",
+  "name": "Laporan Storage Tank (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/storage-tank",
+  "auth_requirement": "role: supervisor, mill_management, admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Dibatasi pada business unit miliknya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Dibatasi pada business unit miliknya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Operator tidak punya akses web. Perluasan Operator dikerjakan di screen-139 (mobile), bukan di sini"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "usecase_name": "Lihat Laporan Periode Storage Tank (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/storage-tank-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — khusus Admin",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor bukan admin"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/storage-tank-reports/periods",
+          "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Storage Tank",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "WAJIB untuk Admin; DIABAIKAN untuk peran terikat mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "station_type": "string|null",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "actor admin tidak mengirim business_unit_id"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "akun terikat mill dengan business_unit_id null — daftar seluruh mill TIDAK PERNAH disusun"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor operator"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/storage-tank-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode: stok awal/akhir/pergerakan per tangki, mutu minyak, suhu, kelengkapan, tren harian",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode yang dilaporkan"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /periods"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string",
+                "business_unit_name": "string"
+              },
+              "coverage": {
+                "filled_slots": "integer",
+                "expected_slots": "integer",
+                "coverage_percent": "float",
+                "tank_count": "integer",
+                "slots_per_tank_per_day": "integer",
+                "days_in_period": "integer"
+              },
+              "stock": {
+                "opening_mt": "float|null",
+                "opening_at": "datetime|null",
+                "closing_mt": "float|null",
+                "closing_at": "datetime|null",
+                "movement_mt": "float|null",
+                "tanks_with_movement": "integer",
+                "tanks_without_movement": "integer",
+                "_note": "opening_mt/closing_mt = JUMLAH stok awal/akhir SELURUH tangki, masing-masing diambil dari pembacaan stok pertama/terakhir TANGKI ITU. movement_mt = JUMLAH pergerakan per tangki, BUKAN closing_mt - opening_mt. opening_at/closing_at = tanggal+slot paling awal/akhir di antara seluruh tangki"
+              },
+              "metrics": {
+                "ffa_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "moisture_content_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "impurities_dirt_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "dobi_index": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "average_temperature_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "calculated_weight_mt": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "calculated_volume_m3": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "oil_temperature_top_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "oil_temperature_middle_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "oil_temperature_bottom_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                }
+              },
+              "by_tank": [
+                {
+                  "storage_tank_id": "string",
+                  "reading_count": "integer",
+                  "opening_mt": "float|null",
+                  "opening_at": "datetime|null",
+                  "closing_mt": "float|null",
+                  "closing_at": "datetime|null",
+                  "movement_mt": "float|null",
+                  "movement_computable": "boolean",
+                  "ffa_avg": "float|null",
+                  "average_temperature_avg": "float|null"
+                }
+              ],
+              "daily": [
+                {
+                  "date": "date",
+                  "filled_slots": "integer",
+                  "stock_total_mt": "float|null",
+                  "ffa_avg": "float|null",
+                  "moisture_avg": "float|null",
+                  "impurities_avg": "float|null",
+                  "dobi_avg": "float|null",
+                  "temperature_avg": "float|null"
+                }
+              ],
+              "total": {
+                "days_with_records": "integer",
+                "reading_rows": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain bagi Supervisor/Mill Management, atau actor operator"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id kosong"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — dihitung saat periode dipilih",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/storage-tank-reports/export",
+          "description": "Ekspor seluruh pembacaan per slot waktu sepanjang periode ke CSV, satu baris per slot",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode yang diekspor"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "csv | excel"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /summary"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_note": "StreamedResponse; kolom konteks record (tanggal, tangki, status, catatan) diulang tiap baris, lalu ketujuh belas kolom pengukuran termasuk enum katup uap dan kolom teks apa adanya"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain, atau actor operator"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "jumlah baris storage_tank_details melebihi 50.000"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "format di luar csv|excel"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "resolveBusinessUnit: supervisor/mill_management -> business_unit_id akun, ABAIKAN query; null -> 422 'Hubungi Admin' dan businessUnitRepo->all() TIDAK dipanggil (gagal tertutup, diuji sebagai spy). admin -> wajib dari query, kosong -> 422. operator -> 403 di seluruh endpoint; layar WEB, tidak ada perluasan Operator.",
+        "listPeriods: SELECT Period WHERE business_unit_id = <resolve> AND (station_type = 'storage-tank' OR station_type IS NULL) ORDER BY start_date DESC.",
+        "authorizePeriod: guard peran SEBELUM findOrFail — Operator dengan period_id tidak ada menerima AuthorizationException, BUKAN ModelNotFoundException. Lalu 404 bila tidak ada, 403 bila mill lain.",
+        "summary base: storage_tank_records JOIN stations WHERE business_unit_id = period.business_unit_id AND stations.type = 'storage-tank' AND whereDate(record.date) INKLUSIF dua ujung. Eager-load storage_tank_details urut time_slot menaik. SATU TANGGAL DAPAT PUNYA BEBERAPA RECORD, satu per tangki (storage_tank_id kolom string pada header).",
+        "STOK BUKAN AGREGASI — dan inilah yang membedakan layar ini dari empat laporan stasiun sebelumnya. Untuk TIAP TANGKI: urutkan seluruh pembacaannya menurut (record.date, detail.time_slot) MENAIK, lalu ambil pembacaan PERTAMA yang calculated_weight_mt-nya non-null sebagai stok awal, dan pembacaan TERAKHIR yang non-null sebagai stok akhir. BUKAN nilai terendah dan tertinggi. BUKAN pula baris pertama/terakhir menurut urutan penyimpanan basis data, yang tidak dijamin.",
+        "TANGGAL KEDUA PEMBACAAN ITU WAJIB DIKIRIM (opening_at, closing_at per tangki). Stok awal yang diambil pada hari ketiga periode berarti dua hari pertama tidak tercatat, dan angka pergerakannya menutupi kurun yang lebih pendek daripada periodenya. Tanpa tanggalnya, pembaca tidak punya cara mengetahui itu.",
+        "BILA PEMBACAAN PALING AWAL SEBUAH TANGKI TIDAK MENCATAT STOK, yang dipakai adalah pembacaan terisi BERIKUTNYA — bukan null, dan bukan pula pembacaan mana pun yang kebetulan ada. Aturan yang sama berlaku mundur untuk stok akhir.",
+        "PERGERAKAN DIHITUNG PER TANGKI: movement = closing_mt - opening_mt untuk tangki itu, lalu stock.movement_mt = JUMLAH seluruh pergerakan per tangki. JANGAN menghitungnya sebagai stock.closing_mt - stock.opening_mt: bila jumlah tangki yang tercatat berbeda antara awal dan akhir periode, kedua cara memberi hasil berbeda dan yang kedua salah — ia mencampurkan perubahan stok dengan perubahan cakupan pencatatan.",
+        "TANGKI DENGAN SATU PEMBACAAN STOK tidak punya pergerakan yang dapat dihitung: movement_mt = null dan movement_computable = false. BUKAN 0 — nol berarti 'stok tidak berubah', klaim yang berbeda dan lebih kuat daripada 'tidak dapat dihitung'. Tangki semacam itu tidak menyumbang pada stock.movement_mt.",
+        "TANGKI TANPA SATU PUN PEMBACAAN STOK TERISI tetap muncul di by_tank dengan reading_count apa adanya dan opening/closing/movement null — menghilangkannya akan menyembunyikan tangki yang justru tidak pernah diukur.",
+        "PERGERAKAN NEGATIF ADALAH NILAI SAH, bukan kesalahan: stok berkurang karena minyak dikirim keluar. Jangan membulatkannya ke nol, jangan mengambil nilai absolutnya, dan jangan menandainya sebagai peringatan.",
+        "PENYEBUT TERPISAH PER METRIK: ketujuh belas kolom non-time_slot nullable dan sebuah baris dianggap terisi bila minimal satu di antaranya terisi (definisi StorageTankRecordService — pakai itu, jangan bikin definisi kedua). Setiap metrik dihitung HANYA dari baris yang kolom metrik ITU non-null, dengan reading_count-nya sendiri.",
+        "SUHU RATA-RATA DIAMBIL DARI KOLOM average_temperature_c YANG DICATAT OPERATOR, tidak dihitung ulang dari oil_temperature_top/middle/bottom. Menghitung ulang akan menciptakan kebenaran kedua yang menyimpang diam-diam dari yang dilihat Operator di layar input, dan selisihnya tidak akan pernah terlihat karena keduanya sama-sama masuk akal. Ketiga suhu per posisi tetap dikirim sebagai metrik tersendiri untuk keperluan lain.",
+        "NULL BUKAN NOL untuk seluruh metrik: metrik yang tidak pernah terisi menghasilkan min/avg/max null dengan reading_count 0, independen per metrik.",
+        "KELENGKAPAN PENCATATAN: filled_slots = jumlah baris storage_tank_details yang minimal satu dari 17 kolom non-time_slot-nya terisi. expected_slots = tank_count x days_in_period x slots_per_tank_per_day.",
+        "daily[] mengirim ffa, moisture, dan dobi per tanggal agar layar dapat menggambar ketiganya pada satu grafik. PERHATIAN SKALA: DOBI berkisar 2-4, FFA 3-5 persen, kadar air 0,1-0,3 persen. Ketiganya TIDAK sebanding pada satu sumbu linear. Layar wajib menormalkan atau memakai sumbu kedua, dan MENYATAKANNYA — menempelkan tiga skala berbeda pada satu sumbu tanpa keterangan membuat dua di antaranya terlihat datar dan seolah tidak berubah.",
+        "storage_tank_details punya satu kolom enum steam_heating_valve_status ('closed','open_1_4','open_1_2') yang nullable, dan tiga kolom teks (tank_structural_condition, inspector_name, findings). Keempatnya TIDAK PERNAH diagregasi menjadi min/avg/max dan hanya muncul pada ekspor.",
+        "Seluruh agregasi dijalankan di PHP atas baris mentah, BUKAN SUM/AVG/GROUP BY di SQL — terlebih di sini, karena pemilihan pembacaan pertama/terakhir per tangki adalah logika berurutan yang tidak diungkapkan agregat SQL biasa.",
+        "TIDAK ADA penandaan nilai di luar batas di mana pun. Tidak ada StorageTankOperationalTarget (hanya Threshing/Pressing/Depricarping/Kernel Plant yang punya), dan docblock StorageTankRecordService menyatakan ketiadaan itu memang disengaja. Ketiadaannya WAJIB diasersi menurut nama.",
+        "export: authorizePeriod -> hitung baris storage_tank_details dalam rentang -> bila > 50.000 -> 422 EXPORT_FAILED -> stream lewat chunk, satu baris per slot waktu, kolom konteks record diulang tiap baris. Penjagaan izin EAGER sebelum generator mulai menghasilkan."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Daftar periode dan rentang tanggal periode terpilih"
+        },
+        {
+          "entity_id": "storage-tank-detail",
+          "operation": "SELECT",
+          "description": "Sumber seluruh angka — satu baris = satu slot waktu; stok awal/akhir dipilih dari baris ini secara berurutan"
+        },
+        {
+          "entity_id": "storage-tank-record",
+          "operation": "SELECT",
+          "description": "Header harian — tanggal kejadian, tangki (storage_tank_id), status, catatan"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "JOIN untuk menyaring ke business unit periode dan tipe stasiun storage-tank"
+        },
+        {
+          "entity_id": "station-type",
+          "operation": "SELECT",
+          "description": "Resolusi station_type_label pada daftar periode"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin dan resolusi nama mill"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Periode tanpa satu pun pembacaan",
+          "handling": "200 dengan seluruh metrik null dan reading_count 0, stock.* null, coverage.filled_slots 0, daily = []. UI menyatakan belum ada data dan tidak merender grafik kosong"
+        },
+        {
+          "condition": "Tangki hanya punya satu pembacaan stok",
+          "handling": "opening dan closing menunjuk pembacaan yang sama; movement_mt = null dan movement_computable = false; tangki itu tidak menyumbang ke stock.movement_mt"
+        },
+        {
+          "condition": "Pembacaan paling awal tangki tidak mencatat stok",
+          "handling": "opening diambil dari pembacaan terisi berikutnya, dan opening_at menunjuk waktu pembacaan itu — bukan awal periode"
+        },
+        {
+          "condition": "Tangki ber-record tanpa satu pun pembacaan stok terisi",
+          "handling": "Tetap muncul di by_tank dengan reading_count apa adanya dan opening/closing/movement null"
+        },
+        {
+          "condition": "Jumlah tangki berbeda antara awal dan akhir periode",
+          "handling": "Pergerakan tetap dijumlahkan per tangki; tangki yang hanya muncul di satu ujung tidak menyumbang pergerakan. TIDAK dihitung dari selisih stok gabungan"
+        },
+        {
+          "condition": "Pergerakan bernilai negatif",
+          "handling": "Dikirim apa adanya sebagai nilai negatif; tidak dibulatkan ke nol, tidak diambil nilai absolutnya, tidak ditandai peringatan"
+        },
+        {
+          "condition": "Sebuah metrik tidak pernah diisi",
+          "handling": "min/avg/max null dengan reading_count 0, independen per metrik"
+        },
+        {
+          "condition": "Kolom average_temperature_c kosong walau ketiga suhu posisi terisi",
+          "handling": "metrics.average_temperature_c null; sistem TIDAK menghitungnya dari ketiga suhu itu"
+        },
+        {
+          "condition": "Kelengkapan pencatatan sangat rendah",
+          "handling": "Angka tetap dihitung; coverage ditampilkan menonjol"
+        },
+        {
+          "condition": "Admin membuka laporan tanpa memilih mill",
+          "handling": "422 VALIDATION_ERROR; UI menampilkan arahan memilih mill"
+        },
+        {
+          "condition": "Supervisor/Mill Management mengirim business_unit_id mill lain",
+          "handling": "Diabaikan; 200 berisi data mill sendiri, BUKAN 403"
+        },
+        {
+          "condition": "Supervisor/Mill Management menembak period_id mill lain",
+          "handling": "403 FORBIDDEN"
+        },
+        {
+          "condition": "Akun terikat mill dengan business_unit_id null",
+          "handling": "422 menghubungi Admin; daftar seluruh mill TIDAK PERNAH disusun (spy)"
+        },
+        {
+          "condition": "Periode berstatus tertutup",
+          "handling": "Tetap dapat dilihat dan diekspor penuh"
+        },
+        {
+          "condition": "Rekap harian puluhan baris",
+          "handling": "Dapat ditutup; tabel dan grafik menggulir di dalam kartunya"
+        }
+      ],
+      "business_rules_applied": [
+        "Hanya Supervisor, Mill Management, dan Admin; Operator ditolak 403 di seluruh endpoint",
+        "Peran terikat mill terkunci pada millnya; business_unit_id klien diabaikan",
+        "Admin wajib memilih mill; tanpa itu 422",
+        "Pemilih periode hanya ber-station_type 'storage-tank' atau NULL",
+        "Status periode tidak membatasi pembacaan maupun ekspor",
+        "Rentang periode inklusif dua ujung memakai record.date",
+        "Stok awal/akhir = pembacaan pertama/terakhir per tangki menurut (date, time_slot), bukan min/max",
+        "Tanggal kedua pembacaan itu dikirim bersama angkanya",
+        "Pergerakan dihitung per tangki lalu dijumlahkan",
+        "Tangki dengan satu pembacaan tidak punya pergerakan yang dapat dihitung; itu bukan nol",
+        "Pergerakan negatif adalah nilai sah",
+        "Stok memakai berat (MT) — keputusan pemilik proses 2026-09-25",
+        "Setiap metrik punya penyebutnya sendiri",
+        "Suhu rata-rata dari kolom yang dicatat Operator, tidak dihitung ulang",
+        "Tidak ada penandaan nilai di luar batas",
+        "Kelengkapan pencatatan adalah isi laporan",
+        "Layar hanya membaca"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "JEBAKAN 1a — stok awal adalah pembacaan PERTAMA menurut waktu, bukan nilai terendah",
+          "given": "StorageTankReportService::summary(periodId, businessUnitId). Periode 2026-09-01..2026-09-30. Satu storage_tank_record per tanggal untuk storage_tank_id 'TK-01' dengan storage_tank_details: (date 2026-09-01, time_slot 06:00, calculated_weight_mt 100.0), (date 2026-09-05, time_slot 12:00, calculated_weight_mt 250.0), (date 2026-09-10, time_slot 18:00, calculated_weight_mt 80.0). Baris disisipkan dengan urutan penyimpanan SENGAJA acak — baris 250.0 dibuat paling awal (id terkecil), baris 100.0 dibuat paling akhir (id terbesar)",
+          "expect": "by_tank['TK-01'].opening_mt ->toBe(100.0) DAN ->not->toBe(80.0) DAN ->not->toBe(250.0); stock.opening_mt ->toBe(100.0); opening TIDAK diambil dari baris ber-id terkecil (250.0)"
+        },
+        {
+          "description": "JEBAKAN 1b — stok akhir adalah pembacaan TERAKHIR menurut waktu, bukan nilai tertinggi",
+          "given": "Fixture sama dengan JEBAKAN 1a (100.0 @01 Sep 06:00, 250.0 @05 Sep 12:00, 80.0 @10 Sep 18:00, urutan penyimpanan acak)",
+          "expect": "by_tank['TK-01'].closing_mt ->toBe(80.0) DAN ->not->toBe(250.0) DAN ->not->toBe(100.0); stock.closing_mt ->toBe(80.0)"
+        },
+        {
+          "description": "JEBAKAN 1c — opening_at dan closing_at menunjuk waktu pembacaan yang dipakai, bukan ujung periode",
+          "given": "Fixture sama dengan JEBAKAN 1a",
+          "expect": "by_tank['TK-01'].opening_at menunjuk 2026-09-01 06:00 dan closing_at menunjuk 2026-09-10 18:00; stock.opening_at/closing_at sama; opening_at ->not->toBe periode.start_date polos tanpa jam"
+        },
+        {
+          "description": "JEBAKAN 1d — pergerakan tangki adalah closing - opening menurut waktu, bukan max - min",
+          "given": "Fixture sama dengan JEBAKAN 1a",
+          "expect": "by_tank['TK-01'].movement_mt ->toBe(-20.0) DAN ->not->toBe(170.0) (250-80) DAN ->not->toBe(150.0) (250-100); movement_computable = true"
+        },
+        {
+          "description": "JEBAKAN 2 — pengurutan memakai (date, time_slot), bukan time_slot saja",
+          "given": "storage_tank_id 'TK-02' dengan dua pembacaan: (date 2026-09-01, time_slot 18:00, calculated_weight_mt 120.0) dan (date 2026-09-02, time_slot 06:00, calculated_weight_mt 90.0). Tanggal yang lebih awal justru punya time_slot lebih siang",
+          "expect": "by_tank['TK-02'].opening_mt ->toBe(120.0) DAN ->not->toBe(90.0); opening_at menunjuk 2026-09-01 18:00; closing_mt ->toBe(90.0); movement_mt ->toBe(-30.0). Pengurutan yang hanya memakai time_slot akan menghasilkan opening 90.0 dan HARUS gagal"
+        },
+        {
+          "description": "JEBAKAN 3 — stock.movement_mt adalah jumlah pergerakan PER TANGKI, bukan selisih stok gabungan",
+          "given": "Dua tangki dalam periode 2026-09-01..2026-09-10. TK-01: (01 Sep 06:00, 100.0) dan (10 Sep 18:00, 90.0) → pergerakan -10.0. TK-02 HANYA punya pembacaan di akhir periode: (09 Sep 06:00, 400.0) dan (10 Sep 06:00, 420.0) → pergerakan +20.0. Hitungan manual dua cara: per-tangki = -10 + 20 = +10.0; gabungan = (90+420) - 100 = +410.0 — keduanya BERBEDA",
+          "expect": "stock.movement_mt ->toBe(10.0) DAN ->not->toBe(410.0) DAN ->not->toBe(310.0); stock.movement_mt sama persis dengan array_sum(by_tank movement_mt yang computable); stock.tanks_with_movement = 2, stock.tanks_without_movement = 0"
+        },
+        {
+          "description": "JEBAKAN 4 — tangki dengan SATU pembacaan stok: movement null, bukan nol, dan tidak menyumbang ke total",
+          "given": "Dua tangki. TK-01: (01 Sep 06:00, 100.0) dan (10 Sep 18:00, 130.0) → +30.0. TK-03 hanya punya SATU pembacaan ber-calculated_weight_mt: (10 Sep 12:00, 500.0)",
+          "expect": "by_tank['TK-03'].movement_mt ->toBeNull() DAN ->not->toBe(0) DAN ->not->toBe(0.0); by_tank['TK-03'].movement_computable ->toBeFalse(); opening_mt = closing_mt = 500.0 dan opening_at = closing_at = 2026-09-10 12:00; stock.movement_mt ->toBe(30.0) DAN ->not->toBe(530.0) (TK-03 tidak menyumbang); stock.tanks_without_movement = 1"
+        },
+        {
+          "description": "JEBAKAN 5 — pembacaan paling awal tidak mencatat stok: opening diambil dari pembacaan terisi berikutnya",
+          "given": "TK-04 dengan tiga pembacaan: (01 Sep 06:00, calculated_weight_mt NULL, ffa_percent 3.2), (03 Sep 12:00, calculated_weight_mt 150.0), (09 Sep 18:00, calculated_weight_mt 140.0). Periode mulai 2026-09-01",
+          "expect": "by_tank['TK-04'].opening_mt ->toBe(150.0) DAN ->not->toBe(0.0) DAN ->not->toBeNull(); opening_at menunjuk 2026-09-03 12:00 (pembacaan KEDUA), ->not->toBe(2026-09-01 06:00); movement_mt ->toBe(-10.0); baris pertama tetap terhitung pada metrics.ffa_percent.reading_count"
+        },
+        {
+          "description": "JEBAKAN 6 — pergerakan negatif ditampilkan apa adanya",
+          "given": "TK-05: (02 Sep 06:00, calculated_weight_mt 500.0) dan (08 Sep 18:00, calculated_weight_mt 320.0)",
+          "expect": "by_tank['TK-05'].movement_mt ->toBe(-180.0) DAN ->not->toBe(180.0) DAN ->not->toBe(0.0) DAN ->not->toBe(0); movement_computable = true; stock.movement_mt (tangki tunggal) ->toBe(-180.0)"
+        },
+        {
+          "description": "JEBAKAN 7 — suhu rata-rata diambil dari kolom average_temperature_c, tidak dihitung ulang dari tiga suhu",
+          "given": "Satu detail: oil_temperature_top_c 50.0, oil_temperature_middle_c 60.0, oil_temperature_bottom_c 70.0 (rata-rata aritmetik 60.0) TETAPI average_temperature_c 55.0",
+          "expect": "metrics.average_temperature_c.avg ->toBe(55.0) DAN ->not->toBe(60.0); metrics.average_temperature_c.min/max ->toBe(55.0); reading_count = 1; metrics.oil_temperature_top_c.avg tetap 50.0, middle 60.0, bottom 70.0 sebagai metrik terpisah"
+        },
+        {
+          "description": "JEBAKAN 7b — kolom average_temperature_c kosong walau tiga suhu terisi: suhu rata-rata tidak tersedia",
+          "given": "Satu detail: oil_temperature_top_c 50.0, middle 60.0, bottom 70.0, average_temperature_c NULL",
+          "expect": "metrics.average_temperature_c = {min:null, avg:null, max:null, reading_count:0}; ->not->toBe(60.0); sistem TIDAK menurunkan nilai apa pun dari ketiga suhu; by_tank[*].average_temperature_avg ->toBeNull()"
+        },
+        {
+          "description": "Penyebut terpisah — setiap metrik punya reading_count sendiri",
+          "given": "Tiga detail dalam periode: baris A (ffa_percent 3.0, moisture_content_percent 0.2, dobi_index NULL), baris B (ffa_percent 5.0, moisture_content_percent NULL, dobi_index NULL), baris C (ffa_percent NULL, moisture_content_percent NULL, dobi_index 2.4)",
+          "expect": "metrics.ffa_percent = {min:3.0, avg:4.0, max:5.0, reading_count:2}; metrics.moisture_content_percent = {min:0.2, avg:0.2, max:0.2, reading_count:1}; metrics.dobi_index = {min:2.4, avg:2.4, max:2.4, reading_count:1}; tidak ada satu penyebut bersama bernilai 3 untuk ketiganya"
+        },
+        {
+          "description": "NULL bukan nol — nilai null tidak menurunkan rata-rata metrik",
+          "given": "Dua detail: (moisture_content_percent 0.2) dan (moisture_content_percent NULL, ffa_percent 4.0)",
+          "expect": "metrics.moisture_content_percent.avg ->toBe(0.2) DAN ->not->toBe(0.1); reading_count ->toBe(1) DAN ->not->toBe(2); metrics.moisture_content_percent.min ->not->toBe(0.0)"
+        },
+        {
+          "description": "Sebuah metrik tidak pernah diisi sepanjang periode — tidak tersedia dengan reading_count 0, metrik lain normal",
+          "given": "Seluruh detail dalam periode punya ffa_percent terisi tetapi impurities_dirt_percent NULL di semua baris",
+          "expect": "metrics.impurities_dirt_percent = {min:null, avg:null, max:null, reading_count:0} DAN avg ->not->toBe(0) DAN ->not->toBe(0.0); metrics.ffa_percent.reading_count > 0 dan avg terisi normal"
+        },
+        {
+          "description": "Kunci metrics persis sepuluh metrik yang disepakati — tidak lebih, tidak kurang",
+          "given": "Periode berisi pembacaan lengkap semua kolom float",
+          "expect": "array_keys(metrics) persis = [ffa_percent, moisture_content_percent, impurities_dirt_percent, dobi_index, average_temperature_c, calculated_weight_mt, calculated_volume_m3, oil_temperature_top_c, oil_temperature_middle_c, oil_temperature_bottom_c]; tiap nilai punya kunci persis {min, avg, max, reading_count}"
+        },
+        {
+          "description": "Kelengkapan — baris dengan seluruh 17 kolom non-time_slot NULL tidak dihitung sebagai slot terisi",
+          "given": "Satu tangki, periode 2 hari. Tiga detail: dua baris terisi sebagian dan satu baris dengan SELURUH 17 kolom non-time_slot bernilai NULL",
+          "expect": "coverage.filled_slots ->toBe(2) DAN ->not->toBe(3); definisi 'terisi' = minimal satu dari 17 kolom non-time_slot terisi (sama dengan StorageTankRecordService)"
+        },
+        {
+          "description": "Kelengkapan — expected_slots = tank_count x days_in_period x 24",
+          "given": "Periode 2026-09-01..2026-09-05 (5 hari), dua storage_tank_id berbeda punya record dalam periode, 6 baris terisi",
+          "expect": "coverage.tank_count ->toBe(2); coverage.days_in_period ->toBe(5); coverage.slots_per_tank_per_day ->toBe(24); coverage.expected_slots ->toBe(240); coverage.filled_slots ->toBe(6); coverage.coverage_percent ->toBe(2.5)"
+        },
+        {
+          "description": "Kelengkapan sangat rendah tetap menghasilkan angka, bukan penolakan",
+          "given": "expected_slots 240 dengan filled_slots 3",
+          "expect": "coverage.coverage_percent = 1.25; stock dan metrics tetap terhitung dari 3 baris itu; tidak ada exception dan tidak ada penanda peringatan pada payload"
+        },
+        {
+          "description": "time_slot tetap TIME dan menentukan urutan dalam satu tanggal",
+          "given": "Satu tangki, satu tanggal 2026-09-04, tiga detail dengan time_slot 06:00, 18:00, 12:00 dan calculated_weight_mt 100.0, 300.0, 200.0 berturut-turut",
+          "expect": "opening_mt ->toBe(100.0) (06:00), closing_mt ->toBe(300.0) (18:00); nilai time_slot yang dikembalikan tetap berformat jam-menit (TIME), bukan datetime penuh dan bukan integer; pengurutan tidak memakai urutan penyimpanan"
+        },
+        {
+          "description": "Satu tanggal beberapa tangki — tiap tangki diurutkan dan dihitung sendiri",
+          "given": "Tanggal 2026-09-04 memuat record untuk TK-01 (06:00 = 100.0, 18:00 = 90.0) dan TK-02 (06:00 = 400.0, 18:00 = 450.0)",
+          "expect": "by_tank berisi dua entri; TK-01 movement -10.0, TK-02 movement +50.0; stock.movement_mt ->toBe(40.0); tidak ada pencampuran pembacaan antar storage_tank_id"
+        },
+        {
+          "description": "Tangki punya record tetapi tidak satu pun pembacaan stok terisi — tetap muncul dengan nilai null",
+          "given": "TK-06 punya dua detail dengan ffa_percent terisi tetapi calculated_weight_mt NULL di semua baris",
+          "expect": "by_tank memuat entri storage_tank_id 'TK-06' dengan reading_count = 2, opening_mt/closing_mt/opening_at/closing_at ->toBeNull(), movement_mt ->toBeNull(), movement_computable ->toBeFalse(); ffa_avg tetap terisi; entri TIDAK dihapus dari by_tank"
+        },
+        {
+          "description": "Rentang periode inklusif di kedua ujung (whereDate)",
+          "given": "Periode 2026-09-01..2026-09-10. Pembacaan pada 2026-08-31 23:00, 2026-09-01 00:00, 2026-09-10 23:00, 2026-09-11 00:00",
+          "expect": "hanya pembacaan 2026-09-01 dan 2026-09-10 terhitung; opening_at menunjuk 2026-09-01, closing_at menunjuk 2026-09-10; total.reading_rows ->toBe(2); pembacaan 31 Agu dan 11 Sep tidak pernah menjadi opening/closing"
+        },
+        {
+          "description": "daily[] memuat satu entri per tanggal yang punya record, dengan rata-rata per metrik",
+          "given": "Periode 3 hari; tanggal 1 dan 3 punya pembacaan, tanggal 2 tidak punya record sama sekali",
+          "expect": "daily berisi entri untuk 2026-09-01 dan 2026-09-03 dengan kunci persis {date, filled_slots, stock_total_mt, ffa_avg, moisture_avg, impurities_avg, dobi_avg, temperature_avg}; metrik yang tidak terisi pada satu tanggal bernilai null, ->not->toBe(0.0); total.days_with_records ->toBe(2)"
+        },
+        {
+          "description": "total{days_with_records, reading_rows} dihitung dari baris yang benar-benar ada",
+          "given": "Periode dengan 4 tanggal ber-record dan 17 baris detail terisi",
+          "expect": "total.days_with_records ->toBe(4); total.reading_rows ->toBe(17); keduanya tidak memakai expected_slots"
+        },
+        {
+          "description": "Periode tanpa satu pun pembacaan — seluruh angka null, bukan nol",
+          "given": "Periode sah milik mill pengguna tanpa storage_tank_record apa pun",
+          "expect": "stock.opening_mt/closing_mt/movement_mt ->toBeNull() DAN ->not->toBe(0.0); setiap metrics.* = {min:null, avg:null, max:null, reading_count:0}; by_tank ->toBe([]); daily ->toBe([]); total.days_with_records = 0, total.reading_rows = 0; coverage.filled_slots = 0 dan coverage.tank_count = 0; tidak ada exception"
+        },
+        {
+          "description": "Enum katup uap dan tiga kolom teks tidak pernah diagregasi pada summary",
+          "given": "Detail terisi steam_heating_valve_status 'open_1_2', tank_structural_condition 'baik', inspector_name 'Budi', findings 'tidak ada kebocoran'",
+          "expect": "payload summary (metrics, by_tank, daily, stock, coverage, total) tidak memuat kunci steam_heating_valve_status, tank_structural_condition, inspector_name, maupun findings dalam bentuk apa pun; json_encode(summary) tidak mengandung 'open_1_2' maupun 'Budi'"
+        },
+        {
+          "description": "Kolom enum dan teks HANYA muncul pada ekspor, satu baris per slot waktu",
+          "given": "StorageTankReportService::export(periodId, businessUnitId) atas fixture yang sama",
+          "expect": "header CSV memuat steam_heating_valve_status, tank_structural_condition, inspector_name, findings; satu baris per storage_tank_details dengan kolom konteks record (date, storage_tank_id, note, checked_by, acknowledged_by, status) diulang; time_slot tertulis sebagai jam-menit"
+        },
+        {
+          "description": "Agregasi dijalankan di PHP, bukan di SQL",
+          "given": "DB::enableQueryLog() sebelum memanggil summary()",
+          "expect": "tidak ada query pada log yang mengandung 'avg(', 'min(', 'max(', 'sum(', maupun 'group by' (case-insensitive); data ditarik sebagai baris mentah lalu diagregasi di PHP sehingga definisi 'terisi' dan urutan (date, time_slot) tetap satu sumber kebenaran"
+        },
+        {
+          "description": "Ekspor menolak eager loading — kueri belum dijalankan sebelum generator mulai",
+          "given": "export() dipanggil, tetapi callback stream BELUM dieksekusi",
+          "expect": "objek yang dikembalikan adalah StreamedResponse (atau generator) dan DB::getQueryLog() masih kosong untuk kueri baris detail; kueri baru berjalan saat callback stream dijalankan; implementasi memakai cursor()/lazy(), bukan get()"
+        },
+        {
+          "description": "Ekspor gagal saat penulisan stream — EXPORT_FAILED 422",
+          "given": "Penulisan stream melempar RuntimeException di tengah generator",
+          "expect": "service melempar/menghasilkan galat dengan http_code 422 dan error_code EXPORT_FAILED; tidak ada data stasiun yang berubah"
+        },
+        {
+          "description": "Tidak ada penandaan ambang pada payload — menurut nama kunci",
+          "given": "Periode memuat nilai ekstrem: ffa_percent 42.0 dan average_temperature_c 150.0 di antara nilai lazim",
+          "expect": "json_encode(payload) tidak mengandung (case-insensitive) 'threshold', 'outlier', 'iqr', 'fence', 'is_danger', 'is-danger', 'text-red', 'severity', maupun 'alert'; nilai ekstrem dikembalikan apa adanya sebagai min/max metrik"
+        },
+        {
+          "description": "Daftar periode hanya yang mencakup Storage Tank atau berlaku semua jenis stasiun",
+          "given": "Mill punya tiga periode: A khusus stasiun lain, B mencakup Storage Tank, C tanpa penyebutan jenis stasiun (berlaku semua)",
+          "expect": "periods() mengembalikan B dan C saja; A tidak muncul; periode berstatus tertutup tetap muncul"
+        },
+        {
+          "description": "Status periode tertutup tidak membatasi pembacaan maupun ekspor",
+          "given": "period_id berstatus tertutup milik mill pengguna",
+          "expect": "summary() mengembalikan payload penuh dengan status periode ikut dikembalikan; export() tetap berjalan; tidak ada galat 403 maupun 422"
+        },
+        {
+          "description": "Supervisor/Mill Management: business_unit_id dari klien DIABAIKAN, bukan ditolak",
+          "given": "Supervisor dengan business_unit_id 7 mengirim business_unit_id 9 pada request summary, dan period_id milik mill 7",
+          "expect": "respons 200 berisi data mill 7; tidak pernah 403 untuk kasus ini; kueri difilter dengan business_unit_id 7"
+        },
+        {
+          "description": "period_id milik mill lain → 403 FORBIDDEN",
+          "given": "Supervisor pada mill 7 mengirim period_id yang dimiliki mill 9",
+          "expect": "403 dengan error_code FORBIDDEN; tidak ada baris data mill 9 yang dibaca maupun dikembalikan"
+        },
+        {
+          "description": "Akun Supervisor/Mill Management tanpa business_unit_id → 422 dan daftar seluruh mill TIDAK PERNAH disusun",
+          "given": "Supervisor dengan business_unit_id NULL memanggil summary. Pasang spy pada repository/model BusinessUnit",
+          "expect": "422 dengan error_code VALIDATION_ERROR dan pesan mengarahkan menghubungi Admin; spy membuktikan kueri daftar seluruh mill TIDAK PERNAH dipanggil (0 kali); tidak ada payload angka yang dikembalikan"
+        },
+        {
+          "description": "Admin tanpa business_unit_id pada request → 422 VALIDATION_ERROR",
+          "given": "Admin memanggil summary tanpa parameter business_unit_id",
+          "expect": "422 dengan error_code VALIDATION_ERROR; tidak ada angka yang dihitung; Admin tidak diberi data mill mana pun secara diam-diam"
+        },
+        {
+          "description": "Operator ditolak pada seluruh empat endpoint",
+          "given": "Pengguna berperan Operator memanggil business-units/options, periods, summary, dan export",
+          "expect": "keempatnya 403 dengan error_code FORBIDDEN; tidak ada satu pun baris laporan yang dikembalikan"
+        },
+        {
+          "description": "Guard peran dijalankan SEBELUM findOrFail",
+          "given": "Operator memanggil summary dengan period_id yang tidak ada di database sama sekali",
+          "expect": "AuthorizationException (403 FORBIDDEN) dilemparkan, BUKAN ModelNotFoundException (404 NOT_FOUND); tidak ada kueri findOrFail yang dijalankan sebelum pemeriksaan peran"
+        },
+        {
+          "description": "period_id tidak ada untuk pengguna berwenang → 404 NOT_FOUND",
+          "given": "Supervisor sah memanggil summary dengan period_id yang tidak ada",
+          "expect": "404 dengan error_code NOT_FOUND"
+        },
+        {
+          "description": "Permintaan tanpa autentikasi → 401 UNAUTHENTICATED",
+          "given": "Request ke keempat endpoint tanpa token/sesi",
+          "expect": "401 dengan error_code UNAUTHENTICATED"
+        },
+        {
+          "description": "period_id wajib pada summary dan export",
+          "given": "Supervisor sah memanggil summary tanpa period_id",
+          "expect": "422 dengan error_code VALIDATION_ERROR pada field period_id"
+        },
+        {
+          "description": "Layar hanya membaca — tidak ada data stasiun yang berubah",
+          "given": "Snapshot seluruh storage_tank_records dan storage_tank_details diambil sebelum memanggil summary() dan export() berkali-kali dengan periode berbeda",
+          "expect": "snapshot setelah pemanggilan identik dengan sebelum; tidak ada INSERT/UPDATE/DELETE pada query log"
+        },
+        {
+          "description": "Happy path — seluruh kondisi terpenuhi, payload lengkap",
+          "given": "Supervisor pada mill 7 dengan period_id sah berisi dua tangki, pembacaan lengkap pada beberapa tanggal dan slot waktu",
+          "expect": "payload memuat kunci coverage{filled_slots, expected_slots, coverage_percent, tank_count, slots_per_tank_per_day, days_in_period}, stock{opening_mt, opening_at, closing_mt, closing_at, movement_mt, tanks_with_movement, tanks_without_movement}, metrics (10 metrik, tiap metrik {min, avg, max, reading_count}), by_tank[]{storage_tank_id, reading_count, opening_mt, opening_at, closing_mt, closing_at, movement_mt, movement_computable, ffa_avg, average_temperature_avg}, daily[]{date, filled_slots, stock_total_mt, ffa_avg, moisture_avg, impurities_avg, dobi_avg, temperature_avg}, total{days_with_records, reading_rows}"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "storage-tank-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "storage-tank-detail",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "station",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Tanpa Periode Pelaporan, laporan ini tidak punya apa pun untuk ditampilkan"
+    },
+    {
+      "screen_id": "screen-076--form-storage-tank",
+      "reason": "Sumber data — pembacaan per slot waktu diinput Operator lewat form mobile ini"
+    },
+    {
+      "screen_id": "screen-116--form-storage-tank-web",
+      "reason": "Sumber data versi web"
+    },
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Satu-satunya jalan masuk lewat UI. Entri REPORT_ROUTES harus ditaruh SESUAI sort_order karena LaporanStasiunTest dan LaporanBoilerRoomTest melakukan perbandingan terurut ketat"
+    }
+  ],
+  "implementation_notes": [
+    "STOK BUKAN AGREGASI — sifat yang membedakan layar ini dari empat laporan stasiun sebelumnya. Per tangki: urutkan pembacaan menurut (record.date, detail.time_slot) MENAIK, ambil yang pertama ber-calculated_weight_mt non-null sebagai opening dan yang terakhir sebagai closing. Bukan min/max, dan bukan pula urutan penyimpanan basis data yang tidak dijamin. Unit test sengaja menyisipkan baris fixture dengan urutan id ACAK sehingga implementasi yang mengambil baris ber-id terkecil ikut tertolak.",
+    "PERGERAKAN DIJUMLAHKAN PER TANGKI, bukan stock.closing_mt - stock.opening_mt. Bila jumlah tangki yang tercatat berbeda antara awal dan akhir periode, kedua cara memberi hasil berbeda dan yang gabungan mencampurkan perubahan stok dengan perubahan cakupan pencatatan. Unit test memakai fixture di mana kedua cara memang menghasilkan angka berbeda, dan menolak angka dari cara gabungan secara eksplisit.",
+    "TANGKI DENGAN SATU PEMBACAAN: movement_mt null dan movement_computable false, BUKAN 0. Nol berarti 'stok tidak berubah', klaim yang lebih kuat daripada 'tidak dapat dihitung'. Tangki itu juga tidak menyumbang ke stock.movement_mt.",
+    "SUHU RATA-RATA DARI KOLOM average_temperature_c YANG DICATAT OPERATOR, tidak dihitung ulang dari oil_temperature_top/middle/bottom. Unit test memakai fixture yang SENGAJA membuat keduanya berbeda (50/60/70 dengan rata-rata aritmetik 60, tetapi kolom tercatat 55) dan mengasersi 55 dengan not->toBe(60.0). Tanpa fixture semacam itu, implementasi yang menghitung ulang akan lolos setiap test.",
+    "PERGERAKAN NEGATIF ADALAH NILAI SAH. Jangan membulatkannya ke nol, jangan mengambil nilai absolutnya, dan jangan memberinya warna peringatan — minyak memang dikirim keluar.",
+    "STOK MEMAKAI BERAT (MT), keputusan pemilik proses 2026-09-25. Volume (m3) dan kedalaman sounding tetap dilaporkan sebagai metrik tersendiri tetapi tidak dipakai untuk stok. Ketiganya dapat terisi terpisah dan angkanya berbeda; tanpa keputusan ini ketiganya sama-sama terlihat sah.",
+    "SKALA DOBI TIDAK SEBANDING: DOBI ~2-4, FFA ~3-5 persen, kadar air ~0,1-0,3 persen. Layar WAJIB menormalkan ATAU memakai sumbu kedua, DAN menyatakannya di legenda — asersi legenda bersifat mengikat di component test maupun browser test. Menempelkan tiga skala berbeda pada satu sumbu tanpa keterangan membuat dua di antaranya terlihat datar dan seolah tidak berubah.",
+    "Enam belas kolom nullable ditambah satu enum dan tiga kolom teks. Enum steam_heating_valve_status dan ketiga kolom teks TIDAK PERNAH diagregasi menjadi min/avg/max dan hanya muncul pada ekspor.",
+    "Guard peran berjalan SEBELUM findOrFail pada authorizePeriod(), dibuktikan lewat jenis exception: AuthorizationException dan BUKAN ModelNotFoundException.",
+    "CSS memakai partial bersama report-styles.blade.php lewat <x-slot:styles> di view halaman, BUKAN @include di dalam komponen Livewire.",
+    "JANGAN mengubah .md-trendchart maupun .md-trendchart__col — diperbaiki 2026-09-24; mengembalikan min-height membuat seluruh batang rata 4px. Kosakata grafik garis md-lc* yang diperkenalkan screen-132 dipakai ulang untuk grafik tiga seri di sini.",
+    "Entri REPORT_ROUTES ditaruh sesuai station_types.sort_order. Dua berkas test membandingkannya secara terurut ketat: Feature/Api/LaporanStasiunTest dan Feature/Api/LaporanBoilerRoomTest (yang sudah diubah menjadi bentuk invarian pada 2026-09-25). Grep ulang berkas yang menyentuh REPORT_ROUTES tepat sebelum implementasi — daftar yang disusun lebih awal cepat basi.",
+    "Mock visual acuan ada di .asdlc/generated/2-business-spec/screens/html/screen-133--laporan-storage-tank-web.html."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — berhasil sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "_context": "Supervisor terautentikasi; mill diambil dari akun, tanpa parameter business_unit_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data.0.id}}",
+            "_context": "periode pertama milik mill pada akun"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step1.data.0.id}}",
+            "_context": "unduh CSV rincian pembacaan per slot waktu"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) sebagai Supervisor, set periodId ke periode milik mill akun",
+        "assert": "data-testid=mill-select TIDAK dirender; stock-opening-card, stock-closing-card, stock-movement-card, opening-at, closing-at, by-tank-table, metric-card-ffa, metric-card-moisture, metric-card-impurities, metric-card-dobi, metric-card-temperature (tiap kartu membawa reading-count sendiri), quality-trend-chart, stock-trend-chart, coverage-card, dan export-button semuanya terlihat; tidak ada data-testid aksi tulis (save/create/edit/delete)"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: login sebagai Supervisor, buka '/reports/storage-tank', pilih periode pada [data-testid=period-select], tunggu angka termuat, klik [data-testid=export-button] dan tangkap unduhan",
+        "assert": "kartu stok awal/akhir/pergerakan tampil beserta tanggal pembacaannya, tabel per tangki terisi, lima kartu metrik tampil dengan jumlah pembacaan masing-masing, grafik tren mutu dan stok terlihat, kartu kelengkapan terlihat, berkas CSV terunduh; tidak ada tombol simpan/ubah/hapus pada halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — berhasil sebagai Admin",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Admin terautentikasi memuat pilihan mill"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}",
+            "period_id": "{{step2.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/export"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}",
+            "period_id": "{{step2.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) sebagai Admin, set businessUnitId lalu periodId",
+        "assert": "data-testid=mill-select dirender; setelah mill dan periode dipilih, isi layar identik dengan peran lain — stock-opening-card, stock-closing-card, stock-movement-card, by-tank-table, lima metric-card, quality-trend-chart, stock-trend-chart, coverage-card, export-button semua ada"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: login sebagai Admin, buka '/reports/storage-tank', pilih mill pada [data-testid=mill-select], pilih periode, unduh CSV",
+        "assert": "seluruh blok angka tampil sama seperti peran lain dan berkas CSV terunduh; tidak ada aksi tulis pada halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 12,
+            "_context": "Admin tanpa business_unit_id"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) sebagai Admin tanpa menetapkan businessUnitId",
+        "assert": "data-testid=mill-select terlihat dan data-testid=mill-select-hint memuat arahan memilih mill; stock-opening-card, by-tank-table, metric-card-*, quality-trend-chart tidak dirender sama sekali"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: login sebagai Admin, buka '/reports/storage-tank', jangan pilih mill apa pun",
+        "assert": "arahan memilih mill terlihat; tidak ada kartu angka maupun grafik yang tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — mill belum punya periode",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "_context": "mill aktif tidak punya periode yang mencakup Storage Tank"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) untuk mill tanpa periode Storage Tank",
+        "assert": "data-testid=period-select kosong (tanpa opsi) dan data-testid=no-period-hint memuat arahan menghubungi Admin; tidak ada kartu angka maupun grafik yang dirender"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: login sebagai Supervisor pada mill tanpa periode Storage Tank, buka '/reports/storage-tank'",
+        "assert": "pemilih periode kosong, arahan menghubungi Admin terlihat, tidak ada angka yang tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — periode tanpa data",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 31,
+            "_context": "periode sah tanpa satu pun storage_tank_record"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan periodId yang tidak memuat pembacaan",
+        "assert": "data-testid=empty-state terlihat dengan keterangan belum ada data; stock-opening-card/closing/movement dan metric-card-* menampilkan teks tidak tersedia, bukan angka 0; quality-trend-chart dan stock-trend-chart tidak dirender sebagai grafik kosong"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode yang tidak memuat satu pun pembacaan Storage Tank",
+        "assert": "keterangan belum ada data terlihat; tidak ada teks '0' maupun '0,00' pada kartu stok dan metrik; tidak ada kanvas grafik kosong"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — tangki hanya punya satu pembacaan stok",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 32,
+            "_context": "TK-03 hanya punya satu pembacaan ber-calculated_weight_mt 500.0 pada 10 Sep 12:00; TK-01 punya dua pembacaan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan periode yang memuat tangki berpembacaan tunggal",
+        "assert": "data-testid=by-tank-row-TK-03 menampilkan stok awal dan akhir dengan angka yang sama beserta waktu yang sama, kolom pergerakan berisi teks tidak dapat dihitung; teks '0' maupun '0,00' TIDAK muncul pada sel pergerakan baris itu; stock-movement-card tidak memasukkan 500,0"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode yang memuat tangki dengan satu pembacaan stok, baca baris tangki itu pada tabel per tangki",
+        "assert": "sel pergerakan tangki itu berbunyi tidak dapat dihitung dan bukan nol; stok awal dan akhirnya menunjuk waktu pembacaan yang sama"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — pembacaan paling awal tidak mencatat stok",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 33,
+            "_context": "TK-04: 01 Sep 06:00 calculated_weight_mt null (ffa terisi), 03 Sep 12:00 150.0, 09 Sep 18:00 140.0"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan periode yang pembacaan paling awal tangkinya kosong pada kolom stok",
+        "assert": "data-testid=by-tank-row-TK-04 menampilkan stok awal 150,0 dengan data-testid=opening-at menunjuk 03 Sep 12:00, bukan tanggal awal periode; selisih terhadap awal periode terbaca pada baris itu"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode tersebut dan baca kartu stok awal serta baris tangki TK-04",
+        "assert": "angka stok awal disertai tanggal pembacaan yang sebenarnya (03 Sep), bukan tanggal awal periode, sehingga selisih waktunya terbaca"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — tangki tanpa satu pun pembacaan stok",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 34,
+            "_context": "TK-06 punya record dan detail dengan ffa terisi tetapi calculated_weight_mt null di semua baris"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan periode yang memuat TK-06 tanpa pembacaan stok",
+        "assert": "data-testid=by-tank-row-TK-06 tetap dirender; sel stok awal, stok akhir, dan pergerakannya berisi teks tidak tersedia; jumlah pembacaannya tetap tampil lebih dari nol"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode tersebut dan telusuri tabel per tangki",
+        "assert": "baris TK-06 terlihat pada tabel dengan stok dan pergerakan tidak tersedia — baris itu tidak hilang dari rekap"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — jumlah tangki berbeda antara awal dan akhir periode",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 35,
+            "_context": "TK-01 punya pembacaan di awal dan akhir (100.0 -> 90.0); TK-02 HANYA di akhir periode (09 Sep 400.0, 10 Sep 420.0). Per tangki = +10,0; gabungan = +410,0"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan periode di mana jumlah tangki berbeda antara awal dan akhir",
+        "assert": "data-testid=stock-movement-card menampilkan +10,0 dan TIDAK menampilkan 410,0; jumlah nilai pada kolom pergerakan by-tank-table sama dengan angka pada kartu; baris TK-02 menyatakan tangki hanya tercatat di akhir periode"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode tersebut, baca kartu pergerakan bersih lalu jumlahkan kolom pergerakan pada tabel per tangki",
+        "assert": "kartu pergerakan bersih sama dengan jumlah pergerakan per tangki dan tidak sama dengan selisih stok gabungan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — pergerakan bernilai negatif",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 36,
+            "_context": "TK-05: opening 500.0 (02 Sep 06:00), closing 320.0 (08 Sep 18:00)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan periode berpergerakan negatif",
+        "assert": "data-testid=stock-movement-card memuat -180,0 apa adanya; tidak ada teks 180,0 tanpa tanda minus dan tidak ada 0; kartu tidak membawa kelas peringatan apa pun"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode di mana stok akhir lebih kecil daripada stok awal",
+        "assert": "pergerakan tampil bertanda negatif tanpa ikon atau warna peringatan, dan tidak dibulatkan ke nol"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — sebuah metrik mutu tidak pernah diisi",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 37,
+            "_context": "impurities_dirt_percent NULL di seluruh baris, ffa_percent terisi"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan periode yang satu metriknya tidak pernah diisi",
+        "assert": "data-testid=metric-card-impurities menampilkan tidak tersedia dengan jumlah pembacaan 0 dan bukan angka 0,00; metric-card-ffa tetap menampilkan min/rata-rata/maks beserta jumlah pembacaannya sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode tersebut dan bandingkan kartu kotoran dengan kartu FFA",
+        "assert": "kartu kotoran berbunyi tidak tersedia dengan 0 pembacaan sementara kartu FFA tampil normal"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — kolom suhu rata-rata kosong",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 38,
+            "_context": "oil_temperature_top/middle/bottom terisi 50/60/70 tetapi average_temperature_c NULL"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan periode yang kolom suhu rata-ratanya kosong",
+        "assert": "data-testid=metric-card-temperature menampilkan tidak tersedia dengan jumlah pembacaan 0; teks '60' maupun '60,0' TIDAK muncul pada kartu itu — layar tidak menghitung sendiri dari suhu atas/tengah/bawah"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode tersebut dan baca kartu suhu rata-rata",
+        "assert": "kartu suhu rata-rata berbunyi tidak tersedia dan tidak menampilkan nilai hasil hitung ulang"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — pencatatan sangat tidak lengkap",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 39,
+            "_context": "filled_slots 3 dari expected_slots 240 (2 tangki x 5 hari x 24 slot)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan periode berkelengkapan sangat rendah",
+        "assert": "data-testid=coverage-card menampilkan 3 dari 240 beserta persentasenya dan berada pada blok utama laporan (bukan catatan kaki); kartu angka utama tetap dirender dengan nilainya"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode yang hanya sebagian kecil slot waktunya terisi",
+        "assert": "kartu kelengkapan terlihat tanpa perlu menggulir ke bawah halaman dan angka utama tetap tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 12,
+            "_context": "Supervisor dengan business_unit_id NULL pada akunnya"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) sebagai Supervisor yang business_unit_id akunnya kosong",
+        "assert": "pesan menghubungi Admin terlihat pada data-testid=no-mill-hint; data-testid=mill-select TIDAK dirender (daftar seluruh mill tidak ditawarkan); tidak ada kartu angka maupun grafik"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: login sebagai Supervisor tanpa mill pada akunnya, buka '/reports/storage-tank'",
+        "assert": "pesan menghubungi Admin terlihat, tidak ada dropdown daftar mill, tidak ada angka yang tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — mencoba melihat mill lain",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": 9,
+            "period_id": 12,
+            "_context": "Supervisor pada mill 7 mengirim business_unit_id mill lain; nilai itu diabaikan"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 91,
+            "_context": "period_id milik mill 9"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) sebagai Supervisor mill 7, coba set properti businessUnitId ke 9 lalu set periodId milik mill 9",
+        "assert": "angka yang dirender tetap milik mill 7 dan nama mill pada header tidak berubah; menetapkan periode milik mill lain memunculkan penolakan akses, bukan data mill 9"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: sebagai Supervisor mill 7, buka '/reports/storage-tank?business_unit_id=9' lalu coba membuka periode milik mill 9",
+        "assert": "halaman tetap menampilkan mill pada akun pengguna; periode milik mill lain tidak dapat dibuka dan tidak ada data mill 9 yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — Operator mencoba membuka layar web ini",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Operator terautentikasi"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "_context": "Operator terautentikasi"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 999999,
+            "_context": "period_id sengaja tidak ada — guard peran harus jalan SEBELUM findOrFail sehingga hasilnya 403, bukan 404"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/export"
+          },
+          "request_example": {
+            "period_id": 12,
+            "_context": "Operator terautentikasi"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) sebagai Operator",
+        "assert": "komponen menolak dirender dengan AuthorizationException; tidak ada data-testid laporan apa pun yang dihasilkan"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: login sebagai Station Operator lalu buka '/reports/storage-tank'",
+        "assert": "akses ditolak (halaman 403 atau pengalihan) dan tidak ada satu pun angka laporan yang terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — periode tertutup",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 40,
+            "_context": "periode berstatus tertutup milik mill pengguna"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/export"
+          },
+          "request_example": {
+            "period_id": 40
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan periodId berstatus tertutup",
+        "assert": "data-testid=period-status-badge menampilkan status tertutup; seluruh kartu angka, tabel per tangki, dan grafik tetap dirender; data-testid=export-button tidak dinonaktifkan"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode berstatus tertutup lalu klik ekspor",
+        "assert": "laporan tampil penuh, penanda status tertutup terlihat, dan berkas CSV tetap terunduh"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — rekap harian panjang",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 41,
+            "_context": "periode panjang sehingga daily[] berisi puluhan entri"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan periode panjang lalu panggil aksi toggle rekap harian",
+        "assert": "data-testid=daily-toggle ada; saat tertutup data-testid=daily-table tidak terlihat sementara stock-opening-card, stock-movement-card, quality-trend-chart, dan stock-trend-chart tetap terlihat; saat dibuka daily-table memuat satu baris per tanggal ber-record"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode panjang, klik [data-testid=daily-toggle] untuk menutup rekap harian",
+        "assert": "tabel harian tersembunyi dan angka utama beserta grafik tetap terbaca di layar pertama tanpa gulir panjang; klik ulang menampilkannya kembali"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — stok awal adalah pembacaan pertama dan stok akhir adalah pembacaan terakhir",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 42,
+            "_context": "TK-01: 100,0 @01 Sep 06:00, 250,0 @05 Sep 12:00, 80,0 @10 Sep 18:00 — disisipkan dengan urutan penyimpanan acak (250,0 ber-id terkecil). Tambahan TK-02: 120,0 @01 Sep 18:00 dan 90,0 @02 Sep 06:00 untuk mengunci urutan lintas tanggal"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan fixture nilai naik-turun dan urutan penyimpanan berbeda dari urutan waktu",
+        "assert": "data-testid=stock-opening-card memuat 100,0 (bukan 80,0, bukan 250,0) dengan opening-at 01 Sep 06:00; stock-closing-card memuat 80,0 (bukan 250,0) dengan closing-at 10 Sep 18:00; baris TK-02 menunjukkan stok awal 120,0 dari 01 Sep 18:00, bukan 90,0 dari 02 Sep 06:00"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode tersebut dan baca kartu stok awal, stok akhir, beserta tanggal pembacaannya",
+        "assert": "stok awal 100,0 @01 Sep 06:00 dan stok akhir 80,0 @10 Sep 18:00 terlihat; angka 250,0 tidak pernah muncul sebagai stok awal maupun akhir"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — pergerakan dihitung per tangki lalu dijumlahkan",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 43,
+            "_context": "TK-01 -10,0; TK-02 hanya tercatat di akhir periode dengan +20,0. Per tangki = +10,0; gabungan = +410,0"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan beberapa tangki berpergerakan berbeda",
+        "assert": "nilai pada data-testid=stock-movement-card persis sama dengan jumlah kolom pergerakan seluruh baris by-tank-table yang dapat dihitung (+10,0); teks 410,0 tidak muncul di mana pun pada halaman"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode tersebut, baca kartu pergerakan bersih, lalu bandingkan dengan jumlah kolom pergerakan pada tabel per tangki",
+        "assert": "kedua angka identik; angka dari cara stok gabungan tidak muncul di halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — suhu rata-rata diambil dari kolom yang dicatat Operator",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 44,
+            "_context": "satu baris dengan oil_temperature_top/middle/bottom = 50/60/70 (rata-rata aritmetik 60) tetapi average_temperature_c = 55"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan fixture suhu 50/60/70 dan average_temperature_c 55",
+        "assert": "data-testid=metric-card-temperature menampilkan 55,0 beserta jumlah pembacaannya; teks '60,0' TIDAK muncul pada kartu itu; angka pada layar sama dengan yang dilihat Operator di layar input"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode tersebut dan baca kartu suhu rata-rata",
+        "assert": "kartu menampilkan 55,0 dan bukan 60,0 — laporan tidak menghitung ulang dari suhu atas, tengah, dan bawah"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — setiap metrik punya penyebutnya sendiri",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 45,
+            "_context": "baris A (ffa 3.0, moisture 0.2), baris B (ffa 5.0), baris C (dobi 2.4) — kelengkapan berbeda antar metrik"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan kelengkapan pengisian berbeda antar metrik",
+        "assert": "metric-card-ffa menunjukkan jumlah pembacaan 2 dengan rata-rata 4,0; metric-card-moisture jumlah pembacaan 1 dengan rata-rata 0,2 (bukan 0,07); metric-card-dobi jumlah pembacaan 1; tidak ada satu angka penyebut bersama yang dipakai semua kartu"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode tersebut dan bandingkan jumlah pembacaan pada kelima kartu metrik",
+        "assert": "jumlah pembacaan berbeda-beda antar kartu sesuai pengisiannya masing-masing"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — rentang periode inklusif di kedua ujung",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 46,
+            "_context": "pembacaan tepat pada start_date dan end_date, ditambah pembacaan H-1 dan H+1 yang tidak boleh ikut"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/export"
+          },
+          "request_example": {
+            "period_id": 46
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan pembacaan tepat pada kedua tanggal ujung periode",
+        "assert": "data-testid=daily-table memuat baris untuk tanggal awal dan tanggal akhir periode; opening-at menunjuk tanggal awal dan closing-at menunjuk tanggal akhir; tanggal di luar periode tidak muncul pada rekap harian"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode tersebut, buka rekap harian, lalu unduh CSV dan baca isinya",
+        "assert": "rekap harian memuat kedua tanggal ujung, stok awal/akhir diambil dari pembacaan pada kedua ujung, dan CSV memuat slot waktu pada kedua tanggal itu"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — FFA, kadar air, dan DOBI pada satu grafik",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 47,
+            "_context": "daily[] memuat ffa_avg ~3-5, moisture_avg ~0,1-0,3, dan dobi_avg ~2-4 per tanggal — tiga rentang yang tidak sebanding pada satu sumbu linear"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan daily[] yang memuat ffa_avg, moisture_avg, dan dobi_avg berskala jauh berbeda",
+        "assert": "hanya SATU data-testid=quality-trend-chart yang dirender memuat ketiga seri (bukan tiga grafik terpisah); konfigurasi grafik membuktikan penanganan skala — seri dinormalkan ATAU memakai sumbu kedua untuk kadar air; data-testid=quality-trend-legend menyatakan perlakuan itu secara eksplisit (mis. 'dinormalkan' atau 'kadar air pada sumbu kanan') sehingga tiga skala tidak ditempel tanpa keterangan"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode tersebut dan amati grafik tren mutu harian beserta legendanya",
+        "assert": "satu grafik memuat FFA, kadar air, dan DOBI bersamaan; legenda menyatakan normalisasi atau sumbu kedua; tidak ada seri yang tergambar rata di garis nol akibat perbedaan skala"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — tidak ada penandaan nilai di luar batas",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 48,
+            "_context": "periode memuat ffa_percent 42.0 dan average_temperature_c 150.0 di antara nilai lazim"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) dengan periode bernilai ekstrem, lalu bandingkan atribut class kartu bernilai ekstrem terhadap kartu bernilai lazim",
+        "assert": "HTML yang dirender tidak mengandung (case-insensitive) 'threshold', 'outlier', 'iqr', 'fence', 'is-danger', 'text-red', 'severity', maupun 'alert'; atribut class pada data-testid=metric-card-ffa (nilai ekstrem) IDENTIK dengan class pada data-testid=metric-card-dobi (nilai lazim); tidak ada ikon peringatan di sel mana pun"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: pilih periode bernilai ekstrem, ambil atribut class kartu metrik ekstrem dan kartu metrik biasa, lalu bandingkan",
+        "assert": "kedua kartu membawa atribut class yang sama; tidak ada elemen bernama/berkelas threshold, outlier, iqr, fence, is-danger, text-red, severity, atau alert; nilai ekstrem tampil apa adanya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — layar hanya membaca",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 12,
+            "_context": "snapshot storage_tank_records dan storage_tank_details diambil sebelum langkah ini"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": 13,
+            "_context": "berganti periode"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/export"
+          },
+          "request_example": {
+            "period_id": 13,
+            "_context": "setelah langkah ini, snapshot dibandingkan — harus identik; seluruh rute prefix /api/storage-tank-reports hanya menerima metode GET"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class): ganti periodId dua kali, panggil toggle rekap harian, lalu panggil aksi ekspor",
+        "assert": "komponen tidak mengekspos method publik yang menulis (save/store/update/delete/destroy); HTML tidak memuat data-testid aksi tulis; jumlah baris storage_tank_records dan storage_tank_details tidak berubah setelah seluruh interaksi"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: telusuri seluruh bagian halaman, ganti periode, buka dan tutup rekap harian, lalu jalankan ekspor CSV",
+        "assert": "tidak ada tombol tambah, ubah, hapus, atau simpan di seluruh halaman; verifikasi pasca-uji menunjukkan tidak ada satu pun data stasiun yang berubah"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Web) — daftar periode hanya yang mencakup Storage Tank",
+      "usecase_id": "usecase-133--laporan-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "_context": "mill punya periode A khusus stasiun lain, B mencakup Storage Tank, dan C tanpa penyebutan jenis stasiun"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTank",
+        "action": "Livewire::test(LaporanStorageTank::class) untuk mill dengan campuran periode",
+        "assert": "opsi pada data-testid=period-select memuat periode B dan C saja; periode A (khusus stasiun lain) tidak ada di antara opsi"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "Playwright: buka '/reports/storage-tank' lalu buka daftar opsi pada pemilih periode",
+        "assert": "hanya periode yang mencakup Storage Tank dan yang berlaku untuk semua jenis stasiun yang muncul; periode khusus stasiun lain tidak muncul"
+      }
+    }
+  ]
+}

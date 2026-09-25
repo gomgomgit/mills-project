@@ -102,34 +102,49 @@ use Throwable;
  * CROSS-MILL SECURITY IS CLOSED AT TWO DIFFERENT POINTS, on purpose
  * ------------------------------------------------------------------
  *   1. resolveBusinessUnit() IGNORES the client's business_unit_id for
- *      Supervisor / Mill Management — not validated, not compared,
- *      discarded. Probing another mill's id returns 200 with the CALLER'S
- *      OWN data, deliberately not a 403: a 403 would confirm the other mill
- *      exists, and there is no access attempt to refuse because the
- *      parameter is never used for those roles.
+ *      Supervisor / Mill Management / Operator — not validated, not
+ *      compared, discarded. Probing another mill's id returns 200 with the
+ *      CALLER'S OWN data, deliberately not a 403: a 403 would confirm the
+ *      other mill exists, and there is no access attempt to refuse because
+ *      the parameter is never used for those roles.
  *   2. authorizePeriod() REFUSES a period belonging to another mill with
  *      403. Here there IS a concrete handle on another mill's data, so it
  *      is refused outright rather than silently rewritten.
  * Folding these two into one uniform 403 is the mistake this class exists
  * to avoid.
  *
- * A Supervisor / Mill Management account whose users.business_unit_id is
- * NULL FAILS CLOSED with 422 and the whole-mill list is never even read —
- * see allBusinessUnits(), which is public and trivial precisely so a spy
- * can prove it was never called.
+ * A mill-bound account whose users.business_unit_id is NULL FAILS CLOSED
+ * with 422 and the whole-mill list is never even read — see
+ * allBusinessUnits(), which is public and trivial precisely so a spy can
+ * prove it was never called. That applies to Operator too.
  *
- * OPERATOR IS REFUSED ON EVERY PATH, and that is a DIFFERENCE from
- * CagesTrackReportService, not an oversight. Cages & Tracks widened to
- * Operator on 2026-09-24 because screen-136 (its mobile report) exists.
- * The mobile Boiler Room report is screen-137 and has not been built, so
- * there is no caller to widen for: routes/api.php carries
- * 'role:supervisor,mill_management,admin' WITHOUT operator, and
- * guardAccess() below refuses Operator two layers deeper. Widening one
- * without the other is the bug that hit screen-129/135; widening either
- * without also adding Operator to the MILL-BOUND branch of
- * resolveBusinessUnit() would be worse — it would drop Operator into the
- * unbound Admin branch, where a client-supplied business_unit_id IS
- * honoured.
+ * OPERATOR IS ACCEPTED SINCE 2026-09-25 (screen-137 — the mobile Boiler
+ * Room report), mirroring the widening CagesTrackReportService received on
+ * 2026-09-24 for screen-136 and SterilizerReportService on 2026-09-23 for
+ * screen-135. Operator is treated exactly like Supervisor / Mill
+ * Management: MILL-BOUND. Three sites changed in the same breath, and
+ * skipping any one of them opens a hole:
+ *   a. routes/api.php — the four /api/boiler-room-reports routes gained
+ *      `operator` in the role list (the `sanctum` guard, which mobile needs
+ *      because it carries a token rather than a session cookie, was already
+ *      there);
+ *   b. guardAccess() below — Operator added to the accepted-role list;
+ *   c. resolveBusinessUnit() below — Operator added to the MILL-BOUND
+ *      branch. Doing (b) WITHOUT (c) would have dropped Operator into the
+ *      unbound Admin branch, where a client-supplied business_unit_id is
+ *      honoured — i.e. an Operator could have read any mill's report. That
+ *      is the single most important line of this widening.
+ * authorizePeriod() needed NO change: only Admin is treated as unbound
+ * there, so Operator was closed out of other mills' periods the moment it
+ * stopped being Admin-like.
+ * businessUnitOptions() needed NO change either: it stays ADMIN ONLY, so
+ * Operator still gets 403 there.
+ *
+ * THE WIDENING STOPS AT THE API. The WEB route /reports/boiler-room and
+ * App\Livewire\Dashboard\LaporanBoilerRoom::canAccess() deliberately stay
+ * without Operator, which has no web UI at all — canAccess() keeps its own
+ * role list precisely so that this service can widen without dragging the
+ * web page along.
  */
 class BoilerRoomReportService
 {
@@ -238,20 +253,24 @@ class BoilerRoomReportService
     /**
      * business_logic step 1 — which mill the caller is allowed to look at.
      *
-     * Supervisor / Mill Management: ALWAYS their own business_unit_id; the
-     * `business_unit_id` argument is ignored outright, so probing another
-     * mill's id is a no-op that still returns the caller's own data with
-     * HTTP 200.
+     * Supervisor / Mill Management / Operator: ALWAYS their own
+     * business_unit_id; the `business_unit_id` argument is ignored
+     * outright, so probing another mill's id is a no-op that still returns
+     * the caller's own data with HTTP 200.
      *
      * Admin: the value MUST come from the caller. Missing is 422
      * VALIDATION_ERROR with errors.business_unit_id — never a silent null
      * and never an empty result set, which would read as "this mill has no
      * data".
      *
-     * Operator: never reaches this method at all — guardAccess() refuses it
-     * first with 403. This report has no mobile counterpart yet (screen-137
-     * is not built), so unlike CagesTrackReportService there is nothing to
-     * widen for.
+     * OPERATOR BELONGS IN THE MILL-BOUND BRANCH, and that placement is the
+     * single most important line of the screen-137 widening (2026-09-25).
+     * Admitting Operator in guardAccess() ALONE would let it fall through
+     * to the Admin branch below, where the client's business_unit_id IS
+     * honoured: an Operator could then read any mill's report — a
+     * cross-mill leak, not a display defect. The 422 fail-closed inside the
+     * bound branch applies to Operator too: an account with no mill gets
+     * "Hubungi Admin", never the whole-mill list.
      *
      * @throws AuthenticationException 401 UNAUTHENTICATED
      * @throws AuthorizationException 403 FORBIDDEN
@@ -261,7 +280,9 @@ class BoilerRoomReportService
     {
         $role = $this->guardAccess();
 
-        if ($role === UserRole::Supervisor->value || $role === UserRole::MillManagement->value) {
+        if ($role === UserRole::Supervisor->value
+            || $role === UserRole::MillManagement->value
+            || $role === UserRole::Operator->value) {
             // Client-supplied business_unit_id is deliberately DISCARDED —
             // not validated, not compared, discarded.
             $businessUnitId = (string) (auth()->user()->business_unit_id ?? '');
@@ -281,8 +302,8 @@ class BoilerRoomReportService
         }
 
         // Admin — the only role not bound to one mill, and the only role
-        // that can reach this point: guardAccess() admits exactly three
-        // roles and the other two are handled above.
+        // that can reach this point: guardAccess() admits exactly four
+        // roles and the other three are handled above.
         if ($requestedBusinessUnitId === null || $requestedBusinessUnitId === '') {
             // Incomplete input, not refused access — 422, never 403.
             throw ValidationException::withMessages([
@@ -294,9 +315,12 @@ class BoilerRoomReportService
     }
 
     /**
-     * Mill picker options — ADMIN ONLY. Supervisor and Mill Management are
-     * bound to a single mill and have no picker at all, so asking for this
-     * list is a 403 rather than a filtered list of one.
+     * Mill picker options — ADMIN ONLY. Supervisor, Mill Management and
+     * Operator are bound to a single mill and have no picker at all, so
+     * asking for this list is a 403 rather than a filtered list of one.
+     * UNCHANGED by the screen-137 widening: Operator is admitted to the
+     * prefix but still refused here, and the mobile view must therefore not
+     * call this endpoint for a non-Admin.
      *
      * An empty master is a valid answer: [] with HTTP 200, never a 404.
      *
@@ -1053,11 +1077,21 @@ class BoilerRoomReportService
      * is why widening a role here and widening routes/api.php are always one
      * change, never two — the lesson from screen-129/135.
      *
-     * OPERATOR IS NOT ADMITTED, unlike CagesTrackReportService. The mobile
-     * Boiler Room report (screen-137) does not exist, so there is no caller
-     * to widen for; admitting Operator here without also adding it to the
-     * mill-bound branch of resolveBusinessUnit() would let it pass its own
-     * business_unit_id and read any mill's report.
+     * OPERATOR IS ADMITTED SINCE 2026-09-25 (screen-137 — the mobile Boiler
+     * Room report), mirroring the widenings CagesTrackReportService and
+     * SterilizerReportService received for screen-136 and screen-135.
+     * Operator is treated exactly like Supervisor / Mill Management:
+     * MILL-BOUND. Admitting it HERE without also adding it to the
+     * mill-bound branch of resolveBusinessUnit() would drop it into the
+     * unbound Admin branch, where a client-supplied business_unit_id IS
+     * honoured — an Operator could then read any mill's report. The two
+     * lines are one change, never two.
+     *
+     * THE WIDENING STOPS AT THE API. The WEB route /reports/boiler-room and
+     * App\Livewire\Dashboard\LaporanBoilerRoom::canAccess() deliberately
+     * stay without Operator, which has no web UI at all — canAccess() keeps
+     * its own role list precisely so that this service can widen without
+     * dragging the web page along.
      *
      * @return string the caller's role
      *
@@ -1078,6 +1112,7 @@ class BoilerRoomReportService
             UserRole::Supervisor->value,
             UserRole::MillManagement->value,
             UserRole::Admin->value,
+            UserRole::Operator->value,
         ], true)) {
             throw new AuthorizationException('Anda tidak memiliki akses untuk aksi ini.');
         }

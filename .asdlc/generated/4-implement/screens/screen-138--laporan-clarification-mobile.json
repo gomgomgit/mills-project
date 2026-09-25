@@ -1,0 +1,99 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-25"
+  },
+  "id": "screen-138--laporan-clarification-mobile",
+  "name": "Laporan Clarification (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-25T08:40:00Z",
+      "passed": 26,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-25T08:40:00Z",
+      "passed": 186,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-25T08:40:00Z",
+      "passed": 31,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-25T08:40:00Z",
+      "passed": 29,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/routes/api.php",
+    "backend/app/Services/ClarificationReportService.php"
+  ],
+  "fe_files_generated": [
+    "mobile/src/services/clarificationReportRepo.ts",
+    "mobile/src/views/LaporanClarificationView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/ClarificationReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanClarificationTest.php",
+    "mobile/tests/e2e/laporan-clarification.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/clarificationReportRepo.spec.ts",
+    "mobile/tests/LaporanClarificationView.spec.ts"
+  ],
+  "implementation_notes": [
+    "TIGA perubahan akses Operator, bukan empat — grup rute clarification-reports SUDAH memakai guard auth:web,sanctum sebelum run ini, jadi hanya daftar perannya yang perlu ditambah. Diverifikasi ulang di kode setelah implementasi, bukan dari ingatan: api.php:1103 role:supervisor,mill_management,admin,operator; guardAccess() memuat UserRole::Operator->value; resolveBusinessUnit():296-298 berbunyi Supervisor || MillManagement || Operator.",
+    "Operator ditambahkan ke cabang TERIKAT MILL pada resolveBusinessUnit(), bukan hanya ke guardAccess(). Melebarkan guardAccess() saja akan menjatuhkan Operator ke cabang Admin di bawahnya, tempat business_unit_id kiriman klien DIHORMATI — itu kebocoran lintas mill. Pemeriksaan gagal-tertutup 422 di dalam cabang terikat-mill tetap utuh dan kini juga melindungi Operator, diuji terpisah.",
+    "authorizePeriod() dan businessUnitOptions() tidak disentuh. businessUnitOptions() tetap 403 bagi Operator dan kini DIPERKUAT: karena middleware rute sudah menerima operator, penolakan datang dari service sehingga membawa code = FORBIDDEN, bukan sekadar status. Preseden 135/136/137 dipertahankan.",
+    "SPEC_MISMATCH kejadian KEEMPAT dari pertanyaan identik (135 Sterilizer, 136 Cages&Tracks, 137 Boiler Room mendahului). Diterapkan sebagai penerapan keputusan user yang sudah ada, bukan keputusan baru, sehingga tidak memicu pause.",
+    "ClarificationReportServiceTest case 37 ditulis ulang dan DIPERKUAT, bukan dibalik: intinya bukan 'Operator diterima' melainkan 'diterima TAPI terkunci pada millnya'. resolveBusinessUnit(id BU-B) untuk Operator mengembalikan BU-A dengan asersi not->toBe(BU-B) eksplisit; businessUnitOptions() TETAP 403 (asersi lama utuh); periode mill lain tetap 403; dan semangat asersi 'reads no rows' yang lama dipertahankan lewat DB::listen — setiap query clarification_records punya binding berisi BU-A dan tidak berisi BU-B, dengan daftar query dipastikan tidak kosong agar asersinya tidak hampa.",
+    "ClarificationReportServiceTest case 38 ('guard BEFORE findOrFail') TIDAK punya padanan di layar 135/136/137, jadi tidak ada preseden langsung; keputusannya ditulis di komentar test. Maksud asli test itu adalah TIDAK ADA ORAKEL KEBERADAAN bagi pemanggil yang ditolak. Setelah pelebaran, Operator bukan lagi pemanggil yang ditolak, sehingga 404 atas periode yang memang tidak ada tidak membocorkan apa pun. Yang masih berarti adalah orakel LINTAS MILL, jadi test di-re-ekspresikan menjadi: periode milik mill lain melempar AuthorizationException DAN not->toThrow(ModelNotFoundException) pada authorizePeriod/buildSummary/buildExportRows; ditutup satu asersi bahwa uuid tak dikenal kini 404 bagi Operator, sebagai dokumentasi perubahan yang disengaja.",
+    "LaporanClarificationTest Scenario 14 mengasersi ISI, bukan status code: Operator mengirim business_unit_id Mill Beta bersama period_id Mill Alpha menerima 200 berisi business_unit.name Mill Alpha, by_unit CLF-ALPHA, production.total_ton 20.0 (bukan 920.0), dua nilai metrik milik Alpha, dan json_encode respons tidak memuat 'Mill Beta'. CSV memuat CLF-ALPHA dan bukan CLF-BETA. Tanpa asersi isi, kebocoran cabang Admin juga menjawab 200 dan akan lolos diam-diam.",
+    "PENJAGA WEB HIJAU TANPA DIUBAH: e2e-web/tests/laporan-clarification.spec.ts 'operator: akses laporan WEB ditolak' lolos dan berkasnya tidak tersentuh sama sekali (git status bersih atas berkas itu). Pelebaran akses terbukti berhenti di API; rute web tidak ikut terbuka. Satu test.skip di baris 1038 adalah pra-ada, bukan tambahan run ini.",
+    "Bentuk galat DATAR: interface ErrorLike hanya {status?, message?}, TANPA response, karena apiClient.normalizeError membuangnya. Dikunci dua arah — repo spec menuntut Object.keys terurut tepat ['message','status'] dan not.toHaveProperty('response'); component spec memberi bentuk SALAH {message, response:{status:401}} lalu menuntut TIDAK ada perpindahan ke Login. screen-136 masih memakai candidate?.response?.status; pola itu sengaja tidak ditiru.",
+    "Jumlah kartu metrik: 7, SAMA PERSIS dengan layar web screen-133 dalam label maupun urutan. pure_oil_production_rate_ton_hour dan downtime_mins yang juga muncul di metrics sengaja tidak dirender dua kali karena sudah punya kartunya sendiri — merendernya ulang membuat satu angka terbaca sebagai dua temuan. Ini menghindari known_issue screen-137 (9 kartu ponsel vs 5 web).",
+    "Grafik suhu tiga tangki memakai SKALA BERSAMA, bukan skala per seri. Dengan skala per seri, tiga tangki yang berselisih 10 derajat tergambar sama tinggi dan selisih — satu-satunya hal yang dibaca dari grafik ini — hilang. Satu elemen tank-temperature-chart, tiga seri bergerombol per tanggal, dibedakan warna DAN pola garis, legenda menamai ketiganya.",
+    "Sesi berakhir memakai router.replace, bukan push seperti tertulis di tech spec — mengikuti preseden 135/136/137: layar yang sesinya mati tidak boleh dicapai kembali dengan tombol Back. Penyimpangan ditulis di docblock berkas test, dan test mengasersi replace dipanggil DAN push tidak.",
+    "Fixture unit test sengaja tidak konsisten secara aritmetika agar test 'nol aritmetika di repo' benar-benar membuktikan sesuatu: production.total_ton 128,5 tidak sama dengan jumlah daily.production_ton (66,0); metrics.pure_oil_production_rate_ton_hour.max 14,8 LEBIH KECIL daripada daily[0].rate_avg 42,1; reading_count 120 vs 96 vs 301 vs 412 saling bertentangan; coverage.expected_slots 144 bukan 288; downtime.total_mins 240 vs jumlah harian 95; total.days_with_records 11 vs daily.length 3. Implementasi yang diam-diam menghitung ulang pasti gagal.",
+    "Rekap harian memakai v-if inline, BUKAN komponen bersama CollapsibleSection.vue yang memakai v-show — component test menuntut barisnya 'tidak lagi dirender', dan v-show menyisakannya di DOM. Tertutup bawaan; buka-tutup-buka menghasilkan tepat satu pemanggilan fetchSummary, dihitung dari mock, dan di browser test dari dua mekanisme independen (hits.summary dan page.on('request')).",
+    "Browser test memakai test.use viewport 390x844 pada satu-satunya describe sehingga mencakup seluruh 29 skenario — project Playwright repo ini Desktop Chrome 1280px, tanpa itu tuntutan satu-kolom menjadi hampa. Nol skenario ditunda dengan alasan 'mobile-only'.",
+    "Verifikasi independen di luar agen implementasi: pest --filter=Clarification menghasilkan 186 lolos / 1739 asersi; cabang resolveBusinessUnit dibaca langsung di kode; businessUnitOptions dipastikan masih Admin-only; berkas e2e-web dipastikan tidak tersentuh lewat git status; test.use dipastikan berada di dalam describe tunggal, bukan di describe bersarang."
+  ],
+  "deferred_items": [
+    {
+      "description": "Coverage tidak terukur.",
+      "reason": "mobile/package.json tidak punya skrip coverage dan @vitest/coverage-v8 tidak terpasang; backend tidak punya pcov/xdebug. Mengukurnya menuntut pemasangan dependency — perubahan repo di luar cakupan implementasi layar."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Coverage tidak dapat dievaluasi di repo ini, sehingga ambang unit_test.coverage_threshold (80) tidak tertegakkan. Konsisten dengan layar 129-137 yang menutup dengan keterbatasan yang sama.",
+      "severity": "medium"
+    },
+    {
+      "description": "LaporanCagesTrackView.vue (screen-136) masih membaca candidate?.response?.status — bentuk galat yang tidak pernah sampai ke pemanggil karena apiClient.normalizeError membuang response. Bentuk datar dipertahankan di layar ini beserta asersi yang menguncinya. Kandidat perbaikan susulan, bukan cacat aktif.",
+      "severity": "low"
+    },
+    {
+      "description": "Galat vue-tsc PRA-ADA (10) di CagesTippedTimeGrid.vue dan GradingDetailGrid.vue; di luar cakupan. Berkas mobile yang disentuh run ini nol galat.",
+      "severity": "low"
+    },
+    {
+      "description": "Unhandled error PRA-ADA di mobile/src/components/SyncResultDialog.vue dari tests/StationListView.spec.ts masih muncul; tidak menggagalkan test apa pun.",
+      "severity": "low"
+    },
+    {
+      "description": "vitest memunculkan 'Aborted' bila dijalankan bersamaan dengan pest; dijalankan terpisah bersih. Bukan cacat produk, tapi perlu diketahui saat menjalankan suite.",
+      "severity": "low"
+    }
+  ]
+}

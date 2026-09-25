@@ -276,9 +276,14 @@ class ClarificationReportService
      * and never an empty result set, which would read as "this mill has no
      * data".
      *
-     * Operator: never reaches this method at all — guardAccess() refuses it
-     * first with 403. This is the WEB report and there is no Operator
-     * widening: the mobile Clarification report (screen-138) is not built.
+     * Operator: TREATED EXACTLY LIKE SUPERVISOR / MILL MANAGEMENT since
+     * 2026-09-25 (screen-138--laporan-clarification-mobile). This is the
+     * decisive half of that widening. Admitting Operator in guardAccess()
+     * ALONE would let it fall through to the Admin branch below, where the
+     * client's business_unit_id IS honoured — an Operator could then read
+     * ANY mill's report. That is a cross-mill leak, not a display defect.
+     * The fail-closed 422 above applies to Operator too: an account with no
+     * mill gets "Hubungi Admin", never the all-mills list.
      *
      * @throws AuthenticationException 401 UNAUTHENTICATED
      * @throws AuthorizationException 403 FORBIDDEN
@@ -288,7 +293,9 @@ class ClarificationReportService
     {
         $role = $this->guardAccess();
 
-        if ($role === UserRole::Supervisor->value || $role === UserRole::MillManagement->value) {
+        if ($role === UserRole::Supervisor->value
+            || $role === UserRole::MillManagement->value
+            || $role === UserRole::Operator->value) {
             // Client-supplied business_unit_id is deliberately DISCARDED —
             // not validated, not compared, discarded.
             $businessUnitId = (string) (auth()->user()->business_unit_id ?? '');
@@ -308,8 +315,8 @@ class ClarificationReportService
         }
 
         // Admin — the only role not bound to one mill, and the only role
-        // that can reach this point: guardAccess() admits exactly three
-        // roles and the other two are handled above.
+        // that can reach this point: guardAccess() admits exactly four
+        // roles and the other three are handled above.
         if ($requestedBusinessUnitId === null || $requestedBusinessUnitId === '') {
             // Incomplete input, not refused access — 422, never 403.
             throw ValidationException::withMessages([
@@ -321,9 +328,13 @@ class ClarificationReportService
     }
 
     /**
-     * Mill picker options — ADMIN ONLY. Supervisor and Mill Management are
-     * bound to a single mill and have no picker at all, so asking for this
-     * list is a 403 rather than a filtered list of one.
+     * Mill picker options — ADMIN ONLY. Supervisor, Mill Management and
+     * Operator are bound to a single mill and have no picker at all, so
+     * asking for this list is a 403 rather than a filtered list of one.
+     *
+     * UNCHANGED by the screen-138 widening: Operator is admitted to the
+     * report methods above, but not here. It is bound to its own mill and
+     * never needs the list of every mill; the mobile view must not call it.
      *
      * An empty master is a valid answer: [] with HTTP 200, never a 404.
      *
@@ -1201,11 +1212,18 @@ class ClarificationReportService
      * is why widening a role here and widening routes/api.php are always one
      * change, never two — the lesson from screen-129/135.
      *
-     * OPERATOR IS NOT ADMITTED. This is the WEB report; the mobile
-     * Clarification report (screen-138) does not exist, so there is no
-     * caller to widen for. Admitting Operator here without also adding it to
-     * the mill-bound branch of resolveBusinessUnit() would let it pass its
-     * own business_unit_id and read any mill's report.
+     * OPERATOR IS ADMITTED SINCE 2026-09-25
+     * (screen-138--laporan-clarification-mobile). Until that screen this
+     * gate refused it, because the WEB report had no Operator caller to
+     * widen for; the mobile report is that caller. Admitting Operator HERE
+     * without also adding it to the mill-bound branch of
+     * resolveBusinessUnit() would let it pass its own business_unit_id and
+     * read any mill's report — which is why those two edits are one change,
+     * never two, and why ClarificationReportServiceTest case 37 asserts the
+     * mill binding rather than merely the acceptance.
+     *
+     * businessUnitOptions() is NOT part of this widening: it does its own
+     * Admin-only check and still answers 403 for Operator.
      *
      * @return string the caller's role
      *
@@ -1226,6 +1244,7 @@ class ClarificationReportService
             UserRole::Supervisor->value,
             UserRole::MillManagement->value,
             UserRole::Admin->value,
+            UserRole::Operator->value,
         ], true)) {
             throw new AuthorizationException('Anda tidak memiliki akses untuk aksi ini.');
         }

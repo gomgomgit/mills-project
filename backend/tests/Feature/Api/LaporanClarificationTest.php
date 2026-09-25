@@ -31,13 +31,27 @@
  *   - period_id belonging to another mill IS refused with 403 FORBIDDEN by
  *     ClarificationReportService::authorizePeriod().
  *
- * OPERATOR IS REFUSED ON ALL FOUR ROUTES. The mobile Clarification report
- * is screen-138 and does not exist, so there is no caller to widen for.
- * Because the route middleware carries no `operator`, that 403 is raised by
- * EnsureRole — which builds its own JSON without going through
- * ApiExceptionHandler, so it carries only { message } and those tests assert
- * the STATUS alone. A refusal raised by the service (AuthorizationException)
- * does carry code = 'FORBIDDEN' and is asserted in full.
+ * OPERATOR IS ADMITTED ON THREE OF THE FOUR ROUTES SINCE 2026-09-25, for
+ * screen-138--laporan-clarification-mobile. The route middleware now carries
+ * `operator`, so /periods, /summary and /export answer 200 — bound to the
+ * Operator's OWN mill. /business-units/options still answers 403, but the
+ * refusal now comes from the SERVICE rather than from EnsureRole, so it
+ * carries code = 'FORBIDDEN' and scenario 14 asserts that code, not just the
+ * status. (Refusals raised by EnsureRole build their own JSON without going
+ * through ApiExceptionHandler and carry only { message }; that shape no
+ * longer applies to any Operator request on this prefix.)
+ *
+ * AND THE STATUS CODE IS NOT THE ASSERTION THAT MATTERS THERE. Admitting
+ * Operator in guardAccess() alone would drop it into the unbound Admin
+ * branch of resolveBusinessUnit(), where the client's business_unit_id IS
+ * honoured — and that leak answers 200 just as happily. Only the CONTENT of
+ * the payload tells the widening apart from the leak, so scenario 14 sends
+ * Mill Beta's id and asserts Mill Alpha's figures come back.
+ *
+ * THE WEB ROUTE /reports/clarification IS UNCHANGED and still carries no
+ * `operator` — LaporanClarification::canAccess() keeps its own role list and
+ * never calls this service, so the web layer stays closed independently.
+ * e2e-web/tests/laporan-clarification.spec.ts asserts that, unmodified.
  *
  * THE FIGURES ARE THE POINT, not just the status codes: every scenario that
  * has a number in its spec asserts that number, because this screen's
@@ -770,44 +784,145 @@ it('mill lain: the client business_unit_id is ignored (200, own data), but anoth
 });
 
 // =====================================================================
-// Scenario 14: "Operator mencoba membuka layar web ini" (6 steps)
+// Scenario 14: "Operator membuka laporan" (screen-138, mobile)
+//
+// WIDENED 2026-09-25. This scenario used to be "Operator mencoba membuka
+// layar web ini" and asserted 403 on all four endpoints, because the mobile
+// Clarification report did not exist. It exists now (screen-138), and the
+// four /api/clarification-reports/* routes admit Operator.
+//
+// THE STATUS CODES ARE THE CHEAP HALF. A service that admitted Operator in
+// guardAccess() only — leaving it to fall through resolveBusinessUnit() into
+// the unbound ADMIN branch, where the client's business_unit_id is HONOURED
+// — would answer 200 on every step below and pass a status-only test while
+// serving any mill an Operator cares to name. So every step here asserts the
+// CONTENT: Mill Beta's id is sent deliberately, and Mill Alpha's figures are
+// what must come back.
 // =====================================================================
-it('operator: 403 on all four endpoints, 403 not 404 for a nonexistent period, and 401 with no session', function () {
-    // Step 6 of the scenario is run FIRST, on purpose: actingAs() persists
-    // for the rest of the test case, so a guest request made after it would
+it('operator: 200 on periods/summary/export bound to its OWN mill, 403 on the mill picker, and 401 with no session at all', function () {
+    // The no-session step is run FIRST, on purpose: actingAs() persists for
+    // the rest of the test case, so a guest request made after it would
     // silently be an authenticated one.
     $this->getJson('/api/clarification-reports/summary?'.http_build_query(['period_id' => $this->periodA->id]))
         ->assertStatus(401);
 
-    // The route middleware carries no `operator`, so EnsureRole refuses
-    // first. It builds its own JSON without ApiExceptionHandler, so these
-    // responses carry only { message } — the status is what is asserted.
-    // There is NO Operator widening on this screen: the mobile Clarification
-    // report (screen-138) does not exist, so there is no caller to widen for.
-    $this->actingAs($this->operator, 'web')
-        ->getJson('/api/clarification-reports/business-units/options')->assertStatus(403);
+    // Two mills, told apart by CLARIFICATION UNIT ID as well as by figures:
+    // the assertions below have to be able to say "this is Mill Alpha's
+    // data" out of the payload itself, not merely "the status was 200".
+    laporanClarificationRecord($this->stationA, '2026-03-10', [
+        ['pure_oil_production_rate_ton_hour' => 20.0, 'sludge_tank_temp_c' => 87.0],
+    ], ['clarification_id' => 'CLF-ALPHA']);
 
-    $this->actingAs($this->operator, 'web')
-        ->getJson('/api/clarification-reports/periods')->assertStatus(403);
+    laporanClarificationRecord($this->stationB, '2026-03-10', [
+        ['pure_oil_production_rate_ton_hour' => 900.0, 'sludge_tank_temp_c' => 300.0],
+    ], ['clarification_id' => 'CLF-BETA']);
 
-    $this->actingAs($this->operator, 'web')
-        ->getJson('/api/clarification-reports/summary?'.http_build_query(['period_id' => $this->periodA->id]))
-        ->assertStatus(403)
-        ->assertJsonMissingPath('production')
-        ->assertJsonMissingPath('metrics');
+    $periodB = Period::factory()->forBusinessUnit($this->businessUnitB)->stationType('clarification')
+        ->range('2026-03-01', '2026-03-31')->named('Periode Maret Beta')->open()->create();
 
-    $this->actingAs($this->operator, 'web')
-        ->getJson('/api/clarification-reports/export?'.http_build_query(['period_id' => $this->periodA->id]))
-        ->assertStatus(403);
+    // Step 1 — GET /periods: 200, and the list is the Operator's own mill's
+    // periods only. No business_unit_id is sent: it comes from the account.
+    $periods = $this->actingAs($this->operator, 'web')->getJson('/api/clarification-reports/periods');
+    $periods->assertOk();
+    $periods->assertJsonStructure([
+        'data' => [['id', 'name', 'start_date', 'end_date', 'status', 'station_type', 'station_type_label']],
+    ]);
 
-    // THE ORDERING PROOF: a period id that does NOT exist still answers 403,
-    // never 404. A role that is not admitted at all must not be able to
-    // learn which period ids exist by telling the two responses apart.
-    $nonexistent = $this->actingAs($this->operator, 'web')
-        ->getJson('/api/clarification-reports/summary?'.http_build_query(['period_id' => (string) Str::uuid()]));
+    $periodIds = array_column($periods->json('data'), 'id');
+    expect($periodIds)->toContain($this->periodA->id);
+    expect($periodIds)->not->toContain($periodB->id);
 
-    $nonexistent->assertStatus(403);
-    expect($nonexistent->getStatusCode())->not->toBe(404);
+    // Step 2 — GET /summary while NAMING ANOTHER MILL: 200 carrying the
+    // caller's OWN data, deliberately not 403 (a 403 would confirm Mill Beta
+    // exists, and there is no access attempt to refuse because the parameter
+    // is never used for a mill-bound role).
+    //
+    // THIS IS THE ASSERTION THAT LOCKS resolveBusinessUnit(). The Admin-branch
+    // leak answers 200 here too — only the CONTENT tells the two apart, so
+    // the discriminating figures are asserted one by one: 900.0 ton/hour and
+    // 300.0 °C exist ONLY in Mill Beta.
+    $summary = $this->actingAs($this->operator, 'web')->getJson('/api/clarification-reports/summary?'.http_build_query([
+        'business_unit_id' => $this->businessUnitB->id,
+        'period_id' => $this->periodA->id,
+    ]));
+
+    $summary->assertOk();
+    $summary->assertJsonPath('period.business_unit_name', 'Mill Alpha');
+    $summary->assertJsonPath('business_unit.name', 'Mill Alpha');
+
+    expect(array_column($summary->json('by_unit'), 'clarification_id'))->toBe(['CLF-ALPHA']);
+    expect(array_column($summary->json('by_unit'), 'clarification_id'))->not->toContain('CLF-BETA');
+    expect($summary->json('production.total_ton'))->toEqual(20.0);
+    expect($summary->json('production.total_ton'))->not->toEqual(920.0);
+    expect($summary->json('production.reading_count'))->toBe(1);
+    expect($summary->json('metrics.pure_oil_production_rate_ton_hour.max'))->toEqual(20.0);
+    expect($summary->json('metrics.pure_oil_production_rate_ton_hour.max'))->not->toEqual(900.0);
+    expect($summary->json('metrics.sludge_tank_temp_c.max'))->toEqual(87.0);
+    expect($summary->json('metrics.sludge_tank_temp_c.max'))->not->toEqual(300.0);
+    // The blunt instrument, on the whole payload: Mill Beta's NAME must not
+    // appear anywhere in it, under any key.
+    expect(json_encode($summary->json()))->not->toContain('Mill Beta');
+
+    // Step 3 — GET /export: 200, and the streamed CSV carries the Operator's
+    // own mill's rows, not the other mill's.
+    $export = $this->actingAs($this->operator, 'web')
+        ->get('/api/clarification-reports/export?'.http_build_query([
+            'period_id' => $this->periodA->id,
+            'format' => 'csv',
+        ]));
+
+    $export->assertOk();
+
+    $csv = laporanClarificationStreamed($export->baseResponse);
+    expect($csv)->toContain('CLF-ALPHA');
+    expect($csv)->not->toContain('CLF-BETA');
+
+    // Step 4 — ANOTHER MILL'S PERIOD ID is still a hard 403: a concrete
+    // handle on another mill's data, refused outright rather than silently
+    // rewritten. authorizePeriod() needed no change for this widening —
+    // only Admin is unbound there.
+    $forbidden = $this->actingAs($this->operator, 'web')
+        ->getJson('/api/clarification-reports/summary?'.http_build_query(['period_id' => $periodB->id]));
+    $forbidden->assertStatus(403);
+    $forbidden->assertJsonPath('code', 'FORBIDDEN');
+    $forbidden->assertJsonMissingPath('production');
+    $forbidden->assertJsonMissingPath('metrics');
+
+    $forbiddenExport = $this->actingAs($this->operator, 'web')
+        ->getJson('/api/clarification-reports/export?'.http_build_query(['period_id' => $periodB->id]));
+    $forbiddenExport->assertStatus(403);
+    $forbiddenExport->assertJsonPath('code', 'FORBIDDEN');
+
+    // Step 5 — an Operator whose account has no mill FAILS CLOSED with 422,
+    // exactly like the other mill-bound roles: never the all-mills list.
+    $noMillOperator = User::factory()->role(UserRole::Operator)->create(['business_unit_id' => null]);
+
+    $noMillPeriods = $this->actingAs($noMillOperator, 'web')->getJson('/api/clarification-reports/periods');
+    $noMillPeriods->assertStatus(422);
+    $noMillPeriods->assertJsonPath('code', 'VALIDATION_ERROR');
+    $noMillPeriods->assertJsonStructure(['errors' => ['business_unit_id']]);
+    expect($noMillPeriods->json('errors.business_unit_id.0'))->toContain('Hubungi Admin');
+    $noMillPeriods->assertJsonMissingPath('data');
+
+    $noMillSummary = $this->actingAs($noMillOperator, 'web')
+        ->getJson('/api/clarification-reports/summary?'.http_build_query(['period_id' => $this->periodA->id]));
+    $noMillSummary->assertStatus(422);
+    $noMillSummary->assertJsonPath('code', 'VALIDATION_ERROR');
+    $noMillSummary->assertJsonMissingPath('production');
+    $noMillSummary->assertJsonMissingPath('metrics');
+
+    // Step 6 — the mill picker STAYS 403 for Operator. It is the ADMIN
+    // picker; an Operator bound to its own mill has no use for the list of
+    // every mill, and handing it over would be the very leak the widening
+    // avoided. Raised by the SERVICE now rather than by EnsureRole, so it
+    // carries code = 'FORBIDDEN' — asserting the status alone would no
+    // longer distinguish the two layers.
+    $picker = $this->actingAs($this->operator, 'web')
+        ->getJson('/api/clarification-reports/business-units/options');
+    $picker->assertStatus(403);
+    $picker->assertJsonPath('code', 'FORBIDDEN');
+    $picker->assertJsonMissingPath('data');
+    expect(json_encode($picker->json()))->not->toContain('Mill Beta');
 });
 
 // =====================================================================

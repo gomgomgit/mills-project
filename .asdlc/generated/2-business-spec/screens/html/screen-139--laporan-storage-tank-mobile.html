@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Storage Tank (Mobile) | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <style>
+    /* ------------------------------------------------------------------
+       screen-139 — Laporan Storage Tank (Mobile)
+       Kosakata visual MOBILE-NATIVE satu kolom, kembar dengan screen-136
+       (Laporan Cages &amp; Tracks mobile). Vue 3 + Capacitor.
+       Aturan file ini: HANYA aturan struktur/tata letak di sini —
+       seluruh warna, jarak, radius, dan bayangan memakai var() dari
+       design-tokens.css. Nol literal warna.
+       Halaman TIDAK PERNAH menggulir mendatar; grafik dan tabel yang
+       lebih lebar dari layar menggulir di DALAM kartunya sendiri.
+       Angka di berkas ini identik dengan screen-133--laporan-storage-tank-web.html — keduanya
+       dilayani perhitungan server yang sama.
+       ------------------------------------------------------------------ */
+
+    body {
+      background: var(--color-surface);
+      display: flex;
+      justify-content: center;
+      padding: var(--space-lg) var(--space-md);
+    }
+
+    /* Bingkai ponsel — hanya alat bantu tinjau di layar besar. */
+    .phone-frame {
+      width: 100%;
+      max-width: 390px;
+      background: var(--color-background);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-modal);
+      box-shadow: var(--shadow-modal);
+      overflow: hidden;
+    }
+
+    .mobile-screen {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+      padding: 0 var(--space-md) var(--space-lg);
+      font-family: var(--font-family);
+      overflow-x: hidden;
+    }
+
+    /* Seri grafik — dialiaskan ke token yang sudah ada, bukan warna baru. */
+    .mobile-screen {
+      --s1: var(--color-brand);
+      --s2: var(--color-text-primary);
+      --s3: var(--color-text-muted);
+    }
+
+    /* ---------- 1. Header brand + hamburger ---------- */
+    .app-header {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: var(--space-mobile_header_height);
+      margin: 0 calc(-1 * var(--space-md));
+      padding: 0 var(--space-md);
+      background: var(--color-background);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .app-header-brand { display: flex; align-items: center; gap: var(--space-sm); }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-button);
+      background: var(--color-brand);
+      color: var(--color-background);
+      font-size: var(--font-size-caption);
+      font-weight: var(--font-weight-h1);
+    }
+    .brand-name {
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-h1);
+      color: var(--color-text-primary);
+    }
+    .hamburger-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--space-touch_target_min);
+      height: var(--space-touch_target_min);
+      border: none;
+      border-radius: var(--radius-button);
+      background: transparent;
+      color: var(--color-text-primary);
+      font-size: var(--font-size-h3);
+      cursor: pointer;
+    }
+
+    /* ---------- 2. Breadcrumb + judul ---------- */
+    .screen-header { display: flex; flex-direction: column; gap: var(--space-xs); }
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+    }
+    .breadcrumb-link,
+    .breadcrumb-current,
+    .breadcrumb-separator {
+      font-size: var(--font-size-caption);
+      font-weight: var(--font-weight-small);
+      color: var(--color-text-muted);
+    }
+    .breadcrumb-link {
+      padding: 2px 4px;
+      border: none;
+      border-radius: var(--space-xs);
+      background: transparent;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    .breadcrumb-current { padding: 2px 4px; }
+    .screen-title {
+      margin: 0;
+      font-size: var(--font-size-h2);
+      font-weight: var(--font-weight-h2);
+      color: var(--color-text-primary);
+    }
+
+    /* ---------- 3. Filter periode + keterangan mill ---------- */
+    .filter-bar { display: flex; flex-direction: column; gap: var(--space-sm); }
+    .filter-field { display: flex; flex-direction: column; gap: var(--space-xs); }
+    .filter-field > span {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+    }
+    .filter-field select {
+      width: 100%;
+      min-height: var(--space-touch_target_min);
+      padding: 0 var(--space-sm);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-input);
+      background: var(--color-background);
+      color: var(--color-text-primary);
+      font-family: inherit;
+      font-size: var(--font-size-small);
+    }
+    .period-meta {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      padding: var(--space-sm) 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+      background: var(--color-header-tint);
+    }
+    .period-meta-mill {
+      font-size: var(--font-size-small);
+      font-weight: var(--font-weight-h3);
+      color: var(--color-text-primary);
+    }
+    .period-meta-line {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+    }
+
+    /* Badge status periode — pola StatusBadge.vue (ikon + teks, bukan warna saja) */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: var(--space-xs) 10px;
+      border-radius: var(--radius-chip);
+      font-size: 13px;
+      font-weight: var(--font-weight-small);
+      line-height: 1;
+      color: var(--color-text-primary);
+      background: var(--color-surface);
+    }
+    .status-badge svg { flex: none; color: inherit; }
+
+    /* Ekspor CSV — tombol sejajar pemilih periode, sasaran sentuh penuh */
+    .filter-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      width: 100%;
+      min-height: var(--space-touch_target_min);
+      padding: 0 var(--space-md);
+      border: none;
+      border-radius: var(--radius-button);
+      background: var(--color-brand);
+      color: var(--color-background);
+      font-family: inherit;
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-h2);
+      cursor: pointer;
+    }
+    .filter-action svg { flex: none; }
+
+    /* ---------- 4. Kartu angka ---------- */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .metric-stack { display: flex; flex-direction: column; gap: 12px; }
+    .metric-card {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-card);
+      background: var(--color-background);
+      box-shadow: var(--shadow-card);
+    }
+    .metric-card--wide { padding: 14px var(--space-md); }
+    .metric-label {
+      font-size: var(--font-size-caption);
+      font-weight: var(--font-weight-small);
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .metric-figure { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; }
+    .metric-value {
+      font-size: var(--font-size-h2);
+      font-weight: var(--font-weight-h1);
+      line-height: 1.1;
+      color: var(--color-text-primary);
+    }
+    .metric-card--wide .metric-value { font-size: var(--font-size-h1); }
+    .metric-unit {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+    }
+    .metric-card--wide .metric-unit { font-size: var(--font-size-small); }
+    .metric-note {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+    }
+    /* Jumlah pembacaan — selalu berdampingan dengan angkanya, tidak pernah sendirian */
+    .metric-readings {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+    }
+    .metric-readings b { color: var(--color-text-primary); font-weight: var(--font-weight-h3); }
+
+    /* ---------- Bagian umum ---------- */
+    .detail-section {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      padding: var(--space-md);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-button);
+      background: var(--color-background);
+      min-width: 0;
+    }
+    .section-title {
+      margin: 0;
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-h1);
+      color: var(--color-text-primary);
+    }
+    .section-note {
+      margin: 0;
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+    }
+
+    /* ---------- Kelengkapan pencatatan — di ATAS seluruh angka lain ---------- */
+    .completeness-track {
+      width: 100%;
+      height: 10px;
+      border-radius: var(--radius-chip);
+      background: var(--color-surface);
+      overflow: hidden;
+    }
+    .completeness-fill {
+      height: 100%;
+      border-radius: var(--radius-chip);
+      background: var(--color-brand);
+    }
+
+    /* ---------- Grafik batang — MENGGULIR DI DALAM KARTU ---------- */
+    .chart-scroll {
+      width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: var(--space-xs);
+    }
+    .chart { display: flex; align-items: flex-end; gap: 6px; }
+    .hcol {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-xs);
+      flex: none;
+      /* Lebih lebar daripada screen-136: nilai di sini berdesimal
+         ("265,6", "205,6"), bukan cacah dua-tiga angka. */
+      width: 42px;
+    }
+    .hcol-val {
+      font-size: var(--font-size-caption);
+      font-weight: var(--font-weight-h3);
+      color: var(--color-text-primary);
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .hcol-track {
+      display: flex;
+      align-items: flex-end;
+      width: 100%;
+      height: 110px;
+      border-radius: var(--radius-input);
+      background: var(--color-surface);
+    }
+    .hcol-bar {
+      width: 100%;
+      min-height: 2px;
+      border-radius: var(--radius-input);
+      background: var(--color-brand);
+    }
+    .hcol-lbl {
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+      line-height: 1;
+    }
+
+    .chart-hint {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+    }
+
+    /* ---------- Grafik garis — juga MENGGULIR DI DALAM KARTU ---------- */
+    .line-chart { display: block; width: 560px; height: 260px; flex: none; }
+    .line-chart .lc-grid { stroke: var(--color-border); stroke-width: 1; }
+    .line-chart .lc-axis { stroke: var(--color-text-muted); stroke-width: 1; }
+    .line-chart .lc-tick {
+      font-family: var(--font-family);
+      font-size: var(--font-size-caption);
+      fill: var(--color-text-muted);
+    }
+    .line-chart .lc-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+    .line-chart .lc-line--s1 { stroke: var(--s1); }
+    .line-chart .lc-line--s2 { stroke: var(--s2); stroke-dasharray: 7 4; }
+    .line-chart .lc-line--s3 { stroke: var(--s3); stroke-dasharray: 2 4; }
+    .line-chart .lc-dot { stroke: var(--color-background); stroke-width: 1.5; }
+    .line-chart .lc-dot--s1 { fill: var(--s1); }
+    .line-chart .lc-dot--s2 { fill: var(--s2); }
+    .line-chart .lc-dot--s3 { fill: var(--s3); }
+
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .legend-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-sm);
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+    }
+    .legend-swatch {
+      flex: none;
+      width: 14px;
+      height: 10px;
+      margin-top: 3px;
+      border-radius: var(--space-xs);
+      background: var(--s1);
+    }
+    .legend-swatch--s2 { background: var(--s2); }
+    .legend-swatch--s3 { background: var(--s3); }
+
+    /* Catatan bernada penjelas — pola md-threshold pada mock web */
+    .note-box {
+      display: flex;
+      gap: var(--space-sm);
+      padding: 10px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-button);
+      background: var(--color-surface);
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+      line-height: var(--line-height-base);
+    }
+    .note-box svg { flex: none; margin-top: 2px; color: var(--color-text-muted); }
+    .note-box b { color: var(--color-text-primary); font-weight: var(--font-weight-h3); }
+
+    /* ---------- Rekap harian — CollapsibleSection, TERTUTUP ---------- */
+    .collapsible-section {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .collapsible-section__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-sm);
+      min-height: var(--space-touch_target_min);
+      padding: 0 0 6px;
+      border-bottom: 1px solid var(--color-border);
+      list-style: none;
+      cursor: pointer;
+    }
+    .collapsible-section__header::-webkit-details-marker { display: none; }
+    .collapsible-section__title {
+      font-size: 13px;
+      font-weight: var(--font-weight-h1);
+      color: var(--color-brand);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .collapsible-section__chevron { flex-shrink: 0; color: var(--color-brand); }
+    details[open] .collapsible-section__chevron { transform: rotate(180deg); }
+    .collapsible-section__body {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-top: 12px;
+    }
+    .detail-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .detail-table {
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .detail-table--wide { min-width: 620px; }
+    .detail-table th,
+    .detail-table td {
+      padding: 6px var(--space-sm);
+      border-bottom: 1px solid var(--color-border);
+      text-align: left;
+      white-space: nowrap;
+    }
+    .detail-table th {
+      font-weight: var(--font-weight-h3);
+      color: var(--color-text-muted);
+    }
+    .detail-table td { color: var(--color-text-primary); }
+    .detail-table td.num,
+    .detail-table th.num { text-align: right; }
+    .detail-table td.is-muted { color: var(--color-text-muted); font-style: italic; }
+    .detail-table tfoot td {
+      font-weight: var(--font-weight-h1);
+      color: var(--color-text-primary);
+      border-bottom: none;
+    }
+    .detail-table tfoot td small {
+      font-weight: var(--font-weight-small);
+      color: var(--color-text-muted);
+    }
+
+    /* ---------- Footer aksi ---------- */
+    .action-footer {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      margin-top: var(--space-xs);
+    }
+    .action-button {
+      min-height: var(--space-touch_target_min);
+      padding: 0 var(--space-md);
+      border-radius: var(--radius-button);
+      font-family: inherit;
+      font-size: var(--font-size-base);
+      font-weight: var(--font-weight-h2);
+      cursor: pointer;
+    }
+    .action-button--secondary {
+      border: 1px solid var(--color-border);
+      background: var(--color-background);
+      color: var(--color-text-primary);
+    }
+
+    .actors-note {
+      margin: 0;
+      font-size: var(--font-size-caption);
+      color: var(--color-text-muted);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+<div class="phone-frame">
+  <main class="mobile-screen">
+
+    <!-- 1. Header brand + hamburger -->
+    <header class="app-header">
+      <div class="app-header-brand">
+        <span class="brand-mark" aria-hidden="true">MS</span>
+        <span class="brand-name">Mills Smart Log</span>
+      </div>
+      <button type="button" class="hamburger-button" aria-label="Buka menu navigasi">&#9776;</button>
+    </header>
+
+    <!-- 2. Breadcrumb + judul layar -->
+    <div class="screen-header">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <button type="button" class="breadcrumb-link">Dashboard &amp; Reporting</button>
+        <span class="breadcrumb-separator" aria-hidden="true">/</span>
+        <button type="button" class="breadcrumb-link">Laporan</button>
+        <span class="breadcrumb-separator" aria-hidden="true">/</span>
+        <span class="breadcrumb-current" aria-current="page">Storage Tank</span>
+      </nav>
+      <h1 class="screen-title">Laporan Storage Tank</h1>
+    </div>
+
+    <!-- 3. Pemilih periode + mill sebagai keterangan + Ekspor CSV -->
+    <div class="filter-bar">
+      <label class="filter-field">
+        <span>Periode Pelaporan</span>
+        <select>
+          <option selected>Periode September I 2026 (01 &ndash; 14 Sep 2026) &mdash; Terbuka</option>
+          <option>Periode Agustus II 2026 (16 &ndash; 31 Ags 2026) &mdash; Tertutup</option>
+          <option>Periode Agustus I 2026 (01 &ndash; 15 Ags 2026) &mdash; Tertutup</option>
+          <option>Periode Juli II 2026 (16 &ndash; 31 Jul 2026) &mdash; Tertutup</option>
+        </select>
+      </label>
+
+      <div class="period-meta">
+        <span class="period-meta-mill">PKS Sungai Bahar</span>
+        <div class="period-meta-line">
+          <span>01 &ndash; 14 Sep 2026 (14 hari)</span>
+          <span class="status-badge">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M7 11V8a5 5 0 0 1 9.9-1"/><rect x="4" y="11" width="16" height="10" rx="2"/>
+            </svg>
+            <span>Periode Terbuka</span>
+          </span>
+        </div>
+        <span class="period-meta-line">3 tangki &middot; 24 slot jam per hari</span>
+        <span class="period-meta-line">Akun ini terikat pada satu mill, jadi mill ditampilkan sebagai keterangan &mdash; bukan pemilih. Hanya Admin yang mendapat pemilih Mill.</span>
+      </div>
+
+      <button type="button" class="filter-action">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/>
+        </svg>
+        Ekspor CSV
+      </button>
+    </div>
+
+    <!-- 4. Kelengkapan pencatatan — DI ATAS seluruh angka lain -->
+    <section class="detail-section">
+      <h2 class="section-title">Kelengkapan Pencatatan</h2>
+      <p class="section-note">Baca ini lebih dulu &mdash; seluruh angka di bawah bersandar padanya.</p>
+      <div class="metric-card metric-card--wide">
+        <span class="metric-label">Slot Waktu Terisi Sepanjang Periode</span>
+        <div class="metric-figure">
+          <span class="metric-value">31,0%</span>
+          <span class="metric-unit">312 dari 1.008 slot</span>
+        </div>
+        <div class="completeness-track" role="img" aria-label="Kelengkapan pencatatan 31,0%">
+          <div class="completeness-fill" style="width: 31.0%"></div>
+        </div>
+        <span class="metric-note">Slot yang diharapkan = 3 tangki &times; 14 hari &times; 24 slot = 1.008.</span>
+      </div>
+      <div class="note-box">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/>
+        </svg>
+        <span>Untuk <b>stok</b>, yang menentukan bukan berapa banyak data yang ada melainkan apakah <b>pembacaan pertama dan terakhir tiap tangki ada</b> &mdash; pergerakan adalah selisih dua pembacaan, bukan penjumlahan banyak pembacaan. Untuk <b>mutu minyak</b>, tiap metrik dihitung dari pembacaannya sendiri, dan jumlah pembacaan itu berbeda-beda antar metrik.</span>
+      </div>
+    </section>
+
+    <!-- 5. Stok awal & akhir — BESERTA TANGGAL pembacaannya -->
+    <div class="metric-grid">
+      <div class="metric-card">
+        <span class="metric-label">Stok Awal Periode</span>
+        <div class="metric-figure">
+          <span class="metric-value">4.182,5</span>
+          <span class="metric-unit">MT</span>
+        </div>
+        <span class="metric-readings">pembacaan pertama <b>01 Sep 2026, 06.00</b></span>
+        <span class="metric-note">jumlah pembacaan stok pertama dari 3 tangki &mdash; 06.00 adalah yang paling awal di antara ketiganya</span>
+      </div>
+
+      <div class="metric-card">
+        <span class="metric-label">Stok Akhir Periode</span>
+        <div class="metric-figure">
+          <span class="metric-value">3.947,0</span>
+          <span class="metric-unit">MT</span>
+        </div>
+        <span class="metric-readings">pembacaan terakhir <b>14 Sep 2026, 18.00</b></span>
+        <span class="metric-note">jumlah pembacaan stok terakhir dari 3 tangki &mdash; bukan nilai terendah, bukan pula baris terakhir menurut urutan penyimpanan</span>
+      </div>
+    </div>
+
+    <div class="metric-stack">
+      <div class="metric-card metric-card--wide">
+        <span class="metric-label">Pergerakan Bersih</span>
+        <div class="metric-figure">
+          <span class="metric-value">&minus;235,5</span>
+          <span class="metric-unit">MT</span>
+        </div>
+        <span class="metric-readings">&minus;222,5 &nbsp; &minus;170,5 &nbsp; +157,5 &nbsp;=&nbsp; <b>&minus;235,5</b></span>
+        <span class="metric-note">dijumlahkan dari pergerakan tiap tangki, 01 &rarr; 14 Sep 2026</span>
+      </div>
+    </div>
+
+    <div class="note-box">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/>
+        </svg>
+      <span>Tanda minus ditulis <b>apa adanya</b> dan dibaca <b>netral</b>: stok berkurang adalah keadaan
+      yang wajar pada tangki yang dikeluarkan isinya, bukan peringatan, jadi angkanya memakai warna teks
+      biasa. Pergerakan dihitung <b>per tangki lalu dijumlahkan</b>; menghitungnya dari stok gabungan akan
+      salah bila jumlah tangki yang tercatat berbeda antara awal dan akhir periode. Salah satu tangki,
+      <b>TK-03, justru naik +157,5 MT</b> &mdash; negatif bukan aturan, ia hanya kebetulan hasil
+      penjumlahannya; lihat Rekap per Tangki.</span>
+    </div>
+
+    <!-- 6. Mutu minyak + suhu — jumlah pembacaan berdampingan dengan tiap angka -->
+    <div class="metric-grid">
+      <div class="metric-card">
+        <span class="metric-label">FFA</span>
+        <div class="metric-figure">
+          <span class="metric-value">4,15</span>
+          <span class="metric-unit">% rata-rata</span>
+        </div>
+        <span class="metric-readings">dari <b>298 pembacaan</b></span>
+        <span class="metric-note">terendah 3,66 &middot; tertinggi 4,55</span>
+      </div>
+
+      <div class="metric-card">
+        <span class="metric-label">Kadar Air</span>
+        <div class="metric-figure">
+          <span class="metric-value">0,207</span>
+          <span class="metric-unit">% rata-rata</span>
+        </div>
+        <span class="metric-readings">dari <b>287 pembacaan</b></span>
+        <span class="metric-note">terendah 0,168 &middot; tertinggi 0,241 &mdash; 11 pembacaan lebih sedikit daripada FFA</span>
+      </div>
+
+      <div class="metric-card">
+        <span class="metric-label">Kotoran</span>
+        <div class="metric-figure">
+          <span class="metric-value">0,025</span>
+          <span class="metric-unit">% rata-rata</span>
+        </div>
+        <span class="metric-readings">dari <b>261 pembacaan</b></span>
+        <span class="metric-note">terendah 0,016 &middot; tertinggi 0,033</span>
+      </div>
+
+      <div class="metric-card">
+        <span class="metric-label">DOBI</span>
+        <div class="metric-figure">
+          <span class="metric-value">2,95</span>
+          <span class="metric-unit">rata-rata</span>
+        </div>
+        <span class="metric-readings">dari <b>203 pembacaan</b></span>
+        <span class="metric-note">terendah 2,64 &middot; tertinggi 3,31 &mdash; penyebut terkecil, DOBI tidak diukur tiap slot</span>
+      </div>
+    </div>
+
+    <div class="metric-stack">
+      <div class="metric-card metric-card--wide">
+        <span class="metric-label">Suhu Rata-rata Minyak</span>
+        <div class="metric-figure">
+          <span class="metric-value">47,8</span>
+          <span class="metric-unit">&deg;C rata-rata</span>
+        </div>
+        <span class="metric-readings">dari <b>291 pembacaan</b></span>
+        <span class="metric-note">terendah 45,8 &middot; tertinggi 50,3 &mdash; dari kolom suhu rata-rata yang dicatat Operator, bukan dihitung ulang dari suhu atas/tengah/bawah</span>
+      </div>
+    </div>
+
+    <!-- 7. Tren harian stok total -->
+    <section class="detail-section">
+      <h2 class="section-title">Tren Harian Stok Total</h2>
+      <p class="section-note">Stok seluruh tangki per tanggal, dalam MT &middot; 14 tanggal berdata.</p>
+      <p class="chart-hint">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 7l-4 5 4 5M16 7l4 5-4 5"/>
+        </svg>
+        Geser mendatar untuk melihat 14 tanggal
+      </p>
+      <div class="chart-scroll">
+        <svg class="line-chart" viewBox="0 0 560 260" role="img" aria-label="Tren harian stok total seluruh tangki sepanjang 14 tanggal, dalam metrik ton">
+        <line class="lc-grid" x1="40" y1="210.0" x2="548" y2="210.0"/>
+        <line class="lc-grid" x1="40" y1="163.5" x2="548" y2="163.5"/>
+        <line class="lc-grid" x1="40" y1="117.0" x2="548" y2="117.0"/>
+        <line class="lc-grid" x1="40" y1="70.5" x2="548" y2="70.5"/>
+        <line class="lc-grid" x1="40" y1="24.0" x2="548" y2="24.0"/>
+        <text class="lc-tick" x="32" y="214.0" text-anchor="end">3.900</text>
+        <text class="lc-tick" x="32" y="167.5" text-anchor="end">4.000</text>
+        <text class="lc-tick" x="32" y="121.0" text-anchor="end">4.100</text>
+        <text class="lc-tick" x="32" y="74.5" text-anchor="end">4.200</text>
+        <text class="lc-tick" x="32" y="28.0" text-anchor="end">4.300</text>
+        <line class="lc-axis" x1="40" y1="210" x2="548" y2="210"/>
+        <text class="lc-tick" x="40.0" y="232" text-anchor="middle">01</text>
+        <text class="lc-tick" x="79.1" y="232" text-anchor="middle">02</text>
+        <text class="lc-tick" x="118.2" y="232" text-anchor="middle">03</text>
+        <text class="lc-tick" x="157.2" y="232" text-anchor="middle">04</text>
+        <text class="lc-tick" x="196.3" y="232" text-anchor="middle">05</text>
+        <text class="lc-tick" x="235.4" y="232" text-anchor="middle">06</text>
+        <text class="lc-tick" x="274.5" y="232" text-anchor="middle">07</text>
+        <text class="lc-tick" x="313.5" y="232" text-anchor="middle">08</text>
+        <text class="lc-tick" x="352.6" y="232" text-anchor="middle">09</text>
+        <text class="lc-tick" x="391.7" y="232" text-anchor="middle">10</text>
+        <text class="lc-tick" x="430.8" y="232" text-anchor="middle">11</text>
+        <text class="lc-tick" x="469.8" y="232" text-anchor="middle">12</text>
+        <text class="lc-tick" x="508.9" y="232" text-anchor="middle">13</text>
+        <text class="lc-tick" x="548.0" y="232" text-anchor="middle">14</text>
+        <polyline class="lc-line lc-line--s1" points="40.0,78.6 79.1,65.8 118.2,86.1 157.2,117.9 196.3,107.0 235.4,138.4 274.5,158.2 313.5,131.9 352.6,148.4 391.7,169.1 430.8,156.3 469.8,177.4 508.9,167.0 548.0,188.1"/>
+        <circle class="lc-dot lc-dot--s1" cx="40.0" cy="78.6" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="79.1" cy="65.8" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="118.2" cy="86.1" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="157.2" cy="117.9" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="196.3" cy="107.0" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="235.4" cy="138.4" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="274.5" cy="158.2" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="313.5" cy="131.9" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="352.6" cy="148.4" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="391.7" cy="169.1" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="430.8" cy="156.3" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="469.8" cy="177.4" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="508.9" cy="167.0" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="548.0" cy="188.1" r="3"/>
+        </svg>
+      </div>
+      <ul class="legend">
+        <li class="legend-item"><span class="legend-swatch" aria-hidden="true"></span> Stok total 3 tangki &mdash; 01 Sep 4.182,5 MT &rarr; 14 Sep 3.947,0 MT</li>
+        <li class="legend-item">Terendah 3.947,0 MT (14 Sep) &middot; tertinggi 4.210,0 MT (02 Sep)</li>
+        <li class="legend-item">Sumbu tegak <b>tidak</b> dimulai dari nol (3.900 &ndash; 4.300 MT) &mdash; pergerakan 235,5 MT hanya 5,6% dari stok, dan pada sumbu dari nol garisnya akan terlihat datar sama sekali.</li>
+      </ul>
+    </section>
+
+    <!-- 8. Tren mutu minyak — FFA, kadar air, DOBI pada SATU grafik, skala DINYATAKAN -->
+    <section class="detail-section">
+      <h2 class="section-title">Tren Mutu Minyak</h2>
+      <p class="section-note">FFA, kadar air, dan DOBI pada satu bidang gambar &middot; 14 tanggal berdata &middot; <b>sumbu tegak dinormalkan menjadi indeks</b>.</p>
+      <p class="chart-hint">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 7l-4 5 4 5M16 7l4 5-4 5"/>
+        </svg>
+        Geser mendatar untuk melihat 14 tanggal
+      </p>
+      <div class="chart-scroll">
+        <svg class="line-chart" viewBox="0 0 560 260" role="img" aria-label="Tren harian mutu minyak: FFA, kadar air, dan DOBI sepanjang 14 tanggal, ketiganya dinyatakan sebagai indeks terhadap rata-rata periodenya sendiri">
+        <line class="lc-grid" x1="40" y1="210.0" x2="548" y2="210.0"/>
+        <line class="lc-grid" x1="40" y1="163.5" x2="548" y2="163.5"/>
+        <line class="lc-grid" x1="40" y1="117.0" x2="548" y2="117.0"/>
+        <line class="lc-grid" x1="40" y1="70.5" x2="548" y2="70.5"/>
+        <line class="lc-grid" x1="40" y1="24.0" x2="548" y2="24.0"/>
+        <text class="lc-tick" x="32" y="214.0" text-anchor="end">80</text>
+        <text class="lc-tick" x="32" y="167.5" text-anchor="end">90</text>
+        <text class="lc-tick" x="32" y="121.0" text-anchor="end">100</text>
+        <text class="lc-tick" x="32" y="74.5" text-anchor="end">110</text>
+        <text class="lc-tick" x="32" y="28.0" text-anchor="end">120</text>
+        <line class="lc-axis" x1="40" y1="210" x2="548" y2="210"/>
+        <text class="lc-tick" x="40.0" y="232" text-anchor="middle">01</text>
+        <text class="lc-tick" x="79.1" y="232" text-anchor="middle">02</text>
+        <text class="lc-tick" x="118.2" y="232" text-anchor="middle">03</text>
+        <text class="lc-tick" x="157.2" y="232" text-anchor="middle">04</text>
+        <text class="lc-tick" x="196.3" y="232" text-anchor="middle">05</text>
+        <text class="lc-tick" x="235.4" y="232" text-anchor="middle">06</text>
+        <text class="lc-tick" x="274.5" y="232" text-anchor="middle">07</text>
+        <text class="lc-tick" x="313.5" y="232" text-anchor="middle">08</text>
+        <text class="lc-tick" x="352.6" y="232" text-anchor="middle">09</text>
+        <text class="lc-tick" x="391.7" y="232" text-anchor="middle">10</text>
+        <text class="lc-tick" x="430.8" y="232" text-anchor="middle">11</text>
+        <text class="lc-tick" x="469.8" y="232" text-anchor="middle">12</text>
+        <text class="lc-tick" x="508.9" y="232" text-anchor="middle">13</text>
+        <text class="lc-tick" x="548.0" y="232" text-anchor="middle">14</text>
+        <polyline class="lc-line lc-line--s1" points="40.0,143.0 79.1,158.7 118.2,128.5 157.2,110.6 196.3,172.2 235.4,118.4 274.5,91.5 313.5,139.7 352.6,103.9 391.7,79.2 430.8,125.1 469.8,99.4 508.9,72.5 548.0,112.8"/>
+        <polyline class="lc-line lc-line--s2" points="40.0,163.1 79.1,190.1 118.2,136.1 157.2,106.8 196.3,203.6 235.4,120.3 274.5,73.0 313.5,149.6 352.6,95.5 391.7,59.5 430.8,129.3 469.8,84.3 508.9,39.2 548.0,111.3"/>
+        <polyline class="lc-line lc-line--s3" points="40.0,89.6 79.1,70.6 118.2,102.2 157.2,121.1 196.3,59.6 235.4,114.8 274.5,143.2 313.5,95.9 352.6,130.6 391.7,154.3 430.8,106.9 469.8,136.9 508.9,165.3 548.0,124.3"/>
+        <circle class="lc-dot lc-dot--s1" cx="40.0" cy="143.0" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="79.1" cy="158.7" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="118.2" cy="128.5" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="157.2" cy="110.6" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="196.3" cy="172.2" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="235.4" cy="118.4" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="274.5" cy="91.5" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="313.5" cy="139.7" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="352.6" cy="103.9" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="391.7" cy="79.2" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="430.8" cy="125.1" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="469.8" cy="99.4" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="508.9" cy="72.5" r="3"/>
+        <circle class="lc-dot lc-dot--s1" cx="548.0" cy="112.8" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="40.0" cy="163.1" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="79.1" cy="190.1" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="118.2" cy="136.1" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="157.2" cy="106.8" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="196.3" cy="203.6" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="235.4" cy="120.3" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="274.5" cy="73.0" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="313.5" cy="149.6" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="352.6" cy="95.5" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="391.7" cy="59.5" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="430.8" cy="129.3" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="469.8" cy="84.3" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="508.9" cy="39.2" r="3"/>
+        <circle class="lc-dot lc-dot--s2" cx="548.0" cy="111.3" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="40.0" cy="89.6" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="79.1" cy="70.6" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="118.2" cy="102.2" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="157.2" cy="121.1" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="196.3" cy="59.6" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="235.4" cy="114.8" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="274.5" cy="143.2" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="313.5" cy="95.9" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="352.6" cy="130.6" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="391.7" cy="154.3" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="430.8" cy="106.9" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="469.8" cy="136.9" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="508.9" cy="165.3" r="3"/>
+        <circle class="lc-dot lc-dot--s3" cx="548.0" cy="124.3" r="3"/>
+        </svg>
+      </div>
+      <ul class="legend">
+        <li class="legend-item"><span class="legend-swatch" aria-hidden="true"></span> FFA &mdash; garis utuh &middot; rata-rata 4,15% (= indeks 100), 298 pembacaan</li>
+        <li class="legend-item"><span class="legend-swatch legend-swatch--s2" aria-hidden="true"></span> Kadar Air &mdash; garis putus-putus &middot; rata-rata 0,207% (= indeks 100), 287 pembacaan</li>
+        <li class="legend-item"><span class="legend-swatch legend-swatch--s3" aria-hidden="true"></span> DOBI &mdash; garis titik-titik &middot; rata-rata 2,95 (= indeks 100), 203 pembacaan</li>
+        <li class="legend-item"><b>Sumbu tegak bukan nilai asli, melainkan indeks terhadap rata-rata periode metrik itu sendiri</b> (100 = rata-rata). Nilai aslinya lengkap pada Rekap Harian di bawah.</li>
+      </ul>
+      <div class="note-box">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/>
+        </svg>
+        <span>Ketiga metrik sengaja berbagi satu bidang gambar karena <b>yang menunjukkan mutu memburuk
+        adalah arah ketiganya bersamaan</b>, bukan salah satunya sendirian: FFA naik dan kadar air naik
+        sementara DOBI turun. <b>Skalanya tidak sebanding</b> &mdash; DOBI berkisar 2&ndash;4 tanpa satuan,
+        FFA 3&ndash;5%, kadar air 0,1&ndash;0,3% &mdash; sehingga pada satu sumbu nilai, kadar air akan
+        tergambar sebagai garis datar di dasar. Karena itu <b>tiap seri dinyatakan sebagai indeks terhadap
+        rata-ratanya sendiri</b>: indeks = nilai &divide; rata-rata periode metrik itu &times; 100, dengan
+        sumbu 80 &ndash; 120. Yang dibandingkan adalah <b>besar perubahan relatif</b>, bukan nilai mutlaknya,
+        dan nilai mutlaknya tetap tersedia lengkap pada Rekap Harian.</span>
+      </div>
+    </section>
+
+    <!-- 9. Rekap per tangki — TK-03 yang naik harus terlihat di sini -->
+    <section class="detail-section">
+      <h2 class="section-title">Rekap per Tangki</h2>
+      <p class="section-note">Pergerakan dihitung per tangki lalu dijumlahkan &mdash; tabel inilah asal angka &minus;235,5 MT di atas. Geser mendatar untuk melihat seluruh kolom.</p>
+      <div class="detail-table-wrap">
+        <table class="detail-table detail-table--wide">
+          <thead>
+            <tr>
+              <th scope="col">Tangki</th>
+              <th scope="col" class="num">Stok Awal (MT)</th>
+              <th scope="col">Tanggal Awal</th>
+              <th scope="col" class="num">Stok Akhir (MT)</th>
+              <th scope="col">Tanggal Akhir</th>
+              <th scope="col" class="num">Pergerakan (MT)</th>
+              <th scope="col" class="num">FFA (%)</th>
+              <th scope="col" class="num">Suhu (&deg;C)</th>
+              <th scope="col" class="num">Jumlah pembacaan</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>TK-01</td><td class="num">1.625,0</td><td class="is-muted">01 Sep 06.00</td><td class="num">1.402,5</td><td class="is-muted">14 Sep 18.00</td><td class="num">&minus;222,5</td><td class="num">4,08</td><td class="num">47,4</td><td class="num">118</td></tr>
+            <tr><td>TK-02</td><td class="num">1.480,5</td><td class="is-muted">01 Sep 14.00</td><td class="num">1.310,0</td><td class="is-muted">14 Sep 10.00</td><td class="num">&minus;170,5</td><td class="num">4,22</td><td class="num">48,1</td><td class="num">96</td></tr>
+            <tr><td>TK-03</td><td class="num">1.077,0</td><td class="is-muted">01 Sep 22.00</td><td class="num">1.234,5</td><td class="is-muted">14 Sep 02.00</td><td class="num">+157,5</td><td class="num">4,17</td><td class="num">47,9</td><td class="num">84</td></tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td>Gabungan 3 tangki</td>
+              <td class="num">4.182,5</td>
+              <td class="is-muted">01 Sep 06.00 <small>(paling awal)</small></td>
+              <td class="num">3.947,0</td>
+              <td class="is-muted">14 Sep 18.00 <small>(paling akhir)</small></td>
+              <td class="num">&minus;235,5</td>
+              <td class="num">4,15</td>
+              <td class="num">47,8</td>
+              <td class="num">298</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="note-box">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/>
+        </svg>
+        <span>Pergerakan tiap baris = <b>Stok Akhir &minus; Stok Awal</b>, bukan selisih terendah dan
+        tertinggi. <b>TK-03 bergerak naik +157,5 MT</b> sementara dua tangki lain turun. Tanggal Awal dan
+        Tanggal Akhir sengaja berdampingan dengan angkanya supaya terbaca <b>rentang waktu apa yang
+        sebenarnya diselisihkan</b>: TK-03 baru terbaca terakhir pada 14 Sep 02.00, enam belas jam lebih awal
+        daripada TK-01. Kolom Jumlah pembacaan di sini adalah penyebut FFA tiap tangki
+        (118 + 96 + 84 = 298); suhu memakai penyebutnya sendiri &mdash; 114 + 94 + 83 = 291.</span>
+      </div>
+    </section>
+
+    <!-- 10. Rekap harian — collapsible, TERTUTUP secara bawaan -->
+    <details class="collapsible-section">
+      <summary class="collapsible-section__header">
+        <span class="collapsible-section__title">Rekap Harian (14 hari)</span>
+        <svg class="collapsible-section__chevron" viewBox="0 0 24 24" width="18" height="18" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </summary>
+      <div class="collapsible-section__body">
+        <p class="section-note">01 &ndash; 14 Sep 2026 &middot; kolom Stok Total adalah <b>keadaan</b> pada tanggal itu, bukan jumlah yang dapat dijumlahkan; kolom mutu adalah rata-rata harian. Geser mendatar untuk melihat seluruh kolom.</p>
+        <div class="detail-table-wrap">
+          <table class="detail-table detail-table--wide">
+            <thead>
+              <tr>
+                <th scope="col">Tanggal</th>
+                <th scope="col" class="num">Slot Terisi</th>
+                <th scope="col" class="num">Stok Total (MT)</th>
+                <th scope="col" class="num">FFA (%)</th>
+                <th scope="col" class="num">Kadar Air (%)</th>
+                <th scope="col" class="num">Kotoran (%)</th>
+                <th scope="col" class="num">DOBI</th>
+                <th scope="col" class="num">Suhu (&deg;C)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>01 Sep 2026</td><td class="num">24</td><td class="num">4.182,5</td><td class="num">3,92</td><td class="num">0,186</td><td class="num">0,021</td><td class="num">3,12</td><td class="num">48,6</td></tr>
+              <tr><td>02 Sep 2026</td><td class="num">28</td><td class="num">4.210,0</td><td class="num">3,78</td><td class="num">0,174</td><td class="num">0,018</td><td class="num">3,24</td><td class="num">49,2</td></tr>
+              <tr><td>03 Sep 2026</td><td class="num">19</td><td class="num">4.166,5</td><td class="num">4,05</td><td class="num">0,198</td><td class="num">0,024</td><td class="num">3,04</td><td class="num">47,8</td></tr>
+              <tr><td>04 Sep 2026</td><td class="num">26</td><td class="num">4.098,0</td><td class="num">4,21</td><td class="num">0,211</td><td class="num">0,026</td><td class="num">2,92</td><td class="num">48,1</td></tr>
+              <tr><td>05 Sep 2026</td><td class="num">15</td><td class="num">4.121,5</td><td class="num">3,66</td><td class="num">0,168</td><td class="num">0,016</td><td class="num">3,31</td><td class="num">50,3</td></tr>
+              <tr><td>06 Sep 2026</td><td class="num">23</td><td class="num">4.054,0</td><td class="num">4,14</td><td class="num">0,205</td><td class="num">0,025</td><td class="num">2,96</td><td class="num">47,5</td></tr>
+              <tr><td>07 Sep 2026</td><td class="num">12</td><td class="num">4.011,5</td><td class="num">4,38</td><td class="num">0,226</td><td class="num">0,029</td><td class="num">2,78</td><td class="num">46,9</td></tr>
+              <tr><td>08 Sep 2026</td><td class="num">27</td><td class="num">4.068,0</td><td class="num">3,95</td><td class="num">0,192</td><td class="num">0,022</td><td class="num">3,08</td><td class="num">48,8</td></tr>
+              <tr><td>09 Sep 2026</td><td class="num">21</td><td class="num">4.032,5</td><td class="num">4,27</td><td class="num">0,216</td><td class="num">0,027</td><td class="num">2,86</td><td class="num">47,2</td></tr>
+              <tr><td>10 Sep 2026</td><td class="num">25</td><td class="num">3.988,0</td><td class="num">4,49</td><td class="num">0,232</td><td class="num">0,031</td><td class="num">2,71</td><td class="num">46,4</td></tr>
+              <tr><td>11 Sep 2026</td><td class="num">14</td><td class="num">4.015,5</td><td class="num">4,08</td><td class="num">0,201</td><td class="num">0,023</td><td class="num">3,01</td><td class="num">48,3</td></tr>
+              <tr><td>12 Sep 2026</td><td class="num">20</td><td class="num">3.970,0</td><td class="num">4,31</td><td class="num">0,221</td><td class="num">0,028</td><td class="num">2,82</td><td class="num">47,0</td></tr>
+              <tr><td>13 Sep 2026</td><td class="num">32</td><td class="num">3.992,5</td><td class="num">4,55</td><td class="num">0,241</td><td class="num">0,033</td><td class="num">2,64</td><td class="num">45,8</td></tr>
+              <tr><td>14 Sep 2026</td><td class="num">26</td><td class="num">3.947,0</td><td class="num">4,19</td><td class="num">0,209</td><td class="num">0,026</td><td class="num">2,90</td><td class="num">47,6</td></tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>Total periode</td>
+                <td class="num">312 <small>dari 1.008</small></td>
+                <td class="num">&minus;235,5 <small>(pergerakan 01 &rarr; 14 Sep)</small></td>
+                <td class="num">4,15 <small>(rata-rata)</small></td>
+                <td class="num">0,207 <small>(rata-rata)</small></td>
+                <td class="num">0,025 <small>(rata-rata)</small></td>
+                <td class="num">2,95 <small>(rata-rata)</small></td>
+                <td class="num">47,8 <small>(rata-rata)</small></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </details>
+
+    <!-- Footer aksi -->
+    <footer class="action-footer">
+      <button type="button" class="action-button action-button--secondary">Back</button>
+    </footer>
+
+    <p class="actors-note">
+      Actors: Station Operator, Supervisor, Mill Management, Admin &mdash; layar ini terbuka untuk <b>seluruh peran mobile, termasuk Operator</b>. &nbsp;&middot;&nbsp; Entry points: Menu Reporting di dalam Dashboard &amp; Reporting, lalu memilih tile Storage Tank pada layar pemilih stasiun; rute '/reports/storage-tank'; Kembali dari layar lain dengan periode yang sama masih terpilih
+    </p>
+
+  </main>
+</div>
+</body>
+</html>
+<!-- ===========================================================================
+     JEJAK ANGKA (audit) — bukan bagian UI. Seluruh nilai identik dengan
+     screen-133--laporan-storage-tank-web.html, dilayani perhitungan server yang sama.
+
+     Slot diharapkan = 3 tangki x 14 hari x 24 slot = 1.008.
+     Slot terisi per tanggal = 24, 28, 19, 26, 15, 23, 12, 27, 21, 25, 14, 20, 32, 26
+       jumlah = 312  ->  312/1.008 = 31,0%
+     STOK — PERBANDINGAN DUA PEMBACAAN, BUKAN AGREGASI:
+       TK-01  1.625,0 (01 Sep 06.00) -> 1.402,5 (14 Sep 18.00)  = -222,5
+       TK-02  1.480,5 (01 Sep 14.00) -> 1.310,0 (14 Sep 10.00)  = -170,5
+       TK-03  1.077,0 (01 Sep 22.00) -> 1.234,5 (14 Sep 02.00)  = +157,5  <- NAIK
+       jumlah awal  = 4.182,5 MT ; jumlah akhir = 3.947,0 MT
+       jumlah pergerakan = -222,5 - 170,5 + 157,5 = -235,5 MT (= 3.947,0 - 4.182,5)
+     Stok total harian (MT) = 4.182,5 4.210,0 4.166,5 4.098,0 4.121,5 4.054,0 4.011,5 4.068,0 4.032,5 3.988,0 4.015,5 3.970,0 3.992,5 3.947,0
+       baris pertama = kartu Stok Awal ; baris terakhir = kartu Stok Akhir
+     Jumlah pembacaan per metrik: FFA 298 | kadar air 287 | kotoran 261 | DOBI 203 | suhu 291
+     Rata-rata berbobot (tak dibulatkan): FFA 4,1526 | air 0,20646 | kotoran 0,02515 | DOBI 2,9462 | suhu 47,7588
+     GRAFIK TREN MUTU — indeks = nilai / rata-rata metrik x 100, sumbu 80..120.
+       rentang indeks FFA  = 88,1 .. 109,6
+       rentang indeks air  = 81,4 .. 116,7
+       rentang indeks DOBI = 89,6 .. 112,3
+     GRAFIK TREN STOK: sumbu tegak 3.900..4.300 MT, tidak dimulai dari nol, dinyatakan pada legendanya.
+     TIDAK ADA penandaan ambang: tidak ada kartu ambang, tidak ada pewarnaan
+     aman/bahaya, tidak ada outlier/IQR. Storage Tank tidak punya master target
+     operasional. Tanda minus pada pergerakan memakai warna teks biasa, BUKAN warna peringatan.
+=========================================================================== -->

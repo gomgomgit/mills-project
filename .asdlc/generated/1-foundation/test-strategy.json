@@ -1,5 +1,5 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-08-14"
@@ -19,7 +19,7 @@
       "external_services": "mock"
     },
     "seed_strategy": "factories",
-    "seed_command": "php artisan migrate:fresh --seed --env=testing",
+    "seed_command": "(tidak ada — dan sengaja demikian). backend/phpunit.xml sudah memaksa DB_CONNECTION=sqlite dengan DB_DATABASE=:memory: (baris 25-26), dan test memakai RefreshDatabase, sehingga tiap berkas test menyiapkan skemanya sendiri. Tidak ada perintah seed yang perlu dijalankan sebelum integration test. BAHAYA YANG DIHAPUS 2026-09-25: nilai sebelumnya 'php artisan migrate:fresh --seed --env=testing' AKAN MENGHAPUS DATABASE PENGEMBANGAN. Sebabnya backend/.env.testing TIDAK ADA — hanya .env dan .env.example — sehingga --env=testing jatuh kembali ke .env, yang menunjuk PostgreSQL 'mill_smart_log', database dev yang dipakai server :8000. Ditemukan secara INDEPENDEN oleh dua agen implementasi yang berbeda (screen-132 dan screen-137), keduanya menolak menjalankannya. Bila kelak sebuah perintah seed benar-benar diperlukan, buat backend/.env.testing lebih dulu dan verifikasi DB_DATABASE-nya BUKAN database dev sebelum menuliskannya di sini.",
     "run_command": "php artisan test --testsuite=Feature"
   },
   "component_test": {

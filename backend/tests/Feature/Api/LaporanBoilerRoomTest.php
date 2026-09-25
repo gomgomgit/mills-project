@@ -23,15 +23,34 @@
  *   - period_id belonging to another mill IS refused with 403 FORBIDDEN by
  *     BoilerRoomReportService::authorizePeriod().
  *
- * OPERATOR IS REFUSED ON ALL FOUR ROUTES, and that is a deliberate
- * DIFFERENCE from /api/cages-track-reports/*, which was widened to Operator
- * on 2026-09-24 for screen-136. The mobile Boiler Room report is screen-137
- * and does not exist yet, so there is no caller to widen for. Because the
- * route middleware carries no `operator`, that 403 is raised by EnsureRole
- * — which builds its own JSON without going through ApiExceptionHandler, so
- * it carries only { message } and those tests assert the STATUS alone. A
- * refusal raised by the service (AuthorizationException) does carry
- * code = 'FORBIDDEN' and is asserted in full.
+ * OPERATOR IS ACCEPTED ON THE THREE REPORT ROUTES SINCE 2026-09-25 — the
+ * widening for screen-137--laporan-boiler-room-mobile, mirroring
+ * /api/cages-track-reports/* (widened 2026-09-24 for screen-136) and
+ * /api/sterilizer-reports/* (2026-09-23 for screen-135). Operator is
+ * MILL-BOUND, exactly like Supervisor and Mill Management, so its scenario
+ * below asserts the CONTENT of what comes back, not just the status:
+ *   - /periods, /summary, /export answer 200 with the Operator's OWN mill;
+ *   - a business_unit_id naming ANOTHER mill answers 200 carrying the
+ *     caller's own data — asserted by the boiler unit id in the payload, not
+ *     by the status code. That content assertion is what locks
+ *     resolveBusinessUnit(): had Operator been admitted in guardAccess()
+ *     alone it would have fallen into the unbound Admin branch, where the
+ *     client's business_unit_id IS honoured, and a status-only assertion
+ *     would have passed straight through that cross-mill leak;
+ *   - another mill's period_id is still a hard 403 FORBIDDEN;
+ *   - an Operator account with no mill still fails closed with 422.
+ * /business-units/options STAYS 403 for Operator: it is the Admin mill
+ * picker, and an Operator bound to its own mill has no use for the list of
+ * every mill. Now that the route middleware admits `operator`, that refusal
+ * is raised by the SERVICE (AuthorizationException), so it carries
+ * code = 'FORBIDDEN' and is asserted in full rather than by status alone.
+ *
+ * THE WIDENING STOPS AT THE API. The WEB route /reports/boiler-room keeps
+ * refusing Operator — LaporanBoilerRoom::canAccess() has its own role list
+ * and never calls this service. That refusal is asserted by
+ * tests/Feature/Livewire/LaporanBoilerRoomTest.php and
+ * e2e-web/tests/laporan-boiler-room.spec.ts, both of which must stay green
+ * UNCHANGED; nothing in this file may be read as relaxing them.
  *
  * THE FIGURES ARE THE POINT, not just the status codes: every scenario that
  * has a number in its spec asserts that number, because this screen's
@@ -593,35 +612,124 @@ it('mill lain: the client business_unit_id is ignored (200, own data), but anoth
 });
 
 // =====================================================================
-// Scenario 12: "Operator mencoba membuka layar web ini"
+// Scenario 12: "Operator membuka laporan" (screen-137, mobile)
 // =====================================================================
-it('operator: 403 on all four endpoints, and 401 with no session at all', function () {
-    // Step 4 of the scenario is run FIRST, on purpose: actingAs() persists
-    // for the rest of the test case, so a guest request made after it would
+it('operator: 200 on periods/summary/export bound to its OWN mill, 403 on the mill picker, and 401 with no session at all', function () {
+    // The no-session step is run FIRST, on purpose: actingAs() persists for
+    // the rest of the test case, so a guest request made after it would
     // silently be an authenticated one.
     $this->getJson('/api/boiler-room-reports/summary?'.http_build_query(['period_id' => $this->periodA->id]))
         ->assertStatus(401);
 
-    // The route middleware carries no `operator`, so EnsureRole refuses
-    // first. It builds its own JSON without ApiExceptionHandler, so these
-    // responses carry only { message } — the status is what is asserted.
-    // This is the DELIBERATE difference from /api/cages-track-reports/*,
-    // widened to Operator on 2026-09-24: there is no mobile Boiler Room
-    // report (screen-137) to widen for.
-    $this->actingAs($this->operator, 'web')
-        ->getJson('/api/boiler-room-reports/periods')->assertStatus(403);
+    // Two mills, told apart by BOILER UNIT ID rather than by figures alone:
+    // the assertions below have to be able to say "this is Mill Alpha's
+    // data" out of the payload itself, not merely "the status was 200".
+    laporanBoilerRoomRecord($this->stationA, '2026-03-10', [
+        ['steam_pressure_bar' => 20.0, 'water_ph' => 10.0],
+    ], ['boiler_room_id' => 'BLR-ALPHA']);
 
-    $this->actingAs($this->operator, 'web')
-        ->getJson('/api/boiler-room-reports/summary?'.http_build_query(['period_id' => $this->periodA->id]))
-        ->assertStatus(403)
-        ->assertJsonMissingPath('metrics');
+    laporanBoilerRoomRecord($this->stationB, '2026-03-10', [
+        ['steam_pressure_bar' => 900.0, 'water_ph' => 3.0],
+    ], ['boiler_room_id' => 'BLR-BETA']);
 
-    $this->actingAs($this->operator, 'web')
-        ->getJson('/api/boiler-room-reports/export?'.http_build_query(['period_id' => $this->periodA->id]))
-        ->assertStatus(403);
+    $periodB = Period::factory()->forBusinessUnit($this->businessUnitB)->stationType('boiler-room')
+        ->range('2026-03-01', '2026-03-31')->named('Periode Maret Beta')->open()->create();
 
-    $this->actingAs($this->operator, 'web')
-        ->getJson('/api/boiler-room-reports/business-units/options')->assertStatus(403);
+    // Step 1 — GET /periods: 200, and the list is the Operator's own mill's
+    // periods only. No business_unit_id is sent: it comes from the account.
+    $periods = $this->actingAs($this->operator, 'web')->getJson('/api/boiler-room-reports/periods');
+    $periods->assertOk();
+    $periods->assertJsonStructure([
+        'data' => [['id', 'name', 'start_date', 'end_date', 'status', 'station_type', 'station_type_label']],
+    ]);
+
+    $periodIds = array_column($periods->json('data'), 'id');
+    expect($periodIds)->toContain($this->periodA->id);
+    expect($periodIds)->not->toContain($periodB->id);
+
+    // Step 2 — GET /summary while NAMING ANOTHER MILL: 200 carrying the
+    // caller's OWN data, deliberately not 403 (a 403 would confirm Mill
+    // Beta exists, and there is no access attempt to refuse because the
+    // parameter is never used for a mill-bound role).
+    //
+    // THIS IS THE ASSERTION THAT LOCKS resolveBusinessUnit(). Admitting
+    // Operator in guardAccess() alone drops it into the unbound Admin
+    // branch, where the client's business_unit_id IS honoured — and that
+    // leak answers 200 too. Only the CONTENT tells the two apart.
+    $summary = $this->actingAs($this->operator, 'web')->getJson('/api/boiler-room-reports/summary?'.http_build_query([
+        'business_unit_id' => $this->businessUnitB->id,
+        'period_id' => $this->periodA->id,
+    ]));
+
+    $summary->assertOk();
+    $summary->assertJsonPath('period.business_unit_name', 'Mill Alpha');
+    $summary->assertJsonPath('business_unit.name', 'Mill Alpha');
+
+    expect(array_column($summary->json('by_unit'), 'boiler_room_id'))->toBe(['BLR-ALPHA']);
+    expect(array_column($summary->json('by_unit'), 'boiler_room_id'))->not->toContain('BLR-BETA');
+    expect($summary->json('metrics.steam_pressure_bar.avg'))->toEqual(20.0);
+    expect($summary->json('metrics.steam_pressure_bar.max'))->toEqual(20.0);
+    expect($summary->json('metrics.steam_pressure_bar.max'))->not->toEqual(900.0);
+    expect($summary->json('metrics.water_ph.avg'))->toEqual(10.0);
+    expect($summary->json('metrics.water_ph.min'))->not->toEqual(3.0);
+    expect(json_encode($summary->json()))->not->toContain('Mill Beta');
+
+    // Step 3 — GET /export: 200, and the streamed CSV carries the
+    // Operator's own mill's rows, not the other mill's.
+    $export = $this->actingAs($this->operator, 'web')
+        ->get('/api/boiler-room-reports/export?'.http_build_query([
+            'period_id' => $this->periodA->id,
+            'format' => 'csv',
+        ]));
+
+    $export->assertOk();
+
+    $csv = laporanBoilerRoomStreamed($export->baseResponse);
+    expect($csv)->toContain('BLR-ALPHA');
+    expect($csv)->not->toContain('BLR-BETA');
+
+    // Step 4 — ANOTHER MILL'S PERIOD ID is still a hard 403: a concrete
+    // handle on another mill's data, refused outright rather than silently
+    // rewritten. authorizePeriod() needed no change for this widening —
+    // only Admin is unbound there.
+    $forbidden = $this->actingAs($this->operator, 'web')
+        ->getJson('/api/boiler-room-reports/summary?'.http_build_query(['period_id' => $periodB->id]));
+    $forbidden->assertStatus(403);
+    $forbidden->assertJsonPath('code', 'FORBIDDEN');
+    $forbidden->assertJsonMissingPath('metrics');
+
+    $forbiddenExport = $this->actingAs($this->operator, 'web')
+        ->getJson('/api/boiler-room-reports/export?'.http_build_query(['period_id' => $periodB->id]));
+    $forbiddenExport->assertStatus(403);
+    $forbiddenExport->assertJsonPath('code', 'FORBIDDEN');
+
+    // Step 5 — an Operator whose account has no mill FAILS CLOSED with 422,
+    // exactly like the other mill-bound roles: never the all-mills list.
+    $noMillOperator = User::factory()->role(UserRole::Operator)->create(['business_unit_id' => null]);
+
+    $noMillPeriods = $this->actingAs($noMillOperator, 'web')->getJson('/api/boiler-room-reports/periods');
+    $noMillPeriods->assertStatus(422);
+    $noMillPeriods->assertJsonPath('code', 'VALIDATION_ERROR');
+    $noMillPeriods->assertJsonStructure(['errors' => ['business_unit_id']]);
+    expect($noMillPeriods->json('errors.business_unit_id.0'))->toContain('Hubungi Admin');
+    $noMillPeriods->assertJsonMissingPath('data');
+
+    $noMillSummary = $this->actingAs($noMillOperator, 'web')
+        ->getJson('/api/boiler-room-reports/summary?'.http_build_query(['period_id' => $this->periodA->id]));
+    $noMillSummary->assertStatus(422);
+    $noMillSummary->assertJsonPath('code', 'VALIDATION_ERROR');
+    $noMillSummary->assertJsonMissingPath('metrics');
+
+    // Step 6 — the mill picker STAYS 403 for Operator. It is the Admin
+    // picker; an Operator bound to its own mill has no use for the list of
+    // every mill, and handing it over would be the very leak the widening
+    // avoided. Raised by the service now, so it carries code = 'FORBIDDEN'.
+    $picker = $this->actingAs($this->operator, 'web')
+        ->getJson('/api/boiler-room-reports/business-units/options');
+    $picker->assertStatus(403);
+    $picker->assertJsonPath('code', 'FORBIDDEN');
+    $picker->assertJsonMissingPath('data');
+    expect(json_encode($picker->json()))->not->toContain('Mill Beta');
 });
 
 // =====================================================================

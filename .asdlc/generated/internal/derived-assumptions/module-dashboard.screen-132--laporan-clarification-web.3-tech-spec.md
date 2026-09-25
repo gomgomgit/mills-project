@@ -12,3 +12,8 @@
 - **Guard peran sebelum `findOrFail`, dibuktikan lewat jenis exception** ← disalin dari screen-131. `AuthorizationException` dan bukan `ModelNotFoundException` adalah satu-satunya cara membuktikan urutannya, karena keduanya sama-sama menghasilkan penolakan.
 - **Entri `REPORT_ROUTES` harus sesuai `sort_order`** ← `LaporanStasiunTest` melakukan `toBe()` terurut ketat. Pelajaran dari screen-131, dicatat di sini supaya tidak ditemukan ulang lewat test merah.
 - **Nama medan diselaraskan** (`production.total_ton`, `downtime.total_mins`, dst.) ← turunan test memakai nama datar `total_production_ton`/`total_downtime_mins`; 45 kemunculan diganti agar artefak tidak memuat dua nama untuk satu hal. Pola kesalahan yang sama terjadi di screen-131 dan screen-136 — agen penurun test memang cenderung mengarang nama medan ketika kontraknya tidak diberikan inline.
+
+## v2 — 2026-09-25
+
+- **PERTANYAAN TERBUKA DITUTUP: `downtime_mins` TIDAK mengurangi produksi** ← keputusan pemilik proses 2026-09-25. Dasarnya menjawab persis ketidakpastian yang saya angkat: laju yang diinput Operator adalah **laju rata-rata sepanjang jam itu**, bukan laju sesaat saat mesin berjalan. Karena downtime sudah tercermin di dalam lajunya, mengalikan dengan `(60 − downtime)/60` akan menghitung penurunan yang sama dua kali. Rumus `Σ laju × 1 jam` final, dan total downtime tetap ditampilkan berdampingan sebagai konteks — bukan sebagai pengurang.
+- Implementasi TIDAK berubah ← ia memang sudah mengikuti rumus itu sejak awal. Yang berubah hanya status pertanyaannya: dari terbuka menjadi diputuskan, sehingga tidak diangkat ulang di layar mobile (screen-138) maupun saat seseorang membaca `productionOf()` kelak dan mengira rumusnya belum final.

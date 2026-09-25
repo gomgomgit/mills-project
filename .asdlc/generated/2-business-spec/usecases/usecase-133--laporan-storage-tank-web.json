@@ -1,0 +1,389 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-25"
+  },
+  "id": "usecase-133--laporan-storage-tank-web",
+  "name": "Lihat Laporan Periode Storage Tank (Web)",
+  "description": "Pengguna web memilih periode lalu membaca keadaan tangki penyimpanan sepanjang periode itu: stok awal dan akhir per tangki beserta pergerakannya, mutu minyak (FFA, kadar air, kotoran, DOBI), suhu rata-rata, dan seberapa lengkap pencatatannya.",
+  "actors": [
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin",
+    "Mill sudah punya minimal satu periode pelaporan yang mencakup stasiun Storage Tank"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-supervisor",
+      "description": "Pengguna membuka layar Laporan Storage Tank dari pemilih stasiun"
+    },
+    {
+      "step": 2,
+      "actor": "actor-supervisor",
+      "description": "Sistem menetapkan mill dari akun pengguna; khusus Admin, sistem menampilkan pemilih Mill"
+    },
+    {
+      "step": 3,
+      "actor": "actor-supervisor",
+      "description": "Sistem memuat daftar periode yang mencakup stasiun Storage Tank pada mill itu"
+    },
+    {
+      "step": 4,
+      "actor": "actor-supervisor",
+      "description": "Pengguna memilih salah satu periode"
+    },
+    {
+      "step": 5,
+      "actor": "actor-supervisor",
+      "description": "Sistem menentukan stok awal dan akhir TIAP TANGKI dari pembacaan stok pertama dan terakhirnya di dalam periode, diurutkan menurut tanggal lalu slot waktu, lalu menghitung pergerakan per tangki"
+    },
+    {
+      "step": 6,
+      "actor": "actor-supervisor",
+      "description": "Sistem menghitung tiap metrik mutu dan suhu dari pembacaan yang terisi untuk metrik itu sendiri, beserta jumlah pembacaannya"
+    },
+    {
+      "step": 7,
+      "actor": "actor-supervisor",
+      "description": "Sistem menampilkan stok awal, stok akhir, pergerakan bersih, rekap per tangki, metrik mutu, suhu rata-rata, kelengkapan pencatatan, dan tren harian"
+    },
+    {
+      "step": 8,
+      "actor": "actor-supervisor",
+      "description": "Pengguna dapat mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Admin memilih mill lebih dulu",
+      "trigger": "Pada langkah 2, pengguna berperan Admin",
+      "steps": [
+        "Sistem menampilkan pemilih Mill",
+        "Angka tidak ditampilkan sampai mill dipilih",
+        "Sistem menampilkan arahan memilih mill terlebih dahulu"
+      ]
+    },
+    {
+      "name": "Mill belum punya periode",
+      "trigger": "Pada langkah 3, mill tidak punya periode yang mencakup Storage Tank",
+      "steps": [
+        "Pemilih periode kosong",
+        "Sistem menampilkan arahan menghubungi Admin",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Periode tanpa data",
+      "trigger": "Pada langkah 5, periode tidak memuat satu pun pembacaan",
+      "steps": [
+        "Seluruh angka ditampilkan tidak tersedia, bukan nol",
+        "Sistem menyatakan belum ada data pada periode itu",
+        "Tidak ada grafik kosong yang menyesatkan"
+      ]
+    },
+    {
+      "name": "Tangki hanya punya satu pembacaan stok",
+      "trigger": "Pada langkah 5, sebuah tangki hanya punya satu pembacaan stok sepanjang periode",
+      "steps": [
+        "Stok awal dan akhir tangki itu sama-sama menunjuk pembacaan yang sama",
+        "Pergerakannya dinyatakan tidak dapat dihitung",
+        "Nilai nol TIDAK ditampilkan sebagai pergerakan"
+      ]
+    },
+    {
+      "name": "Pembacaan paling awal tidak mencatat stok",
+      "trigger": "Pada langkah 5, pembacaan paling awal sebuah tangki kosong pada kolom stok",
+      "steps": [
+        "Stok awal diambil dari pembacaan terisi berikutnya",
+        "Tanggal pembacaan itu ditampilkan bersama angkanya",
+        "Selisih waktu terhadap awal periode dapat terbaca"
+      ]
+    },
+    {
+      "name": "Tangki tanpa satu pun pembacaan stok",
+      "trigger": "Pada langkah 5, sebuah tangki punya record tetapi tidak satu pun pembacaan stoknya terisi",
+      "steps": [
+        "Tangki itu tetap muncul pada rekap per tangki",
+        "Stok awal, stok akhir, dan pergerakannya dinyatakan tidak tersedia"
+      ]
+    },
+    {
+      "name": "Jumlah tangki berbeda antara awal dan akhir periode",
+      "trigger": "Pada langkah 5, ada tangki yang hanya tercatat di salah satu ujung periode",
+      "steps": [
+        "Pergerakan tetap dihitung per tangki lalu dijumlahkan",
+        "Tangki yang hanya muncul di satu ujung dinyatakan demikian",
+        "Pergerakan TIDAK dihitung dari selisih stok gabungan"
+      ]
+    },
+    {
+      "name": "Pergerakan bernilai negatif",
+      "trigger": "Pada langkah 5, stok akhir sebuah tangki lebih kecil daripada stok awalnya",
+      "steps": [
+        "Nilai negatif ditampilkan apa adanya sebagai pengurangan stok",
+        "Tidak diperlakukan sebagai kesalahan maupun dibulatkan ke nol"
+      ]
+    },
+    {
+      "name": "Sebuah metrik mutu tidak pernah diisi",
+      "trigger": "Pada langkah 6, satu metrik mutu kosong sepanjang periode walau metrik lain terisi",
+      "steps": [
+        "Metrik itu ditampilkan tidak tersedia dengan jumlah pembacaan nol",
+        "Metrik lain tetap tampil normal dengan jumlah pembacaannya sendiri"
+      ]
+    },
+    {
+      "name": "Kolom suhu rata-rata kosong",
+      "trigger": "Pada langkah 6, kolom suhu rata-rata kosong walau suhu atas, tengah, dan bawah terisi",
+      "steps": [
+        "Suhu rata-rata ditampilkan tidak tersedia",
+        "Sistem TIDAK menghitungnya sendiri dari ketiga suhu itu"
+      ]
+    },
+    {
+      "name": "Pencatatan sangat tidak lengkap",
+      "trigger": "Pada langkah 7, hanya sebagian kecil slot waktu terisi",
+      "steps": [
+        "Angka tetap ditampilkan",
+        "Kelengkapan pencatatan ditampilkan menonjol"
+      ]
+    },
+    {
+      "name": "Akun belum terhubung ke mill",
+      "trigger": "Pada langkah 2, akun pengguna terikat mill tetapi mill-nya kosong",
+      "steps": [
+        "Sistem menampilkan pesan menghubungi Admin",
+        "Sistem tidak menawarkan daftar seluruh mill",
+        "Tidak ada angka yang ditampilkan"
+      ]
+    },
+    {
+      "name": "Mencoba melihat mill lain",
+      "trigger": "Pada langkah 5, permintaan membawa mill selain mill pada akun",
+      "steps": [
+        "Server mengabaikan nilai itu dan memakai mill pada akun",
+        "Angka yang tampil tetap milik mill pengguna",
+        "Periode milik mill lain tidak dapat dibuka"
+      ]
+    },
+    {
+      "name": "Operator mencoba membuka layar web ini",
+      "trigger": "Pada langkah 1, pengguna berperan Operator",
+      "steps": [
+        "Akses ditolak",
+        "Tidak ada data yang terlihat"
+      ]
+    },
+    {
+      "name": "Periode tertutup",
+      "trigger": "Pada langkah 4, pengguna memilih periode berstatus tertutup",
+      "steps": [
+        "Laporan tetap tampil penuh",
+        "Status tertutup ditampilkan",
+        "Ekspor tetap dapat dijalankan"
+      ]
+    },
+    {
+      "name": "Rekap harian panjang",
+      "trigger": "Pada langkah 7, periode cukup panjang sehingga rekap hariannya puluhan baris",
+      "steps": [
+        "Rekap harian dapat ditutup",
+        "Angka utama dan tren tetap terbaca tanpa gulir panjang"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Pengguna melihat rekap periode yang dipilih",
+    "Tidak ada satu pun data stasiun yang berubah"
+  ],
+  "business_rules": [
+    "Layar hanya membaca; tidak ada aksi tulis",
+    "Supervisor dan Mill Management terkunci pada mill akunnya; Admin memilih",
+    "Operator tidak punya akses ke layar web ini",
+    "Daftar periode hanya yang mencakup Storage Tank atau berlaku semua jenis stasiun",
+    "Status periode tidak membatasi pembacaan maupun ekspor",
+    "Rentang periode inklusif di kedua ujung",
+    "Stok awal adalah pembacaan stok PERTAMA tangki di dalam periode dan stok akhir adalah yang TERAKHIR, diurutkan menurut tanggal lalu slot waktu — bukan nilai terendah dan tertinggi, bukan pula urutan penyimpanan",
+    "Tanggal kedua pembacaan itu ditampilkan bersama angkanya",
+    "Pergerakan dihitung PER TANGKI lalu dijumlahkan, tidak pernah dari stok gabungan",
+    "Tangki dengan satu pembacaan stok tidak punya pergerakan yang dapat dihitung; itu bukan nol",
+    "Stok diambil dari pembacaan yang stoknya benar-benar terisi; bila yang paling awal kosong, dipakai yang terisi berikutnya",
+    "Setiap metrik punya penyebutnya sendiri",
+    "Suhu rata-rata diambil dari kolom yang dicatat Operator, tidak dihitung ulang dari suhu atas, tengah, dan bawah",
+    "FFA, kadar air, dan DOBI ditampilkan pada satu grafik tren yang sama",
+    "Tidak ada penandaan nilai di luar batas",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — berhasil sebagai Supervisor atau Mill Management",
+      "given": "Supervisor atau Mill Management sudah masuk ke aplikasi web dan mill pada akunnya sudah punya minimal satu periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Pengguna membuka layar Laporan Storage Tank dari pemilih stasiun — mill ditetapkan dari akunnya tanpa pemilih Mill — lalu memilih salah satu periode yang tersedia",
+      "then": "Sistem menampilkan rekap periode untuk mill pada akun pengguna — stok awal dan stok akhir seluruh tangki beserta tanggal pembacaannya, pergerakan bersih, rekap per tangki, FFA, kadar air, kotoran, dan DOBI dengan jumlah pembacaan masing-masing, suhu rata-rata, tren harian mutu dan stok, serta kelengkapan pencatatan — rincian pembacaan per slot waktu dapat diunduh sebagai CSV, dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — berhasil sebagai Admin",
+      "given": "Admin sudah masuk ke aplikasi web dan terdapat mill yang punya minimal satu periode pelaporan mencakup stasiun Storage Tank",
+      "when": "Admin membuka layar Laporan Storage Tank, memilih mill pada pemilih Mill, lalu memilih salah satu periode",
+      "then": "Sistem menampilkan rekap periode untuk mill yang dipilih Admin dengan isi yang sama seperti peran lain — stok awal, stok akhir, pergerakan bersih, rekap per tangki, metrik mutu, suhu rata-rata, tren, dan kelengkapan pencatatan — ekspor CSV tersedia, dan tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — Admin memilih mill lebih dulu",
+      "given": "Admin sudah masuk ke aplikasi web dan terdapat mill yang punya periode pelaporan mencakup stasiun Storage Tank",
+      "when": "Admin membuka layar Laporan Storage Tank tetapi belum memilih mill mana pun",
+      "then": "Sistem menampilkan pemilih Mill beserta arahan untuk memilih mill terlebih dahulu, dan tidak ada angka yang ditampilkan sampai mill dipilih"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — mill belum punya periode",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill yang aktif tidak punya satu pun periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Sistem memuat daftar periode untuk mill tersebut",
+      "then": "Pemilih periode tampil kosong, sistem menampilkan arahan untuk menghubungi Admin, dan tidak ada angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — periode tanpa data",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Pengguna memilih periode yang tidak memuat satu pun pembacaan Storage Tank",
+      "then": "Seluruh angka — stok awal, stok akhir, pergerakan, metrik mutu, dan suhu — ditampilkan sebagai tidak tersedia dan bukan nol, sistem menyatakan belum ada data pada periode itu, dan tidak ada grafik kosong yang menyesatkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — tangki hanya punya satu pembacaan stok",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Pengguna memilih periode di mana sebuah tangki hanya punya satu pembacaan stok sepanjang periode",
+      "then": "Stok awal dan stok akhir tangki itu sama-sama menunjuk pembacaan yang sama, pergerakannya dinyatakan tidak dapat dihitung, dan nilai nol tidak pernah ditampilkan sebagai pergerakan tangki tersebut"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — pembacaan paling awal tidak mencatat stok",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Pengguna memilih periode di mana pembacaan paling awal sebuah tangki kosong pada kolom stok sementara pembacaan berikutnya terisi",
+      "then": "Stok awal tangki itu diambil dari pembacaan terisi berikutnya, tanggal pembacaan itu ditampilkan bersama angkanya, dan selisih waktu terhadap tanggal awal periode dapat terbaca"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — tangki tanpa satu pun pembacaan stok",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Pengguna memilih periode di mana sebuah tangki punya record tetapi tidak satu pun pembacaan stoknya terisi",
+      "then": "Tangki itu tetap muncul pada rekap per tangki, sedangkan stok awal, stok akhir, dan pergerakannya dinyatakan tidak tersedia"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — jumlah tangki berbeda antara awal dan akhir periode",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Pengguna memilih periode di mana ada tangki yang hanya tercatat di salah satu ujung periode saja",
+      "then": "Pergerakan tetap dihitung per tangki lalu dijumlahkan, tangki yang hanya muncul di satu ujung dinyatakan demikian, dan pergerakan tidak pernah dihitung dari selisih stok gabungan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — pergerakan bernilai negatif",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Pengguna memilih periode di mana stok akhir sebuah tangki lebih kecil daripada stok awalnya",
+      "then": "Nilai negatif ditampilkan apa adanya sebagai pengurangan stok, tanpa diperlakukan sebagai kesalahan maupun dibulatkan ke nol"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — sebuah metrik mutu tidak pernah diisi",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Pengguna memilih periode di mana satu metrik mutu kosong sepanjang periode walaupun metrik mutu lain terisi",
+      "then": "Metrik itu ditampilkan sebagai tidak tersedia dengan jumlah pembacaan nol, sementara metrik lain tetap tampil normal dengan jumlah pembacaannya sendiri"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — kolom suhu rata-rata kosong",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Pengguna memilih periode yang kolom suhu rata-ratanya kosong walaupun suhu atas, tengah, dan bawah terisi",
+      "then": "Suhu rata-rata ditampilkan sebagai tidak tersedia, dan sistem tidak menghitungnya sendiri dari suhu atas, tengah, dan bawah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — pencatatan sangat tidak lengkap",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Pengguna memilih periode yang hanya sebagian kecil slot waktunya terisi",
+      "then": "Angka tetap ditampilkan, dan kelengkapan pencatatan ditampilkan menonjol sehingga pembaca tahu di atas berapa banyak pembacaan angka itu berdiri"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — akun belum terhubung ke mill",
+      "given": "Supervisor atau Mill Management sudah masuk ke aplikasi web tetapi akunnya terikat mill yang kosong",
+      "when": "Pengguna membuka layar Laporan Storage Tank dan sistem mencoba menetapkan mill dari akun",
+      "then": "Sistem menampilkan pesan untuk menghubungi Admin, tidak menawarkan daftar seluruh mill, dan tidak ada angka yang ditampilkan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — mencoba melihat mill lain",
+      "given": "Supervisor atau Mill Management sudah masuk ke aplikasi web dan mill pada akunnya punya periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Pengguna mengirim permintaan laporan yang membawa identitas mill selain mill pada akunnya",
+      "then": "Server mengabaikan nilai itu dan tetap memakai mill pada akun, angka yang tampil tetap milik mill pengguna, dan periode milik mill lain tidak dapat dibuka"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — Operator mencoba membuka layar web ini",
+      "given": "Seorang Station Operator sudah masuk ke aplikasi dan mill punya periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Operator mencoba membuka layar Laporan Storage Tank versi web",
+      "then": "Akses ditolak dan tidak ada data laporan yang terlihat"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — periode tertutup",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Storage Tank yang berstatus tertutup",
+      "when": "Pengguna memilih periode yang berstatus tertutup",
+      "then": "Laporan tetap tampil penuh, status tertutup ditampilkan, dan ekspor CSV tetap dapat dijalankan"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — rekap harian panjang",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Storage Tank dengan rentang yang panjang",
+      "when": "Pengguna melihat hasil periode yang rekap hariannya mencapai puluhan baris",
+      "then": "Rekap harian dapat ditutup, dan angka utama beserta tren tetap terbaca tanpa gulir panjang"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — stok awal adalah pembacaan pertama dan stok akhir adalah pembacaan terakhir",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Storage Tank di mana sebuah tangki punya banyak pembacaan stok dengan nilai naik-turun, dan urutan penyimpanan datanya tidak sama dengan urutan waktunya",
+      "when": "Pengguna memilih periode tersebut dan membaca stok awal serta stok akhir tangki itu",
+      "then": "Stok awal diambil dari pembacaan stok pertama tangki itu dan stok akhir dari pembacaan terakhirnya menurut urutan tanggal lalu slot waktu — bukan nilai terendah dan tertinggi, bukan pula baris pertama dan terakhir menurut urutan penyimpanan — dan tanggal kedua pembacaan itu ditampilkan bersama angkanya"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — pergerakan dihitung per tangki lalu dijumlahkan",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Storage Tank dengan beberapa tangki yang stoknya bergerak berbeda-beda",
+      "when": "Pengguna memilih periode tersebut dan membaca pergerakan bersih seluruh tangki",
+      "then": "Pergerakan setiap tangki dihitung lebih dulu sebagai stok akhir dikurangi stok awal tangki itu sendiri, lalu seluruh pergerakan per tangki dijumlahkan menjadi pergerakan bersih — angka itu tidak pernah dihitung dari selisih stok gabungan seluruh tangki"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — suhu rata-rata diambil dari kolom yang dicatat Operator",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Storage Tank di mana kolom suhu rata-rata terisi bersama suhu atas, tengah, dan bawah",
+      "when": "Pengguna memilih periode tersebut dan membaca suhu rata-rata minyak",
+      "then": "Suhu rata-rata diturunkan hanya dari kolom suhu rata-rata yang dicatat Operator beserta jumlah pembacaannya, dan sistem tidak menghitungnya ulang dari suhu atas, tengah, dan bawah sehingga angka yang tampil selalu sama dengan yang dilihat Operator di layar input"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — setiap metrik punya penyebutnya sendiri",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Storage Tank dengan kelengkapan pengisian yang berbeda antar metrik",
+      "when": "Pengguna memilih periode di mana stok, FFA, kadar air, kotoran, DOBI, dan suhu rata-rata terisi pada jumlah pembacaan yang berbeda-beda — satu baris dapat mencatat FFA tetapi mengosongkan DOBI",
+      "then": "Setiap metrik dihitung hanya dari pembacaan yang terisi untuk metrik itu sendiri dan menampilkan jumlah pembacaannya masing-masing, tanpa memakai satu penyebut bersama untuk semua metrik"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — rentang periode inklusif di kedua ujung",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Storage Tank dengan pembacaan tepat pada tanggal awal dan tanggal akhir periode",
+      "when": "Pengguna memilih periode tersebut dan membaca angka beserta rekap hariannya",
+      "then": "Pembacaan pada tanggal awal maupun tanggal akhir ikut terhitung — termasuk sebagai calon stok awal dan stok akhir — rekap harian memuat kedua tanggal ujung, dan ekspor CSV mencakup slot waktu pada kedua ujung tersebut"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — FFA, kadar air, dan DOBI pada satu grafik",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Storage Tank dengan pembacaan FFA, kadar air, dan DOBI sepanjang periode",
+      "when": "Pengguna memilih periode tersebut dan melihat tren harian mutu minyak",
+      "then": "FFA, kadar air, dan DOBI ditampilkan pada satu grafik tren yang sama sehingga arah perubahan ketiganya terbaca bersamaan, bukan pada tiga grafik terpisah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — tidak ada penandaan nilai di luar batas",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan mencakup stasiun Storage Tank yang memuat nilai mutu maupun suhu jauh di atas atau di bawah nilai lazimnya",
+      "when": "Pengguna memilih periode yang memuat nilai ekstrem tersebut dan membaca metrik mutu serta suhu",
+      "then": "Nilai tersebut ditampilkan apa adanya tanpa penandaan, pewarnaan, atau peringatan di luar batas dalam bentuk apa pun, karena Storage Tank tidak punya master target operasional"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — layar hanya membaca",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya periode pelaporan yang mencakup stasiun Storage Tank",
+      "when": "Pengguna menelusuri seluruh bagian layar Laporan Storage Tank, berganti periode, membuka dan menutup rekap harian, lalu menjalankan ekspor CSV",
+      "then": "Layar tidak menyediakan satu pun aksi tulis seperti tambah, ubah, hapus, atau simpan, dan setelah seluruh interaksi tidak ada satu pun data stasiun yang berubah"
+    },
+    {
+      "scenario": "Lihat Laporan Periode Storage Tank (Web) — daftar periode hanya yang mencakup Storage Tank",
+      "given": "Pengguna sudah masuk ke aplikasi web dengan peran Supervisor, Mill Management, atau Admin, dan mill punya campuran periode pelaporan: sebagian khusus stasiun lain, sebagian mencakup Storage Tank, dan sebagian berlaku untuk semua jenis stasiun",
+      "when": "Sistem memuat daftar periode pada layar Laporan Storage Tank",
+      "then": "Pemilih periode hanya memuat periode yang mencakup stasiun Storage Tank atau yang berlaku untuk semua jenis stasiun, sedangkan periode khusus stasiun lain tidak muncul"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-133--laporan-storage-tank-web"
+  ]
+}

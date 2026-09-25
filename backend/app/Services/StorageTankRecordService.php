@@ -61,7 +61,19 @@ class StorageTankRecordService
 
     protected const ENUM_FIELDS = ['steam_heating_valve_status'];
 
-    protected const READING_FIELDS = [
+    /**
+     * The 17 non-time_slot columns of storage_tank_details.
+     *
+     * PUBLIC since 2026-09-25 (screen-133--laporan-storage-tank-web): the
+     * period report needs the SAME definition of "which columns count as a
+     * reading" that the input screens enforce. Visibility widened rather
+     * than the list copied — two copies of this list is how the report and
+     * the form start disagreeing about what was recorded. Purely additive:
+     * nothing else about the constant changed, and the same widening was
+     * already done on BoilerRoomRecordService and ClarificationRecordService
+     * for the same reason.
+     */
+    public const READING_FIELDS = [
         'cpo_sounding_depth_mm', 'water_dip_bottom_depth_mm', 'net_oil_depth_mm',
         'oil_temperature_top_c', 'oil_temperature_middle_c', 'oil_temperature_bottom_c',
         'average_temperature_c', 'calculated_volume_m3', 'calculated_weight_mt',
@@ -272,8 +284,15 @@ class StorageTankRecordService
      * A row counts as "filled" when at least one of its READING_FIELDS (all
      * 17 non-time_slot columns — this station has no identifying/context
      * columns to exclude) is non-null/non-empty.
+     *
+     * PUBLIC since 2026-09-25 (screen-133--laporan-storage-tank-web): this
+     * is THE definition of a filled slot, and StorageTankReportService
+     * reuses it for coverage.filled_slots and for every reading_count rather
+     * than inventing a second one. Purely additive — no behaviour changed,
+     * and the same widening was already done on BoilerRoomRecordService and
+     * ClarificationRecordService.
      */
-    protected function isRowFilled(array $row): bool
+    public function isRowFilled(array $row): bool
     {
         foreach (self::READING_FIELDS as $field) {
             $value = $row[$field] ?? null;

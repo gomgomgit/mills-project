@@ -1,0 +1,13 @@
+# Derived Assumptions — module-dashboard.screen-133--laporan-storage-tank-web.3-tech-spec
+
+## v1 — 2026-09-25
+
+- `route` = `/reports/storage-tank`, 4 endpoint `/api/storage-tank-reports/*` ← konvensi repo dan pola empat laporan stasiun sebelumnya.
+- **Fixture unit test menyisipkan baris dengan urutan id SENGAJA ACAK** ← tidak saya minta; agen penurun test menambahkannya. Tanpa itu, implementasi yang mengambil "baris pertama menurut urutan penyimpanan" akan lolos, karena urutan penyimpanan kebetulan sering sama dengan urutan waktu. Basis data tidak menjamin apa pun tentang itu.
+- **Fixture suhu sengaja membuat kolom tercatat berbeda dari rata-rata aritmetik** (50/60/70 → 60, tetapi kolom = 55, diasersi 55 dengan `not->toBe(60.0)`) ← ini satu-satunya bentuk fixture yang dapat menolak implementasi yang menghitung ulang. Dengan data normal di mana keduanya kebetulan sama, kedua implementasi lolos.
+- **Fixture pergerakan memakai tangki kedua yang hanya punya pembacaan di akhir periode** ← membuat cara per-tangki dan cara gabungan menghasilkan angka yang BERBEDA, sehingga asersinya dapat menolak yang salah secara eksplisit. Dengan data lengkap, kedua cara memberi hasil sama dan testnya tidak membuktikan apa pun.
+- `stock.movement_mt` dikirim sebagai medan tersendiri, bukan dibiarkan dihitung layar ← kalau layar yang menghitungnya dari `closing_mt - opening_mt`, aturan "dijumlahkan per tangki" hilang di lapisan tampilan tanpa satu pun test server yang menangkapnya.
+- `movement_computable` dikirim sebagai boolean terpisah dari `movement_mt` yang null ← membedakan "tidak dapat dihitung" dari "kebetulan null karena sebab lain", dan memberi layar sesuatu yang dapat diasersi selain ketiadaan angka.
+- **Normalisasi indeks dipilih di atas sumbu kedua untuk grafik tiga metrik mutu** ← keputusan agen mock yang saya terima: sumbu kedua hanya memisahkan DOBI, sementara FFA dan kadar air sendiri berbeda sekitar 20×, jadi masalahnya tidak selesai. Spec menerima kedua implementasi, tetapi asersi legenda bersifat mengikat — apa pun yang dipilih wajib dinyatakan.
+- **Konflik antar-aturan di instruksi mock saya** ← empat aturan angka yang saya tetapkan saling mengunci, sehingga contoh "stok awal diambil hari ketiga" tidak dapat hadir di mock tanpa merusak salah satunya. Agen menyelesaikannya dengan membuat ketiga tangki tercatat di kedua ujung tetapi pada slot jam berbeda, sehingga kolom tanggal tetap membawa muatan nyata. Dicatat karena mock karenanya TIDAK memperagakan kasus itu — yang memperagakannya adalah unit test.
+- `slots_per_tank_per_day` dikirim di `coverage` ← agar persentase kelengkapan dapat ditelusuri dan tidak menjadi angka ajaib, sama seperti screen-131 dan screen-132.

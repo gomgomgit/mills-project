@@ -1,0 +1,101 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-25"
+  },
+  "id": "screen-133--laporan-storage-tank-web",
+  "name": "Laporan Storage Tank (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-25T05:24:49Z",
+      "passed": 44,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-25T05:25:00Z",
+      "passed": 28,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-25T05:25:03Z",
+      "passed": 27,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-25T05:34:27Z",
+      "passed": 28,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/StorageTankReportService.php",
+    "backend/app/Http/Controllers/Api/StorageTankReportController.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php",
+    "backend/app/Services/StationReportService.php",
+    "backend/app/Services/StorageTankRecordService.php"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/LaporanStorageTank.php",
+    "backend/resources/views/livewire/dashboard/laporan-storage-tank.blade.php",
+    "backend/resources/views/dashboard/laporan-storage-tank.blade.php",
+    "backend/resources/views/dashboard/partials/report-styles.blade.php",
+    "backend/resources/views/components/layouts/app.blade.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/StorageTankReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanStorageTankTest.php",
+    "e2e-web/tests/laporan-storage-tank.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/LaporanStorageTankTest.php"
+  ],
+  "implementation_notes": [
+    "TUJUH JEBAKAN LOLOS SEMUANYA, dan bentuk fixture-nya yang membuat itu berarti: urutan penyimpanan baris sengaja DIACAK sehingga implementasi yang mengambil baris ber-id terkecil ikut tertolak (opening 100,0 @2026-09-01 06:00, closing 80,0 — bukan min/max 80,0/250,0); pergerakan per-tangki +10,0 sementara cara gabungan memberi +410,0, sehingga asersinya dapat menolak yang salah; average_temperature_c 55 sementara rata-rata aritmetik 50/60/70 = 60, sehingga implementasi yang menghitung ulang pasti gagal. Agregasi di PHP dibuktikan lewat query log: nol avg(, sum(, maupun group by.",
+    "SATU SPEC_MISMATCH DIANGKAT DAN TUJUH KEGAGALAN DISELESAIKAN TANPA MENYENTUH KODE YANG BENAR. Mayoritas kegagalan ada di berkas TEST, bukan implementasi — mengirim semuanya ke auto-fix akan merusak kode produksi demi mengejar asersi yang mustahil.",
+    "checked_by dan acknowledged_by DIHAPUS dari ekspor. Ini bukan konflik spec melainkan implementasi yang melampaui spec: spec ekspor layar ini berbunyi persis 'tanggal, tangki, status, catatan' (empat kolom), dan NOL dari empat service laporan saudara mengekspor kolom itu. Keduanya berisi UUID mentah yang tidak berguna bagi pembaca spreadsheet. EXPORT_CONTEXT_COLUMN_COUNT 6->4, header 24->22. Masalah FOREIGN KEY pada fixture ikut lenyap dengan sendirinya.",
+    "expect(null)->not->toEqual(0.0) MUSTAHIL lolos apa pun implementasinya — 'null == 0.0' bernilai true di PHP, dan toEqual memakai perbandingan longgar. Diverifikasi langsung dengan php -r. Diperbaiki menjadi ->not->toBe(0.0) di EMPAT lokasi, satu lebih banyak daripada yang terlihat awal: cacat identik pada stock.movement_mt skenario 5 tidak pernah sempat dijalankan karena baris di atasnya gagal lebih dulu. Dua toEqual sisanya sengaja dibiarkan — nilainya 150,0 dan -180,0, bukan null, sehingga tidak punya cacat yang sama.",
+    "Helper CSV men-stream StreamedResponse yang sama dua kali; Symfony menandai dirinya sudah ter-stream dan mengembalikan kosong. Diperbaiki dengan menangkap isi SEKALI lalu memakainya ulang, dengan docblock 'STREAM ONCE'. Implementasi terbukti benar oleh keempat asersi isi pada pembacaan pertama.",
+    "response()->streamDownload() membungkus ExportFailedException ke dalam Illuminate\\Routing\\Exceptions\\StreamedResponseException. Implementasi TIDAK diubah: keempat service laporan saudara memakai pola rumah yang sama, dan menyimpangkan satu dari lima demi satu test adalah harga yang salah. Test yang membuka bungkus lewat getInnerException() dan TETAP mengasersi ExportFailedException + 422 + EXPORT_FAILED — asersinya tidak melemah, ia hanya menembus pembungkus framework.",
+    "<small> yang mencetak rata-rata suhu atas/tengah/bawah DIHAPUS dari temperature-source-note. Alasannya bukan kosmetik: seluruh titik aturan itu adalah bahwa kita TIDAK menghitung rata-rata dari tiga posisi, dan mencetak angka 60 di sebelah angka 55 mengundang pembaca menebak mana yang benar. Asersinya lalu DIKUATKAN ke bunyi spec penuh — seluruh metric-card-temperature, bukan lagi irisan wilayah angka — dan fixture diverifikasi tidak pernah membuat average_temperature_c bernilai 60, sehingga angka 60 hanya dapat mencapai kartu lewat perhitungan ulang.",
+    "Entri REPORT_ROUTES ditaruh PALING AKHIR karena sort_order storage-tank ada di urutan ke-14, setelah boiler-room ke-9. Grep ulang tepat sebelum implementasi menemukan berkas KELIMA yang menyentuh REPORT_ROUTES (LaporanClarificationTest) yang belum ada pada audit sebelumnya — tetapi nol asersi literal tersisa, dan hipotesis 'tidak akan memerahkan apa pun' terverifikasi dua run berturut-turut.",
+    "Kelas CSS baru HANYA .md-explain — tampilannya identik dengan .md-threshold, yang berbeda hanya NAMANYA. Itu wajib karena satu skenario mengasersi HTML ter-render tidak mengandung kata 'threshold' di mana pun. .md-trendchart dan .md-trendchart__col tidak disentuh.",
+    "Guard peran sebelum findOrFail dibuktikan lewat KONTRAS jenis exception: Operator menerima AuthorizationException sementara Supervisor pada period_id yang sama menerima ModelNotFoundException. Kontras itulah yang membuktikan urutannya, bukan sekadar satu exception.",
+    "by_tank[].reading_count didefinisikan sebagai jumlah slot terisi (isRowFilled), konsisten dengan by_unit[].reading_count milik ClarificationReportService. Blok audit mock menyebut penyebut FFA; mock BUKAN kontrak dan konsistensi antar layar lebih penting.",
+    "Browser skenario 14 (akun tanpa mill) mengasersi paruh fail-closed yang DAPAT DIAMATI di peramban, menggantikan test.skip yang dipakai laporan sejenis (clarification, boiler-room, cages-track). Dicatat sebagai PENINGKATAN terhadap preseden, bukan penyimpangan.",
+    "data-testid layar ini mengikuti spec (mill-select, period-select, export-button, empty-state, daily-toggle, daily-table) dan karena itu BERBEDA dari konvensi screen-131/132 (mill-selector, export-csv-button). Perbedaan yang disengaja, dicatat agar tidak 'diseragamkan' tanpa sadar.",
+    "E2E memakai lajur tahun 2800 agar tidak bertabrakan dengan lajur 2700 dan 2600 milik spec laporan lain. Pembersihan terkonfirmasi: 18 periode dihapus, nol residu."
+  ],
+  "deferred_items": [
+    {
+      "description": "Laporan Storage Tank versi mobile (screen-139).",
+      "reason": "Layar terpisah, dikerjakan berikutnya. Keempat endpoint /api/storage-tank-reports/* dibangun agar dipakai ulang apa adanya."
+    },
+    {
+      "description": "Coverage tidak terukur.",
+      "reason": "Tidak ada xdebug maupun pcov pada PHP 8.5.4 di mesin ini; 'php artisan test --coverage' menjawab 'Code coverage driver not available'. Bukan kegagalan — 99 test layar ini lolos penuh — tetapi ambang coverage test-strategy tidak dapat ditegakkan."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Coverage unit tidak dapat diverifikasi karena driver tidak terpasang. Ini satu-satunya butir dari layar ini yang tidak terbukti; perlu pemasangan pcov bila ambang itu ingin ditegakkan.",
+      "severity": "medium"
+    },
+    {
+      "description": "Empat service laporan saudara (Sterilizer, CagesTrack, BoilerRoom, Clarification) belum punya test setara unit case 30 — kontrak ExportFailedException yang menembus pembungkus streamDownload. Sudah ditulis sebagai komentar di test layar ini agar berguna bagi yang menambahkannya kelak. Kandidat pekerjaan susulan, bukan cacat.",
+      "severity": "low"
+    },
+    {
+      "description": "Pelanggaran Pint PRA-ADA pada StorageTankRecordService.php, routes/api.php, dan routes/web.php tetap ada; daftar fixer-nya identik dengan HEAD. Sengaja tidak diperbaiki agar diff run ini tetap aditif.",
+      "severity": "low"
+    },
+    {
+      "description": "data-testid layar ini berbeda dari konvensi screen-131/132 karena mengikuti bunyi spec-nya sendiri. Tidak menimbulkan cacat, tetapi berarti test lintas layar tidak dapat memakai pemilih yang sama.",
+      "severity": "low"
+    }
+  ]
+}

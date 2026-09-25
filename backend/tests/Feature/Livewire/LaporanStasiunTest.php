@@ -42,8 +42,10 @@
 use App\Enums\UserRole;
 use App\Livewire\Dashboard\LaporanStasiun;
 use App\Models\BusinessUnit;
+use App\Models\Period;
 use App\Models\StationType;
 use App\Models\User;
+use App\Services\StationReportService;
 use Livewire\Livewire;
 
 /**
@@ -395,4 +397,121 @@ it('mill terbawa: setelah Admin berganti mill, href tile mengikuti mill terakhir
 
     expect($sterilizer)->toContain('business_unit_id='.$this->businessUnitB->id);
     expect($sterilizer)->not->toContain('business_unit_id='.$this->businessUnitA->id);
+});
+
+// =====================================================================
+// REGRESSION — `#[Url(as: 'business_unit_id')]` pada layar ini sendiri.
+//
+// Seluruh tautan di aplikasi ini membawa mill sebagai `business_unit_id`
+// (lihat StationReportService::stationList()). Tanpa `as:`, #[Url] memakai
+// NAMA PROPERTI ('businessUnitId') sebagai kunci query, dan kedua kunci
+// itu tidak akan pernah bertemu — Admin yang tiba lewat tautan berparameter
+// mill tetap diminta memilih mill lagi, tanpa satu tile pun aktif.
+//
+// Asersinya PERILAKU, bukan refleksi atas atributnya.
+// =====================================================================
+it('hidrasi query string: Admin yang tiba dengan business_unit_id di URL langsung melihat grid stasiun mill itu', function () {
+    // (a) Permukaan HTTP.
+    $response = $this->actingAs($this->admin, 'web')
+        ->get(route('reports.stations', ['business_unit_id' => $this->businessUnitA->id]));
+
+    $response->assertOk();
+    $response->assertDontSee('Pilih mill terlebih dahulu untuk menampilkan stasiun.');
+    $response->assertSeeHtml('data-testid="station-grid"');
+    $response->assertDontSeeHtml('data-testid="mill-required-hint"');
+
+    // (b) Permukaan komponen — propertinya benar-benar terhidrasi dan grid
+    // yang dirender adalah grid mill itu.
+    Livewire::actingAs($this->admin)
+        ->withQueryParams(['business_unit_id' => (string) $this->businessUnitA->id])
+        ->test(LaporanStasiun::class)
+        ->assertSet('businessUnitId', (string) $this->businessUnitA->id)
+        ->assertViewHas('needsMillSelection', false)
+        ->assertViewHas('businessUnit', fn ($businessUnit) => $businessUnit !== null
+            && $businessUnit['name'] === 'Mill Alpha')
+        ->assertSeeHtml('data-testid="station-grid"')
+        ->assertDontSeeHtml('data-testid="mill-required-hint"');
+});
+
+// =====================================================================
+// SISI SEBALIKNYA — peran yang terikat satu mill.
+//
+// resolvedBusinessUnitId() MENGABAIKAN properti ini sepenuhnya untuk
+// Supervisor / Mill Management. Memaksa mill lain lewat query string tidak
+// boleh mengubah apa pun — ini yang menjaga agar hidrasi tidak kelak
+// "diperbaiki" menjadi kebocoran lintas mill.
+//
+// Asersi `businessUnitId` yang terhidrasi disengaja: tanpanya test ini
+// bisa hijau hanya karena query string tidak pernah sampai ke komponen.
+// =====================================================================
+it('peran terikat mill: memaksa mill lain lewat query string tidak mengubah grid Supervisor / Mill Management', function () {
+    foreach ([$this->supervisor, $this->millManagement] as $user) {
+        $response = $this->actingAs($user, 'web')
+            ->get(route('reports.stations', ['business_unit_id' => $this->businessUnitB->id]));
+
+        $response->assertOk();
+        $response->assertSee('Mill Alpha');
+        $response->assertDontSee('Mill Beta');
+
+        Livewire::actingAs($user)
+            ->withQueryParams(['business_unit_id' => (string) $this->businessUnitB->id])
+            ->test(LaporanStasiun::class)
+            // Terhidrasi — dan tetap diabaikan.
+            ->assertSet('businessUnitId', (string) $this->businessUnitB->id)
+            ->assertViewHas('businessUnit', fn ($businessUnit) => $businessUnit !== null
+                && $businessUnit['name'] === 'Mill Alpha')
+            ->assertSee('Mill Alpha')
+            ->assertDontSee('Mill Beta');
+    }
+});
+
+// =====================================================================
+// RANTAI PENUH — tautan tile → layar laporan.
+//
+// Ini asersi terkuat dari seluruh berkas ini, dan satu-satunya yang
+// menguji kedua ujungnya sekaligus: URL-nya TIDAK ditulis tangan, melainkan
+// diambil dari `report_path` yang benar-benar dibangun
+// StationReportService — lalu dikunjungi sungguhan, dan laporannya harus
+// termuat untuk mill itu.
+//
+// Kalau kunci yang DIBANGUN service (`business_unit_id`) dan kunci yang
+// DIBACA komponen laporan (nama properti, kalau `as:` hilang) berbeda,
+// test ini memerah — dan itulah cacat yang sebenarnya. Test per komponen
+// menjaga satu sisi; test ini menjaga sambungannya.
+// =====================================================================
+it('rantai tautan tile: setiap report_path yang dibangun StationReportService benar-benar memuat laporan mill itu', function () {
+    // Satu Periode Pelaporan per jenis stasiun yang laporannya sudah ada,
+    // masing-masing dengan nama yang berbeda — supaya yang diasersikan
+    // adalah "laporan INI termuat untuk mill INI", bukan sekadar "halaman
+    // menjawab 200".
+    foreach (array_keys(StationReportService::REPORT_ROUTES) as $code) {
+        Period::factory()
+            ->forBusinessUnit($this->businessUnitA)
+            ->stationType($code)
+            ->range('2026-03-01', '2026-03-31')
+            ->named('Periode Rantai '.$code)
+            ->open()
+            ->create();
+    }
+
+    $this->actingAs($this->admin, 'web');
+
+    $stations = collect(app(StationReportService::class)->stations((string) $this->businessUnitA->id)['stations'])
+        ->where('report_available', true)
+        ->all();
+
+    // Setiap laporan yang sudah dipetakan ikut diuji — bukan satu contoh saja.
+    expect($stations)->toHaveCount(count(StationReportService::REPORT_ROUTES));
+
+    foreach ($stations as $station) {
+        $response = $this->actingAs($this->admin, 'web')->get($station['report_path']);
+
+        $response->assertOk();
+        // Admin SUDAH memilih mill di layar ini. Layar tujuan tidak boleh
+        // memintanya memilih mill untuk kedua kalinya.
+        $response->assertDontSee('Pilih mill terlebih dahulu');
+        // Dan periode mill itu benar-benar termuat — bukan halaman kosong
+        // yang kebetulan tidak memuat kalimat di atas.
+        $response->assertSee('Periode Rantai '.$station['code']);
+    }
 });

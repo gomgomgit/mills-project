@@ -5,6 +5,7 @@ namespace App\Livewire\Dashboard;
 use App\Enums\UserRole;
 use App\Services\StationReportService;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -38,7 +39,27 @@ use Livewire\Component;
 #[Layout('dashboard.laporan-stasiun')]
 class LaporanStasiun extends Component
 {
-    /** Admin-only mill selection; never rendered, never used, for any other role. */
+    /**
+     * Admin-only mill selection; never rendered, never used, for any other role.
+     *
+     * DIBACA DARI QUERY STRING sejak 2026-09-25 — arah sebaliknya dari
+     * perbaikan yang sama pada kelima layar laporan. Tanpa #[Url], Admin
+     * yang memilih mill di sini lalu menekan sebuah tile dan KEMBALI akan
+     * mendapati pilihannya hilang, sehingga ia harus memilih mill lagi
+     * untuk membuka laporan stasiun kedua. Mill-nya ada di URL; layar ini
+     * yang mengabaikannya.
+     *
+     * `as:` WAJIB. Tanpa itu #[Url] memakai NAMA PROPERTI sebagai kunci
+     * query (businessUnitId), sementara seluruh tautan di aplikasi ini
+     * membawa business_unit_id. Keduanya tidak akan pernah bertemu dan
+     * layar tetap meminta pilih mill — persis seperti sebelum diperbaiki,
+     * tanpa satu pun tanda bahwa ada yang salah.
+     *
+     * TIDAK membuka kebocoran lintas mill: resolvedBusinessUnitId()
+     * mengabaikan properti ini sepenuhnya untuk peran terikat mill, jadi
+     * memaksakan mill lain lewat query string tidak mengubah apa pun.
+     */
+    #[Url(as: 'business_unit_id')]
     public string $businessUnitId = '';
 
     /**

@@ -1,0 +1,134 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-25"
+  },
+  "id": "screen-137--laporan-boiler-room-mobile",
+  "name": "Laporan Boiler Room (Mobile)",
+  "module_id": "module-dashboard",
+  "description": "Laporan periode stasiun Boiler Room versi ponsel — pasangan mobile dari laporan versi web, menampilkan angka yang sama persis karena diambil dari endpoint yang sama. Boiler Room tidak menjawab 'berapa banyak' melainkan 'seberapa stabil': apakah tekanan dan suhu uap terjaga, apakah TDS dan pH air tetap terkendali, seberapa sering blowdown dan sootblowing benar-benar dilakukan, dan seberapa lengkap pencatatannya. Kelengkapan itu sendiri adalah temuan — boiler yang datanya bolong separuh periode tidak dapat dinilai, dan laporan harus mengatakannya alih-alih menampilkan rata-rata yang terlihat meyakinkan. Layar ini membutuhkan jaringan, dan karena Operator kerap bekerja di area tanpa sinyal, kegagalan memuat harus dikatakan terus terang berikut cara mencobanya lagi — bukan layar kosong, bukan diam.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menu Reporting di dalam Dashboard & Reporting, lalu memilih tile Boiler Room pada layar pemilih stasiun (screen-141)",
+    "Rute mobile '/reports/boiler-room' dengan nama rute report-boiler-room",
+    "Kembali dari layar lain dengan periode yang sama masih terpilih"
+  ],
+  "information_displayed": [
+    "Pemilih Periode Pelaporan — hanya periode yang mencakup stasiun Boiler Room, yaitu periode berjenis Boiler Room maupun periode yang berlaku untuk semua jenis stasiun",
+    "Pemilih Mill — hanya bagi Admin, yang tidak terikat satu mill",
+    "Nama mill yang sedang berlaku, sebagai keterangan bagi pengguna yang terikat satu mill",
+    "Rentang tanggal dan status periode yang sedang dilihat",
+    "Tekanan uap sepanjang periode: terendah, rata-rata, tertinggi",
+    "Suhu uap sepanjang periode: terendah, rata-rata, tertinggi",
+    "TDS air sepanjang periode: terendah, rata-rata, tertinggi",
+    "pH air sepanjang periode: terendah, rata-rata, tertinggi",
+    "Suhu gas buang sepanjang periode: terendah, rata-rata, tertinggi",
+    "Jumlah pembacaan yang menjadi dasar setiap angka di atas, ditampilkan berdampingan dengan angkanya — masing-masing metrik punya jumlahnya sendiri",
+    "Jumlah blowdown yang dilakukan sepanjang periode dan rata-rata per hari, beserta jumlah yang tidak tercatat yang dilaporkan terpisah",
+    "Jumlah sootblowing yang dilakukan sepanjang periode dan rata-rata per hari, beserta jumlah yang tidak tercatat yang dilaporkan terpisah",
+    "Kelengkapan pencatatan: berapa slot waktu terisi dibanding yang diharapkan sepanjang periode",
+    "Tren harian tekanan uap rata-rata per tanggal",
+    "Tren harian suhu uap rata-rata per tanggal",
+    "Rekap per unit boiler: tekanan rata-rata, suhu rata-rata, jumlah blowdown, jumlah sootblowing, jumlah pembacaan",
+    "Rekap harian yang dapat dibuka dan ditutup, karena pada periode sebulan daftarnya panjang di layar ponsel",
+    "Keterangan ketika periode tidak memuat data sama sekali",
+    "Keterangan ketika mill belum punya satu pun periode yang mencakup Boiler Room",
+    "Pesan kegagalan jaringan beserta tombol untuk mencoba lagi"
+  ],
+  "available_actions": [
+    {
+      "action": "Pilih Periode",
+      "description": "Menentukan periode mana yang dilihat. Mengganti periode memuat ulang seluruh angka pada layar.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Pilih Mill",
+      "description": "Menentukan mill mana yang dilihat. Hanya bagi Admin yang tidak terikat satu mill. Mengganti mill memuat ulang daftar periode dan seluruh angkanya.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup rekap harian",
+      "description": "Menyembunyikan atau menampilkan tabel rekap per tanggal, yang pada periode panjang memakan hampir seluruh layar ponsel.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Ekspor",
+      "description": "Mengunduh rincian pembacaan per slot waktu sepanjang periode sebagai CSV, satu baris per slot dengan kolom konteks record diulang — isinya sama persis dengan ekspor dari laporan versi web.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Coba lagi",
+      "description": "Mengulang pemuatan setelah kegagalan jaringan, tanpa harus keluar dan masuk kembali ke layar.",
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Layar ini hanya membaca. Tidak ada satu pun aksi yang menambah, mengubah, atau menghapus data stasiun.",
+    "Semua peran yang dapat masuk ke aplikasi mobile boleh melihat laporan ini, termasuk Operator. Ini keputusan produk yang sama dengan laporan mobile stasiun lain: orang yang menginput data berhak melihat hasilnya. Versi web menolak Operator; versi mobile menerimanya.",
+    "Pengguna hanya melihat data mill-nya sendiri. Supervisor, Mill Management, dan Operator terikat pada mill di akunnya dan tidak dapat melihat mill lain, bahkan bila mencoba memaksanya lewat permintaan. Admin tidak terikat sehingga ia memilih.",
+    "Angka pada layar ini berasal dari endpoint yang sama dengan laporan Boiler Room versi web. Tidak ada endpoint mobile tersendiri dan tidak boleh ada perhitungan kedua di sisi ponsel, karena dua perhitungan yang terpisah pasti akan menyimpang tanpa ketahuan.",
+    "Daftar periode hanya memuat periode yang mencakup stasiun Boiler Room — periode berjenis Boiler Room, atau periode yang tidak menyebut jenis stasiun.",
+    "Status periode tidak membatasi apa pun di layar ini. Periode tertutup tetap dapat dilihat dan diekspor; kunci periode mengatur penulisan data, bukan pembacaan laporan.",
+    "Rentang periode bersifat inklusif: data pada tanggal awal dan tanggal akhir ikut terhitung.",
+    "SETIAP metrik dihitung dari pembacaan yang terisi untuk metrik ITU SENDIRI. Sebuah baris pengukuran dianggap tercatat bila minimal satu kolomnya terisi, sehingga satu baris dapat mengisi tekanan tetapi mengosongkan pH. Memakai satu penyebut bersama untuk semua metrik akan mengempiskan rata-rata metrik yang jarang diisi.",
+    "Jumlah pembacaan yang mendasari setiap angka ditampilkan berdampingan dengan angkanya. Rata-rata dari tiga pembacaan dan rata-rata dari tiga ratus pembacaan tidak boleh terlihat sama meyakinkan.",
+    "Blowdown dan sootblowing punya TIGA keadaan: dilakukan, tidak dilakukan, dan tidak tercatat. Yang dihitung hanya yang dilakukan; yang tidak tercatat dilaporkan terpisah dan tidak pernah diperlakukan sebagai tidak dilakukan — kolom kosong bukan berarti perawatan tidak dijalankan.",
+    "Laju bahan bakar, beban ID fan, dan beban SA fan adalah catatan teks bebas dengan satuan yang bercampur, bukan angka. Ketiganya tidak pernah dirata-rata maupun digrafikkan; hanya muncul apa adanya pada ekspor.",
+    "Laporan ini TIDAK menandai nilai di luar batas. Boiler Room tidak punya master target operasional, dan menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas aman padahal bukan. Yang ditampilkan adalah nilai terendah, rata-rata, tertinggi, dan tren — penilaiannya ada pada manusia.",
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki. Periode yang hanya terisi sebagian harus terbaca demikian sebelum angkanya dipercaya.",
+    "Layar ini membutuhkan jaringan. Kegagalan memuat harus dinyatakan dengan jelas beserta tombol mencoba lagi, dan periode yang sudah dipilih tidak boleh hilang — tidak boleh layar kosong tanpa penjelasan, dan tidak boleh diam.",
+    "Sesi yang sudah tidak berlaku mengarahkan pengguna ke layar Login, sama seperti layar mobile lain.",
+    "Tata letak ponsel: satu kolom, sasaran sentuh minimal 44 piksel, dan halaman tidak pernah menggulir mendatar. Grafik dan tabel yang lebih lebar dari layar menggulir di dalam kartunya sendiri, bukan menggeser seluruh halaman.",
+    "Rekap harian dapat ditutup dan dibuka kembali agar angka utama dan grafik tetap terbaca pada layar ponsel."
+  ],
+  "usecase_ids": [
+    "usecase-137--laporan-boiler-room-mobile"
+  ],
+  "edge_cases": [
+    "Mill belum punya satu pun periode yang mencakup Boiler Room — pemilih periode kosong dengan arahan menghubungi Admin, bukan layar kosong tanpa penjelasan.",
+    "Periode tidak memuat satu pun pembacaan — seluruh angka ditampilkan sebagai tidak tersedia dengan keterangan belum ada data, bukan sebagai nol.",
+    "Sebuah metrik tidak pernah diisi sepanjang periode walau metrik lain terisi — metrik itu ditampilkan tidak tersedia dengan jumlah pembacaan nol, sementara metrik lain tetap tampil normal.",
+    "Sebuah hari punya record tetapi seluruh barisnya kosong untuk metrik tertentu — hari itu tidak menyumbang pada rata-rata metrik itu, tetapi tetap terhitung sebagai hari ber-record.",
+    "Seluruh blowdown dan sootblowing tidak tercatat sepanjang periode — jumlahnya ditampilkan nol dengan keterangan bahwa seluruhnya tidak tercatat, dibedakan dari nol yang berarti benar-benar tidak pernah dilakukan.",
+    "Mill punya lebih dari satu unit boiler — angka periode menggabungkan seluruh unit, dan rekap per unit menunjukkan sebarannya.",
+    "Kelengkapan pencatatan sangat rendah, misalnya hanya beberapa slot terisi sepanjang sebulan — laporan tetap menampilkan angkanya tetapi kelengkapannya menonjol, bukan tersembunyi.",
+    "Admin belum memilih mill — angka tidak ditampilkan, diganti arahan memilih mill lebih dulu.",
+    "Akun Supervisor, Mill Management, atau Operator yang belum terhubung ke mill mana pun — pesan jelas menghubungi Admin, dan sistem tidak menawarkan daftar seluruh mill.",
+    "Perangkat kehilangan jaringan saat memuat — pesan kegagalan beserta tombol coba lagi, tanpa kehilangan periode yang sudah dipilih.",
+    "Sesi berakhir saat layar terbuka — pengguna diarahkan ke Login, sama seperti layar mobile lain.",
+    "Periode sangat panjang sehingga rekap hariannya puluhan baris — rekap dapat ditutup agar layar tetap terbaca di ponsel.",
+    "Rekap per unit boiler lebih lebar daripada layar ponsel — tabel menggulir mendatar di dalam kartunya sendiri, tanpa membuat seluruh halaman ikut bergeser."
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Boiler Room tidak punya master target operasional, jadi laporan ini sengaja tidak menandai nilai di luar batas. Bila kelak ada batas aman resmi untuk tekanan uap, suhu uap, TDS, dan pH, laporan versi web dan versi mobile perlu ditinjau ulang bersamaan agar penyimpangan dapat ditandai."
+  ]
+}

@@ -431,6 +431,32 @@
         .md-legend__swatch--s2 { background: repeating-linear-gradient(90deg, var(--md-s2) 0 7px, transparent 7px 11px); border-radius: 0; height: 3px; width: 18px; }
         .md-legend__swatch--s3 { background: repeating-linear-gradient(90deg, var(--md-s3) 0 2px, transparent 2px 6px); border-radius: 0; height: 3px; width: 18px; }
 
+        /* ================================================================
+           TAMBAHAN 2026-09-25 — screen-133--laporan-storage-tank-web.
+
+           `.md-explain` — KOTAK KETERANGAN. Tampilannya sama persis dengan
+           `.md-threshold` yang sudah ada, dan itu memang disengaja: yang
+           berbeda hanya NAMANYA.
+
+           Layar Laporan Storage Tank sengaja TIDAK menandai satu pun nilai
+           di luar batas (Storage Tank tidak punya master target operasional
+           — tidak ada StorageTankOperationalTarget), dan ketiadaan itu
+           DIASERSI MENURUT NAMA: HTML ter-render layar itu diperiksa tidak
+           mengandung kata 'threshold', 'outlier', 'iqr', 'fence',
+           'is-danger', 'text-red', 'severity', maupun 'alert'. Memakai
+           `.md-threshold` di sana akan memerahkan asersi itu justru karena
+           NAMA kelasnya, padahal kotaknya dipakai untuk menjelaskan — antara
+           lain untuk menjelaskan bahwa tidak ada ambang apa pun di layar itu.
+
+           Murni aditif: tidak satu pun deklarasi lama diubah, dan
+           `.md-threshold` tetap dipakai apa adanya oleh laporan-laporan
+           sebelumnya.
+           ================================================================ */
+        .md-explain { display: flex; gap: 10px; margin-top: 14px; padding: 12px 14px; border-radius: 12px;
+                      background: #f1f5f9; color: #334155; font-size: 12px; line-height: 1.6; }
+        .md-explain b { color: var(--md-ink); }
+        .md-explain svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--md-brand); }
+
         @media (max-width: 1100px) {
             .md-kpis--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .md-kpis--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }

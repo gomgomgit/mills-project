@@ -1341,41 +1341,117 @@ it('ignores the client business_unit_id for Supervisor and Mill Management and a
 });
 
 // =====================================================================
-// Case 36 — Operator is refused on EVERY public path, and refused FIRST
+// Case 36 — WIDENED 2026-09-25 (screen-137--laporan-boiler-room-mobile)
 // =====================================================================
 
-it('throws 403 FORBIDDEN for a Station Operator on every public method, before the period is looked up', function () {
+// This case used to assert the opposite: Operator refused with 403 on every
+// public method and refused BEFORE the period lookup, with a note saying
+// "unlike Cages & Tracks, this service was NOT widened for Operator: the
+// mobile Boiler Room report (screen-137) does not exist, so there is no
+// caller to widen for". THAT CALLER NOW EXISTS. screen-137 is the mobile
+// Boiler Room report, and on 2026-09-25 the four /api/boiler-room-reports/*
+// endpoints were opened to Operator — the same widening
+// SterilizerReportService got for screen-135 (2026-09-23) and
+// CagesTrackReportService for screen-136 (2026-09-24). The people who key
+// the readings in are entitled to read them back.
+//
+// ACCEPTANCE IS THE CHEAP HALF. Asserting only "it no longer throws" would
+// leave the expensive half untested, so the decisive assertion is block 2:
+// resolveBusinessUnit() must land Operator in the MILL-BOUND branch, where
+// a client-supplied business_unit_id is DISCARDED — not in the Admin
+// branch, where it is HONOURED. Adding Operator to guardAccess() ALONE
+// would drop it through to the Admin branch and produce a service that
+// answers 200 for ANY mill an Operator cares to name: a cross-mill leak,
+// not a display defect. Those two lines of the widening are one change,
+// never two, and this case is what keeps the second one honest.
+//
+// businessUnitOptions() is deliberately NOT part of the widening and its
+// 403 is kept below: Operator is bound to one mill and has no picker, so
+// the list of mills is still Admin-only and the mobile view must never
+// call it.
+//
+// The old "refused before the period is looked up" assertion keeps its
+// SPIRIT rather than its letter: queries DO run for Operator now, so what
+// is asserted is that every one of them is filtered to the Operator's OWN
+// account business unit — and that another mill's period_id is still a
+// flat 403.
+it('accepts a Station Operator on every public method and binds it to its own mill instead of the Admin branch', function () {
+    // Mill Beta's figures are large and unmistakable: if any of them
+    // surfaced below, they could not be mistaken for a rounding difference.
+    boilerRoomReportRecord($this->stationB, '2026-03-10', [['steam_pressure_bar' => 900.0]]);
+    boilerRoomReportRecord($this->stationA, '2026-03-10', [['steam_pressure_bar' => 20.0]]);
+
+    $otherMillPeriod = Period::factory()
+        ->forBusinessUnit($this->businessUnitB)
+        ->stationType('boiler-room')
+        ->range('2026-03-01', '2026-03-31')
+        ->create();
+
     $this->actingAs($this->operatorA);
 
-    // Unlike the Cages & Tracks report, this service was NOT widened for
-    // Operator: the mobile Boiler Room report (screen-137) does not exist,
-    // so there is no caller to widen for.
-    expect(fn () => $this->service->buildSummary($this->periodA))->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->listPeriods())->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->buildExportRows($this->periodA))->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->export($this->periodA, 'csv'))->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->businessUnitOptions())->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->resolveBusinessUnit((string) $this->businessUnitA->id))
+    $queries = [];
+
+    DB::listen(function ($query) use (&$queries) {
+        $queries[] = ['sql' => $query->sql, 'bindings' => $query->bindings];
+    });
+
+    // 1. ACCEPTED — not one AuthorizationException on any of the four
+    //    public report paths that used to answer 403.
+    $summary = $this->service->buildSummary($this->periodA);
+    $periods = $this->service->listPeriods();
+    $rows = iterator_to_array($this->service->buildExportRows($this->periodA), false);
+    $response = $this->service->export($this->periodA, 'csv');
+
+    expect($response)->toBeInstanceOf(StreamedResponse::class);
+
+    // 2. THE POINT OF THIS CASE. A requested BU-B is DISCARDED and the
+    //    ACCOUNT's mill comes back — the mill-bound branch, not the Admin
+    //    branch (which would have echoed the requested id straight back).
+    expect($this->service->resolveBusinessUnit((string) $this->businessUnitB->id))
+        ->toBe((string) $this->businessUnitA->id);
+    expect($this->service->resolveBusinessUnit((string) $this->businessUnitB->id))
+        ->not->toBe((string) $this->businessUnitB->id);
+    // Even a mill id that does not exist at all is discarded rather than
+    // validated — the parameter is never used for this role.
+    expect($this->service->resolveBusinessUnit('BU-LAIN'))
+        ->toBe((string) $this->businessUnitA->id);
+
+    // 3. NOT widened: the mill picker stays ADMIN ONLY. Kept from the old
+    //    case verbatim.
+    expect(fn () => $this->service->businessUnitOptions())
         ->toThrow(AuthorizationException::class);
 
-    // THE ORDERING PROOF: a period id that does NOT exist still answers 403,
-    // never 404. A role that is not admitted at all must not be able to
-    // learn which period ids exist by telling the two responses apart.
-    expect(fn () => $this->service->authorizePeriod((string) Str::uuid()))
+    // 4. Widening the ROLE never widened the MILL: another mill's period id
+    //    is still a flat 403, while the Operator's own period passes.
+    expect(fn () => $this->service->authorizePeriod((string) $otherMillPeriod->id))
         ->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->authorizePeriod((string) Str::uuid()))
-        ->not->toThrow(ModelNotFoundException::class);
+    expect($this->service->authorizePeriod((string) $this->periodA->id)->id)
+        ->toBe($this->periodA->id);
 
-    // And no report data came back on any of them.
-    $summary = null;
+    // 5. The old ordering assertion's SPIRIT: the queries that DO run are
+    //    scoped to the Operator's own business unit, every one of them.
+    $recordQueries = collect($queries)
+        ->filter(fn ($query) => str_contains($query['sql'], 'boiler_room_records'))
+        ->values();
 
-    try {
-        $summary = $this->service->buildSummary($this->periodA);
-    } catch (AuthorizationException $e) {
-        // expected
+    expect($recordQueries)->not->toBeEmpty();
+
+    foreach ($recordQueries as $query) {
+        $bindings = array_map(fn ($binding) => (string) $binding, $query['bindings']);
+
+        expect($bindings)->toContain((string) $this->businessUnitA->id);
+        expect($bindings)->not->toContain((string) $this->businessUnitB->id);
     }
 
-    expect($summary)->toBeNull();
+    // 6. And the figures themselves are BU-A's, never BU-B's 900.0.
+    expect($summary['business_unit']['name'])->toBe('Mill Alpha');
+    expect($summary['metrics']['steam_pressure_bar']['avg'])->toBe(20.0);
+    expect($summary['metrics']['steam_pressure_bar']['reading_count'])->toBe(1);
+    expect($rows)->toHaveCount(1);
+    // listPeriods() answers with Mill Alpha's period only — Mill Beta's
+    // period, created above with the same dates and station type, is absent.
+    expect($periods)->toHaveCount(1);
+    expect($periods[0]['id'])->toBe((string) $this->periodA->id);
 });
 
 // =====================================================================

@@ -1,5 +1,5 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-09-24"
@@ -87,7 +87,8 @@
     "Downtime dijumlahkan dari jam-jam yang mencatatnya, dan jumlah jam yang mencatat downtime ditampilkan terpisah dari besarnya. Downtime nol dan downtime tidak tercatat adalah dua hal berbeda.",
     "Ketiga suhu tangki ditampilkan pada satu grafik yang sama agar selisih antar tangki terbaca — itulah yang menunjukkan apakah proses pemisahan berjalan sebagaimana mestinya, bukan nilai masing-masing tangki secara terpisah.",
     "Laporan ini tidak menandai nilai di luar batas. Clarification tidak punya master target operasional, dan menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas proses padahal bukan.",
-    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki — terlebih di sini, karena produksi diturunkan dari pembacaan yang ada, sehingga pencatatan yang bolong langsung menurunkan angka produksinya."
+    "Kelengkapan pencatatan adalah bagian dari laporan, bukan catatan kaki — terlebih di sini, karena produksi diturunkan dari pembacaan yang ada, sehingga pencatatan yang bolong langsung menurunkan angka produksinya.",
+    "DIPUTUSKAN 2026-09-25: downtime TIDAK mengurangi produksi. Laju yang diinput Operator dibaca sebagai laju rata-rata sepanjang jam itu, sehingga downtime sudah tercermin di dalamnya dan mengurangkannya lagi akan menghitung ganda. Total downtime tetap ditampilkan berdampingan dengan produksi sebagai konteks, bukan sebagai pengurang."
   ],
   "usecase_ids": [
     "usecase-132--laporan-clarification-web"
@@ -107,7 +108,6 @@
   ],
   "test_priority": "high",
   "open_questions": [
-    "Produksi dihitung sebagai jumlah laju per jam tanpa dikurangi downtime pada jam yang sama, mengikuti rumus yang ditetapkan pada penentuan cakupan ('sum laju x 1 jam'). Namun kolom downtime_mins ada pada BARIS YANG SAMA dengan laju, sehingga sebuah jam yang tercatat berhenti 20 menit tetap dihitung berproduksi penuh satu jam — produksi periode menjadi lebih tinggi daripada kenyataan, dan selisihnya tidak terlihat. Alternatifnya mengalikan laju dengan (60 - downtime_mins)/60. Perlu keputusan pemilik proses: apakah laju yang dicatat Operator sudah merupakan laju rata-rata sepanjang jam itu (sehingga downtime sudah tercermin di dalamnya), atau laju sesaat saat mesin berjalan (sehingga downtime harus dikurangkan). Sampai itu diputuskan, laporan memakai rumus apa adanya dan menampilkan total downtime berdampingan dengan produksi supaya pembaca dapat menilainya sendiri.",
     "Clarification tidak punya master target operasional, jadi laporan ini tidak menandai nilai di luar batas. Bila kelak ada batas proses resmi untuk suhu antar tangki, laporan perlu ditinjau ulang."
   ]
 }

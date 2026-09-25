@@ -23,14 +23,15 @@
  * konstanta REPORT_ROUTES di bawah — `isActive` tidak pernah ikut
  * dievaluasi dalam keputusan ketersediaan (lihat isReportAvailable()).
  *
- * Kenapa ini ditulis sepanjang ini: Sterilizer dan Cages & Tracks
- * kebetulan isActive = true DAN punya laporan, jadi implementasi keliru
- * `isActive && REPORT_ROUTES[type]` akan tetap hijau di seluruh test.
- * Cacatnya baru muncul pada stasiun yang aktif di mill tetapi laporannya
- * belum dibuat — yaitu 16 dari 18 stasiun, sekarang juga. Menambah
- * laporan stasiun kelak = menambah SATU baris di REPORT_ROUTES, bukan
- * menyebar pengecekan ke template (screen-136 membuktikannya: satu baris,
- * tanpa satu pun perubahan di template).
+ * Kenapa ini ditulis sepanjang ini: Sterilizer, Cages & Tracks, dan Boiler
+ * Room kebetulan isActive = true DAN punya laporan, jadi implementasi
+ * keliru `isActive && REPORT_ROUTES[type]` akan tetap hijau di seluruh
+ * test. Cacatnya baru muncul pada stasiun yang aktif di mill tetapi
+ * laporannya belum dibuat — yaitu 15 dari 18 stasiun, sekarang juga.
+ * Menambah laporan stasiun kelak = menambah SATU baris di REPORT_ROUTES,
+ * bukan menyebar pengecekan ke template (screen-136 dan screen-137
+ * membuktikannya: satu baris masing-masing, tanpa satu pun perubahan di
+ * template).
  *
  * Tile tanpa laporan memakai aria-disabled="true", BUKAN atribut
  * `disabled` native — alasannya tertulis di components/StationGrid.vue:
@@ -72,19 +73,23 @@ const infoMessage = ref<string | null>(null)
  * ada di peta ini atau tidak. Tidak ada hubungannya dengan
  * StationSlot.isActive (lihat komentar kepala berkas).
  *
- * Hari ini baru Sterilizer (screen-135--laporan-sterilizer-mobile) dan
- * Cages & Tracks (screen-136--laporan-cages-track-mobile) yang layar
- * laporan mobile-nya sudah dibangun; 16 stasiun lain menunggu layar
- * laporannya masing-masing dan tetap ditampilkan dalam keadaan nonaktif,
- * bukan disembunyikan.
+ * Hari ini baru Sterilizer (screen-135--laporan-sterilizer-mobile),
+ * Cages & Tracks (screen-136--laporan-cages-track-mobile), Boiler Room
+ * (screen-137--laporan-boiler-room-mobile), dan Clarification
+ * (screen-138--laporan-clarification-mobile) yang layar laporan mobile-nya
+ * sudah dibangun; 14 stasiun lain menunggu layar laporannya masing-masing
+ * dan tetap ditampilkan dalam keadaan nonaktif, bukan disembunyikan.
  *
- * Kunci 'cages-track' ditulis dalam tanda kutip karena StationType
- * memakai tanda hubung; itu kode stasiun yang sama dengan yang dipakai
- * stationRepo dan periode pelaporan.
+ * Kunci 'cages-track' dan 'boiler-room' ditulis dalam tanda kutip karena
+ * StationType memakai tanda hubung; itu kode stasiun yang sama dengan yang
+ * dipakai stationRepo dan periode pelaporan.
  */
 const REPORT_ROUTES: Partial<Record<StationType, string>> = {
   sterilizer: 'report-sterilizer',
   'cages-track': 'report-cages-track',
+  'boiler-room': 'report-boiler-room',
+  clarification: 'report-clarification',
+  'storage-tank': 'report-storage-tank',
 }
 
 function isReportAvailable(station: StationSlot): boolean {

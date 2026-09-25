@@ -32,6 +32,11 @@ import { defineConfig, devices } from '@playwright/test'
  */
 export default defineConfig({
   testDir: './tests',
+  // Menghapus record stasiun yang ditanam suite ini. Tanpa ini residunya
+  // tidak pernah menyusut: aplikasi sengaja tidak punya jalur hapus untuk
+  // record stasiun, jadi setiap run menumpuk selamanya (841 baris saat
+  // teardown ini ditulis). Alasan lengkap di berkas yang ditunjuk.
+  globalTeardown: './tests/support/global-teardown.ts',
   fullyParallel: false,
   workers: 1,
   retries: 0,

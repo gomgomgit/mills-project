@@ -1,0 +1,1767 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-25"
+  },
+  "id": "screen-139--laporan-storage-tank-mobile",
+  "name": "Laporan Storage Tank (Mobile)",
+  "module_id": "module-dashboard",
+  "route": "/reports/storage-tank",
+  "auth_requirement": "authenticated — seluruh peran mobile (operator, supervisor, mill_management, admin)",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien DIABAIKAN. Perluasan akses ini berlaku HANYA untuk 4 rute API, bukan untuk rute web"
+    },
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Terikat business_unit_id akunnya; business_unit_id dari klien diabaikan"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Tidak terikat satu business unit — wajib memilih mill lewat pemilih Mill"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "usecase_name": "Lihat Laporan Periode Storage Tank (Mobile)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/storage-tank-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill — khusus Admin — DIPAKAI ULANG apa adanya oleh screen-139 (mobile); tidak ada endpoint mobile terpisah",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor bukan admin"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/storage-tank-reports/periods",
+          "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Storage Tank — DIPAKAI ULANG apa adanya oleh screen-139 (mobile); tidak ada endpoint mobile terpisah",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "WAJIB untuk Admin; DIABAIKAN untuk peran terikat mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string",
+                  "station_type": "string|null",
+                  "station_type_label": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "actor admin tidak mengirim business_unit_id"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "akun terikat mill dengan business_unit_id null — daftar seluruh mill TIDAK PERNAH disusun"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/storage-tank-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode: stok awal/akhir/pergerakan per tangki, mutu minyak, suhu, kelengkapan, tren harian — DIPAKAI ULANG apa adanya oleh screen-139 (mobile); tidak ada endpoint mobile terpisah",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode yang dilaporkan"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /periods"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string",
+                "business_unit_name": "string"
+              },
+              "coverage": {
+                "filled_slots": "integer",
+                "expected_slots": "integer",
+                "coverage_percent": "float",
+                "tank_count": "integer",
+                "slots_per_tank_per_day": "integer",
+                "days_in_period": "integer"
+              },
+              "stock": {
+                "opening_mt": "float|null",
+                "opening_at": "datetime|null",
+                "closing_mt": "float|null",
+                "closing_at": "datetime|null",
+                "movement_mt": "float|null",
+                "tanks_with_movement": "integer",
+                "tanks_without_movement": "integer",
+                "_note": "opening_mt/closing_mt = JUMLAH stok awal/akhir SELURUH tangki, masing-masing diambil dari pembacaan stok pertama/terakhir TANGKI ITU. movement_mt = JUMLAH pergerakan per tangki, BUKAN closing_mt - opening_mt. opening_at/closing_at = tanggal+slot paling awal/akhir di antara seluruh tangki"
+              },
+              "metrics": {
+                "ffa_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "moisture_content_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "impurities_dirt_percent": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "dobi_index": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "average_temperature_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "calculated_weight_mt": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "calculated_volume_m3": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "oil_temperature_top_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "oil_temperature_middle_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                },
+                "oil_temperature_bottom_c": {
+                  "min": "float|null",
+                  "avg": "float|null",
+                  "max": "float|null",
+                  "reading_count": "integer"
+                }
+              },
+              "by_tank": [
+                {
+                  "storage_tank_id": "string",
+                  "reading_count": "integer",
+                  "opening_mt": "float|null",
+                  "opening_at": "datetime|null",
+                  "closing_mt": "float|null",
+                  "closing_at": "datetime|null",
+                  "movement_mt": "float|null",
+                  "movement_computable": "boolean",
+                  "ffa_avg": "float|null",
+                  "average_temperature_avg": "float|null"
+                }
+              ],
+              "daily": [
+                {
+                  "date": "date",
+                  "filled_slots": "integer",
+                  "stock_total_mt": "float|null",
+                  "ffa_avg": "float|null",
+                  "moisture_avg": "float|null",
+                  "impurities_avg": "float|null",
+                  "dobi_avg": "float|null",
+                  "temperature_avg": "float|null"
+                }
+              ],
+              "total": {
+                "days_with_records": "integer",
+                "reading_rows": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain bagi Supervisor/Mill Management, Operator DITERIMA sejak screen-139 dan terikat mill akunnya"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id kosong"
+              },
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — dihitung saat periode dipilih",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/storage-tank-reports/export",
+          "description": "Ekspor seluruh pembacaan per slot waktu sepanjang periode ke CSV, satu baris per slot — DIPAKAI ULANG apa adanya oleh screen-139 (mobile); tidak ada endpoint mobile terpisah",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "string",
+                "required": true,
+                "default": null,
+                "description": "Periode yang diekspor"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "csv | excel"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Sama seperti /summary"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "_note": "StreamedResponse; kolom konteks record (tanggal, tangki, status, catatan) diulang tiap baris, lalu ketujuh belas kolom pengukuran termasuk enum katup uap dan kolom teks apa adanya"
+            },
+            "error_codes": [
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ditemukan"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "periode milik mill lain, Operator DITERIMA sejak screen-139 dan terikat mill akunnya"
+              },
+              {
+                "http_code": 422,
+                "error_code": "EXPORT_FAILED",
+                "condition": "jumlah baris storage_tank_details melebihi 50.000"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "format di luar csv|excel"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "TIDAK ADA logika server baru. Keempat endpoint /api/storage-tank-reports/* milik screen-133 dipakai ulang apa adanya; seluruh langkah business_logic layar web berlaku tanpa perubahan. Yang berubah hanyalah SIAPA yang boleh memanggilnya.",
+        "PERLUASAN AKSES OPERATOR — empat perubahan, dan melewatkan salah satunya menimbulkan lubang: (1) routes/api.php: middleware grup storage-tank-reports menjadi ['auth:web,sanctum', 'role:supervisor,mill_management,admin,operator'] — guard sanctum WAJIB karena ponsel memakai token, bukan sesi; (2) StorageTankReportService::guardAccess(): tambahkan UserRole::Operator; (3) StorageTankReportService::resolveBusinessUnit(): tambahkan Operator ke cabang TERIKAT MILL bersama Supervisor dan MillManagement; (4) sesuaikan test layar web yang mengasersi Operator ditolak 403 di API.",
+        "MENGAPA (3) TIDAK BOLEH TERLEWAT: resolveBusinessUnit() bercabang 'if (Supervisor || MillManagement) { pakai business_unit_id akun } else { perlakukan sebagai Admin }'. Melebarkan guardAccess() saja menjatuhkan Operator ke cabang Admin, tempat business_unit_id dari klien DIHORMATI, sehingga Operator dapat membaca laporan mill mana pun. Itu kebocoran lintas mill, bukan cacat tampilan. Pola ini sudah terbukti dua kali pada screen-135 dan screen-136.",
+        "authorizePeriod() TIDAK perlu diubah: hanya Admin yang diperlakukan tidak terikat, sisanya dibandingkan ke business_unit_id akun, sehingga Operator otomatis tertutup dari periode mill lain.",
+        "RUTE WEB /reports/storage-tank TIDAK BERUBAH — tetap role:supervisor,mill_management,admin. Operator tidak punya UI web. Yang dilebarkan hanya 4 rute API.",
+        "Lapisan klien: mobile/src/services/storagetankReportRepo.ts, sejajar sterilizerReportRepo.ts dan cagesTrackReportRepo.ts. Fungsi: fetchBusinessUnits(), fetchPeriods(scope?), fetchSummary(periodId, scope?), exportCsv(periodId), saveCsvFile(blob, filename), plus objek gabungan sebagai default export.",
+        "scopeParams(scope): mengembalikan {} bila !scope.isAdmin, dan {} bila Admin belum memilih mill; hanya { business_unit_id } bila Admin sudah memilih. Perangkat non-Admin TIDAK PERNAH mengirim business_unit_id — pertahanan berlapis di atas penjagaan server, bukan penggantinya.",
+        "unwrap(payload): respons /summary dikirim controller TANPA pembungkus 'data', sementara /periods dan /business-units/options MEMAKAI pembungkus. Repo menerima kedua bentuk.",
+        "TIDAK ADA perhitungan ulang KPI di sisi ponsel. Repo hanya memanggil endpoint, membaca pembungkus, menyeragamkan nama medan, dan meneruskan. Satu unit test khusus mengunci ketiadaan aritmetika ini — aturan bisnisnya menyatakan dua perhitungan terpisah pasti menyimpang tanpa ketahuan.",
+        "NULL BUKAN NOL harus bertahan melewati lapisan klien. Mengoersi null menjadi 0 di ponsel mengubah 'tidak dapat dihitung' menjadi 'tidak ada' — persis kesalahan yang sudah dicegah di sisi server.",
+        "Penerjemahan galat ada di VIEW, bukan di repo. Repo membiarkan galat axios naik apa adanya (tidak ada kelas galat khusus di repo laporan basis kode ini). View menangani: status 401 -> arahkan ke Login; galat lain -> pesan kegagalan + tombol coba lagi, dengan periode terpilih DIPERTAHANKAN.",
+        "Ekspor memakai responseType 'blob' lalu saveCsvFile() dengan anchor + object URL — konvensi web standar yang juga berlaku di WebView Capacitor. Pengambilan data dan penyimpanan berkas dipisah agar keduanya dapat diuji sendiri-sendiri.",
+        "Pintu masuk: tambahkan satu entri ke REPORT_ROUTES di mobile/src/views/ReportingPilihStasiunView.vue agar tile Storage Tank aktif, dan satu rute '/reports/storage-tank' bernama 'report-storage-tank' di mobile/src/router/index.ts dengan meta.public = false. Tanpa entri REPORT_ROUTES itu layar tidak terjangkau walau seluruh testnya hijau. JANGAN menambahkan 'station.isActive &&' pada isReportAvailable() — lihat komentar kepala berkas itu.",
+        "Tuntutan UI ponsel: satu kolom, sasaran sentuh minimal 44px, TANPA gulir horizontal halaman. Grafik dan tabel menggulir di dalam kartunya sendiri. Rekap harian dapat ditutup dan dibuka tanpa memicu permintaan jaringan baru.",
+        "Angka identik dengan Laporan Storage Tank web: stok awal/akhir = pembacaan pertama/terakhir per tangki (bukan min/max), pergerakan dijumlahkan per tangki, tangki dengan satu pembacaan tidak punya pergerakan yang dapat dihitung, pergerakan negatif itu sah, dan suhu rata-rata diambil dari kolom yang dicatat Operator.",
+        "DIPUTUSKAN 2026-09-25: stok memakai BERAT (MT), bukan volume. Volume dan kedalaman sounding tetap dikirim sebagai metrik tersendiri.",
+        "FFA, kadar air, dan DOBI digambar pada satu grafik walau skalanya tidak sebanding (DOBI 2-4, FFA 3-5 persen, air 0,1-0,3 persen). Layar WAJIB menormalkan atau memakai sumbu kedua DAN menyatakan cara penskalaannya — asersi legenda bersifat mengikat."
+      ],
+      "data_operations": [
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "Lewat endpoint web — tidak ada akses basis data langsung dari ponsel"
+        },
+        {
+          "entity_id": "storage-tank-record",
+          "operation": "SELECT",
+          "description": "Lewat endpoint screen-133"
+        },
+        {
+          "entity_id": "storage-tank-detail",
+          "operation": "SELECT",
+          "description": "Lewat endpoint screen-133"
+        },
+        {
+          "entity_id": "station",
+          "operation": "SELECT",
+          "description": "Lewat endpoint web"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "Pemilih Mill untuk Admin, lewat endpoint web"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "Perangkat kehilangan jaringan saat memuat",
+          "handling": "Galat transport naik dari repo sebagai objek DATAR {message} tanpa status; view menampilkan pesan kegagalan + tombol coba lagi dan MEMPERTAHANKAN periode terpilih, sehingga coba lagi memakai period_id yang sama"
+        },
+        {
+          "condition": "Sesi berakhir saat layar terbuka",
+          "handling": "401 UNAUTHENTICATED; view mengarahkan ke Login tanpa sempat merender angka. BUKAN kasus coba lagi — pesan dan tombol coba lagi justru tidak boleh muncul"
+        },
+        {
+          "condition": "Admin belum memilih mill",
+          "handling": "scopeParams mengembalikan {}, server menjawab 422 VALIDATION_ERROR; view menampilkan arahan memilih mill dan tidak memanggil /summary"
+        },
+        {
+          "condition": "Akun terikat mill tetapi business_unit_id null",
+          "handling": "422 VALIDATION_ERROR menghubungi Admin; pemilih Mill TIDAK dirender sebagai gantinya"
+        },
+        {
+          "condition": "Operator mengirim business_unit_id mill lain",
+          "handling": "Server mengabaikannya dan menjawab 200 berisi data mill sendiri — inilah yang mengunci Operator berada di cabang TERIKAT MILL, bukan cabang Admin"
+        },
+        {
+          "condition": "Operator menembak period_id milik mill lain",
+          "handling": "403 FORBIDDEN dari authorizePeriod()"
+        },
+        {
+          "condition": "Operator memanggil /business-units/options",
+          "handling": "403 FORBIDDEN dan itu disengaja — Operator terikat millnya sehingga tidak pernah butuh daftar pilihan mill. Preseden screen-136; view juga tidak pernah memanggilnya untuk peran terikat mill"
+        },
+        {
+          "condition": "Rekap harian puluhan baris di layar ponsel",
+          "handling": "Dapat ditutup/dibuka murni di sisi klien — TIDAK memicu permintaan jaringan baru; jumlah pemanggilan fetchSummary tetap 1"
+        },
+        {
+          "condition": "Metrik yang tidak dapat dihitung server",
+          "handling": "null bertahan sebagai null melewati repo dan tampil sebagai keterangan, bukan angka 0"
+        }
+      ],
+      "business_rules_applied": [
+        "Seluruh peran mobile boleh melihat, termasuk Operator",
+        "Operator, Supervisor, dan Mill Management terkunci pada mill akunnya; business_unit_id dari klien diabaikan server",
+        "Admin wajib memilih mill; tanpa itu 422",
+        "Angka berasal dari endpoint yang sama dengan laporan web — tidak ada perhitungan kedua di sisi ponsel",
+        "null bertahan sebagai null melewati lapisan klien",
+        "Status periode tidak membatasi pembacaan maupun ekspor",
+        "Layar hanya membaca; tidak ada aksi tulis",
+        "Kegagalan jaringan dinyatakan beserta cara mencoba lagi, tanpa kehilangan periode terpilih",
+        "Satu kolom, sasaran sentuh 44px, tanpa gulir horizontal halaman"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "fetchPeriods memanggil tepat GET /api/storage-tank-reports/periods dan tidak menyaring jenis stasiun di sisi klien",
+          "given": "apiClient.get di-mock mengembalikan { data: { data: [ { id, name, start_date, end_date, status, station_type, station_type_label } ] } }",
+          "expect": "apiClient.get dipanggil tepat satu kali dengan path '/api/storage-tank-reports/periods'; seluruh entri diteruskan apa adanya dalam urutan yang sama; TIDAK ada penyaringan station_type di repo — penyaringan cakupan Storage Tank sepenuhnya milik server"
+        },
+        {
+          "description": "scopeParams tidak mengirim business_unit_id untuk peran yang terikat mill, termasuk Operator",
+          "given": "storagetankReportRepo.fetchPeriods({ isAdmin: false, businessUnitId: 'BU-A' }) dipanggil",
+          "expect": "params yang dikirim adalah objek KOSONG — kunci business_unit_id tidak ada sama sekali (bukan null, bukan string kosong). Bahkan ketika pemanggil menyertakan businessUnitId, nilai itu tidak ikut dikirim untuk peran non-Admin; Operator ada di cabang TERIKAT MILL ini, bukan di cabang Admin"
+        },
+        {
+          "description": "scopeParams mengirim business_unit_id hanya ketika Admin sudah memilih mill",
+          "given": "storagetankReportRepo.fetchPeriods({ isAdmin: true, businessUnitId: 'BU-B' }) dipanggil",
+          "expect": "params yang dikirim adalah { business_unit_id: 'BU-B' }"
+        },
+        {
+          "description": "scopeParams tidak mengirim business_unit_id ketika Admin belum memilih mill",
+          "given": "storagetankReportRepo.fetchPeriods({ isAdmin: true, businessUnitId: null }) dipanggil",
+          "expect": "params yang dikirim adalah objek kosong; repo tidak mengarang nilai mill dan tidak melempar galat sendiri — server yang menjawab 422 VALIDATION_ERROR"
+        },
+        {
+          "description": "fetchSummary memanggil GET /api/storage-tank-reports/summary dengan period_id",
+          "given": "storagetankReportRepo.fetchSummary('per-1') dipanggil dengan apiClient.get di-mock",
+          "expect": "apiClient.get dipanggil dengan path '/api/storage-tank-reports/summary' dan params { period_id: 'per-1' }; tidak ada parameter lain yang ditambahkan repo"
+        },
+        {
+          "description": "unwrap menerima respons summary TANPA pembungkus data maupun DENGAN pembungkus",
+          "given": "dua pemanggilan: yang pertama apiClient.get mengembalikan { data: <payload summary polos> } (bentuk controller saat ini), yang kedua { data: { data: <payload summary yang sama> } }",
+          "expect": "kedua pemanggilan menghasilkan objek hasil yang identik medan per medan — repo tidak pecah bila pembungkus 'data' kelak diseragamkan di sisi server; /periods dan /business-units/options tetap dibaca lewat pembungkus data"
+        },
+        {
+          "description": "fetchSummary meneruskan seluruh blok apa adanya tanpa perhitungan kedua",
+          "given": "payload summary berisi period, business_unit, has_data, coverage, stock, metrics (10 metrik), by_tank, daily, dan total",
+          "expect": "kesembilan blok hadir pada hasil dengan nilai identik medan per medan; tidak ada satu pun angka yang dihitung ulang di repo"
+        },
+        {
+          "description": "fetchSummary mempertahankan stock.opening_mt dan opening_at null ketika tidak ada pembacaan stok",
+          "given": "payload summary dengan stock = { opening_mt: null, opening_at: null, closing_mt: null, closing_at: null, movement_mt: null, tanks_with_movement: 0, tanks_without_movement: 3 }",
+          "expect": "kelima medan tetap null pada hasil — TIDAK menjadi 0 dan tanggalnya TIDAK menjadi string kosong; 'tidak ada pembacaan stok' bukan 'stoknya nol'"
+        },
+        {
+          "description": "fetchSummary mempertahankan stock.closing_at sebagai tanggal apa adanya",
+          "given": "payload summary dengan stock.opening_at = '2026-09-01' dan stock.closing_at = '2026-09-28' sementara periode berakhir 2026-09-30",
+          "expect": "kedua tanggal diteruskan apa adanya tanpa diformat ulang, digeser, atau diganti tanggal batas periode — selisih waktu terhadap ujung periode harus tetap terbaca pembaca"
+        },
+        {
+          "description": "repo tidak menghitung movement_mt sendiri dari closing dikurangi opening",
+          "given": "payload summary dengan stock = { opening_mt: 1200.0, closing_mt: 1500.0, movement_mt: 280.5, tanks_with_movement: 2, tanks_without_movement: 1 }",
+          "expect": "movement_mt pada hasil tetap 280.5 — BUKAN 300.0; repo tidak mengurangkan closing dengan opening, karena pergerakan dihitung server per tangki lalu dijumlahkan, dan selisih stok gabungan adalah angka yang berbeda"
+        },
+        {
+          "description": "fetchSummary mempertahankan by_tank[].movement_computable false beserta movement_mt null",
+          "given": "payload summary dengan by_tank berisi { storage_tank_id: 'ST-2', reading_count: 1, opening_mt: 400.0, opening_at: '2026-09-03', closing_mt: 400.0, closing_at: '2026-09-03', movement_mt: null, movement_computable: false, ffa_avg: null, average_temperature_avg: null }",
+          "expect": "movement_computable tetap false dan movement_mt tetap null; repo TIDAK menurunkan 0 dari closing_mt - opening_mt untuk tangki berpembacaan tunggal — nol akan terbaca sebagai 'tidak bergerak' padahal yang benar adalah 'tidak dapat dihitung'"
+        },
+        {
+          "description": "fetchSummary meneruskan tanks_with_movement dan tanks_without_movement apa adanya",
+          "given": "payload summary dengan stock.tanks_with_movement = 2, stock.tanks_without_movement = 1, dan by_tank berisi 3 tangki",
+          "expect": "kedua cacah diteruskan apa adanya; repo TIDAK menurunkannya dari panjang by_tank atau dari penyaringan movement_computable"
+        },
+        {
+          "description": "fetchSummary meneruskan movement_mt bernilai negatif apa adanya",
+          "given": "payload summary dengan stock.movement_mt = -312.75 dan salah satu by_tank[].movement_mt = -180.25",
+          "expect": "kedua nilai negatif diteruskan apa adanya; repo tidak memakai Math.abs, tidak membulatkan ke nol, dan tidak menandainya sebagai galat — pengurangan stok adalah hasil yang sah"
+        },
+        {
+          "description": "fetchSummary mempertahankan metrics[metrik].min/avg/max sebagai null dengan reading_count 0",
+          "given": "payload summary dengan metrics.dobi_index = { min: null, avg: null, max: null, reading_count: 0 } sementara metrics.ffa_percent terisi penuh",
+          "expect": "dobi_index tetap null/null/null dengan reading_count 0 — TIDAK menjadi 0/0/0; DOBI memang tidak diukur setiap slot, dan metrik lain tidak terpengaruh"
+        },
+        {
+          "description": "fetchSummary mempertahankan metrics.average_temperature_c null dan tidak menurunkannya dari tiga suhu posisi",
+          "given": "payload summary dengan metrics.average_temperature_c = { min: null, avg: null, max: null, reading_count: 0 } sementara oil_temperature_top_c, oil_temperature_middle_c, dan oil_temperature_bottom_c ketiganya terisi",
+          "expect": "average_temperature_c tetap null/null/null dengan reading_count 0; repo TIDAK merata-ratakan ketiga suhu posisi untuk mengisinya — suhu rata-rata adalah kolom yang dicatat Operator sendiri, bukan turunan"
+        },
+        {
+          "description": "fetchSummary meneruskan reading_count tiap metrik sendiri-sendiri, tanpa penyebut bersama",
+          "given": "payload summary dengan metrics.ffa_percent.reading_count = 240 dan metrics.dobi_index.reading_count = 4",
+          "expect": "kedua reading_count diteruskan apa adanya; repo tidak menurunkan satu penyebut bersama dari total.reading_rows dan tidak menyeragamkannya"
+        },
+        {
+          "description": "repo tidak memakai calculated_volume_m3 maupun kedalaman sounding untuk membentuk angka stok",
+          "given": "payload summary dengan stock.opening_mt = 1200.0 sementara metrics.calculated_volume_m3 terisi penuh",
+          "expect": "seluruh medan stock berasal dari blok stock apa adanya; tidak satu pun nilai calculated_volume_m3 atau metrik kedalaman sounding masuk ke stock — berat terhitung dalam MT adalah satu-satunya sumber stok, dan volume hanyalah metrik tersendiri"
+        },
+        {
+          "description": "fetchSummary mempertahankan null pada daily[].stock_total_mt dan rata-rata mutu",
+          "given": "payload summary dengan daily berisi satu baris { date, filled_slots: 2, stock_total_mt: null, ffa_avg: 3.4, moisture_avg: null, impurities_avg: null, dobi_avg: null, temperature_avg: null }",
+          "expect": "seluruh medan null tetap null pada hasil; baris itu TIDAK dibuang dan TIDAK ditambal nol"
+        },
+        {
+          "description": "fetchSummary meneruskan by_tank termasuk tangki tanpa satu pun pembacaan stok",
+          "given": "payload summary dengan by_tank berisi tiga tangki, salah satunya { storage_tank_id: 'ST-3', reading_count: 0, opening_mt: null, opening_at: null, closing_mt: null, closing_at: null, movement_mt: null, movement_computable: false, ffa_avg: null, average_temperature_avg: null }",
+          "expect": "ketiga tangki hadir pada hasil dalam urutan yang sama; tangki tanpa pembacaan TIDAK disaring keluar — ia harus tetap terlihat sebagai tangki yang tidak tercatat"
+        },
+        {
+          "description": "fetchSummary meneruskan coverage apa adanya tanpa menghitung ulang coverage_percent",
+          "given": "payload summary dengan coverage = { filled_slots: 3, expected_slots: 240, coverage_percent: 1.25, tank_count: 2, slots_per_tank_per_day: 4, days_in_period: 30 }",
+          "expect": "coverage_percent tetap 1.25 dengan dua desimalnya apa adanya; repo TIDAK menghitungnya ulang dan TIDAK membulatkannya menjadi 1.3"
+        },
+        {
+          "description": "fetchSummary meneruskan has_data apa adanya dan tidak menurunkannya sendiri",
+          "given": "payload summary dengan has_data: false sementara total.reading_rows: 0",
+          "expect": "has_data: false diteruskan apa adanya; repo tidak menurunkan penanda ini dari panjang daily maupun dari by_tank"
+        },
+        {
+          "description": "fetchSummary tidak mengurutkan ulang maupun menyaring daily, termasuk baris bernilai nol",
+          "given": "payload summary dengan daily berisi 5 tanggal, salah satunya bernilai nol/null pada seluruh kolom rata-rata",
+          "expect": "array daily yang dikembalikan sama persis panjangnya, urutannya, dan isinya dengan yang diterima; baris bernilai nol TIDAK dibuang — baris itu justru harus terbaca sebagai hari yang tercatat"
+        },
+        {
+          "description": "fetchSummary meneruskan payload periode kosong apa adanya",
+          "given": "payload summary periode tanpa satu pun pembacaan (has_data false, seluruh blok kosong/null)",
+          "expect": "has_data false diteruskan apa adanya, blok kosong diteruskan apa adanya, dan repo TIDAK menggantinya dengan nol — 'belum ada data' dan 'angkanya nol' adalah dua jawaban berbeda"
+        },
+        {
+          "description": "fetchBusinessUnits memanggil endpoint opsi mill dan membaca pembungkus data",
+          "given": "apiClient.get di-mock mengembalikan { data: { data: [ { id: 'BU-A', name: 'Mill A' } ] } }",
+          "expect": "apiClient.get dipanggil dengan path '/api/storage-tank-reports/business-units/options' tanpa params; hasilnya [ { id: 'BU-A', name: 'Mill A' } ]; respons tanpa data menghasilkan array kosong, bukan galat"
+        },
+        {
+          "description": "exportCsv meminta responseType blob dan format csv",
+          "given": "storagetankReportRepo.exportCsv('per-1') dipanggil",
+          "expect": "apiClient.get dipanggil dengan path '/api/storage-tank-reports/export', params { period_id: 'per-1', format: 'csv' }, dan responseType 'blob'; nilai kembaliannya adalah response.data apa adanya (Blob), bukan CSV yang disusun ulang dari angka di layar"
+        },
+        {
+          "description": "saveCsvFile memicu unduhan lewat anchor + object URL dan membersihkannya",
+          "given": "saveCsvFile(new Blob(['a,b']), 'laporan.csv') dipanggil dengan URL.createObjectURL dan URL.revokeObjectURL di-mock",
+          "expect": "URL.createObjectURL dipanggil dengan blob itu, sebuah anchor dibuat dengan href object URL dan download 'laporan.csv', anchor diklik, lalu dilepas dari document.body dan URL.revokeObjectURL dipanggil — tidak ada object URL yang tertinggal"
+        },
+        {
+          "description": "galat dari apiClient diteruskan naik APA ADANYA sebagai objek DATAR, tidak ditelan menjadi hasil kosong",
+          "given": "apiClient.get menolak dengan objek datar hasil normalizeError: { message: 'Tidak berwenang.', status: 403 } — perhatikan bahwa properti .response TIDAK PERNAH ada di sini, karena interceptor apiClient sudah menormalkannya",
+          "expect": "fetchSummary menolak dengan objek yang SAMA PERSIS ({ message, status: 403 }); repo tidak membungkusnya menjadi kelas galat sendiri, tidak menambah medan, dan tidak mengembalikan nilai kosong sebagai gantinya — penerjemahan 401/403 menjadi perilaku layar adalah tugas view"
+        },
+        {
+          "description": "galat transport tanpa status juga diteruskan naik apa adanya",
+          "given": "apiClient.get menolak dengan { message: 'Tidak dapat terhubung ke server. Data akan disimpan secara lokal.' } — objek datar tanpa kunci status, bentuk normalizeError untuk kegagalan jaringan",
+          "expect": "fetchPeriods dan fetchSummary sama-sama menolak dengan objek yang sama persis, tanpa kunci status yang dikarang dan tanpa try/catch di repo; view yang memutuskan menampilkan pesan + tombol Coba Lagi"
+        },
+        {
+          "description": "repo tidak memuat satu pun perhitungan KPI di sisi klien",
+          "given": "berkas mobile/src/services/storagetankReportRepo.ts dibaca sebagai teks dan seluruh nilai kembalian fetchSummary dibandingkan dengan payload masukan",
+          "expect": "tidak ada satu pun penjumlahan, perataan, pembulatan, pengurutan, penyaringan, atau penurunan angka di repo (tanpa reduce/sort/filter/Math.round atas angka laporan, tanpa operator aritmetika atas medan payload) — khususnya tidak ada pengurangan closing_mt - opening_mt dan tidak ada perataan ketiga suhu posisi menjadi suhu rata-rata; setiap medan hasil === medan masukan. Perhitungan kedua di ponsel dilarang aturan bisnis — ia pasti menyimpang dari laporan web tanpa ketahuan"
+        },
+        {
+          "description": "mengembalikan hasil lengkap ketika seluruh kondisi terpenuhi",
+          "given": "payload summary terisi penuh dan scope peran terikat mill",
+          "expect": "seluruh blok payload hadir pada objek hasil dengan nilai identik, apiClient.get dipanggil tepat satu kali, dan tidak ada permintaan tambahan yang dikirim repo"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "storage-tank-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "storage-tank-detail",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-133--laporan-storage-tank-web",
+      "reason": "Memakai ULANG keempat endpoint /api/storage-tank-reports/* milik layar itu. Perluasan akses Operator MENGUBAH berkas miliknya (routes/api.php, service, dan testnya) — bukan hanya menambah"
+    },
+    {
+      "screen_id": "screen-141--reporting-pilih-stasiun-mobile",
+      "reason": "Satu-satunya pintu masuk. Tile Storage Tank baru aktif setelah REPORT_ROUTES di ReportingPilihStasiunView.vue ditambah satu entri"
+    },
+    {
+      "screen_id": "screen-134--dashboard-reporting-mobile",
+      "reason": "Langkah sebelum pemilih stasiun pada rantai navigasi"
+    },
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Tanpa Periode Pelaporan, layar ini tidak punya apa pun untuk ditampilkan"
+    }
+  ],
+  "implementation_notes": [
+    "TIDAK ADA endpoint baru dan TIDAK ADA tambahan ke api-index. Keempat endpoint sudah terdaftar atas nama screen-133. Yang berubah hanya actor_ids-nya, karena Operator kini diterima.",
+    "EMPAT PERUBAHAN PERLUASAN AKSES HARUS DIKERJAKAN BERSAMAAN. Yang paling mudah terlewat adalah resolveBusinessUnit(): tanpa menambahkan Operator ke cabang terikat mill, Operator jatuh ke cabang Admin — tempat business_unit_id dari klien DIHORMATI — dan dapat membaca laporan mill mana pun. Dikunci oleh api_test 'mencoba melihat mill lain' langkah pertama, yang mengharuskan 200 berisi data mill SENDIRI.",
+    "Guard rute wajib 'auth:web,sanctum', bukan 'auth:web' saja — mobile memakai token Sanctum. Rute sterilizer-reports dan cages-track-reports sudah memakai bentuk ini sejak screen-135 dan screen-136.",
+    "Test layar web yang mengasersi Operator ditolak 403 di API HARUS disesuaikan menjadi: Operator diterima di API, tetapi tetap ditolak di rute web /reports/storage-tank. Jangan melemahkan asersi lain, dan jangan menghapus asersi penolakan di sisi web — canAccess() pada komponen Livewire punya daftar peran sendiri yang tidak memanggil service, jadi lapisan web tetap tertutup secara mandiri.",
+    "unit_test_cases menyasar mobile/src/services/storageTankReportRepo.ts, BUKAN service Laravel. Perubahan sisi server ditutup oleh api_test dan oleh penyesuaian test layar web.",
+    "Nama fungsi repo mengikuti sterilizerReportRepo.ts dan cagesTrackReportRepo.ts APA ADANYA: fetchBusinessUnits (bukan fetchBusinessUnitOptions), fetchPeriods, fetchSummary, exportCsv, saveCsvFile.",
+    "KOREKSI TERHADAP TEMPLAT screen-136: templat itu menulis skenario sesi-berakhir sebagai galat ber-response.status 401. Bentuk itu TIDAK PERNAH sampai ke pemanggil — interceptor apiClient menolak lewat normalizeError yang mengembalikan objek DATAR {message, errors?, status?} dan membuang response. Ketiga layar ini ditulis terhadap bentuk datar itu, di unit_test_cases maupun component_test. Baris yang sama di tech spec screen-136 layak dibetulkan kelak.",
+    "Skenario 'jaringan gagal' memakai tolakan objek datar {message} TANPA status, dan asersinya menuntut periode terpilih TETAP SAMA serta coba lagi memanggil ulang dengan period_id yang SAMA — bukan sekadar 'pesan muncul'.",
+    "Rekap harian tutup/buka WAJIB nol permintaan jaringan baru: component test menghitung pemanggilan fetchSummary tetap 1, browser test merekam permintaan jaringan dan menuntut nol yang baru.",
+    "Browser test memakai Playwright terhadap Vite dev server. Layar Capacitor ini BISA diuji di peramban — nol skenario ditunda sebagai 'mobile-only'. Viewport disetel eksplisit ke ukuran ponsel, karena project Playwright repo ini Desktop Chrome 1280px di mana tuntutan satu-kolom menjadi hampa.",
+    "Pintu masuk: satu entri REPORT_ROUTES di mobile/src/views/ReportingPilihStasiunView.vue dan satu rute '/reports/storage-tank' bernama 'report-storage-tank' di mobile/src/router/index.ts. Tanpa entri REPORT_ROUTES itu layar tidak terjangkau walau seluruh testnya hijau. JANGAN menambahkan 'station.isActive &&' pada isReportAvailable().",
+    "Mock visual acuan: .asdlc/generated/2-business-spec/screens/html/screen-139--laporan-storage-tank-mobile.html, dengan angka yang sengaja DISAMAKAN dengan mock web pasangannya — kalau keduanya berbeda, itu sendiri sudah kebohongan tentang produknya."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — berhasil dilihat Operator, Supervisor, dan Mill Management",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Operator (users.business_unit_id = BU-A); tanpa parameter business_unit_id"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan auth store berperan operator/supervisor/mill_management dan business_unit_id terisi, repo di-mock mengembalikan daftar periode lalu payload ringkasan; pilih periode pertama",
+        "assert": "pemilih Mill tidak dirender sama sekali, nama mill tampil sebagai keterangan, stok awal dan stok akhir beserta tanggal pembacaannya, pergerakan bersih, rekap per tangki, kesepuluh metrik mutu beserta reading_count masing-masing, suhu rata-rata, kelengkapan pencatatan, tren harian, dan rekap harian terender dari payload apa adanya, dan tidak ada satu pun kontrol tulis"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "masuk pada Vite dev server sebagai Operator, buka Dashboard & Reporting lalu Reporting, tekan tile Storage Tank, pilih periode pertama",
+        "assert": "seluruh bagian laporan tampil satu kolom, lebar konten tidak melampaui viewport sehingga tidak ada gulir horizontal halaman, pemilih Mill tidak tampil, dan tidak ada tombol simpan/ubah/hapus"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — berhasil dilihat Admin setelah memilih mill",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Admin (users.business_unit_id = null)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data[0].id}}",
+            "period_id": "{{step2.data[0].id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan auth store berperan admin tanpa business_unit_id, repo di-mock mengembalikan opsi mill; pilih satu mill lalu satu periode",
+        "assert": "pemilih Mill dirender, memilih mill memicu pemuatan ulang daftar periode, dan setelah periode dipilih stok awal dan stok akhir beserta tanggal pembacaannya, pergerakan bersih, rekap per tangki, metrik mutu, suhu rata-rata, kelengkapan pencatatan, tren harian, dan rekap harian tampil untuk mill yang dipilih"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "masuk sebagai Admin, buka laporan Storage Tank, pilih sebuah mill, lalu pilih sebuah periode",
+        "assert": "angka laporan tampil untuk mill yang dipilih dalam satu kolom tanpa gulir horizontal halaman, dan mengganti mill memuat ulang daftar periode beserta seluruh angkanya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — Operator membuka laporan",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode milik BU-A>",
+            "_context": "Token Sanctum Operator (business_unit_id = BU-A)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Operator (business_unit_id = BU-A)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode milik BU-A>",
+            "format": "csv",
+            "_context": "Token Sanctum Operator (business_unit_id = BU-A)"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/business-units/options"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Operator — Operator terikat millnya sendiri sehingga tidak butuh daftar mill; preseden screen-136 dipertahankan"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan auth store berperan operator dan business_unit_id terisi, lalu pilih sebuah periode",
+        "assert": "laporan terender penuh persis seperti bagi peran lain, pemilih Mill tidak dirender sehingga mill tidak dapat diganti dari layar, komponen TIDAK memanggil repo.fetchBusinessUnits sama sekali, dan scopeParams menghasilkan objek kosong sehingga pemanggilan repo tidak menyertakan business_unit_id"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "masuk sebagai Operator dan buka laporan periode Storage Tank",
+        "assert": "laporan terbuka penuh tanpa pembatasan bagian mana pun, tidak ada kontrol untuk mengganti mill, dan nama mill yang tampil adalah mill pada akun Operator"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Admin (users.business_unit_id = null) tanpa parameter business_unit_id"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1",
+            "_context": "Token Sanctum Admin tanpa business_unit_id"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan auth store berperan admin tanpa business_unit_id dan tanpa mill terpilih",
+        "assert": "pemilih Mill dirender, arahan memilih mill terlebih dahulu dirender, dan tidak ada satu pun blok angka yang dirender selama mill belum dipilih"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "masuk sebagai Admin dan buka laporan Storage Tank tanpa memilih mill",
+        "assert": "pemilih Mill tampil, arahan memilih mill terbaca, dan tidak ada angka laporan yang tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — mill belum punya periode",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum peran berwenang pada mill yang belum punya periode mencakup Storage Tank"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan repo.fetchPeriods di-mock mengembalikan array kosong",
+        "assert": "pemilih periode dirender kosong, arahan menghubungi Admin dirender, tidak ada blok angka yang dirender, dan daftar kosong TIDAK diperlakukan sebagai galat"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "masuk sebagai Supervisor pada mill yang belum punya periode mencakup Storage Tank lalu buka laporannya",
+        "assert": "pemilih periode kosong, arahan menghubungi Admin terbaca, dan tidak ada angka laporan yang tampil — bukan layar kosong tanpa penjelasan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — periode tanpa data",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode tanpa satu pun pembacaan>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan payload ringkasan has_data false dan seluruh blok kosong/null",
+        "assert": "keterangan belum ada data pada periode itu dirender, stok awal, stok akhir, pergerakan, dan seluruh metrik dirender sebagai tidak tersedia dan BUKAN sebagai nol (stock.* null dan metrics[*] null dirender sebagai '-'), dan tidak ada grafik yang dirender sama sekali — grafik kosong akan terbaca sebagai garis datar hasil pengukuran"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang tidak memuat satu pun pembacaan",
+        "assert": "keterangan belum ada data terbaca, seluruh angka tampil sebagai tidak tersedia dan bukan nol, dan tidak ada grafik kosong yang menyesatkan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — tangki hanya punya satu pembacaan stok",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang salah satu tangkinya hanya punya satu pembacaan stok>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan by_tank berisi { storage_tank_id: 'ST-2', reading_count: 1, opening_mt: 400.0, opening_at: '2026-09-03', closing_mt: 400.0, closing_at: '2026-09-03', movement_mt: null, movement_computable: false }",
+        "assert": "baris tangki itu merender stok awal dan stok akhir yang sama-sama menunjuk pembacaan yang sama (nilai dan tanggal identik), dan kolom pergerakannya dirender sebagai 'tidak dapat dihitung' — BUKAN sebagai 0; komponen memakai movement_computable, bukan nilai movement_mt, untuk memutuskan tampilan itu"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang salah satu tangkinya hanya punya satu pembacaan stok",
+        "assert": "stok awal dan stok akhir tangki itu menunjuk pembacaan yang sama, pergerakannya terbaca tidak dapat dihitung, dan angka nol tidak pernah tampil sebagai pergerakannya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — pembacaan paling awal tidak mencatat stok",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang pembacaan paling awalnya tidak mencatat kolom berat>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan stock.opening_at = '2026-09-04' sementara period.start_date = '2026-09-01'",
+        "assert": "nilai stok awal dirender berdampingan dengan tanggal pembacaannya (2026-09-04), bukan dengan tanggal mulai periode; komponen tidak mengganti opening_at dengan start_date dan tidak menyembunyikannya"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang pembacaan paling awalnya tidak mencatat stok",
+        "assert": "stok awal yang tampil berasal dari pembacaan terisi berikutnya, tanggal pembacaan itu terbaca bersama angkanya, dan selisihnya terhadap tanggal mulai periode dapat dilihat langsung"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — tangki tanpa satu pun pembacaan stok",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang salah satu tangkinya tanpa satu pun pembacaan stok>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan by_tank berisi { storage_tank_id: 'ST-3', reading_count: 0, opening_mt: null, opening_at: null, closing_mt: null, closing_at: null, movement_mt: null, movement_computable: false }",
+        "assert": "baris tangki itu TETAP dirender pada rekap per tangki (tidak disaring keluar), dan stok awal, stok akhir, serta pergerakannya dirender sebagai tidak tersedia — bukan nol"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang salah satu tangkinya tidak punya satu pun pembacaan stok",
+        "assert": "tangki itu tetap muncul pada rekap per tangki, dan ketiga kolom stoknya terbaca tidak tersedia"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — jumlah tangki berbeda antara awal dan akhir periode",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang jumlah tangki bepembacaannya berbeda antara awal dan akhir>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan stock = { opening_mt: 1200.0, closing_mt: 1500.0, movement_mt: 280.5, tanks_with_movement: 2, tanks_without_movement: 1 } dan by_tank berisi tiga tangki, salah satunya hanya muncul di satu ujung",
+        "assert": "pergerakan bersih yang dirender adalah 280.5 apa adanya dari payload — BUKAN 300.0 dari closing dikurangi opening gabungan; tangki yang hanya muncul di satu ujung dirender dengan pergerakan tidak dapat dihitung, dan cacah tanks_without_movement dirender dari payload"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang jumlah tangki bepembacaannya berbeda antara awal dan akhir periode",
+        "assert": "pergerakan bersih tidak sama dengan selisih stok gabungan, tangki yang hanya muncul di satu ujung dinyatakan demikian, dan cacah tangki tanpa pergerakan terbaca"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — pergerakan bernilai negatif",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang pergerakan bersihnya negatif>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan stock.movement_mt = -312.75 dan salah satu by_tank[].movement_mt = -180.25",
+        "assert": "kedua nilai negatif dirender apa adanya dengan tanda minus sebagai pengurangan stok; tidak ada Math.abs, tidak ada pembulatan ke nol, dan tidak ada kelas galat atau ikon peringatan yang dipasang karenanya"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang stok akhirnya lebih rendah daripada stok awalnya",
+        "assert": "pergerakan tampil sebagai angka negatif yang terbaca jelas sebagai pengurangan stok, bukan sebagai kesalahan dan bukan dibulatkan ke nol"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — sebuah metrik mutu tidak pernah diisi",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang kolom DOBI-nya kosong sepanjang periode>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan metrics.dobi_index = { min: null, avg: null, max: null, reading_count: 0 } sementara metrics.ffa_percent terisi penuh",
+        "assert": "kartu DOBI dirender sebagai tidak tersedia dengan jumlah pembacaan 0 — bukan sebagai 0,00; kartu FFA tetap merender angkanya beserta reading_count-nya sendiri dan tidak terpengaruh"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang salah satu metrik mutunya tidak pernah diisi",
+        "assert": "metrik itu terbaca tidak tersedia dengan jumlah pembacaan nol, dan metrik mutu lain tetap tampil normal dengan jumlah pembacaannya sendiri"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — kolom suhu rata-rata kosong",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang kolom suhu rata-ratanya kosong walau ketiga suhu posisi terisi>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan metrics.average_temperature_c = { min: null, avg: null, max: null, reading_count: 0 } sementara oil_temperature_top_c, oil_temperature_middle_c, dan oil_temperature_bottom_c ketiganya terisi",
+        "assert": "kartu suhu rata-rata dirender sebagai tidak tersedia; komponen TIDAK merata-ratakan ketiga suhu posisi untuk mengisinya, dan by_tank[].average_temperature_avg yang null juga dirender sebagai tidak tersedia"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang kolom suhu rata-ratanya kosong walau ketiga suhu posisi terisi",
+        "assert": "suhu rata-rata terbaca tidak tersedia, dan tidak ada angka yang muncul di tempatnya dari hasil perhitungan ketiga suhu posisi"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — pencatatan sangat tidak lengkap",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode sebulan yang hanya beberapa slot waktunya terisi>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan coverage = { filled_slots: 3, expected_slots: 240, coverage_percent: 1.25, tank_count: 2, slots_per_tank_per_day: 4, days_in_period: 30 }",
+        "assert": "kartu kelengkapan pencatatan dirender DI ATAS seluruh blok angka lain, coverage_percent dirender dari payload dengan dua desimalnya tanpa dihitung ulang, dan stok awal/akhir tetap dirender berdampingan dengan tanggal pembacaannya sehingga jarak waktu antar keduanya terbaca"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pada viewport ponsel, pilih periode yang hanya sebagian kecil slot waktunya terisi",
+        "assert": "kelengkapan pencatatan terbaca lebih dulu daripada angka mana pun, angka tetap tampil, dan pembaca tahu angkanya bersandar pada sedikit pembacaan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "_context": "Token Sanctum Operator dengan users.business_unit_id = null"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1",
+            "_context": "Token Sanctum Supervisor dengan users.business_unit_id = null"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan auth store berperan operator/supervisor/mill_management yang business_unit_id-nya null",
+        "assert": "pesan menghubungi Admin dirender, pemilih Mill TIDAK dirender sebagai gantinya, repo.fetchBusinessUnits tidak pernah dipanggil, dan tidak ada blok angka yang dirender"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "masuk sebagai Operator yang akunnya belum terhubung ke mill mana pun lalu buka laporan Storage Tank",
+        "assert": "pesan menghubungi Admin terbaca, tidak ada daftar seluruh mill yang ditawarkan, dan tidak ada angka laporan yang tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — mencoba melihat mill lain",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode BU-A>",
+            "business_unit_id": "<BU-B, mill LAIN>",
+            "_context": "Token Sanctum Operator pada BU-A — nilai mill dari perangkat diabaikan server"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode milik BU-B>",
+            "_context": "Token Sanctum Operator pada BU-A"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "<BU-B>",
+            "_context": "Token Sanctum Operator pada BU-A"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan auth store berperan operator dan periksa argumen yang diteruskan ke repo pada setiap pemuatan",
+        "assert": "tidak satu pun pemanggilan repo menyertakan business_unit_id karena scopeParams mengembalikan objek kosong untuk peran non-Admin, dan layar tidak menyediakan jalan apa pun untuk memasukkan mill lain"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "masuk sebagai Operator pada BU-A, buka laporan, lalu amati permintaan jaringan yang dikirim halaman",
+        "assert": "nama mill yang tampil adalah BU-A dan angka yang tampil milik BU-A, badan respons langkah 1 berisi data BU-A dan jelas bukan BU-B, serta tidak ada kontrol pada layar yang memungkinkan berpindah mill"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — jaringan gagal",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pilih sebuah periode, buat repo.fetchSummary menolak dengan objek DATAR { message: 'Tidak dapat terhubung ke server. Data akan disimpan secara lokal.' } tanpa kunci status (bentuk normalizeError untuk kegagalan transport), lalu tekan tombol coba lagi setelah mock diubah agar berhasil",
+        "assert": "pesan kegagalan jaringan dan tombol coba lagi dirender, nilai periode terpilih pada pemilih Periode TETAP SAMA setelah kegagalan, dan penekanan coba lagi memanggil ulang repo.fetchSummary dengan period_id yang SAMA lalu merender angka tanpa memaksa pengguna memilih periode lagi"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "buka laporan, pilih sebuah periode, matikan jaringan pada konteks peramban sehingga permintaan gagal, lalu nyalakan kembali dan tekan tombol coba lagi",
+        "assert": "pesan kegagalan yang jelas beserta tombol coba lagi tampil (bukan layar kosong dan bukan diam), periode yang sudah dipilih masih terpilih pada pemilih Periode, dan setelah coba lagi angka laporan periode yang sama itu tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — sesi berakhir",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1",
+            "_context": "tanpa token Sanctum yang sah (token sudah dicabut)"
+          },
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan router di-mock, lalu buat repo.fetchSummary menolak dengan objek DATAR { message: 'Unauthenticated.', status: 401 } — bentuk nyata normalizeError; properti .response tidak pernah ada di produksi",
+        "assert": "router.push dipanggil menuju rute Login, tidak ada blok angka laporan yang sempat dirender, dan pesan kegagalan jaringan beserta tombol coba lagi TIDAK ditampilkan — sesi berakhir bukan kasus coba lagi. Penerjemahan status 401 ini memang tugas view, bukan repo"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "buka laporan lalu batalkan sesi (hapus token pada penyimpanan) dan picu pemuatan ulang angka dengan memilih periode",
+        "assert": "peramban berpindah ke layar Login, tidak ada satu pun angka laporan yang tampil sebelum perpindahan, dan tidak ada tombol coba lagi yang ditawarkan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — periode tertutup",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode berstatus closed>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/export"
+          },
+          "request_example": {
+            "period_id": "<periode berstatus closed yang sama>",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan periode terpilih berstatus tertutup",
+        "assert": "seluruh bagian laporan tetap terender penuh, penanda status tertutup dirender, dan tombol Ekspor tetap aktif (tidak dinonaktifkan oleh status periode)"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang berstatus tertutup lalu jalankan Ekspor",
+        "assert": "laporan tampil penuh, status tertutup terbaca di layar, dan unduhan CSV berjalan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — rekap harian dapat ditutup agar layar ponsel tetap terbaca",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode sebulan penuh sehingga daily berisi puluhan baris>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan daily 30 baris, hitung pemanggilan repo.fetchSummary, lalu tutup rekap harian dan buka lagi",
+        "assert": "setelah ditutup baris rekap tidak lagi dirender sementara kartu kelengkapan, kartu stok, rekap per tangki, dan grafik mutu tetap dirender; setelah dibuka lagi seluruh 30 baris kembali utuh; jumlah pemanggilan repo.fetchSummary TETAP 1 — tidak ada permintaan jaringan baru sama sekali"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pada viewport ponsel, buka periode sebulan penuh, tutup bagian rekap harian, lalu buka kembali sambil merekam permintaan jaringan",
+        "assert": "saat tertutup angka utama dan grafik terbaca tanpa gulir panjang, halaman tetap satu kolom tanpa gulir horizontal, saat dibuka kembali seluruh baris rekap tampil utuh, dan tidak ada satu pun permintaan jaringan baru yang tercatat"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — layar hanya membaca, tanpa aksi tulis",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "_context": "seluruh rute di bawah /api/storage-tank-reports adalah GET; tidak ada POST/PUT/PATCH/DELETE yang terdaftar"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan laporan terisi penuh lalu telusuri seluruh pohon render",
+        "assert": "tidak ada satu pun elemen form tulis (input yang dapat disimpan, tombol Simpan/Ubah/Hapus) yang dirender, dan repo yang diimpor komponen hanya memaparkan fungsi baca ditambah exportCsv/saveCsvFile — tidak ada fungsi tulis sama sekali"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "buka laporan Storage Tank lalu telusuri dari angka utama sampai rekap harian",
+        "assert": "tidak ada kontrol yang mengubah data stasiun di sepanjang layar, dan data stasiun setelah laporan ditutup identik dengan sebelum laporan dibuka"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — angka ponsel sama persis dengan laporan versi web",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1",
+            "_context": "Token Sanctum Supervisor mobile"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1",
+            "_context": "sesi web Supervisor pada mill yang sama — endpoint yang sama persis, tanpa endpoint mobile tersendiri"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "bandingkan objek hasil repo.fetchSummary dengan payload respons mentah medan per medan",
+        "assert": "setiap medan hasil === medan payload; komponen merender nilai itu apa adanya dan tidak menghitung ulang satu angka pun — tidak ada penjumlahan, perataan, maupun pembulatan di sisi ponsel"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "buka periode yang sama pada rute mobile dan pada laporan versi web /dashboard/laporan-storage-tank (screen-133), lalu bandingkan angkanya",
+        "assert": "seluruh angka yang tampil pada ponsel sama persis dengan angka pada laporan versi web, dan permintaan jaringan yang dikirim ponsel menuju path /api/storage-tank-reports yang sama — tidak ada endpoint mobile tersendiri"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — periode yang tidak mencakup Storage Tank tidak ditawarkan",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "_context": "mill punya periode berjenis Storage Tank, periode tanpa jenis stasiun, dan periode berjenis stasiun lain"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan repo.fetchPeriods di-mock mengembalikan daftar yang SUDAH disaring server",
+        "assert": "pemilih periode merender persis entri yang diterima dalam urutan yang sama; komponen maupun repo TIDAK menyaring station_type sendiri — penyaringan cakupan adalah pekerjaan server, dan menyaringnya dua kali menciptakan dua definisi"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "buka pemilih periode pada laporan Storage Tank di mill yang punya periode dengan cakupan stasiun berbeda-beda",
+        "assert": "pemilih hanya memuat periode yang mencakup Storage Tank atau yang berlaku untuk semua jenis stasiun, dan periode yang hanya mencakup stasiun lain tidak muncul"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — rentang periode inklusif di kedua ujung",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang punya pembacaan tepat pada start_date dan tepat pada end_date>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan payload ringkasan yang daily-nya memuat baris pada start_date dan pada end_date",
+        "assert": "kedua tanggal ujung dirender pada tren harian dan pada rekap harian, dan pembacaan pada start_date dipakai sebagai kandidat stok awal dan pembacaan pada end_date sebagai kandidat stok akhir, keduanya ikut terhitung pada metrik mutu yang dirender — komponen tidak memotong satu pun baris ujung"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang punya pembacaan tepat pada tanggal mulai dan tepat pada tanggal akhir",
+        "assert": "baris tanggal mulai dan baris tanggal akhir keduanya tampil pada rekap harian dan keduanya ikut membentuk angka utama"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — stok awal adalah pembacaan pertama dan stok akhir adalah pembacaan terakhir",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang pembacaan berat terendahnya bukan pembacaan pertamanya>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan by_tank[].opening_mt = 1500.0 pada opening_at '2026-09-01' dan closing_mt = 900.0 pada closing_at '2026-09-30', sementara payload juga memuat pembacaan harian yang lebih rendah dan lebih tinggi di tengah periode",
+        "assert": "stok awal yang dirender adalah 1500.0 (pembacaan berat PERTAMA menurut tanggal lalu slot waktu) dan stok akhir 900.0 (pembacaan TERAKHIR) — bukan nilai terendah/tertinggi dan bukan urutan penyimpanan; tanggal kedua pembacaan itu dirender bersama angkanya"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang pembacaan berat terendahnya bukan pembacaan pertamanya",
+        "assert": "stok awal adalah pembacaan berat pertama dan stok akhir adalah pembacaan berat terakhir menurut urutan tanggal lalu slot waktu, dan tanggal keduanya terbaca bersama angkanya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — pergerakan dihitung per tangki lalu dijumlahkan",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode dengan tiga tangki yang pergerakannya berbeda-beda>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan by_tank berisi movement_mt 120.5, 160.0, dan null (movement_computable false), sementara stock.movement_mt = 280.5 dan stock.opening_mt/closing_mt yang selisihnya BUKAN 280.5",
+        "assert": "pergerakan bersih yang dirender adalah 280.5 dari payload apa adanya — sama dengan jumlah pergerakan per tangki yang dapat dihitung, dan BUKAN selisih stok gabungan; komponen tidak menghitung closing_mt - opening_mt di mana pun"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode dengan beberapa tangki lalu bandingkan pergerakan bersih dengan jumlah pergerakan per tangki pada rekap",
+        "assert": "pergerakan bersih sama dengan penjumlahan pergerakan per tangki yang dapat dihitung, dan tidak sama dengan selisih stok gabungan seluruh tangki"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — stok diambil dari berat, bukan volume maupun kedalaman sounding",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan stock.opening_mt = 1200.0 sementara metrics.calculated_volume_m3 dan metrik kedalaman sounding terisi dengan nilai yang berbeda",
+        "assert": "seluruh angka stok dan pergerakan yang dirender berasal dari blok stock (berat terhitung dalam MT); calculated_volume_m3 dan kedalaman sounding dirender sebagai kartu metrik TERSENDIRI, dan tidak satu pun nilainya muncul pada kartu stok atau pergerakan"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "buka sebuah periode dan bandingkan kartu stok dengan kartu volume dan kedalaman sounding",
+        "assert": "angka stok dan pergerakan memakai berat dalam MT, sementara volume dalam m3 dan kedalaman sounding tampil sebagai metrik tersendiri yang tidak ikut membentuk angka stok"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — suhu rata-rata diambil dari kolom yang dicatat Operator",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang suhu rata-ratanya terisi dan berbeda dari rata-rata ketiga suhu posisi>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan metrics.average_temperature_c.avg = 52.0 sementara rata-rata dari oil_temperature_top_c, oil_temperature_middle_c, dan oil_temperature_bottom_c adalah 55.4",
+        "assert": "kartu suhu rata-rata merender 52.0 — nilai dari kolom yang dicatat Operator apa adanya, BUKAN 55.4; ketiga suhu posisi dirender sebagai tiga metrik terpisah, dan komponen tidak pernah merata-ratakannya"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "buka periode yang suhu rata-ratanya berbeda dari rata-rata ketiga suhu posisi, lalu bandingkan angkanya",
+        "assert": "angka suhu rata-rata yang tampil adalah nilai kolom yang dicatat Operator, dan tidak sama dengan rata-rata ketiga suhu posisi — sistem tidak pernah menghitungnya ulang"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — setiap metrik punya penyebutnya sendiri",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang mengisi ffa_percent jauh lebih sering daripada dobi_index>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan metrics.ffa_percent.reading_count = 300 dan metrics.dobi_index.reading_count = 3",
+        "assert": "kedua rata-rata dirender dari payload apa adanya, masing-masing berdampingan dengan reading_count-nya sendiri, dan tidak ada satu penyebut bersama yang dipakai ulang di layar maupun di repo"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang satu metriknya jauh lebih jarang diisi daripada metrik lain",
+        "assert": "rata-rata metrik yang jarang diisi tidak mengempis, dan jumlah pembacaan yang berbeda untuk setiap metrik terbaca di sebelah angkanya"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — FFA, kadar air, dan DOBI pada satu grafik dengan skala yang dinyatakan",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan daily berisi ffa_avg, moisture_avg, dan dobi_avg pada setiap barisnya dengan rentang yang jauh berbeda (FFA ~3-5, kadar air ~0.1-0.3, DOBI ~2-4)",
+        "assert": "ketiganya dirender sebagai tiga seri pada SATU komponen grafik yang sama, cara penskalaan (normalisasi atau sumbu kedua) dinyatakan pada legenda atau keterangan grafik, nilai mentahnya tetap dirender pada tabel di bawah grafik, dan grafik dibungkus kontainer yang menggulir sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pada viewport ponsel, buka sebuah periode lalu baca grafik mutu dan geser grafik ke samping",
+        "assert": "FFA, kadar air, dan DOBI tampil pada satu grafik sehingga arah perubahannya terbaca bersamaan, cara penskalaan dinyatakan pada grafik sehingga dua dari tiga seri tidak terbaca sebagai garis datar, dan grafik bergeser di dalam kartunya sendiri tanpa menggeser halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — tidak ada penandaan nilai di luar batas",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "<periode yang punya pembacaan jauh menyimpang dari nilai lainnya>"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan payload ringkasan berisi nilai yang jauh menyimpang pada beberapa metrik",
+        "assert": "tidak ada satu pun kelas penanda di luar batas, ikon peringatan, atau pewarnaan bersyarat yang dirender pada kartu metrik maupun pada tabel; payload pun tidak membawa medan ambang apa pun"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pilih periode yang punya pembacaan jauh menyimpang lalu baca seluruh angkanya",
+        "assert": "nilai terendah, rata-rata, tertinggi, dan tren tampil apa adanya tanpa penandaan di luar batas — Storage Tank tidak punya master target operasional dan penilaiannya diserahkan ke manusia"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — tata letak satu kolom pada layar ponsel",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen pada viewport 375x812 lalu telusuri seluruh bagian",
+        "assert": "seluruh bagian tersusun dalam satu kolom, setiap kendali sentuh (pemilih periode, tombol buka/tutup rekap, tombol Ekspor, tombol Coba Lagi) berukuran minimal 44x44 piksel, dan rekap per tangki dan grafik mutu dibungkus kontainer yang menggulir sendiri"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "pada viewport ponsel 375x812, gulir laporan dari atas ke bawah lalu sentuh pemilih periode dan tombol buka/tutup rekap",
+        "assert": "document.scrollingElement.scrollWidth tidak melebihi clientWidth sehingga halaman tidak pernah menggulir mendatar, seluruh isi tersusun satu kolom, dan rekap per tangki dan grafik mutu menggulir di dalam kartunya sendiri tanpa menggeser halaman"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — mengunduh rincian pembacaan per slot waktu sebagai CSV",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "per-1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/export"
+          },
+          "request_example": {
+            "period_id": "per-1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/export"
+          },
+          "request_example": {
+            "period_id": "per-1",
+            "format": "pdf"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang komponen dengan laporan terisi, mock repo.exportCsv dan repo.saveCsvFile, lalu tekan tombol Ekspor",
+        "assert": "repo.exportCsv dipanggil tepat satu kali dengan period_id periode yang sedang dibuka, repo.saveCsvFile dipanggil dengan blob hasilnya, dan komponen TIDAK menyusun isi CSV sendiri dari data yang sedang tampil di layar"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "buka sebuah periode Storage Tank lalu jalankan unduh CSV",
+        "assert": "berkas CSV terunduh, isinya satu baris per slot waktu sepanjang periode dengan kolom konteks record diulang pada setiap baris dan label kolom mengikuti label layar Detail, isinya sama persis dengan ekspor laporan versi web, dan tidak ada data stasiun yang berubah setelah ekspor"
+      }
+    }
+  ]
+}

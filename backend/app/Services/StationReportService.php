@@ -78,6 +78,13 @@ class StationReportService
         // (30) and sterilizer (40), and the ordering of this map is
         // load-bearing — see the note below.
         StationTypeEnum::BoilerRoom->value => 'reports.boiler-room',
+        // screen-133--laporan-storage-tank-web. LAST, appended after
+        // boiler-room: station_types.sort_order puts storage-tank (140)
+        // behind cages-track (30), sterilizer (40), clarification (70) and
+        // boiler-room (90), so appending is exactly what keeps this map in
+        // sort_order — and the ordering of this map is load-bearing, see the
+        // note below.
+        StationTypeEnum::StorageTank->value => 'reports.storage-tank',
     ];
 
     /**

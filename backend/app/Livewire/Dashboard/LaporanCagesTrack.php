@@ -5,6 +5,7 @@ namespace App\Livewire\Dashboard;
 use App\Enums\UserRole;
 use App\Services\CagesTrackReportService;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 /**
@@ -44,7 +45,30 @@ use Livewire\Component;
 #[Layout('dashboard.laporan-cages-track')]
 class LaporanCagesTrack extends Component
 {
-    /** Admin-only mill selection; ignored entirely for every other role. */
+    /**
+     * DIBACA DARI QUERY STRING sejak 2026-09-25.
+     *
+     * Laporan Stasiun (screen-140) sudah membawa mill di tautan tiap tile:
+     * StationReportService membangun report_path sebagai
+     * route($routeName, ['business_unit_id' => $businessUnitId]). Tanpa
+     * #[Url] di sini, Livewire tidak pernah menghidrasinya, sehingga Admin
+     * yang baru saja memilih mill lalu menekan sebuah tile MENDARAT DI
+     * LAYAR YANG MEMINTANYA MEMILIH MILL LAGI — dan tanpa satu angka pun
+     * termuat. Mill-nya sudah ada di URL; layar ini yang mengabaikannya.
+     *
+     * TIDAK MEMBUKA KEBOCORAN LINTAS MILL: untuk peran yang terikat satu
+     * mill, resolvedBusinessUnitId() mengabaikan properti ini sepenuhnya
+     * dan selalu memakai business_unit_id akun. Memaksa mill lain lewat
+     * query string tetap tidak mengubah apa pun bagi mereka — itu sudah
+     * diuji, dan justru itulah yang membuat #[Url] aman di sini.
+     */
+    // as: 'business_unit_id' WAJIB — tanpa itu #[Url] memakai NAMA
+    // PROPERTI sebagai kunci query ('businessUnitId'), sementara tautan
+    // yang dibangun StationReportService memakai 'business_unit_id'.
+    // Keduanya tidak bertemu, dan layarnya tetap meminta pilih mill —
+    // persis seperti sebelum #[Url] ditambahkan, tanpa tanda apa pun
+    // bahwa ada yang salah.
+    #[Url(as: 'business_unit_id')]
     public string $businessUnitId = '';
 
     /** Selected reporting period; auto-filled with the newest one. */

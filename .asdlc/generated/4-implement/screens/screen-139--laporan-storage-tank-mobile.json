@@ -1,0 +1,108 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-25"
+  },
+  "id": "screen-139--laporan-storage-tank-mobile",
+  "name": "Laporan Storage Tank (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-25T09:31:00Z",
+      "passed": 29,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-25T09:33:00Z",
+      "passed": 190,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-25T09:31:00Z",
+      "passed": 35,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-25T09:50:00Z",
+      "passed": 33,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/routes/api.php",
+    "backend/app/Services/StorageTankReportService.php"
+  ],
+  "fe_files_generated": [
+    "mobile/src/services/storageTankReportRepo.ts",
+    "mobile/src/views/LaporanStorageTankView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/StorageTankReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanStorageTankTest.php",
+    "mobile/tests/e2e/laporan-storage-tank.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/storageTankReportRepo.spec.ts",
+    "mobile/tests/LaporanStorageTankView.spec.ts"
+  ],
+  "implementation_notes": [
+    "Layar ke-11 dan TERAKHIR dari fitur Full Cycle per Stasiun tahap pertama (5 stasiun x web+mobile, plus layar pemilih).",
+    "TIGA perubahan akses Operator, bukan empat — grup rute storage-tank-reports SUDAH memakai guard auth:web,sanctum sebelum run ini. Diverifikasi ulang di kode: api.php:1151 role:supervisor,mill_management,admin,operator; guardAccess() memuat UserRole::Operator->value; resolveBusinessUnit():344-346 berbunyi Supervisor || MillManagement || Operator.",
+    "Operator ditambahkan ke cabang TERIKAT MILL pada resolveBusinessUnit(), bukan hanya ke guardAccess(). Melebarkan guardAccess() saja menjatuhkan Operator ke cabang Admin di bawahnya tempat business_unit_id kiriman klien DIHORMATI — itu kebocoran lintas mill. Pemeriksaan gagal-tertutup 422 di dalam cabang terikat-mill tetap utuh dan kini juga melindungi Operator.",
+    "authorizePeriod() dan businessUnitOptions() tidak disentuh. businessUnitOptions() tetap 403 bagi Operator (roleOf !== Admin) dan kini membawa code = FORBIDDEN karena penolakan datang dari service, bukan EnsureRole.",
+    "VERIFIKASI LINTAS LAYAR: kelima rute WEB laporan (sterilizer, cages-track, boiler-room, clarification, storage-tank) dipastikan masih role:supervisor,mill_management,admin — nol operator. Pelebaran berhenti di API pada kelima stasiun, bukan hanya pada yang diperiksa satu per satu.",
+    "SPEC_MISMATCH kejadian KELIMA dari pertanyaan identik. Diterapkan sebagai penerapan keputusan user yang sudah ada (135/136/137/138), bukan keputusan baru.",
+    "Storage Tank punya EMPAT titik test Operator-403, bukan dua seperti Clarification. Unit case 38 ditulis ulang jadi 'Operator DITERIMA pada keempat endpoint tetapi terkunci pada mill-nya sendiri'; unit case 39 jadi 'Operator tidak punya orakel keberadaan lintas mill: periode mill lain 403, bukan 404'; Feature Scenario yang menggabungkan dua maksud sekaligus ('403 keempat endpoint' DAN '403 bukan 404') ditulis ulang jadi 'operator: 200 pada periods/summary/export terkunci pada mill sendiri, 403 pada pemilih mill, dan 401 tanpa sesi', dengan bagian orakel berubah menjadi periode mill lain 403 sambil mempertahankan assertJsonMissingPath('stock') dan ('metrics').",
+    "Alasan re-ekspresi case 39, sama dengan yang diputuskan untuk screen-138: maksud aslinya adalah TIDAK ADA ORAKEL KEBERADAAN bagi pemanggil yang ditolak. Setelah pelebaran, Operator bukan lagi pemanggil yang ditolak, sehingga 404 atas periode yang memang tidak ada tidak membocorkan apa pun. Yang masih berarti adalah orakel LINTAS MILL.",
+    "PENJAGA WEB HIJAU TANPA DIUBAH: e2e-web/tests/laporan-storage-tank.spec.ts dijalankan penuh — 28 lolos, termasuk skenario 'operator: akses laporan WEB ditolak dan tidak ada angka Storage Tank yang terlihat'. Berkas tidak disentuh.",
+    "Jumlah kartu metrik disamakan dengan layar web screen-133 dalam label dan urutan, mengikuti screen-138 dan menghindari known_issue screen-137 (9 kartu ponsel vs 5 web).",
+    "Ekspor CSV: TEPAT 4 kolom konteks sesuai spec. Implementasi web sempat melampaui spec dengan checked_by/acknowledged_by dan itu sudah dihapus; browser test mengasersi header.slice(0,5) persis dan tidak memuat satu pun asersi atas kedua kolom itu.",
+    "Pergerakan stok menampilkan 'tidak dapat dihitung', TIDAK PERNAH '0,0' — nol berarti 'stok tidak berubah', klaim berbeda dan lebih kuat. Keputusan tampilan memakai medan movement_computable dari server, bukan nilai movement_mt.",
+    "Stok diambil dari BERAT (MT) sesuai keputusan user, bukan volume. Browser test skenario 27 mengasersi ketiga kartu stok bersatuan MT dan layar sama sekali tidak memuat 'm3'/'Volume'/'Sounding'/'Kedalaman'.",
+    "Sesi berakhir memakai router.replace, bukan push — mengikuti preseden 135/136/137/138. Dikunci lewat asersi window.history.length tidak bertambah, sehingga layar tidak dapat dicapai kembali dengan tombol Back.",
+    "Fixture unit dan browser test sengaja tidak konsisten secara aritmetika: movement_mt 280,5 tidak sama dengan closing-opening 300,0 maupun 260,5; ffa.max 4,4 LEBIH KECIL daripada daily[0].ffa_avg 5,8. Implementasi yang diam-diam menghitung ulang pasti gagal.",
+    "Browser test 33 skenario dengan test.use viewport 390x844 pada describe tunggal; satu skenario mengulang asersi tata letak di 375x812 lewat page.setViewportSize setelah rangkaian 390px selesai, sehingga kedua lebar terbukti. Rekap harian buka/tutup/buka diasersi nol permintaan baru lewat DUA mekanisme independen (penghitung di handler page.route dan array dari page.on('request')).",
+    "AGEN IMPLEMENTASI TERHENTI DI TENGAH oleh batas kuota API tepat sebelum menulis browser test. Sisa pekerjaan diselesaikan terpisah dan seluruh suite diverifikasi ulang dari nol, bukan dilanjutkan atas asumsi."
+  ],
+  "deferred_items": [
+    {
+      "description": "Coverage tidak terukur.",
+      "reason": "mobile/package.json tidak punya skrip coverage dan @vitest/coverage-v8 tidak terpasang; backend tidak punya pcov/xdebug. Mengukurnya menuntut pemasangan dependency — di luar cakupan implementasi layar."
+    },
+    {
+      "description": "Tech spec layar ini menulis router.push untuk skenario sesi berakhir, sementara implementasi memakai router.replace mengikuti preseden empat layar sebelumnya.",
+      "reason": "Yang perlu diperbarui adalah tech spec-nya, bukan kodenya. Simpangan didokumentasikan di docblock view dan component spec serta dikunci lewat asersi panjang history; memperbaiki artefak spec adalah pekerjaan revisi terpisah."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Coverage tidak dapat dievaluasi di repo ini, sehingga ambang unit_test.coverage_threshold (80) tidak tertegakkan. Konsisten dengan layar 129-138.",
+      "severity": "medium"
+    },
+    {
+      "description": "Viewport ponsel diserahkan ke disiplin per berkas: project Playwright repo ini Desktop Chrome 1280px, dan tiap berkas e2e laporan mobile harus ingat memanggil test.use sendiri. Satu berkas yang lupa membuat SELURUH klaim tata letaknya hampa tanpa satu pun test memerah. Layak dijadikan project Playwright tersendiri dengan viewport ponsel alih-alih diulang lima kali.",
+      "severity": "medium"
+    },
+    {
+      "description": "LaporanCagesTrackView.vue:173 (screen-136) masih membaca candidate?.status ?? candidate?.response?.status. apiClient.normalizeError mengembalikan objek DATAR dan membuang response, jadi cabang kedua tidak pernah benar di produksi dan hanya menyembunyikan kesalahan. Sudah disebut 'sengaja tidak ditiru' di docblock layar ini tetapi belum diperbaiki di screen-136 sendiri.",
+      "severity": "low"
+    },
+    {
+      "description": "Mill Management tidak punya akun seed di mobile/tests/e2e/helpers.ts (USERS hanya operator & supervisor), sehingga browser test menguji cabang peran non-admin lewat Supervisor saja. Cabang kodenya identik dan sudah dikunci baris demi baris di component spec.",
+      "severity": "low"
+    },
+    {
+      "description": "Galat vue-tsc PRA-ADA (10) di CagesTippedTimeGrid.vue dan GradingDetailGrid.vue; di luar cakupan. Berkas Storage Tank nol galat.",
+      "severity": "low"
+    },
+    {
+      "description": "Unhandled error PRA-ADA di SyncResultDialog.vue:36 dari tests/StationListView.spec.ts; tidak menggagalkan test apa pun.",
+      "severity": "low"
+    }
+  ]
+}

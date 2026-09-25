@@ -1,0 +1,95 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-25"
+  },
+  "id": "screen-137--laporan-boiler-room-mobile",
+  "name": "Laporan Boiler Room (Mobile)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-25T06:15:09Z",
+      "passed": 23,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-25T06:15:11Z",
+      "passed": 48,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-25T06:15:23Z",
+      "passed": 26,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-25T06:15:30Z",
+      "passed": 26,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/routes/api.php",
+    "backend/app/Services/BoilerRoomReportService.php"
+  ],
+  "fe_files_generated": [
+    "mobile/src/services/boilerRoomReportRepo.ts",
+    "mobile/src/views/LaporanBoilerRoomView.vue",
+    "mobile/src/router/index.ts",
+    "mobile/src/views/ReportingPilihStasiunView.vue"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/BoilerRoomReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanBoilerRoomTest.php",
+    "mobile/tests/e2e/laporan-boiler-room.spec.ts"
+  ],
+  "fe_test_files_generated": [
+    "mobile/tests/boilerRoomReportRepo.spec.ts",
+    "mobile/tests/LaporanBoilerRoomView.spec.ts"
+  ],
+  "implementation_notes": [
+    "TIGA perubahan akses Operator, bukan empat — grup rute boiler-room-reports SUDAH memakai guard auth:web,sanctum sebelum run ini, jadi hanya daftar perannya yang perlu ditambah. Diverifikasi lewat git diff yang menyaring komentar: tepat tiga baris kode backend berubah. authorizePeriod() dan businessUnitOptions() tidak disentuh.",
+    "Operator ditambahkan ke cabang TERIKAT MILL pada resolveBusinessUnit(), bukan hanya ke guardAccess(). Diverifikasi ulang di kode setelah implementasi: cabangnya kini Supervisor || MillManagement || Operator, dan pemeriksaan gagal-tertutup 422 di dalamnya tetap utuh sehingga kini juga melindungi Operator.",
+    "SPEC_MISMATCH: BoilerRoomReportServiceTest Case 36 mengunci kontrak lama 'Operator ditolak 403', dengan komentar yang menyatakan secara harfiah bahwa screen-137 belum ada sehingga tidak ada pemanggil yang perlu dilebarkan. Screen-137 kini ada. Ini kejadian KETIGA dari pertanyaan identik — SterilizerReportServiceTest Case 16 (screen-135) dan CagesTrackReportServiceTest Case 2 (screen-136) sudah diselesaikan dengan pola yang sama atas keputusan user. Diterapkan sebagai penerapan keputusan yang ada, bukan keputusan baru.",
+    "Case 36 ditulis ulang dan DIPERKUAT, bukan sekadar dibalik: intinya bukan 'Operator diterima' melainkan 'diterima TAPI terkunci pada millnya'. resolveBusinessUnit(id BU-B) untuk Operator mengembalikan BU-A dengan asersi not->toBe(BU-B); businessUnitOptions() TETAP 403 (asersi lama utuh); authorizePeriod() atas periode mill lain tetap 403; dan semangat asersi urutan lama dipertahankan lewat DB::listen — setiap query boiler_room_records punya binding berisi BU-A dan tidak berisi BU-B, dengan daftar query dipastikan tidak kosong. 40 test lain di berkas itu tidak disentuh.",
+    "Integration test mengasersi ISI, bukan status code: Operator mengirim business_unit_id Mill Beta menerima 200 berisi BLR-ALPHA saja, steam_pressure_bar.max 20.0 bukan 900.0 milik Mill Beta, dan json_encode respons tidak memuat 'Mill Beta'. Tanpa ini, kebocoran cabang Admin juga menjawab 200 dan akan lolos.",
+    "PENJAGA WEB HIJAU TANPA DIUBAH: e2e-web laporan-boiler-room.spec.ts 'operator: akses laporan WEB ditolak' LOLOS, dikonfirmasi dua kali (dalam run 8-berkas lalu terisolasi). Pelebaran akses benar-benar berhenti di API; rute web tidak ikut terbuka.",
+    "Bentuk galat DATAR dikoreksi dari templat screen-136. View membaca error.status saja; antarmuka ErrorLike sengaja TIDAK memuat response, karena apiClient.normalizeError membuangnya. Unit test menegakkannya lewat expect(caught).not.toHaveProperty('response'). screen-136 masih membaca candidate?.response?.status — bentuk yang tidak pernah sampai ke pemanggil; dicatat sebagai kandidat perbaikan susulan.",
+    "Fixture unit test SENGAJA tidak konsisten secara aritmetika agar test 'nol aritmetika KPI di repo' benar-benar membuktikan sesuatu: metrics.steam_pressure_bar.max (26,9) LEBIH KECIL daripada daily[0].steam_pressure_avg (42,1), sehingga repo yang menurunkan ekstrem dari kolom harian pasti gagal. Ditambah reading_count 300 yang tidak sama dengan jumlah by_unit 301 maupun total.reading_rows 412.",
+    "Rekap harian memakai v-if inline, BUKAN komponen bersama CollapsibleSection.vue yang memakai v-show — component test menuntut baris 'tidak lagi dirender', dan v-show menyisakannya di DOM. Tertutup bawaan; buka-tutup-buka menghasilkan fetchSummary tepat 1x, dihitung dari mock bukan dari DOM.",
+    "raw-extremes-note menyatakan min/max berasal dari pembacaan mentah per slot sementara kolom rata-rata di tren dan rekap adalah rata-rata per tanggal, sehingga keduanya tidak dapat dicocokkan. Mock TIDAK dijadikan acuan untuk butir ini — mock menampilkan ekstrem rata-rata harian, implementasi memakai pembacaan mentah, dan yang berlaku adalah implementasi.",
+    "Browser test memakai test.use viewport 390x844 untuk seluruh describe, karena project Playwright repo ini Desktop Chrome 1280px di mana tuntutan satu-kolom menjadi hampa. Permintaan jaringan direkam DUA KALI secara independen (page.on('request') dan handler page.route()) lalu diasersi nol permintaan baru setelah toggle rekap. Sasaran sentuh 44px diuji tinggi DAN lebar pada 6 kendali.",
+    "/business-units/options tetap 403 untuk Operator dan kini DIPERKUAT: karena middleware rute sudah menerima operator, penolakan datang dari service sehingga membawa code = FORBIDDEN, bukan sekadar status. Preseden screen-136 dipertahankan."
+  ],
+  "deferred_items": [
+    {
+      "description": "Coverage tidak terukur.",
+      "reason": "mobile/package.json tidak punya skrip coverage dan @vitest/coverage-v8 tidak terpasang; backend tidak punya pcov/xdebug. Mengukurnya menuntut pemasangan dependency — perubahan repo di luar cakupan implementasi layar, dan tidak ada yang dipasang."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Coverage tidak dapat dievaluasi di repo ini, sehingga ambang unit_test.coverage_threshold (80) tidak tertegakkan. Konsisten dengan layar 129, 130, 131, 132, 133, 135, 136 yang menutup dengan keterbatasan yang sama.",
+      "severity": "medium"
+    },
+    {
+      "description": "Layar PONSEL menampilkan 9 kartu metrik sementara layar WEB menampilkan 5 — terbalik dari kelaziman, karena layar sempit biasanya menampilkan lebih sedikit. Tidak berbahaya: angkanya identik dan bersumber dari endpoint yang sama, dan 9 adalah superset yang memenuhi business spec (5) maupun tech spec test_scenarios (menuntut kesembilan metrik dengan reading_count masing-masing). Layak ditinjau pemilik produk; membalikkannya murah, satu konstanta METRIC_CARDS di LaporanBoilerRoomView.vue tanpa menyentuh repo maupun server.",
+      "severity": "low"
+    },
+    {
+      "description": "LaporanCagesTrackView.vue (screen-136) masih membaca candidate?.response?.status — bentuk galat yang tidak pernah sampai ke pemanggil karena apiClient.normalizeError membuang response. Bentuk datar screen-137 dipertahankan beserta asersi not.toHaveProperty('response') yang menguncinya. Kandidat perbaikan susulan, bukan cacat aktif.",
+      "severity": "low"
+    },
+    {
+      "description": "Unhandled error PRA-ADA di mobile/src/components/SyncResultDialog.vue:36 dari tests/StationListView.spec.ts masih muncul; tidak menggagalkan test apa pun, tidak dikejar.",
+      "severity": "low"
+    },
+    {
+      "description": "Galat TypeScript PRA-ADA di CagesTippedTimeGrid.vue dan GradingDetailGrid.vue; di luar cakupan. vue-tsc --noEmit nol galat pada keempat berkas mobile yang disentuh run ini.",
+      "severity": "low"
+    }
+  ]
+}

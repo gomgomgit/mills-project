@@ -725,4 +725,32 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/clarification', \App\Livewire\Dashboard\LaporanClarification::class)
     ->name('reports.clarification');
 
+// screen-133--laporan-storage-tank-web (Laporan Periode Storage Tank).
+//
+// Supervisor / Mill Management / Admin only. Operator is NOT admitted here
+// and this middleware list is DELIBERATELY unchanged by screen-139: on
+// 2026-09-25 the four /api/storage-tank-reports routes were widened to
+// Operator for the mobile report, which reuses them, but Operator has no web
+// UI and the widening stops at the API. Refusing here does not depend on the
+// service either — LaporanStorageTank::canAccess() keeps its own role list.
+//
+// Route is /reports/storage-tank, NOT /laporan/storage-tank — the repo's
+// convention for report screens is the English /reports/* prefix
+// (/reports/management, /reports/stations, /reports/sterilizer,
+// /reports/cages-track, /reports/boiler-room, /reports/clarification), and
+// no route in this file uses /laporan. It is also distinct from the DATA
+// screens for the same station, which live under /data/storage-tank
+// (browser), /data/storage-tank/create (input form, screen-116),
+// /data/storage-tank/{id} and /data/storage-tank/{id}/edit — this report
+// reads what those screens write and never writes anything itself.
+//
+// Reachable from the UI ONLY through the Storage Tank tile on screen-140
+// (/reports), which lights up because StationReportService::REPORT_ROUTES
+// now maps the 'storage-tank' code to this route name. Without that one
+// line the report exists, every test here passes, and the screen stays
+// unreachable.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/storage-tank', \App\Livewire\Dashboard\LaporanStorageTank::class)
+    ->name('reports.storage-tank');
+
 // === ASDLC_ROUTES_END ===

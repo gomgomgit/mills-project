@@ -842,6 +842,78 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/LaporanCagesTrackView.vue'),
     meta: { public: false },
   },
+  {
+    // screen-137--laporan-boiler-room-mobile /
+    // usecase-137--laporan-boiler-room-mobile "Lihat Laporan Periode Boiler
+    // Room (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor, mill_management, admin) — the global auth guard below
+    // is exactly the "penjagaan sesi" business_logic step 1 refers to.
+    //
+    // Operator termasuk di dalamnya, dan itu memang perluasan yang
+    // dikerjakan layar ini: keempat rute /api/boiler-room-reports/*
+    // dilebarkan dengan peran `operator` (guard 'auth:web,sanctum' sudah
+    // ada sebelumnya), sementara rute WEB /reports/boiler-room (screen-131)
+    // sengaja tetap tanpa Operator.
+    //
+    // Pintu masuknya sudah ada sejak awal: rute 'report-stations' di atas
+    // (screen-141) menampilkan grid stasiun, dan tile Boiler Room-lah yang
+    // menavigasi ke sini — entri 'boiler-room' pada REPORT_ROUTES di
+    // ReportingPilihStasiunView.vue adalah satu-satunya penentu tile itu
+    // hidup atau mati.
+    path: '/reports/boiler-room',
+    name: 'report-boiler-room',
+    component: () => import('@/views/LaporanBoilerRoomView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-138--laporan-clarification-mobile /
+    // usecase-138--laporan-clarification-mobile "Lihat Laporan Periode
+    // Clarification (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor, mill_management, admin) — the global auth guard below
+    // is exactly the "penjagaan sesi" business_logic step 1 refers to.
+    //
+    // Operator termasuk di dalamnya, dan itu memang perluasan yang
+    // dikerjakan layar ini: keempat rute /api/clarification-reports/*
+    // dilebarkan dengan peran `operator` (guard 'auth:web,sanctum' sudah
+    // ada sebelumnya), sementara rute WEB /reports/clarification
+    // (screen-132) sengaja tetap tanpa Operator.
+    //
+    // Pintu masuknya sudah ada sejak awal: rute 'report-stations' di atas
+    // (screen-141) menampilkan grid stasiun, dan tile Clarification-lah
+    // yang menavigasi ke sini — entri 'clarification' pada REPORT_ROUTES di
+    // ReportingPilihStasiunView.vue adalah satu-satunya penentu tile itu
+    // hidup atau mati.
+    path: '/reports/clarification',
+    name: 'report-clarification',
+    component: () => import('@/views/LaporanClarificationView.vue'),
+    meta: { public: false },
+  },
+  {
+    // screen-139--laporan-storage-tank-mobile /
+    // usecase-139--laporan-storage-tank-mobile "Lihat Laporan Periode
+    // Storage Tank (Mobile)". meta.public deliberately false, matching
+    // screen_tech_spec.auth_requirement (authenticated; actors: operator,
+    // supervisor, mill_management, admin) — the global auth guard below
+    // is exactly the "penjagaan sesi" business_logic step 1 refers to.
+    //
+    // Operator termasuk di dalamnya, dan itu memang perluasan yang
+    // dikerjakan layar ini: keempat rute /api/storage-tank-reports/*
+    // dilebarkan dengan peran `operator` (guard 'auth:web,sanctum' sudah
+    // ada sebelumnya), sementara rute WEB /reports/storage-tank
+    // (screen-133) sengaja tetap tanpa Operator.
+    //
+    // Pintu masuknya sudah ada sejak awal: rute 'report-stations' di atas
+    // (screen-141) menampilkan grid stasiun, dan tile Storage Tank-lah yang
+    // menavigasi ke sini — entri 'storage-tank' pada REPORT_ROUTES di
+    // ReportingPilihStasiunView.vue adalah satu-satunya penentu tile itu
+    // hidup atau mati.
+    path: '/reports/storage-tank',
+    name: 'report-storage-tank',
+    component: () => import('@/views/LaporanStorageTankView.vue'),
+    meta: { public: false },
+  },
 ]
 
 const router = createRouter({

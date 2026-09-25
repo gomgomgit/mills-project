@@ -67,15 +67,26 @@
  * ----------------------------------------------------------------------
  * CROSS-MILL SECURITY IS ASSERTED AT ITS TWO DIFFERENT SHAPES
  * ----------------------------------------------------------------------
- *   - resolveBusinessUnit() IGNORES the client's business_unit_id for
- *     Supervisor / Mill Management — the caller's own mill, and 200, NOT a
- *     403 (a 403 would confirm the other mill exists);
- *   - authorizePeriod() REFUSES another mill's period_id with 403, and
- *     refuses OPERATOR BEFORE it looks the period up — so an Operator
- *     naming a period id that does not exist gets AuthorizationException,
- *     not ModelNotFoundException (case 38). That ordering is what stops a
- *     refused role from probing which ids exist.
+ *   - resolveBusinessUnit() IGNORES the client's business_unit_id for the
+ *     THREE mill-bound roles — Supervisor / Mill Management / OPERATOR —
+ *     answering the caller's own mill with 200, NOT a 403 (a 403 would
+ *     confirm the other mill exists);
+ *   - authorizePeriod() REFUSES another mill's period_id with 403, never
+ *     404, so the refusal does not confirm that period exists (case 38).
  * Collapsing those into one assertion would hide whichever one broke.
+ *
+ * OPERATOR WAS WIDENED IN 2026-09-25, for
+ * screen-138--laporan-clarification-mobile. Cases 37 and 38 used to assert
+ * a blanket 403 for Operator on the grounds that the mobile Clarification
+ * report did not exist; it exists now, and the four
+ * /api/clarification-reports/* endpoints admit Operator. The widening is
+ * THREE lines of code — the route middleware, guardAccess(), and
+ * resolveBusinessUnit()'s MILL-BOUND branch — and the third is the one that
+ * matters: without it Operator falls into the Admin branch, where the
+ * client's business_unit_id is honoured, and can read any mill. Case 37 is
+ * what keeps that line honest, by asserting the BINDING rather than the
+ * acceptance. businessUnitOptions() stays Admin-only and still answers 403
+ * for Operator; the WEB route /reports/clarification is untouched.
  *
  * And the fail-closed rule (case 33) is asserted as a SPY, because "the
  * all-mills list was never built" is a claim about something that did NOT
@@ -1587,80 +1598,206 @@ it('throws 404 NOT_FOUND when an authorised role names a period id that does not
 });
 
 // ---------------------------------------------------------------------
-// Case 37
+// Case 37 — WIDENED 2026-09-25 (screen-138--laporan-clarification-mobile)
 // ---------------------------------------------------------------------
-it('throws 403 FORBIDDEN for a Station Operator on every report operation, and reads no clarification rows', function () {
+
+// This case used to assert the opposite: Operator refused with 403 on every
+// public method, reading no clarification rows at all, with a note saying
+// "this is the WEB report and there is NO Operator widening: the mobile
+// Clarification report is screen-138 and has not been built, so there is no
+// caller to widen for". THAT CALLER NOW EXISTS. screen-138 is the mobile
+// Clarification report, and on 2026-09-25 the four
+// /api/clarification-reports/* endpoints were opened to Operator — the same
+// widening SterilizerReportService got for screen-135 (2026-09-23),
+// CagesTrackReportService for screen-136 (2026-09-24) and
+// BoilerRoomReportService for screen-137 (2026-09-25). The people who key
+// the readings in are entitled to read them back.
+//
+// ACCEPTANCE IS THE CHEAP HALF. Asserting only "it no longer throws" would
+// leave the expensive half untested, so the decisive assertion is block 2:
+// resolveBusinessUnit() must land Operator in the MILL-BOUND branch, where
+// a client-supplied business_unit_id is DISCARDED — not in the Admin
+// branch, where it is HONOURED. Adding Operator to guardAccess() ALONE
+// would drop it through to the Admin branch and produce a service that
+// answers 200 for ANY mill an Operator cares to name: a cross-mill leak,
+// not a display defect. Those two lines of the widening are one change,
+// never two, and this case is what keeps the second one honest.
+//
+// businessUnitOptions() is deliberately NOT part of the widening and its
+// 403 is KEPT BELOW VERBATIM: Operator is bound to one mill and has no
+// picker, so the list of mills is still Admin-only and the mobile view must
+// never call it.
+//
+// The old "reads no clarification rows" assertion keeps its SPIRIT rather
+// than its letter: rows ARE read for Operator now, so what is asserted is
+// that every query that touches clarification_records is bound to the
+// Operator's OWN business unit and to no other — proven from the recorded
+// bindings, with the query list itself asserted non-empty, because an
+// empty list would make every binding assertion below vacuously true.
+it('accepts a Station Operator on every public method and binds it to its own mill instead of the Admin branch', function () {
+    // Mill Beta's figures are large and unmistakable: if any of them
+    // surfaced below, they could not be mistaken for a rounding difference.
+    clarificationReportRecord($this->stationB, '2026-03-10', [
+        ['pure_oil_production_rate_ton_hour' => 900.0, 'sludge_tank_temp_c' => 300.0],
+    ], ['clarification_id' => 'CLF-BETA']);
     clarificationReportRecord($this->stationA, '2026-03-10', [
-        ['pure_oil_production_rate_ton_hour' => 20.0],
-    ]);
+        ['pure_oil_production_rate_ton_hour' => 20.0, 'sludge_tank_temp_c' => 87.0],
+    ], ['clarification_id' => 'CLF-ALPHA']);
+
+    $otherMillPeriod = Period::factory()
+        ->forBusinessUnit($this->businessUnitB)
+        ->stationType('clarification')
+        ->range('2026-03-01', '2026-03-31')
+        ->open()
+        ->create();
 
     $this->actingAs($this->operatorA);
 
-    // This is the WEB report and there is NO Operator widening: the mobile
-    // Clarification report is screen-138 and has not been built, so there is
-    // no caller to widen for.
+    $queries = [];
+
+    DB::listen(function ($query) use (&$queries) {
+        $queries[] = ['sql' => $query->sql, 'bindings' => $query->bindings];
+    });
+
+    // 1. ACCEPTED — not one AuthorizationException on any of the report
+    //    paths that used to answer 403.
+    $summary = $this->service->buildSummary($this->periodA);
+    $periods = $this->service->listPeriods();
+    $rows = iterator_to_array($this->service->buildExportRows($this->periodA), false);
+    $response = $this->service->export($this->periodA, 'csv');
+
+    expect($response)->toBeInstanceOf(StreamedResponse::class);
+
+    // 2. THE POINT OF THIS CASE. A requested BU-B is DISCARDED and the
+    //    ACCOUNT's mill comes back — the mill-bound branch, not the Admin
+    //    branch (which would have echoed the requested id straight back).
+    expect($this->service->resolveBusinessUnit((string) $this->businessUnitB->id))
+        ->toBe((string) $this->businessUnitA->id);
+    expect($this->service->resolveBusinessUnit((string) $this->businessUnitB->id))
+        ->not->toBe((string) $this->businessUnitB->id);
+    // Even a mill id that does not exist at all is discarded rather than
+    // validated — the parameter is never used for this role.
+    expect($this->service->resolveBusinessUnit('BU-LAIN'))
+        ->toBe((string) $this->businessUnitA->id);
+
+    // 3. NOT widened: the mill picker stays ADMIN ONLY. Kept from the old
+    //    case verbatim.
     expect(fn () => $this->service->businessUnitOptions())->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->listPeriods())->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->buildSummary($this->periodA))->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->buildExportRows($this->periodA))->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->export($this->periodA, 'csv'))->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->resolveBusinessUnit((string) $this->businessUnitA->id))
-        ->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->authorizePeriod((string) $this->periodA->id))
-        ->toThrow(AuthorizationException::class);
 
-    // THE EXPORT GUARD IS EAGER: the refusal happens at call time, before a
-    // generator could start yielding, so a refused export can never reach a
-    // caller as a successful but empty stream.
-    $rows = null;
+    // 4. Widening the ROLE never widened the MILL: another mill's period id
+    //    is still a flat 403, while the Operator's own period passes.
+    //    authorizePeriod() needed no change for this — only Admin is unbound
+    //    there, so Operator was closed out of other mills' periods the
+    //    moment it entered the mill-bound branch.
+    expect(fn () => $this->service->authorizePeriod((string) $otherMillPeriod->id))
+        ->toThrow(AuthorizationException::class);
+    expect($this->service->authorizePeriod((string) $this->periodA->id)->id)
+        ->toBe($this->periodA->id);
 
-    try {
-        $rows = $this->service->buildExportRows($this->periodA);
-    } catch (AuthorizationException $e) {
-        // expected
+    // 5. The old "reads no rows" assertion's SPIRIT: the queries that DO run
+    //    are scoped to the Operator's own business unit, every one of them.
+    $recordQueries = collect($queries)
+        ->filter(fn ($query) => str_contains($query['sql'], 'clarification_records'))
+        ->values();
+
+    // Without this, every foreach assertion below would pass on an empty
+    // list and prove precisely nothing.
+    expect($recordQueries)->not->toBeEmpty();
+
+    foreach ($recordQueries as $query) {
+        $bindings = array_map(fn ($binding) => (string) $binding, $query['bindings']);
+
+        expect($bindings)->toContain((string) $this->businessUnitA->id);
+        expect($bindings)->not->toContain((string) $this->businessUnitB->id);
     }
 
-    expect($rows)->toBeNull();
-
-    // And no report data came back on any path.
-    $summary = null;
-
-    try {
-        $summary = $this->service->buildSummary($this->periodA);
-    } catch (AuthorizationException $e) {
-        // expected
-    }
-
-    expect($summary)->toBeNull();
+    // 6. And the figures themselves are BU-A's, never BU-B's 900.0 / 300.0.
+    expect($summary['business_unit']['name'])->toBe('Mill Alpha');
+    expect($summary['production']['total_ton'])->toBe(20.0);
+    expect($summary['production']['reading_count'])->toBe(1);
+    expect($summary['metrics']['pure_oil_production_rate_ton_hour']['max'])->toBe(20.0);
+    expect($summary['metrics']['pure_oil_production_rate_ton_hour']['max'])->not->toBe(900.0);
+    expect($summary['metrics']['sludge_tank_temp_c']['max'])->toBe(87.0);
+    expect($summary['metrics']['sludge_tank_temp_c']['max'])->not->toBe(300.0);
+    expect(array_column($summary['by_unit'], 'clarification_id'))->toBe(['CLF-ALPHA']);
+    expect($rows)->toHaveCount(1);
+    // listPeriods() answers with Mill Alpha's period only — Mill Beta's
+    // period, created above with the same dates and station type, is absent.
+    expect($periods)->toHaveCount(1);
+    expect($periods[0]['id'])->toBe((string) $this->periodA->id);
 });
 
 // ---------------------------------------------------------------------
-// Case 38 — THE ORDERING PROOF, BY EXCEPTION TYPE
+// Case 38 — THE NO-ORACLE PROOF, RE-EXPRESSED 2026-09-25 (screen-138)
 // ---------------------------------------------------------------------
-it('runs the role guard BEFORE findOrFail: an Operator naming a nonexistent period gets 403, never 404', function () {
+
+// This case used to read: "runs the role guard BEFORE findOrFail: an
+// Operator naming a nonexistent period gets 403, never 404". Its POINT was
+// never the exception ordering for its own sake — it was that A CALLER WHO
+// IS REFUSED MUST NOT GET AN EXISTENCE ORACLE. Telling 403 apart from 404
+// would have let a role that is not admitted at all enumerate which period
+// ids exist.
+//
+// After the screen-138 widening, Operator IS an admitted caller. For an
+// admitted caller a 404 over a genuinely nonexistent id leaks nothing at
+// all — it is simply the correct answer, exactly as it already was for
+// Supervisor (case 36). Keeping the old assertion would have meant keeping
+// a 403 that no longer protects anything, and would have forced the
+// implementation to refuse Operator somewhere.
+//
+// WHAT STILL MATTERS IS THE CROSS-MILL ORACLE, and that is what this case
+// now asserts: an Operator of Mill Alpha naming a period belonging to Mill
+// Beta gets 403 — not 404 — so the refusal never confirms whether that
+// period exists. The mill guard still runs, and it still refuses without
+// answering the question. The second half documents the deliberate change:
+// a period id that exists for nobody now answers 404 for an Operator, and
+// that is intended rather than a regression.
+it('gives an Operator no existence oracle across mills: another mill\'s period is 403, never 404', function () {
+    $otherMillPeriod = Period::factory()
+        ->forBusinessUnit($this->businessUnitB)
+        ->stationType('clarification')
+        ->range('2026-03-01', '2026-03-31')
+        ->open()
+        ->named('Periode Maret Beta')
+        ->create();
+
     $this->actingAs($this->operatorA);
 
-    $missing = (string) Str::uuid();
-
-    // A role that is not admitted at all must not be able to learn whether a
-    // period id exists by telling a 403 apart from a 404.
-    expect(fn () => $this->service->authorizePeriod($missing))->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->authorizePeriod($missing))->not->toThrow(ModelNotFoundException::class);
-    expect(fn () => $this->service->buildSummary($missing))->toThrow(AuthorizationException::class);
-    expect(fn () => $this->service->buildSummary($missing))->not->toThrow(ModelNotFoundException::class);
+    // A period that DOES exist, in a mill the caller may not see: refused
+    // with 403, and deliberately NOT with 404 — a 404 here would be a
+    // statement about the other mill's data.
+    expect(fn () => $this->service->authorizePeriod((string) $otherMillPeriod->id))
+        ->toThrow(AuthorizationException::class);
+    expect(fn () => $this->service->authorizePeriod((string) $otherMillPeriod->id))
+        ->not->toThrow(ModelNotFoundException::class);
+    expect(fn () => $this->service->buildSummary((string) $otherMillPeriod->id))
+        ->toThrow(AuthorizationException::class);
+    expect(fn () => $this->service->buildSummary((string) $otherMillPeriod->id))
+        ->not->toThrow(ModelNotFoundException::class);
+    expect(fn () => $this->service->buildExportRows((string) $otherMillPeriod->id))
+        ->toThrow(AuthorizationException::class);
 
     // The exception TYPE is the proof, so it is captured and inspected
     // rather than merely matched.
     $thrown = null;
 
     try {
-        $this->service->authorizePeriod($missing);
+        $this->service->authorizePeriod((string) $otherMillPeriod->id);
     } catch (Throwable $e) {
         $thrown = $e;
     }
 
     expect($thrown)->toBeInstanceOf(AuthorizationException::class);
     expect($thrown)->not->toBeInstanceOf(ModelNotFoundException::class);
+
+    // AND THE DOCUMENTED CHANGE: an id that exists for nobody now answers
+    // 404 for an Operator, exactly as it does for Supervisor (case 36).
+    // Operator is an admitted caller since screen-138, so there is no
+    // refusal left to hide behind and nothing for the 404 to leak.
+    $missing = (string) Str::uuid();
+
+    expect(fn () => $this->service->authorizePeriod($missing))->toThrow(ModelNotFoundException::class);
+    expect(fn () => $this->service->buildSummary($missing))->toThrow(ModelNotFoundException::class);
 });
 
 // ---------------------------------------------------------------------

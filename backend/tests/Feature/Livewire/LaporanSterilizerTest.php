@@ -528,3 +528,97 @@ it('admin ekspor: an Admin who picked a mill actually downloads the CSV, and it 
     expect(SterilizerDetail::count())->toBe($detailsBefore);
     expect($periodB->fresh())->not->toBeNull();
 });
+
+// =====================================================================
+// REGRESSION — `#[Url(as: 'business_unit_id')]`: hidrasi mill dari query
+// string.
+//
+// StationReportService membangun tautan setiap tile Laporan Stasiun
+// (screen-140) sebagai route($routeName, ['business_unit_id' => $id]),
+// jadi kunci yang benar-benar dipakai di URL adalah `business_unit_id`.
+// Tanpa `as:`, #[Url] memakai NAMA PROPERTI ('businessUnitId') sebagai
+// kunci query — dan kedua kunci itu tidak akan pernah bertemu.
+//
+// Akibatnya kalau `as:` hilang atau salah ketik: Admin yang baru saja
+// memilih mill lalu menekan sebuah tile MENDARAT DI LAYAR YANG MEMINTANYA
+// MEMILIH MILL LAGI, tanpa satu angka pun termuat — persis seperti sebelum
+// perbaikan, dan tanpa satu test pun memerah. Itulah yang ditutup di sini.
+//
+// Asersinya sengaja PERILAKU dan bukan refleksi atas atributnya: membaca
+// atribut PHP hanya menguji ejaan, dan tetap hijau kalau Livewire mengubah
+// semantik `as:`.
+// =====================================================================
+it('hidrasi query string: Admin yang tiba dari tautan tile langsung melihat laporan mill itu, bukan permintaan memilih mill lagi', function () {
+    $periodB = Period::factory()->forBusinessUnit($this->businessUnitB)->stationType('sterilizer')
+        ->range('2026-09-01', '2026-09-30')->named('Periode September Beta')->create();
+
+    laporanSterilizerComponentDurations($this->stationA, '2026-09-10', [90, 100]);
+    laporanSterilizerComponentDurations($this->stationB, '2026-09-10', [200, 210, 220]);
+
+    // (a) Permukaan HTTP — URL yang bentuknya persis seperti yang dibangun
+    // StationReportService untuk tile Sterilizer.
+    $response = $this->actingAs($this->admin, 'web')
+        ->get(route('reports.sterilizer', ['business_unit_id' => $this->businessUnitA->id]));
+
+    $response->assertOk();
+    $response->assertDontSee('Pilih mill terlebih dahulu');
+    $response->assertSee('Periode September Alpha');
+    $response->assertDontSee('Periode September Beta');
+
+    // (b) Permukaan komponen — propertinya benar-benar terhidrasi, periode
+    // mill itu ikut termuat, dan angkanya berasal dari mill itu saja.
+    Livewire::actingAs($this->admin)
+        ->withQueryParams(['business_unit_id' => (string) $this->businessUnitA->id])
+        ->test(LaporanSterilizer::class)
+        ->assertSet('businessUnitId', (string) $this->businessUnitA->id)
+        ->assertSet('periodId', (string) $this->periodA->id)
+        ->assertViewHas('needsMillSelection', false)
+        ->assertDontSeeHtml('data-testid="empty-select-mill"')
+        ->assertSeeHtml('data-testid="report-kpis"')
+        ->assertViewHas('summary', fn ($summary) => $summary !== null
+            && $summary['period']['business_unit_name'] === 'Mill Alpha'
+            && $summary['kpi']['total_cycles'] === 2);
+
+    expect($periodB->fresh())->not->toBeNull();
+});
+
+// =====================================================================
+// SISI SEBALIKNYA — peran yang terikat satu mill.
+//
+// resolvedBusinessUnitId() MENGABAIKAN properti ini sepenuhnya untuk
+// Supervisor / Mill Management, jadi memaksa mill lain lewat query string
+// tidak boleh mengubah apa pun. Test ini menjaga agar seseorang kelak
+// tidak "memperbaiki" hidrasi dengan cara yang membuka kebocoran lintas
+// mill.
+//
+// Asersi `businessUnitId` yang terhidrasi disengaja: tanpanya test ini
+// bisa hijau hanya karena query string tidak pernah sampai ke komponen —
+// hijau yang tidak membuktikan apa-apa.
+// =====================================================================
+it('peran terikat mill: memaksa mill lain lewat query string tidak mengubah apa pun bagi Supervisor / Mill Management', function () {
+    Period::factory()->forBusinessUnit($this->businessUnitB)->stationType('sterilizer')
+        ->range('2026-09-01', '2026-09-30')->named('Periode September Beta')->create();
+
+    laporanSterilizerComponentDurations($this->stationA, '2026-09-10', [90, 100]);
+    laporanSterilizerComponentDurations($this->stationB, '2026-09-10', [200, 210, 220]);
+
+    foreach ([$this->supervisor, $this->millManagement] as $user) {
+        $response = $this->actingAs($user, 'web')
+            ->get(route('reports.sterilizer', ['business_unit_id' => $this->businessUnitB->id]));
+
+        $response->assertOk();
+        $response->assertSee('Periode September Alpha');
+        $response->assertDontSee('Periode September Beta');
+        $response->assertDontSee('Mill Beta');
+
+        Livewire::actingAs($user)
+            ->withQueryParams(['business_unit_id' => (string) $this->businessUnitB->id])
+            ->test(LaporanSterilizer::class)
+            // Terhidrasi — dan tetap diabaikan.
+            ->assertSet('businessUnitId', (string) $this->businessUnitB->id)
+            ->assertSet('periodId', (string) $this->periodA->id)
+            ->assertViewHas('summary', fn ($summary) => $summary !== null
+                && $summary['period']['business_unit_name'] === 'Mill Alpha'
+                && $summary['kpi']['total_cycles'] === 2);
+    }
+});

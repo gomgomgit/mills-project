@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-23"
+    "updated_at": "2026-09-27"
   },
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
@@ -24,7 +24,7 @@
         {
           "method": "GET",
           "path": "/api/periods",
-          "description": "Daftar Periode Pelaporan terpaginasi, filter opsional business_unit_id dan status",
+          "description": "Daftar Periode Pelaporan terpaginasi beserta baris stasiun tiap periode; filter opsional business_unit_id dan status. Urut start_date desc lalu name",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -55,7 +55,7 @@
                 "type": "string",
                 "required": false,
                 "default": null,
-                "description": "Filter status: draft | open | closed"
+                "description": "Filter Status Stasiun: draft | open | closed — bermakna 'periode punya MINIMAL SATU baris stasiun berstatus ini' (EXISTS terhadap period_stations), bukan 'seluruh stasiunnya'"
               }
             ],
             "body_schema": {}
@@ -66,17 +66,28 @@
                 {
                   "id": "uuid",
                   "business_unit_id": "uuid",
-                  "business_unit_name": "string",
-                  "station_type": "string|null",
-                  "station_type_label": "string",
+                  "business_unit_name": "string|null",
                   "name": "string",
                   "start_date": "date",
                   "end_date": "date",
-                  "status": "string",
-                  "closed_by": "uuid|null",
-                  "closed_by_name": "string|null",
-                  "closed_at": "iso8601|null",
-                  "created_at": "iso8601"
+                  "created_by": "uuid|null",
+                  "updated_by": "uuid|null",
+                  "created_at": "iso8601|null",
+                  "stations": [
+                    {
+                      "id": "uuid (period_stations id — dipakai oleh layar detail screen-142)",
+                      "station_type": "string",
+                      "station_type_label": "string",
+                      "status": "draft|open|closed",
+                      "closed_by": "uuid|null",
+                      "closed_by_name": "string|null",
+                      "closed_at": "iso8601|null"
+                    }
+                  ],
+                  "station_count": "integer",
+                  "closed_station_count": "integer",
+                  "is_immutable": "boolean",
+                  "status_summary": "empty|draft|open|closed|mixed"
                 }
               ],
               "meta": {
@@ -138,15 +149,14 @@
         {
           "method": "POST",
           "path": "/api/periods",
-          "description": "Membuat Periode Pelaporan baru dengan status draft",
+          "description": "Membuat Periode Pelaporan baru DAN satu baris period_stations berstatus draft untuk setiap jenis stasiun aktif di mill itu, dalam satu transaksi. TIDAK menerima station_type",
           "auth_required": true,
           "request": {
             "path_params": [],
             "query_params": [],
             "body_schema": {
               "business_unit_id": "uuid, required, exists",
-              "station_type": "string, optional, salah satu dari enum station.type; null = berlaku semua jenis stasiun",
-              "name": "string, required, unik per (business_unit_id, station_type)",
+              "name": "string, required, max 255, unik per business_unit_id",
               "start_date": "date, required",
               "end_date": "date, required, >= start_date"
             }
@@ -155,27 +165,39 @@
             "success_schema": {
               "id": "uuid",
               "business_unit_id": "uuid",
-              "business_unit_name": "string",
-              "station_type": "string|null",
+              "business_unit_name": "string|null",
               "name": "string",
               "start_date": "date",
               "end_date": "date",
-              "status": "draft",
-              "closed_by": null,
-              "closed_at": null,
-              "created_by": "uuid",
-              "created_at": "iso8601"
+              "created_by": "uuid|null",
+              "updated_by": "uuid|null",
+              "created_at": "iso8601|null",
+              "stations": [
+                {
+                  "id": "uuid (period_stations id — dipakai oleh layar detail screen-142)",
+                  "station_type": "string",
+                  "station_type_label": "string",
+                  "status": "draft|open|closed",
+                  "closed_by": "uuid|null",
+                  "closed_by_name": "string|null",
+                  "closed_at": "iso8601|null"
+                }
+              ],
+              "station_count": "integer",
+              "closed_station_count": "integer",
+              "is_immutable": "boolean",
+              "status_summary": "empty|draft|open|closed|mixed"
             },
             "error_codes": [
               {
                 "http_code": 422,
                 "error_code": "VALIDATION_ERROR",
-                "condition": "business_unit_id kosong/tidak ada, name kosong, name duplikat pada (business_unit_id, station_type), station_type di luar enum, atau end_date lebih awal dari start_date"
+                "condition": "business_unit_id kosong/tidak ada, name kosong atau > 255, name duplikat pada business_unit_id yang sama, atau end_date lebih awal dari start_date"
               },
               {
                 "http_code": 422,
                 "error_code": "PERIOD_OVERLAP",
-                "condition": "rentang tanggal beririsan dengan periode lain pada mill + jenis stasiun yang sama; periode ber-station_type null mencakup semua jenis sehingga juga beririsan dengan jenis manapun di mill itu"
+                "condition": "rentang tanggal beririsan dengan periode lain pada MILL yang sama (tanpa memandang jenis stasiun); batas inklusif, jadi berbagi satu hari saja sudah beririsan. Pesannya menyebut nama dan rentang periode yang bentrok"
               },
               {
                 "http_code": 403,
@@ -192,7 +214,7 @@
         {
           "method": "PATCH",
           "path": "/api/periods/{id}",
-          "description": "Mengubah name, station_type, start_date, atau end_date sebuah periode yang belum tertutup",
+          "description": "Mengubah business_unit_id, name, start_date, atau end_date sebuah periode yang belum punya satu pun baris stasiun tertutup; penyimpanan yang sukses juga MEM-BACKFILL baris stasiun yang belum ada (add-only). TIDAK menerima station_type",
           "auth_required": true,
           "request": {
             "path_params": [
@@ -205,8 +227,7 @@
             "query_params": [],
             "body_schema": {
               "business_unit_id": "uuid, required, exists",
-              "station_type": "string, optional, nullable",
-              "name": "string, required, unik-kecuali-diri-sendiri per (business_unit_id, station_type)",
+              "name": "string, required, max 255, unik per business_unit_id",
               "start_date": "date, required",
               "end_date": "date, required, >= start_date"
             }
@@ -215,14 +236,28 @@
             "success_schema": {
               "id": "uuid",
               "business_unit_id": "uuid",
-              "business_unit_name": "string",
-              "station_type": "string|null",
+              "business_unit_name": "string|null",
               "name": "string",
               "start_date": "date",
               "end_date": "date",
-              "status": "string",
-              "updated_by": "uuid",
-              "created_at": "iso8601"
+              "created_by": "uuid|null",
+              "updated_by": "uuid|null",
+              "created_at": "iso8601|null",
+              "stations": [
+                {
+                  "id": "uuid (period_stations id — dipakai oleh layar detail screen-142)",
+                  "station_type": "string",
+                  "station_type_label": "string",
+                  "status": "draft|open|closed",
+                  "closed_by": "uuid|null",
+                  "closed_by_name": "string|null",
+                  "closed_at": "iso8601|null"
+                }
+              ],
+              "station_count": "integer",
+              "closed_station_count": "integer",
+              "is_immutable": "boolean",
+              "status_summary": "empty|draft|open|closed|mixed"
             },
             "error_codes": [
               {
@@ -231,19 +266,19 @@
                 "condition": "id tidak ditemukan"
               },
               {
+                "http_code": 409,
+                "error_code": "PERIOD_CLOSED_IMMUTABLE",
+                "condition": "periode punya MINIMAL SATU baris stasiun berstatus closed — dijawab SEBELUM validasi dan sebelum apa pun ditulis, sehingga percobaan yang ditolak tidak mengubah satu bit pun (termasuk tidak menambah baris stasiun)"
+              },
+              {
                 "http_code": 422,
                 "error_code": "VALIDATION_ERROR",
-                "condition": "field wajib kosong, name duplikat, atau end_date lebih awal dari start_date"
+                "condition": "field wajib kosong, name duplikat pada business_unit_id yang sama (kecuali dirinya sendiri), atau end_date lebih awal dari start_date"
               },
               {
                 "http_code": 422,
                 "error_code": "PERIOD_OVERLAP",
-                "condition": "rentang baru beririsan dengan periode lain pada cakupan yang sama (mengecualikan dirinya sendiri)"
-              },
-              {
-                "http_code": 409,
-                "error_code": "PERIOD_CLOSED_IMMUTABLE",
-                "condition": "periode berstatus closed — harus dibuka kembali sebelum diubah"
+                "condition": "rentang baru beririsan dengan periode lain pada mill yang sama, mengecualikan dirinya sendiri"
               },
               {
                 "http_code": 403,
@@ -260,7 +295,7 @@
         {
           "method": "DELETE",
           "path": "/api/periods/{id}",
-          "description": "Menghapus periode yang belum tertutup",
+          "description": "Menghapus periode beserta baris stasiunnya (cascade), selama tidak ada baris stasiun yang tertutup",
           "auth_required": true,
           "request": {
             "path_params": [
@@ -286,7 +321,7 @@
               {
                 "http_code": 409,
                 "error_code": "PERIOD_CLOSED_IMMUTABLE",
-                "condition": "periode berstatus closed — harus dibuka kembali sebelum dihapus"
+                "condition": "periode punya MINIMAL SATU baris stasiun berstatus closed — tidak ada yang dihapus"
               },
               {
                 "http_code": 403,
@@ -302,688 +337,395 @@
         }
       ],
       "business_logic": [
-        "list: paginate Period, eager-load businessUnit + closedBy, filter business_unit_id dan status jika ada, order by start_date desc → map station_type ke station_type_label ('Semua Stasiun' bila null) → clamp per_page ke max 100 → return",
-        "create: validate business_unit_id exists, name required, station_type in enum-or-null, start_date/end_date required date, end_date >= start_date → if invalid: return 422 VALIDATION_ERROR",
-        "create: validate name unik per (business_unit_id, station_type) → if duplikat: return 422 VALIDATION_ERROR errors.name",
-        "create: cek tumpang tindih — SELECT Period WHERE business_unit_id=? AND (station_type = ? OR station_type IS NULL OR ? IS NULL) AND start_date <= new_end AND end_date >= new_start → if ada: return 422 PERIOD_OVERLAP menyebut nama periode yang bentrok",
-        "create: INSERT Period dengan status='draft', created_by=actor → return row (201)",
-        "update: findOrFail id → 404 jika tidak ada",
-        "update: → if status === 'closed': return 409 PERIOD_CLOSED_IMMUTABLE tanpa mengubah apa pun",
-        "update: validasi sama seperti create, dengan unique dan overlap check mengecualikan row ini sendiri → UPDATE, set updated_by=actor → return row",
-        "delete: findOrFail id → 404 jika tidak ada → if status === 'closed': return 409 PERIOD_CLOSED_IMMUTABLE → else DELETE"
+        "0. BENTUK SEBUAH PERIODE ADALAH PeriodService::toRow(): induk + stations[] + station_count + closed_station_count + is_immutable + status_summary. Induk SENGAJA tidak punya status, station_type, station_type_label, closed_by, closed_by_name, maupun closed_at — semuanya kini plural (satu set per jenis stasiun) dan tidak ada nilai tunggal yang jujur untuknya. Kunci induk bernama `status` akan mengundang $row['status'] === 'closed' hidup terus seolah masih menjawab 'apakah periode ini tertutup'",
+        "1. list: paginate Period, eager-load ['businessUnit', 'stations.closedBy'], order by start_date desc lalu name, per_page diklem maksimal 100 oleh helper Pagination bersama → map tiap baris lewat toRow()",
+        "2. list: filter business_unit_id = where biasa. Filter status = whereHas('stations', status = ?) — EXISTS, bermakna 'punya minimal satu stasiun berstatus itu'. Makna 'seluruh stasiunnya' DITOLAK: periode dengan 18 stasiun tertutup dan 1 masih terbuka tidak akan cocok dengan nilai apa pun sehingga hilang dari setiap tampilan tersaring padahal jelas ada di tampilan tanpa filter. Kolom status harus dikualifikasi period_stations.status — ia bukan lagi kolom periods",
+        "3. list: stations[] diurutkan mengikuti station_types.sort_order (kode tak dikenal master jatuh ke PHP_INT_MAX sehingga paling belakang), dan station_type_label berasal dari station_types.name dengan kodenya sebagai fallback — bukan dari enum kode, karena label yang dilihat mill adalah data yang bisa diubah tanpa mengubah kode",
+        "4. list: status_summary = 'empty' bila tidak ada baris stasiun; satu nilai (draft/open/closed) bila seluruh baris berstatus sama; 'mixed' untuk sisanya. is_immutable = closed_station_count > 0 — PERSIS kondisi yang ditolak update()/delete(), sehingga FE mematikan Edit/Hapus dari flag itu dan tidak menurunkan ulang aturannya",
+        "5. businessUnitOptions: kembalikan id + name seluruh Business Unit terurut nama; [] (bukan exception) bila belum ada satu pun, sehingga form dapat menampilkan petunjuk 'buat Business Unit dulu'",
+        "6. create: validate business_unit_id exists, name required + max 255 + unik per business_unit_id, start_date/end_date required date, end_date >= start_date → 422 VALIDATION_ERROR. station_type dalam payload DIABAIKAN, bukan ditolak, supaya klien basi tidak 422 pada field yang sudah tidak bermakna",
+        "7. create: cek tumpang tindih — SELECT Period WHERE business_unit_id=? AND start_date <= :new_end AND end_date >= :new_start (batas inklusif, TANPA station_type sama sekali) → 422 PERIOD_OVERLAP dengan nama dan rentang periode yang bentrok",
+        "8. create: dalam SATU transaksi — INSERT periods (created_by=actor) lalu INSERT satu period_stations berstatus draft untuk setiap kode dari activeStationTypesForMill(business_unit_id). Periode tanpa baris stasiunnya adalah keadaan yang lebih buruk daripada tidak ada periode: tidak ada yang bisa ditutup dan tidak ada yang terkunci",
+        "9. activeStationTypesForMill: jenis stasiun yang benar-benar ADA di mill (stations.business_unit_id = ? AND stations.is_active) DAN masih aktif di master station_types, terurut sort_order. production_lines tidak ikut dikueri karena setiap stasiun sudah menggantung pada line milik mill-nya. Mill tanpa stasiun aktif mengembalikan [] — BUKAN exception dan BUKAN seluruh katalog master sebagai fallback, sebab fallback itu membuat isi daftar stasiun berarti satu hal untuk mill terisi dan hal lain untuk mill kosong",
+        "10. update: findOrFail → 404 NOT_FOUND",
+        "11. update: guard PERIOD_CLOSED_IMMUTABLE — 409 bila period_stations punya minimal satu baris closed (aturan 'ANY', bukan 'ALL'), dijawab SEBELUM validasi dan sebelum tulisan apa pun",
+        "12. update: validasi dan overlap sama seperti create dengan pengecualian dirinya sendiri → UPDATE periods + updated_by=actor, lalu BACKFILL baris stasiun, keduanya dalam SATU transaksi",
+        "13. update/backfill: INSERT baris draft untuk setiap kode dari activeStationTypesForMill(business_unit_id TERBARU periode itu) yang belum punya baris. ADD-ONLY: baris tidak pernah dihapus, bahkan ketika jenis stasiunnya sudah dipensiunkan — baris tertutup menyimpan siapa yang menutup dan kapan, dan catatan itu tidak boleh menguap karena ada penyimpanan lain yang kebetulan jalan. Memindahkan periode ke mill lain menyisakan gabungan kedua inventaris; itu konsekuensi yang diterima dari aturan never-remove",
+        "14. update: BACKFILL BERJALAN SETELAH GUARD 409, BUKAN SEBELUMNYA — percobaan yang ditolak harus meninggalkan periode utuh bit demi bit, dan menambah baris akan mengubah station_count serta status_summary pada panggilan yang mengembalikan error. BIAYANYA NYATA: periode yang sudah punya satu baris tertutup tidak akan pernah bisa di-backfill lewat update(), karena setiap update() padanya ditolak. Jalan keluar hari ini manual: buka kembali baris itu dari layar detail (screen-142), simpan periodenya sekali, lalu tutup lagi",
+        "15. delete: findOrFail → 404 → guard 409 PERIOD_CLOSED_IMMUTABLE bila ada minimal satu baris closed → DELETE. Aturan 'ANY' dipakai karena period_stations.period_id cascadeOnDelete: di bawah aturan 'ALL', Admin bisa menghapus periode yang memuat satu Sterilizer tertutup hanya karena Clarification masih terbuka — diam-diam membuka segel record yang sudah disegel",
+        "16. FE: nama periode adalah tautan ke /master-data/periods/{id} (screen-142). Layar ini TIDAK punya baris expandable, TIDAK punya sub-tabel stasiun, dan TIDAK punya satu pun aksi per stasiun",
+        "17. FE: kolom Stasiun menampilkan 'N stasiun' ditambah '· M tertutup' hanya bila closed_station_count > 0, dan 'Belum ada stasiun' bila station_count 0. Kolom Status Stasiun menampilkan badge status_summary dengan kosakata draft→Draft, open→Terbuka, closed→Tertutup, mixed→Campuran, empty→Tanpa Stasiun",
+        "18. FE: Edit dan Hapus dirender DISABLED + atribut title ketika is_immutable — bukan disembunyikan; periode dengan 1 dari 19 stasiun tertutup harus menunjukkan bahwa pengubahan terkunci, bukan membuat Admin mencari tombol yang hilang",
+        "19. FE: form tambah/ubah TIDAK punya pemilih Jenis Stasiun. Setelah Business Unit dipilih, pratinjau memanggil activeStationTypesForMill() (public justru untuk ini) dan menampilkan daftar jenis stasiun yang akan tercakup; pada mode ubah, jenis yang belum punya baris ditandai badge 'Baru' dan teksnya menjelaskan bahwa menyimpan hanya MENAMBAHKAN. JANGAN menurunkan ulang daftar itu di view",
+        "20. Penegakan kunci periode tertutup bukan bagian layar ini dan belum ada di mana pun (usecase-141)"
       ],
       "data_operations": [
         {
           "entity_id": "period",
           "operation": "SELECT",
-          "description": "List terpaginasi dengan businessUnit + closedBy; juga dipakai untuk cek tumpang tindih dan keunikan nama"
+          "description": "paginate daftar periode + findOrFail pada update/delete"
         },
         {
           "entity_id": "period",
           "operation": "INSERT",
-          "description": "create() — selalu dengan status='draft'"
+          "description": "INSERT periode baru dengan created_by"
         },
         {
           "entity_id": "period",
           "operation": "UPDATE",
-          "description": "update() — ditolak bila status='closed'"
+          "description": "UPDATE name/business_unit_id/rentang + updated_by"
         },
         {
           "entity_id": "period",
           "operation": "DELETE",
-          "description": "delete() — ditolak bila status='closed'"
+          "description": "DELETE periode (baris stasiunnya ikut terhapus lewat cascade)"
         },
         {
-          "entity_id": "business-unit",
+          "entity_id": "period-station",
           "operation": "SELECT",
-          "description": "Dropdown options dan resolusi business_unit_name"
+          "description": "eager-load baris stasiun tiap periode untuk stations[], ringkasan, EXISTS filter status, dan guard immutable"
         },
         {
-          "entity_id": "user",
-          "operation": "SELECT",
-          "description": "Resolusi closed_by_name pada daftar periode"
-        }
-      ],
-      "edge_case_handling": [
-        {
-          "condition": "Rentang tanggal beririsan pada mill + jenis stasiun yang sama",
-          "handling": "422 PERIOD_OVERLAP, pesan menyebut nama periode yang bentrok, tidak ada row tersimpan"
-        },
-        {
-          "condition": "Periode 'semua jenis stasiun' beririsan dengan periode jenis stasiun tertentu di mill yang sama",
-          "handling": "422 PERIOD_OVERLAP — kondisi overlap sengaja memperlakukan station_type NULL sebagai mencakup semua jenis (klausa 'station_type = ? OR station_type IS NULL OR ? IS NULL'), berlaku dua arah"
-        },
-        {
-          "condition": "Tanggal selesai lebih awal dari tanggal mulai",
-          "handling": "422 VALIDATION_ERROR, errors.end_date"
-        },
-        {
-          "condition": "Nama periode sudah dipakai pada cakupan yang sama",
-          "handling": "422 VALIDATION_ERROR, errors.name; nama yang sama pada station_type berbeda tetap diterima"
-        },
-        {
-          "condition": "Mengubah atau menghapus periode berstatus closed",
-          "handling": "409 PERIOD_CLOSED_IMMUTABLE, tidak ada perubahan data"
-        },
-        {
-          "condition": "Periode sudah dihapus Admin lain di antara form dibuka dan disimpan",
-          "handling": "404 NOT_FOUND, UI memuat ulang daftar dengan pesan ramah"
-        },
-        {
-          "condition": "Belum ada Business Unit sama sekali",
-          "handling": "GET /api/periods/business-units/options mengembalikan data: [] — form tidak dapat disimpan (dicegah di sisi Livewire)"
-        }
-      ],
-      "business_rules_applied": [
-        "Hanya Admin yang dapat mengakses seluruh endpoint periode (middleware role:admin)",
-        "Business Unit wajib; station_type opsional dan null berarti mencakup semua jenis stasiun di mill itu",
-        "Nama periode unik per (business_unit_id, station_type)",
-        "end_date tidak boleh lebih awal dari start_date",
-        "Rentang tanggal tidak boleh tumpang tindih pada cakupan yang sama, dengan station_type NULL diperlakukan sebagai mencakup semua jenis",
-        "Periode berstatus closed tidak dapat diubah maupun dihapus sebelum dibuka kembali",
-        "Periode baru selalu dibuat dengan status draft"
-      ],
-      "unit_test_cases": [
-        {
-          "description": "menolak dengan 401 ketika request tidak terautentikasi",
-          "given": "request ke GET /api/periods tanpa session cookie / Sanctum token",
-          "expect": "AuthenticationException → 401 code UNAUTHENTICATED, service list() tidak pernah dipanggil"
-        },
-        {
-          "description": "menolak dengan 403 ketika actor bukan Admin",
-          "given": "actor terautentikasi dengan role selain actor-admin",
-          "expect": "throw ForbiddenException → 403 code FORBIDDEN, tidak ada query ke tabel periods"
-        },
-        {
-          "description": "memakai default page=1 dan per_page=20 ketika query kosong",
-          "given": "35 periode tersimpan, filter kosong",
-          "expect": "20 baris pertama, meta {page:1, per_page:20, total:35}"
-        },
-        {
-          "description": "membatasi per_page maksimal 100 ketika diminta lebih besar",
-          "given": "query per_page=500",
-          "expect": "limit 100, meta.per_page=100"
-        },
-        {
-          "description": "menyaring daftar berdasarkan business_unit_id",
-          "given": "periode pada BU-A dan BU-B, filter business_unit_id=BU-A",
-          "expect": "hanya periode BU-A; total menghitung baris terfilter saja"
-        },
-        {
-          "description": "menyaring daftar berdasarkan status",
-          "given": "periode berstatus draft, open, closed; filter status=closed",
-          "expect": "hanya periode berstatus closed"
-        },
-        {
-          "description": "menampilkan station_type_label 'Semua Stasiun' ketika station_type NULL",
-          "given": "satu periode dengan station_type=null",
-          "expect": "station_type=null dan station_type_label='Semua Stasiun'"
-        },
-        {
-          "description": "mengembalikan closed_by_name dan closed_at untuk periode tertutup",
-          "given": "periode closed dengan closed_by=Admin X, closed_at terisi",
-          "expect": "closed_by, closed_by_name='Admin X', closed_at ISO 8601 UTC"
-        },
-        {
-          "description": "mengembalikan data kosong ketika tidak ada periode sesuai filter",
-          "given": "tidak ada baris yang cocok",
-          "expect": "data=[] dan meta.total=0, bukan exception"
-        },
-        {
-          "description": "businessUnitOptions: menolak 403 ketika actor bukan Admin",
-          "given": "actor bukan actor-admin",
-          "expect": "throw ForbiddenException → 403 FORBIDDEN"
-        },
-        {
-          "description": "businessUnitOptions: mengembalikan daftar kosong ketika belum ada Business Unit",
-          "given": "businessUnitRepo kosong",
-          "expect": "data=[] tanpa exception — dropdown kosong di UI"
-        },
-        {
-          "description": "businessUnitOptions: mengembalikan id dan name seluruh Business Unit terurut nama",
-          "given": "3 Business Unit tersimpan",
-          "expect": "data berisi 3 objek {id, name} terurut nama"
-        },
-        {
-          "description": "create: menolak 422 ketika business_unit_id kosong",
-          "given": "payload tanpa business_unit_id",
-          "expect": "422 VALIDATION_ERROR dengan errors.business_unit_id"
-        },
-        {
-          "description": "create: menolak 422 ketika business_unit_id tidak ditemukan",
-          "given": "uuid acak yang tidak ada di tabel business_units",
-          "expect": "422 VALIDATION_ERROR, errors.business_unit_id"
-        },
-        {
-          "description": "create: menolak 422 ketika name kosong",
-          "given": "payload dengan name=''",
-          "expect": "422 VALIDATION_ERROR dengan errors.name"
-        },
-        {
-          "description": "create: menolak 422 ketika name sudah dipakai pada (business_unit_id, station_type) yang sama",
-          "given": "periode 'Oktober 2026' sudah ada pada BU-A + station_type='sterilizer'",
-          "expect": "422 VALIDATION_ERROR errors.name; tidak ada INSERT"
-        },
-        {
-          "description": "create: mengizinkan name sama pada station_type berbeda di mill yang sama",
-          "given": "'Oktober 2026' sudah ada untuk 'sterilizer'; payload memakai 'boiler-room' dengan rentang tidak beririsan",
-          "expect": "tersimpan — keunikan hanya per (business_unit_id, station_type)"
-        },
-        {
-          "description": "create: menolak 422 ketika end_date lebih awal dari start_date",
-          "given": "start_date=2026-10-31, end_date=2026-10-01",
-          "expect": "422 VALIDATION_ERROR dengan errors.end_date"
-        },
-        {
-          "description": "create: PeriodOverlapException ketika rentang beririsan pada cakupan sama",
-          "given": "findOverlapping(BU-A,'sterilizer',range) mengembalikan periode 'September-Oktober 2026'",
-          "expect": "throw PeriodOverlapException → 422 PERIOD_OVERLAP, message menyebut nama periode yang bentrok; tidak ada INSERT"
-        },
-        {
-          "description": "create: PeriodOverlapException ketika periode station_type NULL beririsan dengan periode station_type tertentu",
-          "given": "payload station_type=null pada BU-A; sudah ada periode 'sterilizer' di BU-A dengan rentang beririsan",
-          "expect": "throw PeriodOverlapException — cakupan 'semua stasiun' mencakup seluruh jenis"
-        },
-        {
-          "description": "create: PeriodOverlapException ketika periode station_type tertentu beririsan dengan periode NULL yang sudah ada",
-          "given": "sudah ada periode station_type=null di BU-A; payload station_type='clarification' dengan rentang beririsan",
-          "expect": "throw PeriodOverlapException — arah sebaliknya juga tertangkap"
-        },
-        {
-          "description": "create: menyimpan periode baru dengan status draft ketika seluruh validasi lolos",
-          "given": "BU valid, name unik, end_date >= start_date, findOverlapping() null",
-          "expect": "INSERT dijalankan; row dengan status='draft', closed_by=null, closed_at=null → 201"
-        },
-        {
-          "description": "update: melempar 404 ketika periode tidak ditemukan (sudah dihapus Admin lain)",
-          "given": "periodRepo->find(id) mengembalikan null",
-          "expect": "throw ModelNotFoundException → 404 NOT_FOUND"
-        },
-        {
-          "description": "update: menolak 409 PERIOD_CLOSED_IMMUTABLE ketika periode berstatus closed",
-          "given": "periode ditemukan dengan status='closed'",
-          "expect": "throw PeriodClosedImmutableException → 409; tidak ada UPDATE; message mengarahkan buka kembali periode"
-        },
-        {
-          "description": "update: PeriodOverlapException ketika rentang baru beririsan, mengecualikan dirinya sendiri",
-          "given": "periode P1 status='open'; findOverlapping(..., excludeId=P1) mengembalikan P2",
-          "expect": "throw PeriodOverlapException → 422 PERIOD_OVERLAP; P1 tidak berubah"
-        },
-        {
-          "description": "update: mengizinkan perubahan rentang yang tidak menimbulkan tumpang tindih pada periode terbuka",
-          "given": "periode status='open'; findOverlapping(..., excludeId=self) null; validasi name & tanggal lolos",
-          "expect": "UPDATE dijalankan; mengembalikan row terbaru → 200"
-        },
-        {
-          "description": "delete: melempar 404 ketika periode sudah dihapus pengguna lain",
-          "given": "periodRepo->find(id) mengembalikan null",
-          "expect": "throw ModelNotFoundException → 404 NOT_FOUND"
-        },
-        {
-          "description": "delete: menolak 409 PERIOD_CLOSED_IMMUTABLE ketika periode berstatus closed",
-          "given": "periode ditemukan dengan status='closed'",
-          "expect": "throw PeriodClosedImmutableException → 409; baris tidak terhapus"
-        },
-        {
-          "description": "delete: menghapus periode dan mengembalikan deleted:true ketika seluruh syarat terpenuhi",
-          "given": "periode status='draft' atau 'open'; actor Admin",
-          "expect": "DELETE dijalankan; {deleted:true} → 200"
-        }
-      ]
-    },
-    {
-      "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
-      "usecase_name": "Tutup & Buka Kembali Periode Pelaporan",
-      "endpoints": [
-        {
-          "method": "GET",
-          "path": "/api/periods/{id}/unverified-count",
-          "description": "Jumlah record stasiun yang belum terverifikasi dalam rentang periode — ditampilkan di dialog konfirmasi sebelum penutupan",
-          "auth_required": true,
-          "request": {
-            "path_params": [
-              {
-                "name": "id",
-                "type": "uuid",
-                "description": "Period id"
-              }
-            ],
-            "query_params": [],
-            "body_schema": {}
-          },
-          "response": {
-            "success_schema": {
-              "unverified_count": "integer",
-              "breakdown": [
-                {
-                  "station_type": "string",
-                  "count": "integer"
-                }
-              ]
-            },
-            "error_codes": [
-              {
-                "http_code": 404,
-                "error_code": "NOT_FOUND",
-                "condition": "id tidak ditemukan"
-              },
-              {
-                "http_code": 403,
-                "error_code": "FORBIDDEN",
-                "condition": "actor bukan admin"
-              }
-            ]
-          },
-          "performance": {
-            "cache": "No cache — dihitung on-demand saat dialog dibuka",
-            "rate_limit": ""
-          }
-        },
-        {
-          "method": "POST",
-          "path": "/api/periods/{id}/close",
-          "description": "Menutup periode — mengunci seluruh record stasiun dalam rentangnya dari input, perubahan, dan verifikasi",
-          "auth_required": true,
-          "request": {
-            "path_params": [
-              {
-                "name": "id",
-                "type": "uuid",
-                "description": "Period id"
-              }
-            ],
-            "query_params": [],
-            "body_schema": {}
-          },
-          "response": {
-            "success_schema": {
-              "id": "uuid",
-              "status": "closed",
-              "closed_by": "uuid",
-              "closed_by_name": "string",
-              "closed_at": "iso8601"
-            },
-            "error_codes": [
-              {
-                "http_code": 404,
-                "error_code": "NOT_FOUND",
-                "condition": "id tidak ditemukan"
-              },
-              {
-                "http_code": 409,
-                "error_code": "PERIOD_ALREADY_CLOSED",
-                "condition": "periode sudah berstatus closed — termasuk kasus Admin lain menutup lebih dulu secara bersamaan"
-              },
-              {
-                "http_code": 403,
-                "error_code": "FORBIDDEN",
-                "condition": "actor bukan admin"
-              }
-            ]
-          },
-          "performance": {
-            "cache": "",
-            "rate_limit": ""
-          }
-        },
-        {
-          "method": "POST",
-          "path": "/api/periods/{id}/reopen",
-          "description": "Membuka kembali periode yang sudah tertutup",
-          "auth_required": true,
-          "request": {
-            "path_params": [
-              {
-                "name": "id",
-                "type": "uuid",
-                "description": "Period id"
-              }
-            ],
-            "query_params": [],
-            "body_schema": {}
-          },
-          "response": {
-            "success_schema": {
-              "id": "uuid",
-              "status": "open",
-              "closed_by": null,
-              "closed_at": null
-            },
-            "error_codes": [
-              {
-                "http_code": 404,
-                "error_code": "NOT_FOUND",
-                "condition": "id tidak ditemukan"
-              },
-              {
-                "http_code": 409,
-                "error_code": "PERIOD_NOT_CLOSED",
-                "condition": "periode belum berstatus closed"
-              },
-              {
-                "http_code": 403,
-                "error_code": "FORBIDDEN",
-                "condition": "actor bukan admin"
-              }
-            ]
-          },
-          "performance": {
-            "cache": "",
-            "rate_limit": ""
-          }
-        }
-      ],
-      "business_logic": [
-        "unverifiedCount: findOrFail id → 404 jika tidak ada",
-        "unverifiedCount: tentukan daftar tipe stasiun yang dicakup — [period.station_type] bila terisi, atau seluruh 18 tipe stasiun aktif bila null",
-        "unverifiedCount: untuk setiap tipe, COUNT record stasiun JOIN stations ON record.station_id = stations.id WHERE stations.business_unit_id = period.business_unit_id AND stations.type = <tipe> AND record.date BETWEEN period.start_date AND period.end_date AND (record.checked_by IS NULL OR record.acknowledged_by IS NULL) → kumpulkan breakdown per tipe (hanya yang count > 0), jumlahkan total",
-        "close: findOrFail id → 404 jika tidak ada",
-        "close: UPDATE periods SET status='closed', closed_by=actor, closed_at=now() WHERE id=? AND status <> 'closed' — UPDATE BERSYARAT, bukan read-then-write → if affected_rows === 0: return 409 PERIOD_ALREADY_CLOSED (Admin lain sudah menutup lebih dulu, catatan penutup pertama tidak tertimpa)",
-        "close: refresh row → return status + closed_by + closed_by_name + closed_at",
-        "reopen: findOrFail id → 404 jika tidak ada → if status <> 'closed': return 409 PERIOD_NOT_CLOSED",
-        "reopen: UPDATE status='open', closed_by=null, closed_at=null, updated_by=actor → return row"
-      ],
-      "data_operations": [
-        {
-          "entity_id": "period",
-          "operation": "SELECT",
-          "description": "findOrFail sebelum close/reopen, dan pembacaan rentang untuk unverifiedCount"
-        },
-        {
-          "entity_id": "period",
-          "operation": "UPDATE",
-          "description": "close (UPDATE bersyarat WHERE status <> 'closed') dan reopen (mengosongkan closed_by/closed_at)"
+          "entity_id": "period-station",
+          "operation": "INSERT",
+          "description": "INSERT satu baris draft per jenis stasiun aktif saat create, dan backfill add-only saat update"
         },
         {
           "entity_id": "station",
           "operation": "SELECT",
-          "description": "JOIN untuk menyaring record stasiun ke business_unit + type yang dicakup periode"
+          "description": "inventaris jenis stasiun aktif mill (business_unit_id + is_active + type) sebagai sumber daftar baris stasiun"
         },
         {
-          "entity_id": "sterilizer-record",
+          "entity_id": "station-type",
           "operation": "SELECT",
-          "description": "COUNT record belum terverifikasi dalam rentang — mewakili pola yang sama untuk seluruh 18 entitas *-record yang dicakup"
+          "description": "master code/name/sort_order untuk label, urutan, dan penyaring is_active"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "dropdown Business Unit dan resolve business_unit_name"
         },
         {
           "entity_id": "user",
           "operation": "SELECT",
-          "description": "Resolusi closed_by_name pada response close"
+          "description": "resolve closed_by_name pada stations[]"
         }
       ],
       "edge_case_handling": [
         {
-          "condition": "Masih ada record belum terverifikasi saat hendak menutup",
-          "handling": "Tidak memblokir — GET unverified-count mengembalikan jumlahnya, UI menampilkannya di dialog konfirmasi agar Admin memutuskan secara sadar"
+          "condition": "Rentang tanggal beririsan pada mill yang sama",
+          "handling": "422 PERIOD_OVERLAP dengan pesan yang menyebut nama dan rentang periode yang bentrok; form tetap terbuka dengan isian Admin"
         },
         {
-          "condition": "Dua Admin menutup periode yang sama bersamaan",
-          "handling": "UPDATE bersyarat WHERE status <> 'closed'; yang kalah balapan mendapat affected_rows=0 → 409 PERIOD_ALREADY_CLOSED, catatan penutup pertama tidak tertimpa"
+          "condition": "Rentang hanya berbagi satu hari di batas (berakhir tepat pada tanggal mulai periode lain)",
+          "handling": "Tetap 422 PERIOD_OVERLAP — batas inklusif di kedua ujungnya, sebab record pada hari itu akan dimiliki dua periode"
         },
         {
-          "condition": "Menutup periode yang sudah tertutup",
-          "handling": "409 PERIOD_ALREADY_CLOSED; UI tidak menampilkan aksi Tutup Periode untuk periode berstatus closed"
+          "condition": "Tanggal selesai lebih awal dari tanggal mulai",
+          "handling": "422 VALIDATION_ERROR pada end_date dengan pesan 'Tanggal Selesai tidak boleh lebih awal dari Tanggal Mulai'"
         },
         {
-          "condition": "Membuka kembali periode yang belum tertutup",
-          "handling": "409 PERIOD_NOT_CLOSED"
+          "condition": "Nama periode sudah dipakai pada Business Unit yang sama",
+          "handling": "422 VALIDATION_ERROR pada name. Cakupan keunikan adalah business_unit_id SAJA — lebih ketat dari sebelumnya, dan sejalan dengan UNIQUE (business_unit_id, name) di database; nama yang sama pada mill lain tetap lolos"
         },
         {
-          "condition": "Record stasiun coba masuk/diubah/diverifikasi saat periode tertutup",
-          "handling": "Ditolak dengan 422 code=PERIOD_CLOSED — penegakan ini berada di service tiap stasiun, DI LUAR screen-128; layar ini hanya menetapkan statusnya"
+          "condition": "Business Unit tidak diisi atau tidak ditemukan",
+          "handling": "422 VALIDATION_ERROR pada business_unit_id"
         },
         {
-          "condition": "Sync mobile menyusul setelah periode ditutup",
-          "handling": "422 code=PERIOD_CLOSED; klien mobile memperlakukannya sebagai penolakan sementara dan menahan record di antrean lokal — diimplementasikan di luar screen-128"
+          "condition": "Belum ada Business Unit sama sekali",
+          "handling": "business-units/options mengembalikan data kosong; FE menonaktifkan penyimpanan dan menampilkan petunjuk membuat Business Unit dahulu"
         },
         {
-          "condition": "Record dengan tanggal kejadian di luar rentang periode tertutup",
-          "handling": "Tetap diterima — keanggotaan periode ditentukan oleh record.date, bukan created_at atau waktu sync"
+          "condition": "station_type masih dikirim klien basi",
+          "handling": "DIABAIKAN diam-diam, bukan 422 — field itu sudah tidak bermakna dan klien lama tidak boleh gagal karenanya"
+        },
+        {
+          "condition": "Mengubah atau menghapus periode yang punya minimal satu baris stasiun tertutup",
+          "handling": "409 PERIOD_CLOSED_IMMUTABLE tanpa mengubah apa pun (termasuk tanpa backfill); FE sudah merender Edit/Hapus disabled + title dari is_immutable dan pesannya mengarahkan Admin membuka kembali stasiun itu dari layar detail (screen-142)"
+        },
+        {
+          "condition": "Periode sudah dihapus Admin lain di antara form dibuka dan disimpan",
+          "handling": "404 NOT_FOUND; FE menampilkan pesan ramah dan memuat ulang daftar tanpa periode itu"
+        },
+        {
+          "condition": "Mill belum punya stasiun aktif",
+          "handling": "Periode tersimpan dengan stations[] kosong, station_count 0, status_summary 'empty', is_immutable false; pratinjau form sudah menjelaskan bahwa tidak akan ada yang bisa ditutup, dan daftar menampilkan 'Belum ada stasiun' / badge 'Tanpa Stasiun'"
+        },
+        {
+          "condition": "Mill mendapat jenis stasiun baru setelah periodenya dibuat",
+          "handling": "Backfill pada penyimpanan berikutnya menambahkan baris draft untuk jenis itu, dan pratinjau menandainya 'Baru'. Bila periode itu sudah punya baris tertutup, penyimpanannya ditolak 409 sehingga backfill tak pernah jalan — lubang yang sudah diketahui dengan jalan keluar manual (buka kembali → simpan → tutup lagi)"
+        },
+        {
+          "condition": "Memindahkan periode ke mill lain",
+          "handling": "Baris stasiun mill baru ditambahkan; baris warisan mill lama tetap tinggal karena baris tidak pernah dihapus — hasilnya gabungan kedua inventaris, konsekuensi yang diterima"
+        },
+        {
+          "condition": "Periode dengan status stasiun campuran",
+          "handling": "status_summary 'mixed' → badge 'Campuran'; periode itu cocok dengan lebih dari satu nilai filter Status Stasiun dan tidak pernah hilang dari daftar tersaring"
+        },
+        {
+          "condition": "Tidak ada periode sesuai filter",
+          "handling": "data kosong + meta.total 0; FE menampilkan pesan 'belum ada periode'"
+        },
+        {
+          "condition": "Actor bukan Admin atau tanpa sesi",
+          "handling": "403 FORBIDDEN / 401 UNAUTHENTICATED pada seluruh endpoint periode"
         }
       ],
       "business_rules_applied": [
-        "Hanya Admin yang boleh menutup dan membuka kembali periode",
-        "Jumlah record belum terverifikasi wajib tersedia sebelum konfirmasi penutupan",
-        "Periode tertutup mengunci input, perubahan, dan verifikasi record stasiun dalam rentangnya",
-        "Keanggotaan periode ditentukan oleh record.date (tanggal kejadian), bukan created_at atau waktu sync",
-        "Membuka kembali periode mengosongkan closed_by dan closed_at",
-        "Penutupan bersifat atomik lewat UPDATE bersyarat agar penutup pertama tidak tertimpa"
+        "Hanya Admin yang dapat mengakses seluruh endpoint periode (middleware role:admin)",
+        "Business Unit wajib; TIDAK ada input station_type — cakupan periode adalah seluruh mill",
+        "Nama periode unik per business_unit_id",
+        "end_date tidak boleh lebih awal dari start_date",
+        "Rentang tanggal tidak boleh tumpang tindih pada mill yang sama, batas inklusif, tanpa memandang jenis stasiun",
+        "Menyimpan periode baru mendaftarkan satu baris period_stations berstatus draft per jenis stasiun aktif di mill; mill tanpa stasiun aktif menghasilkan nol baris",
+        "Backfill baris stasiun pada update bersifat add-only dan tidak pernah mengubah maupun menghapus baris yang ada",
+        "Periode tidak dapat diubah maupun dihapus bila ADA SATU saja baris stasiun berstatus closed (aturan 'ANY')",
+        "Edit dan Hapus dirender disabled + title dari is_immutable, tidak disembunyikan",
+        "Filter status bermakna 'punya minimal satu stasiun berstatus itu'",
+        "Aksi tutup/buka/buka kembali stasiun tidak ada di layar ini — semuanya di screen-142"
       ],
       "unit_test_cases": [
         {
-          "description": "unverifiedCount: melempar 404 ketika periode tidak ditemukan",
-          "given": "findOrFail(id) melempar ModelNotFoundException",
-          "expect": "404 NOT_FOUND; tidak ada COUNT dijalankan"
+          "description": "menolak dengan 401 ketika request tidak terautentikasi",
+          "given": "request tanpa sesi/token",
+          "expect": "401 UNAUTHENTICATED"
         },
         {
-          "description": "unverifiedCount: menolak 403 ketika actor bukan Admin",
-          "given": "actor role supervisor",
-          "expect": "throw ForbiddenException → 403 FORBIDDEN"
+          "description": "menolak dengan 403 ketika actor bukan Admin",
+          "given": "actor Supervisor / Mill Management / Operator",
+          "expect": "403 FORBIDDEN pada index, store, update, destroy, dan business-units/options"
         },
         {
-          "description": "unverifiedCount: menghitung hanya tabel stasiun sesuai station_type periode",
-          "given": "periode dengan station_type='sterilizer'",
-          "expect": "COUNT hanya pada sterilizer_records; breakdown berisi tepat 1 entri"
+          "description": "memakai default page=1 dan per_page=20 ketika query kosong",
+          "given": "GET /api/periods tanpa query",
+          "expect": "meta.page 1, meta.per_page 20"
         },
         {
-          "description": "unverifiedCount: menghitung seluruh 18 tipe stasiun ketika station_type periode NULL",
-          "given": "periode dengan station_type=null",
-          "expect": "COUNT pada 18 tabel record; breakdown berisi entri untuk setiap tipe dengan count > 0; total = jumlah seluruhnya"
+          "description": "membatasi per_page maksimal 100 ketika diminta lebih besar",
+          "given": "per_page=500",
+          "expect": "meta.per_page 100"
         },
         {
-          "description": "unverifiedCount: hanya menghitung record dengan date di dalam [start_date, end_date]",
-          "given": "1 record pada start_date-1, 2 record di dalam rentang, 1 record pada end_date+1",
-          "expect": "unverified_count=2 — batas inklusif, created_at/waktu sync diabaikan"
+          "description": "mengurutkan daftar start_date desc lalu name",
+          "given": "beberapa periode dengan start_date berbeda dan dua periode ber-start_date sama",
+          "expect": "periode terbaru di atas; yang ber-start_date sama terurut nama"
         },
         {
-          "description": "unverifiedCount: hanya menghitung record milik business_unit periode",
-          "given": "record belum terverifikasi ada di BU-A dan BU-B; periode milik BU-A",
-          "expect": "hanya record BU-A (via station.business_unit_id) yang terhitung"
+          "description": "menyaring daftar berdasarkan business_unit_id",
+          "given": "periode pada dua mill",
+          "expect": "hanya periode mill yang diminta"
         },
         {
-          "description": "unverifiedCount: menghitung record yang checked_by NULL atau acknowledged_by NULL",
-          "given": "3 record: (null,null), (terisi,null), (terisi,terisi)",
-          "expect": "unverified_count=2; record yang kedua kolomnya terisi tidak dihitung"
+          "description": "filter status mencocokkan periode yang punya MINIMAL SATU stasiun berstatus itu",
+          "given": "satu periode dengan satu baris closed dan satu baris open",
+          "expect": "periode itu muncul pada status=closed DAN pada status=open"
         },
         {
-          "description": "unverifiedCount: mengembalikan 0 dan breakdown kosong ketika seluruh record sudah terverifikasi",
-          "given": "tidak ada record dengan checked_by atau acknowledged_by NULL dalam rentang",
-          "expect": "{unverified_count: 0, breakdown: []} → 200"
+          "description": "filter status tidak pernah menyembunyikan periode yang stasiunnya campuran",
+          "given": "periode dengan status stasiun campuran",
+          "expect": "periode itu selalu muncul pada minimal satu nilai filter dan tidak hilang dari semuanya"
         },
         {
-          "description": "close: melempar 404 ketika periode tidak ditemukan",
-          "given": "findOrFail(id) melempar ModelNotFoundException",
-          "expect": "404 NOT_FOUND; tidak ada UPDATE"
+          "description": "tidak memuat status, station_type, closed_by, closed_at di level induk",
+          "given": "periode apa pun",
+          "expect": "kunci-kunci itu absen dari objek induk; yang ada hanya di dalam stations[]"
         },
         {
-          "description": "close: menolak 403 ketika actor bukan Admin",
-          "given": "actor role mill-management",
-          "expect": "throw ForbiddenException → 403 FORBIDDEN; status periode tidak berubah"
+          "description": "mengembalikan stations[] terurut station_types.sort_order dengan label dari master",
+          "given": "baris stasiun disimpan tidak berurutan",
+          "expect": "stations[] terurut sort_order dan station_type_label berisi station_types.name"
         },
         {
-          "description": "close: melempar 409 PERIOD_ALREADY_CLOSED ketika UPDATE bersyarat menghasilkan affected=0",
-          "given": "UPDATE ... WHERE id=? AND status<>'closed' mengembalikan affected rows = 0 (Admin lain sudah menutup lebih dulu)",
-          "expect": "throw PeriodAlreadyClosedException → 409; closed_by/closed_at milik Admin pertama TIDAK tertimpa"
+          "description": "memakai kode sebagai label dan menempatkan paling belakang untuk jenis stasiun yang tidak ada di master",
+          "given": "satu baris stasiun dengan kode di luar master",
+          "expect": "station_type_label = kodenya dan barisnya paling belakang"
         },
         {
-          "description": "close: menutup periode dan mencatat closed_by serta closed_at ketika syarat terpenuhi",
-          "given": "periode status='draft' atau 'open'; UPDATE bersyarat affected=1; actor Admin X; clock di-freeze",
-          "expect": "row segar dengan status='closed', closed_by=Admin X, closed_at = waktu beku (UTC ISO 8601) → 200"
+          "description": "mengembalikan station_count, closed_station_count, is_immutable, dan status_summary yang konsisten",
+          "given": "periode dengan 3 baris: 1 closed, 1 open, 1 draft",
+          "expect": "station_count 3, closed_station_count 1, is_immutable true, status_summary 'mixed'"
         },
         {
-          "description": "close: berhasil meski masih ada record belum terverifikasi",
-          "given": "periode dengan 5 record belum terverifikasi dalam rentangnya",
-          "expect": "penutupan tetap berhasil — jumlah tersebut hanya peringatan, bukan penghalang"
+          "description": "status_summary 'empty' dan is_immutable false untuk periode tanpa baris stasiun",
+          "given": "periode pada mill tanpa stasiun aktif",
+          "expect": "stations [], station_count 0, status_summary 'empty', is_immutable false"
         },
         {
-          "description": "reopen: melempar 404 ketika periode tidak ditemukan",
-          "given": "findOrFail(id) melempar ModelNotFoundException",
+          "description": "status_summary satu nilai ketika seluruh baris berstatus sama",
+          "given": "seluruh baris draft, lalu seluruhnya open, lalu seluruhnya closed",
+          "expect": "status_summary 'draft' / 'open' / 'closed'"
+        },
+        {
+          "description": "mengembalikan closed_by_name dan closed_at pada baris stasiun yang tertutup",
+          "given": "satu baris closed oleh user tertentu",
+          "expect": "stations[].closed_by_name dan closed_at terisi; baris lain null"
+        },
+        {
+          "description": "mengembalikan data kosong ketika tidak ada periode sesuai filter",
+          "given": "filter yang tidak cocok apa pun",
+          "expect": "data [] dan meta.total 0"
+        },
+        {
+          "description": "businessUnitOptions: menolak 403 ketika actor bukan Admin",
+          "given": "actor non-Admin",
+          "expect": "403 FORBIDDEN"
+        },
+        {
+          "description": "businessUnitOptions: mengembalikan daftar kosong ketika belum ada Business Unit",
+          "given": "tabel business_units kosong",
+          "expect": "data [] tanpa exception"
+        },
+        {
+          "description": "businessUnitOptions: mengembalikan id dan name seluruh Business Unit terurut nama",
+          "given": "beberapa Business Unit",
+          "expect": "data terurut nama berisi id dan name"
+        },
+        {
+          "description": "create: menolak 422 ketika business_unit_id kosong",
+          "given": "payload tanpa business_unit_id",
+          "expect": "422 VALIDATION_ERROR errors.business_unit_id"
+        },
+        {
+          "description": "create: menolak 422 ketika business_unit_id tidak ditemukan",
+          "given": "business_unit_id acak",
+          "expect": "422 VALIDATION_ERROR errors.business_unit_id"
+        },
+        {
+          "description": "create: menolak 422 ketika name kosong atau lebih dari 255 karakter",
+          "given": "name kosong, lalu name 256 karakter",
+          "expect": "422 VALIDATION_ERROR errors.name pada keduanya"
+        },
+        {
+          "description": "create: menolak 422 ketika name sudah dipakai pada business_unit_id yang sama",
+          "given": "periode bernama sama pada mill yang sama",
+          "expect": "422 VALIDATION_ERROR errors.name"
+        },
+        {
+          "description": "create: mengizinkan name sama pada Business Unit berbeda",
+          "given": "nama yang sama pada mill lain",
+          "expect": "tersimpan tanpa error"
+        },
+        {
+          "description": "create: mengabaikan station_type yang masih dikirim klien basi",
+          "given": "payload memuat station_type",
+          "expect": "tersimpan normal tanpa 422 dan tanpa menyimpan station_type di mana pun"
+        },
+        {
+          "description": "create: menolak 422 ketika end_date lebih awal dari start_date",
+          "given": "end_date < start_date",
+          "expect": "422 VALIDATION_ERROR errors.end_date"
+        },
+        {
+          "description": "create: PeriodOverlapException ketika rentang beririsan pada mill yang sama",
+          "given": "periode lain di mill itu dengan rentang beririsan",
+          "expect": "422 PERIOD_OVERLAP dengan nama dan rentang periode yang bentrok"
+        },
+        {
+          "description": "create: PeriodOverlapException ketika rentang hanya berbagi satu hari di batas",
+          "given": "periode baru berakhir tepat pada start_date periode lain",
+          "expect": "422 PERIOD_OVERLAP"
+        },
+        {
+          "description": "create: mengizinkan rentang beririsan pada MILL BERBEDA",
+          "given": "periode dengan rentang sama pada mill lain",
+          "expect": "tersimpan tanpa PERIOD_OVERLAP"
+        },
+        {
+          "description": "create: overlap TIDAK memandang jenis stasiun sama sekali",
+          "given": "dua periode pada satu mill yang dahulu dibedakan oleh station_type",
+          "expect": "tetap 422 PERIOD_OVERLAP — satu tanggal hanya milik satu periode per mill"
+        },
+        {
+          "description": "create: menyimpan periode beserta satu baris period_stations draft per jenis stasiun aktif di mill",
+          "given": "mill dengan 3 jenis stasiun aktif",
+          "expect": "3 baris period_stations berstatus draft, closed_by dan closed_at null, terurut sort_order"
+        },
+        {
+          "description": "create: tidak mendaftarkan baris untuk jenis stasiun yang tidak ada di mill atau tidak aktif",
+          "given": "mill hanya punya 2 dari 19 jenis stasiun dan satu stasiunnya is_active false",
+          "expect": "hanya jenis stasiun aktif yang benar-benar ada di mill mendapat baris"
+        },
+        {
+          "description": "create: tidak mendaftarkan baris untuk jenis stasiun yang sudah tidak aktif di master station_types",
+          "given": "mill punya stasiun bertipe yang is_active false di master",
+          "expect": "jenis itu tidak mendapat baris"
+        },
+        {
+          "description": "create: menyimpan periode tanpa baris stasiun untuk mill tanpa stasiun aktif",
+          "given": "mill tanpa stasiun aktif",
+          "expect": "periode tersimpan, stations [], station_count 0, status_summary 'empty' — bukan exception dan bukan seluruh katalog master"
+        },
+        {
+          "description": "create: periode dan baris stasiunnya ditulis dalam satu transaksi",
+          "given": "kegagalan saat INSERT baris stasiun",
+          "expect": "periode tidak tertinggal tanpa baris stasiunnya"
+        },
+        {
+          "description": "update: melempar 404 ketika periode tidak ditemukan (sudah dihapus Admin lain)",
+          "given": "id yang tidak ada",
           "expect": "404 NOT_FOUND"
         },
         {
-          "description": "reopen: melempar 409 PERIOD_NOT_CLOSED ketika periode belum berstatus closed",
-          "given": "periode ditemukan dengan status='draft' atau 'open'",
-          "expect": "throw PeriodNotClosedException → 409; tidak ada UPDATE"
+          "description": "update: menolak 409 PERIOD_CLOSED_IMMUTABLE ketika ADA SATU baris stasiun closed",
+          "given": "periode dengan 1 dari 3 baris closed",
+          "expect": "409 PERIOD_CLOSED_IMMUTABLE"
         },
         {
-          "description": "reopen: menolak 403 ketika actor bukan Admin",
-          "given": "actor role operator; periode berstatus closed",
-          "expect": "throw ForbiddenException → 403 FORBIDDEN; status tetap closed"
+          "description": "update: percobaan yang ditolak 409 tidak mengubah apa pun, termasuk tidak menambah baris stasiun",
+          "given": "periode immutable pada mill yang sudah punya jenis stasiun baru",
+          "expect": "periods dan period_stations tidak berubah sama sekali — station_count dan status_summary tetap"
         },
         {
-          "description": "reopen: membuka kembali periode dan menghapus catatan penutupan",
-          "given": "periode status='closed' dengan closed_by & closed_at terisi; actor Admin",
-          "expect": "UPDATE status='open', closed_by=null, closed_at=null → row dengan kedua kolom penutupan null → 200"
-        }
-      ]
-    },
-    {
-      "usecase_id": "usecase-144--buka-periode-pelaporan",
-      "usecase_name": "Buka Periode Pelaporan",
-      "endpoints": [
-        {
-          "method": "POST",
-          "path": "/api/periods/{id}/open",
-          "description": "Membuka periode yang masih berstatus draft menjadi open",
-          "auth_required": true,
-          "request": {
-            "path_params": [
-              {
-                "name": "id",
-                "type": "uuid",
-                "description": "Period id"
-              }
-            ],
-            "query_params": [],
-            "body_schema": {}
-          },
-          "response": {
-            "success_schema": {
-              "id": "uuid",
-              "status": "open"
-            },
-            "error_codes": [
-              {
-                "http_code": 404,
-                "error_code": "NOT_FOUND",
-                "condition": "id tidak ditemukan"
-              },
-              {
-                "http_code": 409,
-                "error_code": "PERIOD_NOT_DRAFT",
-                "condition": "periode tidak berstatus draft — sudah open, atau sudah closed"
-              },
-              {
-                "http_code": 403,
-                "error_code": "FORBIDDEN",
-                "condition": "actor bukan admin"
-              }
-            ]
-          },
-          "performance": {
-            "cache": "",
-            "rate_limit": ""
-          }
-        }
-      ],
-      "business_logic": [
-        "Pastikan actor adalah Admin → jika bukan: 403 FORBIDDEN",
-        "Period::findOrFail(id) → jika tidak ada: 404 NOT_FOUND",
-        "→ jika status periode BUKAN 'draft': 409 PERIOD_NOT_DRAFT. Pesan menyebut status saat itu, dan khusus periode 'closed' mengarahkan Admin memakai aksi 'Buka Kembali Periode' — dua aksi ini mudah tertukar",
-        "UPDATE BERKONDISI: UPDATE periods SET status='open', updated_by=? WHERE id=? AND status='draft' — persis pola close() (lihat komentar PeriodClosureService baris 120-131). Bila dua Admin menekan bersamaan, tepat satu statement cocok dengan baris berstatus draft",
-        "→ bila affected rows = 0 (Admin lain lebih dulu): 409 PERIOD_NOT_DRAFT, JANGAN menimpa diam-diam",
-        "Muat ulang periode dan kembalikan { id, status }",
-        "TIDAK ADA data stasiun yang dibaca, divalidasi, maupun diubah — berbeda dari close() yang menghitung data belum terverifikasi"
-      ],
-      "data_operations": [
-        {
-          "entity_id": "period",
-          "operation": "SELECT",
-          "description": "SELECT periode berdasarkan id untuk memastikan ia ada dan membaca statusnya"
+          "description": "update: mengizinkan perubahan pada periode yang barisnya draft dan/atau open",
+          "given": "periode tanpa baris closed",
+          "expect": "perubahan tersimpan dengan updated_by = actor"
         },
         {
-          "entity_id": "period",
-          "operation": "UPDATE",
-          "description": "UPDATE berkondisi status='open' dan updated_by, HANYA pada baris yang masih berstatus 'draft'"
-        }
-      ],
-      "edge_case_handling": [
-        {
-          "condition": "Periode sudah berstatus open",
-          "handling": "409 PERIOD_NOT_DRAFT dengan pesan menyebut periode sudah terbuka"
+          "description": "update: PeriodOverlapException ketika rentang baru beririsan, mengecualikan dirinya sendiri",
+          "given": "rentang baru menabrak periode lain di mill yang sama",
+          "expect": "422 PERIOD_OVERLAP; menyimpan rentang yang sama dengan miliknya sendiri tidak memicu overlap"
         },
         {
-          "condition": "Periode sudah berstatus closed",
-          "handling": "409 PERIOD_NOT_DRAFT dengan pesan menyebut periode sudah tertutup, ditambah arahan memakai aksi 'Buka Kembali Periode'. Menolak tanpa arahan akan membuat Admin menyangka periodenya rusak."
+          "description": "update: name unik mengecualikan dirinya sendiri",
+          "given": "menyimpan periode dengan namanya sendiri",
+          "expect": "tidak ada 422 pada name"
         },
         {
-          "condition": "Periode tidak ditemukan",
-          "handling": "404 NOT_FOUND"
+          "description": "update: mem-backfill baris draft untuk jenis stasiun yang baru ada di mill",
+          "given": "mill mendapat 1 jenis stasiun baru setelah periode dibuat",
+          "expect": "setelah update sukses, ada 1 baris period_stations tambahan berstatus draft"
         },
         {
-          "condition": "Dua Admin membuka bersamaan",
-          "handling": "UPDATE berkondisi WHERE status='draft'; yang kalah mendapat affected rows = 0 lalu 409 PERIOD_NOT_DRAFT. Tidak ada penguncian baris maupun transaksi tambahan — kondisi pada WHERE itu sendiri yang menjadi penjaganya."
+          "description": "update: backfill tidak pernah mengubah maupun menghapus baris yang sudah ada",
+          "given": "periode dengan baris draft dan baris open, salah satu jenisnya sudah dipensiunkan dari mill",
+          "expect": "baris lama tetap ada dengan status dan catatan yang sama; tidak ada DELETE"
         },
         {
-          "condition": "Actor bukan Admin",
-          "handling": "403 FORBIDDEN, sejajar close() dan reopen(). Endpoint ini TIDAK mendaftarkan 401 karena close/reopen pun tidak — penanganan sesi ada di lapisan middleware, bukan di kontrak ini."
+          "description": "update: backfill memakai business_unit_id TERBARU periode itu",
+          "given": "periode dipindahkan ke mill lain",
+          "expect": "baris untuk inventaris mill baru ditambahkan sementara baris warisan mill lama tetap tinggal (gabungan kedua inventaris)"
         },
         {
-          "condition": "Periode berstatus open di-PATCH atau di-DELETE",
-          "handling": "Diizinkan — PeriodService::update() dan delete() hanya menolak status 'closed'. Diuji eksplisit karena mudah sekali 'dirapikan' menjadi ikut mengunci 'open'."
-        }
-      ],
-      "business_rules_applied": [
-        "Hanya Admin yang boleh membuka periode",
-        "Aksi ini hanya berlaku pada periode berstatus draft",
-        "Siklus draft → open → closed; dari closed kembali ke open lewat reopen; tidak ada open → draft",
-        "Periode open tetap dapat diubah dan dihapus",
-        "Membuka periode hanya mengubah status, tidak menyentuh data stasiun"
-      ],
-      "unit_test_cases": [
-        {
-          "description": "melempar 403 FORBIDDEN ketika actor bukan Admin",
-          "given": "actor yang login berperan Supervisor (idem Mill Management); periodRepo belum dipanggil sama sekali",
-          "expect": "melempar ForbiddenException dengan error_code FORBIDDEN (http 403); findOrFail() tidak pernah dipanggil dan tidak ada UPDATE yang dieksekusi"
+          "description": "update: UPDATE dan backfill berada dalam satu transaksi",
+          "given": "kegagalan saat INSERT baris backfill",
+          "expect": "perubahan periode tidak setengah jadi"
         },
         {
-          "description": "melempar 404 NOT_FOUND ketika periode tidak ditemukan",
-          "given": "actor Admin; Period::findOrFail(id) melempar ModelNotFoundException",
-          "expect": "melempar NotFoundException dengan error_code NOT_FOUND (http 404); tidak ada UPDATE yang dieksekusi"
+          "description": "delete: melempar 404 ketika periode sudah dihapus pengguna lain",
+          "given": "id yang tidak ada",
+          "expect": "404 NOT_FOUND"
         },
         {
-          "description": "melempar 409 PERIOD_NOT_DRAFT ketika periode sudah berstatus open",
-          "given": "actor Admin; periode yang ditemukan berstatus 'open'",
-          "expect": "melempar PeriodNotDraftException dengan error_code PERIOD_NOT_DRAFT (http 409); pesan menyebut periode sudah terbuka; tidak ada UPDATE yang dieksekusi"
+          "description": "delete: menolak 409 PERIOD_CLOSED_IMMUTABLE ketika ada satu baris stasiun closed",
+          "given": "periode dengan 1 dari 19 baris closed",
+          "expect": "409 PERIOD_CLOSED_IMMUTABLE dan tidak ada yang terhapus"
         },
         {
-          "description": "melempar 409 PERIOD_NOT_DRAFT ketika periode sudah berstatus closed, dengan arahan memakai 'Buka Kembali Periode'",
-          "given": "actor Admin; periode yang ditemukan berstatus 'closed'",
-          "expect": "melempar PeriodNotDraftException dengan error_code PERIOD_NOT_DRAFT (http 409); pesan menyebut periode sudah tertutup DAN mengarahkan Admin memakai aksi 'Buka Kembali Periode', bukan aksi ini — dua aksi itu mudah tertukar; tidak ada UPDATE yang dieksekusi"
-        },
-        {
-          "description": "menjalankan UPDATE berkondisi dengan klausa WHERE status='draft'",
-          "given": "actor Admin; periode berstatus 'draft'; query builder di-spy",
-          "expect": "tepat satu statement UPDATE periods SET status='open', updated_by=<admin id> WHERE id=<id> AND status='draft' — klausa status='draft' WAJIB ada pada WHERE, sejajar pola close() di PeriodClosureService baris 120-131; BUKAN save() pada model yang sudah dimuat"
-        },
-        {
-          "description": "melempar 409 PERIOD_NOT_DRAFT ketika UPDATE berkondisi mengenai 0 baris (Admin lain lebih dulu)",
-          "given": "actor Admin; periode yang ditemukan berstatus 'draft', namun UPDATE berkondisi mengembalikan affected rows = 0 karena Admin lain sudah membukanya lebih dulu",
-          "expect": "melempar PeriodNotDraftException dengan error_code PERIOD_NOT_DRAFT (http 409); TIDAK menimpa status diam-diam dan tidak mengembalikan hasil sukses"
-        },
-        {
-          "description": "tidak membaca, memvalidasi, maupun mengubah data stasiun mana pun",
-          "given": "actor Admin; periode berstatus 'draft'; seluruh repository/service record stasiun di-spy",
-          "expect": "nol pemanggilan ke repository/service record stasiun — tidak ada penghitungan data belum terverifikasi seperti pada close(); data_operations terbatas pada period SELECT + period UPDATE"
-        },
-        {
-          "description": "mengembalikan hasil sukses ketika seluruh kondisi terpenuhi",
-          "given": "actor Admin; periode berstatus 'draft'; UPDATE berkondisi mengembalikan affected rows = 1",
-          "expect": "mengembalikan { id: <period id>, status: 'open' }; updated_by terisi id Admin; tidak ada exception"
-        },
-        {
-          "description": "periode berstatus open TIDAK ikut terkunci pada update dan delete",
-          "given": "actor Admin; periode berstatus 'open'; PeriodService::update() dan delete() dipanggil",
-          "expect": "keduanya berhasil tanpa melempar PeriodClosedImmutableException — hanya status 'closed' yang mengunci. Ini diuji terpisah karena mudah sekali 'dirapikan' menjadi ikut mengunci 'open'"
+          "description": "delete: menghapus periode beserta baris stasiunnya ketika tidak ada yang closed",
+          "given": "periode dengan baris draft dan open",
+          "expect": "periode terhapus dan seluruh baris period_stations-nya ikut terhapus lewat cascade"
         }
       ]
     }
@@ -996,6 +738,19 @@
         "INSERT",
         "UPDATE",
         "DELETE"
+      ]
+    },
+    {
+      "entity_id": "period-station",
+      "operations": [
+        "SELECT",
+        "INSERT"
+      ]
+    },
+    {
+      "entity_id": "station-type",
+      "operations": [
+        "SELECT"
       ]
     },
     {
@@ -1019,291 +774,46 @@
   ],
   "screen_dependencies": [
     {
+      "screen_id": "screen-142--detail-periode-pelaporan",
+      "reason": "Nama periode menautkan ke layar detail; seluruh aksi per jenis stasiun (Tutup Stasiun / Buka Stasiun / Buka Kembali) berada di sana, tidak lagi di layar ini"
+    },
+    {
       "screen_id": "screen-029--kelola-business-unit",
-      "reason": "Periode wajib memilih Business Unit (mill) yang sudah ada dari screen ini"
+      "reason": "Periode wajib memilih Business Unit (mill) yang sudah ada dari layar itu"
     },
     {
       "screen_id": "screen-030--kelola-station",
-      "reason": "unverified-count menyaring record lewat stations.business_unit_id dan stations.type, sehingga bergantung pada data Station yang dikelola di screen ini"
+      "reason": "Daftar baris stasiun sebuah periode diturunkan dari inventaris stasiun aktif mill (stations.business_unit_id + stations.type + is_active) yang dikelola di layar itu"
     },
     {
       "screen_id": "screen-129--laporan-sterilizer-web",
-      "reason": "Layar-layar laporan periode mengonsumsi daftar periode dari screen ini sebagai pemilih satuan waktu (berlaku juga untuk screen-130 s/d screen-139)"
+      "reason": "Layar-layar laporan periode mengonsumsi daftar periode dari layar ini sebagai pemilih satuan waktu (berlaku juga untuk screen-130 s/d screen-139)"
     }
   ],
   "implementation_notes": [
-    "Route /api/periods/business-units/options HARUS didaftarkan SEBELUM route berparameter /api/periods/{id}, mengikuti pola yang sama seperti /api/production-lines/business-units/options dan /api/mill-settings/current — jika tidak, segmen literal 'business-units' akan tertangkap sebagai {id}",
-    "close() memakai UPDATE BERSYARAT (WHERE id=? AND status <> 'closed') dan memeriksa affected_rows, bukan pola read-then-write. Ini yang membuat edge case 'dua Admin menutup bersamaan' aman tanpa perlu locking eksplisit",
-    "unverifiedCount() menyentuh hingga 18 tabel record stasiun dalam satu permintaan. Untuk tahap pertama dihitung on-demand saat dialog konfirmasi dibuka (bukan pada list periode), sehingga biayanya hanya terjadi saat Admin benar-benar hendak menutup periode. Bila kelak terasa lambat, opsi berikutnya adalah menyimpan snapshot hitungan saat periode ditutup",
-    "Definisi 'belum terverifikasi' yang dipakai: checked_by IS NULL OR acknowledged_by IS NULL — yaitu salah satu tahap verifikasi masih kosong. Ini turunan agen, tidak dinyatakan eksplisit di business spec",
-    "PENEGAKAN KUNCI PERIODE TIDAK ADA DI SCREEN INI. Layar ini hanya menetapkan status periode. Penolakan input/edit/verifikasi record stasiun dengan 422 code=PERIOD_CLOSED harus ditambahkan ke create()/update()/verifikasi pada service ke-18 stasiun, dan ke jalur sync mobile — pekerjaan terpisah di luar screen-128. usecase-141--kunci-input-periode-tertutup di Phase 2 mencatat 15 layar Form & Data Preview yang terdampak untuk tahap pertama",
-    "4 dari 20 test_scenarios (data mobile menyusul, upaya verifikasi, mengubah data stasiun, data di luar rentang) memakai api_test yang menunjuk endpoint record stasiun (POST/PATCH /api/sterilizer-records), BUKAN endpoint screen-128. Saat Phase 4 dijalankan untuk screen ini, keempatnya TIDAK akan lolos sendiri — tandai skip/pending dengan alasan eksplisit, atau jalankan sebagai integration test lintas-layar setelah penegakan di layar stasiun diimplementasikan. JANGAN dihapus diam-diam: keempatnya adalah kontrak yang mengikat pekerjaan berikutnya",
-    "test_scenario 'data mobile menyusul' step terakhir mengandaikan POST record stasiun idempoten terhadap UUID yang dibuat offline (sesuai shared-decisions: ID entitas yang dibuat offline memakai UUID). Bila implementasi belum idempoten, step itu perlu memakai UUID berbeda",
-    "Error PERIOD_NOT_CLOSED (reopen pada periode yang belum tertutup) tidak punya bdd_scenario yang memetakannya — tercakup hanya di unit test. Bila ingin coverage integration, Phase 2 perlu menambah satu bdd scenario untuk kasus itu",
-    "Sidebar web (resources/views/components/layouts/app.blade.php) tidak menyaring menu per role sama sekali — menu 'Kelola Periode Pelaporan' akan ikut terlihat oleh Supervisor/Mill Management dan baru ditolak 403 saat diklik, sama seperti 12 menu master data lain. Mengikuti pola yang ada secara sengaja; dicatat sebagai known_issue di 4-implement",
-    "Menu ditempatkan setelah 'Kelola Machinery' dan sebelum 'Mills Setting' — penutup blok master data, karena Periode berdiri di luar rantai Corporate→Company→Business Unit→Production Line→Station→Machinery Group→Machinery",
-    "Tabel: periods (snake_case plural). Migration berikutnya: 2026_09_22_000029_create_periods_table.php. Model Period, service PeriodService, controller Api/PeriodController, Livewire MasterData/KelolaPeriodePelaporan",
-    "Aksi Buka Periode (usecase-144) ditambahkan 2026-09-23. PeriodClosureService mendapat method open() ketiga, sejajar close() dan reopen(); JANGAN membuat service baru.",
-    "Exception baru: App\\Exceptions\\PeriodNotDraftException, meniru PeriodNotClosedException persis — extends HttpException, implements HasErrorCode, http 409, errorCode() = 'PERIOD_NOT_DRAFT'.",
-    "Route baru: POST /api/periods/{id}/open, didaftarkan berdampingan dengan /close dan /reopen. Perhatikan urutan rute: seluruh rute ber-sufiks harus tetap sebelum PATCH/DELETE /periods/{id} (lihat komentar routes/api.php baris 872-878).",
-    "Livewire mendapat trio askOpen / cancelOpen / confirmOpen, meniru askReopen / cancelReopen / confirmReopen yang sudah ada. Tombol 'Buka Periode' HANYA dirender untuk baris berstatus draft.",
-    "data-testid baru: open-period-button, open-period-dialog, confirm-open-period, cancel-open-period.",
-    "JANGAN menyentuh 4 test ber-skip di tests/Feature/Api/KelolaPeriodePelaporanTest.php — itu kontrak period-lock usecase-141 yang mengikat pekerjaan berikutnya.",
-    "Skenario 'Admin membatalkan pembukaan' ada di alternative_flows tetapi tidak punya bdd_scenario tersendiri; tetap tulis satu component test memakai cancelOpen() agar jalur batal tidak lolos tanpa uji."
+    "PERUBAHAN 2026-09-27 — DAFTAR STASIUN PINDAH KE screen-142. Seluruh mekanika expandable DIHAPUS dari layar ini: baris induk tidak lagi berperan sebagai tombol expand (nama periode kini tautan ke /master-data/periods/{id}), tidak ada lagi <tr> kedua ber-colspan, tidak ada sub-tabel stasiun, dan tidak ada satu pun aksi per stasiun. Properti Livewire $expandedPeriodIds beserta toggleExpanded()/expand() dan seluruh trio askClose/cancelClose/confirmClose, askReopen/cancelReopen/confirmReopen, askOpen/cancelOpen/confirmOpen ikut pindah ke komponen detail. data-testid yang HILANG dari layar ini: expand-button-*, period-stations-*, period-stations-empty-*, period-station-row-*, station-status-badge-*, station-close-button-*, station-open-button-*, station-reopen-button-*, unverified-warning, unverified-count, unverified-breakdown, confirm-close-button, cancel-close-button, confirm-reopen-button, open-period-dialog, confirm-open-period, cancel-open-period, close-error",
+    "data-testid yang TETAP di layar ini: period-table, period-row-*, station-summary-*, status-summary-*, edit-button-*, delete-button-*, confirm-delete-button, delete-error, add-period-button, filter-business-unit, filter-status, station-preview, station-preview-empty, station-preview-new-*, business-unit-select, name-input, start-date-input, end-date-input, save-button, form-error, success-message, period-empty. Tambahan baru: tautan nama periode ke layar detail (mis. period-link-*)",
+    "Route /api/periods/business-units/options HARUS didaftarkan SEBELUM route berparameter /api/periods/{id}, mengikuti pola yang sama seperti /api/production-lines/business-units/options dan /api/mill-settings/current. Ini juga berlaku untuk endpoint GET /api/periods/{id} yang baru dipakai layar detail (screen-142)",
+    "PERIODE ADALAH INDUK, STATUS ADA DI ANAK. `periods` tidak punya kolom status / station_type / closed_by / closed_at lagi; semuanya ada di `period_stations` (satu baris per jenis stasiun). Period::guardMovedAttribute() dan PeriodQueryBuilder ada khusus untuk membuat pembacaan kolom yang sudah pindah BERISIK, bukan diam-diam bernilai false — jangan melewatinya dan jangan mengambil jalan pintas where('status', ...) pada query periode",
+    "Aturan immutable adalah 'ANY', bukan 'ALL': satu baris stasiun closed sudah membekukan periodenya. Alasannya cascadeOnDelete pada period_stations.period_id — di bawah aturan 'ALL', menghapus periode dengan satu Sterilizer tertutup akan diam-diam membuka segel record yang sudah disegel. FE memakai flag is_immutable dari toRow(), bukan menurunkan ulang aturannya",
+    "Edit dan Hapus DISABLED + atribut title, bukan disembunyikan, saat is_immutable",
+    "BACKFILL BARIS STASIUN berjalan di dalam update() yang sukses, SETELAH guard 409, dan bersifat add-only. Konsekuensi yang harus tetap diingat: periode yang sudah punya satu baris tertutup tidak akan pernah bisa di-backfill lewat update(). Jalan keluar hari ini manual (buka kembali stasiun dari screen-142 → simpan periode → tutup lagi). Perbaikan tuntasnya adalah aksi 'sinkronkan stasiun' add-only yang diizinkan meski ada baris tertutup — usecase baru, bukan perubahan diam-diam pada apa yang ditolak update()",
+    "Filter status memakai whereHas('stations', period_stations.status = ?) — EXISTS, bermakna 'punya minimal satu'. NILAI filternya tidak berubah (draft|open|closed) sehingga URL ber-#[Url] filterStatus yang sudah di-bookmark tetap bekerja; hanya himpunan baris yang dicocokkan sebuah nilai yang jadi lebih luas",
+    "activeStationTypesForMill() sengaja PUBLIC: pratinjau form memakainya untuk memberi tahu Admin jenis stasiun apa saja yang akan didaftarkan, sekarang setelah form tidak lagi menyediakan pilihan. Menurunkan ulang daftar itu di view berarti menyalin aturannya",
+    "Label dan urutan jenis stasiun SELALU dari master `station_types` (name + sort_order), bukan dari App\\Enums\\StationType: menambah jenis stasiun adalah INSERT, sehingga apa pun yang mengeraskan enum akan langsung basi. Kode yang tidak ada di master memakai kodenya sebagai label dan sort_order PHP_INT_MAX",
+    "Konsep 'Semua Stasiun' (station_type NULL sebagai wildcard) SUDAH TIDAK ADA — kolomnya dihapus dan wildcard-nya dihapus. Jangan menghidupkannya kembali dalam bentuk apa pun; satu tanggal hanya milik satu periode per mill",
+    "Keunikan nama kini per business_unit_id SAJA — lebih ketat dari aturan lama per (business_unit_id, station_type) yang memakai whereNull dan tidak pernah bisa ditegakkan indeks UNIQUE PostgreSQL. Sekarang aturan aplikasi dan UNIQUE (business_unit_id, name) di database sejalan",
+    "station_type yang masih dikirim klien basi DIABAIKAN, bukan ditolak — jangan menambahkan validasi yang membuatnya 422",
+    "Sidebar web (resources/views/components/layouts/app.blade.php) tidak menyaring menu per role sama sekali — menu 'Kelola Periode Pelaporan' ikut terlihat oleh Supervisor/Mill Management dan baru ditolak saat rutenya dibuka. Tidak ditangani di layar ini",
+    "Menu ditempatkan di blok master data, sebelum 'Mills Setting', karena Periode berdiri di luar rantai Corporate→Company→Business Unit→Production Line→Station→Machinery",
+    "Tabel: periods (induk) + period_stations (anak, cascadeOnDelete). Model Period dan PeriodStation, service PeriodService (CRUD layar ini) dan PeriodClosureService (aksi per stasiun, dipakai screen-142 — JANGAN membuat service baru dan jangan memindahkan methodnya), controller Api/PeriodController, Livewire MasterData/KelolaPeriodePelaporan",
+    "PENEGAKAN KUNCI PERIODE TIDAK ADA DI LAYAR INI DAN BELUM ADA DI MANA PUN. Sudah diverifikasi 2026-09-27: nol referensi Period di seluruh app/Services/*RecordService.php. Penolakan 422 PERIOD_CLOSED pada create/update/verifikasi record stasiun dan pada jalur sync mobile dilacak oleh usecase-141--kunci-input-periode-tertutup",
+    "JANGAN menyentuh 4 test ber-skip di tests/Feature/Api/KelolaPeriodePelaporanTest.php — itu kontrak period-lock usecase-141 yang mengikat pekerjaan berikutnya",
+    "Berkas 4-implement layar ini belum mengikuti perubahan spec ini; implementasinya adalah langkah terpisah sesudah spec"
   ],
   "test_scenarios": [
     {
       "scenario_ref": "Kelola Periode Pelaporan — success",
-      "usecase_id": "usecase-128--kelola-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods"
-          },
-          "request_example": {
-            "business_unit_id": "{{bu_a}}",
-            "station_type": "sterilizer",
-            "name": "Oktober 2026",
-            "start_date": "2026-10-01",
-            "end_date": "2026-10-31"
-          },
-          "expected_status": 201,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "GET",
-            "path": "/api/periods?business_unit_id={{bu_a}}&status=draft"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "KelolaPeriodePelaporan",
-        "action": "klik 'Tambah Periode', pilih Business Unit BU-A, pilih Jenis Stasiun 'Sterilizer', isi Nama Periode 'Oktober 2026', Tanggal Mulai 2026-10-01, Tanggal Selesai 2026-10-31, klik Simpan",
-        "assert": "tidak ada validation error; baris baru muncul di tabel dengan badge status 'Draft'; modal form tertutup; flash sukses tampil"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "login sebagai Admin, buka /master-data/periods, klik 'Tambah Periode', isi seluruh field dengan data valid, klik Simpan",
-        "assert": "baris 'Oktober 2026' terlihat dengan badge 'Draft', kolom Business Unit dan Jenis Stasiun sesuai, kolom Ditutup Oleh kosong"
-      }
-    },
-    {
-      "scenario_ref": "Kelola Periode Pelaporan — Rentang tanggal tumpang tindih",
-      "usecase_id": "usecase-128--kelola-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods"
-          },
-          "request_example": {
-            "business_unit_id": "{{bu_a}}",
-            "station_type": "sterilizer",
-            "name": "Oktober 2026",
-            "start_date": "2026-10-01",
-            "end_date": "2026-10-31"
-          },
-          "expected_status": 201,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods"
-          },
-          "request_example": {
-            "business_unit_id": "{{bu_a}}",
-            "station_type": "sterilizer",
-            "name": "Oktober Tambahan",
-            "start_date": "2026-10-15",
-            "end_date": "2026-11-15"
-          },
-          "expected_status": 422,
-          "expected_error_code": "PERIOD_OVERLAP"
-        },
-        {
-          "step": 3,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods"
-          },
-          "request_example": {
-            "business_unit_id": "{{bu_a}}",
-            "station_type": null,
-            "name": "Semua Stasiun Okt",
-            "start_date": "2026-10-10",
-            "end_date": "2026-10-20"
-          },
-          "expected_status": 422,
-          "expected_error_code": "PERIOD_OVERLAP"
-        }
-      ],
-      "component_test": {
-        "component": "KelolaPeriodePelaporan",
-        "action": "dengan periode 'Oktober 2026' sudah ada, buka 'Tambah Periode' dan isi rentang 2026-10-15 s/d 2026-11-15 pada BU + jenis stasiun yang sama, klik Simpan",
-        "assert": "form tetap terbuka dengan isian Admin tidak hilang; pesan error menyebut nama periode yang bentrok; tabel tidak bertambah baris"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "simpan periode dengan rentang yang beririsan dengan periode yang sudah tampil di tabel",
-        "assert": "modal tidak tertutup, pesan bentrok memuat nama periode lawan, jumlah baris tabel tidak berubah"
-      }
-    },
-    {
-      "scenario_ref": "Kelola Periode Pelaporan — Tanggal selesai lebih awal dari tanggal mulai",
-      "usecase_id": "usecase-128--kelola-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods"
-          },
-          "request_example": {
-            "business_unit_id": "{{bu_a}}",
-            "station_type": null,
-            "name": "Periode Terbalik",
-            "start_date": "2026-10-31",
-            "end_date": "2026-10-01"
-          },
-          "expected_status": 422,
-          "expected_error_code": "VALIDATION_ERROR"
-        }
-      ],
-      "component_test": {
-        "component": "KelolaPeriodePelaporan",
-        "action": "isi Tanggal Mulai 2026-10-31 dan Tanggal Selesai 2026-10-01 lalu klik Simpan",
-        "assert": "pesan kesalahan tepat di bawah field Tanggal Selesai, form tetap terbuka, tidak ada penyimpanan berhasil"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "isi form dengan tanggal selesai mendahului tanggal mulai lalu Simpan",
-        "assert": "error inline di bawah input Tanggal Selesai terlihat; periode tidak muncul di tabel"
-      }
-    },
-    {
-      "scenario_ref": "Kelola Periode Pelaporan — Nama periode sudah dipakai",
-      "usecase_id": "usecase-128--kelola-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods"
-          },
-          "request_example": {
-            "business_unit_id": "{{bu_a}}",
-            "station_type": "sterilizer",
-            "name": "Oktober 2026",
-            "start_date": "2026-10-01",
-            "end_date": "2026-10-31"
-          },
-          "expected_status": 201,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods"
-          },
-          "request_example": {
-            "business_unit_id": "{{bu_a}}",
-            "station_type": "sterilizer",
-            "name": "Oktober 2026",
-            "start_date": "2026-12-01",
-            "end_date": "2026-12-31"
-          },
-          "expected_status": 422,
-          "expected_error_code": "VALIDATION_ERROR"
-        }
-      ],
-      "component_test": {
-        "component": "KelolaPeriodePelaporan",
-        "action": "simpan periode dengan nama sama persis pada Business Unit + jenis stasiun yang sama",
-        "assert": "pesan kesalahan di bawah field Nama Periode; baris tabel tidak bertambah"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "buat periode kedua dengan nama identik pada BU + jenis stasiun yang sama",
-        "assert": "error di bawah field nama terlihat; tabel tetap menampilkan satu baris 'Oktober 2026'"
-      }
-    },
-    {
-      "scenario_ref": "Kelola Periode Pelaporan — Mengubah atau menghapus periode yang sudah tertutup",
-      "usecase_id": "usecase-128--kelola-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods"
-          },
-          "request_example": {
-            "business_unit_id": "{{bu_a}}",
-            "station_type": "sterilizer",
-            "name": "Oktober 2026",
-            "start_date": "2026-10-01",
-            "end_date": "2026-10-31"
-          },
-          "expected_status": 201,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{step1.id}}/close"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 3,
-          "endpoint": {
-            "method": "PATCH",
-            "path": "/api/periods/{{step1.id}}"
-          },
-          "request_example": {
-            "name": "Oktober 2026 Revisi"
-          },
-          "expected_status": 409,
-          "expected_error_code": "PERIOD_CLOSED_IMMUTABLE"
-        },
-        {
-          "step": 4,
-          "endpoint": {
-            "method": "DELETE",
-            "path": "/api/periods/{{step1.id}}"
-          },
-          "request_example": {},
-          "expected_status": 409,
-          "expected_error_code": "PERIOD_CLOSED_IMMUTABLE"
-        }
-      ],
-      "component_test": {
-        "component": "KelolaPeriodePelaporan",
-        "action": "pada baris periode Tertutup, klik Edit lalu Simpan, dan klik Hapus lalu konfirmasi inline",
-        "assert": "kedua aksi ditolak; pesan mengarahkan Admin membuka kembali periode; data baris tidak berubah dan baris tetap ada"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "coba edit dan hapus periode dengan badge 'Tertutup'",
-        "assert": "pesan 'buka kembali periode terlebih dahulu' terlihat; nama dan rentang tidak berubah; baris tidak hilang"
-      }
-    },
-    {
-      "scenario_ref": "Kelola Periode Pelaporan — Belum ada Business Unit",
       "usecase_id": "usecase-128--kelola-periode-pelaporan",
       "api_test": [
         {
@@ -1323,29 +833,38 @@
             "path": "/api/periods"
           },
           "request_example": {
-            "business_unit_id": null,
-            "station_type": null,
-            "name": "Oktober 2026",
+            "business_unit_id": "{{bu_a}}",
+            "name": "Periode Oktober 2026",
             "start_date": "2026-10-01",
             "end_date": "2026-10-31"
           },
-          "expected_status": 422,
-          "expected_error_code": "VALIDATION_ERROR"
+          "expected_status": 201,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods?business_unit_id={{bu_a}}"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
         }
       ],
       "component_test": {
         "component": "KelolaPeriodePelaporan",
-        "action": "dengan tabel business_units kosong, klik 'Tambah Periode'",
-        "assert": "dropdown Business Unit tidak punya opsi; Simpan tidak menghasilkan penyimpanan; pesan arahan membuat Business Unit dulu tampil"
+        "action": "buka form Tambah Periode, pilih Business Unit, isi nama dan rentang tanggal, simpan",
+        "assert": "pratinjau menampilkan daftar jenis stasiun aktif mill beserta keterangan semuanya lahir Draft; setelah simpan, baris baru tampil dengan kolom Stasiun 'N stasiun' dan badge 'Draft'; form tidak punya pemilih Jenis Stasiun"
       },
       "browser_test": {
         "route": "/master-data/periods",
-        "action": "seed tanpa Business Unit, buka Tambah Periode, buka dropdown Business Unit",
-        "assert": "dropdown kosong, pesan arahan terlihat, tidak ada periode tersimpan setelah Simpan"
+        "action": "klik 'Tambah Periode', isi form, simpan",
+        "assert": "flash sukses terlihat dan baris periode baru tampil dengan ringkasan jumlah stasiun serta badge 'Draft'"
       }
     },
     {
-      "scenario_ref": "Kelola Periode Pelaporan — Periode sudah dihapus pengguna lain",
+      "scenario_ref": "Kelola Periode Pelaporan — Rentang tanggal tumpang tindih",
       "usecase_id": "usecase-128--kelola-periode-pelaporan",
       "api_test": [
         {
@@ -1356,10 +875,9 @@
           },
           "request_example": {
             "business_unit_id": "{{bu_a}}",
-            "station_type": null,
-            "name": "Periode Sementara",
-            "start_date": "2026-11-01",
-            "end_date": "2026-11-30"
+            "name": "Periode Oktober 2026",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-31"
           },
           "expected_status": 201,
           "expected_error_code": null
@@ -1367,30 +885,283 @@
         {
           "step": 2,
           "endpoint": {
-            "method": "DELETE",
-            "path": "/api/periods/{{step1.id}}"
+            "method": "POST",
+            "path": "/api/periods"
           },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
+          "request_example": {
+            "business_unit_id": "{{bu_a}}",
+            "name": "Periode Oktober B",
+            "start_date": "2026-10-15",
+            "end_date": "2026-11-15"
+          },
+          "expected_status": 422,
+          "expected_error_code": "PERIOD_OVERLAP"
         },
         {
           "step": 3,
           "endpoint": {
-            "method": "PATCH",
-            "path": "/api/periods/{{step1.id}}"
+            "method": "POST",
+            "path": "/api/periods"
           },
           "request_example": {
-            "name": "Periode Sementara Revisi"
+            "business_unit_id": "{{bu_a}}",
+            "name": "Periode Sentuh Batas",
+            "start_date": "2026-09-01",
+            "end_date": "2026-10-01"
+          },
+          "expected_status": 422,
+          "expected_error_code": "PERIOD_OVERLAP"
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{bu_b}}",
+            "name": "Periode Oktober 2026",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-31"
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaPeriodePelaporan",
+        "action": "simpan periode dengan rentang yang beririsan dengan periode lain pada mill yang sama",
+        "assert": "pesan error menyebut nama dan rentang periode yang bentrok; form tetap terbuka dengan isian Admin; tidak ada baris baru"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "isi rentang yang beririsan lalu simpan",
+        "assert": "pesan bentrok terlihat di form beserta nama periode yang bertabrakan, form tidak tertutup"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Periode Pelaporan — Tanggal selesai lebih awal dari tanggal mulai",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{bu_a}}",
+            "name": "Periode Salah Tanggal",
+            "start_date": "2026-10-31",
+            "end_date": "2026-10-01"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaPeriodePelaporan",
+        "action": "isi tanggal selesai mendahului tanggal mulai lalu simpan",
+        "assert": "pesan kesalahan tampil di bawah field Tanggal Selesai dan periode tidak tersimpan"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "isi tanggal selesai lebih awal lalu simpan",
+        "assert": "pesan di bawah field Tanggal Selesai terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Periode Pelaporan — Nama periode sudah dipakai",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{bu_a}}",
+            "name": "Periode Oktober 2026",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-31"
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{bu_a}}",
+            "name": "Periode Oktober 2026",
+            "start_date": "2026-11-01",
+            "end_date": "2026-11-30"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{bu_b}}",
+            "name": "Periode Oktober 2026",
+            "start_date": "2026-11-01",
+            "end_date": "2026-11-30"
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaPeriodePelaporan",
+        "action": "simpan periode dengan nama yang sudah dipakai pada mill yang sama",
+        "assert": "pesan kesalahan di bawah field Nama; nama yang sama pada mill lain tersimpan tanpa error"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "isi nama periode yang sudah ada pada mill yang sama lalu simpan",
+        "assert": "pesan 'Nama Periode sudah digunakan pada Business Unit ini' terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Periode Pelaporan — Business Unit tidak diisi",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods"
+          },
+          "request_example": {
+            "name": "Periode Tanpa Mill",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-31"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "KelolaPeriodePelaporan",
+        "action": "simpan periode tanpa memilih Business Unit meskipun nama dan rentang sudah diisi",
+        "assert": "pesan kesalahan di bawah field Business Unit dan periode tidak tersimpan"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "kosongkan Business Unit lalu simpan",
+        "assert": "pesan 'Business Unit wajib dipilih' terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Periode Pelaporan — Belum ada Business Unit",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaPeriodePelaporan",
+        "action": "buka form Tambah Periode saat belum ada Business Unit sama sekali",
+        "assert": "dropdown Business Unit kosong, penyimpanan tidak mungkin, petunjuk membuat Business Unit terlebih dahulu tampil"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "buka form Tambah Periode pada database tanpa Business Unit",
+        "assert": "dropdown kosong dan petunjuk membuat Business Unit terlihat"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Periode Pelaporan — Mengubah atau menghapus periode yang punya stasiun tertutup",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/periods/{{seed.period_with_closed_station_id}}"
+          },
+          "request_example": {
+            "business_unit_id": "{{bu_a}}",
+            "name": "Periode Oktober 2026",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-31"
+          },
+          "expected_status": 409,
+          "expected_error_code": "PERIOD_CLOSED_IMMUTABLE"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "DELETE",
+            "path": "/api/periods/{{seed.period_with_closed_station_id}}"
+          },
+          "request_example": {},
+          "expected_status": 409,
+          "expected_error_code": "PERIOD_CLOSED_IMMUTABLE"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods?business_unit_id={{bu_a}}"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaPeriodePelaporan",
+        "action": "render daftar berisi periode dengan satu stasiun tertutup, lalu paksa jalankan aksi edit dan hapus",
+        "assert": "tombol Edit dan Hapus ter-render DISABLED beserta atribut title (bukan disembunyikan); aksinya ditolak dan data periode tidak berubah"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "arahkan kursor ke tombol Edit dan Hapus pada periode yang punya stasiun tertutup",
+        "assert": "kedua tombol terlihat namun nonaktif dan title menjelaskan periode harus dibuka kembali dari layar detail terlebih dahulu"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Periode Pelaporan — Periode sudah dihapus pengguna lain",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/periods/{{nonexistent_uuid}}"
+          },
+          "request_example": {
+            "business_unit_id": "{{bu_a}}",
+            "name": "Periode Oktober 2026",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-31"
           },
           "expected_status": 404,
           "expected_error_code": "NOT_FOUND"
         },
         {
-          "step": 4,
+          "step": 2,
           "endpoint": {
             "method": "DELETE",
-            "path": "/api/periods/{{step1.id}}"
+            "path": "/api/periods/{{nonexistent_uuid}}"
           },
           "request_example": {},
           "expected_status": 404,
@@ -1399,13 +1170,13 @@
       ],
       "component_test": {
         "component": "KelolaPeriodePelaporan",
-        "action": "buka form edit sebuah periode, hapus baris itu langsung di database, lalu klik Simpan pada form yang terbuka",
-        "assert": "pesan error ramah (bukan stack trace/500), daftar dimuat ulang tanpa periode tersebut, komponen tetap hidup"
+        "action": "buka form edit lalu hapus periodenya langsung di database, kemudian simpan",
+        "assert": "pesan error ramah, daftar dimuat ulang tanpa periode itu, tidak ada exception tak tertangani"
       },
       "browser_test": {
         "route": "/master-data/periods",
-        "action": "buka modal edit, hapus periode dari sisi lain, lalu Simpan",
-        "assert": "notifikasi error ramah terlihat, tabel ter-refresh tanpa baris itu, tidak ada error 500"
+        "action": "dua konteks browser; Admin A menghapus periode, Admin B menyimpan perubahan periode yang sama",
+        "assert": "Admin B melihat pesan ramah dan daftarnya ter-refresh tanpa periode itu"
       }
     },
     {
@@ -1425,22 +1196,27 @@
         {
           "step": 2,
           "endpoint": {
-            "method": "GET",
-            "path": "/api/periods/business-units/options"
+            "method": "POST",
+            "path": "/api/periods"
           },
-          "request_example": {},
+          "request_example": {
+            "business_unit_id": "{{bu_a}}",
+            "name": "Periode Oktober 2026",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-31"
+          },
           "expected_status": 403,
           "expected_error_code": "FORBIDDEN"
         },
         {
           "step": 3,
           "endpoint": {
-            "method": "POST",
-            "path": "/api/periods"
+            "method": "PATCH",
+            "path": "/api/periods/{{seed.period_id}}"
           },
           "request_example": {
             "business_unit_id": "{{bu_a}}",
-            "name": "Coba",
+            "name": "Periode Oktober 2026",
             "start_date": "2026-10-01",
             "end_date": "2026-10-31"
           },
@@ -1450,39 +1226,37 @@
         {
           "step": 4,
           "endpoint": {
-            "method": "PATCH",
-            "path": "/api/periods/{{seed.period_id}}"
-          },
-          "request_example": {
-            "name": "Coba Ubah"
-          },
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
-        },
-        {
-          "step": 5,
-          "endpoint": {
             "method": "DELETE",
             "path": "/api/periods/{{seed.period_id}}"
           },
           "request_example": {},
           "expected_status": 403,
           "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 5,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods"
+          },
+          "request_example": {},
+          "expected_status": 401,
+          "expected_error_code": "UNAUTHENTICATED"
         }
       ],
       "component_test": {
         "component": "KelolaPeriodePelaporan",
-        "action": "mount komponen sebagai Supervisor / Mill Management / Operator",
-        "assert": "assertForbidden(); tidak ada data periode ter-render; aksi tambah/ubah/hapus tidak dapat dipanggil"
+        "action": "mount sebagai Operator / Supervisor / Mill Management",
+        "assert": "akses ditolak dan tidak ada data periode yang dirender"
       },
       "browser_test": {
         "route": "/master-data/periods",
-        "action": "login sebagai Supervisor lalu navigasi langsung ke /master-data/periods",
-        "assert": "403 / redirect terlihat; tidak ada data periode yang terlihat"
+        "action": "login sebagai Supervisor lalu buka /master-data/periods",
+        "assert": "akses ditolak; daftar periode tidak terlihat"
       }
     },
     {
-      "scenario_ref": "Kelola Periode Pelaporan — Business Unit tidak diisi",
+      "scenario_ref": "Kelola Periode Pelaporan — Mill belum punya stasiun aktif",
       "usecase_id": "usecase-128--kelola-periode-pelaporan",
       "api_test": [
         {
@@ -1492,46 +1266,19 @@
             "path": "/api/periods"
           },
           "request_example": {
-            "business_unit_id": null,
-            "station_type": "sterilizer",
-            "name": "Oktober 2026",
+            "business_unit_id": "{{bu_without_stations}}",
+            "name": "Periode Mill Baru",
             "start_date": "2026-10-01",
             "end_date": "2026-10-31"
           },
-          "expected_status": 422,
-          "expected_error_code": "VALIDATION_ERROR"
-        }
-      ],
-      "component_test": {
-        "component": "KelolaPeriodePelaporan",
-        "action": "isi Nama dan kedua tanggal dengan benar namun biarkan dropdown Business Unit kosong, klik Simpan",
-        "assert": "pesan kesalahan di bawah field Business Unit; isian lain tetap ada; tidak ada baris baru"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "submit Tambah Periode tanpa memilih Business Unit",
-        "assert": "error inline di bawah dropdown Business Unit; modal tetap terbuka; tabel tidak bertambah"
-      }
-    },
-    {
-      "scenario_ref": "Tutup & Buka Kembali Periode Pelaporan — success",
-      "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "GET",
-            "path": "/api/periods/{{seed.open_period_id}}/unverified-count"
-          },
-          "request_example": {},
-          "expected_status": 200,
+          "expected_status": 201,
           "expected_error_code": null
         },
         {
           "step": 2,
           "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.open_period_id}}/close"
+            "method": "GET",
+            "path": "/api/periods?business_unit_id={{bu_without_stations}}"
           },
           "request_example": {},
           "expected_status": 200,
@@ -1540,8 +1287,69 @@
         {
           "step": 3,
           "endpoint": {
+            "method": "PATCH",
+            "path": "/api/periods/{{seed.empty_period_id}}"
+          },
+          "request_example": {
+            "business_unit_id": "{{bu_without_stations}}",
+            "name": "Periode Mill Baru (ubah)",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-31"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaPeriodePelaporan",
+        "action": "pilih mill tanpa stasiun aktif pada form, simpan, lalu lihat barisnya di daftar",
+        "assert": "pratinjau menjelaskan periode belum akan punya baris stasiun sehingga tidak ada yang bisa ditutup; baris di daftar menampilkan 'Belum ada stasiun' dan badge 'Tanpa Stasiun'; Edit dan Hapus tetap aktif"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "buat periode untuk mill tanpa stasiun aktif",
+        "assert": "teks 'Belum ada stasiun' dan badge 'Tanpa Stasiun' terlihat pada barisnya"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Periode Pelaporan — Menyimpan ulang periode menambahkan baris stasiun yang belum ada",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "POST",
+            "path": "/api/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{bu_a}}",
+            "name": "Periode Oktober 2026",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-31"
+          },
+          "expected_status": 201,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "PATCH",
+            "path": "/api/periods/{{seed.period_id}}"
+          },
+          "request_example": {
+            "business_unit_id": "{{bu_a}}",
+            "name": "Periode Oktober 2026",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-31"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
             "method": "GET",
-            "path": "/api/periods?business_unit_id={{bu_a}}&status=closed"
+            "path": "/api/periods?business_unit_id={{bu_a}}"
           },
           "request_example": {},
           "expected_status": 200,
@@ -1550,24 +1358,24 @@
       ],
       "component_test": {
         "component": "KelolaPeriodePelaporan",
-        "action": "klik 'Tutup Periode' pada baris periode terbuka, baca dialog konfirmasi yang memuat jumlah data belum terverifikasi, klik Konfirmasi",
-        "assert": "dialog sempat tampil dengan angka belum terverifikasi; badge berubah 'Tertutup'; kolom Ditutup Oleh dan Waktu Ditutup terisi; aksi berganti jadi 'Buka Kembali Periode'"
+        "action": "tambahkan jenis stasiun baru pada mill lalu buka form ubah periode dan simpan",
+        "assert": "pratinjau menandai jenis stasiun yang belum punya baris dengan badge 'Baru' dan menjelaskan bahwa menyimpan hanya menambahkan; setelah simpan, station_count naik dan baris lama tidak berubah statusnya"
       },
       "browser_test": {
         "route": "/master-data/periods",
-        "action": "klik 'Tutup Periode' pada periode Terbuka, verifikasi angka pada dialog, klik Konfirmasi",
-        "assert": "badge 'Tertutup', nama Admin dan waktu penutupan terlihat di tabel, dialog tertutup, flash sukses terlihat"
+        "action": "buka form ubah periode pada mill yang baru mendapat jenis stasiun, simpan",
+        "assert": "badge 'Baru' terlihat di pratinjau sebelum simpan dan kolom Stasiun menampilkan jumlah yang bertambah setelahnya"
       }
     },
     {
-      "scenario_ref": "Tutup & Buka Kembali Periode Pelaporan — buka kembali periode yang sudah tertutup",
-      "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
+      "scenario_ref": "Kelola Periode Pelaporan — Filter Status Stasiun mencocokkan periode yang punya minimal satu stasiun berstatus itu",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
       "api_test": [
         {
           "step": 1,
           "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.closed_period_id}}/reopen"
+            "method": "GET",
+            "path": "/api/periods?status=closed"
           },
           "request_example": {},
           "expected_status": 200,
@@ -1582,35 +1390,35 @@
           "request_example": {},
           "expected_status": 200,
           "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "KelolaPeriodePelaporan",
-        "action": "klik 'Buka Kembali Periode' pada baris Tertutup dan konfirmasi",
-        "assert": "badge jadi 'Terbuka'; kolom Ditutup Oleh dan Waktu Ditutup kosong; aksi Edit, Hapus, dan 'Tutup Periode' kembali tersedia"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "klik 'Buka Kembali Periode' pada periode Tertutup lalu konfirmasi",
-        "assert": "badge 'Terbuka' terlihat, kolom penutupan kosong, tombol 'Tutup Periode' kembali muncul"
-      }
-    },
-    {
-      "scenario_ref": "Tutup & Buka Kembali Periode Pelaporan — Admin membatalkan penutupan",
-      "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
-      "api_test": [
+        },
         {
-          "step": 1,
+          "step": 3,
           "endpoint": {
             "method": "GET",
-            "path": "/api/periods/{{seed.open_period_id}}/unverified-count"
+            "path": "/api/periods?business_unit_id={{bu_a}}&status=draft"
           },
           "request_example": {},
           "expected_status": 200,
           "expected_error_code": null
-        },
+        }
+      ],
+      "component_test": {
+        "component": "KelolaPeriodePelaporan",
+        "action": "pada periode dengan satu stasiun Tertutup dan satu Terbuka, saring dengan Status Stasiun 'Tertutup' lalu 'Terbuka'",
+        "assert": "periode itu muncul pada kedua nilai filter, badge ringkasannya 'Campuran', dan label filternya berbunyi 'Status Stasiun'"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "ganti filter Status Stasiun dari 'Tertutup' ke 'Terbuka'",
+        "assert": "periode dengan status campuran terlihat pada kedua pilihan dan tidak pernah hilang"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Periode Pelaporan — Membuka detail periode dari daftar",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
+      "api_test": [
         {
-          "step": 2,
+          "step": 1,
           "endpoint": {
             "method": "GET",
             "path": "/api/periods?business_unit_id={{bu_a}}"
@@ -1622,743 +1430,13 @@
       ],
       "component_test": {
         "component": "KelolaPeriodePelaporan",
-        "action": "klik 'Tutup Periode' untuk membuka dialog, lalu tutup dialog lewat Batal",
-        "assert": "tidak ada pemanggilan aksi close; badge status tidak berubah; kolom Ditutup Oleh tetap kosong"
+        "action": "render daftar lalu periksa kolom Nama dan kolom Aksi",
+        "assert": "nama periode berupa tautan ke /master-data/periods/{id}; TIDAK ada tombol expand, TIDAK ada sub-tabel stasiun, dan TIDAK ada satu pun tombol Tutup Stasiun / Buka Stasiun / Buka Kembali di layar ini"
       },
       "browser_test": {
         "route": "/master-data/periods",
-        "action": "buka dialog konfirmasi Tutup Periode lalu klik Batal",
-        "assert": "dialog tertutup, badge tetap seperti semula, kolom Ditutup Oleh tetap kosong"
-      }
-    },
-    {
-      "scenario_ref": "Tutup & Buka Kembali Periode Pelaporan — masih banyak data belum terverifikasi",
-      "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "GET",
-            "path": "/api/periods/{{seed.open_period_id}}/unverified-count"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.open_period_id}}/close"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 3,
-          "endpoint": {
-            "method": "GET",
-            "path": "/api/periods/{{seed.open_period_id}}/unverified-count"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "KelolaPeriodePelaporan",
-        "action": "klik 'Tutup Periode' pada periode yang rentangnya memuat record belum terverifikasi",
-        "assert": "dialog menampilkan angka belum terverifikasi secara eksplisit beserta rincian per jenis stasiun dan penjelasan verifikasi ikut terkunci; tombol Konfirmasi tetap aktif"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "klik 'Tutup Periode' pada periode berisi data belum terverifikasi, baca dialog, lanjutkan konfirmasi",
-        "assert": "angka belum terverifikasi terlihat sebelum konfirmasi; setelah konfirmasi periode menjadi Tertutup"
-      }
-    },
-    {
-      "scenario_ref": "Tutup & Buka Kembali Periode Pelaporan — data mobile menyusul setelah periode ditutup",
-      "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.open_period_id}}/close"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/sterilizer-records"
-          },
-          "request_example": {
-            "id": "{{offline_uuid}}",
-            "station_id": "{{seed.sterilizer_station_id}}",
-            "date": "2026-10-15",
-            "details": [
-              {
-                "sterilizer_no": "1",
-                "close_door_time": "08:00"
-              }
-            ]
-          },
-          "expected_status": 422,
-          "expected_error_code": "PERIOD_CLOSED"
-        },
-        {
-          "step": 3,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.open_period_id}}/reopen"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 4,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/sterilizer-records"
-          },
-          "request_example": {
-            "id": "{{offline_uuid}}",
-            "station_id": "{{seed.sterilizer_station_id}}",
-            "date": "2026-10-15",
-            "details": [
-              {
-                "sterilizer_no": "1",
-                "close_door_time": "08:00"
-              }
-            ]
-          },
-          "expected_status": 201,
-          "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "",
-        "action": "",
-        "assert": ""
-      },
-      "browser_test": {
-        "route": "",
-        "action": "",
-        "assert": ""
-      }
-    },
-    {
-      "scenario_ref": "Tutup & Buka Kembali Periode Pelaporan — upaya verifikasi pada periode tertutup",
-      "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.open_period_id}}/close"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "PATCH",
-            "path": "/api/sterilizer-records/{{seed.unverified_record_id}}"
-          },
-          "request_example": {
-            "checked": true
-          },
-          "expected_status": 422,
-          "expected_error_code": "PERIOD_CLOSED"
-        },
-        {
-          "step": 3,
-          "endpoint": {
-            "method": "GET",
-            "path": "/api/sterilizer-records/{{seed.unverified_record_id}}"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "",
-        "action": "",
-        "assert": ""
-      },
-      "browser_test": {
-        "route": "",
-        "action": "",
-        "assert": ""
-      }
-    },
-    {
-      "scenario_ref": "Tutup & Buka Kembali Periode Pelaporan — menutup periode yang sudah tertutup",
-      "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.closed_period_id}}/close"
-          },
-          "request_example": {},
-          "expected_status": 409,
-          "expected_error_code": "PERIOD_ALREADY_CLOSED"
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "GET",
-            "path": "/api/periods?status=closed"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "KelolaPeriodePelaporan",
-        "action": "render daftar lalu buka daftar aksi pada baris berstatus Tertutup",
-        "assert": "aksi 'Tutup Periode' tidak ter-render; yang ter-render hanya 'Buka Kembali Periode'; Edit dan Hapus juga tidak tersedia"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "buka menu aksi pada baris dengan badge 'Tertutup'",
-        "assert": "tombol 'Tutup Periode' tidak terlihat; 'Buka Kembali Periode' terlihat dan dapat diklik"
-      }
-    },
-    {
-      "scenario_ref": "Tutup & Buka Kembali Periode Pelaporan — dua Admin menutup periode bersamaan",
-      "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.open_period_id}}/close"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.open_period_id}}/close"
-          },
-          "request_example": {},
-          "expected_status": 409,
-          "expected_error_code": "PERIOD_ALREADY_CLOSED"
-        },
-        {
-          "step": 3,
-          "endpoint": {
-            "method": "GET",
-            "path": "/api/periods?status=closed"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "KelolaPeriodePelaporan",
-        "action": "mount sebagai Admin B dengan daftar yang masih menampilkan periode terbuka, ubah status jadi closed oleh Admin A langsung di database, lalu panggil aksi tutup dari komponen Admin B",
-        "assert": "pesan bahwa periode sudah ditutup beserta nama penutup dan waktunya; daftar ter-refresh menampilkan Admin A sebagai penutup; tidak ada exception tak tertangani"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "dua konteks browser Admin A dan Admin B; Admin A menutup periode; Admin B tanpa reload mengonfirmasi penutupan periode yang sama",
-        "assert": "Admin B melihat notifikasi 'periode sudah ditutup' dengan nama Admin A dan waktunya; tabel di kedua browser menampilkan Admin A sebagai Ditutup Oleh"
-      }
-    },
-    {
-      "scenario_ref": "Tutup & Buka Kembali Periode Pelaporan — pengguna selain Admin menutup periode",
-      "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.open_period_id}}/close"
-          },
-          "request_example": {},
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.closed_period_id}}/reopen"
-          },
-          "request_example": {},
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
-        },
-        {
-          "step": 3,
-          "endpoint": {
-            "method": "GET",
-            "path": "/api/periods/{{seed.open_period_id}}/unverified-count"
-          },
-          "request_example": {},
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
-        },
-        {
-          "step": 4,
-          "endpoint": {
-            "method": "GET",
-            "path": "/api/periods"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "KelolaPeriodePelaporan",
-        "action": "mount sebagai Operator / Supervisor / Mill Management lalu panggil aksi tutup dan buka kembali periode",
-        "assert": "assertForbidden(); status periode di database tidak berubah; pesan menjelaskan hanya Admin yang boleh"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "login sebagai Mill Management, coba akses dan memicu aksi Tutup/Buka Kembali Periode",
-        "assert": "akses ditolak 403/redirect; tombol Tutup dan Buka Kembali tidak tersedia; status periode tidak berubah saat diperiksa ulang sebagai Admin"
-      }
-    },
-    {
-      "scenario_ref": "Tutup & Buka Kembali Periode Pelaporan — mengubah data stasiun pada periode tertutup",
-      "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.open_period_id}}/close"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/sterilizer-records"
-          },
-          "request_example": {
-            "station_id": "{{seed.sterilizer_station_id}}",
-            "date": "2026-10-15",
-            "details": [
-              {
-                "sterilizer_no": "1",
-                "close_door_time": "08:00"
-              }
-            ]
-          },
-          "expected_status": 422,
-          "expected_error_code": "PERIOD_CLOSED"
-        },
-        {
-          "step": 3,
-          "endpoint": {
-            "method": "PATCH",
-            "path": "/api/sterilizer-records/{{seed.existing_record_id}}"
-          },
-          "request_example": {
-            "note": "diubah"
-          },
-          "expected_status": 422,
-          "expected_error_code": "PERIOD_CLOSED"
-        },
-        {
-          "step": 4,
-          "endpoint": {
-            "method": "GET",
-            "path": "/api/sterilizer-records/{{seed.existing_record_id}}"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "",
-        "action": "",
-        "assert": ""
-      },
-      "browser_test": {
-        "route": "",
-        "action": "",
-        "assert": ""
-      }
-    },
-    {
-      "scenario_ref": "Tutup & Buka Kembali Periode Pelaporan — data diinput setelah periode ditutup namun tanggal kejadiannya di luar rentang",
-      "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{{seed.open_period_id}}/close"
-          },
-          "request_example": {},
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/sterilizer-records"
-          },
-          "request_example": {
-            "station_id": "{{seed.sterilizer_station_id}}",
-            "date": "2026-11-02",
-            "details": [
-              {
-                "sterilizer_no": "1",
-                "close_door_time": "08:00"
-              }
-            ]
-          },
-          "expected_status": 201,
-          "expected_error_code": null
-        },
-        {
-          "step": 3,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/sterilizer-records"
-          },
-          "request_example": {
-            "station_id": "{{seed.sterilizer_station_id}}",
-            "date": "2026-09-30",
-            "details": [
-              {
-                "sterilizer_no": "2",
-                "close_door_time": "09:00"
-              }
-            ]
-          },
-          "expected_status": 201,
-          "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "",
-        "action": "",
-        "assert": ""
-      },
-      "browser_test": {
-        "route": "",
-        "action": "",
-        "assert": ""
-      }
-    },
-    {
-      "scenario_ref": "Buka Periode Pelaporan — sukses",
-      "usecase_id": "usecase-144--buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{id}/open"
-          },
-          "request_example": {
-            "id": "{{period_draft}}"
-          },
-          "expected_status": 200,
-          "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
-        "action": "Livewire::test() sebagai Admin dengan satu periode berstatus draft, panggil askOpen(periodId) lalu confirmOpen()",
-        "assert": "dialog konfirmasi tampil setelah askOpen; setelah confirmOpen status periode pada daftar menjadi 'Terbuka', tombol 'Buka Periode' tidak lagi dirender untuk baris itu, notifikasi sukses tampil, dan tidak ada data stasiun yang berubah"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "login sebagai Admin, buka /master-data/periods, klik [data-testid=open-period-button] pada baris periode berstatus Draft, lalu klik [data-testid=confirm-open-period] di dalam [data-testid=open-period-dialog]",
-        "assert": "dialog [data-testid=open-period-dialog] tampil lalu tertutup; badge status baris berubah menjadi 'Terbuka'; [data-testid=open-period-button] hilang dari baris itu; tombol edit dan hapus tetap tersedia"
-      }
-    },
-    {
-      "scenario_ref": "Buka Periode Pelaporan — Periode sudah terbuka",
-      "usecase_id": "usecase-144--buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{id}/open"
-          },
-          "request_example": {
-            "id": "{{period_open}}"
-          },
-          "expected_status": 409,
-          "expected_error_code": "PERIOD_NOT_DRAFT"
-        }
-      ],
-      "component_test": {
-        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
-        "action": "Livewire::test() sebagai Admin, panggil askOpen(periodId) lalu confirmOpen() pada periode yang statusnya sudah 'open' (mis. diubah pihak lain setelah daftar dirender)",
-        "assert": "pesan error tampil menyebut periode itu sudah terbuka; status pada daftar tetap 'Terbuka'; tidak ada notifikasi sukses"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "login sebagai Admin, buka /master-data/periods dengan periode berstatus Terbuka pada daftar",
-        "assert": "[data-testid=open-period-button] tidak dirender pada baris berstatus Terbuka; bila aksi tetap dipaksa lewat backend, pesan error yang menyebut periode sudah terbuka tampil dan badge status tidak berubah"
-      }
-    },
-    {
-      "scenario_ref": "Buka Periode Pelaporan — Periode sudah tertutup",
-      "usecase_id": "usecase-144--buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{id}/open"
-          },
-          "request_example": {
-            "id": "{{period_closed}}"
-          },
-          "expected_status": 409,
-          "expected_error_code": "PERIOD_NOT_DRAFT"
-        }
-      ],
-      "component_test": {
-        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
-        "action": "Livewire::test() sebagai Admin, panggil askOpen(periodId) lalu confirmOpen() pada periode berstatus 'closed'",
-        "assert": "pesan error menyebut periode itu sudah tertutup DAN mengarahkan memakai aksi 'Buka Kembali Periode'; status tetap 'Tertutup'; baris itu tetap menawarkan 'Buka Kembali Periode', bukan 'Buka Periode'"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "login sebagai Admin, buka /master-data/periods dengan periode berstatus Tertutup pada daftar",
-        "assert": "baris Tertutup hanya menawarkan aksi 'Buka Kembali Periode', [data-testid=open-period-button] tidak ada; bila aksi dipaksa, pesan error menyebut periode sudah tertutup dan mengarahkan ke 'Buka Kembali Periode', badge status tetap 'Tertutup'"
-      }
-    },
-    {
-      "scenario_ref": "Buka Periode Pelaporan — Periode tidak ditemukan",
-      "usecase_id": "usecase-144--buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{id}/open"
-          },
-          "request_example": {
-            "id": "{{period_dihapus}}"
-          },
-          "expected_status": 404,
-          "expected_error_code": "NOT_FOUND"
-        }
-      ],
-      "component_test": {
-        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
-        "action": "Livewire::test() sebagai Admin, hapus periode dari database lalu panggil askOpen(periodId) dan confirmOpen() pada id yang sudah tidak ada",
-        "assert": "pesan error 'periode tidak ditemukan' tampil, komponen tidak crash, daftar dimuat ulang tanpa baris itu"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "login sebagai Admin, buka /master-data/periods, hapus periode lewat jalur lain, lalu klik [data-testid=open-period-button] pada baris usang dan konfirmasi via [data-testid=confirm-open-period]",
-        "assert": "pesan error 'periode tidak ditemukan' tampil, halaman tetap utuh tanpa error 500, dan daftar tidak lagi memuat periode itu setelah refresh"
-      }
-    },
-    {
-      "scenario_ref": "Buka Periode Pelaporan — Dua Admin membuka bersamaan",
-      "usecase_id": "usecase-144--buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{id}/open"
-          },
-          "request_example": {
-            "id": "{{period_draft}}",
-            "_aktor": "admin-a"
-          },
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{id}/open"
-          },
-          "request_example": {
-            "id": "{{period_draft}}",
-            "_aktor": "admin-b"
-          },
-          "expected_status": 409,
-          "expected_error_code": "PERIOD_NOT_DRAFT"
-        }
-      ],
-      "component_test": {
-        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
-        "action": "dua instance Livewire::test() sebagai Admin A dan Admin B yang keduanya merender periode Draft yang sama; A menjalankan askOpen+confirmOpen lebih dulu, lalu B menjalankan askOpen+confirmOpen pada id yang sama",
-        "assert": "instance A menerima notifikasi sukses dan status 'Terbuka'; instance B menerima pesan error yang menyebut periode itu sudah terbuka; updated_by di database tetap milik Admin A — tidak tertimpa diam-diam"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "buka /master-data/periods di dua konteks browser sebagai dua Admin yang menampilkan periode Draft yang sama; klik [data-testid=confirm-open-period] pada konteks pertama, lalu pada konteks kedua",
-        "assert": "konteks pertama menunjukkan badge 'Terbuka'; konteks kedua menampilkan pesan periode sudah terbuka dan setelah refresh menunjukkan badge 'Terbuka' yang sama, tanpa perubahan kedua"
-      }
-    },
-    {
-      "scenario_ref": "Buka Periode Pelaporan — Bukan Admin mencoba membuka periode",
-      "usecase_id": "usecase-144--buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{id}/open"
-          },
-          "request_example": {
-            "id": "{{period_draft}}",
-            "_aktor": "supervisor"
-          },
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{id}/open"
-          },
-          "request_example": {
-            "id": "{{period_draft}}",
-            "_aktor": "mill-management"
-          },
-          "expected_status": 403,
-          "expected_error_code": "FORBIDDEN"
-        }
-      ],
-      "component_test": {
-        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
-        "action": "Livewire::test() sebagai Supervisor dan sebagai Mill Management, lalu panggil askOpen(periodId) dan confirmOpen()",
-        "assert": "akses ditolak untuk kedua peran; status periode di database tetap 'draft'; aksi 'Buka Periode' tidak dirender untuk peran non-Admin"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "login sebagai Supervisor lalu buka /master-data/periods",
-        "assert": "Supervisor ditolak mengakses halaman (403) dan tidak pernah melihat [data-testid=open-period-button]; status periode tetap Draft"
-      }
-    },
-    {
-      "scenario_ref": "Buka Periode Pelaporan — status Terbuka tidak dapat dikembalikan ke Draft",
-      "usecase_id": "usecase-144--buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{id}/open"
-          },
-          "request_example": {
-            "id": "{{period_draft}}"
-          },
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "PATCH",
-            "path": "/api/periods/{id}"
-          },
-          "request_example": {
-            "id": "{{period_draft}}",
-            "status": "draft",
-            "name": "Percobaan Mundur"
-          },
-          "expected_status": 200,
-          "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
-        "action": "Livewire::test() sebagai Admin pada periode berstatus 'open': buka form edit dan simpan, tanpa ada kontrol apa pun untuk mengembalikan status ke Draft",
-        "assert": "form edit tidak menyediakan pilihan status; setelah simpan, status periode tetap 'Terbuka'; tidak ada aksi pada komponen yang dapat menghasilkan status 'draft' dari periode Terbuka. CATATAN: PATCH mengembalikan 200 karena field `status` memang tidak pernah divalidasi maupun ditulis oleh PeriodService::validate() — kiriman itu diabaikan, bukan ditolak"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "login sebagai Admin, buka /master-data/periods, buka form edit periode berstatus Terbuka lalu simpan",
-        "assert": "tidak ada kontrol untuk memilih status Draft di form; badge status baris tetap 'Terbuka' setelah simpan dan setelah reload"
-      }
-    },
-    {
-      "scenario_ref": "Buka Periode Pelaporan — periode Terbuka tetap dapat diubah dan dihapus",
-      "usecase_id": "usecase-144--buka-periode-pelaporan",
-      "api_test": [
-        {
-          "step": 1,
-          "endpoint": {
-            "method": "POST",
-            "path": "/api/periods/{id}/open"
-          },
-          "request_example": {
-            "id": "{{period_draft}}"
-          },
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 2,
-          "endpoint": {
-            "method": "PATCH",
-            "path": "/api/periods/{id}"
-          },
-          "request_example": {
-            "id": "{{period_draft}}",
-            "name": "Periode Agustus 2026 (revisi)"
-          },
-          "expected_status": 200,
-          "expected_error_code": null
-        },
-        {
-          "step": 3,
-          "endpoint": {
-            "method": "DELETE",
-            "path": "/api/periods/{id}"
-          },
-          "request_example": {
-            "id": "{{period_draft}}"
-          },
-          "expected_status": 200,
-          "expected_error_code": null
-        }
-      ],
-      "component_test": {
-        "component": "App\\Livewire\\MasterData\\KelolaPeriodePelaporan",
-        "action": "Livewire::test() sebagai Admin: jalankan askOpen+confirmOpen pada periode Draft, lalu edit nama periode dan simpan, lalu jalankan aksi hapus dan konfirmasi",
-        "assert": "edit berhasil dan nama baru tampil pada daftar; hapus berhasil dan baris hilang; tidak ada PeriodClosedImmutableException yang dilempar — hanya status 'closed' yang mengunci, bukan 'open'"
-      },
-      "browser_test": {
-        "route": "/master-data/periods",
-        "action": "login sebagai Admin, buka /master-data/periods, klik [data-testid=open-period-button] lalu [data-testid=confirm-open-period]; setelah badge menjadi 'Terbuka', ubah nama lalu simpan, kemudian jalankan aksi hapus dan konfirmasi",
-        "assert": "tombol edit dan hapus tetap aktif pada baris berstatus Terbuka; nama baru tampil setelah simpan; baris hilang setelah hapus; tidak ada pesan 'periode terkunci'"
+        "action": "klik nama periode pada daftar",
+        "assert": "berpindah ke /master-data/periods/{id} dan halaman Detail Periode Pelaporan termuat; tidak ada baris accordion yang terbuka di layar daftar"
       }
     }
   ]

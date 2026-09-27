@@ -1,12 +1,12 @@
 {
-  "ver": 1,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-22"
+    "updated_at": "2026-09-27"
   },
+  "ver": 2,
   "id": "usecase-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
-  "description": "Admin mendefinisikan dan memelihara Periode Pelaporan untuk sebuah mill (Business Unit), opsional dipersempit ke satu jenis stasiun. Periode inilah yang menjadi satuan waktu seluruh laporan Full Cycle per Stasiun. Mencakup melihat daftar periode dengan filter, menambah periode baru, mengubah, dan menghapusnya.",
+  "description": "Admin mendefinisikan dan memelihara Periode Pelaporan untuk sebuah mill (Business Unit). Periode inilah satuan waktu seluruh laporan Full Cycle per Stasiun. Cakupannya adalah SELURUH mill pada rentang tanggal itu — tidak ada pilihan jenis stasiun: menyimpan periode mendaftarkan satu baris stasiun berstatus Draft untuk setiap jenis stasiun yang aktif di mill tersebut. Usecase ini mencakup melihat daftar periode dengan filter beserta ringkasan status stasiunnya, menambah, mengubah, dan menghapus periode, serta membuka layar Detail Periode Pelaporan. Menutup, membuka, dan membuka kembali stasiun BUKAN bagian usecase ini — itu usecase-140 dan usecase-144, yang keduanya berjalan di layar detail karena status melekat pada jenis stasiun.",
   "actors": [
     "actor-admin"
   ],
@@ -23,52 +23,62 @@
     {
       "step": 2,
       "actor": "System",
-      "description": "Menampilkan daftar periode beserta nama, mill, jenis stasiun (atau 'Semua Stasiun'), rentang tanggal, status, penutup, dan waktu penutupan"
+      "description": "Menampilkan daftar periode beserta nama, mill, rentang tanggal, ringkasan jumlah stasiun ('N stasiun · M tertutup' atau 'Belum ada stasiun'), dan badge ringkasan Status Stasiun (Draft / Terbuka / Tertutup / Campuran / Tanpa Stasiun)"
     },
     {
       "step": 3,
       "actor": "actor-admin",
-      "description": "Menyaring daftar berdasarkan Business Unit dan/atau status bila perlu"
+      "description": "Menyaring daftar berdasarkan Business Unit dan/atau Status Stasiun bila perlu — filter Status Stasiun mencocokkan periode yang punya minimal satu stasiun berstatus itu"
     },
     {
       "step": 4,
       "actor": "actor-admin",
-      "description": "Menekan 'Tambah Periode' dan mengisi Business Unit, jenis stasiun (opsional), nama periode, tanggal mulai, dan tanggal selesai"
+      "description": "Menekan 'Tambah Periode' dan mengisi Business Unit, nama periode, tanggal mulai, dan tanggal selesai; tidak ada pilihan jenis stasiun"
     },
     {
       "step": 5,
       "actor": "System",
-      "description": "Memvalidasi bahwa mill terisi, nama terisi dan unik dalam kombinasi mill + jenis stasiun, tanggal selesai tidak lebih awal dari tanggal mulai, serta rentangnya tidak tumpang tindih dengan periode lain pada cakupan yang sama"
+      "description": "Menampilkan pratinjau jenis stasiun yang akan tercakup periode ini begitu Business Unit dipilih, beserta keterangan bahwa masing-masing lahir berstatus Draft dan dapat ditutup sendiri-sendiri"
     },
     {
       "step": 6,
       "actor": "System",
-      "description": "Menyimpan periode dengan status Draft dan menampilkannya di daftar"
+      "description": "Memvalidasi bahwa mill terisi, nama terisi dan unik dalam mill itu, tanggal selesai tidak lebih awal dari tanggal mulai, serta rentangnya tidak tumpang tindih dengan periode lain pada mill yang sama (batas inklusif di kedua ujungnya)"
     },
     {
       "step": 7,
-      "actor": "actor-admin",
-      "description": "Bila perlu, membuka periode yang ada untuk diubah namanya, rentang tanggalnya, atau cakupan jenis stasiunnya, lalu menyimpan"
+      "actor": "System",
+      "description": "Menyimpan periode dan mendaftarkan satu baris stasiun berstatus Draft untuk setiap jenis stasiun yang aktif di mill itu, lalu menampilkannya di daftar"
     },
     {
       "step": 8,
       "actor": "actor-admin",
-      "description": "Bila perlu, menghapus periode yang belum pernah ditutup, dengan konfirmasi inline"
+      "description": "Bila perlu, menekan nama periode untuk membuka layar Detail Periode Pelaporan dan melihat atau mengelola status stasiunnya"
+    },
+    {
+      "step": 9,
+      "actor": "actor-admin",
+      "description": "Bila perlu, membuka periode yang ada untuk diubah namanya, mill-nya, atau rentang tanggalnya, lalu menyimpan — penyimpanan ikut menambahkan baris stasiun untuk jenis stasiun yang sudah ada di mill namun belum punya baris, ditandai 'Baru' di pratinjau"
+    },
+    {
+      "step": 10,
+      "actor": "actor-admin",
+      "description": "Bila perlu, menghapus periode yang belum punya satu pun stasiun tertutup, dengan konfirmasi inline"
     }
   ],
   "alternative_flows": [
     {
       "name": "Rentang tanggal tumpang tindih",
-      "trigger": "Pada langkah 5, rentang yang diisi beririsan dengan periode lain pada mill + jenis stasiun yang sama, termasuk terhadap periode 'semua jenis stasiun' di mill itu",
+      "trigger": "Pada langkah 6, rentang yang diisi beririsan dengan periode lain pada mill yang sama, termasuk bila hanya berbagi satu hari di batas rentang",
       "steps": [
         "Sistem menolak penyimpanan",
-        "Sistem menampilkan pesan yang menyebut nama periode yang bentrok",
+        "Sistem menampilkan pesan yang menyebut nama periode yang bentrok beserta rentangnya",
         "Periode tidak tersimpan dan form tetap terbuka dengan isian Admin"
       ]
     },
     {
       "name": "Tanggal selesai lebih awal dari tanggal mulai",
-      "trigger": "Pada langkah 5, tanggal selesai yang diisi mendahului tanggal mulai",
+      "trigger": "Pada langkah 6, tanggal selesai yang diisi mendahului tanggal mulai",
       "steps": [
         "Sistem menolak penyimpanan",
         "Sistem menampilkan pesan kesalahan di bawah field tanggal selesai",
@@ -77,20 +87,22 @@
     },
     {
       "name": "Nama periode sudah dipakai",
-      "trigger": "Pada langkah 5, nama periode sudah dipakai pada kombinasi mill + jenis stasiun yang sama",
+      "trigger": "Pada langkah 6, nama periode sudah dipakai pada Business Unit yang sama",
       "steps": [
         "Sistem menolak penyimpanan",
         "Sistem menampilkan pesan kesalahan di bawah field nama",
-        "Periode tidak tersimpan"
+        "Periode tidak tersimpan",
+        "Nama yang sama pada mill lain tetap diizinkan"
       ]
     },
     {
-      "name": "Mengubah atau menghapus periode yang sudah tertutup",
-      "trigger": "Pada langkah 7 atau 8, periode yang dipilih berstatus Tertutup",
+      "name": "Mengubah atau menghapus periode yang punya stasiun tertutup",
+      "trigger": "Pada langkah 9 atau 10, periode yang dipilih punya minimal satu jenis stasiun berstatus Tertutup",
       "steps": [
-        "Sistem menolak aksi",
-        "Sistem menampilkan pesan yang mengarahkan Admin membuka kembali periode terlebih dahulu",
-        "Data periode tidak berubah"
+        "Tombol Edit dan Hapus pada periode itu sudah tampil nonaktif beserta penjelasan pada atribut title, bukan disembunyikan",
+        "Bila aksinya tetap dijalankan, sistem menolaknya",
+        "Sistem mengarahkan Admin membuka kembali stasiun itu dari layar Detail Periode Pelaporan terlebih dahulu",
+        "Data periode tidak berubah sama sekali"
       ]
     },
     {
@@ -103,41 +115,66 @@
       ]
     },
     {
+      "name": "Mill belum punya stasiun aktif",
+      "trigger": "Pada langkah 5 atau 7, mill yang dipilih belum punya satu pun stasiun aktif",
+      "steps": [
+        "Pratinjau menjelaskan bahwa periode ini belum akan punya satu pun baris stasiun sehingga tidak ada yang bisa ditutup",
+        "Periode tetap tersimpan sebagai rentang tanggal yang sah untuk mill itu",
+        "Daftar menampilkan 'Belum ada stasiun' dan badge ringkasan 'Tanpa Stasiun'",
+        "Admin dapat menambah stasiun pada mill itu lalu menyimpan ulang periodenya untuk mendaftarkan barisnya"
+      ]
+    },
+    {
       "name": "Periode sudah dihapus pengguna lain",
-      "trigger": "Pada langkah 7 atau 8, periode yang dipilih sudah dihapus Admin lain setelah form dibuka",
+      "trigger": "Pada langkah 9 atau 10, periode yang dipilih sudah dihapus Admin lain setelah form dibuka",
       "steps": [
         "Sistem menampilkan pesan error yang ramah",
         "Daftar dimuat ulang tanpa periode tersebut",
         "Tidak terjadi kegagalan sistem"
       ]
+    },
+    {
+      "name": "Memindahkan periode ke mill lain",
+      "trigger": "Pada langkah 9, Admin mengubah Business Unit periode",
+      "steps": [
+        "Baris stasiun untuk jenis stasiun aktif di mill baru ditambahkan",
+        "Baris warisan mill sebelumnya tetap tinggal karena baris stasiun tidak pernah dihapus",
+        "Hasilnya gabungan kedua inventaris — konsekuensi yang diterima dari aturan add-only"
+      ]
     }
   ],
   "postconditions": [
-    "Periode tersimpan dengan cakupan mill + jenis stasiun, rentang tanggal, dan status yang benar",
-    "Daftar periode mencerminkan seluruh perubahan yang dilakukan Admin",
-    "Periode yang tersimpan siap dipilih sebagai satuan waktu pada layar-layar laporan periode per stasiun"
+    "Periode tersimpan dengan mill, nama, dan rentang tanggal yang benar, beserta satu baris stasiun berstatus Draft untuk setiap jenis stasiun aktif di mill itu",
+    "Daftar periode mencerminkan seluruh perubahan yang dilakukan Admin beserta ringkasan status stasiun terbarunya",
+    "Periode yang tersimpan siap dipilih sebagai satuan waktu pada layar-layar laporan periode per stasiun",
+    "Periode yang punya minimal satu stasiun tertutup tidak dapat diubah maupun dihapus"
   ],
   "business_rules": [
     "Hanya Admin yang dapat mengakses dan menjalankan usecase ini",
-    "Business Unit wajib; jenis stasiun opsional — kosong berarti berlaku untuk semua jenis stasiun di mill tersebut",
-    "Nama periode unik per kombinasi mill + jenis stasiun",
+    "Business Unit wajib; TIDAK ada pilihan jenis stasiun — cakupan periode adalah seluruh mill pada rentang itu",
+    "Nama periode unik per Business Unit",
     "Tanggal selesai tidak boleh lebih awal dari tanggal mulai",
-    "Rentang tanggal tidak boleh tumpang tindih pada cakupan yang sama; periode tanpa jenis stasiun mencakup semua jenis stasiun di mill itu",
-    "Periode berstatus Tertutup tidak dapat diubah maupun dihapus sebelum dibuka kembali",
-    "Periode baru selalu dimulai berstatus Draft"
+    "Rentang tanggal tidak boleh tumpang tindih dengan periode lain pada mill yang sama, dengan batas inklusif di kedua ujungnya: satu tanggal hanya boleh dimiliki satu periode per mill",
+    "Menyimpan periode baru mendaftarkan satu baris stasiun berstatus Draft untuk setiap jenis stasiun yang benar-benar aktif di mill itu; mill tanpa stasiun aktif menghasilkan periode tanpa baris stasiun, bukan kegagalan",
+    "Menyimpan perubahan periode ikut menambahkan baris stasiun yang belum ada, bersifat add-only: baris yang sudah ada tidak pernah diubah maupun dihapus",
+    "Periode tidak dapat diubah maupun dihapus bila ada SATU saja stasiunnya yang berstatus Tertutup",
+    "Tombol Edit dan Hapus pada periode terbekukan ditampilkan nonaktif beserta penjelasan, tidak disembunyikan",
+    "Periode induk tidak punya status tunggal; kolom Status Stasiun hanyalah rangkuman status seluruh baris stasiunnya",
+    "Filter Status Stasiun bermakna 'punya minimal satu stasiun berstatus itu', sehingga satu periode campuran dapat muncul pada lebih dari satu nilai filter — pilihan ini diambil supaya tidak ada periode yang hilang dari daftar tersaring",
+    "Menutup, membuka, dan membuka kembali stasiun berada di layar Detail Periode Pelaporan, bukan di layar daftar ini"
   ],
   "bdd_scenarios": [
     {
       "scenario": "Kelola Periode Pelaporan — success",
-      "given": "Admin sudah login ke aplikasi web dan minimal ada satu Business Unit (mill) terdaftar di master data",
-      "when": "Admin membuka menu 'Kelola Periode Pelaporan', menambah periode baru dengan mengisi Business Unit, jenis stasiun (opsional), nama periode, tanggal mulai, dan tanggal selesai yang valid, lalu menyimpannya",
-      "then": "Periode tersimpan dengan status Draft beserta cakupan mill + jenis stasiun dan rentang tanggal yang benar, muncul di daftar periode, serta siap dipilih sebagai satuan waktu pada layar-layar laporan periode per stasiun"
+      "given": "Admin sudah login ke aplikasi web dan minimal ada satu Business Unit (mill) dengan beberapa stasiun aktif terdaftar di master data",
+      "when": "Admin membuka menu 'Kelola Periode Pelaporan', menambah periode baru dengan mengisi Business Unit, nama periode, tanggal mulai, dan tanggal selesai yang valid, lalu menyimpannya",
+      "then": "Periode tersimpan dengan mill dan rentang tanggal yang benar beserta satu baris stasiun berstatus Draft untuk setiap jenis stasiun aktif di mill itu, muncul di daftar dengan ringkasan 'N stasiun' dan badge 'Draft', serta siap dipilih sebagai satuan waktu pada layar-layar laporan periode per stasiun"
     },
     {
       "scenario": "Kelola Periode Pelaporan — Rentang tanggal tumpang tindih",
-      "given": "Admin sudah login ke aplikasi web dan minimal ada satu Business Unit (mill) terdaftar di master data",
-      "when": "Rentang tanggal yang diisi Admin beririsan dengan periode lain pada mill + jenis stasiun yang sama, termasuk terhadap periode 'semua jenis stasiun' di mill tersebut",
-      "then": "Sistem menolak penyimpanan dan menampilkan pesan yang menyebut nama periode yang bentrok; periode tidak tersimpan dan form tetap terbuka dengan isian Admin"
+      "given": "Admin sudah login ke aplikasi web dan sudah ada periode lain pada mill yang sama",
+      "when": "Rentang tanggal yang diisi Admin beririsan dengan periode lain pada mill yang sama, termasuk bila hanya berbagi satu hari di batas rentang",
+      "then": "Sistem menolak penyimpanan dan menampilkan pesan yang menyebut nama periode yang bentrok beserta rentangnya; periode tidak tersimpan dan form tetap terbuka dengan isian Admin"
     },
     {
       "scenario": "Kelola Periode Pelaporan — Tanggal selesai lebih awal dari tanggal mulai",
@@ -147,15 +184,15 @@
     },
     {
       "scenario": "Kelola Periode Pelaporan — Nama periode sudah dipakai",
-      "given": "Admin sudah login ke aplikasi web dan minimal ada satu Business Unit (mill) terdaftar di master data",
-      "when": "Admin menyimpan periode dengan nama yang sudah dipakai pada kombinasi mill + jenis stasiun yang sama",
-      "then": "Sistem menolak penyimpanan dan menampilkan pesan kesalahan di bawah field nama; periode tidak tersimpan"
+      "given": "Admin sudah login ke aplikasi web dan sudah ada periode dengan nama tertentu pada sebuah mill",
+      "when": "Admin menyimpan periode dengan nama yang sudah dipakai pada Business Unit yang sama",
+      "then": "Sistem menolak penyimpanan dan menampilkan pesan kesalahan di bawah field nama; periode tidak tersimpan, sementara nama yang sama pada mill lain tetap diizinkan"
     },
     {
-      "scenario": "Kelola Periode Pelaporan — Mengubah atau menghapus periode yang sudah tertutup",
-      "given": "Admin sudah login ke aplikasi web dan minimal ada satu Business Unit (mill) terdaftar di master data",
-      "when": "Admin mencoba mengubah atau menghapus periode yang berstatus Tertutup",
-      "then": "Sistem menolak aksi dan menampilkan pesan yang mengarahkan Admin membuka kembali periode terlebih dahulu; data periode tidak berubah"
+      "scenario": "Kelola Periode Pelaporan — Mengubah atau menghapus periode yang punya stasiun tertutup",
+      "given": "Admin sudah login ke aplikasi web dan sebuah periode punya minimal satu jenis stasiun berstatus Tertutup",
+      "when": "Admin mencoba mengubah atau menghapus periode tersebut",
+      "then": "Tombol Edit dan Hapus tampil nonaktif beserta penjelasan pada atribut title, aksinya ditolak bila tetap dijalankan, pesan mengarahkan Admin membuka kembali stasiun itu dari layar Detail Periode Pelaporan terlebih dahulu, dan data periode tidak berubah"
     },
     {
       "scenario": "Kelola Periode Pelaporan — Belum ada Business Unit",
@@ -180,6 +217,30 @@
       "given": "Admin sudah login ke aplikasi web dan minimal ada satu Business Unit (mill) terdaftar di master data",
       "when": "Admin menyimpan periode tanpa memilih Business Unit, meskipun nama dan rentang tanggal sudah diisi",
       "then": "Sistem menolak penyimpanan dan menampilkan pesan kesalahan di bawah field Business Unit; periode tidak tersimpan"
+    },
+    {
+      "scenario": "Kelola Periode Pelaporan — Mill belum punya stasiun aktif",
+      "given": "Admin sudah login ke aplikasi web dan ada mill yang belum punya satu pun stasiun aktif",
+      "when": "Admin menyimpan periode baru untuk mill tersebut",
+      "then": "Periode tersimpan tanpa satu pun baris stasiun, pratinjau form sudah menjelaskan bahwa tidak akan ada yang bisa ditutup, daftar menampilkan 'Belum ada stasiun' dengan badge 'Tanpa Stasiun', dan periode tetap dapat diubah maupun dihapus"
+    },
+    {
+      "scenario": "Kelola Periode Pelaporan — Menyimpan ulang periode menambahkan baris stasiun yang belum ada",
+      "given": "Admin sudah login ke aplikasi web dan mill sebuah periode sudah mendapat jenis stasiun baru setelah periode itu dibuat, sementara periodenya belum punya stasiun tertutup",
+      "when": "Admin membuka form ubah periode itu dan menyimpannya kembali",
+      "then": "Pratinjau menandai jenis stasiun yang belum punya baris dengan badge 'Baru', penyimpanan menambahkan baris berstatus Draft untuk jenis itu, dan baris yang sudah ada — termasuk yang sudah Terbuka — tidak diubah maupun dihapus"
+    },
+    {
+      "scenario": "Kelola Periode Pelaporan — Filter Status Stasiun mencocokkan periode yang punya minimal satu stasiun berstatus itu",
+      "given": "Admin sudah login ke aplikasi web dan sebuah periode punya Sterilizer Tertutup sementara Clarification masih Terbuka",
+      "when": "Admin menyaring daftar dengan Status Stasiun 'Tertutup', lalu menyaringnya lagi dengan 'Terbuka'",
+      "then": "Periode itu muncul pada kedua nilai filter dan tidak pernah hilang dari daftar tersaring, dengan badge ringkasan 'Campuran'"
+    },
+    {
+      "scenario": "Kelola Periode Pelaporan — Membuka detail periode dari daftar",
+      "given": "Admin sudah login ke aplikasi web dan terdapat periode pada daftar Kelola Periode Pelaporan",
+      "when": "Admin menekan nama periode tersebut",
+      "then": "Layar Detail Periode Pelaporan periode itu terbuka, tempat seluruh jenis stasiunnya beserta aksi tutup/buka/buka kembali per stasiun berada — daftar ini sendiri tidak menyediakan aksi per stasiun"
     }
   ],
   "related_screen_ids": [

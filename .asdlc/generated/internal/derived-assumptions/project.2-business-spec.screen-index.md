@@ -15,3 +15,9 @@
 - screens.135–139 = 5 layar laporan mobile TERPISAH per stasiun (bukan satu layar dengan pemilih stasiun) ← agent mirrored the existing per-station screen pattern (Monitor/Form/Data Preview are all per-station); user only said reports must exist on mobile
 - screens.134--dashboard-reporting-mobile = layar wadah tersendiri ← user said mobile reports live "di menu dashboard & reporting"; modelling that menu as its own screen with a station list is the agent's choice
 - screens.129–133 isi laporan per stasiun (siklus rebus, antrean lori, blowdown/sootblowing, produksi minyak murni, pergerakan stok) ← derived by the agent from each station's recorded columns; user never specified report contents
+
+## v12 — 2026-09-27
+
+- `screens[+] = screen-142--detail-periode-pelaporan` ← user menyatakan "periode bukan accordion tapi pindah page untuk melihat detailnya" dan memilih bentuk layar baru; penomoran 142 dan penamaan `detail-*` diturunkan dari konvensi repo (`screen-106--detail-storage-tank-web` dkk di `module-web-station-data`), bukan dari user.
+- `screens[screen-142].module_id = module-master-data` ← tidak dinyatakan. Diletakkan sebaris dengan induknya screen-128. Catatan: ini layar `detail-*` PERTAMA di modul master-data — sembilan layar lain di sana semuanya CRUD satu-layar.
+- `screens[screen-128].description` ditulis ulang ← tidak diminta user. Deskripsi lama sudah usang sejak commit 83a4065: ia masih menyebut cakupan "mill + jenis stasiun" dan menutup "periode", padahal cakupannya kini mill saja dan yang ditutup adalah jenis stasiun di dalam periode. Membiarkannya berarti screen-index berbohong tentang layar yang sudah berubah.

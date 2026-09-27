@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-24"
+    "updated_at": "2026-09-27"
   },
   "id": "screen-130--laporan-cages-track-web",
   "name": "Laporan Cages & Tracks (Web)",
@@ -76,7 +76,7 @@
         {
           "method": "GET",
           "path": "/api/cages-track-reports/periods",
-          "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Cages & Tracks pada mill yang dilihat",
+          "description": "Daftar Periode Pelaporan yang PUNYA BARIS period_stations untuk jenis stasiun Cages & Tracks pada mill yang dilihat. Bentuk responsnya tetap datar seperti sebelum pemisahan periods/period_stations (2026-09-25); yang berubah adalah artinya — status adalah status Cages & Tracks di dalam periode itu, bukan status periode.",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -99,9 +99,9 @@
                   "name": "string",
                   "start_date": "date",
                   "end_date": "date",
-                  "status": "string",
-                  "station_type": "string|null",
-                  "station_type_label": "string"
+                  "status": "string (draft|open|closed) — status BARIS period_stations Cages & Tracks, bukan status periode",
+                  "station_type": "string",
+                  "station_type_label": "string — selalu nama jenis stasiun layar ini dari master station_types; tidak pernah 'Semua Stasiun'"
                 }
               ]
             },
@@ -165,7 +165,7 @@
                 "name": "string",
                 "start_date": "date",
                 "end_date": "date",
-                "status": "string",
+                "status": "string (draft|open|closed) — status BARIS period_stations Cages & Tracks di periode itu",
                 "business_unit_name": "string"
               },
               "kpi": {
@@ -304,8 +304,10 @@
       ],
       "business_logic": [
         "resolveBusinessUnit: actor supervisor/mill_management -> pakai auth()->user()->business_unit_id dan ABAIKAN query business_unit_id; bila business_unit_id user null -> 422 VALIDATION_ERROR dengan pesan menghubungi Admin, dan businessUnitRepo->all() TIDAK dipanggil (gagal tertutup). actor admin -> wajib ambil dari query, bila kosong: 422 VALIDATION_ERROR errors.business_unit_id. actor operator -> 403 FORBIDDEN di seluruh endpoint.",
-        "listPeriods: SELECT Period WHERE business_unit_id = <hasil resolve> AND (station_type = 'cages-track' OR station_type IS NULL) ORDER BY start_date DESC -> map station_type_label dari station_types.name atau 'Semua Stasiun' bila null -> return array kosong bila tidak ada (bukan 404).",
+        "listPeriods: SELECT Period WHERE business_unit_id = <hasil resolve> AND EXISTS (baris period_stations dengan station_type = 'cages-track') — whereHas('stations', ...) — dengan eager-load relasi stations DIBATASI station_type = 'cages-track' supaya statusValue() tidak menembak satu kueri per periode (N+1) -> ORDER BY start_date DESC, name ASC -> petakan tiap periode lewat periodOption() -> return array kosong bila tidak ada (bukan 404). Cabang lama `OR station_type IS NULL` beserta label 'Semua Stasiun' DIHAPUS bersama kolom periods.station_type (2026-09-25): cakupan semua-stasiun kini diwujudkan sebagai SATU BARIS period_stations per jenis stasiun, sehingga periode yang tidak punya baris 'cages-track' memang tidak dipungut sama sekali.",
+        "statusValue(period): baca baris period_stations periode itu untuk station_type = 'cages-track' lewat stationRowOf() — memakai relasi yang sudah di-eager-load bila ada, kalau belum menembak kuerinya sendiri -> kembalikan status baris itu. Bila barisnya tidak ada, kembalikan 'draft' (artinya 'stasiun ini belum dipakai di periode ini'), sengaja bukan string kosong karena nilai status wajib tetap salah satu dari draft/open/closed. JANGAN membaca $period->status: sejak 2026-09-25 induk tidak punya status dan model melempar LogicException bila atribut itu dibaca.",
         "authorizePeriod: findOrFail period_id -> 404 jika tidak ada -> if actor supervisor/mill_management AND period.business_unit_id <> user.business_unit_id: 403 FORBIDDEN -> actor admin lolos untuk mill mana pun.",
+        "periodOption(period): bentuk datar { id, name, start_date, end_date, status: statusValue(period), station_type: 'cages-track', station_type_label: nama dari master station_types }. station_type TIDAK PERNAH null — hanya periode yang punya baris untuk jenis ini yang sampai ke sini — sehingga kontrak API tidak ikut berubah bentuk meski modelnya terpecah.",
         "summary base: ambil cages_track_records JOIN stations ON record.station_id WHERE stations.business_unit_id = period.business_unit_id AND stations.type = 'cages-track' AND whereDate(record.date) >= period.start_date AND whereDate(record.date) <= period.end_date (INKLUSIF dua ujung, memakai record.date -- tanggal kejadian -- BUKAN created_at maupun waktu sync). Lalu eager-load relasi cages_tipped_times tiap record. SATU TANGGAL DAPAT PUNYA BEBERAPA RECORD (satu per cages_track_number / per stasiun); seluruh agregasi per hari menggabungkan semuanya.",
         "GRAIN -- ini titik paling mudah salah: total_cages_tipped dijumlahkan dari cages_tipped_times.total_cages (baris rincian per jam), sedangkan total_cages_out dijumlahkan dari cages_track_records.cages_out (baris HEADER, satu per record). Keduanya berada pada grain yang berbeda. Menjumlahkan cages_out di atas hasil JOIN ke rincian akan mengalikannya sebanyak jumlah baris jam pada record itu. Jumlahkan cages_out dengan iterasi record, bukan iterasi rincian.",
         "summary: cages_track_records.cages_tipped (angka ringkasan pada header) TIDAK PERNAH dipakai sebagai sumber angka penumpahan mana pun. Seluruh angka penumpahan berasal dari baris rincian per jam. Keduanya dapat berbeda bila Operator mengoreksi salah satunya, dan rincian per jam adalah yang tercatat per kejadian.",
@@ -326,7 +328,12 @@
         {
           "entity_id": "period",
           "operation": "SELECT",
-          "description": "Daftar periode untuk pemilih, dan pembacaan rentang tanggal periode terpilih"
+          "description": "Induk periode: rentang tanggal periode terpilih dan nama periode pada pemilih. Tidak lagi menyimpan status maupun station_type — keduanya pindah ke period-station pada 2026-09-25."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Penyaring pemilih periode (whereHas station_type = 'cages-track') dan sumber nilai status pada opsi periode serta pada header summary. Di-eager-load terbatas pada jenis stasiun ini untuk menghindari N+1."
         },
         {
           "entity_id": "cages-tipped-time",
@@ -346,7 +353,7 @@
         {
           "entity_id": "station-type",
           "operation": "SELECT",
-          "description": "Resolusi station_type_label pada daftar periode"
+          "description": "Resolusi station_type_label pada daftar periode — label selalu nama jenis stasiun layar ini, dibaca dari master (bukan dari enum), dan tidak pernah lagi 'Semua Stasiun'"
         },
         {
           "entity_id": "business-unit",
@@ -396,24 +403,28 @@
           "handling": "422 VALIDATION_ERROR dengan pesan menghubungi Admin; businessUnitRepo->all() TIDAK dipanggil sehingga daftar seluruh mill tidak pernah bocor ke peran yang seharusnya terikat satu mill"
         },
         {
-          "condition": "Mill belum punya satu pun periode yang mencakup Cages & Tracks",
+          "condition": "Mill belum punya satu pun periode yang punya baris period_stations untuk Cages & Tracks",
           "handling": "200 dengan data kosong; UI menampilkan no-periods berisi arahan menghubungi Admin, period-select kosong"
+        },
+        {
+          "condition": "Periode induk ada di mill itu tetapi tidak punya baris period_stations untuk Cages & Tracks (mis. mill tanpa stasiun Cages & Tracks aktif saat periode dibuat, atau periode yang hanya mengelola jenis stasiun lain)",
+          "handling": "Periode itu TIDAK ditawarkan di pemilih sama sekali — perilaku BARU yang menggantikan cabang orWhereNull('station_type'). Bila period_id-nya tetap ditembak langsung ke summary/export, laporan tetap dihitung dari rentang tanggal induk dan statusValue() memulangkan 'draft'; bentuk ini hanya bisa muncul lewat summary()/export(), tidak pernah lewat pemilih."
         },
         {
           "condition": "Periode sangat panjang sehingga rekap hariannya puluhan baris",
           "handling": "Rekap harian memakai <details> yang tertutup secara bawaan dan dapat dibuka; tabelnya menggulir di dalam kartunya sendiri, halaman tidak pernah menggulir horizontal"
         },
         {
-          "condition": "Periode berstatus tertutup",
-          "handling": "Tetap dapat dilihat dan diekspor sepenuhnya — kunci periode mengatur penulisan data, bukan pembacaan laporan. Tombol Ekspor tidak dinonaktifkan"
+          "condition": "Baris period_stations Cages & Tracks berstatus Draft atau Tertutup",
+          "handling": "Tetap dapat dilihat dan diekspor penuh — kunci periode mengatur PENULISAN data, bukan pembacaan laporan, dan kuncinya berlaku per jenis stasiun. Tombol Ekspor tidak dinonaktifkan; status hanya keterangan, dan yang ditampilkan adalah status Cages & Tracks, bukan status jenis stasiun lain di periode yang sama."
         }
       ],
       "business_rules_applied": [
         "Hanya Supervisor, Mill Management, dan Admin yang dapat mengakses; Operator ditolak 403 di seluruh endpoint",
         "Supervisor dan Mill Management terkunci pada millnya sendiri, dan input business_unit_id dari klien diabaikan server",
         "Admin wajib memilih mill; tanpa itu 422, bukan hasil kosong yang menyesatkan",
-        "Pemilih periode hanya memuat periode ber-station_type 'cages-track' atau NULL (semua jenis stasiun)",
-        "Status periode tidak membatasi pembacaan — periode tertutup tetap dapat dilihat dan diekspor",
+        "Pemilih periode hanya memuat periode yang punya baris period_stations untuk jenis stasiun 'cages-track'; periode tanpa baris itu tidak ditawarkan. Konsep station_type NULL = 'berlaku semua jenis stasiun' beserta label 'Semua Stasiun' sudah tidak ada — cakupan semua-stasiun diwujudkan sebagai satu baris per jenis stasiun.",
+        "Status tutup/buka adalah milik BARIS period_stations jenis stasiun ini, bukan milik periode, dan tidak membatasi pembacaan maupun ekspor — Cages & Tracks dapat tertutup sementara jenis stasiun lain di periode yang sama masih terbuka.",
         "Rentang periode inklusif di kedua ujung dan memakai record.date (tanggal kejadian), bukan created_at maupun waktu sync",
         "Seluruh angka penumpahan berasal dari baris rincian per jam, tidak pernah dari angka ringkasan pada record harian",
         "Jam menganggur hanya dihitung di dalam jendela operasi tippler, tidak pernah atas 24 jam penuh",
@@ -474,9 +485,14 @@
           "expect": "tidak ada exception; agregasi berjalan atas BU-B"
         },
         {
-          "description": "daftar periode hanya memuat station_type 'cages-track' atau NULL",
-          "given": "business unit punya periode berjenis 'cages-track', periode station_type NULL, dan periode berjenis 'sterilizer'",
-          "expect": "hasil hanya berisi periode 'cages-track' dan periode NULL; periode 'sterilizer' tidak ikut"
+          "description": "daftar periode hanya memuat periode yang punya baris period_stations untuk 'cages-track', selalu dilaporkan sebagai pasangan (periode, Cages & Tracks)",
+          "given": "business unit punya periode P1 dengan baris period_stations 'cages-track', periode P2 bercakupan seluruh mill (satu baris per jenis stasiun aktif, termasuk 'cages-track' — bentuk yang menggantikan station_type NULL sejak 2026-09-25), dan periode P3 yang hanya punya baris 'sterilizer'",
+          "expect": "hasil memuat P1 dan P2 dan tidak memuat P3; setiap opsi membawa station_type = 'cages-track' dan station_type_label dari master — tidak pernah null dan tidak pernah 'Semua Stasiun'"
+        },
+        {
+          "description": "listPeriods TIDAK memungut periode tanpa baris period_stations untuk 'cages-track'",
+          "given": "mill punya periode P4 dengan baris period_stations untuk jenis stasiun lain saja, dan periode P5 tanpa satu pun baris period_stations",
+          "expect": "hasil tidak memuat P4 maupun P5 — inilah jaminan yang dulu diberikan cabang orWhereNull('station_type') dan kini sengaja dibuang: tanpa baris untuk jenis ini sebuah periode bukan periode Cages & Tracks, sekalipun millnya sama"
         },
         {
           "description": "daftar periode dibatasi pada business unit yang berlaku",
@@ -484,8 +500,13 @@
           "expect": "hanya periode milik BU-A yang dikembalikan"
         },
         {
+          "description": "status yang dilaporkan adalah status Cages & Tracks, bukan status jenis stasiun lain di periode yang sama",
+          "given": "periode P6 milik mill pengguna dengan baris period_stations 'cages-track' berstatus 'open' dan baris jenis stasiun lain berstatus 'closed'",
+          "expect": "opsi listPeriods untuk P6 berstatus 'open'; summary(P6).period.status juga 'open' (jalur tanpa relasi ter-eager-load memakai stationRowOf() yang sama); setelah statusnya dibalik — 'cages-track' closed, jenis stasiun lain open — summary(P6).period.status menjadi 'closed'"
+        },
+        {
           "description": "daftar periode kosong mengembalikan array kosong, bukan 404",
-          "given": "business unit tidak punya satu pun periode cages-track maupun periode NULL",
+          "given": "business unit tidak punya satu pun periode dengan baris period_stations station_type = 'cages-track'",
           "expect": "mengembalikan [] dengan http 200; tidak ada exception"
         },
         {
@@ -746,9 +767,13 @@
     }
   ],
   "implementation_notes": [
+    "PEMISAHAN periods/period_stations (2026-09-25, commit 83a4065) — yang berubah di layar ini: (1) periods tidak lagi punya station_type/status/closed_by/closed_at; semuanya di period_stations dengan UNIQUE(period_id, station_type). (2) Konsep station_type NULL = 'berlaku semua jenis stasiun' beserta label 'Semua Stasiun' HILANG sepenuhnya — cakupan semua-stasiun kini berarti ADANYA satu baris per jenis stasiun. (3) listPeriods memakai whereHas('stations', station_type = 'cages-track'), sehingga periode tanpa baris untuk jenis ini tidak lagi dipungut — perilaku BARU, bukan penulisan ulang perilaku lama. (4) statusValue() membaca baris itu lewat stationRowOf() dan memulangkan 'draft' bila barisnya tidak ada; Period::$status melempar LogicException bila dibaca. (5) KONTRAK API TIDAK BERUBAH BENTUKNYA — periodOption() tetap datar dan summary().period tetap datar; yang berubah hanya artinya.",
     "Route /reports/cages-track, BUKAN /laporan/cages-track. Konvensi repo memakai prefix /reports (lihat reports.management, reports.stations, reports.sterilizer di routes/web.php); tidak ada satu pun route ber-prefix /laporan.",
+    "SKENARIO YANG BENTUKNYA BERUBAH, bukan hilang: 'periode jenis stasiun lain tidak ditawarkan' kini MUSTAHIL diproduksi lewat UI di dalam satu mill yang terprovisi, karena menyimpan periode mendaftarkan satu baris period_stations untuk setiap jenis stasiun yang dimiliki mill itu. Maksud yang sama kini dibuktikan dengan dua bentuk yang masih bisa diproduksi: (a) di unit/component test, periode yang dibuat langsung dengan hanya baris jenis stasiun lain atau tanpa baris sama sekali; (b) di browser test, periode milik mill tanpa satu pun stasiun aktif — itulah PERIOD_OTHER_MILL di e2e-web/tests/laporan-cages-track.spec.ts. Cakupan ujinya tidak berkurang; hanya fixture-nya yang berpindah ke bentuk yang dapat dibuat.",
     "Tile Cages & Tracks di screen-140 baru menyala setelah peta konstanta REPORT_ROUTES di StationReportService ditambah satu entri. Itu memang bentuk yang dipilih di screen-140 supaya menambah laporan stasiun berarti menambah satu baris, bukan menyebar pengecekan ke blade — tetapi artinya laporan ini tidak akan pernah tercapai lewat UI bila baris itu lupa ditambahkan, walau seluruh test laporannya hijau.",
+    "Fallback statusValue() = 'draft' untuk periode tanpa baris period_stations jenis stasiun ini TIDAK punya unit test khusus. Itu disengaja dan dicatat sebagai celah cakupan, bukan lubang implementasi: listPeriods() tidak pernah memulangkan periode tanpa baris, sehingga bentuk itu hanya dapat dicapai lewat summary()/export() dengan period_id yang ditembak langsung.",
     "CSS memakai partial bersama resources/views/dashboard/partials/report-styles.blade.php lewat <x-slot:styles> di view halaman — BUKAN @include di dalam komponen Livewire. Alasannya ditemukan mahal di screen-140: partial ini memancarkan <style>, dan Livewire 3 memasang wire:id pada elemen ter-render PERTAMA, sehingga menaruhnya di dalam/di atas root membuat seluruh wire:model berhenti bekerja. Component test tidak menangkapnya; browser test menangkapnya.",
+    "Satu skenario pemilih periode di artefak ini ditegakkan oleh TIGA test komponen terpisah di suite Livewire (hanya periode ber-baris cages-track yang ditawarkan / periode tanpa baris tidak ditawarkan / status opsi memakai status Cages & Tracks dan bukan status stasiun lain) plus dua unit test service baru. Pemecahan itu disengaja: ketiganya menguji konsekuensi berbeda dari pemisahan induk-anak dan menggabungkannya membuat kegagalan sulit dibaca.",
     "Dua modifier CSS baru perlu ditambahkan ke report-styles.blade.php, bukan ditulis inline di blade: .md-kpis--3 (sejajar .md-kpis--4 yang sudah ada, untuk baris KPI kedua berisi 3 kartu) dan .md-trendchart__col--off (sejajar .md-trendchart__col--low, untuk jam di luar jendela operasi pada grafik 24 jam, lengkap dengan legendanya).",
     "Grafik 24 jam dan tren harian memakai .md-trendchart. Pada 2026-09-24 partial itu diperbaiki: .md-trendchart sekarang height (bukan min-height) dan .md-trendchart__col adalah grid `auto 1fr auto` dengan height 100%. Sebelum perbaikan, tinggi batang berbentuk persen tidak pernah ter-resolve dan SELURUH batang jatuh ke min-height 4px — grafiknya rata. Jangan mengembalikan min-height, dan jangan menaruh label tambahan di dalam baris 1fr.",
     "GRAIN adalah bahaya utama layar ini: cages_out ada pada cages_track_records (header, satu per record), sedangkan total_cages ada pada cages_tipped_times (rincian per jam). Menjumlahkan cages_out di atas hasil JOIN ke rincian akan mengalikannya sebanyak jumlah baris jam. Ada unit test khusus untuk ini (cages_out 50 dengan 8 baris rincian harus menghasilkan 50, bukan 400).",
@@ -1186,7 +1211,7 @@
             "path": "/api/cages-track-reports/summary"
           },
           "request_example": {
-            "period_id": "<uuid periode berstatus closed>"
+            "period_id": "<uuid periode yang baris period_stations Cages & Tracks-nya berstatus closed>"
           },
           "expected_status": 200,
           "expected_error_code": null
@@ -1198,7 +1223,7 @@
             "path": "/api/cages-track-reports/export"
           },
           "request_example": {
-            "period_id": "<uuid periode berstatus closed>",
+            "period_id": "<uuid periode yang baris period_stations Cages & Tracks-nya berstatus closed>",
             "format": "csv"
           },
           "expected_status": 200,
@@ -1207,12 +1232,12 @@
       ],
       "component_test": {
         "component": "LaporanCagesTrack",
-        "action": "render komponen lalu pilih periode berstatus tertutup dan panggil aksi export-csv",
-        "assert": "hero-status menampilkan status tertutup, report-kpis tetap tampil penuh, dan export-csv tetap mengembalikan respons CSV"
+        "action": "render komponen lalu pilih periode yang baris period_stations 'cages-track'-nya berstatus tertutup, dan panggil aksi export-csv",
+        "assert": "hero-status menampilkan status tertutup milik baris Cages & Tracks (bukan status periode, dan bukan status jenis stasiun lain di periode yang sama), report-kpis tetap tampil penuh, dan export-csv tetap mengembalikan respons CSV"
       },
       "browser_test": {
         "route": "/reports/cages-track",
-        "action": "buka /reports/cages-track, pilih periode tertutup, lalu klik export-csv",
+        "action": "sebagai Admin, tutup HANYA baris stasiun Cages & Tracks pada satu periode di Kelola Periode Pelaporan; lalu buka /reports/cages-track, pilih periode itu, dan klik export-csv",
         "assert": "hero-status berteks tertutup, seluruh kartu KPI terlihat, tombol export-csv tidak dinonaktifkan, dan unduhan tetap terpicu"
       }
     },
@@ -1233,13 +1258,13 @@
       ],
       "component_test": {
         "component": "LaporanCagesTrack",
-        "action": "render komponen untuk mill yang punya campuran periode: berjenis cages-track, berjenis NULL (semua stasiun), dan berjenis sterilizer",
-        "assert": "period-select hanya memuat periode cages-track dan periode station_type NULL; periode sterilizer tidak ada di antara opsi"
+        "action": "render komponen untuk mill yang punya campuran periode: periode dengan baris period_stations 'cages-track', periode bercakupan seluruh mill (satu baris per jenis stasiun, termasuk cages-track), periode yang hanya punya baris jenis stasiun lain, dan periode tanpa satu pun baris period_stations",
+        "assert": "period-select hanya memuat kedua periode yang punya baris 'cages-track'; periode yang hanya punya baris jenis stasiun lain dan periode tanpa baris sama sekali tidak ada di antara opsi; terbaru di atas; seluruh station_type_label opsi berbunyi jenis stasiun layar ini, tidak pernah null dan tidak pernah 'Semua Stasiun'; dan status tiap opsi memakai status baris 'cages-track', bukan status jenis stasiun lain di periode yang sama"
       },
       "browser_test": {
         "route": "/reports/cages-track",
         "action": "buka /reports/cages-track lalu buka period-select",
-        "assert": "opsi period-select hanya memuat periode yang mencakup Cages & Tracks; nama periode sterilizer tidak muncul dan tidak dapat dipilih"
+        "assert": "opsi period-select hanya memuat periode yang PUNYA baris period_stations Cages & Tracks — dibuktikan langsung di layar Kelola Periode Pelaporan dengan membuka baris stasiunnya, bukan disimpulkan. Periode milik mill tanpa satu pun stasiun aktif (karenanya tanpa baris period_stations sama sekali) tidak muncul dan tidak dapat dipilih. Bentuk lama 'periode khusus jenis stasiun lain' tidak lagi dapat diproduksi lewat UI di dalam satu mill terprovisi, karena menyimpan periode mendaftarkan baris untuk setiap jenis stasiun yang dimiliki mill itu."
       }
     },
     {

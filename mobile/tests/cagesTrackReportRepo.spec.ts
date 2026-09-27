@@ -68,17 +68,28 @@ const PERIOD_CT = {
   end_date: '2026-03-14',
   status: 'open',
   station_type: 'cages-track',
-  station_type_label: 'Cages & Tracks',
+  station_type_label: 'Cages Track',
 }
 
-const PERIOD_ALL_TYPES = {
+/**
+ * Periode yang cakupannya mencakup BANYAK jenis stasiun sekaligus.
+ *
+ * Sampai 2026-09-25 bentuknya `station_type: null` + label 'Semua Jenis
+ * Stasiun'. Sejak `periods` dipecah menjadi `periods` + `period_stations`,
+ * cakupan itu diwujudkan sebagai satu baris period_stations per jenis, dan
+ * periodOption() hanya memulangkan baris jenis stasiun LAYAR INI — jadi
+ * station_type TIDAK PERNAH null lagi dan bentuknya tak berbeda dari
+ * periode berjenis tunggal. Yang tetap diuji fixture ini: periode semacam
+ * itu TETAP terpungut layar ini.
+ */
+const PERIOD_LINTAS_STASIUN = {
   id: 'per-2',
-  name: 'Periode Semua Stasiun Maret 2026',
+  name: 'Periode Lintas Stasiun Maret 2026',
   start_date: '2026-03-01',
   end_date: '2026-03-31',
   status: 'open',
-  station_type: null,
-  station_type_label: 'Semua Jenis Stasiun',
+  station_type: 'cages-track',
+  station_type_label: 'Cages Track',
 }
 
 const BUSINESS_UNITS = [
@@ -209,7 +220,7 @@ afterEach(() => {
 describe('cagesTrackReportRepo — unit_test_cases (tech spec screen-136)', () => {
   // unit_test_case 1
   it('fetchPeriods memanggil tepat GET /api/cages-track-reports/periods dan tidak menyaring station_type di klien', async () => {
-    apiGetMock.mockResolvedValueOnce({ data: { data: [PERIOD_CT, PERIOD_ALL_TYPES] } })
+    apiGetMock.mockResolvedValueOnce({ data: { data: [PERIOD_CT, PERIOD_LINTAS_STASIUN] } })
 
     const periods = await fetchPeriods()
 
@@ -218,11 +229,12 @@ describe('cagesTrackReportRepo — unit_test_cases (tech spec screen-136)', () =
     expect(apiGetMock).toHaveBeenCalledWith('/api/cages-track-reports/periods', { params: {} })
 
     // Seluruh entri diteruskan apa adanya, dalam urutan server. Penyaringan
-    // cakupan Cages & Tracks sepenuhnya milik server — termasuk periode
-    // ber-station_type null, yang TIDAK boleh dibuang di sini.
-    expect(periods).toEqual([PERIOD_CT, PERIOD_ALL_TYPES])
+    // cakupan Cages & Tracks sepenuhnya milik server — termasuk periode yang
+    // mencakup banyak jenis stasiun sekaligus, yang TIDAK boleh dibuang di
+    // sini.
+    expect(periods).toEqual([PERIOD_CT, PERIOD_LINTAS_STASIUN])
     expect(periods).toHaveLength(2)
-    expect(periods[1].station_type).toBeNull()
+    expect(periods[1].station_type).toBe('cages-track')
   })
 
   // unit_test_case 2

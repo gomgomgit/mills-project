@@ -133,6 +133,37 @@ class PeriodService
     }
 
     /**
+     * getDetail() — ONE period, in the exact shape one entry of
+     * listPeriods()'s `data[]` has (screen-142--detail-periode-pelaporan /
+     * usecase-145, GET /api/periods/{id} and the Livewire detail component).
+     *
+     * IT RETURNS toRow() UNCHANGED, ON PURPOSE. The detail screen shows the
+     * same object the list screen shows, so giving it a second shape —
+     * flattened, renamed, or with the station rows lifted out — would mean
+     * two representations of a period that have to be kept in step forever.
+     * `stations[]` is already ordered by the master's sort_order here; no
+     * caller may reorder it.
+     *
+     * Eager-loads exactly what toRow() reads (businessUnit for the mill
+     * name, stations.closedBy for the per-row closer name), mirroring
+     * listPeriods().
+     *
+     * @return array<string, mixed>
+     *
+     * @throws ModelNotFoundException 404 NOT_FOUND — no such period, or it
+     *                                was deleted by another Admin
+     */
+    public function getDetail(string $id): array
+    {
+        /** @var Period $period */
+        $period = Period::query()
+            ->with(['businessUnit', 'stations.closedBy'])
+            ->findOrFail($id);
+
+        return $this->toRow($period);
+    }
+
+    /**
      * businessUnitOptions() — feeds the Business Unit-select on the
      * create/edit form. Mirrors ProductionLineService::
      * businessUnitOptions() exactly; returns [] (not an exception) when no

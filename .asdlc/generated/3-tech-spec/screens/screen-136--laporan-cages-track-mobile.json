@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-24"
+    "updated_at": "2026-09-27"
   },
   "id": "screen-136--laporan-cages-track-mobile",
   "name": "Laporan Cages & Tracks (Mobile)",
@@ -76,7 +76,7 @@
         {
           "method": "GET",
           "path": "/api/cages-track-reports/periods",
-          "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Cages & Tracks pada mill yang dilihat — DIPAKAI ULANG apa adanya oleh screen-136 (mobile); tidak ada endpoint mobile terpisah",
+          "description": "Daftar Periode Pelaporan yang PUNYA BARIS period_stations untuk jenis stasiun Cages & Tracks pada mill yang dilihat — DIPAKAI ULANG apa adanya oleh screen-136 (mobile); tidak ada endpoint mobile terpisah. Cabang lama station_type=NULL ('berlaku semua jenis stasiun') DIHAPUS bersama kolom periods.station_type (2026-09-25): cakupan semua-stasiun kini diwujudkan sebagai satu baris per jenis stasiun, sehingga periode tanpa baris 'cages-track' tidak dikembalikan sama sekali.",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -99,9 +99,9 @@
                   "name": "string",
                   "start_date": "date",
                   "end_date": "date",
-                  "status": "string",
-                  "station_type": "string|null",
-                  "station_type_label": "string"
+                  "status": "string (draft|open|closed) — status BARIS period_stations Cages & Tracks di periode itu, bukan status periode",
+                  "station_type": "string",
+                  "station_type_label": "string — selalu nama jenis stasiun layar ini; tidak pernah 'Semua Stasiun'"
                 }
               ]
             },
@@ -160,7 +160,7 @@
                 "name": "string",
                 "start_date": "date",
                 "end_date": "date",
-                "status": "string",
+                "status": "string (draft|open|closed) — status BARIS period_stations Cages & Tracks di periode itu",
                 "business_unit_name": "string"
               },
               "kpi": {
@@ -315,7 +315,12 @@
         {
           "entity_id": "period",
           "operation": "SELECT",
-          "description": "Lewat endpoint screen-130 — tidak ada akses basis data langsung dari ponsel"
+          "description": "Induk periode: rentang tanggal dan nama periode pada pemilih. Tidak lagi menyimpan status maupun station_type — keduanya pindah ke period-station pada 2026-09-25."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Dibaca server (bukan klien) sebagai penyaring daftar periode (station_type = 'cages-track') dan sebagai sumber nilai status pada opsi periode serta header summary yang diterima layar ini."
         },
         {
           "entity_id": "cages-tipped-time",
@@ -378,14 +383,14 @@
         "Admin wajib memilih mill; tanpa itu 422",
         "Angka berasal dari endpoint yang sama dengan laporan web — tidak ada perhitungan kedua di sisi ponsel",
         "null bertahan sebagai null melewati lapisan klien",
-        "Status periode tidak membatasi pembacaan maupun ekspor",
+        "Status tutup/buka adalah milik BARIS period_stations jenis stasiun ini, bukan milik periode, dan tidak membatasi pembacaan maupun ekspor — Cages & Tracks dapat tertutup sementara jenis stasiun lain di periode yang sama masih terbuka",
         "Layar hanya membaca; tidak ada aksi tulis",
         "Kegagalan jaringan dinyatakan beserta cara mencoba lagi, tanpa kehilangan periode terpilih"
       ],
       "unit_test_cases": [
         {
           "description": "fetchPeriods memanggil tepat GET /api/cages-track-reports/periods dan tidak menyaring jenis stasiun di sisi klien",
-          "given": "apiClient.get di-mock mengembalikan { data: { data: [ { id, name, start_date, end_date, status, station_type, station_type_label } ] } }",
+          "given": "apiClient.get di-mock mengembalikan { data: { data: [ { id, name, start_date, end_date, status, station_type, station_type_label } ] } } — dengan station_type selalu terisi 'cages-track' dan station_type_label selalu nama jenis stasiun layar ini; sejak 2026-09-25 server tidak pernah lagi mengirim station_type null maupun label 'Semua Stasiun'",
           "expect": "apiClient.get dipanggil tepat satu kali dengan path '/api/cages-track-reports/periods'; seluruh entri diteruskan apa adanya; TIDAK ada penyaringan station_type di repo — penyaringan cakupan Cages & Tracks sepenuhnya milik server"
         },
         {
@@ -530,8 +535,11 @@
     }
   ],
   "implementation_notes": [
+    "PEMISAHAN periods/period_stations (2026-09-25, commit 83a4065) — KONTRAK API TIDAK BERUBAH BENTUKNYA, jadi layar ini tidak perlu berubah bentuk: opsi periode tetap datar { id, name, start_date, end_date, status, station_type, station_type_label }. Yang berubah adalah ARTINYA: (1) `status` adalah status BARIS period_stations 'cages-track' di periode itu, bukan status periode — periode tidak punya status lagi; (2) `station_type` selalu berisi 'cages-track' dan TIDAK LAGI NULLABLE, karena hanya periode yang punya baris untuk jenis ini yang dikembalikan; (3) `station_type_label` tidak pernah lagi bernilai 'Semua Stasiun' — label itu lenyap bersama konsep station_type NULL; (4) periode yang tidak punya baris untuk jenis stasiun ini TIDAK dikembalikan server, perilaku BARU yang menggantikan cabang orWhereNull('station_type').",
     "TIDAK ADA endpoint baru dan TIDAK ADA tambahan ke api-index. Keempat endpoint sudah terdaftar atas nama screen-130. Yang berubah hanya actor_ids-nya, karena Operator kini diterima.",
+    "Tidak ada penyaringan station_type di klien — repo maupun komponen meneruskan apa adanya. Itu tetap benar setelah pemisahan induk-anak, dan justru makin penting: keanggotaan periode kini ditentukan oleh keberadaan baris period_stations, sesuatu yang klien tidak punya aksesnya. Menyaring ulang di klien akan menciptakan definisi kedua yang pasti menyimpang.",
     "Empat perubahan perluasan akses harus dikerjakan BERSAMAAN. Yang paling mudah terlewat adalah resolveBusinessUnit(): tanpa menambahkan Operator ke cabang terikat mill, Operator jatuh ke cabang Admin dan dapat membaca mill mana pun. Dikunci oleh test 'mencoba melihat mill lain' langkah 1, yang mengharuskan 200 berisi data mill SENDIRI.",
+    "KETIDAKCOCOKAN YANG BELUM DIBERESKAN DI KODE MOBILE (diverifikasi 2026-09-27, tidak diperbaiki oleh sinkronisasi artefak ini): (a) mobile/src/services/cagesTrackReportRepo.ts masih mendeklarasikan `station_type: string | null` dan komentar fetchPeriods()-nya masih berbunyi \"station_type 'cages-track' ATAU null\"; (b) fixture di mobile/tests/LaporanCagesTrackView.spec.ts dan mobile/tests/e2e/laporan-cages-track.spec.ts masih memakai `station_type: null` dengan `station_type_label: 'Semua Jenis Stasiun'`. Tesnya tetap hijau karena layar hanya meneruskan data, tetapi bentuk yang di-mock itu MUSTAHIL diproduksi backend sejak 2026-09-25. Yang benar menurut artefak ini: station_type non-nullable dan label selalu jenis stasiun layar ini.",
     "Guard rute wajib 'auth:web,sanctum', bukan 'auth:web' saja — mobile memakai token Sanctum. Rute sterilizer-reports sudah memakai bentuk ini sejak screen-135; cages-track-reports masih 'auth:web' dan harus disamakan.",
     "Test screen-130 yang saat ini mengasersi Operator ditolak 403 di API HARUS disesuaikan menjadi: Operator diterima di API, tetapi tetap ditolak di rute web /reports/cages-track. Jangan melemahkan asersi lain, dan jangan menghapus asersi penolakan di sisi web.",
     "unit_test_cases menyasar mobile/src/services/cagesTrackReportRepo.ts, BUKAN CagesTrackReportService. Perubahan sisi server ditutup oleh integration test (api_test) dan oleh penyesuaian test screen-130.",
@@ -1001,7 +1009,7 @@
             "path": "/api/cages-track-reports/summary"
           },
           "request_example": {
-            "period_id": "<periode berstatus closed>"
+            "period_id": "<periode yang baris period_stations Cages & Tracks-nya berstatus closed>"
           },
           "expected_status": 200,
           "expected_error_code": null
@@ -1013,7 +1021,7 @@
             "path": "/api/cages-track-reports/export"
           },
           "request_example": {
-            "period_id": "<periode berstatus closed yang sama>",
+            "period_id": "<periode yang baris period_stations Cages & Tracks-nya berstatus closed, yang sama>",
             "format": "csv"
           },
           "expected_status": 200,
@@ -1022,12 +1030,12 @@
       ],
       "component_test": {
         "component": "LaporanCagesTrackView",
-        "action": "pasang komponen dengan periode terpilih berstatus tertutup",
-        "assert": "seluruh bagian laporan tetap terender penuh, penanda status tertutup dirender, dan tombol Ekspor tetap aktif (tidak dinonaktifkan oleh status periode)"
+        "action": "pasang komponen dengan periode terpilih yang statusnya tertutup — status itu adalah status baris period_stations Cages & Tracks sebagaimana dikirim server",
+        "assert": "seluruh bagian laporan tetap terender penuh, penanda status tertutup dirender (status baris Cages & Tracks, bukan status periode dan bukan status jenis stasiun lain di periode yang sama), dan tombol Ekspor tetap aktif"
       },
       "browser_test": {
         "route": "/reports/cages-track",
-        "action": "pilih periode yang berstatus tertutup lalu jalankan Ekspor",
+        "action": "pilih periode yang baris stasiun Cages & Tracks-nya sudah ditutup Admin, lalu jalankan Ekspor",
         "assert": "laporan tampil penuh, status tertutup terbaca di layar, dan unduhan CSV berjalan"
       }
     },
@@ -1113,7 +1121,7 @@
             "path": "/api/cages-track-reports/periods"
           },
           "request_example": {
-            "_context": "Token Sanctum Supervisor pada mill yang punya periode cages-track, periode station_type NULL, dan periode sterilizer"
+            "_context": "mill punya periode dengan baris period_stations 'cages-track', periode bercakupan seluruh mill (satu baris per jenis stasiun, termasuk cages-track), dan periode tanpa baris untuk jenis stasiun ini; hanya dua yang pertama boleh dikembalikan"
           },
           "expected_status": 200,
           "expected_error_code": null
@@ -1122,12 +1130,12 @@
       "component_test": {
         "component": "LaporanCagesTrackView",
         "action": "pasang komponen dengan repo.fetchPeriods di-mock mengembalikan tepat daftar yang sudah disaring server",
-        "assert": "pemilih Periode merender tepat sebanyak entri yang dikembalikan server dalam urutan yang sama, dan komponen TIDAK menjalankan penyaringan station_type sendiri"
+        "assert": "pemilih Periode merender persis entri yang diterima dalam urutan yang sama; komponen maupun repo TIDAK menyaring station_type sendiri — penyaringan cakupan adalah pekerjaan server, dan sejak pemisahan periods/period_stations klien bahkan tidak punya datanya (keanggotaan ditentukan oleh keberadaan baris period_stations). Setiap opsi berlabel jenis stasiun layar ini, tidak pernah null dan tidak pernah 'Semua Stasiun'"
       },
       "browser_test": {
         "route": "/reports/cages-track",
-        "action": "buka pemilih Periode pada laporan Cages & Tracks di mill yang punya beragam cakupan periode",
-        "assert": "hanya periode berjenis Cages & Tracks dan periode berlaku semua jenis stasiun yang terbaca; periode sterilizer tidak muncul"
+        "action": "buka pemilih Periode pada laporan Cages & Tracks di mill yang punya periode ber-baris cages-track dan periode bercakupan seluruh mill, plus satu periode tanpa baris period_stations sama sekali",
+        "assert": "pemilih hanya memuat periode yang PUNYA baris period_stations Cages & Tracks; periode tanpa baris untuk jenis stasiun ini tidak muncul. Bentuk lama 'periode khusus jenis stasiun lain' tidak lagi dapat diproduksi lewat UI di dalam satu mill terprovisi, karena menyimpan periode mendaftarkan baris untuk setiap jenis stasiun yang dimiliki mill itu — maksud yang sama kini dibuktikan lewat periode tanpa baris sama sekali"
       }
     },
     {

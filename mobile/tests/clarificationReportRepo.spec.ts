@@ -105,14 +105,25 @@ const PERIOD_CLARIFICATION = {
   station_type_label: 'Clarification',
 }
 
-const PERIOD_ALL_TYPES = {
+/**
+ * Periode yang cakupannya mencakup BANYAK jenis stasiun sekaligus.
+ *
+ * Sampai 2026-09-25 bentuknya `station_type: null` + label 'Semua Jenis
+ * Stasiun'. Sejak `periods` dipecah menjadi `periods` + `period_stations`,
+ * cakupan itu diwujudkan sebagai satu baris period_stations per jenis, dan
+ * periodOption() hanya memulangkan baris jenis stasiun LAYAR INI — jadi
+ * station_type TIDAK PERNAH null lagi dan bentuknya tak berbeda dari
+ * periode berjenis tunggal. Yang tetap diuji fixture ini: periode semacam
+ * itu TETAP terpungut layar ini.
+ */
+const PERIOD_LINTAS_STASIUN = {
   id: 'per-2',
-  name: 'Periode Semua Stasiun Maret 2026',
+  name: 'Periode Lintas Stasiun Maret 2026',
   start_date: '2026-03-01',
   end_date: '2026-03-31',
   status: 'open',
-  station_type: null,
-  station_type_label: 'Semua Jenis Stasiun',
+  station_type: 'clarification',
+  station_type_label: 'Clarification',
 }
 
 const BUSINESS_UNITS = [
@@ -341,7 +352,7 @@ afterEach(() => {
 describe('clarificationReportRepo — lapisan repo (screen-138)', () => {
   // 1
   it('fetchPeriods memanggil tepat GET /api/clarification-reports/periods dan tidak menyaring jenis stasiun di klien', async () => {
-    apiGetMock.mockResolvedValueOnce({ data: { data: [PERIOD_CLARIFICATION, PERIOD_ALL_TYPES] } })
+    apiGetMock.mockResolvedValueOnce({ data: { data: [PERIOD_CLARIFICATION, PERIOD_LINTAS_STASIUN] } })
 
     const periods = await fetchPeriods()
 
@@ -350,12 +361,13 @@ describe('clarificationReportRepo — lapisan repo (screen-138)', () => {
     expect(apiGetMock).toHaveBeenCalledWith('/api/clarification-reports/periods', { params: {} })
 
     // Seluruh entri diteruskan apa adanya, dalam urutan server. Penyaringan
-    // cakupan Clarification sepenuhnya milik server — termasuk periode
-    // ber-station_type null, yang TIDAK boleh dibuang di sini.
-    expect(periods).toEqual([PERIOD_CLARIFICATION, PERIOD_ALL_TYPES])
+    // cakupan Clarification sepenuhnya milik server — termasuk periode yang
+    // mencakup banyak jenis stasiun sekaligus, yang TIDAK boleh dibuang di
+    // sini.
+    expect(periods).toEqual([PERIOD_CLARIFICATION, PERIOD_LINTAS_STASIUN])
     expect(periods).toHaveLength(2)
     expect(periods[0].station_type).toBe('clarification')
-    expect(periods[1].station_type).toBeNull()
+    expect(periods[1].station_type).toBe('clarification')
   })
 
   // 2 — GAGAL TERTUTUP: peran terikat mill (termasuk Operator) tidak pernah

@@ -78,14 +78,25 @@ const PERIOD_STER = {
   station_type_label: 'Sterilizer',
 }
 
-const PERIOD_ALL_TYPES = {
+/**
+ * Periode yang cakupannya mencakup BANYAK jenis stasiun sekaligus.
+ *
+ * Sampai 2026-09-25 bentuknya `station_type: null` + label 'Semua Jenis
+ * Stasiun'. Sejak `periods` dipecah menjadi `periods` + `period_stations`,
+ * cakupan itu diwujudkan sebagai satu baris period_stations per jenis, dan
+ * periodOption() hanya memulangkan baris jenis stasiun LAYAR INI — jadi
+ * station_type TIDAK PERNAH null lagi dan bentuknya tak berbeda dari
+ * periode berjenis tunggal. Yang tetap diuji fixture ini: periode semacam
+ * itu TETAP terpungut layar ini.
+ */
+const PERIOD_LINTAS_STASIUN = {
   id: 'per-2',
-  name: 'Periode Semua Stasiun Agustus 2026',
+  name: 'Periode Lintas Stasiun Agustus 2026',
   start_date: '2026-08-01',
   end_date: '2026-08-31',
   status: 'open',
-  station_type: null,
-  station_type_label: 'Semua Jenis Stasiun',
+  station_type: 'sterilizer',
+  station_type_label: 'Sterilizer',
 }
 
 const PERIOD_CLOSED = {
@@ -367,6 +378,22 @@ function recapBody(page: Page) {
 /* ================================================================== */
 
 test.describe('Laporan Sterilizer Mobile (screen-135)', () => {
+  // VIEWPORT PONSEL — ditambahkan 2026-09-27, dan berkas ini adalah satu-satunya
+  // dari lima spec laporan mobile yang tidak memilikinya.
+  //
+  // playwright.config.ts memakai devices['Desktop Chrome'] (1280px) sebagai
+  // satu-satunya project. Tanpa override ini, SELURUH klaim tata letak di berkas
+  // ini diuji pada lebar desktop: satu kolom, sasaran sentuh 44x44, dan
+  // "scrollWidth tidak melebihi clientWidth" semuanya lolos karena layarnya
+  // memang lapang — bukan karena layar ponselnya benar. Test yang hijau di
+  // viewport yang salah lebih buruk daripada tidak ada test, karena ia
+  // menghabiskan anggaran kepercayaan tanpa membuktikan apa pun.
+  //
+  // Screen-135 adalah layar laporan mobile PERTAMA; empat berikutnya
+  // (136-139) memasang override ini sejak awal. Ini menutup satu-satunya
+  // yang tertinggal.
+  test.use({ viewport: { width: 390, height: 844 } })
+
   // Scenario: "success"
   test('success — Operator: mill akun, seluruh bagian tampil, rekap dibuka-tutup, ekspor mengunduh CSV', async ({
     page,
@@ -706,18 +733,20 @@ test.describe('Laporan Sterilizer Mobile (screen-135)', () => {
   })
 
   // Scenario: "daftar periode hanya memuat periode yang mencakup Sterilizer"
-  test('daftar periode — hanya Sterilizer dan "semua jenis stasiun" yang dapat dipilih', async ({ page }) => {
+  test('daftar periode — hanya periode yang punya baris Sterilizer yang dapat dipilih, termasuk periode lintas stasiun', async ({
+    page,
+  }) => {
     await login(page)
     // Server memang tidak mengembalikan periode jenis stasiun lain (itu
     // diuji di backend); yang dibuktikan di sini adalah layar tidak
     // menambahkan apa pun ke daftar yang diterimanya.
-    await stubApi(page, { periods: [PERIOD_STER, PERIOD_ALL_TYPES] })
+    await stubApi(page, { periods: [PERIOD_STER, PERIOD_LINTAS_STASIUN] })
     await openReport(page)
 
     const options = page.getByTestId('period-select').locator('option')
     await expect(options).toHaveCount(3)
     await expect(options.nth(1)).toHaveText('Sterilizer — Periode Agustus 2026')
-    await expect(options.nth(2)).toHaveText('Semua Jenis Stasiun — Periode Semua Stasiun Agustus 2026')
+    await expect(options.nth(2)).toHaveText('Sterilizer — Periode Lintas Stasiun Agustus 2026')
     await expect(page.getByTestId('period-select')).not.toContainText('Threshing')
     await expect(page.getByTestId('period-select')).not.toContainText('Pressing')
   })

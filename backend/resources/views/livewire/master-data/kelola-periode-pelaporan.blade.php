@@ -2,14 +2,19 @@
     /**
      * screen-128--kelola-periode-pelaporan — Kelola Periode Pelaporan.
      *
-     * ONE PARENT ROW PER PERIOD, EXPANDABLE. Since 2026-09-25 a period holds
-     * one status per station type ({@see App\Models\PeriodStation}), and a
-     * mill can have 19 of them — rendering every station row of every period
-     * would turn a 20-period page into a 380-row wall. The parent row carries
-     * the summary PeriodService::toRow() computes (`status_summary`,
-     * `station_count`, `closed_station_count`); the station rows live in a
-     * second <tr> that is rendered only while the period's id is in
-     * $expandedPeriodIds.
+     * ONE ROW PER PERIOD, AND NOTHING ELSE (2026-09-27). Since 2026-09-25 a
+     * period holds one status per station type ({@see App\Models\PeriodStation}),
+     * and a mill can have 19 of them. Those rows used to hang under each
+     * period in an expandable second <tr>, with every per-station action
+     * inside it; they now have their own page — screen-142, route
+     * /master-data/periods/{id} — and the period NAME IS THE LINK to it.
+     * What is left here is the summary PeriodService::toRow() computes
+     * (`status_summary`, `station_count`, `closed_station_count`).
+     *
+     * NOT ONE PER-STATION ACTION LIVES ON THIS SCREEN ANY MORE: no Tutup
+     * Stasiun, no Buka Stasiun, no Buka Kembali, no close-confirmation dialog.
+     * Adding one back here would mean this screen needs a `period_stations`
+     * id, which is exactly the confusion the split removed.
      *
      * NO PARENT-LEVEL status / station_type / closed_by / closed_at EXISTS
      * ANY MORE — asking a $period row for one of those keys is a bug, not a
@@ -37,7 +42,7 @@
     $immutableHint = 'Ada stasiun yang sudah ditutup pada periode ini. Buka kembali stasiun tersebut terlebih dahulu.';
 @endphp
 
-<div class="kc-page" wire:loading.class="kc-page--busy" wire:target="nextPage,previousPage,save,confirmDelete,confirmClose,confirmReopen,askClose,askOpen,confirmOpen">
+<div class="kc-page" wire:loading.class="kc-page--busy" wire:target="nextPage,previousPage,save,confirmDelete">
     <div class="kc-page__header">
         <div>
             <h2 class="kc-page__title">Kelola Periode Pelaporan</h2>
@@ -61,12 +66,6 @@
     @if ($deleteErrorMessage)
         <div class="kc-alert" role="alert" data-testid="delete-error">
             {{ $deleteErrorMessage }}
-        </div>
-    @endif
-
-    @if ($closeErrorMessage)
-        <div class="kc-alert" role="alert" data-testid="close-error">
-            {{ $closeErrorMessage }}
         </div>
     @endif
 
@@ -121,19 +120,22 @@
             </thead>
             <tbody>
                 @forelse ($periods as $period)
-                    @php($isExpanded = in_array($period['id'], $expandedPeriodIds, true))
                     <tr class="kc-table__row" wire:key="period-{{ $period['id'] }}" data-testid="period-row-{{ $period['id'] }}">
                         <td>
-                            <button
-                                type="button"
-                                wire:click="toggleExpanded('{{ $period['id'] }}')"
-                                class="kc-expand"
-                                aria-expanded="{{ $isExpanded ? 'true' : 'false' }}"
-                                data-testid="expand-button-{{ $period['id'] }}"
-                            >
-                                <span class="kc-expand__caret" aria-hidden="true">{{ $isExpanded ? '&#9662;' : '&#9656;' }}</span>
-                                <span class="kc-expand__name">{{ $period['name'] }}</span>
-                            </button>
+                            {{--
+                                The period name IS the way in to screen-142,
+                                where that period's stations and every
+                                per-station action live. A real <a> with a real
+                                href, so it can be opened in a new tab and
+                                bookmarked — the detail route takes the period
+                                id and nothing else.
+                            --}}
+                            <a
+                                href="{{ route('master-data.periods.detail', $period['id']) }}"
+                                wire:navigate
+                                class="kc-link"
+                                data-testid="period-link-{{ $period['id'] }}"
+                            >{{ $period['name'] }}</a>
                         </td>
                         <td>{{ $period['business_unit_name'] ?? '-' }}</td>
                         <td>{{ $formatDate($period['start_date']) }}</td>
@@ -202,104 +204,6 @@
                         </td>
                     </tr>
 
-                    @if ($isExpanded)
-                        <tr class="kc-table__row kc-table__row--stations" wire:key="period-stations-{{ $period['id'] }}">
-                            <td colspan="7">
-                                @if ($period['station_count'] === 0)
-                                    <p class="kc-substation__empty" data-testid="period-stations-empty-{{ $period['id'] }}">
-                                        Periode ini belum punya satu pun baris stasiun — mill-nya belum memiliki stasiun aktif.
-                                        Tambahkan stasiun pada mill tersebut, lalu simpan ulang periode ini untuk mendaftarkannya.
-                                    </p>
-                                @else
-                                    <table class="kc-subtable" data-testid="period-stations-{{ $period['id'] }}">
-                                        <thead>
-                                            <tr>
-                                                <th>Jenis Stasiun</th>
-                                                <th>Status</th>
-                                                <th>Ditutup Oleh</th>
-                                                <th>Waktu Ditutup</th>
-                                                <th class="kc-table__actions-head">Aksi</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach ($period['stations'] as $station)
-                                                <tr wire:key="period-station-{{ $station['id'] }}" data-testid="period-station-row-{{ $station['id'] }}">
-                                                    <td>{{ $station['station_type_label'] }}</td>
-                                                    <td>
-                                                        <span
-                                                            class="kc-badge {{ $statusBadgeClass[$station['status']] ?? 'kc-badge--neutral' }}"
-                                                            data-testid="station-status-badge-{{ $station['id'] }}"
-                                                        >
-                                                            {{ $statusLabels[$station['status']] ?? $station['status'] }}
-                                                        </span>
-                                                    </td>
-                                                    <td>{{ $station['closed_by_name'] ?? '—' }}</td>
-                                                    <td>{{ $formatDateTime($station['closed_at']) }}</td>
-                                                    <td class="kc-table__actions">
-                                                        {{--
-                                                            EVERY ACTION HERE CARRIES $station['id'] — a
-                                                            `period_stations` id, which is what
-                                                            PeriodClosureService::close()/reopen()/open()/
-                                                            unverifiedCount() take. Passing the period's id
-                                                            would either 404 or, worse, hit some other
-                                                            period's station row.
-                                                        --}}
-                                                        @if ($confirmingReopenStationId === $station['id'])
-                                                            <span class="kc-confirm">
-                                                                <span class="kc-confirm__label">
-                                                                    Buka kembali {{ $station['station_type_label'] }}?
-                                                                </span>
-                                                                <button type="button" wire:click="confirmReopen" class="kc-button kc-button--primary kc-button--sm" data-testid="confirm-reopen-button">
-                                                                    Ya, Buka Kembali
-                                                                </button>
-                                                                <button type="button" wire:click="cancelReopen" class="kc-button kc-button--ghost kc-button--sm">
-                                                                    Batal
-                                                                </button>
-                                                            </span>
-                                                        @elseif ($station['status'] === 'closed')
-                                                            <button
-                                                                type="button"
-                                                                wire:click="askReopen('{{ $station['id'] }}')"
-                                                                class="kc-button kc-button--ghost kc-button--sm"
-                                                                data-testid="station-reopen-button-{{ $station['id'] }}"
-                                                            >
-                                                                Buka Kembali
-                                                            </button>
-                                                        @elseif ($station['status'] === 'draft')
-                                                            {{--
-                                                                "Buka Stasiun" is offered on DRAFT stations
-                                                                ONLY. An already-open station has nothing to
-                                                                open, and a closed one gets "Buka Kembali" —
-                                                                a different action that also clears
-                                                                closed_by/closed_at.
-                                                            --}}
-                                                            <button
-                                                                type="button"
-                                                                wire:click="askOpen('{{ $station['id'] }}')"
-                                                                class="kc-button kc-button--primary kc-button--sm"
-                                                                data-testid="station-open-button-{{ $station['id'] }}"
-                                                            >
-                                                                Buka Stasiun
-                                                            </button>
-                                                        @else
-                                                            <button
-                                                                type="button"
-                                                                wire:click="askClose('{{ $station['id'] }}')"
-                                                                class="kc-button kc-button--warning kc-button--sm"
-                                                                data-testid="station-close-button-{{ $station['id'] }}"
-                                                            >
-                                                                Tutup Stasiun
-                                                            </button>
-                                                        @endif
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                @endif
-                            </td>
-                        </tr>
-                    @endif
                 @empty
                     <tr class="kc-table__row kc-table__row--static">
                         <td colspan="7">
@@ -495,101 +399,12 @@
         </x-modal>
     @endif
 
-    @if ($closingStationId !== null && $closingStation !== null)
-        <x-modal
-            :title="'Tutup Stasiun — '.$closingStation['station_type_label']"
-            backdrop-key="period-close-backdrop"
-        >
-            {{--
-                EVERY FIGURE AND LABEL IN THIS DIALOG COMES FROM ONE STATION
-                ROW. The count was fetched with the same
-                $closingStationId that confirmClose() passes to close(), so
-                the warning cannot be about a station other than the one being
-                closed.
-            --}}
-            <div class="kc-alert kc-alert--warning" role="alert" data-testid="unverified-warning">
-                <strong data-testid="unverified-count">
-                    {{ $closingUnverifiedCount }} data {{ $closingStation['station_type_label'] }} belum terverifikasi dalam rentang periode ini
-                </strong>
-                <p class="kc-dialog__note">
-                    Setelah stasiun ini ditutup, verifikasi ikut terkunci — data tersebut akan tetap berstatus
-                    belum terverifikasi sampai stasiun ini dibuka kembali.
-                </p>
-
-                @if (count($closingBreakdown) > 0)
-                    <ul class="kc-dialog__breakdown" data-testid="unverified-breakdown">
-                        @foreach ($closingBreakdown as $row)
-                            <li>{{ $stationTypeLabels[$row['station_type']] ?? $row['station_type'] }}: {{ $row['count'] }}</li>
-                        @endforeach
-                    </ul>
-                @endif
-            </div>
-
-            <p class="kc-dialog__note">
-                Menutup <strong>{{ $closingStation['station_type_label'] }}</strong> pada periode
-                <strong>{{ $closingStation['period_name'] }}</strong>
-                ({{ $formatDate($closingStation['start_date']) }} &ndash; {{ $formatDate($closingStation['end_date']) }})
-                di <strong>{{ $closingStation['business_unit_name'] ?? '-' }}</strong>
-                akan mengunci data stasiun tersebut yang tanggal kejadiannya berada di dalam rentang itu:
-                tidak bisa diinput baru, tidak bisa diubah, dan tidak bisa diverifikasi.
-                Jenis stasiun lain pada periode ini tidak terpengaruh.
-            </p>
-
-            <x-slot:actions>
-                <button type="button" wire:click="cancelClose" class="kc-button kc-button--ghost" data-testid="cancel-close-button">
-                    Batal
-                </button>
-                <button type="button" wire:click="confirmClose" class="kc-button kc-button--warning" wire:loading.attr="disabled" wire:target="confirmClose" data-testid="confirm-close-button">
-                    Ya, Tutup Stasiun
-                </button>
-            </x-slot:actions>
-        </x-modal>
-    @endif
-
-    @if ($openingStationId !== null)
-        <x-modal
-            :title="'Buka Stasiun'.($openingStation ? ' — '.$openingStation['station_type_label'] : '')"
-            backdrop-key="period-open-backdrop"
-        >
-            <div data-testid="open-period-dialog">
-                <p class="kc-dialog__note">
-                    @if ($openingStation)
-                        <strong>{{ $openingStation['station_type_label'] }}</strong> pada periode
-                        <strong>{{ $openingStation['period_name'] }}</strong>
-                        ({{ $formatDate($openingStation['start_date']) }} &ndash; {{ $formatDate($openingStation['end_date']) }})
-                        di <strong>{{ $openingStation['business_unit_name'] ?? '-' }}</strong>
-                        akan dinyatakan resmi berjalan.
-                    @else
-                        Stasiun ini akan dinyatakan resmi berjalan.
-                    @endif
-                </p>
-
-                <p class="kc-dialog__note">
-                    Statusnya berubah dari <strong>Draft</strong> menjadi <strong>Terbuka</strong> dan
-                    <strong>tidak dapat dikembalikan ke Draft</strong>. Periode tetap dapat diubah
-                    dan dihapus selama belum ada stasiun yang ditutup. Tidak ada data stasiun yang berubah,
-                    dan jenis stasiun lain pada periode ini tidak tersentuh.
-                </p>
-            </div>
-
-            <x-slot:actions>
-                <button type="button" wire:click="cancelOpen" class="kc-button kc-button--ghost" data-testid="cancel-open-period">
-                    Batal
-                </button>
-                <button type="button" wire:click="confirmOpen" class="kc-button kc-button--primary" wire:loading.attr="disabled" wire:target="confirmOpen" data-testid="confirm-open-period">
-                    Ya, Buka Stasiun
-                </button>
-            </x-slot:actions>
-        </x-modal>
-    @endif
-
     <style>
         /* Design tokens — uiux-spec: brand #249360. Reused verbatim (kc-
            prefix) from kelola-production-line.blade.php so every
-           master-data screen stays visually consistent; the kc-badge-*,
-           kc-button--warning, kc-alert--success/--warning and kc-dialog__*
-           rules at the end are this screen's own additions (status badges
-           and the close-confirmation dialog). */
+           master-data screen stays visually consistent; the kc-badge-* and
+           kc-alert--success rules at the end are this screen's own additions
+           (status-summary badges and the period name link). */
         .kc-page {
             --kc-brand: #249360;
             --kc-brand-hover: #1d7a4e;
@@ -643,12 +458,6 @@
             background: #ecfdf5;
             border-color: var(--kc-brand);
             color: var(--kc-brand-hover);
-        }
-
-        .kc-alert--warning {
-            background: #fffbeb;
-            border-color: var(--kc-warning);
-            color: var(--kc-warning-hover);
         }
 
         .kc-filter {
@@ -835,15 +644,6 @@
             background: var(--kc-destructive-hover);
         }
 
-        .kc-button--warning {
-            background: var(--kc-warning);
-            color: #fff;
-        }
-
-        .kc-button--warning:hover:not(:disabled) {
-            background: var(--kc-warning-hover);
-        }
-
         .kc-button--ghost {
             background: #fff;
             color: var(--kc-text);
@@ -942,20 +742,6 @@
             color: var(--kc-text-muted);
         }
 
-        .kc-dialog__note {
-            margin: 8px 0 0;
-            font-size: 13px;
-            line-height: 1.6;
-            color: var(--kc-text);
-        }
-
-        .kc-dialog__breakdown {
-            margin: 8px 0 0;
-            padding-left: 18px;
-            font-size: 13px;
-            line-height: 1.6;
-        }
-
         .kc-muted {
             color: var(--kc-text-muted);
         }
@@ -969,74 +755,16 @@
             border: 1px solid var(--kc-warning);
         }
 
-        /* The period name IS the expand control — a separate chevron next to a
-           plain name gives two targets for one job and a smaller hit area. */
-        .kc-expand {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 0;
-            background: none;
-            border: none;
-            font: inherit;
-            color: inherit;
-            cursor: pointer;
-            text-align: left;
-        }
-
-        .kc-expand__caret {
-            color: var(--kc-text-muted);
-            font-size: 11px;
-            width: 10px;
-        }
-
-        .kc-expand__name {
+        /* The period name is the only link out of this table, so it looks
+           like one rather than like a plain cell. */
+        .kc-link {
             font-weight: 600;
+            color: var(--kc-brand-hover);
+            text-decoration: none;
         }
 
-        .kc-expand:hover .kc-expand__name {
-            color: var(--kc-brand);
-        }
-
-        .kc-table__row--stations > td {
-            padding: 0 16px 14px 34px;
-            background: #f9fafb;
-        }
-
-        .kc-subtable {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
-            background: #fff;
-            border: 1px solid var(--kc-border);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        .kc-subtable th {
-            text-align: left;
-            padding: 8px 12px;
-            font-weight: 600;
-            color: var(--kc-text-muted);
-            border-bottom: 1px solid var(--kc-border);
-            white-space: nowrap;
-        }
-
-        .kc-subtable td {
-            padding: 8px 12px;
-            border-bottom: 1px solid #eef0f2;
-            vertical-align: middle;
-        }
-
-        .kc-subtable tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .kc-substation__empty {
-            margin: 0;
-            padding: 12px 0 0;
-            font-size: 13px;
-            color: var(--kc-text-muted);
+        .kc-link:hover {
+            text-decoration: underline;
         }
 
         .kc-preview {

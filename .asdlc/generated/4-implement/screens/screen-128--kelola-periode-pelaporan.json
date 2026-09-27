@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-23"
+    "updated_at": "2026-09-27"
   },
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
@@ -10,24 +10,24 @@
   "status": "complete",
   "test_results": {
     "unit": {
-      "run_at": "2026-09-23T08:35:21Z",
-      "passed": 930,
+      "run_at": "2026-09-27T14:05:00Z",
+      "passed": 3108,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-09-23T08:36:32Z",
-      "passed": 28,
+      "run_at": "2026-09-27T14:05:00Z",
+      "passed": 15,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-23T08:36:32Z",
-      "passed": 31,
+      "run_at": "2026-09-27T14:05:00Z",
+      "passed": 20,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-09-23T11:20:00Z",
-      "passed": 24,
+      "run_at": "2026-09-27T14:40:00Z",
+      "passed": 15,
       "failed": 0
     }
   },
@@ -71,6 +71,12 @@
     "backend/tests/Feature/Livewire/KelolaPeriodePelaporanTest.php"
   ],
   "implementation_notes": [
+    "2026-09-27 — ACCORDION DICABUT. Daftar stasiun sebuah periode pindah ke layar tersendiri screen-142--detail-periode-pelaporan (rute /master-data/periods/{id}), keputusan desain user. Yang dibuang dari komponen: $expandedPeriodIds, toggleExpanded(), expand(), trio askClose/cancelClose/confirmClose, askReopen/cancelReopen/confirmReopen, askOpen/cancelOpen/confirmOpen, seluruh properti closing*/opening*/confirmingReopenStationId/closeErrorMessage, findStationForDialog(), stationSnapshot(), plus import PeriodClosureService dan tiga exception-nya. Komponen ini TIDAK LAGI menyentuh PeriodClosureService sama sekali.",
+    "Yang dibuang dari blade: <tr> kedua ber-colspan, sub-tabel stasiun, dialog tutup, dialog buka, alert close-error, dan CSS matinya (.kc-expand*, .kc-subtable*, .kc-substation__empty, .kc-table__row--stations, .kc-dialog__*, .kc-alert--warning, .kc-button--warning). Ditambah .kc-link.",
+    "data-testid yang HILANG dari layar ini: expand-button-*, period-stations-*, period-station-row-*, station-status-badge-*, station-close/open/reopen-button-*, unverified-warning/count/breakdown, confirm-close-button, cancel-close-button, confirm-reopen-button, open-period-dialog, confirm-open-period, cancel-open-period, close-error. Yang TETAP: period-table, period-empty, filter-business-unit, filter-status, station-summary-*, status-summary-*, station-preview*, edit-button-*, delete-button-*, confirm-delete-button, delete-error, success-message. Satu test e2e baru menjaga pencabutan itu dari kedua sisi: href sungguhan ke rute detail PLUS toHaveCount(0) untuk setiap testid yang hilang.",
+    "Nama periode kini <a href> + wire:navigate (testid period-link-{periodId}), bukan wire:click — supaya bisa dibuka tab baru dan di-bookmark.",
+    "14 test Livewire + 10 test API DIPINDAHKAN ke screen-142, bukan dibuang. Empat test lain DIBELAH dan kedua belahannya dipertahankan: satu menguji sisi daftar, satu menguji sisi detail. Test yang tetap di sini tetapi setup-nya dulu lewat dialog kini menyiapkan keadaan lewat layar detail (tiga helper lokal) atau lewat UPDATE langsung di test unit — bukan dengan melemahkan asersinya.",
+    "hasClosedStation() dibiarkan apa adanya di layar ini; spec tidak meminta diubah. Di layar detail, guard forged-call justru memakai is_immutable dari toRow() supaya aturan 409 tidak diturunkan ulang.",
     "PERUBAHAN SKEMA DI TENGAH JALAN: run pertama dihentikan setelah menulis 4 exception + HasErrorCode, karena user memutuskan station_type harus memakai tabel master + FK, bukan string dengan validasi aplikasi. Migration 2026_09_22_000029 membuat tabel station_types (19 baris: 18 tipe kanonis urut proses + 'other'), MEMBUANG CHECK constraint stations_type_check, lalu memasang FK stations.type -> station_types.code. Migration periods digeser 000029 -> 000030 dan station_type-nya ikut FK ke master yang sama. Run kedua menulis sisanya di atas skema baru.",
     "FK menunjuk station_types.code, BUKAN id UUID — menyimpang dari pola FK di skema ini secara sengaja. Nilai stations.type tetap 'sterilizer' dsb., sehingga 34 string literal di service/seeder/factory/test plus kode mobile tidak perlu diubah sama sekali. FK ke UUID akan menuntut penulisan ulang semuanya plus migrasi data. Terverifikasi terhadap PostgreSQL: penulisan tipe ngawur langsung lewat SQL ditolak SQLSTATE[23503].",
     "Pembagian tugas enum vs tabel: App\\Enums\\StationType TETAP ADA dan masih benar dipakai saat logika menyebut satu tipe spesifik (mis. aturan is_active untuk 'other' di StationService). Tabel adalah DATA untuk validasi input, dropdown, dan label. StationService::validate() diubah dari Rule::in(enum) menjadi Rule::exists('station_types','code'). tests/Feature/StationTypeCatalogTest.php (6 test) mengunci sinkronisasi keduanya — menambah case enum tanpa baris tabel, atau sebaliknya, langsung merahkan suite.",
@@ -108,6 +114,10 @@
     }
   ],
   "known_issues": [
+    {
+      "description": "Empat test ber-skip di tests/Feature/Api/KelolaPeriodePelaporanTest.php tetap tinggal di sini dan tidak disentuh — keduanya kontrak usecase-141 (kunci input periode tertutup) yang belum diimplementasikan sama sekali. Komentar seksi di sekitarnya diperbarui agar tidak lagi terbaca sebagai bagian usecase-140, yang sudah pindah ke screen-142.",
+      "severity": "medium"
+    },
     {
       "description": "DIPERBAIKI 2026-09-23. Sebelumnya suite browser e2e-web meracuni dirinya sendiri: ketiga spec yang membuat Periode Pelaporan tidak punya afterAll maupun afterEach, sehingga periode dibuat lewat UI lalu ditinggalkan. Laju penumpukan terukur ~15 baris per run terhadap daftar yang dipaginasi 20 baris, sehingga setelah sekitar satu setengah run halaman 1 penuh oleh residu dan baris yang baru dibuat test terdorong ke halaman 2 — toBeVisible() gagal di helper createPeriod() sebelum satu pun asersi perilaku dieksekusi. Terukur pada hari itu: 117 periode, 116 di antaranya residu; setelah dibersihkan suite hijau, tiga run kemudian 40 baris dan 19 test gagal lagi. PERBAIKAN: helper bersama e2e-web/tests/support/periods.ts (deletePeriodsByPrefix) plus afterAll di kelola-periode-pelaporan.spec.ts dan laporan-sterilizer.spec.ts — laporan-stasiun.spec.ts tidak membuat periode sehingga tidak perlu. Periode berstatus closed dibuka kembali dulu lewat POST /reopen sebelum dihapus, karena delete() menolak status closed. Pembersihan tidak pernah menggagalkan test: galat dicatat ke console lalu ditelan. DIBUKTIKAN dengan dua run berturut-turut dari keadaan bersih: keduanya 53 lolos / 0 gagal / 1 dilewati, dan jumlah baris periode kembali ke 1 setiap kali.",
       "severity": "minor"

@@ -93,14 +93,25 @@ const PERIOD_CLF = {
   station_type_label: 'Clarification',
 }
 
-const PERIOD_ALL_TYPES = {
+/**
+ * Periode yang cakupannya mencakup BANYAK jenis stasiun sekaligus.
+ *
+ * Sampai 2026-09-25 bentuknya `station_type: null` + label 'Semua Jenis
+ * Stasiun'. Sejak `periods` dipecah menjadi `periods` + `period_stations`,
+ * cakupan itu diwujudkan sebagai satu baris period_stations per jenis, dan
+ * periodOption() hanya memulangkan baris jenis stasiun LAYAR INI — jadi
+ * station_type TIDAK PERNAH null lagi dan bentuknya tak berbeda dari
+ * periode berjenis tunggal. Yang tetap diuji fixture ini: periode semacam
+ * itu TETAP terpungut layar ini.
+ */
+const PERIOD_LINTAS_STASIUN = {
   id: 'per-2',
-  name: 'Periode Semua Stasiun Maret 2026',
+  name: 'Periode Lintas Stasiun Maret 2026',
   start_date: '2026-03-01',
   end_date: '2026-03-31',
   status: 'open',
-  station_type: null,
-  station_type_label: 'Semua Jenis Stasiun',
+  station_type: 'clarification',
+  station_type_label: 'Clarification',
 }
 
 const PERIOD_CLOSED = {
@@ -884,7 +895,7 @@ test.describe('Laporan Clarification Mobile (screen-138)', () => {
         reading_count: 40,
       },
     })
-    api.periods = [PERIOD_CLF, PERIOD_ALL_TYPES]
+    api.periods = [PERIOD_CLF, PERIOD_LINTAS_STASIUN]
 
     await page.reload()
     await expect(page.getByTestId('laporan-clarification-mobile')).toBeVisible()
@@ -1196,21 +1207,23 @@ test.describe('Laporan Clarification Mobile (screen-138)', () => {
   })
 
   // Scenario 21: "periode yang tidak mencakup Clarification tidak ditawarkan"
-  test('pemilih periode memuat periode Clarification dan semua-jenis, persis seperti kiriman server', async ({
+  test('pemilih periode memuat periode Clarification berjenis tunggal dan yang lintas stasiun, persis seperti kiriman server', async ({
     page,
   }) => {
     await login(page, USERS.operator)
-    await stubApi(page, { periods: [PERIOD_CLF, PERIOD_ALL_TYPES] })
+    await stubApi(page, { periods: [PERIOD_CLF, PERIOD_LINTAS_STASIUN] })
     await openReport(page)
 
     const options = page.getByTestId('period-select').locator('option')
 
     await expect(options).toHaveCount(3)
     await expect(options.nth(1)).toContainText('Clarification — Periode Maret 2026')
-    await expect(options.nth(2)).toContainText('Semua Jenis Stasiun')
+    await expect(options.nth(2)).toContainText('Clarification — Periode Lintas Stasiun Maret 2026')
 
-    // Layar tidak menyaring station_type sendiri: periode ber-station_type
-    // null TIDAK dibuang, dan penyaringan cakupan tetap milik server.
+    // Layar tidak menyaring station_type sendiri: periode lintas stasiun
+    // TIDAK dibuang — ia sampai ke sini justru karena punya baris
+    // period_stations berjenis 'clarification' — dan penyaringan cakupan
+    // tetap milik server.
     // Atribut value-nya, bukan toHaveValue() — pada <option> matcher itu
     // membaca nilai <select> induknya, bukan opsinya sendiri.
     expect(await options.nth(2).getAttribute('value')).toBe('per-2')

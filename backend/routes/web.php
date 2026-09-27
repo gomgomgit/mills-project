@@ -637,6 +637,22 @@ Route::middleware(['auth', 'role:admin'])
     ->get('/master-data/periods', \App\Livewire\MasterData\KelolaPeriodePelaporan::class)
     ->name('master-data.periods');
 
+// screen-142--detail-periode-pelaporan (usecase-145 lihat detail +
+// usecase-140 tutup/buka kembali + usecase-144 buka stasiun). The station
+// list of a period and EVERY per-station action live here since 2026-09-27
+// — screen-128 above is the list only.
+//
+// Same guards as the list ('auth' + 'role:admin'), because it is the same
+// screen family: EnsureRole::forbidden() aborts(403) before the component
+// mounts for a non-admin session. Registered AFTER '/master-data/periods'
+// so the literal path can never be matched as a {id}. Mirrors
+// screen-106--detail-storage-tank-web's '/data/storage-tank/{id}'
+// registration — the detail-* pattern this is the first Master Data
+// instance of.
+Route::middleware(['auth', 'role:admin'])
+    ->get('/master-data/periods/{id}', \App\Livewire\MasterData\DetailPeriodePelaporan::class)
+    ->name('master-data.periods.detail');
+
 // screen-129--laporan-sterilizer-web (usecase-129 — Laporan Periode
 // Sterilizer). Session-guarded + role-guarded to supervisor /
 // mill_management / admin per screen_tech_spec.actor_permissions.

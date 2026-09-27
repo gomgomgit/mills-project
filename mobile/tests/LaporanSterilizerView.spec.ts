@@ -155,14 +155,25 @@ const PERIOD_STER = {
   station_type_label: 'Sterilizer',
 }
 
-const PERIOD_ALL_TYPES = {
+/**
+ * Periode yang cakupannya mencakup BANYAK jenis stasiun sekaligus.
+ *
+ * Sampai 2026-09-25 bentuknya `station_type: null` + label 'Semua Jenis
+ * Stasiun'. Sejak `periods` dipecah menjadi `periods` + `period_stations`,
+ * cakupan itu diwujudkan sebagai satu baris period_stations per jenis, dan
+ * periodOption() hanya memulangkan baris jenis stasiun LAYAR INI — jadi
+ * station_type TIDAK PERNAH null lagi dan bentuknya tak berbeda dari
+ * periode berjenis tunggal. Yang tetap diuji fixture ini: periode semacam
+ * itu TETAP terpungut layar ini.
+ */
+const PERIOD_LINTAS_STASIUN = {
   id: 'per-2',
-  name: 'Periode Semua Stasiun Agustus 2026',
+  name: 'Periode Lintas Stasiun Agustus 2026',
   start_date: '2026-08-01',
   end_date: '2026-08-31',
   status: 'open',
-  station_type: null,
-  station_type_label: 'Semua Jenis Stasiun',
+  station_type: 'sterilizer',
+  station_type_label: 'Sterilizer',
 }
 
 const PERIOD_CLOSED = {
@@ -478,14 +489,14 @@ describe('LaporanSterilizerView — unit_test_cases (tech spec screen-135)', () 
 
   // unit_test_case 7
   it('memetakan periode beserta label jenis stasiun dan status', async () => {
-    stubApi({ periods: ok({ data: [PERIOD_STER, PERIOD_ALL_TYPES] }) })
+    stubApi({ periods: ok({ data: [PERIOD_STER, PERIOD_LINTAS_STASIUN] }) })
 
     const wrapper = await mountView()
 
     const options = wrapper.findAll('[data-testid="period-select"] option')
     expect(options).toHaveLength(3)
     expect(options[1].text()).toBe('Sterilizer — Periode Agustus 2026')
-    expect(options[2].text()).toBe('Semua Jenis Stasiun — Periode Semua Stasiun Agustus 2026')
+    expect(options[2].text()).toBe('Sterilizer — Periode Lintas Stasiun Agustus 2026')
     expect(options[1].attributes('value')).toBe('per-1')
 
     // status ikut dipetakan — terlihat setelah periode dipilih.
@@ -1185,10 +1196,10 @@ describe('LaporanSterilizerView — test_scenarios / component_test (tech spec s
   })
 
   // Scenario: "daftar periode hanya memuat periode yang mencakup Sterilizer"
-  it('daftar periode — hanya periode Sterilizer dan periode semua jenis stasiun yang dapat dipilih', async () => {
+  it('daftar periode — hanya periode yang punya baris Sterilizer yang dapat dipilih, termasuk periode lintas stasiun', async () => {
     // Server memang tidak mengembalikan periode jenis stasiun lain; yang
     // diuji di sini adalah layar tidak menambahkan apa pun ke daftar itu.
-    stubApi({ periods: ok({ data: [PERIOD_STER, PERIOD_ALL_TYPES] }) })
+    stubApi({ periods: ok({ data: [PERIOD_STER, PERIOD_LINTAS_STASIUN] }) })
 
     const wrapper = await mountView()
 
@@ -1198,7 +1209,7 @@ describe('LaporanSterilizerView — test_scenarios / component_test (tech spec s
     const labels = options.slice(1).map((option) => option.text())
     expect(labels).toEqual([
       'Sterilizer — Periode Agustus 2026',
-      'Semua Jenis Stasiun — Periode Semua Stasiun Agustus 2026',
+      'Sterilizer — Periode Lintas Stasiun Agustus 2026',
     ])
     expect(labels.join(' ')).not.toContain('Threshing')
     expect(labels.join(' ')).not.toContain('Pressing')

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-23"
+    "updated_at": "2026-09-27"
   },
   "id": "screen-135--laporan-sterilizer-mobile",
   "name": "Laporan Sterilizer (Mobile)",
@@ -71,7 +71,7 @@
         {
           "method": "GET",
           "path": "/api/sterilizer-reports/periods",
-          "description": "Daftar periode yang mencakup stasiun Sterilizer (station_type='sterilizer' ATAU NULL).",
+          "description": "Daftar periode yang PUNYA BARIS period_stations untuk jenis stasiun Sterilizer. Cabang lama station_type=NULL ('berlaku semua jenis stasiun') DIHAPUS bersama kolom periods.station_type (2026-09-25): cakupan semua-stasiun kini diwujudkan sebagai satu baris per jenis stasiun, sehingga periode tanpa baris 'sterilizer' tidak dikembalikan server sama sekali.",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -94,9 +94,9 @@
                   "name": "<string>",
                   "start_date": "<date>",
                   "end_date": "<date>",
-                  "status": "<draft|open|closed>",
-                  "station_type": "<string|null>",
-                  "station_type_label": "<string>"
+                  "status": "<draft|open|closed> — status BARIS period_stations Sterilizer di periode itu, bukan status periode",
+                  "station_type": "<string>",
+                  "station_type_label": "<string> — selalu nama jenis stasiun layar ini; tidak pernah 'Semua Stasiun'"
                 }
               ]
             },
@@ -282,7 +282,7 @@
         "Saat komponen dipasang, baca peran dan business_unit_id dari auth store",
         "→ bila peran Admin: panggil business-units/options, tampilkan pemilih Mill, dan JANGAN memuat periode sampai mill dipilih",
         "→ bila peran lain (Operator, Supervisor, Mill Management): mill diambil dari akun. Bila users.business_unit_id kosong, tampilkan pesan menghubungi Admin dan JANGAN memanggil satu pun endpoint — termasuk tidak memanggil options, agar daftar seluruh mill tidak pernah terbentuk",
-        "Panggil periods untuk mill yang berlaku; bila daftarnya kosong → tampilkan arahan menghubungi Admin",
+        "Panggil periods untuk mill yang berlaku; daftarnya hanya memuat periode yang punya baris period_stations untuk 'sterilizer' (penyaringan milik server, klien tidak menyaring ulang); bila daftarnya kosong → tampilkan arahan menghubungi Admin",
         "Saat pengguna memilih periode, panggil summary",
         "Render kartu angka, tren harian, sebaran durasi, rekap per unit, pencilan beserta ambang, dan rekap harian yang dapat dibuka/tutup",
         "→ bila permintaan mana pun gagal karena jaringan (penolakan tanpa response): tampilkan pesan kegagalan dan tombol Coba Lagi, dan JANGAN membuang periode yang sudah dipilih",
@@ -302,7 +302,7 @@
         },
         {
           "condition": "Daftar periode kosong",
-          "handling": "Arahan menghubungi Admin. Bukan pesan galat teknis."
+          "handling": "Arahan menghubungi Admin. Bukan pesan galat teknis. Kosong di sini berarti 'mill ini belum punya periode yang punya baris period_stations Sterilizer' — sejak 2026-09-25 sebuah periode tanpa baris untuk jenis stasiun ini memang tidak dikembalikan server."
         },
         {
           "condition": "Periode tidak memuat satu pun siklus",
@@ -321,8 +321,8 @@
           "handling": "Tampilkan 'tidak ada siklus di luar kebiasaan' DAN tetap tampilkan ambangnya — ambang adalah informasi, bukan sekadar penanda."
         },
         {
-          "condition": "Periode berstatus tertutup",
-          "handling": "Laporan tetap tampil penuh, status sebagai keterangan, Ekspor tetap aktif. Kunci periode mengatur penulisan, bukan pembacaan."
+          "condition": "Baris period_stations Sterilizer berstatus tertutup",
+          "handling": "Laporan tetap tampil penuh, status sebagai keterangan, Ekspor tetap aktif. Kunci periode mengatur penulisan, bukan pembacaan, dan kuncinya berlaku per jenis stasiun: Sterilizer dapat tertutup sementara jenis stasiun lain di periode yang sama masih terbuka, dan yang ditampilkan adalah status Sterilizer."
         },
         {
           "condition": "Peran terikat mill memaksa business_unit_id mill lain",
@@ -345,8 +345,8 @@
         "Layar hanya membaca; tidak ada aksi yang mengubah data",
         "Semua peran mobile boleh melihat, termasuk Operator",
         "Pengguna hanya melihat mill-nya sendiri; hanya Admin yang memilih mill",
-        "Daftar periode hanya memuat periode yang mencakup Sterilizer",
-        "Status periode tidak membatasi apa pun",
+        "Daftar periode hanya memuat periode yang punya baris period_stations untuk jenis stasiun 'sterilizer'; penyaringannya sepenuhnya milik server dan klien tidak pernah menyaring ulang",
+        "Status tutup/buka adalah milik baris period_stations jenis stasiun ini, bukan milik periode, dan tidak membatasi apa pun di layar ini",
         "Angka berasal dari sumber yang sama dengan laporan web — nol perhitungan ulang di klien",
         "Rentang periode inklusif",
         "Rata-rata hanya dari siklus berdurasi; jumlah yang dikeluarkan ditampilkan",
@@ -385,9 +385,9 @@
           "expect": "state mengembalikan periods=[] dan noPeriods=true; tidak ada objek galat teknis yang dibentuk"
         },
         {
-          "description": "memetakan periode beserta label jenis stasiun dan status",
-          "given": "respons periods berisi satu item berjenis 'sterilizer' dan satu item dengan station_type=null",
-          "expect": "kedua item dipetakan menjadi opsi terpilih dengan field id, name, start_date, end_date, status, station_type_label terisi sesuai respons"
+          "description": "memetakan daftar periode beserta label jenis stasiun dan status apa adanya",
+          "given": "respons periods berisi dua item: periode khusus Sterilizer dan periode bercakupan seluruh mill — keduanya sampai ke klien dengan station_type='sterilizer' dan station_type_label='Sterilizer', karena server memetakan setiap periode sebagai pasangan (periode, Sterilizer). Tidak ada lagi item ber-station_type null",
+          "expect": "kedua item dipetakan menjadi opsi dengan field id, name, start_date, end_date, status, station_type, station_type_label terisi sesuai respons dan TIDAK disaring ulang di klien; status yang ditampilkan adalah status baris period_stations Sterilizer yang dikirim server"
         },
         {
           "description": "memanggil summary hanya setelah periode dipilih",
@@ -425,8 +425,8 @@
           "expect": "view model mengembalikan emptyPeriod=true dan menandai bahwa grafik tren serta sebaran durasi tidak dirender"
         },
         {
-          "description": "tetap mengaktifkan ekspor ketika periode berstatus tertutup",
-          "given": "periode terpilih memiliki status='closed' dan respons summary terisi penuh",
+          "description": "tetap mengaktifkan ekspor ketika baris period_stations Sterilizer berstatus tertutup",
+          "given": "periode terpilih dikembalikan server dengan status='closed' (status baris Sterilizer di periode itu) dan respons summary terisi penuh",
           "expect": "view model mengembalikan periodStatus='closed' untuk ditampilkan sebagai keterangan dan exportEnabled=true"
         },
         {
@@ -482,8 +482,11 @@
     }
   ],
   "implementation_notes": [
+    "PEMISAHAN periods/period_stations (2026-09-25, commit 83a4065) — KONTRAK API TIDAK BERUBAH BENTUKNYA, jadi layar ini tidak perlu berubah bentuk: opsi periode tetap datar { id, name, start_date, end_date, status, station_type, station_type_label }. Yang berubah adalah ARTINYA: (1) `status` adalah status BARIS period_stations 'sterilizer' di periode itu, bukan status periode — periode tidak punya status lagi; (2) `station_type` selalu berisi 'sterilizer' dan TIDAK LAGI NULLABLE, karena hanya periode yang punya baris untuk jenis ini yang dikembalikan; (3) `station_type_label` tidak pernah lagi bernilai 'Semua Stasiun' — label itu lenyap bersama konsep station_type NULL; (4) periode yang tidak punya baris untuk jenis stasiun ini TIDAK dikembalikan server, perilaku BARU yang menggantikan cabang orWhereNull('station_type').",
     "NOL endpoint baru. Keempat endpoint milik screen-129 dipakai ulang apa adanya. Satu-satunya perubahan backend: routes/api.php melebarkan role:supervisor,mill_management,admin menjadi menyertakan operator pada keempat rute /api/sterilizer-reports/*.",
+    "Tidak ada penyaringan station_type di klien — repo maupun komponen meneruskan apa adanya. Itu tetap benar setelah pemisahan induk-anak, dan justru makin penting: keanggotaan periode kini ditentukan oleh keberadaan baris period_stations, sesuatu yang klien tidak punya aksesnya. Menyaring ulang di klien akan menciptakan definisi kedua yang pasti menyimpang.",
     "Rute WEB /reports/sterilizer TIDAK dilebarkan — Operator tetap 403 di web karena memang tidak punya UI web. Yang berubah hanya rute API.",
+    "KETIDAKCOCOKAN YANG BELUM DIBERESKAN DI KODE MOBILE (diverifikasi 2026-09-27, tidak diperbaiki oleh sinkronisasi artefak ini): (a) mobile/src/services/sterilizerReportRepo.ts masih mendeklarasikan `station_type: string | null` dan komentar fetchPeriods()-nya masih berbunyi \"station_type 'sterilizer' ATAU null\"; (b) fixture di mobile/tests/LaporanSterilizerView.spec.ts dan mobile/tests/e2e/laporan-sterilizer.spec.ts masih memakai `station_type: null` dengan `station_type_label: 'Semua Jenis Stasiun'`. Tesnya tetap hijau karena layar hanya meneruskan data, tetapi bentuk yang di-mock itu MUSTAHIL diproduksi backend sejak 2026-09-25. Yang benar menurut artefak ini: station_type non-nullable dan label selalu jenis stasiun layar ini.",
     "SterilizerReportService::resolveBusinessUnit() TIDAK BOLEH diubah. Ia sudah memperlakukan seluruh peran non-Admin dengan benar: mill dari akun, parameter klien diabaikan. Melebarkan ke operator berarti Operator ikut masuk cabang itu tanpa baris baru.",
     "Test screen-129 yang mengasersi Operator ditolak 403 harus disesuaikan: Operator kini DITERIMA di API (200, mill sendiri) tetapi tetap DITOLAK di rute web. Berkas: backend/tests/Feature/Api/LaporanSterilizerTest.php dan e2e-web/tests/laporan-sterilizer.spec.ts. Sesuaikan seperlunya, JANGAN melemahkan asersi lain.",
     "Berkas mobile baru: src/services/sterilizerReportRepo.ts (pola productionLineRepo.ts, memakai apiClient), src/views/LaporanSterilizerView.vue, plus rute di src/router/index.ts (path '/reports/sterilizer', name 'report-sterilizer', meta.public = false).",
@@ -917,7 +920,7 @@
             "path": "/api/sterilizer-reports/summary"
           },
           "request_example": {
-            "period_id": "<period_id periode berstatus tertutup>"
+            "period_id": "<period_id periode yang baris period_stations Sterilizer-nya berstatus tertutup>"
           },
           "expected_status": 200,
           "expected_error_code": null
@@ -929,7 +932,7 @@
             "path": "/api/sterilizer-reports/export"
           },
           "request_example": {
-            "period_id": "<period_id periode berstatus tertutup>",
+            "period_id": "<period_id periode yang baris period_stations Sterilizer-nya berstatus tertutup>",
             "format": "csv"
           },
           "expected_status": 200,
@@ -938,12 +941,12 @@
       ],
       "component_test": {
         "component": "LaporanSterilizerView",
-        "action": "mount lalu pilih periode yang statusnya tertutup, kemudian klik export-button",
+        "action": "mount lalu pilih periode yang statusnya tertutup (status baris period_stations Sterilizer sebagaimana dikirim server), kemudian klik export-button",
         "assert": "period-status-badge menampilkan status tertutup sebagai keterangan, seluruh kartu angka dan bagian grafik tetap dirender penuh, export-button tidak dinonaktifkan, dan kliknya memicu pemanggilan ekspor"
       },
       "browser_test": {
         "route": "/reports/sterilizer",
-        "action": "login, buka /reports/sterilizer, pilih periode berstatus tertutup, lalu klik export-button",
+        "action": "login, buka /reports/sterilizer, pilih periode yang baris stasiun Sterilizer-nya sudah ditutup Admin, lalu klik export-button",
         "assert": "period-status-badge bertuliskan tertutup, laporan tetap tampil penuh, dan klik export-button menghasilkan unduhan berkas CSV"
       }
     },
@@ -964,13 +967,13 @@
       ],
       "component_test": {
         "component": "LaporanSterilizerView",
-        "action": "mount dengan respons periods yang memuat periode berjenis sterilizer dan periode dengan station_type bernilai null, sementara periode jenis stasiun lain tidak dikembalikan server",
-        "assert": "period-select hanya memuat opsi berjenis sterilizer dan opsi yang berlaku untuk semua jenis stasiun, dan tidak ada opsi jenis stasiun lain yang dapat dipilih"
+        "action": "mount dengan respons periods yang memuat dua periode — satu khusus Sterilizer dan satu bercakupan seluruh mill — keduanya ber-station_type 'sterilizer' karena server memetakan setiap periode sebagai pasangan (periode, Sterilizer); periode tanpa baris period_stations Sterilizer tidak dikembalikan server sama sekali",
+        "assert": "period-select memuat kedua opsi apa adanya dalam urutan yang sama seperti respons; tidak ada penyaringan station_type di klien; setiap label opsi membawa jenis stasiun layar ini dan TIDAK PERNAH 'Semua Stasiun' maupun station_type null"
       },
       "browser_test": {
         "route": "/reports/sterilizer",
-        "action": "login pada mill yang punya periode Sterilizer, periode untuk semua jenis stasiun, dan periode untuk jenis stasiun lain, lalu buka /reports/sterilizer dan buka period-select",
-        "assert": "period-select hanya memuat periode Sterilizer dan periode untuk semua jenis stasiun, sedangkan periode jenis stasiun lain tidak muncul sebagai pilihan"
+        "action": "login pada mill yang punya periode bercakupan seluruh mill dan periode Sterilizer biasa, plus satu periode milik mill tanpa stasiun aktif (karenanya tanpa baris period_stations sama sekali), lalu buka /reports/sterilizer dan buka period-select",
+        "assert": "period-select memuat kedua periode yang punya baris period_stations Sterilizer; periode tanpa baris untuk jenis stasiun ini tidak muncul sebagai pilihan. Bentuk lama 'periode khusus jenis stasiun lain' tidak lagi dapat diproduksi lewat UI di dalam satu mill terprovisi, karena menyimpan periode mendaftarkan baris untuk setiap jenis stasiun yang dimiliki mill itu — maksud yang sama kini dibuktikan lewat periode tanpa baris sama sekali"
       }
     },
     {

@@ -129,14 +129,25 @@ const PERIOD_BR = {
   station_type_label: 'Boiler Room',
 }
 
-const PERIOD_ALL_TYPES = {
+/**
+ * Periode yang cakupannya mencakup BANYAK jenis stasiun sekaligus.
+ *
+ * Sampai 2026-09-25 bentuknya `station_type: null` + label 'Semua Jenis
+ * Stasiun'. Sejak `periods` dipecah menjadi `periods` + `period_stations`,
+ * cakupan itu diwujudkan sebagai satu baris period_stations per jenis, dan
+ * periodOption() hanya memulangkan baris jenis stasiun LAYAR INI — jadi
+ * station_type TIDAK PERNAH null lagi dan bentuknya tak berbeda dari
+ * periode berjenis tunggal. Yang tetap diuji fixture ini: periode semacam
+ * itu TETAP terpungut layar ini.
+ */
+const PERIOD_LINTAS_STASIUN = {
   id: 'per-2',
-  name: 'Periode Semua Stasiun Maret 2026',
+  name: 'Periode Lintas Stasiun Maret 2026',
   start_date: '2026-03-01',
   end_date: '2026-03-31',
   status: 'open',
-  station_type: null,
-  station_type_label: 'Semua Jenis Stasiun',
+  station_type: 'boiler-room',
+  station_type_label: 'Boiler Room',
 }
 
 const PERIOD_CLOSED = {
@@ -505,7 +516,7 @@ describe('LaporanBoilerRoomView — test_scenarios / component_test (tech spec s
     expect(exists(wrapper, 'mill-current')).toBe(false)
 
     // Mengganti mill memuat ulang daftar periode dan membuang angka lama.
-    repoMocks.fetchPeriods.mockResolvedValue([PERIOD_ALL_TYPES])
+    repoMocks.fetchPeriods.mockResolvedValue([PERIOD_LINTAS_STASIUN])
     await selectMill(wrapper, 'bu-2')
 
     expect(repoMocks.fetchPeriods).toHaveBeenCalledTimes(2)
@@ -1023,7 +1034,7 @@ describe('LaporanBoilerRoomView — test_scenarios / component_test (tech spec s
 
   // Scenario 19: "periode yang tidak mencakup Boiler Room tidak ditawarkan"
   it('daftar periode — tepat sebanyak dan seurut entri dari server, tanpa penyaringan station_type di klien', async () => {
-    repoMocks.fetchPeriods.mockResolvedValue([PERIOD_BR, PERIOD_ALL_TYPES])
+    repoMocks.fetchPeriods.mockResolvedValue([PERIOD_BR, PERIOD_LINTAS_STASIUN])
 
     const wrapper = await mountView()
 
@@ -1033,7 +1044,7 @@ describe('LaporanBoilerRoomView — test_scenarios / component_test (tech spec s
     const labels = options.slice(1).map((option) => option.text())
     expect(labels).toEqual([
       'Boiler Room — Periode Maret 2026',
-      'Semua Jenis Stasiun — Periode Semua Stasiun Maret 2026',
+      'Boiler Room — Periode Lintas Stasiun Maret 2026',
     ])
     // Layar tidak menambahkan dan tidak membuang apa pun dari daftar yang
     // diterimanya — penyaringan cakupan adalah pekerjaan server.

@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-24"
+    "updated_at": "2026-09-27"
   },
   "id": "screen-131--laporan-boiler-room-web",
   "name": "Laporan Boiler Room (Web)",
@@ -76,7 +76,7 @@
         {
           "method": "GET",
           "path": "/api/boiler-room-reports/periods",
-          "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Boiler Room pada mill yang dilihat",
+          "description": "Daftar Periode Pelaporan yang PUNYA BARIS period_stations untuk jenis stasiun Boiler Room pada mill yang dilihat. Bentuk responsnya tetap datar seperti sebelum pemisahan periods/period_stations (2026-09-25); yang berubah adalah artinya — status adalah status Boiler Room di dalam periode itu, bukan status periode.",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -99,9 +99,9 @@
                   "name": "string",
                   "start_date": "date",
                   "end_date": "date",
-                  "status": "string",
-                  "station_type": "string|null",
-                  "station_type_label": "string"
+                  "status": "string (draft|open|closed) — status BARIS period_stations Boiler Room, bukan status periode",
+                  "station_type": "string",
+                  "station_type_label": "string — selalu nama jenis stasiun layar ini dari master station_types; tidak pernah 'Semua Stasiun'"
                 }
               ]
             },
@@ -165,7 +165,7 @@
                 "name": "string",
                 "start_date": "date",
                 "end_date": "date",
-                "status": "string",
+                "status": "string (draft|open|closed) — status BARIS period_stations Boiler Room di periode itu",
                 "business_unit_name": "string"
               },
               "coverage": {
@@ -372,8 +372,10 @@
       ],
       "business_logic": [
         "resolveBusinessUnit: supervisor/mill_management -> pakai auth()->user()->business_unit_id dan ABAIKAN query; bila null -> 422 VALIDATION_ERROR 'Hubungi Admin' dan businessUnitRepo->all() TIDAK dipanggil (gagal tertutup, diuji sebagai spy). admin -> wajib dari query, kosong -> 422. operator -> 403 di seluruh endpoint; ini layar WEB dan TIDAK ada perluasan Operator seperti pada rangkaian cages-track.",
-        "listPeriods: SELECT Period WHERE business_unit_id = <hasil resolve> AND (station_type = 'boiler-room' OR station_type IS NULL) ORDER BY start_date DESC. Array kosong adalah jawaban sah, bukan 404.",
+        "listPeriods: SELECT Period WHERE business_unit_id = <hasil resolve> AND EXISTS (baris period_stations dengan station_type = 'boiler-room') — whereHas('stations', ...) — dengan eager-load relasi stations DIBATASI station_type = 'boiler-room' supaya statusValue() tidak menembak satu kueri per periode (N+1) -> ORDER BY start_date DESC, name ASC -> petakan tiap periode lewat periodOption() -> return array kosong bila tidak ada (bukan 404). Cabang lama `OR station_type IS NULL` beserta label 'Semua Stasiun' DIHAPUS bersama kolom periods.station_type (2026-09-25): cakupan semua-stasiun kini diwujudkan sebagai SATU BARIS period_stations per jenis stasiun, sehingga periode yang tidak punya baris 'boiler-room' memang tidak dipungut sama sekali.",
+        "statusValue(period): baca baris period_stations periode itu untuk station_type = 'boiler-room' lewat stationRowOf() — memakai relasi yang sudah di-eager-load bila ada, kalau belum menembak kuerinya sendiri -> kembalikan status baris itu. Bila barisnya tidak ada, kembalikan 'draft' (artinya 'stasiun ini belum dipakai di periode ini'), sengaja bukan string kosong karena nilai status wajib tetap salah satu dari draft/open/closed. JANGAN membaca $period->status: sejak 2026-09-25 induk tidak punya status dan model melempar LogicException bila atribut itu dibaca.",
         "authorizePeriod: findOrFail -> 404 bila tidak ada -> supervisor/mill_management dengan period.business_unit_id berbeda -> 403. Admin lolos untuk mill mana pun.",
+        "periodOption(period): bentuk datar { id, name, start_date, end_date, status: statusValue(period), station_type: 'boiler-room', station_type_label: nama dari master station_types }. station_type TIDAK PERNAH null — hanya periode yang punya baris untuk jenis ini yang sampai ke sini — sehingga kontrak API tidak ikut berubah bentuk meski modelnya terpecah.",
         "summary base: boiler_room_records JOIN stations WHERE stations.business_unit_id = period.business_unit_id AND stations.type = 'boiler-room' AND whereDate(record.date) BETWEEN start_date AND end_date INKLUSIF dua ujung, memakai record.date (tanggal kejadian). Eager-load boiler_room_details tiap record, urut time_slot menaik. SATU TANGGAL DAPAT PUNYA BEBERAPA RECORD — satu per unit boiler (boiler_room_id adalah kolom string pada header).",
         "PENYEBUT TERPISAH PER METRIK — inti layar ini dan sumber kesalahan yang paling mahal. Kesembilan kolom pengukuran numerik semuanya nullable, dan sebuah baris dianggap TERISI bila minimal SATU dari 15 kolom non-time_slot terisi. Karena itu satu baris dapat mengisi steam_pressure_bar dan mengosongkan water_ph. Setiap metrik dihitung HANYA dari baris yang kolom METRIK ITU non-null, dengan reading_count-nya sendiri. Memakai jumlah baris terisi sebagai penyebut bersama akan mengempiskan rata-rata metrik yang jarang diisi, dan hasilnya tetap terlihat seperti angka yang sah.",
         "metrics[].min dan metrics[].max diambil dari PEMBACAAN MENTAH, bukan dari rata-rata harian. Laporan ini menjawab 'seberapa stabil'; tekanan yang anjlok ke 12 bar pada satu slot adalah kejadian yang penting justru karena rata-rata harinya tetap terlihat 20. Konsekuensinya angka min/max pada kartu TIDAK dapat direkonsiliasi dengan kolom rata-rata harian di rekap — perbedaan itu disengaja dan WAJIB diberi label di layar, kalau tidak pembaca akan mengira laporannya rusak.",
@@ -392,7 +394,12 @@
         {
           "entity_id": "period",
           "operation": "SELECT",
-          "description": "Daftar periode untuk pemilih dan rentang tanggal periode terpilih"
+          "description": "Induk periode: rentang tanggal periode terpilih dan nama periode pada pemilih. Tidak lagi menyimpan status maupun station_type — keduanya pindah ke period-station pada 2026-09-25."
+        },
+        {
+          "entity_id": "period-station",
+          "operation": "SELECT",
+          "description": "Penyaring pemilih periode (whereHas station_type = 'boiler-room') dan sumber nilai status pada opsi periode serta pada header summary. Di-eager-load terbatas pada jenis stasiun ini untuk menghindari N+1."
         },
         {
           "entity_id": "boiler-room-detail",
@@ -412,7 +419,7 @@
         {
           "entity_id": "station-type",
           "operation": "SELECT",
-          "description": "Resolusi station_type_label pada daftar periode"
+          "description": "Resolusi station_type_label pada daftar periode — label selalu nama jenis stasiun layar ini, dibaca dari master (bukan dari enum), dan tidak pernah lagi 'Semua Stasiun'"
         },
         {
           "entity_id": "business-unit",
@@ -462,12 +469,16 @@
           "handling": "422 VALIDATION_ERROR menghubungi Admin; daftar seluruh mill TIDAK PERNAH disusun (diuji sebagai spy)"
         },
         {
-          "condition": "Mill belum punya periode yang mencakup Boiler Room",
-          "handling": "200 dengan daftar kosong; UI menampilkan arahan menghubungi Admin"
+          "condition": "Mill belum punya satu pun periode yang punya baris period_stations untuk Boiler Room",
+          "handling": "200 dengan daftar kosong; UI menampilkan arahan menghubungi Admin. Kosong di sini berarti 'tidak ada periode yang punya baris period_stations boiler-room', bukan 'tidak ada periode'."
         },
         {
-          "condition": "Periode berstatus tertutup",
-          "handling": "Tetap dapat dilihat dan diekspor penuh — kunci periode mengatur penulisan data, bukan pembacaan laporan"
+          "condition": "Periode induk ada di mill itu tetapi tidak punya baris period_stations untuk Boiler Room (mis. mill tanpa stasiun Boiler Room aktif saat periode dibuat, atau periode yang hanya mengelola jenis stasiun lain)",
+          "handling": "Periode itu TIDAK ditawarkan di pemilih sama sekali — perilaku BARU yang menggantikan cabang orWhereNull('station_type'). Bila period_id-nya tetap ditembak langsung ke summary/export, laporan tetap dihitung dari rentang tanggal induk dan statusValue() memulangkan 'draft'; bentuk ini hanya bisa muncul lewat summary()/export(), tidak pernah lewat pemilih."
+        },
+        {
+          "condition": "Baris period_stations Boiler Room berstatus Draft atau Tertutup",
+          "handling": "Tetap dapat dilihat dan diekspor penuh — kunci periode mengatur PENULISAN data, bukan pembacaan laporan, dan kuncinya berlaku per jenis stasiun. Tombol Ekspor tidak dinonaktifkan; status hanya keterangan, dan yang ditampilkan adalah status Boiler Room, bukan status jenis stasiun lain di periode yang sama."
         },
         {
           "condition": "Rekap harian puluhan baris",
@@ -478,8 +489,8 @@
         "Hanya Supervisor, Mill Management, dan Admin; Operator ditolak 403 di seluruh endpoint",
         "Supervisor dan Mill Management terkunci pada millnya; business_unit_id dari klien diabaikan",
         "Admin wajib memilih mill; tanpa itu 422",
-        "Pemilih periode hanya memuat periode ber-station_type 'boiler-room' atau NULL",
-        "Status periode tidak membatasi pembacaan maupun ekspor",
+        "Pemilih periode hanya memuat periode yang punya baris period_stations untuk jenis stasiun 'boiler-room'; periode tanpa baris itu tidak ditawarkan. Konsep station_type NULL = 'berlaku semua jenis stasiun' beserta label 'Semua Stasiun' sudah tidak ada — cakupan semua-stasiun diwujudkan sebagai satu baris per jenis stasiun.",
+        "Status tutup/buka adalah milik BARIS period_stations jenis stasiun ini, bukan milik periode, dan tidak membatasi pembacaan maupun ekspor — Boiler Room dapat tertutup sementara jenis stasiun lain di periode yang sama masih terbuka.",
         "Rentang periode inklusif dua ujung memakai record.date",
         "Setiap metrik dihitung dengan penyebutnya sendiri, dan reading_count-nya dilaporkan",
         "Ekstrem metrik berasal dari pembacaan mentah, sementara rekap harian menampilkan rata-rata harian — keduanya berbeda dan diberi label",
@@ -621,19 +632,29 @@
           "expect": "query yang dijalankan hanya pengambilan baris mentah (select kolom + where + order by); tidak ada pemanggilan avg()/sum()/groupBy() di lapisan SQL, sehingga perilaku null-bukan-nol sama di SQLite maupun PostgreSQL"
         },
         {
-          "description": "daftar periode hanya memuat periode yang mencakup Boiler Room atau berlaku semua jenis stasiun",
-          "given": "listPeriods() dipanggil untuk mill 1 yang punya periode berjenis Boiler Room, periode tanpa jenis stasiun, dan periode berjenis stasiun lain",
-          "expect": "hasil memuat dua periode pertama saja; periode berjenis stasiun lain tidak ikut"
+          "description": "daftar periode hanya memuat periode yang punya baris period_stations untuk 'boiler-room', selalu dilaporkan sebagai pasangan (periode, Boiler Room)",
+          "given": "listPeriods() dipanggil untuk mill 1 yang punya periode P1 dengan baris period_stations 'boiler-room', periode P2 bercakupan seluruh mill (satu baris per jenis stasiun aktif, termasuk 'boiler-room' — bentuk yang menggantikan station_type NULL sejak 2026-09-25), dan periode P3 yang hanya punya baris jenis stasiun lain",
+          "expect": "hasil memuat P1 dan P2 saja; P3 tidak ikut. Setiap opsi membawa station_type = 'boiler-room' dan station_type_label dari master — tidak pernah null dan tidak pernah 'Semua Stasiun'"
         },
         {
-          "description": "mill tanpa periode yang mencakup Boiler Room mengembalikan daftar kosong, bukan galat",
-          "given": "listPeriods() untuk mill yang tidak punya satu pun periode mencakup Boiler Room",
+          "description": "listPeriods TIDAK memungut periode tanpa baris period_stations untuk 'boiler-room'",
+          "given": "mill punya periode P4 dengan baris period_stations untuk jenis stasiun lain saja, dan periode P5 tanpa satu pun baris period_stations",
+          "expect": "hasil tidak memuat P4 maupun P5 — inilah jaminan yang dulu diberikan cabang orWhereNull('station_type') dan kini sengaja dibuang: tanpa baris untuk jenis ini sebuah periode bukan periode Boiler Room, sekalipun millnya sama"
+        },
+        {
+          "description": "mill tanpa periode yang punya baris period_stations Boiler Room mengembalikan daftar kosong, bukan galat",
+          "given": "listPeriods() untuk mill yang tidak punya satu pun periode dengan baris period_stations station_type = 'boiler-room'",
           "expect": "mengembalikan array kosong tanpa melempar exception"
         },
         {
-          "description": "status periode tidak membatasi pembacaan maupun ekspor",
-          "given": "period_id merujuk periode berstatus 'closed' milik mill pengguna",
-          "expect": "buildSummary() dan buildExportRows() mengembalikan hasil penuh dan status 'closed' ikut pada payload; tidak ada exception"
+          "description": "status yang dilaporkan adalah status Boiler Room, bukan status jenis stasiun lain di periode yang sama",
+          "given": "periode P6 milik mill pengguna dengan baris period_stations 'boiler-room' berstatus 'open' dan baris jenis stasiun lain berstatus 'closed'",
+          "expect": "opsi listPeriods untuk P6 berstatus 'open'; summary(P6).period.status juga 'open' (jalur tanpa relasi ter-eager-load memakai stationRowOf() yang sama); setelah statusnya dibalik — 'boiler-room' closed, jenis stasiun lain open — summary(P6).period.status menjadi 'closed'"
+        },
+        {
+          "description": "status baris period_stations Boiler Room tidak membatasi pembacaan maupun ekspor",
+          "given": "period_id merujuk periode milik mill pengguna yang baris period_stations 'boiler-room'-nya berstatus 'closed'",
+          "expect": "buildSummary() dan buildExportRows() mengembalikan hasil penuh dan status 'closed' milik baris Boiler Room ikut pada payload; tidak ada exception"
         },
         {
           "description": "throws 403 FORBIDDEN when period_id milik mill lain",
@@ -743,9 +764,13 @@
     }
   ],
   "implementation_notes": [
+    "PEMISAHAN periods/period_stations (2026-09-25, commit 83a4065) — yang berubah di layar ini: (1) periods tidak lagi punya station_type/status/closed_by/closed_at; semuanya di period_stations dengan UNIQUE(period_id, station_type). (2) Konsep station_type NULL = 'berlaku semua jenis stasiun' beserta label 'Semua Stasiun' HILANG sepenuhnya — cakupan semua-stasiun kini berarti ADANYA satu baris per jenis stasiun. (3) listPeriods memakai whereHas('stations', station_type = 'boiler-room'), sehingga periode tanpa baris untuk jenis ini tidak lagi dipungut — perilaku BARU, bukan penulisan ulang perilaku lama. (4) statusValue() membaca baris itu lewat stationRowOf() dan memulangkan 'draft' bila barisnya tidak ada; Period::$status melempar LogicException bila dibaca. (5) KONTRAK API TIDAK BERUBAH BENTUKNYA — periodOption() tetap datar dan summary().period tetap datar; yang berubah hanya artinya.",
     "Route /reports/boiler-room mengikuti konvensi repo /reports/* (reports.management, reports.stations, reports.sterilizer, reports.cages-track). Tidak ada route ber-prefix /laporan di aplikasi ini.",
+    "SKENARIO YANG BENTUKNYA BERUBAH, bukan hilang: 'periode jenis stasiun lain tidak ditawarkan' kini MUSTAHIL diproduksi lewat UI di dalam satu mill yang terprovisi, karena menyimpan periode mendaftarkan satu baris period_stations untuk setiap jenis stasiun yang dimiliki mill itu. Maksud yang sama kini dibuktikan dengan dua bentuk yang masih bisa diproduksi: (a) di unit/component test, periode yang dibuat langsung dengan hanya baris jenis stasiun lain atau tanpa baris sama sekali; (b) di browser test, periode milik mill tanpa satu pun stasiun aktif — itulah PERIOD_OTHER_MILL di e2e-web/tests/laporan-boiler-room.spec.ts. Cakupan ujinya tidak berkurang; hanya fixture-nya yang berpindah ke bentuk yang dapat dibuat.",
     "Tile Boiler Room di screen-140 baru menyala setelah REPORT_ROUTES di StationReportService ditambah satu entri, diurutkan mengikuti sort_order. Tanpa baris itu laporan hidup, seluruh testnya hijau, dan layarnya tetap tidak terjangkau dari UI. Asersi laporan-stasiun.spec.ts sudah berbentuk INVARIAN sejak 2026-09-24, jadi menambah tile TIDAK akan memerahkannya.",
+    "Fallback statusValue() = 'draft' untuk periode tanpa baris period_stations jenis stasiun ini TIDAK punya unit test khusus. Itu disengaja dan dicatat sebagai celah cakupan, bukan lubang implementasi: listPeriods() tidak pernah memulangkan periode tanpa baris, sehingga bentuk itu hanya dapat dicapai lewat summary()/export() dengan period_id yang ditembak langsung.",
     "PENYEBUT TERPISAH PER METRIK adalah inti layar ini. Kesembilan kolom numerik nullable dan sebuah baris dianggap terisi bila minimal satu dari 15 kolom non-time_slot terisi (definisi milik BoilerRoomRecordService). Memakai jumlah baris terisi sebagai penyebut bersama akan mengempiskan metrik yang jarang diisi — dan hasilnya tetap terlihat wajar. Unit test mengunci ini dengan 10 baris tekanan vs 4 baris pH.",
+    "Satu skenario pemilih periode di artefak ini ditegakkan oleh TIGA test komponen terpisah di suite Livewire (hanya periode ber-baris boiler-room yang ditawarkan / periode tanpa baris tidak ditawarkan / status opsi memakai status Boiler Room dan bukan status stasiun lain) plus dua unit test service baru. Pemecahan itu disengaja: ketiganya menguji konsekuensi berbeda dari pemisahan induk-anak dan menggabungkannya membuat kegagalan sulit dibaca.",
     "EKSTREM DARI PEMBACAAN MENTAH, bukan dari rata-rata harian. Keputusan diambil pada 2026-09-24: laporan ini menjawab 'seberapa stabil', dan tekanan yang anjlok ke 12 bar pada satu slot adalah kejadian penting justru karena rata-rata harinya tetap terlihat 20. Mock visual memakai ekstrem rata-rata harian demi keterverifikasian dan menyatakannya di kartu — itu KEMUDAHAN MOCK, bukan kontrak. Yang berlaku adalah pembacaan mentah, dan layar WAJIB memberi label bahwa min/max pada kartu tidak dapat direkonsiliasi dengan kolom rata-rata harian di rekap.",
     "TIGA KEADAAN perawatan punya invarian yang bisa diuji: executed + not_executed + not_recorded HARUS sama persis dengan jumlah baris pembacaan. Memperlakukan NULL sebagai 'n' akan melaporkan kelalaian perawatan yang tidak pernah terjadi.",
     "TIDAK ADA penandaan nilai di luar batas, dan alasannya ditulis di sini supaya tidak ada yang 'melengkapinya' kelak: tidak ada BoilerRoomOperationalTarget (hanya Threshing/Pressing/Depricarping/Kernel Plant yang punya), dan docblock BoilerRoomRecordService menyatakan ketiadaan itu memang disengaja, sama seperti Engine Room/Storage Tank/Effluent Plant. Angka tekanan boiler yang diwarnai merah akan dibaca sebagai batas keselamatan padahal hanya turunan statistik periode itu sendiri.",
@@ -1270,7 +1295,7 @@
             "path": "/api/boiler-room-reports/summary"
           },
           "request_example": {
-            "_context": "Periode berstatus tertutup; laporan harus tampil penuh dan status ikut pada payload",
+            "_context": "Periode yang baris period_stations Boiler Room-nya berstatus tertutup; laporan harus tampil penuh dan status baris itu ikut pada payload",
             "period_id": 16
           },
           "expected_status": 200,
@@ -1283,7 +1308,7 @@
             "path": "/api/boiler-room-reports/export"
           },
           "request_example": {
-            "_context": "Ekspor atas periode tertutup tetap dapat dijalankan",
+            "_context": "Ekspor atas periode yang baris Boiler Room-nya tertutup tetap dapat dijalankan — kunci periode mengatur penulisan, bukan pembacaan",
             "period_id": 16
           },
           "expected_status": 200,
@@ -1292,12 +1317,12 @@
       ],
       "component_test": {
         "component": "LaporanBoilerRoom",
-        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode berstatus tertutup terpilih",
-        "assert": "data-testid=\"period-status\" menampilkan status tertutup; seluruh kartu metrik dan rekap tetap ter-render; data-testid=\"export-button\" tidak disabled"
+        "action": "Livewire::test(LaporanBoilerRoom::class) dengan periode yang baris period_stations 'boiler-room'-nya berstatus tertutup terpilih",
+        "assert": "data-testid=\"period-status\" menampilkan status tertutup milik baris Boiler Room (bukan status periode, dan bukan status jenis stasiun lain di periode yang sama); seluruh kartu metrik dan rekap tetap ter-render; data-testid=\"export-button\" tidak disabled"
       },
       "browser_test": {
         "route": "/reports/boiler-room",
-        "action": "Playwright: buka /reports/boiler-room, pilih periode berstatus tertutup, lalu klik tombol Ekspor CSV",
+        "action": "Playwright: sebagai Admin tutup HANYA baris stasiun Boiler Room pada satu periode di Kelola Periode Pelaporan; lalu buka /reports/boiler-room, pilih periode itu, dan klik tombol Ekspor CSV",
         "assert": "status tertutup terlihat, laporan tampil penuh, dan unduhan CSV berhasil diterima"
       }
     },
@@ -1383,7 +1408,7 @@
             "path": "/api/boiler-room-reports/periods"
           },
           "request_example": {
-            "_context": "Mill punya periode berjenis Boiler Room, periode tanpa jenis stasiun, dan periode berjenis stasiun lain; hanya dua jenis pertama yang boleh muncul"
+            "_context": "Mill punya periode dengan baris period_stations 'boiler-room', periode bercakupan seluruh mill (satu baris per jenis stasiun, termasuk boiler-room), periode yang hanya punya baris jenis stasiun lain, dan periode tanpa satu pun baris period_stations; hanya dua yang pertama boleh muncul"
           },
           "expected_status": 200,
           "expected_error_code": null
@@ -1391,13 +1416,13 @@
       ],
       "component_test": {
         "component": "LaporanBoilerRoom",
-        "action": "Livewire::test(LaporanBoilerRoom::class) pada mill dengan campuran jenis periode",
-        "assert": "data-testid=\"period-selector\" memuat persis periode Boiler Room dan periode semua jenis stasiun; periode berjenis stasiun lain tidak ada di daftar option"
+        "action": "Livewire::test(LaporanBoilerRoom::class) pada mill dengan campuran periode: ber-baris boiler-room, bercakupan seluruh mill, hanya jenis stasiun lain, dan tanpa baris sama sekali",
+        "assert": "data-testid=\"period-selector\" memuat persis kedua periode yang punya baris 'boiler-room'; periode yang hanya punya baris jenis stasiun lain dan periode tanpa baris sama sekali tidak ada di daftar option; seluruh station_type_label opsi berbunyi jenis stasiun layar ini, tidak pernah 'Semua Stasiun'; dan status tiap opsi memakai status baris 'boiler-room'"
       },
       "browser_test": {
         "route": "/reports/boiler-room",
         "action": "Playwright: buka /reports/boiler-room lalu buka pemilih periode",
-        "assert": "hanya periode yang mencakup Boiler Room atau berlaku semua jenis stasiun yang terlihat dan dapat dipilih; periode stasiun lain tidak muncul"
+        "assert": "hanya periode yang PUNYA baris period_stations Boiler Room yang terlihat dan dapat dipilih — dibuktikan langsung di Kelola Periode Pelaporan dengan membuka baris stasiunnya, bukan disimpulkan. Periode milik mill tanpa satu pun stasiun aktif (karenanya tanpa baris period_stations sama sekali) tidak muncul. Bentuk lama 'periode khusus jenis stasiun lain' tidak lagi dapat diproduksi lewat UI di dalam satu mill terprovisi."
       }
     },
     {

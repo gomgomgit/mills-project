@@ -1,0 +1,155 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-27"
+  },
+  "ver": 1,
+  "id": "usecase-145--lihat-detail-periode-pelaporan",
+  "name": "Lihat Detail Periode Pelaporan",
+  "description": "Admin membuka satu Periode Pelaporan dari daftar untuk melihat isinya secara utuh: ringkasan periode (nama, mill, rentang tanggal, jumlah stasiun, jumlah stasiun tertutup, ringkasan status) dan tabel seluruh jenis stasiun yang dicakup periode itu beserta status, penutup, dan waktu penutupan masing-masing. Halaman inilah rumah dari aksi per stasiun (Buka Stasiun / Tutup Stasiun / Buka Kembali, usecase-140 dan usecase-144) dan juga menyediakan Edit serta Hapus periode induknya. Usecase ini sendiri hanya soal MELIHAT dan bernavigasi: membuka detail dari daftar, membaca isinya, dan kembali ke daftar.",
+  "actors": [
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Admin sudah login ke aplikasi web",
+    "Periode yang dituju sudah terdaftar"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-admin",
+      "description": "Membuka layar Kelola Periode Pelaporan dan menekan nama periode yang ingin dilihat"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Membuka layar Detail Periode Pelaporan untuk periode itu"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Menampilkan ringkasan periode: nama, Business Unit (mill), tanggal mulai, tanggal selesai, jumlah jenis stasiun yang dicakup, berapa di antaranya tertutup, dan badge ringkasan status (Draft / Terbuka / Tertutup / Campuran / Tanpa Stasiun)"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Menampilkan tabel jenis stasiun periode itu dengan kolom Jenis Stasiun, Status, Ditutup Oleh, Waktu Ditutup, dan Aksi — satu baris per jenis stasiun, terurut mengikuti urutan proses pada master Jenis Stasiun; aksi yang ditawarkan pada setiap baris mengikuti statusnya"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Menampilkan tombol Edit dan Hapus periode; keduanya nonaktif beserta penjelasan pada atribut title bila ada minimal satu stasiun tertutup"
+    },
+    {
+      "step": 6,
+      "actor": "actor-admin",
+      "description": "Membaca isinya dan, bila perlu, menjalankan aksi per stasiun (usecase-140 / usecase-144) atau mengubah maupun menghapus periodenya"
+    },
+    {
+      "step": 7,
+      "actor": "actor-admin",
+      "description": "Menekan tombol kembali untuk balik ke daftar Kelola Periode Pelaporan"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Periode tidak ditemukan",
+      "trigger": "Pada langkah 2, id periode tidak valid atau periodenya sudah dihapus Admin lain",
+      "steps": [
+        "Sistem menampilkan pesan error yang ramah bahwa periode tidak ditemukan",
+        "Tersedia tombol kembali ke daftar periode",
+        "Tidak terjadi kegagalan sistem dan tidak ada halaman kosong tanpa keterangan"
+      ]
+    },
+    {
+      "name": "Periode tanpa baris stasiun",
+      "trigger": "Pada langkah 4, periode itu belum punya satu pun baris stasiun karena mill-nya belum memiliki stasiun aktif",
+      "steps": [
+        "Sistem menampilkan penjelasan bahwa mill-nya belum memiliki stasiun aktif dan bahwa menambah stasiun lalu menyimpan ulang periode akan mendaftarkannya — bukan tabel kosong tanpa keterangan",
+        "Badge ringkasan status berbunyi 'Tanpa Stasiun' dan jumlah stasiun 0",
+        "Tidak ada aksi per stasiun yang tersedia",
+        "Edit dan Hapus periode tetap aktif"
+      ]
+    },
+    {
+      "name": "Status stasiun campuran",
+      "trigger": "Pada langkah 4, jenis stasiun periode itu punya status berbeda-beda",
+      "steps": [
+        "Setiap baris menampilkan status dan aksinya sendiri apa adanya",
+        "Badge ringkasan periode berbunyi 'Campuran'",
+        "Edit dan Hapus periode sudah nonaktif bila salah satu baris berstatus Tertutup"
+      ]
+    },
+    {
+      "name": "Jenis stasiun sudah dipensiunkan",
+      "trigger": "Pada langkah 4, sebuah baris merujuk jenis stasiun yang sudah tidak aktif di mill atau tidak lagi ada di master Jenis Stasiun",
+      "steps": [
+        "Barisnya tetap ditampilkan — baris stasiun tidak pernah dihapus karena menyimpan catatan penutupan",
+        "Labelnya memakai kode jenis stasiun bila namanya tidak lagi ada di master",
+        "Barisnya diurutkan paling belakang"
+      ]
+    },
+    {
+      "name": "Bukan Admin membuka detail",
+      "trigger": "Pada langkah 1 atau lewat URL langsung, pelaku adalah Operator, Supervisor, Mill Management, atau pengguna tanpa sesi",
+      "steps": [
+        "Akses ditolak",
+        "Tidak ada data periode maupun status stasiun yang ditampilkan"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Admin mengetahui jenis stasiun apa saja yang dicakup periode itu beserta status, penutup, dan waktu penutupan masing-masing",
+    "Tidak ada data yang berubah — usecase ini hanya membaca",
+    "Admin dapat kembali ke daftar periode tanpa kehilangan konteks"
+  ],
+  "business_rules": [
+    "Hanya Admin yang dapat membuka layar detail periode",
+    "Baris stasiun ditampilkan mengikuti urutan proses pada master Jenis Stasiun, bukan urutan abjad maupun urutan pembuatan; jenis yang tidak dikenal master diurutkan paling belakang",
+    "Ringkasan status periode hanyalah rangkuman status seluruh baris stasiunnya: 'Draft', 'Terbuka', atau 'Tertutup' bila semuanya sama, 'Campuran' bila berbeda-beda, dan 'Tanpa Stasiun' bila belum ada baris stasiun. Rangkuman ini tidak boleh dipakai untuk memutuskan apa yang boleh dilakukan pada satu stasiun",
+    "Edit dan Hapus periode nonaktif — bukan disembunyikan — bila ada satu saja stasiun yang berstatus Tertutup",
+    "Layar ini adalah satu-satunya tempat aksi per stasiun berada; daftar periode tidak menyediakannya",
+    "Ada jalan kembali yang jelas ke daftar Kelola Periode Pelaporan"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Lihat Detail Periode Pelaporan — sukses",
+      "given": "Admin sudah login ke aplikasi web dan terdapat periode pelaporan pada mill yang punya beberapa jenis stasiun aktif",
+      "when": "Admin menekan nama periode itu pada daftar Kelola Periode Pelaporan",
+      "then": "Layar Detail Periode Pelaporan terbuka menampilkan nama periode, mill, rentang tanggal, jumlah stasiun beserta jumlah yang tertutup, badge ringkasan status, dan tabel satu baris per jenis stasiun (Jenis Stasiun, Status, Ditutup Oleh, Waktu Ditutup, Aksi) terurut mengikuti urutan proses master"
+    },
+    {
+      "scenario": "Lihat Detail Periode Pelaporan — kembali ke daftar periode",
+      "given": "Admin sudah login ke aplikasi web dan sedang berada di layar Detail Periode Pelaporan",
+      "when": "Admin menekan tombol kembali",
+      "then": "Admin kembali ke layar Kelola Periode Pelaporan tanpa perubahan data apa pun"
+    },
+    {
+      "scenario": "Lihat Detail Periode Pelaporan — Periode tidak ditemukan",
+      "given": "Admin sudah login ke aplikasi web dan periode yang dirujuk tidak ada atau sudah dihapus Admin lain",
+      "when": "Admin membuka layar detail untuk periode tersebut",
+      "then": "Sistem menampilkan pesan error yang ramah bahwa periode tidak ditemukan beserta tombol kembali ke daftar periode, tanpa kegagalan sistem"
+    },
+    {
+      "scenario": "Lihat Detail Periode Pelaporan — Periode tanpa baris stasiun",
+      "given": "Admin sudah login ke aplikasi web dan terdapat periode pada mill yang belum punya satu pun stasiun aktif",
+      "when": "Admin membuka layar detail periode tersebut",
+      "then": "Layar menampilkan penjelasan bahwa mill-nya belum memiliki stasiun aktif dan bahwa menambah stasiun lalu menyimpan ulang periode akan mendaftarkannya, badge ringkasan berbunyi 'Tanpa Stasiun' dengan 0 stasiun, tidak ada aksi per stasiun yang tersedia, sedangkan Edit dan Hapus periode tetap aktif"
+    },
+    {
+      "scenario": "Lihat Detail Periode Pelaporan — Status stasiun campuran",
+      "given": "Admin sudah login ke aplikasi web dan sebuah periode punya Sterilizer Tertutup, Clarification Terbuka, dan Boiler Room Draft",
+      "when": "Admin membuka layar detail periode tersebut",
+      "then": "Setiap baris menampilkan statusnya sendiri beserta aksi yang sesuai ('Buka Kembali' untuk Tertutup, 'Tutup Stasiun' untuk Terbuka, 'Buka Stasiun' untuk Draft), badge ringkasan periode berbunyi 'Campuran', dan Edit maupun Hapus periode tampil nonaktif beserta penjelasannya"
+    },
+    {
+      "scenario": "Lihat Detail Periode Pelaporan — Bukan Admin membuka detail",
+      "given": "Pengguna non-Admin (Operator, Supervisor, atau Mill Management) sudah login, atau tidak punya sesi sama sekali",
+      "when": "Pengguna itu membuka URL layar Detail Periode Pelaporan",
+      "then": "Akses ditolak dan tidak ada data periode maupun status stasiun yang ditampilkan"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-142--detail-periode-pelaporan"
+  ]
+}

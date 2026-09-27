@@ -1,8 +1,8 @@
 {
-  "ver": 56,
+  "ver": 57,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-09-25"
+    "updated_at": "2026-09-27"
   },
   "endpoints": [
     {
@@ -1689,9 +1689,20 @@
     },
     {
       "method": "GET",
-      "path": "/api/periods/{id}/unverified-count",
-      "description": "Jumlah record stasiun belum terverifikasi dalam rentang periode",
-      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "path": "/api/periods/{id}",
+      "description": "Mengambil satu periode beserta seluruh baris stasiunnya; bentuk responsnya persis toRow() sehingga daftar dan detail tidak punya dua bentuk objek yang sama",
+      "screen_id": "screen-142--detail-periode-pelaporan",
+      "usecase_id": "usecase-145--lihat-detail-periode-pelaporan",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/period-stations/{id}/unverified-count",
+      "description": "Menghitung record stasiun JENIS ITU yang belum terverifikasi di dalam rentang periode induk — bukan jumlah se-periode",
+      "screen_id": "screen-142--detail-periode-pelaporan",
       "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
       "auth_required": true,
       "actor_ids": [
@@ -1700,9 +1711,9 @@
     },
     {
       "method": "POST",
-      "path": "/api/periods/{id}/close",
-      "description": "Menutup periode dan mengunci data stasiun dalam rentangnya",
-      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "path": "/api/period-stations/{id}/close",
+      "description": "Menutup SATU jenis stasiun di dalam sebuah periode; jenis stasiun lain di periode yang sama tidak ikut tertutup",
+      "screen_id": "screen-142--detail-periode-pelaporan",
       "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
       "auth_required": true,
       "actor_ids": [
@@ -1711,9 +1722,9 @@
     },
     {
       "method": "POST",
-      "path": "/api/periods/{id}/reopen",
-      "description": "Membuka kembali periode yang sudah tertutup",
-      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "path": "/api/period-stations/{id}/reopen",
+      "description": "Membuka kembali satu jenis stasiun yang sudah tertutup (closed -> open)",
+      "screen_id": "screen-142--detail-periode-pelaporan",
       "usecase_id": "usecase-140--tutup-buka-periode-pelaporan",
       "auth_required": true,
       "actor_ids": [
@@ -1722,9 +1733,9 @@
     },
     {
       "method": "POST",
-      "path": "/api/periods/{id}/open",
-      "description": "Membuka periode yang masih berstatus draft menjadi open",
-      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "path": "/api/period-stations/{id}/open",
+      "description": "Membuka satu jenis stasiun yang masih draft (draft -> open)",
+      "screen_id": "screen-142--detail-periode-pelaporan",
       "usecase_id": "usecase-144--buka-periode-pelaporan",
       "auth_required": true,
       "actor_ids": [

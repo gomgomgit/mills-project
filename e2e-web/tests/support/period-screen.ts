@@ -1,41 +1,57 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 
 /**
- * Interaksi UI dengan screen-128 (Kelola Periode Pelaporan) yang dipakai
- * lebih dari satu spec: lima spec laporan menanam periodenya lewat layar ini
- * sebelum menguji laporannya sendiri.
+ * Interaksi UI dengan Periode Pelaporan yang dipakai lebih dari satu spec:
+ * screen-128 (daftar periode, `/master-data/periods`) untuk menanam periode,
+ * dan screen-142 (detail periode, `/master-data/periods/{id}`) untuk seluruh
+ * aksi per stasiun. Lima spec laporan menanam periodenya lewat kedua layar
+ * ini sebelum menguji laporannya sendiri.
  *
- * MENGAPA INI TIDAK BISA LAGI SEKADAR "klik tombol di baris periode".
+ * ── APA YANG BERUBAH PADA 2026-09-27 ────────────────────────────────────
  *
- * Sejak 2026-09-26 status tutup/buka hidup di `period_stations`, satu baris
- * per jenis stasiun, dan layarnya menjadi tabel BERTINGKAT:
+ * Daftar stasiun sebuah periode BUKAN LAGI ACCORDION di screen-128. Ia pindah
+ * ke layar tersendiri, screen-142, yang dicapai lewat nama periode (sebuah
+ * <a href> sungguhan, `data-testid="period-link-{periodId}"`).
  *
- *   - Baris induk (satu per periode) hanya membawa ringkasan
- *     (`status_summary`, "N stasiun · M tertutup") dan dua aksi periode
- *     (Edit, Hapus). Tidak ada lagi tombol "Tutup Periode" di sana.
- *   - Baris stasiun hidup di <tr> KEDUA, di dalam sub-tabel, dan
- *     TERTUTUP SECARA DEFAULT ($expandedPeriodIds kosong saat mount). Tombol
- *     per-stasiun tidak ada di DOM sebelum barisnya dibuka — mencarinya
- *     tanpa expand menghasilkan timeout yang menyesatkan, bukan "tombolnya
- *     hilang".
- *   - Setiap testid per-stasiun membawa id `period_stations`, bukan id
- *     periode: `station-close-button-{period_station_id}` dan seterusnya.
+ *   - `expand-button-{periodId}` dan sub-tabel di <tr> kedua SUDAH TIDAK ADA.
+ *     Versi lama helper ini mengklik toggle itu; kini pembukaan daftar
+ *     stasiun berarti NAVIGASI ke `/master-data/periods/{periodId}`.
+ *   - Testid tabel stasiun tidak berubah bentuknya — `period-stations-{periodId}`,
+ *     `period-station-row-{stationId}`, `station-status-badge-{stationId}`,
+ *     `station-close-button-{stationId}`, `station-open-button-{stationId}`,
+ *     `station-reopen-button-{stationId}` — hanya rumahnya yang pindah ke
+ *     screen-142. Itulah sebabnya stationIdFor() di bawah tetap sama persis;
+ *     yang berubah hanya HALAMAN tempat ia dipanggil.
+ *   - SETIAP testid per-stasiun tetap membawa id `period_stations`, BUKAN id
+ *     periode. Endpoint tutup/buka (`/api/period-stations/{id}/...`) menerima
+ *     id itu, dan mengirim id periode ke sana adalah kekeliruan termahal
+ *     layar ini: 404, atau lebih buruk, mengenai baris milik periode lain.
+ *     Karena id itu tidak pernah diketahui spec (periode dibuat lewat UI),
+ *     helper di bawah MEMBACA id dari atribut data-testid baris yang
+ *     bersangkutan, bukan menebaknya.
  *
- * Karena id itu tidak diketahui spec (periode dibuat lewat UI dan idnya
- * tidak pernah ditampilkan), helper di bawah MEMBACA id dari atribut
- * data-testid baris yang bersangkutan, bukan menebaknya.
+ * Baris induk di screen-128 kini hanya membawa ringkasan (`status_summary`,
+ * "N stasiun · M tertutup") dan dua aksi periode (Edit, Hapus) — tidak ada
+ * satu pun aksi stasiun di sana.
  */
 
-/** Baris INDUK satu periode, dicari lewat namanya. */
+export const PERIODS_PATH = '/master-data/periods'
+
+/** URL layar detail satu periode (screen-142). */
+export function periodDetailPath(periodId: string): string {
+  return `${PERIODS_PATH}/${periodId}`
+}
+
+/** Baris satu periode pada DAFTAR (screen-128), dicari lewat namanya. */
 export function periodRow(page: Page, name: string): Locator {
-  // `.kc-table__row` juga dipakai <tr> pembawa sub-tabel stasiun, tapi <tr>
-  // itu tidak memuat nama periode, jadi pencocokan nama tetap tunggal.
-  return page.locator('.kc-table__row', { hasText: name })
+  // Dibatasi ke tabel daftar: `.kc-table__row` juga dipakai baris stasiun di
+  // screen-142, dan kedua layar memakai kosakata kelas yang sama.
+  return page.locator('[data-testid="period-table"] .kc-table__row', { hasText: name })
 }
 
 /**
- * Id periode, dibaca dari `data-testid="period-row-{id}"`. Dipakai untuk
- * menyusun testid anak-anaknya (expand-button, period-stations, dst).
+ * Id periode, dibaca dari `data-testid="period-row-{id}"` pada DAFTAR.
+ * Dipakai untuk menyusun URL detailnya dan testid aksi periodenya.
  */
 export async function periodIdFor(page: Page, name: string): Promise<string> {
   const row = periodRow(page, name)
@@ -51,23 +67,23 @@ export async function periodIdFor(page: Page, name: string): Promise<string> {
 }
 
 /**
- * Membuka baris stasiun satu periode bila belum terbuka. Idempoten: tombol
- * expand adalah toggle, jadi mengkliknya dua kali akan MENUTUP kembali
- * barisnya — karena itu keadaannya dibaca dari aria-expanded lebih dulu.
+ * Membuka layar detail satu periode lewat URL-nya dan menunggu ringkasannya
+ * ter-render.
+ *
+ * Idempoten dan tidak bergantung pada halaman asal — dipakai juga untuk
+ * "kembali ke detail" setelah sebuah aksi memindahkan halaman. Navigasi lewat
+ * tautan nama periode (`period-link-{id}`, wire:navigate) diuji tersendiri di
+ * tests/detail-periode-pelaporan.spec.ts; helper ini sengaja memakai goto agar
+ * penyiapan fixture tidak bergantung pada tautan yang sedang diuji.
  */
-export async function expandPeriod(page: Page, periodId: string): Promise<void> {
-  const toggle = page.locator(`[data-testid="expand-button-${periodId}"]`)
-  await expect(toggle).toBeVisible()
-
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') {
-    await toggle.click()
-  }
-
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+export async function gotoPeriodDetail(page: Page, periodId: string): Promise<void> {
+  await page.goto(periodDetailPath(periodId))
+  await expect(page.locator('[data-testid="period-summary"]')).toBeVisible()
 }
 
 /**
- * Id `period_stations` untuk satu jenis stasiun pada satu periode.
+ * Id `period_stations` untuk satu jenis stasiun pada HALAMAN DETAIL yang
+ * sedang terbuka.
  *
  * Pencocokan label dilakukan pada SEL PERTAMA dan harus SAMA PERSIS, bukan
  * `hasText` yang mencocokkan sebagian: master stasiun memuat "Kernel Plant"
@@ -104,9 +120,12 @@ export async function stationIdFor(page: Page, periodId: string, stationLabel: s
 }
 
 /**
- * Membuka baris stasiun periode `periodName` lalu memulangkan id
- * `period_stations` untuk `stationLabel`. Ini urutan wajibnya: id itu hanya
- * ada di DOM setelah baris induknya dibuka.
+ * Dari DAFTAR menuju baris stasiun satu periode: membaca id periode dari
+ * barisnya, membuka layar detailnya, lalu memulangkan id `period_stations`
+ * untuk `stationLabel`.
+ *
+ * Ini urutan wajibnya, dan halaman berpindah: setelah pemanggilan ini browser
+ * berada di `/master-data/periods/{periodId}`, bukan lagi di daftar.
  */
 export async function openStationRow(
   page: Page,
@@ -114,14 +133,20 @@ export async function openStationRow(
   stationLabel: string,
 ): Promise<{ periodId: string; stationId: string }> {
   const periodId = await periodIdFor(page, periodName)
-  await expandPeriod(page, periodId)
+  await gotoPeriodDetail(page, periodId)
 
   return { periodId, stationId: await stationIdFor(page, periodId, stationLabel) }
 }
 
 /**
  * Mengubah satu baris stasiun dari Draft menjadi Terbuka ("Buka Stasiun",
- * usecase-144). Idempoten: baris yang sudah Terbuka/Tertutup dibiarkan.
+ * usecase-144) pada layar detail yang sedang terbuka. Idempoten: baris yang
+ * sudah Terbuka/Tertutup dibiarkan.
+ *
+ * `periodId` tidak lagi dibutuhkan untuk membuka ulang accordion — layar
+ * detail tidak punya keadaan terlipat — tapi tetap diterima agar pemanggil
+ * membawa kedua id secara eksplisit dan tidak pernah tergoda mengirim satu
+ * id ke tempat yang salah.
  */
 export async function openStation(page: Page, periodId: string, stationId: string): Promise<void> {
   const badge = page.locator(`[data-testid="station-status-badge-${stationId}"]`)
@@ -136,20 +161,19 @@ export async function openStation(page: Page, periodId: string, stationId: strin
   await page.locator('[data-testid="confirm-open-period"]').click()
 
   await expect(badge).toHaveText('Terbuka')
-  await expandPeriod(page, periodId)
 }
 
 /**
  * Menutup SATU jenis stasiun pada satu periode lewat UI, dan memastikan
  * badge stasiun itu benar-benar menjadi "Tertutup".
  *
+ * Dipanggil dari DAFTAR; halaman berakhir di layar detail periode itu.
+ *
  * DUA LANGKAH, BUKAN SATU. Layar hanya menawarkan "Tutup Stasiun" pada baris
  * berstatus TERBUKA: baris Draft menawarkan "Buka Stasiun" dan baris
- * Tertutup menawarkan "Buka Kembali" (lihat blade screen-128). Siklusnya
+ * Tertutup menawarkan "Buka Kembali" (lihat blade screen-142). Siklusnya
  * draft -> open -> closed, tanpa jalan pintas dan tanpa jalan pulang ke
- * draft. closePeriod() lama mengklik satu tombol "Tutup Periode" di baris
- * induk pada periode yang masih Draft; tombol itu tidak ada lagi, dan
- * periode tidak punya status untuk ditutup.
+ * draft.
  *
  * Yang ditutup hanya stasiun itu — jenis lain pada periode yang sama tetap
  * seperti semula.
@@ -184,15 +208,15 @@ export async function selectSearchable(page: Page, id: string, label: string): P
 }
 
 /**
- * Mengisi dan menyimpan form "Tambah Periode", lalu menunggu baris induknya
- * muncul.
+ * Mengisi dan menyimpan form "Tambah Periode" di DAFTAR (screen-128), lalu
+ * menunggu barisnya muncul.
  *
- * TIDAK ADA LAGI PILIHAN JENIS STASIUN. Sebuah periode mencakup SELURUH
- * mill: create() mendaftarkan satu baris `period_stations` untuk setiap jenis
+ * TIDAK ADA PILIHAN JENIS STASIUN. Sebuah periode mencakup SELURUH mill:
+ * create() mendaftarkan satu baris `period_stations` untuk setiap jenis
  * stasiun aktif di mill itu. Form menggantinya dengan pratinjau daftar
  * stasiun yang akan didaftarkan.
  *
- * PRATINJAU ITU JUGA TITIK SINKRONISASI. `business_unit_id` kini terikat
+ * PRATINJAU ITU JUGA TITIK SINKRONISASI. `business_unit_id` terikat
  * `wire:model.live`, jadi memilih mill memicu satu round trip Livewire yang
  * me-render ulang modal. Mengetik nama periode sementara round trip itu
  * masih berjalan berisiko ditimpa oleh respons yang datang belakangan —

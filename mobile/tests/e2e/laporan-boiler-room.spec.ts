@@ -90,14 +90,25 @@ const PERIOD_BR = {
   station_type_label: 'Boiler Room',
 }
 
-const PERIOD_ALL_TYPES = {
+/**
+ * Periode yang cakupannya mencakup BANYAK jenis stasiun sekaligus.
+ *
+ * Sampai 2026-09-25 bentuknya `station_type: null` + label 'Semua Jenis
+ * Stasiun'. Sejak `periods` dipecah menjadi `periods` + `period_stations`,
+ * cakupan itu diwujudkan sebagai satu baris period_stations per jenis, dan
+ * periodOption() hanya memulangkan baris jenis stasiun LAYAR INI — jadi
+ * station_type TIDAK PERNAH null lagi dan bentuknya tak berbeda dari
+ * periode berjenis tunggal. Yang tetap diuji fixture ini: periode semacam
+ * itu TETAP terpungut layar ini.
+ */
+const PERIOD_LINTAS_STASIUN = {
   id: 'per-2',
-  name: 'Periode Semua Stasiun Maret 2026',
+  name: 'Periode Lintas Stasiun Maret 2026',
   start_date: '2026-03-01',
   end_date: '2026-03-31',
   status: 'open',
-  station_type: null,
-  station_type_label: 'Semua Jenis Stasiun',
+  station_type: 'boiler-room',
+  station_type_label: 'Boiler Room',
 }
 
 const PERIOD_CLOSED = {
@@ -1078,20 +1089,22 @@ test.describe('Laporan Boiler Room Mobile (screen-137)', () => {
   })
 
   // Scenario 19: "periode yang tidak mencakup Boiler Room tidak ditawarkan"
-  test('pemilih Periode — hanya Boiler Room dan periode semua jenis stasiun yang terbaca', async ({ page }) => {
+  test('pemilih Periode — hanya periode yang punya baris Boiler Room yang terbaca, termasuk periode lintas stasiun', async ({
+    page,
+  }) => {
     await login(page)
     // Server memang tidak mengembalikan periode jenis lain (itu diuji di
     // backend); yang dibuktikan di sini adalah layar tidak menambahkan dan
     // tidak membuang apa pun dari daftar yang diterimanya.
-    await stubApi(page, { periods: [PERIOD_BR, PERIOD_ALL_TYPES] })
+    await stubApi(page, { periods: [PERIOD_BR, PERIOD_LINTAS_STASIUN] })
     await openReport(page)
 
     const options = page.getByTestId('period-select').locator('option')
     await expect(options).toHaveCount(3)
     await expect(options.nth(1)).toHaveText('Boiler Room — Periode Maret 2026')
-    await expect(options.nth(2)).toHaveText('Semua Jenis Stasiun — Periode Semua Stasiun Maret 2026')
+    await expect(options.nth(2)).toHaveText('Boiler Room — Periode Lintas Stasiun Maret 2026')
     await expect(page.getByTestId('period-select')).not.toContainText('Sterilizer')
-    await expect(page.getByTestId('period-select')).not.toContainText('Cages & Tracks')
+    await expect(page.getByTestId('period-select')).not.toContainText('Cages Track')
   })
 
   // Scenario 20: "rentang periode inklusif di kedua ujung"

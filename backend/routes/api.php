@@ -899,6 +899,11 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth:web', 'role:admin'])->group(function () {
     Route::get('/periods', [PeriodController::class, 'index']);
     Route::get('/periods/business-units/options', [PeriodController::class, 'businessUnitOptions']);
+    // screen-142--detail-periode-pelaporan / usecase-145. Registered AFTER
+    // the literal /periods/business-units/options above for the reason
+    // spelled out there — as a GET with a {id} segment, this is the route
+    // that would otherwise swallow it.
+    Route::get('/periods/{id}', [PeriodController::class, 'show']);
     Route::post('/periods', [PeriodController::class, 'store']);
     Route::patch('/periods/{id}', [PeriodController::class, 'update']);
     Route::delete('/periods/{id}', [PeriodController::class, 'destroy']);

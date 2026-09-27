@@ -1,203 +1,263 @@
 {
-  "ver": 1,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-22"
+    "updated_at": "2026-09-27"
   },
+  "ver": 2,
   "id": "usecase-140--tutup-buka-periode-pelaporan",
   "name": "Tutup & Buka Kembali Periode Pelaporan",
-  "description": "Admin menutup sebuah Periode Pelaporan untuk mengunci angkanya, dan bila perlu membukanya kembali. Menutup periode mengunci seluruh data stasiun yang tanggal kejadiannya berada di dalam rentang periode: tidak ada data baru yang boleh masuk, tidak ada yang boleh diubah, dan verifikasi pun ikut terkunci. Karena verifikasi ikut terkunci, sebelum konfirmasi sistem menampilkan jumlah data yang belum terverifikasi dalam rentang tersebut. Membuka kembali periode mengembalikan semua kemampuan itu.",
+  "description": "Admin menutup SATU JENIS STASIUN di dalam sebuah Periode Pelaporan untuk mengunci angkanya, dan bila perlu membukanya kembali. Keduanya dilakukan dari layar Detail Periode Pelaporan (screen-142), bukan dari daftar periode: status tutup/buka melekat pada jenis stasiun, bukan pada periode, sebab stasiun tidak selesai serentak — Sterilizer bisa ditutup sementara Clarification masih berjalan. Menutup sebuah stasiun dimaksudkan mengunci record stasiun jenis itu yang tanggal kejadiannya berada di dalam rentang periode: tidak ada data baru boleh masuk, tidak ada yang boleh diubah, dan verifikasi pun ikut terkunci. Karena verifikasi ikut terkunci, sebelum konfirmasi sistem menampilkan jumlah record JENIS STASIUN ITU yang belum terverifikasi dalam rentang tersebut. Membuka kembali stasiun mengembalikan semua kemampuan itu dan menghapus catatan penutupannya. Catatan penting: penegakan kuncinya sendiri (penolakan input/ubah/verifikasi) dilacak oleh usecase-141 dan BELUM diimplementasikan — usecase ini baru menetapkan statusnya.",
   "actors": [
     "actor-admin"
   ],
   "preconditions": [
     "Admin sudah login ke aplikasi web",
-    "Periode yang akan ditutup sudah ada dan belum berstatus Tertutup",
-    "Untuk membuka kembali: periode sudah berstatus Tertutup"
+    "Periodenya sudah ada dan Admin sudah membuka layar Detail Periode Pelaporan periode itu",
+    "Untuk menutup: baris jenis stasiun yang dipilih berstatus Terbuka",
+    "Untuk membuka kembali: baris jenis stasiun yang dipilih berstatus Tertutup"
   ],
   "main_flow": [
     {
       "step": 1,
       "actor": "actor-admin",
-      "description": "Membuka halaman Kelola Periode Pelaporan dan memilih periode yang akan ditutup"
+      "description": "Membuka layar Kelola Periode Pelaporan dan menekan nama periode yang dituju sehingga layar Detail Periode Pelaporan terbuka"
     },
     {
       "step": 2,
-      "actor": "actor-admin",
-      "description": "Menekan aksi 'Tutup Periode'"
+      "actor": "System",
+      "description": "Menampilkan ringkasan periode beserta tabel jenis stasiun yang dicakupnya: Jenis Stasiun, Status, Ditutup Oleh, Waktu Ditutup, dan aksi yang tersedia per baris"
     },
     {
       "step": 3,
-      "actor": "System",
-      "description": "Menghitung jumlah data stasiun dalam rentang periode yang belum terverifikasi"
+      "actor": "actor-admin",
+      "description": "Menekan 'Tutup Stasiun' pada baris jenis stasiun berstatus Terbuka yang ingin ditutup"
     },
     {
       "step": 4,
       "actor": "System",
-      "description": "Menampilkan dialog konfirmasi yang memuat jumlah data belum terverifikasi tersebut beserta penjelasan bahwa setelah tertutup data tidak bisa diinput, diubah, maupun diverifikasi"
+      "description": "Menghitung jumlah record JENIS STASIUN ITU di mill periode tersebut yang tanggal kejadiannya berada di dalam rentang periode dan belum terverifikasi"
     },
     {
       "step": 5,
+      "actor": "System",
+      "description": "Menampilkan dialog konfirmasi yang memuat jumlah tersebut, nama jenis stasiun, nama periode, rentang tanggal, mill, penjelasan bahwa setelah ditutup data jenis stasiun itu tidak bisa diinput, diubah, maupun diverifikasi, dan bahwa jenis stasiun lain pada periode ini tidak terpengaruh"
+    },
+    {
+      "step": 6,
       "actor": "actor-admin",
       "description": "Mengonfirmasi penutupan"
     },
     {
-      "step": 6,
-      "actor": "System",
-      "description": "Mengubah status periode menjadi Tertutup serta mencatat siapa yang menutup dan kapan"
-    },
-    {
       "step": 7,
       "actor": "System",
-      "description": "Menolak setiap upaya memasukkan, mengubah, atau memverifikasi data stasiun yang tanggal kejadiannya berada di dalam rentang periode tersebut"
+      "description": "Mengubah status baris stasiun itu menjadi Tertutup serta mencatat siapa yang menutup dan kapan, tanpa menyentuh baris jenis stasiun lain pada periode yang sama"
     },
     {
       "step": 8,
-      "actor": "actor-admin",
-      "description": "Bila diperlukan, menekan 'Buka Kembali Periode' pada periode yang sudah tertutup"
+      "actor": "System",
+      "description": "Memperbarui tabel: baris itu kini berstatus Tertutup dan hanya menawarkan aksi 'Buka Kembali'; ringkasan jumlah stasiun tertutup dan badge ringkasan periode ikut berubah, dan Edit/Hapus periode menjadi nonaktif karena ada stasiun tertutup"
     },
     {
       "step": 9,
+      "actor": "actor-admin",
+      "description": "Bila diperlukan, menekan 'Buka Kembali' pada baris jenis stasiun yang sudah tertutup"
+    },
+    {
+      "step": 10,
       "actor": "System",
-      "description": "Mengubah status kembali menjadi Terbuka, menghapus catatan penutup dan waktu penutupan, serta kembali mengizinkan input, perubahan, dan verifikasi data di dalam rentang periode"
+      "description": "Mengubah status baris itu kembali menjadi Terbuka, menghapus catatan penutup dan waktu penutupan pada baris tersebut, dan kembali mengizinkan input, perubahan, serta verifikasi record jenis stasiun itu di dalam rentang periode"
     }
   ],
   "alternative_flows": [
     {
       "name": "Admin membatalkan penutupan",
-      "trigger": "Pada langkah 5, Admin menutup dialog konfirmasi tanpa mengonfirmasi",
+      "trigger": "Pada langkah 6, Admin menutup dialog konfirmasi tanpa mengonfirmasi",
       "steps": [
-        "Status periode tidak berubah",
-        "Data di dalam rentang periode tetap dapat diinput, diubah, dan diverifikasi"
+        "Status baris stasiun tidak berubah",
+        "Record jenis stasiun itu di dalam rentang periode tetap dapat diinput, diubah, dan diverifikasi"
       ]
     },
     {
       "name": "Masih banyak data belum terverifikasi",
-      "trigger": "Pada langkah 3, ditemukan data dalam rentang periode yang belum terverifikasi",
+      "trigger": "Pada langkah 4, ditemukan record jenis stasiun itu di dalam rentang periode yang belum terverifikasi",
       "steps": [
-        "Dialog konfirmasi menampilkan jumlahnya secara eksplisit",
+        "Dialog konfirmasi menampilkan jumlahnya secara eksplisit, khusus untuk jenis stasiun yang akan ditutup",
         "Admin tetap boleh melanjutkan penutupan secara sadar",
-        "Data tersebut akan tetap berstatus belum terverifikasi sampai periode dibuka kembali"
+        "Record tersebut akan tetap berstatus belum terverifikasi sampai stasiun itu dibuka kembali"
       ]
     },
     {
-      "name": "Data mobile menyusul setelah periode ditutup",
-      "trigger": "Setelah langkah 6, Operator mengirim data yang diisi offline dan tanggal kejadiannya berada di dalam rentang periode yang sudah tertutup",
+      "name": "Data mobile menyusul setelah stasiun ditutup",
+      "trigger": "Setelah langkah 7, Operator mengirim data jenis stasiun itu yang diisi offline dan tanggal kejadiannya berada di dalam rentang periode yang stasiunnya sudah tertutup",
       "steps": [
         "Sistem menolak penerimaan data tersebut",
-        "Aplikasi mobile menampilkan pesan bahwa periode sudah ditutup dan Admin perlu dihubungi",
+        "Aplikasi mobile menampilkan pesan bahwa stasiun pada periode itu sudah ditutup dan Admin perlu dihubungi",
         "Data tetap tersimpan di perangkat dan tidak dibuang dari antrean",
-        "Data terkirim otomatis setelah Admin membuka kembali periode"
+        "Data terkirim otomatis setelah Admin membuka kembali stasiun itu",
+        "CATATAN: penegakan ini dilacak oleh usecase-141 dan belum diimplementasikan"
       ]
     },
     {
-      "name": "Upaya verifikasi pada periode tertutup",
-      "trigger": "Setelah langkah 6, Supervisor atau Mill Management mencoba memverifikasi data yang tanggal kejadiannya berada di dalam rentang periode tertutup",
+      "name": "Upaya verifikasi pada stasiun tertutup",
+      "trigger": "Setelah langkah 7, Supervisor atau Mill Management mencoba memverifikasi record jenis stasiun itu yang tanggal kejadiannya berada di dalam rentang periode",
       "steps": [
         "Sistem menolak aksi verifikasi",
-        "Status verifikasi data tidak berubah",
-        "Pesan menjelaskan bahwa periode sudah ditutup"
+        "Status verifikasi record tidak berubah",
+        "Pesan menjelaskan bahwa stasiun pada periode itu sudah ditutup",
+        "CATATAN: penegakan ini dilacak oleh usecase-141 dan belum diimplementasikan"
       ]
     },
     {
-      "name": "Menutup periode yang sudah tertutup",
-      "trigger": "Pada langkah 2, periode yang dipilih ternyata sudah berstatus Tertutup",
+      "name": "Menutup stasiun yang sudah tertutup",
+      "trigger": "Pada langkah 3, baris jenis stasiun yang dipilih ternyata sudah berstatus Tertutup",
       "steps": [
-        "Aksi Tutup Periode tidak tersedia untuk periode tersebut",
-        "Yang tersedia hanya aksi Buka Kembali Periode"
+        "Aksi 'Tutup Stasiun' tidak ditawarkan pada baris tersebut",
+        "Yang tersedia hanya aksi 'Buka Kembali'"
       ]
     },
     {
-      "name": "Dua Admin menutup periode bersamaan",
-      "trigger": "Pada langkah 6, Admin lain lebih dahulu menutup periode yang sama",
+      "name": "Dua Admin menutup stasiun yang sama bersamaan",
+      "trigger": "Pada langkah 7, Admin lain lebih dahulu menutup baris jenis stasiun yang sama",
       "steps": [
+        "Hanya satu penutupan yang benar-benar berlaku",
         "Penutupan kedua tidak menimpa catatan penutup yang pertama",
-        "Sistem menampilkan bahwa periode sudah ditutup beserta penutup dan waktunya"
+        "Sistem memberi tahu stasiun itu sudah ditutup beserta nama penutup dan waktunya"
+      ]
+    },
+    {
+      "name": "Membuka kembali stasiun yang belum tertutup",
+      "trigger": "Pada langkah 9, baris jenis stasiun yang dirujuk ternyata belum berstatus Tertutup",
+      "steps": [
+        "Sistem menolak dengan pesan bahwa stasiun itu belum tertutup",
+        "Tidak ada status yang berubah"
+      ]
+    },
+    {
+      "name": "Baris stasiun atau periodenya sudah tidak ada",
+      "trigger": "Pada langkah 3 atau 9, baris stasiun yang dirujuk sudah tidak ada karena periodenya dihapus Admin lain setelah halaman dimuat",
+      "steps": [
+        "Sistem memberi tahu bahwa data yang dirujuk tidak ditemukan",
+        "Tidak ada perubahan apa pun",
+        "Admin dapat kembali ke daftar periode"
+      ]
+    },
+    {
+      "name": "Membuka kembali stasiun agar periodenya dapat disimpan ulang",
+      "trigger": "Periode perlu diubah atau perlu mendapat baris stasiun baru, tetapi punya minimal satu stasiun tertutup sehingga penyimpanannya ditolak",
+      "steps": [
+        "Admin membuka kembali stasiun yang tertutup dari layar detail",
+        "Periode menjadi dapat diubah dan disimpan ulang, sehingga baris jenis stasiun yang belum ada ikut ditambahkan",
+        "Admin menutup lagi stasiun itu",
+        "Ini jalan keluar manual untuk lubang backfill yang sudah diketahui, bukan perilaku otomatis"
       ]
     }
   ],
   "postconditions": [
-    "Periode berstatus Tertutup dengan catatan siapa yang menutup dan kapan; seluruh data stasiun dalam rentangnya terkunci dari input, perubahan, dan verifikasi",
-    "Setelah dibuka kembali: periode berstatus Terbuka, catatan penutupan terhapus, dan data dalam rentangnya kembali dapat diinput, diubah, serta diverifikasi",
-    "Angka pada laporan periode yang sudah tertutup tidak berubah lagi selama periode tetap tertutup"
+    "Jenis stasiun yang ditutup berstatus Tertutup dengan catatan siapa yang menutup dan kapan; jenis stasiun lain pada periode yang sama tidak berubah",
+    "Periode induknya tidak dapat lagi diubah maupun dihapus selama masih ada satu stasiunnya yang tertutup",
+    "Setelah dibuka kembali: baris stasiun itu berstatus Terbuka, catatan penutupannya terhapus, dan record jenis stasiun itu dalam rentang periode kembali dapat diinput, diubah, serta diverifikasi",
+    "Angka pada laporan periode untuk jenis stasiun yang tertutup tidak berubah lagi selama stasiun itu tetap tertutup"
   ],
   "business_rules": [
-    "Hanya Admin yang boleh menutup dan membuka kembali periode",
-    "Sebelum konfirmasi penutupan, jumlah data yang belum terverifikasi dalam rentang periode wajib ditampilkan",
-    "Periode tertutup mengunci input, perubahan, dan verifikasi data stasiun dalam rentangnya",
-    "Penentuan apakah sebuah data berada dalam periode memakai tanggal kejadian di pabrik, bukan tanggal data diinput atau dikirim",
-    "Data mobile yang ditolak karena periode tertutup tidak boleh dibuang dari antrean perangkat",
-    "Membuka kembali periode menghapus catatan penutup dan waktu penutupan"
+    "Hanya Admin yang boleh menutup dan membuka kembali stasiun pada sebuah periode",
+    "Setiap aksi menyasar satu baris jenis stasiun di dalam satu periode, bukan periode secara keseluruhan; jenis stasiun lain tidak tersentuh",
+    "Aksi ini hanya tersedia di layar Detail Periode Pelaporan (screen-142); daftar periode tidak menyediakannya",
+    "Sebelum konfirmasi penutupan, jumlah record belum terverifikasi untuk JENIS STASIUN YANG AKAN DITUTUP wajib ditampilkan — bukan jumlah se-periode",
+    "'Belum terverifikasi' berarti salah satu tahap verifikasi masih kosong: belum di-check atau belum di-acknowledge",
+    "Menutup stasiun dimaksudkan mengunci input, perubahan, dan verifikasi record jenis stasiun itu dalam rentang periode; penegakan kunci tersebut adalah pekerjaan usecase-141 dan belum diimplementasikan",
+    "Penentuan apakah sebuah record berada dalam periode memakai tanggal kejadian di pabrik, bukan tanggal data diinput atau dikirim, dengan batas rentang inklusif di kedua ujungnya",
+    "Data mobile yang ditolak karena stasiun tertutup tidak boleh dibuang dari antrean perangkat",
+    "Membuka kembali stasiun menghapus catatan penutup dan waktu penutupan pada baris itu",
+    "Penutupan bersifat atomik: hanya satu dari dua upaya bersamaan yang berlaku, dan catatan penutup pertama tidak boleh tertimpa",
+    "Periode induk terbekukan (tidak dapat diubah maupun dihapus) bila ada satu saja stasiunnya yang tertutup"
   ],
   "bdd_scenarios": [
     {
       "scenario": "Tutup & Buka Kembali Periode Pelaporan — success",
-      "given": "Admin sudah login ke aplikasi web dan terdapat periode pelaporan yang belum berstatus Tertutup",
-      "when": "Admin memilih periode tersebut, menekan 'Tutup Periode', dan mengonfirmasi dialog yang menampilkan jumlah data stasiun belum terverifikasi dalam rentang periode",
-      "then": "Periode berubah menjadi Tertutup dengan catatan siapa yang menutup dan kapan, seluruh data stasiun yang tanggal kejadiannya berada dalam rentang periode terkunci dari input, perubahan, dan verifikasi, dan angka laporan periode tersebut tidak berubah lagi selama periode tetap tertutup"
+      "given": "Admin sudah login ke aplikasi web dan membuka layar Detail Periode Pelaporan sebuah periode yang punya jenis stasiun berstatus Terbuka",
+      "when": "Admin menekan 'Tutup Stasiun' pada baris jenis stasiun itu dan mengonfirmasi dialog yang menampilkan jumlah record jenis stasiun tersebut yang belum terverifikasi dalam rentang periode",
+      "then": "Baris jenis stasiun itu berubah menjadi Tertutup dengan catatan siapa yang menutup dan kapan, jenis stasiun lain pada periode itu tidak berubah, ringkasan jumlah stasiun tertutup dan badge ringkasan periode ikut menyesuaikan, dan Edit/Hapus periode menjadi nonaktif"
     },
     {
-      "scenario": "Tutup & Buka Kembali Periode Pelaporan — buka kembali periode yang sudah tertutup",
-      "given": "Admin sudah login ke aplikasi web dan terdapat periode pelaporan yang sudah berstatus Tertutup",
-      "when": "Admin menekan 'Buka Kembali Periode' pada periode tersebut",
-      "then": "Status periode kembali menjadi Terbuka, catatan penutup dan waktu penutupan terhapus, dan data stasiun dalam rentang periode kembali dapat diinput, diubah, serta diverifikasi"
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — buka kembali stasiun yang sudah tertutup",
+      "given": "Admin sudah login ke aplikasi web dan layar Detail Periode Pelaporan menampilkan jenis stasiun berstatus Tertutup",
+      "when": "Admin menekan 'Buka Kembali' pada baris jenis stasiun tersebut dan mengonfirmasinya",
+      "then": "Status baris itu kembali menjadi Terbuka, catatan penutup dan waktu penutupan pada baris itu terhapus, dan record jenis stasiun itu dalam rentang periode kembali dapat diinput, diubah, serta diverifikasi"
     },
     {
       "scenario": "Tutup & Buka Kembali Periode Pelaporan — Admin membatalkan penutupan",
-      "given": "Admin sudah login ke aplikasi web dan terdapat periode pelaporan yang belum berstatus Tertutup",
-      "when": "Admin menutup dialog konfirmasi penutupan tanpa mengonfirmasi",
-      "then": "Status periode tidak berubah dan data di dalam rentang periode tetap dapat diinput, diubah, dan diverifikasi"
+      "given": "Admin sudah login ke aplikasi web dan dialog konfirmasi 'Tutup Stasiun' sedang terbuka untuk satu jenis stasiun",
+      "when": "Admin menutup dialog konfirmasi tanpa mengonfirmasi",
+      "then": "Status baris stasiun tidak berubah dan record jenis stasiun itu di dalam rentang periode tetap dapat diinput, diubah, dan diverifikasi"
     },
     {
       "scenario": "Tutup & Buka Kembali Periode Pelaporan — masih banyak data belum terverifikasi",
-      "given": "Admin sudah login ke aplikasi web dan terdapat periode pelaporan yang belum berstatus Tertutup serta berisi data stasiun yang belum terverifikasi",
-      "when": "Admin menekan 'Tutup Periode' pada periode tersebut",
-      "then": "Dialog konfirmasi menampilkan jumlah data belum terverifikasi secara eksplisit, Admin tetap boleh melanjutkan penutupan secara sadar, dan data tersebut tetap berstatus belum terverifikasi sampai periode dibuka kembali"
+      "given": "Admin sudah login ke aplikasi web dan sebuah jenis stasiun berstatus Terbuka pada periode itu masih punya record belum terverifikasi dalam rentang periode",
+      "when": "Admin menekan 'Tutup Stasiun' pada baris jenis stasiun tersebut",
+      "then": "Dialog konfirmasi menampilkan jumlah record belum terverifikasi KHUSUS jenis stasiun itu secara eksplisit, Admin tetap boleh melanjutkan penutupan secara sadar, dan record tersebut tetap berstatus belum terverifikasi sampai stasiun itu dibuka kembali"
     },
     {
-      "scenario": "Tutup & Buka Kembali Periode Pelaporan — data mobile menyusul setelah periode ditutup",
-      "given": "Periode pelaporan sudah berstatus Tertutup dan Operator memiliki data offline di perangkat yang tanggal kejadiannya berada dalam rentang periode tersebut",
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — data mobile menyusul setelah stasiun ditutup",
+      "given": "Satu jenis stasiun pada sebuah periode sudah berstatus Tertutup dan Operator memiliki data offline jenis stasiun itu di perangkat yang tanggal kejadiannya berada dalam rentang periode tersebut",
       "when": "Aplikasi mobile Operator mengirimkan data offline tersebut ke server",
-      "then": "Sistem menolak penerimaan data, aplikasi mobile menampilkan pesan bahwa periode sudah ditutup dan Admin perlu dihubungi, data tetap tersimpan di perangkat tanpa dibuang dari antrean, dan terkirim otomatis setelah Admin membuka kembali periode"
+      "then": "Sistem menolak penerimaan data, aplikasi mobile menampilkan pesan bahwa stasiun pada periode itu sudah ditutup dan Admin perlu dihubungi, data tetap tersimpan di perangkat tanpa dibuang dari antrean, dan terkirim otomatis setelah Admin membuka kembali stasiun itu — penegakan yang dilacak usecase-141 dan belum diimplementasikan"
     },
     {
-      "scenario": "Tutup & Buka Kembali Periode Pelaporan — upaya verifikasi pada periode tertutup",
-      "given": "Periode pelaporan sudah berstatus Tertutup dan masih terdapat data stasiun belum terverifikasi dalam rentang periode tersebut",
-      "when": "Supervisor atau Mill Management mencoba memverifikasi data yang tanggal kejadiannya berada dalam rentang periode tertutup",
-      "then": "Sistem menolak aksi verifikasi, status verifikasi data tidak berubah, dan pesan menjelaskan bahwa periode sudah ditutup"
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — upaya verifikasi pada stasiun tertutup",
+      "given": "Satu jenis stasiun pada sebuah periode sudah berstatus Tertutup dan masih terdapat record jenis stasiun itu yang belum terverifikasi dalam rentang periode",
+      "when": "Supervisor atau Mill Management mencoba memverifikasi record jenis stasiun itu yang tanggal kejadiannya berada dalam rentang periode",
+      "then": "Sistem menolak aksi verifikasi, status verifikasi record tidak berubah, dan pesan menjelaskan bahwa stasiun pada periode itu sudah ditutup — penegakan yang dilacak usecase-141 dan belum diimplementasikan"
     },
     {
-      "scenario": "Tutup & Buka Kembali Periode Pelaporan — menutup periode yang sudah tertutup",
-      "given": "Admin sudah login ke aplikasi web dan periode yang dipilih sudah berstatus Tertutup",
-      "when": "Admin membuka daftar aksi pada periode tersebut",
-      "then": "Aksi 'Tutup Periode' tidak tersedia untuk periode tersebut dan yang tersedia hanya aksi 'Buka Kembali Periode'"
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — menutup stasiun yang sudah tertutup",
+      "given": "Admin sudah login ke aplikasi web dan baris jenis stasiun yang dilihatnya sudah berstatus Tertutup",
+      "when": "Admin melihat aksi yang tersedia pada baris jenis stasiun tersebut",
+      "then": "Aksi 'Tutup Stasiun' tidak ditawarkan pada baris itu dan yang tersedia hanya aksi 'Buka Kembali'"
     },
     {
-      "scenario": "Tutup & Buka Kembali Periode Pelaporan — dua Admin menutup periode bersamaan",
-      "given": "Dua Admin sama-sama login dan membuka periode pelaporan yang sama yang belum berstatus Tertutup",
-      "when": "Admin kedua mengonfirmasi penutupan setelah Admin pertama lebih dahulu menutup periode yang sama",
-      "then": "Penutupan kedua tidak menimpa catatan penutup yang pertama dan sistem menampilkan bahwa periode sudah ditutup beserta penutup dan waktunya"
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — dua Admin menutup stasiun yang sama bersamaan",
+      "given": "Dua Admin sama-sama login dan membuka layar Detail Periode Pelaporan periode yang sama dengan satu jenis stasiun berstatus Terbuka",
+      "when": "Admin kedua mengonfirmasi penutupan baris jenis stasiun itu setelah Admin pertama lebih dahulu menutupnya",
+      "then": "Hanya penutupan pertama yang berlaku, catatannya tidak tertimpa, dan Admin kedua diberi tahu bahwa stasiun itu sudah ditutup beserta nama penutup dan waktunya"
     },
     {
-      "scenario": "Tutup & Buka Kembali Periode Pelaporan — pengguna selain Admin menutup periode",
-      "given": "Pengguna non-Admin (Operator, Supervisor, atau Mill Management) sudah login dan terdapat periode pelaporan yang belum berstatus Tertutup",
-      "when": "Pengguna tersebut mencoba menutup atau membuka kembali periode pelaporan",
-      "then": "Sistem menolak aksi tersebut, status periode tidak berubah, dan pesan menjelaskan bahwa hanya Admin yang boleh menutup dan membuka kembali periode"
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — pengguna selain Admin menutup stasiun",
+      "given": "Pengguna non-Admin (Operator, Supervisor, atau Mill Management) sudah login dan terdapat periode dengan jenis stasiun yang belum tertutup",
+      "when": "Pengguna tersebut mencoba membuka layar Detail Periode Pelaporan atau menjalankan aksi menutup maupun membuka kembali stasiun",
+      "then": "Sistem menolak aksi tersebut, status stasiun tidak berubah, dan pesan menjelaskan bahwa hanya Admin yang boleh menutup dan membuka kembali stasiun"
     },
     {
-      "scenario": "Tutup & Buka Kembali Periode Pelaporan — mengubah data stasiun pada periode tertutup",
-      "given": "Periode pelaporan sudah berstatus Tertutup dan terdapat data stasiun yang tanggal kejadiannya berada dalam rentang periode tersebut",
-      "when": "Pengguna mencoba menginput data baru atau mengubah data stasiun yang sudah ada pada tanggal kejadian di dalam rentang periode tertutup",
-      "then": "Sistem menolak penyimpanan, data stasiun tidak berubah, dan pesan menjelaskan bahwa periode sudah ditutup"
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — mengubah data stasiun pada stasiun tertutup",
+      "given": "Satu jenis stasiun pada sebuah periode sudah berstatus Tertutup dan terdapat record jenis stasiun itu yang tanggal kejadiannya berada dalam rentang periode",
+      "when": "Pengguna mencoba menginput record baru atau mengubah record jenis stasiun itu pada tanggal kejadian di dalam rentang periode",
+      "then": "Sistem menolak penyimpanan, record tidak berubah, dan pesan menjelaskan bahwa stasiun pada periode itu sudah ditutup — penegakan yang dilacak usecase-141 dan belum diimplementasikan"
     },
     {
-      "scenario": "Tutup & Buka Kembali Periode Pelaporan — data diinput setelah periode ditutup namun tanggal kejadiannya di luar rentang",
-      "given": "Periode pelaporan sudah berstatus Tertutup",
-      "when": "Pengguna menginput data stasiun yang tanggal kejadiannya berada di luar rentang periode tertutup, meskipun tanggal input atau pengirimannya setelah periode ditutup",
-      "then": "Sistem menerima data tersebut karena penentuan keanggotaan periode memakai tanggal kejadian di pabrik, bukan tanggal data diinput atau dikirim"
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — data diinput setelah stasiun ditutup namun tanggal kejadiannya di luar rentang",
+      "given": "Satu jenis stasiun pada sebuah periode sudah berstatus Tertutup",
+      "when": "Pengguna menginput record jenis stasiun itu yang tanggal kejadiannya berada di luar rentang periode tersebut, meskipun tanggal input atau pengirimannya setelah stasiun ditutup",
+      "then": "Sistem menerima data tersebut karena keanggotaan periode ditentukan tanggal kejadian di pabrik, bukan tanggal data diinput atau dikirim"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — record jenis stasiun lain tidak ikut terkunci",
+      "given": "Sebuah periode punya Sterilizer berstatus Tertutup sementara Clarification masih Terbuka",
+      "when": "Pengguna menginput atau memverifikasi record Clarification yang tanggal kejadiannya berada dalam rentang periode itu",
+      "then": "Aksi diterima, karena penutupan hanya menyasar jenis stasiun yang ditutup dan badge ringkasan periode berbunyi 'Campuran' — bukan 'Tertutup'"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — membuka kembali stasiun agar periodenya dapat disimpan ulang",
+      "given": "Sebuah periode punya minimal satu stasiun Tertutup sehingga Edit dan Hapus periodenya nonaktif, sementara mill-nya sudah punya jenis stasiun baru yang belum punya baris pada periode itu",
+      "when": "Admin membuka kembali stasiun yang tertutup dari layar detail, menyimpan ulang periodenya, lalu menutup lagi stasiun itu",
+      "then": "Baris jenis stasiun yang baru ikut ditambahkan berstatus Draft dan stasiun yang tadi dibuka kembali tertutup lagi — jalan keluar manual untuk lubang backfill yang sudah diketahui, bukan perilaku otomatis"
+    },
+    {
+      "scenario": "Tutup & Buka Kembali Periode Pelaporan — baris stasiun sudah tidak ada",
+      "given": "Admin sudah login ke aplikasi web dan periodenya sudah dihapus Admin lain setelah layar detail dimuat",
+      "when": "Admin menekan 'Tutup Stasiun' atau 'Buka Kembali' pada salah satu baris stasiun di halaman yang sudah basi itu",
+      "then": "Sistem memberi tahu bahwa data yang dirujuk tidak ditemukan, tidak ada perubahan apa pun, dan Admin dapat kembali ke daftar periode"
     }
   ],
   "related_screen_ids": [
-    "screen-128--kelola-periode-pelaporan"
+    "screen-142--detail-periode-pelaporan"
   ]
 }

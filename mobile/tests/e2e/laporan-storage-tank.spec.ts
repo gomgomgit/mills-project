@@ -116,14 +116,25 @@ const PERIOD_STG = {
   station_type_label: 'Storage Tank',
 }
 
-const PERIOD_ALL_TYPES = {
+/**
+ * Periode yang cakupannya mencakup BANYAK jenis stasiun sekaligus.
+ *
+ * Sampai 2026-09-25 bentuknya `station_type: null` + label 'Semua Jenis
+ * Stasiun'. Sejak `periods` dipecah menjadi `periods` + `period_stations`,
+ * cakupan itu diwujudkan sebagai satu baris period_stations per jenis, dan
+ * periodOption() hanya memulangkan baris jenis stasiun LAYAR INI — jadi
+ * station_type TIDAK PERNAH null lagi dan bentuknya tak berbeda dari
+ * periode berjenis tunggal. Yang tetap diuji fixture ini: periode semacam
+ * itu TETAP terpungut layar ini.
+ */
+const PERIOD_LINTAS_STASIUN = {
   id: 'per-2',
-  name: 'Periode Semua Stasiun September 2026',
+  name: 'Periode Lintas Stasiun September 2026',
   start_date: '2026-09-01',
   end_date: '2026-09-30',
   status: 'open',
-  station_type: null,
-  station_type_label: 'Semua Jenis Stasiun',
+  station_type: 'storage-tank',
+  station_type_label: 'Storage Tank',
 }
 
 const PERIOD_CLOSED = {
@@ -1456,23 +1467,23 @@ test.describe('Laporan Storage Tank Mobile (screen-139)', () => {
   })
 
   // Scenario 23: "periode yang tidak mencakup Storage Tank tidak ditawarkan"
-  test('pemilih periode memuat periode Storage Tank dan semua-jenis, persis seperti kiriman server', async ({
+  test('pemilih periode memuat periode Storage Tank berjenis tunggal dan yang lintas stasiun, persis seperti kiriman server', async ({
     page,
   }) => {
     await login(page, USERS.operator)
-    await stubApi(page, { periods: [PERIOD_STG, PERIOD_ALL_TYPES] })
+    await stubApi(page, { periods: [PERIOD_STG, PERIOD_LINTAS_STASIUN] })
     await openReport(page)
 
     const options = page.getByTestId('period-select').locator('option')
 
     await expect(options).toHaveCount(3)
     await expect(options.nth(1)).toContainText('Storage Tank — Periode September 2026')
-    await expect(options.nth(2)).toContainText('Semua Jenis Stasiun')
+    await expect(options.nth(2)).toContainText('Storage Tank — Periode Lintas Stasiun September 2026')
 
-    // Periode yang hanya mencakup stasiun lain tidak pernah sampai ke
-    // layar: penyaringan cakupan milik SERVER, dan layar ini tidak
-    // menyaring station_type sendiri — periode ber-station_type null TIDAK
-    // dibuang.
+    // Periode yang tidak punya baris period_stations berjenis
+    // 'storage-tank' tidak pernah sampai ke layar: penyaringan cakupan
+    // milik SERVER, dan layar ini tidak menyaring station_type sendiri —
+    // periode lintas stasiun TIDAK dibuang.
     await expect(page.getByTestId('period-select')).not.toContainText('Pressing')
     await expect(page.getByTestId('period-select')).not.toContainText('Clarification')
 

@@ -3,28 +3,29 @@
 /**
  * KelolaPeriodePelaporanTest (Feature/Api) —
  * screen-128--kelola-periode-pelaporan /
- * usecase-128--kelola-periode-pelaporan +
- * usecase-140--tutup-buka-periode-pelaporan +
- * usecase-144--buka-periode-pelaporan.
+ * usecase-128--kelola-periode-pelaporan.
  *
- * Integration tests for the screen's 9 endpoints
+ * Integration tests for the screen's 5 endpoints
  * (App\Http\Controllers\Api\PeriodController):
  *   GET    /api/periods
  *   GET    /api/periods/business-units/options
  *   POST   /api/periods
  *   PATCH  /api/periods/{id}
  *   DELETE /api/periods/{id}
- *   GET    /api/period-stations/{id}/unverified-count
- *   POST   /api/period-stations/{id}/close
- *   POST   /api/period-stations/{id}/reopen
- *   POST   /api/period-stations/{id}/open
  *
- * TWO PREFIXES, AND THE ID IS NOT THE SAME THING IN BOTH (2026-09-26). The
- * /periods routes take a PERIOD id. The /period-stations routes take a
- * `period_stations` id — the `stations[].id` of PeriodService::toRow(), one
- * row per station type inside a period. periodStationId() below is the only
- * place these tests derive one, so no test can accidentally post a period id
- * at a per-station action and pass for the wrong reason.
+ * THE FOUR /period-stations ENDPOINTS MOVED OUT (2026-09-27), together with
+ * GET /api/periods/{id}: they belong to screen-142--detail-periode-pelaporan
+ * now, and their tests live in tests/Feature/Api/DetailPeriodePelaporanTest.php
+ * — unchanged, because their contracts did not change, only the screen that
+ * owns them. What stays here is the period CRUD, plus the four usecase-141
+ * scenarios below.
+ *
+ * THE ID IS NOT THE SAME THING IN BOTH PREFIXES. The /periods routes take a
+ * PERIOD id. The /period-stations routes take a `period_stations` id — the
+ * `stations[].id` of PeriodService::toRow(), one row per station type inside a
+ * period. periodStationId() below is the only place these tests derive one, so
+ * no test can accidentally post a period id at a per-station action and pass
+ * for the wrong reason.
  *
  * WHAT A PERIOD LOOKS LIKE NOW. It has no station type, no status, no closer
  * and no closing time of its own: it has `stations[]`, plus the summary
@@ -36,31 +37,30 @@
  * One test per test_scenarios entry of the screen tech-spec, each executing
  * that scenario's api_test steps IN ORDER and asserting every step's
  * expected_status and expected_error_code, plus the tests the old one-row-
- * per-station-type model made impossible to write (mixed status, closing one
- * station leaving the others alone, update()'s station backfill). Exercises
- * the real route -> EnsureRole -> controller -> PeriodService /
- * PeriodClosureService -> Eloquent chain against the sqlite in-memory testing
- * DB. Mirrors tests/Feature/Api/KelolaProductionLineTest.php's structure.
+ * per-station-type model made impossible to write (mixed status, update()'s
+ * station backfill). Exercises the real route -> EnsureRole -> controller ->
+ * PeriodService -> Eloquent chain against the sqlite in-memory testing DB.
+ * Mirrors tests/Feature/Api/KelolaProductionLineTest.php's structure.
  *
  * ERROR CODE ASSERTIONS: ApiExceptionHandler emits the machine-readable
  * `code` field for VALIDATION_ERROR / NOT_FOUND / UNAUTHENTICATED and for
  * every exception implementing App\Exceptions\HasErrorCode
- * (PERIOD_OVERLAP / PERIOD_CLOSED_IMMUTABLE / PERIOD_ALREADY_CLOSED /
- * PERIOD_NOT_CLOSED / PERIOD_NOT_DRAFT) — those are asserted here.
+ * (PERIOD_OVERLAP / PERIOD_CLOSED_IMMUTABLE) — those are asserted here.
  * FORBIDDEN is the one exception: App\Http\Middleware\EnsureRole builds its own JSON response
  * and never reaches ApiExceptionHandler, so a role rejection carries
  * `message` only (screen 4-implement known_issue). The 403 scenarios below
  * therefore assert the status and the unchanged data, not `code`.
  *
- * FOUR SCENARIOS ARE SKIPPED, NOT DELETED (14, 15, 19, 20): they assert a
+ * FOUR SCENARIOS ARE SKIPPED, NOT DELETED: they assert a
  * 422 PERIOD_CLOSED from POST/PATCH /api/sterilizer-records once a period
  * is closed. That enforcement lives in the 18 *RecordService classes and
- * the mobile sync path — it is explicitly OUT OF SCOPE for screen-128
- * (see PeriodClosureService's docblock and the screen tech-spec's
- * implementation_notes; tracked by
+ * the mobile sync path — it is explicitly OUT OF SCOPE for screen-128 and
+ * for screen-142 (see PeriodClosureService's docblock and both screen
+ * tech-specs' implementation_notes; tracked by
  * usecase-141--kunci-input-periode-tertutup). The tests are written in
  * full so they become runnable the moment that use case lands — they must
- * not be "made green" by weakening the assertion.
+ * not be "made green" by weakening the assertion, and they were deliberately
+ * left in this file untouched when the closure tests moved to screen-142.
  */
 
 use App\Enums\UserRole;
@@ -70,7 +70,6 @@ use App\Models\PeriodStation;
 use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\SterilizerRecord;
-use App\Models\ThreshingRecord;
 use App\Models\User;
 
 beforeEach(function () {
@@ -543,221 +542,18 @@ it('backfill tidak pernah menghapus baris stasiun, termasuk untuk jenis yang sud
     expect(PeriodStation::findOrFail($clarificationRowId)->status->value)->toBe('open');
 });
 
-// ── usecase-140 ─────────────────────────────────────────────────────────
+// ── usecase-141 — KUNCI INPUT PERIODE TERTUTUP (BELUM DIIMPLEMENTASIKAN) ─
+//
+// The four skipped tests below are the contract of
+// usecase-141--kunci-input-periode-tertutup, written in full so they become
+// runnable the moment that use case lands. Verified 2026-09-27: zero Period
+// references across app/Services/*RecordService.php — the lock does not exist
+// anywhere yet, and nothing in screen-128 or screen-142 may claim it does.
+//
+// They stayed here when the closure tests moved to
+// tests/Feature/Api/DetailPeriodePelaporanTest.php, untouched.
 
-// Scenario 10: "Tutup & Buka Kembali Periode Pelaporan — success"
-it('menutup satu stasiun periode setelah menampilkan jumlah data belum terverifikasi', function () {
-    $period = Period::factory()
-        ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
-        ->named('Oktober 2026')
-        ->range('2026-10-01', '2026-10-31')
-        ->open()
-        ->create();
-
-    $stationId = periodStationId($period);
-
-    SterilizerRecord::factory()->forStation($this->sterilizerStation)->onDate('2026-10-10')->count(2)->create();
-
-    // Step 1 — GET unverified-count -> 200
-    $count = $this->actingAs($this->admin, 'web')->getJson("/api/period-stations/{$stationId}/unverified-count");
-    $count->assertOk();
-    $count->assertJsonStructure(['unverified_count', 'breakdown']);
-    $count->assertJsonPath('unverified_count', 2);
-    $count->assertJsonPath('breakdown.0.station_type', 'sterilizer');
-
-    // Step 2 — POST close -> 200
-    $close = $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/close");
-    $close->assertOk();
-    $close->assertJsonPath('period_station_id', $stationId);
-    $close->assertJsonPath('period_id', $period->id);
-    $close->assertJsonPath('station_type', 'sterilizer');
-    $close->assertJsonPath('station_type_label', 'Sterilizer');
-    $close->assertJsonPath('status', 'closed');
-    $close->assertJsonPath('closed_by', $this->admin->id);
-    $close->assertJsonPath('closed_by_name', 'Admin X');
-    expect($close->json('closed_at'))->not->toBeNull();
-
-    // Step 3 — GET list filtered status=closed -> 200
-    $list = $this->actingAs($this->admin, 'web')
-        ->getJson("/api/periods?business_unit_id={$this->businessUnitA->id}&status=closed");
-    $list->assertOk();
-    $list->assertJsonPath('meta.total', 1);
-    $list->assertJsonPath('data.0.id', $period->id);
-    $list->assertJsonPath('data.0.status_summary', 'closed');
-    $list->assertJsonPath('data.0.stations.0.closed_by_name', 'Admin X');
-});
-
-/**
- * THE WHOLE POINT OF THE SPLIT: closing Sterilizer must leave Clarification
- * exactly as it was — same status, same (empty) closure record, same row id.
- */
-it('menutup satu stasiun tidak mengubah stasiun lain pada periode yang sama', function () {
-    $period = Period::factory()
-        ->forBusinessUnit($this->businessUnitA)
-        ->stationTypes(['sterilizer', 'clarification'])
-        ->named('Oktober 2026')
-        ->range('2026-10-01', '2026-10-31')
-        ->open()
-        ->create();
-
-    $sterilizerRow = periodStationId($period, 'sterilizer');
-    $clarificationRow = periodStationId($period, 'clarification');
-
-    $this->actingAs($this->admin, 'web')
-        ->postJson("/api/period-stations/{$sterilizerRow}/close")
-        ->assertOk();
-
-    $list = $this->actingAs($this->admin, 'web')->getJson('/api/periods');
-    $list->assertOk();
-    $list->assertJsonPath('data.0.status_summary', 'mixed');
-    $list->assertJsonPath('data.0.station_count', 2);
-    $list->assertJsonPath('data.0.closed_station_count', 1);
-
-    $stations = collect($list->json('data.0.stations'))->keyBy('station_type');
-
-    expect($stations['sterilizer']['status'])->toBe('closed');
-    expect($stations['sterilizer']['closed_by_name'])->toBe('Admin X');
-
-    expect($stations['clarification']['id'])->toBe($clarificationRow);
-    expect($stations['clarification']['status'])->toBe('open');
-    expect($stations['clarification']['closed_by'])->toBeNull();
-    expect($stations['clarification']['closed_by_name'])->toBeNull();
-    expect($stations['clarification']['closed_at'])->toBeNull();
-
-    // And closing the other one afterwards is still allowed.
-    $this->actingAs($this->admin, 'web')
-        ->postJson("/api/period-stations/{$clarificationRow}/close")
-        ->assertOk()
-        ->assertJsonPath('station_type', 'clarification');
-});
-
-// Scenario 11: "buka kembali periode yang sudah tertutup"
-it('membuka kembali satu stasiun tertutup dan mengosongkan catatan penutupan', function () {
-    $period = Period::factory()
-        ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
-        ->named('Oktober 2026')
-        ->range('2026-10-01', '2026-10-31')
-        ->closed($this->adminA, '2026-11-01 09:14:00')
-        ->create();
-
-    $stationId = periodStationId($period);
-
-    // Step 1 — POST reopen -> 200
-    $reopen = $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/reopen");
-    $reopen->assertOk();
-    $reopen->assertJsonPath('period_station_id', $stationId);
-    $reopen->assertJsonPath('status', 'open');
-    $reopen->assertJsonPath('closed_by', null);
-    $reopen->assertJsonPath('closed_at', null);
-
-    // Step 2 — GET list filtered status=open -> 200
-    $list = $this->actingAs($this->admin, 'web')->getJson('/api/periods?status=open');
-    $list->assertOk();
-    $list->assertJsonPath('meta.total', 1);
-    $list->assertJsonPath('data.0.id', $period->id);
-    $list->assertJsonPath('data.0.status_summary', 'open');
-    $list->assertJsonPath('data.0.is_immutable', false);
-    $list->assertJsonPath('data.0.stations.0.closed_by_name', null);
-    $list->assertJsonPath('data.0.stations.0.closed_at', null);
-});
-
-// Scenario 12: "Admin membatalkan penutupan"
-it('tidak mengubah status stasiun ketika Admin hanya melihat jumlah lalu membatalkan penutupan', function () {
-    $period = Period::factory()
-        ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
-        ->range('2026-10-01', '2026-10-31')
-        ->open()
-        ->create();
-
-    $stationId = periodStationId($period);
-
-    // Step 1 — GET unverified-count -> 200 (dialog opened)
-    $this->actingAs($this->admin, 'web')
-        ->getJson("/api/period-stations/{$stationId}/unverified-count")
-        ->assertOk();
-
-    // Step 2 — the Admin cancels: only the list is re-read, close is never
-    // called -> 200 and the row is untouched.
-    $list = $this->actingAs($this->admin, 'web')
-        ->getJson("/api/periods?business_unit_id={$this->businessUnitA->id}");
-    $list->assertOk();
-    $list->assertJsonPath('data.0.status_summary', 'open');
-    $list->assertJsonPath('data.0.stations.0.status', 'open');
-    $list->assertJsonPath('data.0.stations.0.closed_by', null);
-    $list->assertJsonPath('data.0.stations.0.closed_at', null);
-
-    expect(PeriodStation::findOrFail($stationId)->status->value)->toBe('open');
-});
-
-// Scenario 13: "masih banyak data belum terverifikasi"
-it('tetap menutup stasiun meski masih banyak data belum terverifikasi, dan jumlahnya tidak berubah', function () {
-    $period = Period::factory()
-        ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
-        ->range('2026-10-01', '2026-10-31')
-        ->open()
-        ->create();
-
-    $stationId = periodStationId($period);
-
-    SterilizerRecord::factory()->forStation($this->sterilizerStation)->onDate('2026-10-12')->count(5)->create();
-
-    // Step 1 — GET unverified-count -> 200 with an explicit figure
-    $before = $this->actingAs($this->admin, 'web')->getJson("/api/period-stations/{$stationId}/unverified-count");
-    $before->assertOk();
-    $before->assertJsonPath('unverified_count', 5);
-    $before->assertJsonPath('breakdown.0.station_type', 'sterilizer');
-    $before->assertJsonPath('breakdown.0.count', 5);
-
-    // Step 2 — POST close -> 200 (the figure warns, it never blocks)
-    $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/close")->assertOk();
-
-    // Step 3 — GET unverified-count again -> 200, unchanged: verification
-    // is locked too, so those records stay unverified until reopen.
-    $after = $this->actingAs($this->admin, 'web')->getJson("/api/period-stations/{$stationId}/unverified-count");
-    $after->assertOk();
-    $after->assertJsonPath('unverified_count', 5);
-});
-
-/**
- * THE WARNING MUST BE ABOUT THE STATION BEING CLOSED, NOTHING ELSE. Before the
- * split there was one count per period, so closing Sterilizer showed a figure
- * that included Clarification's unverified records — a number with nothing to
- * do with the action being confirmed, permanently non-zero on a busy mill, and
- * therefore trained to be clicked past.
- */
-it('jumlah belum-terverifikasi hanya menghitung jenis stasiun yang bersangkutan', function () {
-    $period = Period::factory()
-        ->forBusinessUnit($this->businessUnitA)
-        ->stationTypes(['sterilizer', 'threshing'])
-        ->range('2026-10-01', '2026-10-31')
-        ->open()
-        ->create();
-
-    $threshingStation = Station::factory()->forBusinessUnit($this->businessUnitA)->threshing()->create();
-
-    SterilizerRecord::factory()->forStation($this->sterilizerStation)->onDate('2026-10-10')->count(5)->create();
-    ThreshingRecord::factory()->forStation($threshingStation)->onDate('2026-10-11')->count(2)->create();
-
-    $sterilizerCount = $this->actingAs($this->admin, 'web')
-        ->getJson('/api/period-stations/'.periodStationId($period, 'sterilizer').'/unverified-count');
-    $sterilizerCount->assertOk();
-    $sterilizerCount->assertJsonPath('unverified_count', 5);
-    $sterilizerCount->assertJsonCount(1, 'breakdown');
-    $sterilizerCount->assertJsonPath('breakdown.0.station_type', 'sterilizer');
-
-    $threshingCount = $this->actingAs($this->admin, 'web')
-        ->getJson('/api/period-stations/'.periodStationId($period, 'threshing').'/unverified-count');
-    $threshingCount->assertOk();
-    $threshingCount->assertJsonPath('unverified_count', 2);
-    $threshingCount->assertJsonCount(1, 'breakdown');
-    $threshingCount->assertJsonPath('breakdown.0.station_type', 'threshing');
-});
-
-// Scenario 14: "data mobile menyusul setelah periode ditutup"
+// Scenario: "data mobile menyusul setelah periode ditutup"
 it('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali', function () {
     $period = Period::factory()
         ->forBusinessUnit($this->businessUnitA)
@@ -820,109 +616,6 @@ it('menolak 422 PERIOD_CLOSED saat mencoba memverifikasi record di dalam periode
     $show->assertOk();
     expect($record->fresh()->checked_by)->toBeNull();
 })->skip('Penegakan PERIOD_CLOSED ada di service 18 stasiun — di luar screen-128, lihat usecase-141--kunci-input-periode-tertutup');
-
-// Scenario 16: "menutup periode yang sudah tertutup"
-it('menolak 409 PERIOD_ALREADY_CLOSED saat menutup stasiun yang sudah tertutup', function () {
-    $period = Period::factory()
-        ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
-        ->range('2026-10-01', '2026-10-31')
-        ->closed($this->adminA, '2026-11-01 09:14:00')
-        ->create();
-
-    $stationId = periodStationId($period);
-
-    // Step 1 — POST close on an already-closed station -> 409
-    $close = $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/close");
-    $close->assertStatus(409);
-    $close->assertJsonPath('code', 'PERIOD_ALREADY_CLOSED');
-
-    // Step 2 — the list still shows it closed by the FIRST closer -> 200
-    $list = $this->actingAs($this->admin, 'web')->getJson('/api/periods?status=closed');
-    $list->assertOk();
-    $list->assertJsonPath('meta.total', 1);
-    $list->assertJsonPath('data.0.stations.0.closed_by_name', 'Admin A');
-});
-
-// Scenario 17: "dua Admin menutup periode bersamaan"
-it('penutupan kedua tidak menimpa catatan penutup pertama saat dua Admin menutup stasiun yang sama', function () {
-    $period = Period::factory()
-        ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
-        ->range('2026-10-01', '2026-10-31')
-        ->open()
-        ->create();
-
-    $stationId = periodStationId($period);
-
-    // Step 1 — Admin A wins the race -> 200
-    $first = $this->actingAs($this->adminA, 'web')->postJson("/api/period-stations/{$stationId}/close");
-    $first->assertOk();
-    $first->assertJsonPath('closed_by', $this->adminA->id);
-    $closedAt = $first->json('closed_at');
-
-    // Step 2 — Admin X confirms the same closure a moment later -> 409
-    $second = $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/close");
-    $second->assertStatus(409);
-    $second->assertJsonPath('code', 'PERIOD_ALREADY_CLOSED');
-    expect($second->json('message'))->toContain('Admin A');
-
-    // Step 3 — the list shows Admin A, not Admin X -> 200
-    $list = $this->actingAs($this->admin, 'web')->getJson('/api/periods?status=closed');
-    $list->assertOk();
-    $list->assertJsonPath('data.0.stations.0.closed_by', $this->adminA->id);
-    $list->assertJsonPath('data.0.stations.0.closed_by_name', 'Admin A');
-    $list->assertJsonPath('data.0.stations.0.closed_at', $closedAt);
-});
-
-// Scenario 18: "pengguna selain Admin menutup periode"
-it('menolak 403 FORBIDDEN pada aksi tutup, buka kembali, dan unverified-count untuk non-Admin', function (string $role) {
-    $user = match ($role) {
-        'supervisor' => $this->supervisor,
-        'mill_management' => $this->millManagement,
-        'operator' => $this->operator,
-    };
-
-    $openPeriod = Period::factory()
-        ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
-        ->named('Periode Terbuka')
-        ->range('2026-10-01', '2026-10-31')
-        ->open()
-        ->create();
-
-    $closedPeriod = Period::factory()
-        ->forBusinessUnit($this->businessUnitB)
-        ->stationType('sterilizer')
-        ->named('Periode Tertutup')
-        ->range('2026-10-01', '2026-10-31')
-        ->closed($this->adminA, '2026-11-01 09:14:00')
-        ->create();
-
-    $openStationId = periodStationId($openPeriod);
-    $closedStationId = periodStationId($closedPeriod);
-
-    // Step 1 — close -> 403
-    $this->actingAs($user, 'web')->postJson("/api/period-stations/{$openStationId}/close")->assertStatus(403);
-
-    // Step 2 — reopen -> 403
-    $this->actingAs($user, 'web')->postJson("/api/period-stations/{$closedStationId}/reopen")->assertStatus(403);
-
-    // Step 3 — unverified-count -> 403
-    $this->actingAs($user, 'web')
-        ->getJson("/api/period-stations/{$openStationId}/unverified-count")
-        ->assertStatus(403);
-
-    // Step 4 — re-checked AS ADMIN (the scenario's 200): nothing changed.
-    $list = $this->actingAs($this->admin, 'web')->getJson('/api/periods');
-    $list->assertOk();
-    expect(PeriodStation::findOrFail($openStationId)->status->value)->toBe('open');
-    expect(PeriodStation::findOrFail($closedStationId)->closed_by)->toBe($this->adminA->id);
-})->with([
-    'supervisor' => ['supervisor'],
-    'mill management' => ['mill_management'],
-    'operator' => ['operator'],
-]);
 
 // Scenario 19: "mengubah data stasiun pada periode tertutup"
 it('menolak 422 PERIOD_CLOSED untuk input baru maupun perubahan data stasiun pada periode tertutup', function () {
@@ -996,264 +689,3 @@ it('menerima data yang tanggal kejadiannya di luar rentang periode tertutup', fu
         'details' => [['close_door_time' => '09:00', 'open_door_time' => '10:10']],
     ])->assertStatus(201);
 })->skip('Penegakan PERIOD_CLOSED ada di service 18 stasiun — di luar screen-128, lihat usecase-141--kunci-input-periode-tertutup');
-
-// ── usecase-144 (Buka Stasiun — POST /api/period-stations/{id}/open) ─────
-//
-// Scenarios 21–28 of the screen tech-spec. This endpoint lists 404 / 409 /
-// 403 ONLY — there is deliberately no 401 case, exactly as close/reopen
-// have none: session handling is middleware, not part of this contract.
-
-/** A draft period on Mill Alpha, the only status "Buka Stasiun" accepts. */
-function draftPeriodForOpenApi(BusinessUnit $businessUnit, string $name = 'Oktober 2026'): Period
-{
-    return Period::factory()
-        ->forBusinessUnit($businessUnit)
-        ->stationType('sterilizer')
-        ->named($name)
-        ->range('2026-10-01', '2026-10-31')
-        ->draft()
-        ->create();
-}
-
-// Scenario 21: "Buka Periode Pelaporan — sukses"
-it('membuka satu stasiun draft menjadi open tanpa menyentuh satu pun data stasiun', function () {
-    $period = draftPeriodForOpenApi($this->businessUnitA);
-    $stationId = periodStationId($period);
-
-    $records = SterilizerRecord::factory()
-        ->forStation($this->sterilizerStation)
-        ->onDate('2026-10-10')
-        ->count(2)
-        ->create();
-
-    $before = SterilizerRecord::query()->orderBy('id')->get()
-        ->map(fn ($r) => [$r->id, $r->checked_by, $r->acknowledged_by, (string) $r->updated_at])
-        ->all();
-
-    // Step 1 — POST /api/period-stations/{id}/open -> 200
-    $open = $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/open");
-
-    $open->assertOk();
-    $open->assertExactJson([
-        'period_station_id' => $stationId,
-        'period_id' => $period->id,
-        'station_type' => 'sterilizer',
-        'station_type_label' => 'Sterilizer',
-        'status' => 'open',
-        'closed_by' => null,
-        'closed_by_name' => null,
-        'closed_at' => null,
-    ]);
-
-    $freshStation = PeriodStation::findOrFail($stationId);
-    expect($freshStation->status->value)->toBe('open');
-    // Opening is not closing.
-    expect($freshStation->closed_by)->toBeNull();
-    expect($freshStation->closed_at)->toBeNull();
-    // The parent carries the "who last touched this period" stamp.
-    expect($period->fresh()->updated_by)->toBe($this->admin->id);
-
-    // Not one station record was read, validated or changed.
-    $after = SterilizerRecord::query()->orderBy('id')->get()
-        ->map(fn ($r) => [$r->id, $r->checked_by, $r->acknowledged_by, (string) $r->updated_at])
-        ->all();
-    expect($after)->toBe($before);
-    expect(SterilizerRecord::count())->toBe($records->count());
-
-    // The list shows the new status.
-    $list = $this->actingAs($this->admin, 'web')->getJson('/api/periods?status=open');
-    $list->assertOk();
-    $list->assertJsonPath('meta.total', 1);
-    $list->assertJsonPath('data.0.id', $period->id);
-    $list->assertJsonPath('data.0.status_summary', 'open');
-});
-
-// Scenario 22: "Periode sudah terbuka"
-it('menolak 409 PERIOD_NOT_DRAFT ketika stasiun yang dibuka sudah berstatus open', function () {
-    $period = Period::factory()
-        ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
-        ->named('Oktober 2026')
-        ->range('2026-10-01', '2026-10-31')
-        ->open()
-        ->create();
-
-    $stationId = periodStationId($period);
-
-    // Step 1 — POST open on an already-open station -> 409
-    $open = $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/open");
-
-    $open->assertStatus(409);
-    $open->assertJsonPath('code', 'PERIOD_NOT_DRAFT');
-    expect($open->json('message'))->toContain('sudah terbuka');
-    // Only the closed case points at "Buka Kembali Periode".
-    expect($open->json('message'))->not->toContain('Buka Kembali Periode');
-
-    expect(PeriodStation::findOrFail($stationId)->status->value)->toBe('open');
-    expect($period->fresh()->updated_by)->toBeNull();
-});
-
-// Scenario 23: "Periode sudah tertutup"
-it('menolak 409 PERIOD_NOT_DRAFT untuk stasiun tertutup dan mengarahkan ke Buka Kembali Periode', function () {
-    $period = Period::factory()
-        ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
-        ->named('Oktober 2026')
-        ->range('2026-10-01', '2026-10-31')
-        ->closed($this->adminA, '2026-11-01 09:14:00')
-        ->create();
-
-    $stationId = periodStationId($period);
-
-    // Step 1 — POST open on a closed station -> 409
-    $open = $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/open");
-
-    $open->assertStatus(409);
-    $open->assertJsonPath('code', 'PERIOD_NOT_DRAFT');
-    // A different message from the already-open one, naming the OTHER
-    // action — the two are easy to confuse and a bare refusal makes the
-    // Admin think the period is broken.
-    expect($open->json('message'))->toContain('sudah tertutup');
-    expect($open->json('message'))->toContain('Buka Kembali Periode');
-
-    $freshStation = PeriodStation::findOrFail($stationId);
-    expect($freshStation->status->value)->toBe('closed');
-    expect($freshStation->closed_by)->toBe($this->adminA->id);
-
-    // And the action that IS right for a closed station still works.
-    $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/reopen")->assertOk();
-});
-
-// Scenario 24: "Periode tidak ditemukan"
-it('mengembalikan 404 NOT_FOUND saat membuka stasiun periode yang sudah dihapus Admin lain', function () {
-    $period = draftPeriodForOpenApi($this->businessUnitA, 'Periode Sementara');
-    $periodId = $period->id;
-    $stationId = periodStationId($period);
-
-    // Another Admin deletes the period first — its station rows cascade away.
-    $this->actingAs($this->admin, 'web')->deleteJson("/api/periods/{$periodId}")->assertOk();
-
-    // Step 1 — POST open on the now-gone station row -> 404
-    $open = $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/open");
-
-    $open->assertStatus(404);
-    $open->assertJsonPath('code', 'NOT_FOUND');
-
-    expect(Period::find($periodId))->toBeNull();
-    expect(PeriodStation::find($stationId))->toBeNull();
-    expect(Period::count())->toBe(0);
-});
-
-// Scenario 25: "Dua Admin membuka bersamaan"
-it('pembukaan kedua ditolak 409 dan tidak menimpa catatan Admin pertama', function () {
-    $period = draftPeriodForOpenApi($this->businessUnitA);
-    $stationId = periodStationId($period);
-
-    // Step 1 — Admin A wins the race -> 200
-    $first = $this->actingAs($this->adminA, 'web')->postJson("/api/period-stations/{$stationId}/open");
-    $first->assertOk();
-    $first->assertJsonPath('status', 'open');
-
-    expect($period->fresh()->updated_by)->toBe($this->adminA->id);
-
-    // Step 2 — Admin X confirms the same opening a moment later -> 409;
-    // the conditional UPDATE's WHERE status='draft' matched nothing.
-    $second = $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/open");
-    $second->assertStatus(409);
-    $second->assertJsonPath('code', 'PERIOD_NOT_DRAFT');
-    expect($second->json('message'))->toContain('sudah terbuka');
-
-    // No silent overwrite — updated_by is still Admin A's.
-    expect(PeriodStation::findOrFail($stationId)->status->value)->toBe('open');
-    expect($period->fresh()->updated_by)->toBe($this->adminA->id);
-});
-
-// Scenario 26: "Bukan Admin mencoba membuka periode"
-it('menolak 403 FORBIDDEN pada aksi buka stasiun untuk Supervisor dan Mill Management', function () {
-    $period = draftPeriodForOpenApi($this->businessUnitA);
-    $stationId = periodStationId($period);
-
-    // Step 1 — Supervisor -> 403
-    $this->actingAs($this->supervisor, 'web')
-        ->postJson("/api/period-stations/{$stationId}/open")
-        ->assertStatus(403);
-
-    // Step 2 — Mill Management -> 403
-    $this->actingAs($this->millManagement, 'web')
-        ->postJson("/api/period-stations/{$stationId}/open")
-        ->assertStatus(403);
-
-    // Operator too, for completeness — every non-Admin role is refused.
-    $this->actingAs($this->operator, 'web')
-        ->postJson("/api/period-stations/{$stationId}/open")
-        ->assertStatus(403);
-
-    expect(PeriodStation::findOrFail($stationId)->status->value)->toBe('draft');
-    expect($period->fresh()->updated_by)->toBeNull();
-});
-
-// Scenario 27: "status Terbuka tidak dapat dikembalikan ke Draft"
-it('tidak menyediakan jalan kembali dari open ke draft lewat PATCH', function () {
-    $period = draftPeriodForOpenApi($this->businessUnitA);
-    $stationId = periodStationId($period);
-
-    // Step 1 — open -> 200
-    $this->actingAs($this->admin, 'web')
-        ->postJson("/api/period-stations/{$stationId}/open")
-        ->assertOk();
-
-    // Step 2 — PATCH trying to push it back to draft -> 200.
-    //
-    // 200, not 422: `status` is simply NOT one of the fields the controller
-    // forwards or PeriodService::validate() accepts — and since 2026-09-25 it
-    // is not a `periods` column at all. The attempt is IGNORED rather than
-    // refused. What matters is the outcome — the station is still open.
-    $patch = $this->actingAs($this->admin, 'web')->patchJson("/api/periods/{$period->id}", [
-        'business_unit_id' => $this->businessUnitA->id,
-        'status' => 'draft',
-        'station_type' => 'sterilizer',
-        'name' => 'Percobaan Mundur',
-        'start_date' => '2026-10-01',
-        'end_date' => '2026-10-31',
-    ]);
-
-    $patch->assertOk();
-    $patch->assertJsonPath('name', 'Percobaan Mundur');
-    $patch->assertJsonPath('status_summary', 'open');
-    $patch->assertJsonPath('stations.0.status', 'open');
-    // The ignored `status` key did not sneak into the response either.
-    $patch->assertJsonMissingPath('status');
-
-    expect(PeriodStation::findOrFail($stationId)->status->value)->toBe('open');
-});
-
-// Scenario 28: "periode Terbuka tetap dapat diubah dan dihapus"
-it('periode dengan stasiun Terbuka tetap dapat di-PATCH dan di-DELETE', function () {
-    $period = draftPeriodForOpenApi($this->businessUnitA, 'Periode Agustus 2026');
-    $stationId = periodStationId($period);
-
-    // Step 1 — open -> 200
-    $this->actingAs($this->admin, 'web')
-        ->postJson("/api/period-stations/{$stationId}/open")
-        ->assertOk();
-
-    // Step 2 — PATCH -> 200, no PERIOD_CLOSED_IMMUTABLE: only 'closed' locks.
-    $patch = $this->actingAs($this->admin, 'web')->patchJson("/api/periods/{$period->id}", [
-        'business_unit_id' => $this->businessUnitA->id,
-        'name' => 'Periode Agustus 2026 (revisi)',
-        'start_date' => '2026-10-01',
-        'end_date' => '2026-10-31',
-    ]);
-    $patch->assertOk();
-    $patch->assertJsonPath('name', 'Periode Agustus 2026 (revisi)');
-    $patch->assertJsonPath('status_summary', 'open');
-    $patch->assertJsonPath('is_immutable', false);
-
-    // Step 3 — DELETE -> 200
-    $delete = $this->actingAs($this->admin, 'web')->deleteJson("/api/periods/{$period->id}");
-    $delete->assertOk();
-    $delete->assertExactJson(['deleted' => true]);
-
-    expect(Period::find($period->id))->toBeNull();
-    expect(PeriodStation::find($stationId))->toBeNull();
-});

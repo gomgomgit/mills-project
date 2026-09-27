@@ -1,0 +1,118 @@
+{
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-27"
+  },
+  "ver": 1,
+  "id": "screen-142--detail-periode-pelaporan",
+  "name": "Detail Periode Pelaporan",
+  "module_id": "module-master-data",
+  "description": "Halaman detail satu Periode Pelaporan. Admin membukanya dari daftar periode (screen-128) dengan menekan nama periode, lalu melihat seluruh jenis stasiun yang dicakup periode itu beserta status masing-masing (Draft / Terbuka / Tertutup) dan menutup, membuka, atau membuka kembali stasiun satu per satu. Status melekat pada jenis stasiun, bukan pada periode: stasiun tidak selesai serentak, sehingga satu periode dapat berisi Sterilizer yang sudah tertutup sementara Clarification masih berjalan. Sebelum sebuah stasiun ditutup, layar menampilkan jumlah record stasiun ITU yang belum terverifikasi dalam rentang periode — bukan jumlah se-periode — karena verifikasi ikut terkunci setelah penutupan. Layar ini juga menyediakan Edit dan Hapus periode induknya, dengan aturan immutable yang sama seperti di daftar. Layar pertama bergaya detail-* di modul Master Data, mengikuti pola detail-* di modul Data Stasiun (Web).",
+  "actors": [
+    "actor-admin"
+  ],
+  "entry_points": [
+    "Menekan nama periode pada baris tabel di layar Kelola Periode Pelaporan (screen-128)",
+    "URL langsung /master-data/periods/{id} (mis. tautan yang di-bookmark Admin)"
+  ],
+  "information_displayed": [
+    "Ringkasan periode: Nama Periode, Business Unit (mill), Tanggal Mulai, Tanggal Selesai",
+    "Ringkasan stasiun: jumlah jenis stasiun yang dicakup periode dan berapa di antaranya sudah tertutup (mis. '19 stasiun · 3 tertutup')",
+    "Badge ringkasan status periode: Draft (semua stasiun Draft) / Terbuka (semua Terbuka) / Tertutup (semua Tertutup) / Campuran (status stasiunnya berbeda-beda) / Tanpa Stasiun (periode belum punya satu pun baris stasiun)",
+    "Tabel stasiun periode dengan kolom Jenis Stasiun, Status, Ditutup Oleh, Waktu Ditutup, dan Aksi — satu baris per jenis stasiun yang dicakup periode, terurut mengikuti urutan proses pada master Jenis Stasiun",
+    "Badge status per baris stasiun: Draft / Terbuka / Tertutup",
+    "Aksi per baris stasiun sesuai statusnya: 'Buka Stasiun' pada baris Draft, 'Tutup Stasiun' pada baris Terbuka, 'Buka Kembali' pada baris Tertutup",
+    "Dialog konfirmasi Tutup Stasiun: memuat jumlah record JENIS STASIUN ITU yang belum terverifikasi dalam rentang periode, nama stasiun, nama periode, rentang tanggal, mill, serta penjelasan bahwa jenis stasiun lain pada periode ini tidak terpengaruh",
+    "Dialog konfirmasi Buka Stasiun: menjelaskan bahwa status berubah Draft → Terbuka, tidak dapat dikembalikan ke Draft, dan tidak ada data stasiun yang berubah",
+    "Konfirmasi Buka Kembali pada baris stasiun yang tertutup, menyebut nama jenis stasiunnya",
+    "Penjelasan pengganti tabel ketika periode belum punya satu pun baris stasiun: mill-nya belum memiliki stasiun aktif, tambahkan stasiunnya lalu simpan ulang periode ini untuk mendaftarkannya",
+    "Tombol Edit Periode dan Hapus Periode untuk periode induk; keduanya tampil dalam keadaan nonaktif beserta penjelasan pada atribut title (bukan disembunyikan) ketika ada minimal satu stasiun yang sudah tertutup",
+    "Tombol kembali ke daftar Kelola Periode Pelaporan",
+    "Pesan error beserta tombol kembali ke daftar ketika periode tidak ditemukan atau sudah dihapus Admin lain",
+    "Pesan hasil aksi (berhasil / gagal) untuk tutup, buka, buka kembali, dan hapus"
+  ],
+  "available_actions": [
+    {
+      "action": "Kembali ke Daftar Periode",
+      "description": "Kembali ke layar Kelola Periode Pelaporan (screen-128)",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka Stasiun",
+      "description": "Menyatakan satu jenis stasiun pada periode ini resmi berjalan: statusnya berubah dari Draft menjadi Terbuka. Hanya ditawarkan pada baris berstatus Draft; tidak ada jalan kembali ke Draft, dan tidak ada data stasiun yang tersentuh. Jenis stasiun lain pada periode ini tidak terpengaruh.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tutup Stasiun",
+      "description": "Mengunci satu jenis stasiun pada periode ini sehingga data stasiun jenis itu yang tanggal kejadiannya berada di dalam rentang periode tidak bisa lagi diinput, diubah, maupun diverifikasi. Hanya ditawarkan pada baris berstatus Terbuka. Sebelum dikonfirmasi, sistem menampilkan jumlah record jenis stasiun itu yang belum terverifikasi dalam rentang periode, sebab verifikasi ikut terkunci. Mencatat siapa yang menutup dan kapan.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka Kembali",
+      "description": "Membuka kembali satu jenis stasiun yang sudah Tertutup pada periode ini sehingga datanya bisa diinput, diubah, dan diverifikasi lagi; catatan siapa yang menutup dan waktu penutupan dihapus. Hanya ditawarkan pada baris berstatus Tertutup, dan hanya memengaruhi jenis stasiun itu.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit Periode",
+      "description": "Membuka form ubah periode induk (nama, mill, rentang tanggal). Nonaktif dengan penjelasan pada title bila ada minimal satu stasiun yang sudah tertutup — Admin harus membuka kembali stasiun itu terlebih dahulu.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus Periode",
+      "description": "Menghapus periode induk beserta seluruh baris stasiunnya, dengan konfirmasi. Nonaktif dengan penjelasan pada title bila ada minimal satu stasiun yang sudah tertutup.",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    }
+  ],
+  "business_rules": [
+    "Hanya Admin yang dapat membuka layar ini dan menjalankan seluruh aksinya — Mill Management tidak berwenang menutup buku meski laporannya dipakai olehnya. Aktor selain Admin ditolak, baik saat membuka halaman maupun saat menjalankan aksi per stasiun",
+    "Status tutup/buka melekat pada satu jenis stasiun di dalam satu periode, bukan pada periode itu sendiri. Periode induk tidak punya status tunggal; yang ditampilkan di ringkasan hanyalah rangkuman dari status seluruh stasiunnya",
+    "Satu baris stasiun dibuat untuk setiap jenis stasiun yang aktif di mill periode itu, dan urutannya mengikuti urutan proses pada master Jenis Stasiun — bukan urutan abjad maupun urutan pembuatan",
+    "Siklus status satu stasiun adalah Draft → Terbuka → Tertutup, dan dari Tertutup kembali ke Terbuka lewat 'Buka Kembali'. Tidak ada jalan pintas: baris Draft hanya menawarkan 'Buka Stasiun', Terbuka hanya 'Tutup Stasiun', Tertutup hanya 'Buka Kembali'. Tidak ada jalan kembali dari Terbuka ke Draft",
+    "Menutup satu jenis stasiun tidak menyentuh status jenis stasiun lain pada periode yang sama, begitu pula membuka dan membuka kembali",
+    "Sebelum penutupan sebuah stasiun dikonfirmasi, sistem wajib menampilkan jumlah record JENIS STASIUN ITU yang belum terverifikasi dalam rentang periode. Angka se-periode tidak boleh dipakai: ia tidak berhubungan dengan aksi yang sedang dikonfirmasi dan pada mill sibuk akan selalu tidak nol sehingga Admin terbiasa mengabaikannya",
+    "'Belum terverifikasi' berarti salah satu tahap verifikasi masih kosong — belum di-check atau belum di-acknowledge",
+    "Menutup stasiun tetap diizinkan meski masih ada record belum terverifikasi; angkanya ditampilkan agar Admin memutuskan secara sadar. Record tersebut akan tetap berstatus belum terverifikasi sampai stasiun itu dibuka kembali",
+    "Penentuan apakah sebuah record berada di dalam periode memakai tanggal kejadian di pabrik, bukan tanggal data diinput maupun tanggal data dikirim dari aplikasi mobile. Batas rentang bersifat inklusif di kedua ujungnya",
+    "Membuka kembali sebuah stasiun menghapus catatan siapa yang menutup dan kapan ditutup pada baris stasiun itu",
+    "Penutupan dan pembukaan bersifat atomik: bila dua Admin menekan aksi yang sama pada baris stasiun yang sama hampir bersamaan, hanya satu yang berhasil dan catatan yang pertama tidak tertimpa; yang kedua diberi tahu status stasiun itu saat ini",
+    "Periode induk tidak dapat diubah maupun dihapus bila ada SATU saja stasiunnya yang berstatus Tertutup — bukan bila semuanya tertutup. Menghapus periode akan ikut menghapus baris stasiunnya, sehingga satu baris tertutup pun cukup untuk membekukan periodenya",
+    "Tombol Edit dan Hapus pada periode yang terbekukan ditampilkan dalam keadaan nonaktif beserta penjelasan pada atribut title, tidak disembunyikan — Admin harus bisa melihat bahwa aksi itu ada tetapi sedang terkunci, bukan mencari tombol yang hilang",
+    "Menutup stasiun hanya menetapkan status pada baris stasiun; penolakan input, perubahan, dan verifikasi record stasiun pada periode tertutup adalah pekerjaan terpisah yang BELUM diimplementasikan (usecase-141--kunci-input-periode-tertutup). Layar ini tidak boleh mengklaim kunci itu sudah berjalan",
+    "Aksi 'Buka Stasiun' tidak membaca, memvalidasi, maupun mengubah satu pun record stasiun — berbeda dari 'Tutup Stasiun' yang menghitung record belum terverifikasi"
+  ],
+  "usecase_ids": [
+    "usecase-145--lihat-detail-periode-pelaporan",
+    "usecase-140--tutup-buka-periode-pelaporan",
+    "usecase-144--buka-periode-pelaporan"
+  ],
+  "edge_cases": [
+    "Periode tidak ditemukan — id tidak valid, atau periode sudah dihapus Admin lain setelah tautan dibuka → tampilkan pesan error yang ramah beserta tombol kembali ke daftar, bukan halaman kosong dan bukan kegagalan sistem",
+    "Periode pada mill yang belum punya stasiun aktif (ringkasan status 'Tanpa Stasiun', 0 stasiun) → tampilkan penjelasan bahwa mill-nya belum memiliki stasiun aktif dan bahwa menambah stasiun lalu menyimpan ulang periode akan mendaftarkannya, BUKAN tabel kosong tanpa keterangan. Tidak ada aksi per stasiun yang tersedia, dan periode tetap dapat diubah maupun dihapus",
+    "Dua Admin menekan 'Tutup Stasiun' pada baris stasiun yang sama hampir bersamaan → hanya satu penutupan berlaku; yang kedua diberi tahu stasiun itu sudah ditutup beserta nama penutup dan waktunya, dan catatan penutup pertama tidak tertimpa",
+    "Dua Admin menekan 'Buka Stasiun' pada baris Draft yang sama hampir bersamaan → hanya satu yang mengubah status; yang kedua diberi tahu stasiun itu sudah terbuka, tanpa penimpaan diam-diam",
+    "Status stasiun campuran dalam satu periode — mis. Sterilizer sudah Tertutup sementara Clarification masih Terbuka dan Boiler Room masih Draft → tabel menampilkan status dan aksi per baris apa adanya, badge ringkasan periode berbunyi 'Campuran', dan Edit/Hapus periode sudah nonaktif karena ada satu stasiun tertutup",
+    "Baris stasiun sudah dihapus atau periodenya dihapus di antara halaman dimuat dan aksi per stasiun ditekan → aksi ditolak dengan pesan 'tidak ditemukan', tidak ada perubahan apa pun",
+    "Menekan 'Buka Stasiun' pada baris yang ternyata sudah Terbuka → ditolak dengan pesan bahwa stasiun itu sudah terbuka; pada baris yang ternyata sudah Tertutup → ditolak dengan pesan yang mengarahkan Admin memakai 'Buka Kembali', bukan aksi ini",
+    "Menekan 'Buka Kembali' pada baris yang ternyata belum Tertutup → ditolak dengan pesan bahwa stasiun itu belum tertutup",
+    "LUBANG BACKFILL YANG SUDAH DIKETAHUI: mill mendapat jenis stasiun baru SETELAH periode dibuat, dan periode itu sudah punya minimal satu stasiun tertutup → baris stasiun baru tidak bisa didaftarkan, karena pendaftarannya hanya ikut pada penyimpanan periode dan penyimpanan itu sendiri ditolak selama ada stasiun tertutup. Jalan keluar yang tersedia hari ini bersifat manual: buka kembali stasiun yang tertutup, simpan ulang periodenya, lalu tutup lagi stasiun itu. Jangan menganggap ini sudah tertangani otomatis",
+    "Record belum terverifikasi berjumlah nol untuk stasiun yang akan ditutup → dialog tetap tampil dengan angka 0, tanpa rincian, dan penutupan berjalan normal",
+    "Jenis stasiun yang sudah dipensiunkan dari mill atau dari master tetap memiliki baris pada periode lama → barisnya tidak pernah dihapus (catatan siapa menutup dan kapan tidak boleh hilang), tetap tampil dengan label dari kodenya bila namanya tidak lagi ada di master, dan diurutkan paling belakang",
+    "Pengguna non-Admin (Operator, Supervisor, Mill Management) membuka /master-data/periods/{id} atau menjalankan aksi per stasiun → akses ditolak, tidak ada data periode yang ditampilkan maupun diubah"
+  ],
+  "test_priority": "high",
+  "open_questions": [
+    "Perbaikan tuntas untuk lubang backfill adalah aksi khusus 'sinkronkan stasiun' yang add-only dan diizinkan meski periode sudah punya stasiun tertutup (menambah baris Draft tidak merusak segel apa pun). Itu usecase baru dan belum diputuskan — untuk sementara jalan keluarnya manual: buka kembali → simpan → tutup lagi"
+  ]
+}

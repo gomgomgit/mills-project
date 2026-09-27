@@ -1,13 +1,22 @@
 /**
  * Kelola Periode Pelaporan (Browser/Playwright) —
- * screen-128--kelola-periode-pelaporan / usecase-128 (CRUD) +
- * usecase-140 (tutup & buka kembali) + usecase-144 (buka stasiun draft).
+ * screen-128--kelola-periode-pelaporan / usecase-128 (CRUD).
  *
- * One test per test_scenarios entry whose `browser_test` is non-empty
- * (scenarios 1–13, 16–18 and 21–28, plus the cancelOpen path), followed by
- * the scenarios the per-station model made possible for the first time.
- * Scenarios 14, 15, 19 and 20 carry an empty browser_test — they are
- * mobile-sync / record-locking scenarios and live, skipped, in
+ * DAFTAR PERIODE, DAN HANYA DAFTARNYA. Sejak 2026-09-27 daftar stasiun
+ * sebuah periode dan SETIAP aksi per stasiun (usecase-140 tutup & buka
+ * kembali, usecase-144 buka stasiun draft) hidup di layar tersendiri,
+ * screen-142--detail-periode-pelaporan — dan pengujiannya PINDAH ke
+ * tests/detail-periode-pelaporan.spec.ts apa adanya, bukan dihapus.
+ * Scenarios 10-13, 16-18 dan 21-26 karena itu tidak lagi ada di berkas ini.
+ *
+ * Yang tersisa di sini: CRUD periode (scenarios 1-9), filter, ringkasan baris
+ * induk, dan dua skenario yang memakai stasiun hanya sebagai LATAR (Edit /
+ * Hapus mati saat `is_immutable`, filter Status Stasiun) — keadaan itu
+ * disiapkan lewat layar detail, tempat aksinya kini berada, bukan dengan
+ * melemahkan asersinya.
+ *
+ * Scenarios 14, 15, 19 dan 20 membawa browser_test kosong — mereka skenario
+ * sinkronisasi mobile / penguncian record dan hidup, ter-skip, di
  * backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php.
  *
  * ── APA YANG BERUBAH PADA 2026-09-26, DAN MENGAPA SPEC INI BERBEDA JAUH ──
@@ -26,12 +35,13 @@
  *     mill itu. Form menggantinya dengan pratinjau daftar stasiun yang akan
  *     didaftarkan; di mode Edit, jenis yang belum punya baris diberi badge
  *     "Baru".
- *  3. TABEL BERTINGKAT DAN TERTUTUP SECARA DEFAULT. Baris stasiun hidup di
- *     <tr> kedua dan hanya dirender selama id periodenya ada di
- *     $expandedPeriodIds — yang kosong saat mount. SETIAP tombol per-stasiun
- *     karena itu tidak ada di DOM sebelum barisnya dibuka; helper
- *     expandPeriod()/openStationRow() di tests/support/period-screen.ts yang
- *     mengurus itu, dan setiap testid per-stasiun membawa id
+ *  3. BARIS STASIUN TIDAK ADA DI LAYAR INI (sejak 2026-09-27). Accordion
+ *     yang dulu membawanya dicabut; nama periode kini sebuah <a href>
+ *     (`period-link-{periodId}`, wire:navigate) menuju
+ *     `/master-data/periods/{id}`. Mencari tombol per-stasiun di daftar
+ *     menghasilkan timeout yang menyesatkan — helper openStationRow() /
+ *     closeStation() di tests/support/period-screen.ts yang mengurus
+ *     navigasinya, dan setiap testid per-stasiun membawa id
  *     `period_stations`, bukan id periode.
  *  4. SIKLUSNYA draft -> open -> closed, TANPA JALAN PINTAS. Baris Draft
  *     hanya menawarkan "Buka Stasiun"; "Tutup Stasiun" baru muncul pada
@@ -44,7 +54,7 @@
  * already creates, so no seeder change is needed to run it:
  *   - butest-admin01     (Admin,      name "Butest admin01")
  *   - pltest-admin01     (Admin,      name "Pltest admin01") — the second
- *                        Admin of the concurrent-closure scenario
+ *                        Admin of the concurrent-delete scenario
  *   - butest-nonadmin01  (Supervisor) — the "akses ditolak" scenarios
  *   - Business Unit "BU Browser Test" — the mill every scenario uses; it has
  *     18 active station types, so every period created here gets 18 station
@@ -76,26 +86,25 @@
  * selectSearchable() from ./support/period-screen.
  */
 
-import { test, expect, type Locator, type Page } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
 import { deletePeriodsByPrefix } from './support/periods'
 import {
+  closeStation,
   createPeriodViaUi,
-  expandPeriod,
-  openStationRow,
+  gotoPeriodDetail,
   openStation,
+  openStationRow,
+  periodDetailPath,
   periodIdFor,
   periodRow,
   selectSearchable,
-  stationIdFor,
 } from './support/period-screen'
 
 const PERIODS_PATH = '/master-data/periods'
 
 const ADMIN = 'butest-admin01'
-const ADMIN_NAME = 'Butest admin01'
 const SECOND_ADMIN = 'pltest-admin01'
-const SECOND_ADMIN_NAME = 'Pltest admin01'
 const NON_ADMIN = 'butest-nonadmin01'
 
 const BUSINESS_UNIT = 'BU Browser Test'
@@ -105,15 +114,6 @@ const STATION_TYPE = 'Sterilizer'
 
 /** A second station row, to prove the two never move together. */
 const OTHER_STATION_TYPE = 'Clarification'
-
-/**
- * The only station type with an unverified record inside the August 2026
- * window BrowserTestFixtureSeeder seeds (one Effluent Plant record dated
- * 2026-08-05, with neither checked_by nor acknowledged_by). Every other type
- * has none in that window — which is exactly what makes the per-station
- * unverified count provable in a browser.
- */
-const UNVERIFIED_STATION_TYPE = 'Effluent Plant'
 
 /**
  * A mill with no active station at all, so a period created for it gets NO
@@ -209,19 +209,52 @@ async function createPeriod(
   })
 }
 
-/** One station row of an expanded period. */
-function stationRow(page: Page, stationId: string): Locator {
-  return page.locator(`[data-testid="period-station-row-${stationId}"]`)
+/**
+ * PENYIAPAN KEADAAN STASIUN LEWAT LAYAR DETAIL, LALU KEMBALI KE DAFTAR.
+ *
+ * Aksi stasiun tidak ada lagi di layar ini. Beberapa skenario DAFTAR tetap
+ * membutuhkan keadaan yang hanya bisa dihasilkan oleh aksi itu — `is_immutable`
+ * (Edit/Hapus mati), ringkasan "Campuran", dan filter Status Stasiun. Jalan
+ * yang benar adalah menyiapkannya di layar tempat aksinya kini berada, bukan
+ * melonggarkan asersinya di sini.
+ *
+ * Kedua helper di bawah mengembalikan KEDUA id: id PERIODE untuk aksi periode
+ * di daftar, dan id `period_stations` untuk aksi stasiun di layar detail.
+ * Keduanya tidak pernah saling menggantikan.
+ */
+async function closeStationThenBackToList(
+  page: Page,
+  name: string,
+  stationLabel: string = STATION_TYPE,
+): Promise<{ periodId: string; stationId: string }> {
+  // periodIdFor dulu, selagi masih di daftar — closeStation() berpindah
+  // halaman ke layar detail dan tidak kembali sendiri.
+  const periodId = await periodIdFor(page, name)
+  const stationId = await closeStation(page, name, stationLabel)
+  await gotoPeriods(page)
+
+  return { periodId, stationId }
 }
 
-/**
- * Opens the "Tutup Stasiun" dialog for one station row, taking the row from
- * Draft to Terbuka first if needed — the button exists on Terbuka rows only.
- */
-async function askCloseStation(page: Page, periodId: string, stationId: string): Promise<void> {
+async function openStationThenBackToList(
+  page: Page,
+  name: string,
+  stationLabel: string = STATION_TYPE,
+): Promise<{ periodId: string; stationId: string }> {
+  const { periodId, stationId } = await openStationRow(page, name, stationLabel)
   await openStation(page, periodId, stationId)
-  await page.locator(`[data-testid="station-close-button-${stationId}"]`).click()
-  await expect(page.locator('[data-testid="unverified-warning"]')).toBeVisible()
+  await gotoPeriods(page)
+
+  return { periodId, stationId }
+}
+
+/** Membuka kembali satu stasiun tertutup lewat layar detail, lalu kembali. */
+async function reopenStationThenBackToList(page: Page, periodId: string, stationId: string): Promise<void> {
+  await gotoPeriodDetail(page, periodId)
+  await page.locator(`[data-testid="station-reopen-button-${stationId}"]`).click()
+  await page.locator('[data-testid="confirm-reopen-button"]').click()
+  await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
+  await gotoPeriods(page)
 }
 
 /** Deletes one period through the UI, from its parent row's inline confirm. */
@@ -257,78 +290,11 @@ test.describe('Kelola Periode Pelaporan', () => {
     }
   })
 
-  // ── Scenario 13, and the scenario the split made possible ─────────────
-  //
-  // RUNS FIRST because its window is fixed in August 2026: it must cover
-  // 2026-08-05, the date BrowserTestFixtureSeeder stamps on its unverified
-  // Effluent Plant record. Those dates sort BELOW every other row this spec
-  // creates, so the row is only reliably on page 1 while the list is still
-  // short.
-  test('dialog tutup: angka belum terverifikasi milik stasiun yang ditutup, bukan se-periode', async ({ page }) => {
-    const name = uniqueName('Belum Terverifikasi')
-
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-
-    // One period, the whole mill — so BOTH station types below belong to the
-    // same period and the same date range. Before the split there was one
-    // figure per period and this comparison could not be made at all.
-    await createPeriod(page, { name, start: '2026-08-01', end: '2026-08-15' })
-    const periodId = await periodIdFor(page, name)
-    await expandPeriod(page, periodId)
-
-    const unverifiedId = await stationIdFor(page, periodId, UNVERIFIED_STATION_TYPE)
-    const quietId = await stationIdFor(page, periodId, STATION_TYPE)
-
-    // The station that HAS unverified records: a real, non-zero figure named
-    // after that station type, its breakdown, and the explanation that
-    // verification locks too.
-    await askCloseStation(page, periodId, unverifiedId)
-    await expect(page.locator('[data-testid="unverified-count"]')).toContainText(
-      new RegExp(`[1-9]\\d* data ${UNVERIFIED_STATION_TYPE} belum terverifikasi`),
-    )
-    await expect(page.locator('[data-testid="unverified-breakdown"]')).toContainText(UNVERIFIED_STATION_TYPE)
-    await expect(page.locator('[data-testid="unverified-warning"]')).toContainText('verifikasi ikut terkunci')
-    await page.locator('[data-testid="cancel-close-button"]').click()
-    await expect(page.locator('[data-testid="unverified-warning"]')).toHaveCount(0)
-
-    // THE POINT OF THE WHOLE REVISION: the same period, the same range, a
-    // different station — and a different figure. A period-wide count would
-    // have reported the Effluent Plant record here too.
-    await expandPeriod(page, periodId)
-    await askCloseStation(page, periodId, quietId)
-    // toContainText, and the leading (^|\s) instead of a bare ^: a RegExp
-    // matcher is applied to the raw text node, which the blade indents over
-    // two lines — toHaveText's whitespace normalisation only applies to the
-    // string form. The guard that matters is the word boundary, so that a
-    // "10" can never satisfy an assertion written for "0".
-    await expect(page.locator('[data-testid="unverified-count"]')).toContainText(
-      new RegExp(`(^|\\s)0 data ${STATION_TYPE} belum terverifikasi`),
-    )
-    await page.locator('[data-testid="cancel-close-button"]').click()
-
-    // The figure never blocks the closure — closing proceeds.
-    await expandPeriod(page, periodId)
-    await askCloseStation(page, periodId, unverifiedId)
-    await page.locator('[data-testid="confirm-close-button"]').click()
-    await expect(page.locator(`[data-testid="station-status-badge-${unverifiedId}"]`)).toHaveText('Tertutup')
-
-    // Clean up: this is one of the two scenarios that cannot use a unique
-    // far-future window, so it must not leave a row behind that would block
-    // a re-run. A closed station has to be reopened before the period can be
-    // deleted at all.
-    await expandPeriod(page, periodId)
-    await page.locator(`[data-testid="station-reopen-button-${unverifiedId}"]`).click()
-    await page.locator('[data-testid="confirm-reopen-button"]').click()
-    await expect(page.locator(`[data-testid="station-status-badge-${unverifiedId}"]`)).toHaveText('Terbuka')
-    await deletePeriod(page, name)
-  })
-
   // Scenario 1: "Kelola Periode Pelaporan — success", plus the new
   // "membuat periode tanpa memilih stasiun" case: there IS no station
   // choice, and the row must come out with one station per station type the
   // mill actually has.
-  test('menambah periode baru: baris muncul dengan badge Draft dan satu baris stasiun per inventaris mill', async ({ page }) => {
+  test('menambah periode baru: baris muncul dengan badge Draft dan ringkasan satu stasiun per inventaris mill', async ({ page }) => {
     const { start, end } = uniqueRange(1)
     const name = uniqueName('Sukses')
 
@@ -369,18 +335,14 @@ test.describe('Kelola Periode Pelaporan', () => {
     await expect(page.locator(`[data-testid="status-summary-${periodId}"]`)).toHaveText('Draft')
     await expect(row).not.toContainText(STATION_TYPE)
 
-    // One station row per previewed station type, every one of them Draft
-    // with both closure columns empty.
-    await expandPeriod(page, periodId)
-    const stationRows = page.locator(`[data-testid="period-stations-${periodId}"] tbody tr`)
-    await expect(stationRows).toHaveCount(previewLabels.length)
-
-    const stationId = await stationIdFor(page, periodId, STATION_TYPE)
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Draft')
-    // "Ditutup Oleh" / "Waktu Ditutup" render an em dash while the station
-    // is not closed.
-    await expect(stationRow(page, stationId).locator('td').nth(2)).toHaveText('—')
-    await expect(stationRow(page, stationId).locator('td').nth(3)).toHaveText('—')
+    // BARIS STASIUNNYA SENDIRI TIDAK ADA DI SINI. Satu baris per jenis
+    // stasiun yang dipratinjau — beserta urutannya, badge Draft-nya dan kolom
+    // penutupannya yang kosong — diasersi di layar tempatnya kini hidup,
+    // tests/detail-periode-pelaporan.spec.ts. Daftar hanya boleh meringkas,
+    // dan ringkasan itu ("N stasiun") sudah dicocokkan ke pratinjau di atas.
+    await expect(page.locator(`[data-testid="period-stations-${periodId}"]`)).toHaveCount(0)
+    await expect(page.locator('[data-testid^="period-station-row-"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid^="station-status-badge-"]')).toHaveCount(0)
 
     // The modal closed and a success flash is shown.
     await expect(page.locator('.kcm-modal')).toHaveCount(0)
@@ -469,10 +431,11 @@ test.describe('Kelola Periode Pelaporan', () => {
   })
 
   // Scenario 5: "Mengubah atau menghapus periode yang sudah tertutup" —
-  // rewritten for the per-station model, and extended with the other
-  // direction the split made testable: once the closed station is reopened
-  // the two actions come back.
-  test('satu stasiun tertutup: Edit dan Hapus mati dengan penjelasan, hidup lagi setelah stasiun dibuka kembali', async ({ page }) => {
+  // versi DAFTAR. Yang diuji di sini dua tombol pada baris induk; stasiun
+  // yang menguncinya hanya latar, dan disiapkan lewat layar detail tempat
+  // aksinya kini berada. Pasangan asersinya pada layar detail ada di
+  // tests/detail-periode-pelaporan.spec.ts.
+  test('satu stasiun tertutup: Edit dan Hapus di daftar mati dengan penjelasan, hidup lagi setelah stasiun dibuka kembali', async ({ page }) => {
     const { start, end } = uniqueRange(5)
     const name = uniqueName('Terkunci')
 
@@ -480,16 +443,14 @@ test.describe('Kelola Periode Pelaporan', () => {
     await gotoPeriods(page)
     await createPeriod(page, { name, start, end })
 
-    const periodId = await periodIdFor(page, name)
-    const stationId = await (async () => {
-      const opened = await openStationRow(page, name, STATION_TYPE)
+    const editButton = page.locator(`[data-testid="edit-button-${await periodIdFor(page, name)}"]`)
 
-      return opened.stationId
-    })()
+    // Berangkat dari keadaan hidup, supaya "mati" sesudahnya benar-benar
+    // sebuah perubahan dan bukan keadaan awal.
+    await expect(editButton).toBeEnabled()
 
-    await askCloseStation(page, periodId, stationId)
-    await page.locator('[data-testid="confirm-close-button"]').click()
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Tertutup')
+    const { periodId, stationId } = await closeStationThenBackToList(page, name)
+    const deleteButton = page.locator(`[data-testid="delete-button-${periodId}"]`)
 
     // DISABLED, not hidden: `is_immutable` is exactly the condition
     // PeriodService::update()/delete() refuse on (409
@@ -497,25 +458,21 @@ test.describe('Kelola Periode Pelaporan', () => {
     // must show that editing is blocked rather than make the Admin hunt for
     // a vanished button. The 409 itself is asserted at API level in
     // backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php.
-    const editButton = page.locator(`[data-testid="edit-button-${periodId}"]`)
-    const deleteButton = page.locator(`[data-testid="delete-button-${periodId}"]`)
     await expect(editButton).toBeDisabled()
     await expect(deleteButton).toBeDisabled()
     await expect(editButton).toHaveAttribute('title', /[Bb]uka kembali stasiun/)
+    await expect(deleteButton).toHaveAttribute('title', /[Bb]uka kembali stasiun/)
 
-    // The summary counts it, and the closed station offers only the reopen.
+    // Baris induk menghitungnya, dan meringkas perselisihannya.
     await expect(page.locator(`[data-testid="station-summary-${periodId}"]`)).toContainText('1 tertutup')
-    await expect(page.locator(`[data-testid="station-reopen-button-${stationId}"]`)).toBeVisible()
-    await expect(page.locator(`[data-testid="station-close-button-${stationId}"]`)).toHaveCount(0)
-    await expect(page.locator(`[data-testid="station-open-button-${stationId}"]`)).toHaveCount(0)
+    await expect(page.locator(`[data-testid="status-summary-${periodId}"]`)).toHaveText('Campuran')
 
     // Reopen it and both period actions are available again — nothing about
     // the period itself was ever locked.
-    await page.locator(`[data-testid="station-reopen-button-${stationId}"]`).click()
-    await page.locator('[data-testid="confirm-reopen-button"]').click()
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
+    await reopenStationThenBackToList(page, periodId, stationId)
     await expect(editButton).toBeEnabled()
     await expect(deleteButton).toBeEnabled()
+    await expect(editButton).not.toHaveAttribute('title', /[Bb]uka kembali stasiun/)
 
     // Name and range are untouched.
     await expect(periodRow(page, name)).toContainText(name)
@@ -607,378 +564,6 @@ test.describe('Kelola Periode Pelaporan', () => {
     await expect(periodRow(page, name)).toHaveCount(0)
   })
 
-  // Scenario 10: "Tutup & Buka Kembali Periode Pelaporan — success"
-  test('tutup stasiun: dialog menyebut stasiunnya, setelah konfirmasi badge stasiun jadi Tertutup', async ({ page }) => {
-    const { start, end } = uniqueRange(10)
-    const name = uniqueName('Tutup Sukses')
-
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-    await askCloseStation(page, periodId, stationId)
-
-    await expect(page.locator('.kcm-modal')).toBeVisible()
-    await expect(page.locator('[data-testid="unverified-count"]')).toContainText(
-      `data ${STATION_TYPE} belum terverifikasi`,
-    )
-
-    await page.locator('[data-testid="confirm-close-button"]').click()
-
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Tertutup')
-    // Ditutup Oleh names the Admin who confirmed it; the parent row does not
-    // carry a closer at all any more.
-    await expect(stationRow(page, stationId).locator('td').nth(2)).toHaveText(ADMIN_NAME)
-    await expect(page.locator('.kcm-modal')).toHaveCount(0)
-    await expect(page.locator('[data-testid="success-message"]')).toBeVisible()
-  })
-
-  // Scenario 11: "buka kembali periode yang sudah tertutup"
-  test('buka kembali stasiun: badge jadi Terbuka, kolom penutupan kosong, tombol Tutup Stasiun kembali', async ({ page }) => {
-    const { start, end } = uniqueRange(11)
-    const name = uniqueName('Buka Kembali')
-
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-    await askCloseStation(page, periodId, stationId)
-    await page.locator('[data-testid="confirm-close-button"]').click()
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Tertutup')
-
-    await page.locator(`[data-testid="station-reopen-button-${stationId}"]`).click()
-    await page.locator('[data-testid="confirm-reopen-button"]').click()
-
-    // reopen() lands on Terbuka, never back on Draft, and drops the record of
-    // who closed it.
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
-    await expect(stationRow(page, stationId).locator('td').nth(2)).toHaveText('—')
-    await expect(stationRow(page, stationId).locator('td').nth(3)).toHaveText('—')
-    await expect(page.locator(`[data-testid="station-close-button-${stationId}"]`)).toBeVisible()
-    await expect(page.locator(`[data-testid="edit-button-${periodId}"]`)).toBeEnabled()
-    await expect(page.locator(`[data-testid="delete-button-${periodId}"]`)).toBeEnabled()
-  })
-
-  // Scenario 12: "Admin membatalkan penutupan"
-  test('membatalkan dialog Tutup Stasiun: badge stasiun tetap dan kolom Ditutup Oleh tetap kosong', async ({ page }) => {
-    const { start, end } = uniqueRange(12)
-    const name = uniqueName('Batal Tutup')
-
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-    await askCloseStation(page, periodId, stationId)
-
-    await page.locator('[data-testid="cancel-close-button"]').click()
-
-    await expect(page.locator('[data-testid="unverified-warning"]')).toHaveCount(0)
-    await expandPeriod(page, periodId)
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
-    await expect(stationRow(page, stationId).locator('td').nth(2)).toHaveText('—')
-    await expect(page.locator(`[data-testid="status-summary-${periodId}"]`)).toHaveText('Campuran')
-  })
-
-  // Scenario 16: "menutup periode yang sudah tertutup"
-  test('baris stasiun Tertutup: tombol Tutup Stasiun tidak terlihat, Buka Kembali dapat diklik', async ({ page }) => {
-    const { start, end } = uniqueRange(13)
-    const name = uniqueName('Sudah Tertutup')
-
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-    await askCloseStation(page, periodId, stationId)
-    await page.locator('[data-testid="confirm-close-button"]').click()
-
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Tertutup')
-    await expect(page.locator(`[data-testid="station-close-button-${stationId}"]`)).toHaveCount(0)
-    await expect(page.locator(`[data-testid="station-reopen-button-${stationId}"]`)).toBeEnabled()
-  })
-
-  // Scenario 17: "dua Admin menutup periode bersamaan" — now two Admins
-  // closing the same STATION.
-  test('dua Admin menutup stasiun yang sama: Admin kedua diberi tahu, penutup pertama tetap tercatat', async ({ page, browser }) => {
-    const { start, end } = uniqueRange(14)
-    const name = uniqueName('Balapan Tutup')
-
-    // Admin B prepares the row, takes the station to Terbuka and keeps the
-    // list open (not reloaded) with the station rows expanded.
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-    await openStation(page, periodId, stationId)
-
-    // Admin A closes the same station in another browser context.
-    const otherContext = await browser.newContext()
-    const otherPage = await otherContext.newPage()
-    await login(otherPage, SECOND_ADMIN, PASSWORD)
-    await gotoPeriods(otherPage)
-    await expandPeriod(otherPage, periodId)
-    await otherPage.locator(`[data-testid="station-close-button-${stationId}"]`).click()
-    await otherPage.locator('[data-testid="confirm-close-button"]').click()
-    await expect(otherPage.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Tertutup')
-    await expect(stationRow(otherPage, stationId)).toContainText(SECOND_ADMIN_NAME)
-
-    // Admin B, without reloading, confirms the closure of the same station.
-    await page.locator(`[data-testid="station-close-button-${stationId}"]`).click()
-    await page.locator('[data-testid="confirm-close-button"]').click()
-
-    // They are told it is already closed, by whom and when — and the list
-    // now shows Admin A as the closer in BOTH browsers.
-    await expect(page.locator('[data-testid="close-error"]')).toContainText(SECOND_ADMIN_NAME)
-    await expandPeriod(page, periodId)
-    await expect(stationRow(page, stationId)).toContainText(SECOND_ADMIN_NAME)
-
-    await otherPage.reload()
-    await expandPeriod(otherPage, periodId)
-    await expect(stationRow(otherPage, stationId)).toContainText(SECOND_ADMIN_NAME)
-    await otherContext.close()
-  })
-
-  // Scenario 18: "pengguna selain Admin menutup periode"
-  test('akses ditolak: non-Admin tidak mendapat tombol Tutup/Buka Kembali dan status stasiun tidak berubah', async ({ page, browser }) => {
-    const { start, end } = uniqueRange(15)
-    const name = uniqueName('Non Admin')
-
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-
-    // The non-Admin never reaches the screen, so no station action is offered.
-    const otherContext = await browser.newContext()
-    const otherPage = await otherContext.newPage()
-    await login(otherPage, NON_ADMIN, PASSWORD)
-    await otherPage.goto(PERIODS_PATH)
-    await expect(otherPage.locator('body')).toContainText(/403/)
-    await expect(otherPage.locator('[data-testid^="station-close-button-"]')).toHaveCount(0)
-    await expect(otherPage.locator('[data-testid^="station-reopen-button-"]')).toHaveCount(0)
-    await expect(otherPage.locator('[data-testid^="station-open-button-"]')).toHaveCount(0)
-    await otherContext.close()
-
-    // Re-checked as Admin: the station is exactly as it was.
-    await page.reload()
-    await expandPeriod(page, periodId)
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Draft')
-    await expect(stationRow(page, stationId).locator('td').nth(2)).toHaveText('—')
-  })
-
-  // ── usecase-144 (Buka Stasiun) — scenarios 21–28 ──────────────────────
-  //
-  // SELECTOR NOTE: the bare `open-period-button` testid these scenarios used
-  // to share is gone. Every action now carries its own
-  // `period_stations` id (`station-open-button-{id}`), so the old warning
-  // about scoping a bare testid to a row no longer applies — but the button
-  // is only in the DOM while its period's station rows are expanded.
-
-  // Scenario 21: "Buka Periode Pelaporan — sukses"
-  test('buka stasiun draft: dialog konfirmasi lalu badge stasiun jadi Terbuka dan tombol Buka Stasiun hilang', async ({ page }) => {
-    const { start, end } = uniqueRange(16)
-    const name = uniqueName('Buka Sukses')
-
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Draft')
-
-    await page.locator(`[data-testid="station-open-button-${stationId}"]`).click()
-
-    const dialog = page.locator('[data-testid="open-period-dialog"]')
-    await expect(dialog).toBeVisible()
-    await expect(dialog).toContainText('tidak dapat dikembalikan ke Draft')
-    // The dialog is about ONE station, and says so.
-    await expect(dialog).toContainText(STATION_TYPE)
-
-    await page.locator('[data-testid="confirm-open-period"]').click()
-
-    // The dialog closes and the station is now Terbuka.
-    await expect(page.locator('[data-testid="open-period-dialog"]')).toHaveCount(0)
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
-    await expect(page.locator(`[data-testid="station-open-button-${stationId}"]`)).toHaveCount(0)
-    // Opening is not closing: the closure columns stay empty and the period's
-    // edit / delete actions remain available.
-    await expect(stationRow(page, stationId).locator('td').nth(2)).toHaveText('—')
-    await expect(stationRow(page, stationId).locator('td').nth(3)).toHaveText('—')
-    await expect(page.locator(`[data-testid="edit-button-${periodId}"]`)).toBeEnabled()
-    await expect(page.locator(`[data-testid="delete-button-${periodId}"]`)).toBeEnabled()
-    await expect(page.locator('[data-testid="success-message"]')).toBeVisible()
-  })
-
-  // Alternative flow "Admin membatalkan pembukaan" — no bdd_scenario of its
-  // own, but the cancel path must not go untested.
-  test('membatalkan dialog Buka Stasiun: badge tetap Draft dan tombol Buka Stasiun masih ada', async ({ page }) => {
-    const { start, end } = uniqueRange(17)
-    const name = uniqueName('Batal Buka')
-
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-    await page.locator(`[data-testid="station-open-button-${stationId}"]`).click()
-    await expect(page.locator('[data-testid="open-period-dialog"]')).toBeVisible()
-
-    await page.locator('[data-testid="cancel-open-period"]').click()
-
-    await expect(page.locator('[data-testid="open-period-dialog"]')).toHaveCount(0)
-    await expandPeriod(page, periodId)
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Draft')
-    await expect(page.locator(`[data-testid="station-open-button-${stationId}"]`)).toBeVisible()
-  })
-
-  // Scenario 22: "Periode sudah terbuka"
-  test('baris stasiun Terbuka: tombol Buka Stasiun tidak dirender sama sekali', async ({ page }) => {
-    const { start, end } = uniqueRange(18)
-    const name = uniqueName('Sudah Terbuka')
-
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-    await openStation(page, periodId, stationId)
-
-    // Still absent after a full reload — the button is driven by the station
-    // row's status, not by client-side state. (The forced-action message a
-    // stale list produces is asserted in the concurrent-opening scenario
-    // below.)
-    await page.reload()
-    await expandPeriod(page, periodId)
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
-    await expect(page.locator(`[data-testid="station-open-button-${stationId}"]`)).toHaveCount(0)
-    await expect(page.locator(`[data-testid="station-close-button-${stationId}"]`)).toBeVisible()
-  })
-
-  // Scenario 23: "Periode sudah tertutup"
-  test('baris stasiun Tertutup: hanya Buka Kembali yang ditawarkan, bukan Buka Stasiun', async ({ page }) => {
-    const { start, end } = uniqueRange(19)
-    const name = uniqueName('Buka Tertutup')
-
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-    await askCloseStation(page, periodId, stationId)
-    await page.locator('[data-testid="confirm-close-button"]').click()
-
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Tertutup')
-    // "Buka Stasiun" and "Buka Kembali" are two different actions; a closed
-    // station must offer only the latter.
-    await expect(page.locator(`[data-testid="station-open-button-${stationId}"]`)).toHaveCount(0)
-    await expect(page.locator(`[data-testid="station-reopen-button-${stationId}"]`)).toBeEnabled()
-    // (The 409 message that names "Buka Kembali Periode" for a forced call
-    // is asserted at API and component level — it cannot be produced from a
-    // browser, since the button is never rendered on a closed station.)
-  })
-
-  // Scenario 24: "Periode tidak ditemukan"
-  test('periode dihapus pengguna lain: konfirmasi Buka Stasiun memberi pesan tidak ditemukan tanpa error 500', async ({ page, browser }) => {
-    const { start, end } = uniqueRange(20)
-    const name = uniqueName('Buka Sudah Dihapus')
-
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-
-    const { stationId } = await openStationRow(page, name, STATION_TYPE)
-
-    // Admin 1 opens the confirmation dialog FIRST, so the station row still
-    // exists when the snapshot is taken...
-    await page.locator(`[data-testid="station-open-button-${stationId}"]`).click()
-    await expect(page.locator('[data-testid="open-period-dialog"]')).toBeVisible()
-
-    // ...then Admin 2, in another context, deletes the whole period — which
-    // takes its station rows with it.
-    const otherContext = await browser.newContext()
-    const otherPage = await otherContext.newPage()
-    await login(otherPage, SECOND_ADMIN, PASSWORD)
-    await gotoPeriods(otherPage)
-    await deletePeriod(otherPage, name)
-    await otherContext.close()
-
-    await page.locator('[data-testid="confirm-open-period"]').click()
-
-    await expect(page.locator('[data-testid="close-error"]')).toContainText(/tidak ditemukan/i)
-    await expect(page.locator('body')).not.toContainText('500')
-    await expect(periodRow(page, name)).toHaveCount(0)
-
-    await page.reload()
-    await expect(periodRow(page, name)).toHaveCount(0)
-  })
-
-  // Scenario 25: "Dua Admin membuka bersamaan"
-  test('dua Admin membuka stasiun yang sama: hanya yang pertama mengubah status, yang kedua diberi tahu sudah terbuka', async ({ page, browser }) => {
-    const { start, end } = uniqueRange(21)
-    const name = uniqueName('Balapan Buka')
-
-    // Admin B prepares the row and keeps the (now stale) list open.
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-
-    // Admin A opens the same station in another browser context, first.
-    const otherContext = await browser.newContext()
-    const otherPage = await otherContext.newPage()
-    await login(otherPage, SECOND_ADMIN, PASSWORD)
-    await gotoPeriods(otherPage)
-    await expandPeriod(otherPage, periodId)
-    await otherPage.locator(`[data-testid="station-open-button-${stationId}"]`).click()
-    await otherPage.locator('[data-testid="confirm-open-period"]').click()
-    await expect(otherPage.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
-
-    // Admin B, without reloading, confirms the same opening.
-    await page.locator(`[data-testid="station-open-button-${stationId}"]`).click()
-    await page.locator('[data-testid="confirm-open-period"]').click()
-
-    // Told it is already open — no second change, no silent overwrite.
-    await expect(page.locator('[data-testid="close-error"]')).toContainText(/sudah terbuka/i)
-    await expect(page.locator('[data-testid="success-message"]')).toHaveCount(0)
-    await expandPeriod(page, periodId)
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
-
-    await page.reload()
-    await expandPeriod(page, periodId)
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
-    await expect(page.locator(`[data-testid="station-open-button-${stationId}"]`)).toHaveCount(0)
-
-    await otherContext.close()
-  })
-
-  // Scenario 26: "Bukan Admin mencoba membuka periode"
-  test('akses ditolak: non-Admin tidak pernah melihat tombol Buka Stasiun dan status tetap Draft', async ({ page, browser }) => {
-    const { start, end } = uniqueRange(22)
-    const name = uniqueName('Buka Non Admin')
-
-    await login(page, ADMIN, PASSWORD)
-    await gotoPeriods(page)
-    await createPeriod(page, { name, start, end })
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-
-    const otherContext = await browser.newContext()
-    const otherPage = await otherContext.newPage()
-    await login(otherPage, NON_ADMIN, PASSWORD)
-    await otherPage.goto(PERIODS_PATH)
-    await expect(otherPage.locator('body')).toContainText(/403/)
-    await expect(otherPage.locator('[data-testid^="station-open-button-"]')).toHaveCount(0)
-    await otherContext.close()
-
-    // Re-checked as Admin: the station is exactly as it was.
-    await page.reload()
-    await expandPeriod(page, periodId)
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Draft')
-    await expect(page.locator(`[data-testid="station-open-button-${stationId}"]`)).toBeVisible()
-  })
-
   // Scenario 27: "status Terbuka tidak dapat dikembalikan ke Draft"
   test('form edit periode dengan stasiun Terbuka: tidak ada kontrol status maupun jenis stasiun', async ({ page }) => {
     const { start, end } = uniqueRange(23)
@@ -988,8 +573,7 @@ test.describe('Kelola Periode Pelaporan', () => {
     await gotoPeriods(page)
     await createPeriod(page, { name, start, end })
 
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-    await openStation(page, periodId, stationId)
+    const { periodId, stationId } = await openStationThenBackToList(page, name)
 
     await page.locator(`[data-testid="edit-button-${periodId}"]`).click()
 
@@ -1009,10 +593,11 @@ test.describe('Kelola Periode Pelaporan', () => {
     await page.locator('[data-testid="save-button"]').click()
     await expect(page.locator('.kcm-modal')).toHaveCount(0)
 
-    await expandPeriod(page, periodId)
+    // Menyimpan dari daftar tidak memindahkan satu pun status stasiun —
+    // diperiksa di layar tempat status itu hidup, dan bertahan setelah reload.
+    await gotoPeriodDetail(page, periodId)
     await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
     await page.reload()
-    await expandPeriod(page, periodId)
     await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
   })
 
@@ -1026,8 +611,7 @@ test.describe('Kelola Periode Pelaporan', () => {
     await gotoPeriods(page)
     await createPeriod(page, { name, start, end })
 
-    const { periodId, stationId } = await openStationRow(page, name, STATION_TYPE)
-    await openStation(page, periodId, stationId)
+    const { periodId, stationId } = await openStationThenBackToList(page, name)
 
     // Edit is still available while a station is merely open.
     await page.locator(`[data-testid="edit-button-${periodId}"]`).click()
@@ -1035,9 +619,11 @@ test.describe('Kelola Periode Pelaporan', () => {
     await page.locator('[data-testid="save-button"]').click()
 
     await expect(periodRow(page, renamed)).toBeVisible()
-    await expandPeriod(page, periodId)
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
     await expect(page.locator('[data-testid="delete-error"]')).toHaveCount(0)
+
+    await gotoPeriodDetail(page, periodId)
+    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
+    await gotoPeriods(page)
 
     // And so is delete.
     await deletePeriod(page, renamed)
@@ -1050,8 +636,11 @@ test.describe('Kelola Periode Pelaporan', () => {
   // 2026-09-26 tidak satu pun dari tiga skenario berikut dapat dituliskan,
   // karena satu periode hanya punya satu status.
 
-  // Sterilizer tertutup sementara Clarification masih terbuka.
-  test('stasiun tidak serentak: satu tertutup satu terbuka, baris induk berbunyi Campuran', async ({ page }) => {
+  // Sterilizer tertutup sementara Clarification masih terbuka. Bagaimana
+  // KEDUA barisnya ter-render, dan bahwa menutup satu tidak menyentuh yang
+  // lain, diasersi di tests/detail-periode-pelaporan.spec.ts — di sini yang
+  // diuji apa yang DAFTAR lakukan dengan perselisihan itu.
+  test('stasiun tidak serentak: baris induk daftar berbunyi Campuran dan menghitung yang tertutup', async ({ page }) => {
     const { start, end } = uniqueRange(25)
     const name = uniqueName('Campuran')
 
@@ -1059,44 +648,30 @@ test.describe('Kelola Periode Pelaporan', () => {
     await gotoPeriods(page)
     await createPeriod(page, { name, start, end })
 
+    // Semuanya berangkat Draft, jadi ringkasannya pun Draft dan belum
+    // menghitung apa pun sebagai tertutup.
     const periodId = await periodIdFor(page, name)
-    await expandPeriod(page, periodId)
-    const closedId = await stationIdFor(page, periodId, STATION_TYPE)
-    const openId = await stationIdFor(page, periodId, OTHER_STATION_TYPE)
+    await expect(page.locator(`[data-testid="status-summary-${periodId}"]`)).toHaveText('Draft')
+    await expect(page.locator(`[data-testid="station-summary-${periodId}"]`)).not.toContainText('tertutup')
 
-    // Everything starts identical: same period, same range, same status.
-    await expect(page.locator(`[data-testid="station-status-badge-${closedId}"]`)).toHaveText('Draft')
-    await expect(page.locator(`[data-testid="station-status-badge-${openId}"]`)).toHaveText('Draft')
-
-    // Take the second station to Terbuka and leave it there.
-    await openStation(page, periodId, openId)
-
-    // Close the first one only.
-    await askCloseStation(page, periodId, closedId)
-    await page.locator('[data-testid="confirm-close-button"]').click()
-    await expect(page.locator(`[data-testid="station-status-badge-${closedId}"]`)).toHaveText('Tertutup')
-
-    // CLOSING ONE STATION CHANGES NOTHING ABOUT THE OTHER: same row, same
-    // period, still Terbuka, still with empty closure columns and still
-    // offering its own Tutup Stasiun.
-    await expect(page.locator(`[data-testid="station-status-badge-${openId}"]`)).toHaveText('Terbuka')
-    await expect(stationRow(page, openId).locator('td').nth(2)).toHaveText('—')
-    await expect(stationRow(page, openId).locator('td').nth(3)).toHaveText('—')
-    await expect(page.locator(`[data-testid="station-close-button-${openId}"]`)).toBeVisible()
-    // ...and the closed one names its closer.
-    await expect(stationRow(page, closedId).locator('td').nth(2)).toHaveText(ADMIN_NAME)
+    // Satu stasiun dibawa ke Terbuka, satu lagi ditutup — lewat layar detail,
+    // tempat kedua aksi itu kini berada.
+    const { stationId: openId } = await openStationThenBackToList(page, name, OTHER_STATION_TYPE)
+    await closeStationThenBackToList(page, name, STATION_TYPE)
 
     // The parent row summarises the disagreement rather than picking a side.
     await expect(page.locator(`[data-testid="status-summary-${periodId}"]`)).toHaveText('Campuran')
     await expect(page.locator(`[data-testid="station-summary-${periodId}"]`)).toContainText('1 tertutup')
+    // Dan baris induk tetap tidak pernah mengaku punya jenis stasiun sendiri,
+    // maupun menyisakan satu pun aksi stasiun.
+    await expect(periodRow(page, name)).not.toContainText(STATION_TYPE)
+    await expect(page.locator(`[data-testid="station-close-button-${openId}"]`)).toHaveCount(0)
+    await expect(page.locator('[data-testid^="station-reopen-button-"]')).toHaveCount(0)
 
-    // Collapsing and reopening the row shows the same two statuses — the
-    // difference lives in the data, not in a rendering accident.
-    await page.locator(`[data-testid="expand-button-${periodId}"]`).click()
-    await expect(page.locator(`[data-testid="period-stations-${periodId}"]`)).toHaveCount(0)
-    await expandPeriod(page, periodId)
-    await expect(page.locator(`[data-testid="station-status-badge-${closedId}"]`)).toHaveText('Tertutup')
-    await expect(page.locator(`[data-testid="station-status-badge-${openId}"]`)).toHaveText('Terbuka')
+    // Ringkasannya bertahan setelah reload — perbedaannya hidup di data,
+    // bukan di kecelakaan rendering.
+    await page.reload()
+    await expect(page.locator(`[data-testid="status-summary-${periodId}"]`)).toHaveText('Campuran')
   })
 
   // Filter "Status Stasiun" — "punya MINIMAL SATU stasiun berstatus ini",
@@ -1109,11 +684,7 @@ test.describe('Kelola Periode Pelaporan', () => {
     await gotoPeriods(page)
     await createPeriod(page, { name, start, end })
 
-    const periodId = await periodIdFor(page, name)
-    const { stationId } = await openStationRow(page, name, STATION_TYPE)
-    await askCloseStation(page, periodId, stationId)
-    await page.locator('[data-testid="confirm-close-button"]').click()
-    await expect(page.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Tertutup')
+    const { periodId } = await closeStationThenBackToList(page, name)
 
     // 1 closed, 1 open (the one that had to be opened before closing) and 16
     // still draft — so all three filter values must match this one period.
@@ -1124,6 +695,49 @@ test.describe('Kelola Periode Pelaporan', () => {
         `filter "${label}" seharusnya tetap memuat periode dengan minimal satu stasiun berstatus itu`,
       ).toHaveCount(1)
     }
+  })
+
+  // Accordion-nya tidak sekadar disembunyikan — ia dicabut dan digantikan
+  // satu tautan. Test ini menjaga penggantian itu tetap utuh dari kedua
+  // sisinya: yang hilang harus benar-benar hilang, dan yang menggantikannya
+  // harus benar-benar sebuah tautan yang bisa dibuka di tab baru.
+  test('baris periode: namanya tautan ke layar detail, tanpa tombol expand dan tanpa satu pun aksi stasiun', async ({ page }) => {
+    const { start, end } = uniqueRange(27)
+    const name = uniqueName('Tautan')
+
+    await login(page, ADMIN, PASSWORD)
+    await gotoPeriods(page)
+    await createPeriod(page, { name, start, end })
+
+    const periodId = await periodIdFor(page, name)
+    const row = periodRow(page, name)
+    const link = row.locator(`[data-testid="period-link-${periodId}"]`)
+
+    await expect(link).toHaveText(name)
+    await expect(link).toHaveAttribute('href', new RegExp(`${periodDetailPath(periodId)}$`))
+
+    // Yang dicabut, dicabut seluruhnya — di seluruh halaman, bukan hanya di
+    // baris ini.
+    for (const gone of [
+      `[data-testid="expand-button-${periodId}"]`,
+      `[data-testid="period-stations-${periodId}"]`,
+      '[data-testid^="period-station-row-"]',
+      '[data-testid^="station-status-badge-"]',
+      '[data-testid^="station-close-button-"]',
+      '[data-testid^="station-open-button-"]',
+      '[data-testid^="station-reopen-button-"]',
+    ]) {
+      await expect(page.locator(gone), `${gone} seharusnya sudah tidak ada di daftar`).toHaveCount(0)
+    }
+
+    // Yang tersisa di baris induk hanya dua aksi periode.
+    await expect(row.locator(`[data-testid="edit-button-${periodId}"]`)).toBeEnabled()
+    await expect(row.locator(`[data-testid="delete-button-${periodId}"]`)).toBeEnabled()
+
+    // Dan tautannya benar-benar membawa ke layar itu.
+    await link.click()
+    await expect(page).toHaveURL(new RegExp(`${periodDetailPath(periodId)}$`))
+    await expect(page.locator('[data-testid="period-name"]')).toHaveText(name)
   })
 
   // status_summary 'empty' — a mill with no active station at all.
@@ -1154,11 +768,12 @@ test.describe('Kelola Periode Pelaporan', () => {
     await expect(page.locator(`[data-testid="edit-button-${periodId}"]`)).toBeEnabled()
     await expect(page.locator(`[data-testid="delete-button-${periodId}"]`)).toBeEnabled()
 
-    // Expanding it explains the state rather than showing an empty table.
-    await expandPeriod(page, periodId)
-    await expect(page.locator(`[data-testid="period-stations-empty-${periodId}"]`))
-      .toContainText('belum memiliki stasiun aktif')
+    // Daftar hanya meringkas: tidak ada tabel stasiun dan tidak ada
+    // penjelasan yang bisa dibuka di sini sejak accordion-nya dicabut.
+    // Penjelasan keadaan ini — yang harus berupa kalimat, bukan tabel kosong —
+    // diasersi di tests/detail-periode-pelaporan.spec.ts.
     await expect(page.locator(`[data-testid="period-stations-${periodId}"]`)).toHaveCount(0)
+    await expect(page.locator(`[data-testid="period-stations-empty-${periodId}"]`)).toHaveCount(0)
 
     // Clean up in-test: this period lives in ANOTHER mill, and leaving it
     // there would sit in the date space the laporan specs use for their own

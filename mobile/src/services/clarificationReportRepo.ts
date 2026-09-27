@@ -99,8 +99,19 @@ export interface ClarificationReportPeriodOption {
   name: string
   start_date: string
   end_date: string
+  /**
+   * Status STASIUN LAYAR INI di dalam periode itu (baris period_stations),
+   * BUKAN status periode: sejak 2026-09-25 periode tidak punya status
+   * sendiri karena stasiun tidak ditutup serentak.
+   */
   status: string
-  station_type: string | null
+  /**
+   * Selalu terisi 'clarification' — TIDAK pernah null. Sejak 2026-09-25 cakupan
+   * "semua stasiun" tidak lagi diwujudkan sebagai station_type NULL
+   * melainkan sebagai satu baris period_stations per jenis stasiun, jadi
+   * server hanya memulangkan periode yang punya baris untuk jenis ini.
+   */
+  station_type: string
   station_type_label: string
 }
 
@@ -109,6 +120,10 @@ export interface ClarificationReportPeriodHeader {
   name: string
   start_date: string
   end_date: string
+  /**
+   * Status STASIUN LAYAR INI di dalam periode itu, bukan status periode.
+   * Bentuk datanya tidak berubah sejak 2026-09-25, hanya artinya.
+   */
   status: string
   business_unit_name?: string
 }
@@ -401,10 +416,10 @@ export async function fetchBusinessUnits(): Promise<ClarificationReportBusinessU
 
 /**
  * GET /api/clarification-reports/periods — periode yang mencakup stasiun
- * Clarification (station_type 'clarification' ATAU null). Penyaringan
- * station_type dikerjakan SERVER; repo meneruskan daftar apa adanya, dalam
- * urutan yang sama — menyaringnya kedua kali di sini akan menciptakan
- * definisi cakupan yang kedua. Daftar kosong adalah jawaban yang sah
+ * Clarification, yakni periode yang punya baris period_stations berjenis
+ * 'clarification'. Penyaringannya dikerjakan SERVER; repo meneruskan
+ * daftar apa adanya, dalam urutan yang sama — menyaringnya kedua kali di
+ * sini akan menciptakan definisi cakupan yang kedua. Daftar kosong adalah jawaban yang sah
  * (HTTP 200 + []), bukan galat: mill itu memang belum punya periode, dan
  * layar menampilkannya sebagai arahan menghubungi Admin.
  */

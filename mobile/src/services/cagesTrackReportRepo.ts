@@ -63,8 +63,19 @@ export interface CagesTrackReportPeriodOption {
   name: string
   start_date: string
   end_date: string
+  /**
+   * Status STASIUN LAYAR INI di dalam periode itu (baris period_stations),
+   * BUKAN status periode: sejak 2026-09-25 periode tidak punya status
+   * sendiri karena stasiun tidak ditutup serentak.
+   */
   status: string
-  station_type: string | null
+  /**
+   * Selalu terisi 'cages-track' — TIDAK pernah null. Sejak 2026-09-25 cakupan
+   * "semua stasiun" tidak lagi diwujudkan sebagai station_type NULL
+   * melainkan sebagai satu baris period_stations per jenis stasiun, jadi
+   * server hanya memulangkan periode yang punya baris untuk jenis ini.
+   */
+  station_type: string
   station_type_label: string
 }
 
@@ -73,6 +84,10 @@ export interface CagesTrackReportPeriodHeader {
   name: string
   start_date: string
   end_date: string
+  /**
+   * Status STASIUN LAYAR INI di dalam periode itu, bukan status periode.
+   * Bentuk datanya tidak berubah sejak 2026-09-25, hanya artinya.
+   */
   status: string
   business_unit_name?: string
 }
@@ -240,9 +255,10 @@ export async function fetchBusinessUnits(): Promise<CagesTrackReportBusinessUnit
 
 /**
  * GET /api/cages-track-reports/periods — periode yang mencakup stasiun
- * Cages & Tracks (station_type 'cages-track' ATAU null). Penyaringan
- * station_type dikerjakan SERVER; repo meneruskan daftar apa adanya, dalam
- * urutan yang sama. Daftar kosong adalah jawaban yang sah (HTTP 200 + []),
+ * Cages & Tracks, yakni periode yang punya baris period_stations berjenis
+ * 'cages-track'. Penyaringannya dikerjakan SERVER; repo meneruskan daftar
+ * apa adanya, dalam urutan yang sama.
+ * Daftar kosong adalah jawaban yang sah (HTTP 200 + []),
  * bukan galat: mill itu memang belum punya periode, dan layar
  * menampilkannya sebagai arahan menghubungi Admin.
  */

@@ -27,3 +27,18 @@ Kontrak baru `POST /api/periods/{id}/open` (usecase-144). Sengaja dibuat cermin 
 - Skenario "status Terbuka tidak dapat dikembalikan ke Draft" berakhir **200**, bukan 422 ← diverifikasi ke `PeriodService::validate()`: field `status` tidak pernah divalidasi maupun ditulis, jadi kiriman itu **diabaikan**, bukan ditolak. Perbedaan yang halus tapi penting bagi penulis test.
 - `DELETE` berakhir **200** (`{"deleted": true}`), bukan 204 ← diverifikasi ke `PeriodController::destroy()`.
 - Dialog konfirmasi (`askOpen`/`cancelOpen`/`confirmOpen`) ← meniru pasangan close/reopen yang sudah ada. Jalur batal tidak punya bdd_scenario tersendiri, jadi ditulis sebagai catatan implementasi agar tetap diuji.
+
+## v4 — 2026-09-27
+
+Kontrak `usecase-140` dan `usecase-144` DIPINDAHKAN ke screen-142 (bukan dibuang), dan kontrak
+`usecase-128` yang tersisa disusulkan ke model induk–anak yang sudah berjalan di kode.
+
+- Seluruh `success_schema` periode diganti dengan bentuk `PeriodService::toRow()` (induk + `stations[]` + `station_count` + `closed_station_count` + `is_immutable` + `status_summary`) ← dibaca dari docblock `toRow()`; v3 masih memakai bentuk pipih ber-`status`/`station_type` yang kolomnya sudah dihapus dari database
+- Induk sengaja TIDAK punya `status` ← alasan disalin dari `toRow()`: kunci bernama `status` akan mengundang `$row['status'] === 'closed'` hidup terus. Dicatat sebagai business_logic langkah 0 supaya tidak "dirapikan" kembali
+- `PERIOD_CLOSED_IMMUTABLE` pada PATCH/DELETE dijawab dengan aturan "ANY" (satu baris closed sudah cukup) ← dari `guardAgainstClosedStation()`
+- Urutan `PATCH` = guard 409 → validate → overlap → UPDATE → backfill ← dari `update()`; ditulis eksplisit karena posisi backfill SETELAH guard itulah sumber lubang backfill
+- Lubang backfill dicatat sebagai `edge_case_handling` DAN `implementation_notes`, dengan jalan keluar manual (buka kembali → simpan → tutup lagi) ← turunan agen dari docblock `update()`; user tidak diminta memutuskan perbaikan tuntasnya
+- 48 `unit_test_cases` (dari 29 milik usecase-128 di v3) ← ditulis ulang oleh agen terhadap perilaku kode saat ini; 12 kasus lama yang menguji `station_type`/`Semua Stasiun`/status periode tunggal digantikan kasus yang menguji baris stasiun, backfill add-only, aturan immutable "ANY", dan makna filter EXISTS. Tidak ada kasus yang dihapus tanpa penggantinya
+- 13 `test_scenarios` (dari 9 milik usecase-128 di v3) ← 9 lama dipertahankan dengan payload tanpa `station_type`, ditambah 4 baru: mill tanpa stasiun aktif, backfill lewat simpan ulang, makna filter Status Stasiun, dan navigasi ke layar detail. 19 `test_scenarios` milik usecase-140/144 PINDAH ke screen-142
+- Daftar `data-testid` yang hilang vs yang tetap ditulis eksplisit di `implementation_notes` ← turunan agen; dibuat agar langkah implementasi (dan helper e2e-web) punya satu daftar yang bisa dipakai memeriksa dirinya sendiri
+- Endpoint BARU `GET /api/periods/{id}` TIDAK didaftarkan di artefak ini melainkan di screen-142 ← ia hanya dipakai layar detail; catatan urutan rute (literal sebelum berparameter) tetap ditulis di sini karena rute /periods-nya milik layar ini

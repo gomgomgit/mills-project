@@ -94,14 +94,25 @@ const PERIOD_BOILER_ROOM = {
   station_type_label: 'Boiler Room',
 }
 
-const PERIOD_ALL_TYPES = {
+/**
+ * Periode yang cakupannya mencakup BANYAK jenis stasiun sekaligus.
+ *
+ * Sampai 2026-09-25 bentuknya `station_type: null` + label 'Semua Jenis
+ * Stasiun'. Sejak `periods` dipecah menjadi `periods` + `period_stations`,
+ * cakupan itu diwujudkan sebagai satu baris period_stations per jenis, dan
+ * periodOption() hanya memulangkan baris jenis stasiun LAYAR INI — jadi
+ * station_type TIDAK PERNAH null lagi dan bentuknya tak berbeda dari
+ * periode berjenis tunggal. Yang tetap diuji fixture ini: periode semacam
+ * itu TETAP terpungut layar ini.
+ */
+const PERIOD_LINTAS_STASIUN = {
   id: 'per-2',
-  name: 'Periode Semua Stasiun Maret 2026',
+  name: 'Periode Lintas Stasiun Maret 2026',
   start_date: '2026-03-01',
   end_date: '2026-03-31',
   status: 'open',
-  station_type: null,
-  station_type_label: 'Semua Jenis Stasiun',
+  station_type: 'boiler-room',
+  station_type_label: 'Boiler Room',
 }
 
 const BUSINESS_UNITS = [
@@ -308,7 +319,7 @@ afterEach(() => {
 describe('boilerRoomReportRepo — lapisan repo (screen-137)', () => {
   // 1
   it('fetchPeriods memanggil tepat GET /api/boiler-room-reports/periods dan tidak menyaring jenis stasiun di klien', async () => {
-    apiGetMock.mockResolvedValueOnce({ data: { data: [PERIOD_BOILER_ROOM, PERIOD_ALL_TYPES] } })
+    apiGetMock.mockResolvedValueOnce({ data: { data: [PERIOD_BOILER_ROOM, PERIOD_LINTAS_STASIUN] } })
 
     const periods = await fetchPeriods()
 
@@ -317,12 +328,13 @@ describe('boilerRoomReportRepo — lapisan repo (screen-137)', () => {
     expect(apiGetMock).toHaveBeenCalledWith('/api/boiler-room-reports/periods', { params: {} })
 
     // Seluruh entri diteruskan apa adanya, dalam urutan server. Penyaringan
-    // cakupan Boiler Room sepenuhnya milik server — termasuk periode
-    // ber-station_type null, yang TIDAK boleh dibuang di sini.
-    expect(periods).toEqual([PERIOD_BOILER_ROOM, PERIOD_ALL_TYPES])
+    // cakupan Boiler Room sepenuhnya milik server — termasuk periode yang
+    // mencakup banyak jenis stasiun sekaligus, yang TIDAK boleh dibuang di
+    // sini.
+    expect(periods).toEqual([PERIOD_BOILER_ROOM, PERIOD_LINTAS_STASIUN])
     expect(periods).toHaveLength(2)
     expect(periods[0].station_type).toBe('boiler-room')
-    expect(periods[1].station_type).toBeNull()
+    expect(periods[1].station_type).toBe('boiler-room')
   })
 
   // 2 — GAGAL TERTUTUP: peran terikat mill (termasuk Operator) tidak pernah

@@ -138,14 +138,25 @@ const PERIOD_CLF = {
   station_type_label: 'Clarification',
 }
 
-const PERIOD_ALL_TYPES = {
+/**
+ * Periode yang cakupannya mencakup BANYAK jenis stasiun sekaligus.
+ *
+ * Sampai 2026-09-25 bentuknya `station_type: null` + label 'Semua Jenis
+ * Stasiun'. Sejak `periods` dipecah menjadi `periods` + `period_stations`,
+ * cakupan itu diwujudkan sebagai satu baris period_stations per jenis, dan
+ * periodOption() hanya memulangkan baris jenis stasiun LAYAR INI — jadi
+ * station_type TIDAK PERNAH null lagi dan bentuknya tak berbeda dari
+ * periode berjenis tunggal. Yang tetap diuji fixture ini: periode semacam
+ * itu TETAP terpungut layar ini.
+ */
+const PERIOD_LINTAS_STASIUN = {
   id: 'per-2',
-  name: 'Periode Semua Stasiun Maret 2026',
+  name: 'Periode Lintas Stasiun Maret 2026',
   start_date: '2026-03-01',
   end_date: '2026-03-31',
   status: 'open',
-  station_type: null,
-  station_type_label: 'Semua Jenis Stasiun',
+  station_type: 'clarification',
+  station_type_label: 'Clarification',
 }
 
 const PERIOD_CLOSED = {
@@ -1053,7 +1064,7 @@ describe('LaporanClarificationView — test_scenarios / component_test (tech spe
 
   // Scenario 21: "periode yang tidak mencakup Clarification tidak ditawarkan"
   it('pemilih periode merender persis entri yang diterima — komponen tidak menyaring station_type sendiri', async () => {
-    repoMocks.fetchPeriods.mockResolvedValue([PERIOD_CLF, PERIOD_ALL_TYPES])
+    repoMocks.fetchPeriods.mockResolvedValue([PERIOD_CLF, PERIOD_LINTAS_STASIUN])
 
     const wrapper = await mountView()
 
@@ -1062,10 +1073,11 @@ describe('LaporanClarificationView — test_scenarios / component_test (tech spe
     // 1 opsi pembuka + 2 periode, dalam urutan server.
     expect(options).toHaveLength(3)
     expect(options[1].text()).toContain('Periode Maret 2026')
-    expect(options[2].text()).toContain('Periode Semua Stasiun Maret 2026')
-    // Periode ber-station_type null TIDAK dibuang di klien — penyaringan
-    // cakupan adalah pekerjaan server, dan menyaringnya dua kali
-    // menciptakan dua definisi.
+    expect(options[2].text()).toContain('Periode Lintas Stasiun Maret 2026')
+    // Periode lintas stasiun TIDAK dibuang di klien — penyaringan cakupan
+    // adalah pekerjaan server (periode itu sampai ke sini justru karena
+    // punya baris period_stations berjenis 'clarification'), dan
+    // menyaringnya dua kali menciptakan dua definisi.
     expect(options[2].attributes('value')).toBe('per-2')
   })
 

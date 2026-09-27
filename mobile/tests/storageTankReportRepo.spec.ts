@@ -115,14 +115,25 @@ const PERIOD_STORAGE_TANK = {
   station_type_label: 'Storage Tank',
 }
 
-const PERIOD_ALL_TYPES = {
+/**
+ * Periode yang cakupannya mencakup BANYAK jenis stasiun sekaligus.
+ *
+ * Sampai 2026-09-25 bentuknya `station_type: null` + label 'Semua Jenis
+ * Stasiun'. Sejak `periods` dipecah menjadi `periods` + `period_stations`,
+ * cakupan itu diwujudkan sebagai satu baris period_stations per jenis, dan
+ * periodOption() hanya memulangkan baris jenis stasiun LAYAR INI — jadi
+ * station_type TIDAK PERNAH null lagi dan bentuknya tak berbeda dari
+ * periode berjenis tunggal. Yang tetap diuji fixture ini: periode semacam
+ * itu TETAP terpungut layar ini.
+ */
+const PERIOD_LINTAS_STASIUN = {
   id: 'per-2',
-  name: 'Periode Semua Stasiun September 2026',
+  name: 'Periode Lintas Stasiun September 2026',
   start_date: '2026-09-01',
   end_date: '2026-09-30',
   status: 'open',
-  station_type: null,
-  station_type_label: 'Semua Jenis Stasiun',
+  station_type: 'storage-tank',
+  station_type_label: 'Storage Tank',
 }
 
 const BUSINESS_UNITS = [
@@ -398,7 +409,7 @@ afterEach(() => {
 describe('storageTankReportRepo — lapisan repo (screen-139)', () => {
   // 1
   it('fetchPeriods memanggil tepat GET /api/storage-tank-reports/periods dan tidak menyaring jenis stasiun di klien', async () => {
-    apiGetMock.mockResolvedValueOnce({ data: { data: [PERIOD_STORAGE_TANK, PERIOD_ALL_TYPES] } })
+    apiGetMock.mockResolvedValueOnce({ data: { data: [PERIOD_STORAGE_TANK, PERIOD_LINTAS_STASIUN] } })
 
     const periods = await fetchPeriods()
 
@@ -407,12 +418,13 @@ describe('storageTankReportRepo — lapisan repo (screen-139)', () => {
     expect(apiGetMock).toHaveBeenCalledWith('/api/storage-tank-reports/periods', { params: {} })
 
     // Seluruh entri diteruskan apa adanya, dalam urutan server. Penyaringan
-    // cakupan Storage Tank sepenuhnya milik server — termasuk periode
-    // ber-station_type null, yang TIDAK boleh dibuang di sini.
-    expect(periods).toEqual([PERIOD_STORAGE_TANK, PERIOD_ALL_TYPES])
+    // cakupan Storage Tank sepenuhnya milik server — termasuk periode yang
+    // mencakup banyak jenis stasiun sekaligus, yang TIDAK boleh dibuang di
+    // sini.
+    expect(periods).toEqual([PERIOD_STORAGE_TANK, PERIOD_LINTAS_STASIUN])
     expect(periods).toHaveLength(2)
     expect(periods[0].station_type).toBe('storage-tank')
-    expect(periods[1].station_type).toBeNull()
+    expect(periods[1].station_type).toBe('storage-tank')
   })
 
   // 2 — GAGAL TERTUTUP: peran terikat mill (termasuk Operator) tidak pernah

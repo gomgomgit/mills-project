@@ -1,0 +1,99 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-09-27"
+  },
+  "id": "screen-142--detail-periode-pelaporan",
+  "name": "Detail Periode Pelaporan",
+  "module_id": "module-master-data",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-09-27T14:05:00Z",
+      "passed": 3108,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-09-27T14:05:00Z",
+      "passed": 26,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-09-27T14:05:00Z",
+      "passed": 33,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-09-27T14:40:00Z",
+      "passed": 23,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Livewire/MasterData/DetailPeriodePelaporan.php",
+    "backend/resources/views/livewire/master-data/detail-periode-pelaporan.blade.php",
+    "backend/resources/views/master-data/period-detail.blade.php",
+    "backend/app/Services/PeriodService.php",
+    "backend/app/Http/Controllers/Api/PeriodController.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Feature/Livewire/DetailPeriodePelaporanTest.php",
+    "backend/tests/Feature/Api/DetailPeriodePelaporanTest.php",
+    "e2e-web/tests/detail-periode-pelaporan.spec.ts"
+  ],
+  "fe_files_generated": [],
+  "fe_test_files_generated": [],
+  "implementation_notes": [
+    "Layar ini lahir dari perubahan desain user 2026-09-27: daftar stasiun sebuah periode SEBELUMNYA accordion di screen-128, kini halaman tersendiri. Layar detail-* PERTAMA di module-master-data — sembilan layar lain di modul itu semuanya CRUD satu-layar; polanya dipinjam dari module-web-station-data (screen-106--detail-storage-tank-web, rute /data/storage-tank/{id}).",
+    "Rute web /master-data/periods/{id}, nama rute master-data.periods.detail, middleware auth + role:admin. Komponen Livewire DetailPeriodePelaporan, layout master-data.period-detail.",
+    "Endpoint BARU GET /api/periods/{id} lewat PeriodService::getDetail() (eager-load businessUnit dan stations.closedBy, lalu toRow() apa adanya). toRow() tetap protected sehingga hanya ada SATU bentuk objek periode: test API mengasersi respons detail identik byte-per-byte dengan satu entri data[] dari GET /api/periods, bukan sekadar 'mirip'.",
+    "GET /periods/{id} didaftarkan SETELAH /periods/business-units/options, dan ada test yang mengunci rute literal itu tetap menang atas pola {id}. Tanpa urutan itu Laravel akan mencocokkan 'business-units' sebagai {id}.",
+    "Edit/Hapus dimatikan dari flag is_immutable milik toRow(), BUKAN diturunkan ulang di layar. is_immutable adalah kondisi persis yang membuat PeriodService::delete()/update() menjawab 409 PERIOD_CLOSED_IMMUTABLE; menurunkannya ulang akan menciptakan dua sumber kebenaran yang bisa berselisih. Guard forged-call openEditForm() juga memakai flag itu, bukan hasClosedStation().",
+    "Aksi per stasiun menerima id period_stations, BUKAN id periode. Itu kekeliruan termahal layar ini: mengirim id periode ke /api/period-stations/{id}/close akan tampak seperti 404 biasa dan tidak terbaca sebagai bug. Penamaan variabel dan testid dibuat agar sulit tertukar, dan helper e2e membaca id itu dari atribut baris, tidak pernah dari periode.",
+    "Dialog Tutup membaca unverifiedCount($periodStationId) lalu mengirim close($periodStationId) dengan nilai yang PERSIS SAMA, sehingga peringatannya mustahil membahas stasiun lain dari yang ditutup. Diuji dengan pembanding nyata: 5 record Sterilizer belum terverifikasi, bukan 7 se-periode.",
+    "Hapus yang BERHASIL me-redirect ke daftar (redirectRoute navigate:true) — halaman ini tentang periode yang barusan hilang, jadi tinggal di sini berarti menampilkan 'tidak ditemukan' untuk sesuatu yang sengaja dihapus.",
+    "Tautan masuk dari screen-128 memakai <a href> + wire:navigate (testid period-link-{periodId}), bukan wire:click, supaya bisa dibuka tab baru dan di-bookmark.",
+    "Urutan baris stasiun mengikuti station_types.sort_order, dan asersinya membandingkan deretan label tabel detail dengan deretan PRATINJAU FORM di screen-128 — keduanya bersumber pada sort_order yang sama. Tidak ada label di-hardcode, sehingga menambah atau menonaktifkan stasiun di mill fixture tidak bisa membuat asersi ini basi diam-diam.",
+    "14 test Livewire + 10 test API DIPINDAHKAN dari screen-128, bukan ditulis ulang dari nol; empat test lain DIBELAH dengan kedua belahannya dipertahankan (satu menguji sisi daftar, satu menguji sisi detail). Nol skenario hilang.",
+    "Setup yang dulu lewat dialog accordion sekarang lewat layar detail: tiga helper lokal di spec screen-128 (closeStationThenBackToList, openStationThenBackToList, reopenStationThenBackToList). Tidak ada asersi yang dilemahkan untuk menghindarinya.",
+    "Lajur tanggal e2e dipisahkan secara ARITMETIS dari spec screen-128, bukan probabilistik: epoch dan rumus RUN_OFFSET identik, digeser DETAIL_BASE 5.000 hari, sementara slot terjauh spec 128 hanya +1.260 hari. Sengaja TIDAK memakai period-lanes.ts, yang ber-epoch 2600 sementara kedua spec periode hidup di epoch 2100 — mencampurnya akan mengulang tepat kekeliruan 'lajur abad' yang berkas itu sendiri peringatkan.",
+    "e2e dijalankan EMPAT kali berturut-turut (144 lolos / 5 skip / 0 gagal tiap kali) dan hitungan DB tidak bergerak satu baris pun melintasi keempatnya. Run berulang itu bukan kelebihan: residu periode memerahkan suite 1-2 run KEMUDIAN lewat paginasi 20-baris atau PERIOD_OVERLAP, bukan seketika. Diverifikasi ulang secara independen di luar agen implementasi: 144 lolos / 5 skip / 0 gagal.",
+    "Penjaga Period (atribut dan query builder) tidak pernah melempar sepanjang pekerjaan ini — getDetail() hanya findOrFail + eager-load, dan satu-satunya filter status tetap where('period_stations.status', ...) yang sudah ada."
+  ],
+  "deferred_items": [
+    {
+      "description": "Kunci input periode tertutup (usecase-141) tetap tidak diimplementasikan.",
+      "reason": "Nol referensi Period di seluruh app/Services/*RecordService.php dan di RecordVerificationService — diverifikasi ulang. Empat test ber-skip di tests/Feature/Api/KelolaPeriodePelaporanTest.php tetap menjadi kontrak yang mengikat. Skema period_stations sengaja dirancang agar kueri JOIN kunci itu wajar nanti, tapi menulisnya sebelum skema stabil berarti menulisnya dua kali."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Penolakan 409 pada Hapus TIDAK punya jalur yang bisa dicapai dari browser. Tombol Hapus ber-@disabled($period['is_immutable']), dan is_immutable adalah kondisi persis yang membuat delete() menjawab 409 — jadi deleteErrorMessage dari PeriodClosedImmutableException hanya dapat dipicu panggilan Livewire yang dipalsukan atau basi. Bukan cacat (penjaganya benar, berlapis), tapi cabang 409 itu tercakup hanya di tingkat komponen dan API, tidak pernah di browser. Test penolakan hapus di browser karena itu memakai jalur 404 (balapan dua Admin), bukan 409.",
+      "severity": "low"
+    },
+    {
+      "description": "Penugasan deleteErrorMessage/closeErrorMessage pada jalur ModelNotFoundException adalah kode mati. Blade menempatkan kedua alert di cabang @else dari @if ($notFound), sementara render() menetapkan notFound = true untuk kasus yang sama — jadi pesannya di-assign lalu dibuang, dan yang muncul halaman period-not-found. Hasil akhirnya masuk akal (halaman kehilangan subjeknya), tapi klaim 'hapus yang ditolak tetap inline' TIDAK berlaku untuk 404. Test mengasersi bentuk sesungguhnya, bukan bentuk yang dijanjikan.",
+      "severity": "low"
+    },
+    {
+      "description": "Asimetri arah navigasi: jalan masuk (period-link-{id}) adalah <a href> yang bisa dibuka di tab baru, sedangkan jalan keluar (back-to-periods) adalah <button wire:click>. Kosmetik, tidak memengaruhi test mana pun.",
+      "severity": "low"
+    },
+    {
+      "description": "Spec 2-business-spec dan 3-tech-spec layar ini menjanjikan penanganan 'jenis stasiun yang tidak ada di master' (label jatuh ke kode, diurutkan paling belakang). Jalur itu TIDAK DAPAT DICAPAI: period_stations.station_type ber-FK ke station_types.code, jenis stasiun tidak bisa dihapus selama masih dipakai, dan stationTypeMeta() membaca seluruh baris station_types tanpa menyaring is_active sehingga jenis yang dipensiunkan pun tetap punya nama dan sort_order asli. Kode fallback-nya ada dan benar tetapi tidak pernah dijalankan; sengaja TIDAK dibuatkan test agar artefak tidak menjanjikan uji yang tidak bisa jalan. Butuh keputusan pemilik: hapus klaimnya dari spec, atau saring is_active.",
+      "severity": "medium"
+    },
+    {
+      "description": "Komponen Livewire tidak punya guard peran sendiri — penolakan non-Admin terjadi di routes/web.php (auth + role:admin, EnsureRole abort 403 sebelum mount()) dan di routes/api.php. Sama seperti seluruh layar master data lain, dan efek akhirnya sesuai spec; dicatat agar tidak terbaca sebagai guard tingkat komponen yang hilang.",
+      "severity": "low"
+    },
+    {
+      "description": "Coverage tidak dapat diukur di repo ini (tidak ada pcov/xdebug), sehingga ambang unit_test.coverage_threshold tidak tertegakkan. Konsisten dengan seluruh layar sebelumnya.",
+      "severity": "medium"
+    }
+  ]
+}

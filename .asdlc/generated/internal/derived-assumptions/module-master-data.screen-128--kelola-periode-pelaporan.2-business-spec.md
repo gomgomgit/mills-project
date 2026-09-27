@@ -23,3 +23,17 @@ turunan agent di sekitar keputusan itu.
 - Penolakan pada periode **Tertutup** mengarahkan Admin ke aksi "Buka Kembali Periode" ← dua aksi ini mudah tertukar; pesannya harus menyebut yang benar, bukan sekadar menolak.
 - `edge_cases` dua butir baru (dua Admin bersamaan, periode sudah tertutup) ← turunan agent, menyalin bentuk penjagaan bersamaan yang sudah dipakai `close()`.
 - Transisi ini ditulis sebagai **usecase terpisah** `usecase-144--buka-periode-pelaporan`, bukan ditambahkan ke `usecase-140` ← keputusan agent. usecase-140 punya 9 langkah alur dan 6 alternative flow yang triggernya merujuk nomor langkah ("Pada langkah 5", "Pada langkah 3"). Menyisipkan transisi baru di awalnya memaksa penomoran ulang dan membuat seluruh rujukan itu meleset. Memisahkannya menghindari churn yang justru rawan salah.
+
+## v3 — 2026-09-27
+
+Penulisan ulang layar daftar setelah daftar stasiun dipindahkan ke screen-142, sekaligus
+menyusul model induk–anak yang sudah berjalan di kode sejak 2026-09-25/26 tetapi belum pernah
+masuk ke artefak ini (v2 masih menggambarkan periode ber-`station_type` dan berstatus tunggal).
+
+- `information_displayed` = kolom Nama (tautan detail), Business Unit, Tanggal Mulai, Tanggal Selesai, Stasiun, Status Stasiun, Aksi ← dibaca langsung dari `resources/views/livewire/master-data/kelola-periode-pelaporan.blade.php`; user hanya memutuskan "badge ringkasan status + hitungan stasiun tetap di daftar"
+- Teks ringkasan `"N stasiun · M tertutup"` dan `"Belum ada stasiun"` ← kutipan apa adanya dari blade yang sudah berjalan, bukan rumusan baru
+- Label filter `Status Stasiun` beserta makna "punya ≥1 stasiun berstatus ini" ← dari `PeriodService::listPeriods()` + komentar blade; user tidak merumuskan maknanya
+- edge case "Memindahkan periode ke mill lain menghasilkan gabungan kedua inventaris" ← turunan agen dari docblock `backfillStationRows()`; tidak pernah dibahas user, tetapi ia konsekuensi nyata dari aturan add-only sehingga dicatat sebagai edge case, bukan dibiarkan tersembunyi
+- edge case "berakhir tepat pada tanggal mulai periode lain tetap beririsan" ← dari `findOverlapping()` (batas inklusif); turunan agen
+- `usecase_ids` tinggal `usecase-128` ← konsekuensi langsung dari repoint usecase-index v16 yang sudah dikerjakan sebelum langkah ini
+- Kalimat eksplisit "penegakan kunci belum diimplementasikan (usecase-141)" ← diverifikasi ulang 2026-09-27: nol referensi `Period` di seluruh `app/Services/*RecordService.php`. Dicatat sebagai business rule agar artefak tidak mengklaim kunci yang tidak ada

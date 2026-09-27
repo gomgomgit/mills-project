@@ -1,8 +1,8 @@
 {
-  "ver": 11,
+  "ver": 12,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-23"
+    "updated_at": "2026-09-27"
   },
   "screens": [
     {
@@ -771,7 +771,7 @@
       "id": "screen-128--kelola-periode-pelaporan",
       "name": "Kelola Periode Pelaporan",
       "module_id": "module-master-data",
-      "description": "Admin mendefinisikan Periode Pelaporan per mill (Business Unit) dan jenis stasiun — nama periode, tanggal mulai, tanggal selesai — serta menutup dan membuka kembali periode. Cakupan periode mengikuti mill + jenis stasiun, bukan Production Line. Saat menutup periode, layar menampilkan peringatan berisi jumlah record yang belum terverifikasi, karena setelah periode tertutup tidak ada data yang boleh masuk, diubah, maupun diverifikasi. Hanya Admin yang boleh menutup/membuka periode."
+      "description": "Admin mendefinisikan Periode Pelaporan per mill (Business Unit) — nama periode, tanggal mulai, tanggal selesai. Cakupan periode adalah SELURUH mill pada rentang itu, bukan Production Line dan bukan satu jenis stasiun: menyimpan periode mendaftarkan satu baris stasiun untuk setiap jenis stasiun aktif di mill itu. Layar ini menampilkan daftar periode beserta ringkasan status stasiunnya, dan menangani tambah/ubah/hapus. Menutup dan membuka kembali stasiun dilakukan di layar Detail Periode Pelaporan (screen-142), karena statusnya melekat pada jenis stasiun, bukan pada periode. Periode tidak dapat diubah maupun dihapus bila ada satu saja stasiunnya yang tertutup."
     },
     {
       "id": "screen-129--laporan-sterilizer-web",
@@ -850,6 +850,12 @@
       "name": "Reporting — Pilih Stasiun (Mobile)",
       "module_id": "module-dashboard",
       "description": "Daftar pilihan stasiun untuk laporan periode di aplikasi mobile, dicapai dari pilihan 'Reporting' pada menu Dashboard & Reporting (screen-134). Memilih sebuah stasiun membuka layar laporan periode stasiun tersebut. Mengikuti pola Station List (screen-006): grid kartu stasiun, stasiun yang laporannya belum dibangun tampil nonaktif."
+    },
+    {
+      "id": "screen-142--detail-periode-pelaporan",
+      "name": "Detail Periode Pelaporan",
+      "module_id": "module-master-data",
+      "description": "Admin membuka satu Periode Pelaporan untuk melihat seluruh jenis stasiun yang dicakupnya beserta status masing-masing (Draft / Terbuka / Tertutup), lalu menutup, membuka, atau membuka kembali stasiun satu per satu. Stasiun tidak selesai serentak, sehingga satu periode dapat berisi stasiun yang sudah tertutup dan stasiun yang masih berjalan pada saat yang sama. Sebelum sebuah stasiun ditutup, layar menampilkan jumlah record stasiun ITU yang belum terverifikasi — bukan jumlah se-periode — karena verifikasi ikut terkunci setelah penutupan. Hanya Admin yang boleh menutup dan membuka. Layar pertama bergaya detail-* di modul Master Data; dicapai dengan menekan nama periode pada screen-128."
     }
   ]
 }

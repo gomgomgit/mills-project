@@ -101,6 +101,27 @@ class PeriodController extends Controller
     }
 
     /**
+     * show() — GET /api/periods/{id} (screen-142--detail-periode-pelaporan /
+     * usecase-145). ONE period with its station rows, 404 NOT_FOUND when it
+     * is gone.
+     *
+     * The body is PeriodService::getDetail(), i.e. toRow() verbatim — byte
+     * for byte one entry of index()'s `data[]`, not a detail-only shape.
+     * The detail screen and the list screen therefore read the same keys
+     * (`stations[]`, `station_count`, `closed_station_count`,
+     * `is_immutable`, `status_summary`), and a period never has two
+     * representations to keep in step. Mirrors
+     * StorageTankRecordController::show()'s single-resource pattern.
+     *
+     * ROUTE ORDER MATTERS here too: /periods/business-units/options must
+     * stay registered BEFORE this one — see routes/api.php.
+     */
+    public function show(string $id): JsonResponse
+    {
+        return response()->json($this->service->getDetail($id));
+    }
+
+    /**
      * store() — POST /api/periods. Validation → PERIOD_OVERLAP check →
      * INSERT the period AND one `period_stations` row per station type active
      * in that mill, all status='draft'. 201 Created, mirroring

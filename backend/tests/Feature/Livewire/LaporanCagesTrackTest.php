@@ -33,6 +33,7 @@ use App\Models\BusinessUnit;
 use App\Models\CagesTippedTime;
 use App\Models\CagesTrackRecord;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\User;
 use Livewire\Livewire;
@@ -559,7 +560,7 @@ it('periode tertutup: the status is a caption, the report is complete and the ex
 // =====================================================================
 // Scenario 15: "periode yang tidak mencakup Cages & Tracks tidak boleh muncul"
 // =====================================================================
-it('pemilih periode: offers cages-track and all-station-type periods only, newest first', function () {
+it('pemilih periode: offers only periods with a cages-track period_stations row, newest first', function () {
     Period::factory()->forBusinessUnit($this->businessUnitA)->stationType(null)
         ->range('2026-05-01', '2026-05-31')->named('Periode Mei Semua Stasiun')->create();
     Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('sterilizer')
@@ -576,8 +577,53 @@ it('pemilih periode: offers cages-track and all-station-type periods only, newes
     // Newest first, so the auto-selected option is the May one.
     expect(strpos($html, 'Periode Mei Semua Stasiun'))
         ->toBeLessThan(strpos($html, 'Periode Maret Alpha'));
-    // A NULL station type is labelled, never shown blank.
-    expect($html)->toContain('Semua Stasiun');
+    // Periode Mei dibuat dengan stationType(null), yang sejak 2026-09-25 berarti
+    // "satu baris period_stations per jenis stasiun" — bukan station_type NULL.
+    // Setiap opsi karena itu berlabel jenis stasiun layar ini; label bersama
+    // 'Semua Stasiun' sudah tidak ada. (Mencari 'Semua Stasiun' di HTML akan
+    // lolos palsu di sini — string itu ada di NAMA periodenya.)
+    expect(array_column($component->viewData('periods'), 'station_type_label'))
+        ->toBe(['Cages Track', 'Cages Track']);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): periode tanpa baris period_stations untuk
+// cages-track tidak muncul di pemilih — perilaku yang DULU dijamin cabang
+// orWhereNull('station_type') dan kini sengaja dibuang.
+// =====================================================================
+it('pemilih periode: periode tanpa baris cages-track tidak ditawarkan', function () {
+    Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['sterilizer', 'boiler-room'])
+        ->range('2026-05-01', '2026-05-31')->named('Periode Mei Tanpa Cages')->create();
+    Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-06-01', '2026-06-30')->named('Periode Juni Tanpa Stasiun')->create();
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanCagesTrack::class)
+        ->assertSee('Periode Maret Alpha')
+        ->assertDontSee('Periode Mei Tanpa Cages')
+        ->assertDontSee('Periode Juni Tanpa Stasiun');
+
+    expect(array_column($component->viewData('periods'), 'id'))
+        ->toBe([(string) $this->periodA->id]);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): status yang ditampilkan adalah status stasiun
+// ini di dalam periode itu, bukan status periode.
+// =====================================================================
+it('pemilih periode: status opsi memakai status cages-track, bukan status stasiun lain', function () {
+    $mixed = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-06-01', '2026-06-30')->named('Periode Juni Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($mixed)->stationType('cages-track')->open()->create();
+    PeriodStation::factory()->forPeriod($mixed)->stationType('sterilizer')->closed()->create();
+
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanCagesTrack::class);
+
+    $option = collect($component->viewData('periods'))->firstWhere('id', (string) $mixed->id);
+
+    expect($option['status'])->toBe('open');
 });
 
 // =====================================================================

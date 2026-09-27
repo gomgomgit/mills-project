@@ -64,6 +64,7 @@
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\StationType;
 use App\Models\StorageTankDetail;
@@ -1375,7 +1376,7 @@ it('hanya membaca: dua summary dan satu export tidak mengubah satu baris pun, da
 // =====================================================================
 // Scenario 27: "daftar periode hanya yang mencakup Storage Tank"
 // =====================================================================
-it('daftar periode: hanya yang berjenis Storage Tank dan yang berlaku semua jenis stasiun, termasuk yang tertutup', function () {
+it('daftar periode: hanya yang punya baris period_stations storage-tank, termasuk yang tertutup', function () {
     $periodOther = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('sterilizer')
         ->range('2026-10-01', '2026-10-31')->named('Periode A Stasiun Lain')->open()->create();
     $periodStorage = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('storage-tank')
@@ -1398,11 +1399,55 @@ it('daftar periode: hanya yang berjenis Storage Tank dan yang berlaku semua jeni
     $closed = collect($periods->json('data'))->firstWhere('id', (string) $periodStorage->id);
     expect($closed['status'])->toBe('closed');
 
-    // The "covers every station type" period carries the shared label
-    // rather than a station-type name.
+    // KONTRAK API TETAP DATAR setelah pemisahan periods/period_stations
+    // (2026-09-25): stationType(null) kini berarti "satu baris per jenis
+    // stasiun", jadi opsi ini adalah pasangan (periode, storage-tank) —
+    // station_type selalu terisi dan label bersama 'Semua Stasiun' sudah tidak
+    // ada (ALL_STATION_TYPES_LABEL ikut dihapus).
     $allTypes = collect($periods->json('data'))->firstWhere('id', (string) $periodAllTypes->id);
-    expect($allTypes['station_type'])->toBeNull();
-    expect($allTypes['station_type_label'])->toBe(StorageTankReportService::ALL_STATION_TYPES_LABEL);
+    expect($allTypes['station_type'])->toBe('storage-tank');
+    expect($allTypes['station_type_label'])->toBe('Storage Tank');
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): periode tanpa baris period_stations untuk
+// storage-tank tidak boleh muncul — perilaku yang DULU dijamin cabang
+// orWhereNull('station_type') pada listPeriods() dan kini sengaja dibuang.
+// Cakupan "semua stasiun" hanya ada lewat ADANYA baris per jenis stasiun.
+// =====================================================================
+it('daftar periode: periode tanpa baris storage-tank tidak ditawarkan', function () {
+    $otherTypesOnly = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['sterilizer', 'boiler-room'])
+        ->range('2026-05-01', '2026-05-31')->named('Periode Tanpa Storage Tank')->open()->create();
+    $noStations = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-06-01', '2026-06-30')->named('Periode Tanpa Stasiun')->create();
+
+    $periods = $this->actingAs($this->supervisor, 'web')->getJson('/api/storage-tank-reports/periods');
+    $periods->assertOk();
+
+    $ids = collect($periods->json('data'))->pluck('id')->all();
+
+    expect($ids)->not->toContain((string) $otherTypesOnly->id);
+    expect($ids)->not->toContain((string) $noStations->id);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): status yang dilaporkan adalah status STASIUN
+// INI di dalam periode itu, bukan status periode — periode tidak punya status
+// lagi. Bentuk ini (Storage Tank terbuka sementara Sterilizer tertutup di periode
+// yang sama) sebelumnya mustahil dinyatakan.
+// =====================================================================
+it('daftar periode: status yang ditampilkan adalah status storage-tank, bukan status stasiun lain di periode yang sama', function () {
+    $period = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-05-01', '2026-05-31')->named('Periode Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($period)->stationType('storage-tank')->open()->create();
+    PeriodStation::factory()->forPeriod($period)->stationType('sterilizer')->closed()->create();
+
+    $periods = $this->actingAs($this->supervisor, 'web')->getJson('/api/storage-tank-reports/periods');
+    $periods->assertOk();
+
+    expect(collect($periods->json('data'))->firstWhere('id', (string) $period->id)['status'])->toBe('open');
 });
 
 // =====================================================================

@@ -78,12 +78,12 @@ use App\Enums\UserRole;
 use App\Livewire\Dashboard\LaporanStorageTank;
 use App\Models\BusinessUnit;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\StorageTankDetail;
 use App\Models\StorageTankRecord;
 use App\Models\User;
 use App\Services\StorageTankRecordService;
-use App\Services\StorageTankReportService;
 use Livewire\Livewire;
 
 /**
@@ -1271,7 +1271,7 @@ it('baca saja: tidak ada method publik yang menulis, tidak ada testid aksi tulis
 // =====================================================================
 // Scenario 27: "daftar periode hanya yang mencakup Storage Tank"
 // =====================================================================
-it('daftar periode: opsi memuat periode Storage Tank dan periode semua jenis stasiun saja', function () {
+it('daftar periode: opsi memuat hanya periode yang punya baris period_stations storage-tank', function () {
     $periodOther = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('sterilizer')
         ->range('2026-10-01', '2026-10-31')->named('Periode A Stasiun Lain')->open()->create();
     $periodStorage = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('storage-tank')
@@ -1296,10 +1296,54 @@ it('daftar periode: opsi memuat periode Storage Tank dan periode semua jenis sta
     expect($options)->toContain('Periode C Semua Stasiun');
     expect($options)->not->toContain('Periode A Stasiun Lain');
 
-    // A CLOSED period is offered exactly like an open one.
+    // A CLOSED period is offered exactly like an open one. Statusnya kini datang
+    // dari baris period_stations 'storage-tank', bukan dari periodenya.
     expect($options)->toContain('Tertutup');
-    // The "covers every station type" period carries the shared label.
-    expect($options)->toContain(StorageTankReportService::ALL_STATION_TYPES_LABEL);
+
+    // 'Periode C Semua Stasiun' dibuat dengan stationType(null), yang sejak
+    // 2026-09-25 berarti "satu baris period_stations per jenis stasiun" — bukan
+    // station_type NULL. Setiap opsi karena itu berlabel jenis stasiun layar
+    // ini; label bersama ALL_STATION_TYPES_LABEL ('Semua Stasiun') ikut dihapus.
+    expect(array_values(array_unique(array_column($component->viewData('periods'), 'station_type_label'))))
+        ->toBe(['Storage Tank']);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): periode tanpa baris period_stations untuk
+// storage-tank tidak ditawarkan — perilaku yang DULU dijamin cabang
+// orWhereNull('station_type') dan kini sengaja dibuang.
+// =====================================================================
+it('daftar periode: periode tanpa baris storage-tank tidak ditawarkan', function () {
+    Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['sterilizer', 'boiler-room'])
+        ->range('2026-10-01', '2026-10-31')->named('Periode Tanpa Storage Tank')->open()->create();
+    Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-09-01', '2026-09-30')->named('Periode Tanpa Stasiun')->create();
+
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)
+        ->assertDontSee('Periode Tanpa Storage Tank')
+        ->assertDontSee('Periode Tanpa Stasiun');
+
+    expect(array_column($component->viewData('periods'), 'id'))
+        ->toBe([(string) $this->periodA->id]);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): status opsi memakai status storage-tank, bukan
+// status stasiun lain di periode yang sama.
+// =====================================================================
+it('daftar periode: status opsi memakai status storage-tank, bukan status stasiun lain', function () {
+    $mixed = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-12-01', '2026-12-31')->named('Periode Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($mixed)->stationType('storage-tank')->open()->create();
+    PeriodStation::factory()->forPeriod($mixed)->stationType('sterilizer')->closed()->create();
+
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class);
+
+    $option = collect($component->viewData('periods'))->firstWhere('id', (string) $mixed->id);
+
+    expect($option['status'])->toBe('open');
 });
 
 // =====================================================================

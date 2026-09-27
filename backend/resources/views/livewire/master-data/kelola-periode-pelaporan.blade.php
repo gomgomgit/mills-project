@@ -2,15 +2,39 @@
     /**
      * screen-128--kelola-periode-pelaporan — Kelola Periode Pelaporan.
      *
-     * Status badge vocabulary is Indonesian, per the business spec and the
-     * Phase 2 mock: draft => "Draft" (neutral), open => "Terbuka"
-     * (success), closed => "Tertutup" (destructive). The stored value
-     * stays English (periods.status = draft|open|closed) — only the label
-     * is translated.
+     * ONE PARENT ROW PER PERIOD, EXPANDABLE. Since 2026-09-25 a period holds
+     * one status per station type ({@see App\Models\PeriodStation}), and a
+     * mill can have 19 of them — rendering every station row of every period
+     * would turn a 20-period page into a 380-row wall. The parent row carries
+     * the summary PeriodService::toRow() computes (`status_summary`,
+     * `station_count`, `closed_station_count`); the station rows live in a
+     * second <tr> that is rendered only while the period's id is in
+     * $expandedPeriodIds.
+     *
+     * NO PARENT-LEVEL status / station_type / closed_by / closed_at EXISTS
+     * ANY MORE — asking a $period row for one of those keys is a bug, not a
+     * shortcut. Use `status_summary` for the badge and the station rows for
+     * anything per-station.
+     *
+     * Status vocabulary is Indonesian, per the business spec and the Phase 2
+     * mock: draft => "Draft" (neutral), open => "Terbuka" (success), closed =>
+     * "Tertutup" (destructive). The stored value stays English
+     * (period_stations.status = draft|open|closed) — only the label is
+     * translated. The two summary-only values have their own labels: `mixed`
+     * (stations in different statuses) and `empty` (no station rows at all).
      */
     $statusLabels = ['draft' => 'Draft', 'open' => 'Terbuka', 'closed' => 'Tertutup'];
-    $statusBadgeClass = ['draft' => 'kc-badge--neutral', 'open' => 'kc-badge--success', 'closed' => 'kc-badge--closed'];
+    $summaryLabels = $statusLabels + ['mixed' => 'Campuran', 'empty' => 'Tanpa Stasiun'];
+    $statusBadgeClass = [
+        'draft' => 'kc-badge--neutral',
+        'open' => 'kc-badge--success',
+        'closed' => 'kc-badge--closed',
+        'mixed' => 'kc-badge--mixed',
+        'empty' => 'kc-badge--neutral',
+    ];
     $formatDate = fn (?string $date) => $date ? \Illuminate\Support\Carbon::parse($date)->format('d/m/Y') : '-';
+    $formatDateTime = fn (?string $date) => $date ? \Illuminate\Support\Carbon::parse($date)->format('d/m/Y H:i') : '—';
+    $immutableHint = 'Ada stasiun yang sudah ditutup pada periode ini. Buka kembali stasiun tersebut terlebih dahulu.';
 @endphp
 
 <div class="kc-page" wire:loading.class="kc-page--busy" wire:target="nextPage,previousPage,save,confirmDelete,confirmClose,confirmReopen,askClose,askOpen,confirmOpen">
@@ -18,7 +42,8 @@
         <div>
             <h2 class="kc-page__title">Kelola Periode Pelaporan</h2>
             <p class="kc-page__subtitle">
-                Rentang tanggal pelaporan resmi per mill dan jenis stasiun — satuan periode untuk seluruh laporan Full Cycle per Stasiun.
+                Rentang tanggal pelaporan resmi per mill — satuan periode untuk seluruh laporan Full Cycle per Stasiun.
+                Satu periode mencakup seluruh jenis stasiun di mill tersebut, dan tiap stasiun ditutup sendiri-sendiri.
             </p>
         </div>
 
@@ -59,7 +84,13 @@
         </div>
 
         <div class="kc-filter__group">
-            <label for="filterStatus" class="kc-filter__label">Status</label>
+            <label for="filterStatus" class="kc-filter__label">Status Stasiun</label>
+            {{--
+                The filter matches a period with AT LEAST ONE station in the
+                chosen status (PeriodService::listPeriods()), so one period can
+                appear under two values — the label says "Status Stasiun" to
+                stop it being read as a status of the period itself.
+            --}}
             <x-searchable-select
                 id="filterStatus"
                 wire:model.live="filterStatus"
@@ -81,31 +112,61 @@
                 <tr>
                     <th>Nama</th>
                     <th>Business Unit</th>
-                    <th>Jenis Stasiun</th>
                     <th>Tanggal Mulai</th>
                     <th>Tanggal Selesai</th>
-                    <th>Status</th>
-                    <th>Ditutup Oleh</th>
-                    <th>Waktu Ditutup</th>
+                    <th>Stasiun</th>
+                    <th>Status Stasiun</th>
                     <th class="kc-table__actions-head">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($periods as $period)
+                    @php($isExpanded = in_array($period['id'], $expandedPeriodIds, true))
                     <tr class="kc-table__row" wire:key="period-{{ $period['id'] }}" data-testid="period-row-{{ $period['id'] }}">
-                        <td>{{ $period['name'] }}</td>
+                        <td>
+                            <button
+                                type="button"
+                                wire:click="toggleExpanded('{{ $period['id'] }}')"
+                                class="kc-expand"
+                                aria-expanded="{{ $isExpanded ? 'true' : 'false' }}"
+                                data-testid="expand-button-{{ $period['id'] }}"
+                            >
+                                <span class="kc-expand__caret" aria-hidden="true">{{ $isExpanded ? '&#9662;' : '&#9656;' }}</span>
+                                <span class="kc-expand__name">{{ $period['name'] }}</span>
+                            </button>
+                        </td>
                         <td>{{ $period['business_unit_name'] ?? '-' }}</td>
-                        <td>{{ $period['station_type_label'] }}</td>
                         <td>{{ $formatDate($period['start_date']) }}</td>
                         <td>{{ $formatDate($period['end_date']) }}</td>
+                        <td data-testid="station-summary-{{ $period['id'] }}">
+                            @if ($period['station_count'] === 0)
+                                <span class="kc-muted">Belum ada stasiun</span>
+                            @else
+                                {{ $period['station_count'] }} stasiun
+                                @if ($period['closed_station_count'] > 0)
+                                    <span class="kc-muted">&middot; {{ $period['closed_station_count'] }} tertutup</span>
+                                @endif
+                            @endif
+                        </td>
                         <td>
-                            <span class="kc-badge {{ $statusBadgeClass[$period['status']] ?? 'kc-badge--neutral' }}" data-testid="status-badge-{{ $period['id'] }}">
-                                {{ $statusLabels[$period['status']] ?? $period['status'] }}
+                            <span
+                                class="kc-badge {{ $statusBadgeClass[$period['status_summary']] ?? 'kc-badge--neutral' }}"
+                                data-testid="status-summary-{{ $period['id'] }}"
+                            >
+                                {{ $summaryLabels[$period['status_summary']] ?? $period['status_summary'] }}
                             </span>
                         </td>
-                        <td>{{ $period['closed_by_name'] ?? '—' }}</td>
-                        <td>{{ $period['closed_at'] ? \Illuminate\Support\Carbon::parse($period['closed_at'])->format('d/m/Y H:i') : '—' }}</td>
                         <td class="kc-table__actions">
+                            {{--
+                                Edit and Hapus are driven by `is_immutable` —
+                                the exact condition PeriodService::update()/
+                                delete() refuse on (409
+                                PERIOD_CLOSED_IMMUTABLE). They are DISABLED,
+                                not hidden: a period with 1 closed station out
+                                of 19 must show that editing is blocked rather
+                                than make the Admin hunt for a vanished button.
+                                The rule is never re-derived here.
+                            --}}
                             @if ($confirmingDeleteId === $period['id'])
                                 <span class="kc-confirm">
                                     <span class="kc-confirm__label">Yakin hapus?</span>
@@ -116,57 +177,132 @@
                                         Batal
                                     </button>
                                 </span>
-                            @elseif ($confirmingReopenId === $period['id'])
-                                <span class="kc-confirm">
-                                    <span class="kc-confirm__label">Buka kembali periode ini?</span>
-                                    <button type="button" wire:click="confirmReopen" class="kc-button kc-button--primary kc-button--sm" data-testid="confirm-reopen-button">
-                                        Ya, Buka Kembali
-                                    </button>
-                                    <button type="button" wire:click="cancelReopen" class="kc-button kc-button--ghost kc-button--sm">
-                                        Batal
-                                    </button>
-                                </span>
-                            @elseif ($period['status'] === 'closed')
-                                {{--
-                                    A closed period exposes exactly ONE action. Edit,
-                                    Hapus and Tutup Periode are not rendered at all —
-                                    the service would refuse them anyway (409
-                                    PERIOD_CLOSED_IMMUTABLE / PERIOD_ALREADY_CLOSED),
-                                    so offering them would only invite a dead end.
-                                --}}
-                                <button type="button" wire:click="askReopen('{{ $period['id'] }}')" class="kc-button kc-button--ghost kc-button--sm" data-testid="reopen-button-{{ $period['id'] }}">
-                                    Buka Kembali Periode
-                                </button>
                             @else
-                                {{--
-                                    "Buka Periode" is offered on DRAFT rows ONLY.
-                                    An already-open row has nothing to open, and a
-                                    closed row is handled by the branch above with
-                                    "Buka Kembali Periode" — a different action with
-                                    different semantics (it also clears
-                                    closed_by/closed_at).
-                                --}}
-                                @if ($period['status'] === 'draft')
-                                    <button type="button" wire:click="askOpen('{{ $period['id'] }}')" class="kc-button kc-button--primary kc-button--sm" data-testid="open-period-button">
-                                        Buka Periode
-                                    </button>
-                                @endif
-
-                                <button type="button" wire:click="openEditForm('{{ $period['id'] }}')" class="kc-button kc-button--ghost kc-button--sm" data-testid="edit-button-{{ $period['id'] }}">
+                                <button
+                                    type="button"
+                                    wire:click="openEditForm('{{ $period['id'] }}')"
+                                    class="kc-button kc-button--ghost kc-button--sm"
+                                    @disabled($period['is_immutable'])
+                                    @if ($period['is_immutable']) title="{{ $immutableHint }}" @endif
+                                    data-testid="edit-button-{{ $period['id'] }}"
+                                >
                                     Edit
                                 </button>
-                                <button type="button" wire:click="askClose('{{ $period['id'] }}')" class="kc-button kc-button--warning kc-button--sm" data-testid="close-button-{{ $period['id'] }}">
-                                    Tutup Periode
-                                </button>
-                                <button type="button" wire:click="askDelete('{{ $period['id'] }}')" class="kc-button kc-button--ghost kc-button--sm kc-button--danger-text" data-testid="delete-button-{{ $period['id'] }}">
+                                <button
+                                    type="button"
+                                    wire:click="askDelete('{{ $period['id'] }}')"
+                                    class="kc-button kc-button--ghost kc-button--sm kc-button--danger-text"
+                                    @disabled($period['is_immutable'])
+                                    @if ($period['is_immutable']) title="{{ $immutableHint }}" @endif
+                                    data-testid="delete-button-{{ $period['id'] }}"
+                                >
                                     Hapus
                                 </button>
                             @endif
                         </td>
                     </tr>
+
+                    @if ($isExpanded)
+                        <tr class="kc-table__row kc-table__row--stations" wire:key="period-stations-{{ $period['id'] }}">
+                            <td colspan="7">
+                                @if ($period['station_count'] === 0)
+                                    <p class="kc-substation__empty" data-testid="period-stations-empty-{{ $period['id'] }}">
+                                        Periode ini belum punya satu pun baris stasiun — mill-nya belum memiliki stasiun aktif.
+                                        Tambahkan stasiun pada mill tersebut, lalu simpan ulang periode ini untuk mendaftarkannya.
+                                    </p>
+                                @else
+                                    <table class="kc-subtable" data-testid="period-stations-{{ $period['id'] }}">
+                                        <thead>
+                                            <tr>
+                                                <th>Jenis Stasiun</th>
+                                                <th>Status</th>
+                                                <th>Ditutup Oleh</th>
+                                                <th>Waktu Ditutup</th>
+                                                <th class="kc-table__actions-head">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach ($period['stations'] as $station)
+                                                <tr wire:key="period-station-{{ $station['id'] }}" data-testid="period-station-row-{{ $station['id'] }}">
+                                                    <td>{{ $station['station_type_label'] }}</td>
+                                                    <td>
+                                                        <span
+                                                            class="kc-badge {{ $statusBadgeClass[$station['status']] ?? 'kc-badge--neutral' }}"
+                                                            data-testid="station-status-badge-{{ $station['id'] }}"
+                                                        >
+                                                            {{ $statusLabels[$station['status']] ?? $station['status'] }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ $station['closed_by_name'] ?? '—' }}</td>
+                                                    <td>{{ $formatDateTime($station['closed_at']) }}</td>
+                                                    <td class="kc-table__actions">
+                                                        {{--
+                                                            EVERY ACTION HERE CARRIES $station['id'] — a
+                                                            `period_stations` id, which is what
+                                                            PeriodClosureService::close()/reopen()/open()/
+                                                            unverifiedCount() take. Passing the period's id
+                                                            would either 404 or, worse, hit some other
+                                                            period's station row.
+                                                        --}}
+                                                        @if ($confirmingReopenStationId === $station['id'])
+                                                            <span class="kc-confirm">
+                                                                <span class="kc-confirm__label">
+                                                                    Buka kembali {{ $station['station_type_label'] }}?
+                                                                </span>
+                                                                <button type="button" wire:click="confirmReopen" class="kc-button kc-button--primary kc-button--sm" data-testid="confirm-reopen-button">
+                                                                    Ya, Buka Kembali
+                                                                </button>
+                                                                <button type="button" wire:click="cancelReopen" class="kc-button kc-button--ghost kc-button--sm">
+                                                                    Batal
+                                                                </button>
+                                                            </span>
+                                                        @elseif ($station['status'] === 'closed')
+                                                            <button
+                                                                type="button"
+                                                                wire:click="askReopen('{{ $station['id'] }}')"
+                                                                class="kc-button kc-button--ghost kc-button--sm"
+                                                                data-testid="station-reopen-button-{{ $station['id'] }}"
+                                                            >
+                                                                Buka Kembali
+                                                            </button>
+                                                        @elseif ($station['status'] === 'draft')
+                                                            {{--
+                                                                "Buka Stasiun" is offered on DRAFT stations
+                                                                ONLY. An already-open station has nothing to
+                                                                open, and a closed one gets "Buka Kembali" —
+                                                                a different action that also clears
+                                                                closed_by/closed_at.
+                                                            --}}
+                                                            <button
+                                                                type="button"
+                                                                wire:click="askOpen('{{ $station['id'] }}')"
+                                                                class="kc-button kc-button--primary kc-button--sm"
+                                                                data-testid="station-open-button-{{ $station['id'] }}"
+                                                            >
+                                                                Buka Stasiun
+                                                            </button>
+                                                        @else
+                                                            <button
+                                                                type="button"
+                                                                wire:click="askClose('{{ $station['id'] }}')"
+                                                                class="kc-button kc-button--warning kc-button--sm"
+                                                                data-testid="station-close-button-{{ $station['id'] }}"
+                                                            >
+                                                                Tutup Stasiun
+                                                            </button>
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                @endif
+                            </td>
+                        </tr>
+                    @endif
                 @empty
                     <tr class="kc-table__row kc-table__row--static">
-                        <td colspan="9">
+                        <td colspan="7">
                             <div class="kc-empty" data-testid="period-empty">
                                 <div class="kc-empty__illustration" aria-hidden="true">&#128197;</div>
                                 <p class="kc-empty__title">Belum ada periode</p>
@@ -223,14 +359,23 @@
 
             <div class="kc-form-section">
                 <h4 class="kc-form-section__title">Cakupan Periode</h4>
+                {{--
+                    THERE IS NO "Jenis Stasiun" FIELD ANY MORE. A period covers
+                    its whole mill: create() registers one row per station type
+                    active in that mill and update() backfills the ones added
+                    since. The Admin lost a choice they used to have, so the
+                    preview below tells them exactly which stations that means
+                    — read from PeriodService::activeStationTypesForMill(), the
+                    same call the service makes, never a second copy of it.
+                --}}
                 <div class="kc-form-grid">
-                    <div class="kc-form-field">
+                    <div class="kc-form-field kc-form-field--span2">
                         <label for="business_unit_id" class="kc-form-field__label">
                             Business Unit <span class="kc-form-field__required">*</span>
                         </label>
                         <x-searchable-select
                             id="business_unit_id"
-                            wire:model="business_unit_id"
+                            wire:model.live="business_unit_id"
                             :options="collect($businessUnitOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
                             placeholder="-- Pilih Business Unit --"
                             empty-message="Belum ada Business Unit. Buat Business Unit terlebih dahulu."
@@ -241,29 +386,41 @@
                             <p class="kc-form-field__error">{{ $message }}</p>
                         @enderror
                     </div>
+                </div>
 
-                    <div class="kc-form-field">
-                        <label for="station_type" class="kc-form-field__label">Jenis Stasiun</label>
-                        {{--
-                            Options come from the `station_types` master table
-                            (PeriodService::stationTypeOptions()), never from a
-                            hardcoded list — adding a station type is an INSERT.
-                            The empty first option is the NULL "covers every
-                            station type in this mill" scope.
-                        --}}
-                        <x-searchable-select
-                            id="station_type"
-                            wire:model="station_type"
-                            :options="collect($stationTypeOptions)->map(fn ($option) => ['value' => $option['code'], 'label' => $option['name']])->all()"
-                            placeholder="Semua Stasiun"
-                            :class="'kc-form-field__input'.($errors->has('station_type') ? ' kc-form-field__input--error' : '')"
-                            data-testid="station-type-select"
-                        />
-                        <p class="kc-form-field__hint">Opsional — dikosongkan berarti periode berlaku untuk semua jenis stasiun di mill ini.</p>
-                        @error('station_type')
-                            <p class="kc-form-field__error">{{ $message }}</p>
-                        @enderror
-                    </div>
+                <div class="kc-preview" data-testid="station-preview">
+                    @if ($business_unit_id === '')
+                        <p class="kc-form-field__hint">
+                            Pilih Business Unit untuk melihat jenis stasiun yang akan tercakup periode ini.
+                        </p>
+                    @elseif (count($stationPreview) === 0)
+                        <p class="kc-form-field__hint" data-testid="station-preview-empty">
+                            Mill ini belum punya stasiun aktif, jadi periode ini belum akan punya satu pun baris stasiun —
+                            tidak ada yang bisa ditutup dan tidak ada data yang terkunci. Periodenya tetap tersimpan;
+                            tambahkan stasiunnya lalu simpan ulang periode ini.
+                        </p>
+                    @else
+                        <p class="kc-form-field__hint">
+                            @if ($editingId !== null)
+                                Periode ini mencakup {{ count($stationPreview) }} jenis stasiun aktif di mill tersebut.
+                                Menyimpan akan <strong>menambahkan</strong> baris untuk jenis yang belum ada; baris yang
+                                sudah ada, termasuk yang sudah tertutup, tidak diubah maupun dihapus.
+                            @else
+                                Periode ini otomatis mencakup {{ count($stationPreview) }} jenis stasiun aktif di mill tersebut,
+                                masing-masing berstatus Draft dan dapat ditutup sendiri-sendiri.
+                            @endif
+                        </p>
+                        <ul class="kc-preview__list">
+                            @foreach ($stationPreview as $previewStation)
+                                <li>
+                                    {{ $previewStation['label'] }}
+                                    @if ($editingId !== null && $previewStation['is_new'])
+                                        <span class="kc-badge kc-badge--success" data-testid="station-preview-new-{{ $previewStation['code'] }}">Baru</span>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    @endif
                 </div>
             </div>
 
@@ -282,7 +439,7 @@
                             autofocus
                             data-testid="name-input"
                         >
-                        <p class="kc-form-field__hint">Harus unik dalam satu kombinasi mill + jenis stasiun.</p>
+                        <p class="kc-form-field__hint">Harus unik dalam satu Business Unit.</p>
                         @error('form.name')
                             <p class="kc-form-field__error">{{ $message }}</p>
                         @enderror
@@ -315,7 +472,10 @@
                             class="kc-form-field__input @error('form.end_date') kc-form-field__input--error @enderror"
                             data-testid="end-date-input"
                         >
-                        <p class="kc-form-field__hint">Tidak boleh lebih awal dari tanggal mulai, dan rentangnya tidak boleh tumpang tindih dengan periode lain pada mill + jenis stasiun yang sama.</p>
+                        <p class="kc-form-field__hint">
+                            Tidak boleh lebih awal dari tanggal mulai, dan satu tanggal hanya boleh dimiliki satu periode
+                            pada mill yang sama.
+                        </p>
                         @error('form.end_date')
                             <p class="kc-form-field__error">{{ $message }}</p>
                         @enderror
@@ -335,18 +495,25 @@
         </x-modal>
     @endif
 
-    @if ($closingId !== null && $closingPeriod !== null)
+    @if ($closingStationId !== null && $closingStation !== null)
         <x-modal
-            :title="'Tutup Periode — '.$closingPeriod['name']"
+            :title="'Tutup Stasiun — '.$closingStation['station_type_label']"
             backdrop-key="period-close-backdrop"
         >
+            {{--
+                EVERY FIGURE AND LABEL IN THIS DIALOG COMES FROM ONE STATION
+                ROW. The count was fetched with the same
+                $closingStationId that confirmClose() passes to close(), so
+                the warning cannot be about a station other than the one being
+                closed.
+            --}}
             <div class="kc-alert kc-alert--warning" role="alert" data-testid="unverified-warning">
                 <strong data-testid="unverified-count">
-                    {{ $closingUnverifiedCount }} data stasiun belum terverifikasi dalam rentang periode ini
+                    {{ $closingUnverifiedCount }} data {{ $closingStation['station_type_label'] }} belum terverifikasi dalam rentang periode ini
                 </strong>
                 <p class="kc-dialog__note">
-                    Setelah periode ditutup, verifikasi ikut terkunci — data tersebut akan tetap berstatus
-                    belum terverifikasi sampai periode dibuka kembali.
+                    Setelah stasiun ini ditutup, verifikasi ikut terkunci — data tersebut akan tetap berstatus
+                    belum terverifikasi sampai stasiun ini dibuka kembali.
                 </p>
 
                 @if (count($closingBreakdown) > 0)
@@ -359,12 +526,13 @@
             </div>
 
             <p class="kc-dialog__note">
-                Menutup periode
-                <strong>{{ $formatDate($closingPeriod['start_date']) }} &ndash; {{ $formatDate($closingPeriod['end_date']) }}</strong>
-                pada
-                <strong>{{ $closingPeriod['business_unit_name'] ?? '-' }} &middot; {{ $closingPeriod['station_type_label'] }}</strong>
-                akan mengunci seluruh data stasiun yang tanggal kejadiannya berada di dalam rentang tersebut:
+                Menutup <strong>{{ $closingStation['station_type_label'] }}</strong> pada periode
+                <strong>{{ $closingStation['period_name'] }}</strong>
+                ({{ $formatDate($closingStation['start_date']) }} &ndash; {{ $formatDate($closingStation['end_date']) }})
+                di <strong>{{ $closingStation['business_unit_name'] ?? '-' }}</strong>
+                akan mengunci data stasiun tersebut yang tanggal kejadiannya berada di dalam rentang itu:
                 tidak bisa diinput baru, tidak bisa diubah, dan tidak bisa diverifikasi.
+                Jenis stasiun lain pada periode ini tidak terpengaruh.
             </p>
 
             <x-slot:actions>
@@ -372,34 +540,35 @@
                     Batal
                 </button>
                 <button type="button" wire:click="confirmClose" class="kc-button kc-button--warning" wire:loading.attr="disabled" wire:target="confirmClose" data-testid="confirm-close-button">
-                    Ya, Tutup Periode
+                    Ya, Tutup Stasiun
                 </button>
             </x-slot:actions>
         </x-modal>
     @endif
 
-    @if ($openingId !== null)
+    @if ($openingStationId !== null)
         <x-modal
-            :title="'Buka Periode'.($openingPeriod ? ' — '.$openingPeriod['name'] : '')"
+            :title="'Buka Stasiun'.($openingStation ? ' — '.$openingStation['station_type_label'] : '')"
             backdrop-key="period-open-backdrop"
         >
             <div data-testid="open-period-dialog">
                 <p class="kc-dialog__note">
-                    @if ($openingPeriod)
-                        Periode
-                        <strong>{{ $formatDate($openingPeriod['start_date']) }} &ndash; {{ $formatDate($openingPeriod['end_date']) }}</strong>
-                        pada
-                        <strong>{{ $openingPeriod['business_unit_name'] ?? '-' }} &middot; {{ $openingPeriod['station_type_label'] }}</strong>
+                    @if ($openingStation)
+                        <strong>{{ $openingStation['station_type_label'] }}</strong> pada periode
+                        <strong>{{ $openingStation['period_name'] }}</strong>
+                        ({{ $formatDate($openingStation['start_date']) }} &ndash; {{ $formatDate($openingStation['end_date']) }})
+                        di <strong>{{ $openingStation['business_unit_name'] ?? '-' }}</strong>
                         akan dinyatakan resmi berjalan.
                     @else
-                        Periode ini akan dinyatakan resmi berjalan.
+                        Stasiun ini akan dinyatakan resmi berjalan.
                     @endif
                 </p>
 
                 <p class="kc-dialog__note">
                     Statusnya berubah dari <strong>Draft</strong> menjadi <strong>Terbuka</strong> dan
-                    <strong>tidak dapat dikembalikan ke Draft</strong>. Periode Terbuka tetap dapat diubah
-                    dan dihapus. Tidak ada data stasiun yang berubah.
+                    <strong>tidak dapat dikembalikan ke Draft</strong>. Periode tetap dapat diubah
+                    dan dihapus selama belum ada stasiun yang ditutup. Tidak ada data stasiun yang berubah,
+                    dan jenis stasiun lain pada periode ini tidak tersentuh.
                 </p>
             </div>
 
@@ -408,7 +577,7 @@
                     Batal
                 </button>
                 <button type="button" wire:click="confirmOpen" class="kc-button kc-button--primary" wire:loading.attr="disabled" wire:target="confirmOpen" data-testid="confirm-open-period">
-                    Ya, Buka Periode
+                    Ya, Buka Stasiun
                 </button>
             </x-slot:actions>
         </x-modal>
@@ -785,6 +954,105 @@
             padding-left: 18px;
             font-size: 13px;
             line-height: 1.6;
+        }
+
+        .kc-muted {
+            color: var(--kc-text-muted);
+        }
+
+        /* `mixed` is not "half good" — it is a state the Admin must notice,
+           so it gets its own amber badge rather than reusing the neutral one
+           that `draft` and `empty` share. */
+        .kc-badge--mixed {
+            background: #fffbeb;
+            color: var(--kc-warning-hover);
+            border: 1px solid var(--kc-warning);
+        }
+
+        /* The period name IS the expand control — a separate chevron next to a
+           plain name gives two targets for one job and a smaller hit area. */
+        .kc-expand {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0;
+            background: none;
+            border: none;
+            font: inherit;
+            color: inherit;
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .kc-expand__caret {
+            color: var(--kc-text-muted);
+            font-size: 11px;
+            width: 10px;
+        }
+
+        .kc-expand__name {
+            font-weight: 600;
+        }
+
+        .kc-expand:hover .kc-expand__name {
+            color: var(--kc-brand);
+        }
+
+        .kc-table__row--stations > td {
+            padding: 0 16px 14px 34px;
+            background: #f9fafb;
+        }
+
+        .kc-subtable {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            background: #fff;
+            border: 1px solid var(--kc-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .kc-subtable th {
+            text-align: left;
+            padding: 8px 12px;
+            font-weight: 600;
+            color: var(--kc-text-muted);
+            border-bottom: 1px solid var(--kc-border);
+            white-space: nowrap;
+        }
+
+        .kc-subtable td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eef0f2;
+            vertical-align: middle;
+        }
+
+        .kc-subtable tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .kc-substation__empty {
+            margin: 0;
+            padding: 12px 0 0;
+            font-size: 13px;
+            color: var(--kc-text-muted);
+        }
+
+        .kc-preview {
+            margin-top: 12px;
+            padding: 10px 12px;
+            border: 1px dashed var(--kc-border);
+            border-radius: var(--kc-radius-input);
+            background: #f9fafb;
+        }
+
+        .kc-preview__list {
+            margin: 8px 0 0;
+            padding-left: 18px;
+            font-size: 13px;
+            line-height: 1.7;
+            columns: 2;
         }
 
         @media (max-width: 767px) {

@@ -97,8 +97,39 @@ def _resolve_dep_ver(key: str, project: dict, screen_phases: dict):
         else:
             return None
     if isinstance(val, dict):
-        return val.get("ver")
+        if "ver" in val:
+            return val.get("ver")
+        # ARTIFACT-LEVEL KEY (no "ver" of its own -- its children are the
+        # field-group leaves). Every dep key documented in CLAUDE.md §7 has
+        # this shape: "project.1-foundation.prd",
+        # "project.3-tech-spec.entity-catalog". Before 2026-09-26 this branch
+        # returned None, _snapshot_depends_on treated None as "not started"
+        # and SILENTLY DROPPED the dep -- so no project-level dependency was
+        # ever recorded on any node, and project->screen staleness could not
+        # be detected at all (measured: 141/141 screen nodes held only their
+        # self.* chain). No error was raised, which is why it went unnoticed.
+        return _aggregate_leaf_ver(val)
     return val
+
+
+def _aggregate_leaf_ver(subtree: dict):
+    """Composite ver for an artifact-level key: the sum of its field-group vers.
+
+    Returns None when nothing under the subtree is written yet, which keeps the
+    existing "not started -> silently skip" contract intact for artifacts that
+    have not been created.
+
+    Why a sum: _compute_stale only ever asks "is the recorded value different
+    from the current one", so any deterministic function of all field-group
+    vers works. Vers are monotonic -- they only ever increase -- so the sum
+    strictly increases whenever any field group is bumped, and a newly added
+    field group also changes it. Sums therefore cannot collide the way an
+    average or a max could hide a bump in one group behind another.
+    """
+    vers = [node["ver"] for _path, node in _walk_project_nodes(subtree)]
+    if not vers:
+        return None
+    return sum(vers)
 
 
 def _compute_stale(depends_on: dict, project: dict, screen_phases: dict) -> tuple:

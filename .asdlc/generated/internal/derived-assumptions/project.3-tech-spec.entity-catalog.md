@@ -49,3 +49,12 @@
 - entities.period.closed_by / closed_at ← agent added the audit trail for closing; user only stated "Admin saja" without asking for it to be recorded
 - entities.period.name unik per (business_unit_id, station_type) ← agent-derived uniqueness rule
 - entities.period = TIDAK ada FK ke station maupun production_line ← direct consequence of the user's instruction, recorded here because it is a deliberate omission a reader may otherwise take for an oversight
+
+## v18 — 2026-09-25
+
+- `period-station.created_at` / `updated_at` = ada ← user tidak menyebut timestamp untuk entitas anak; ditambahkan agar konsisten dengan seluruh entitas lain di katalog, dan karena riwayat perubahan status per stasiun punya nilai audit.
+- `period-station.created_by` / `updated_by` = TIDAK ADA ← user tidak menyebutnya. Kepemilikan record tetap di induk (`period.created_by`); yang perlu dicatat di anak hanyalah kepengarangan penutupan, dan itu sudah diwakili `closed_by`. Menambah dua kolom kepengarangan lagi akan menduplikasi tanpa menjawab pertanyaan baru.
+- `period` constraint "tidak boleh diubah/dihapus bila ADA satu saja stasiun closed" ← user menetapkan status pindah ke anak tetapi tidak menyatakan apakah penolakan induk memakai ADA-SATU atau SEMUA. Dipilih ADA-SATU karena aturan lama menolak begitu periode tertutup, dan karena delete meng-cascade ke anak: aturan SEMUA akan mengizinkan penghapusan diam-diam atas stasiun yang sudah dikunci.
+- `period` constraint "PENJAGA IMPLEMENTASI" (status dibaca dari induk harus melempar exception) ← bukan aturan domain dan tidak diminta user; dimasukkan sebagai constraint karena delapan tempat di kode menolak aksi lewat perbandingan status dan semuanya akan diam-diam berubah jadi "izinkan" tanpa satu test pun gagal. Ditulis di artefak agar tidak hilang saat implementasi.
+- `period-station` constraint kunci periode, bentuk kueri JOIN eksplisit ← user meminta skema dirancang agar JOIN-nya wajar tetapi tidak meminta kuerinya dituliskan. Dituliskan karena kunci periode belum diimplementasikan di mana pun (diverifikasi: nol referensi `Period` di seluruh `*RecordService` dan `RecordVerificationService`), sehingga bentuk ini adalah satu-satunya spesifikasi yang akan dipakai saat usecase-141 dikerjakan.
+- Penempatan `period-station` tepat setelah `period` dalam daftar entitas ← urutan tidak disebut; dipilih berdampingan agar pasangan induk-anak terbaca bersama.

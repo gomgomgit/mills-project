@@ -54,6 +54,7 @@ use App\Models\BusinessUnit;
 use App\Models\CagesTippedTime;
 use App\Models\CagesTrackRecord;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\CagesTrackReportService;
@@ -398,7 +399,11 @@ it('authorizePeriod lets Admin through for any mill and aggregates that mill', f
 // =====================================================================
 
 // Case 11
-it('listPeriods offers only cages-track periods and NULL (every station type) periods', function () {
+it('listPeriods offers cages-track periods and every-station-type periods, always as the cages-track pair', function () {
+    // stationType(null) tidak lagi berarti `station_type` NULL — kolom itu
+    // hilang 2026-09-25. Cakupan semua-stasiun kini berarti satu baris
+    // period_stations per jenis stasiun, dan baris 'cages-track'-nya itulah
+    // yang membuat periode ini terpungut di sini.
     $allTypes = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType(null)
         ->range('2026-02-01', '2026-02-28')->named('Periode Februari Semua Stasiun')->create();
     $sterilizer = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('sterilizer')
@@ -406,11 +411,60 @@ it('listPeriods offers only cages-track periods and NULL (every station type) pe
 
     $this->actingAs($this->supervisorA);
 
-    $ids = collect($this->service->listPeriods((string) $this->businessUnitA->id))->pluck('id')->all();
+    $periods = $this->service->listPeriods((string) $this->businessUnitA->id);
+    $ids = collect($periods)->pluck('id')->all();
 
     expect($ids)->toContain((string) $this->periodA->id);
     expect($ids)->toContain((string) $allTypes->id);
     expect($ids)->not->toContain((string) $sterilizer->id);
+
+    // Label 'Semua Stasiun' lenyap: setiap opsi adalah pasangan
+    // (periode, cages-track), jadi jenis stasiunnya selalu terisi dan selalu
+    // jenis stasiun layar ini.
+    $option = collect($periods)->firstWhere('id', (string) $allTypes->id);
+
+    expect($option['station_type'])->toBe('cages-track');
+    expect($option['station_type_label'])->toBe('Cages Track');
+});
+
+// Case 11b — BARU 2026-09-26, bersama pemisahan periods/period_stations.
+// Perilaku yang DULU dijamin cabang orWhereNull('station_type') dan kini
+// sengaja dibuang: tanpa baris period_stations untuk cages-track, sebuah
+// periode bukan periode Cages & Tracks, sekalipun milik mill yang sama.
+it('listPeriods does NOT pick up a period with no period_stations row for cages-track', function () {
+    $otherTypesOnly = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['sterilizer', 'boiler-room'])
+        ->range('2026-02-01', '2026-02-28')->create();
+    $noStations = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()
+        ->range('2026-01-01', '2026-01-31')->create();
+
+    $this->actingAs($this->supervisorA);
+
+    $ids = collect($this->service->listPeriods((string) $this->businessUnitA->id))->pluck('id')->all();
+
+    expect($ids)->not->toContain((string) $otherTypesOnly->id);
+    expect($ids)->not->toContain((string) $noStations->id);
+});
+
+// Case 11c — BARU 2026-09-26. Inti pemisahan model ini, dan bentuk yang
+// sebelumnya mustahil diuji: dua jenis stasiun berstatus berbeda di periode
+// yang sama. Laporan Cages & Tracks melaporkan status cages-track, bukan
+// status stasiun lain di periode itu.
+it('reports the cages-track status, not another station type status in the same period', function () {
+    $period = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-04-01', '2026-04-30')->named('Periode Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($period)->stationType('cages-track')->open()->create();
+    PeriodStation::factory()->forPeriod($period)->stationType('sterilizer')->closed()->create();
+
+    $this->actingAs($this->supervisorA);
+
+    $option = collect($this->service->listPeriods((string) $this->businessUnitA->id))
+        ->firstWhere('id', (string) $period->id);
+
+    expect($option['status'])->toBe('open');
+    expect($this->service->summary($period)['period']['status'])->toBe('open');
 });
 
 // Case 12

@@ -21,10 +21,18 @@
  * mill.
  *
  * WINDOWS ARE UNIQUE PER RUN (same device as kelola-periode-pelaporan.spec.ts):
- * a period may not overlap another on the same (mill, station type), so
- * every window is derived from RUN_OFFSET and sits far in the future. Like
- * that spec, this one does not delete what it creates — re-running it is
- * safe, but the rows accumulate.
+ * a period may not overlap another IN THE SAME MILL — since 2026-09-26 the
+ * overlap rule ignores the station type entirely (one date belongs to exactly
+ * one period per mill), so windows must keep clear of every other period of
+ * this mill and not merely of the Sterilizer ones. Every window is therefore
+ * derived from RUN_OFFSET and sits far in the future; the periods themselves
+ * are deleted in afterAll (see tests/support/periods.ts).
+ *
+ * A PERIOD NO LONGER HAS A STATION TYPE. It covers its whole mill: saving the
+ * form registers one `period_stations` row per station type active in that
+ * mill, each with its own status. That is why the fixtures below take no
+ * station choice, why PERIOD_WHOLE_MILL replaced the old "station_type NULL"
+ * period, and why closing is done PER STATION (closeStation()).
  *
  * DURATION SPREAD IS LOAD-BEARING: the "Lengkap" period carries cycles of
  * 88, 90, 91, 92, 93, 94, 95, 96, 97 and 200 minutes plus two cycles with
@@ -40,6 +48,8 @@
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
 import { deletePeriodsByPrefix } from './support/periods'
+import { closeStation, createPeriodViaUi, openStationRow } from './support/period-screen'
+import { laneOffset } from './support/period-lanes'
 
 const REPORT_PATH = '/reports/sterilizer'
 const PERIODS_PATH = '/master-data/periods'
@@ -53,10 +63,34 @@ const OPERATOR = 'operator01'
 
 const BUSINESS_UNIT = 'BU Browser Test'
 const STATION_TYPE = 'Sterilizer'
-const OTHER_STATION_TYPE = 'Threshing'
+
+/**
+ * The mill of the period this screen must NOT offer.
+ *
+ * WHY A MILL AND NOT A STATION TYPE ANY MORE. listPeriods() offers a period
+ * when it belongs to the caller's mill AND has a `period_stations` row for
+ * this screen's station type. Within one provisioned mill that second clause
+ * can no longer be made false from the UI: creating a period registers a row
+ * for EVERY station type the mill has, so there is no such thing as a period
+ * of this mill that skips Sterilizer. "Mill Kode Duplikat" has no active
+ * station at all, so its period gets NO station row whatsoever — it fails
+ * both clauses at once, and it is the only browser-reachable shape of "a
+ * period that does not cover this station type". The station-row clause on
+ * its own is asserted where it can be produced directly, in
+ * backend/tests/Feature/Api/LaporanSterilizerTest.php.
+ */
+const OTHER_MILL = 'Mill Kode Duplikat'
 
 /** A per-run day offset, so two runs never create overlapping windows. */
-const RUN_OFFSET = Math.floor(Date.now() / 1000) % 150000
+/**
+ * LAJUR TANGGAL SPEC INI. Offset mentah di bawah tetap seperti semula —
+ * stride-nya dipilih demi keperluan spec ini sendiri — lalu laneOffset()
+ * menggesernya ke lajur yang tidak dipakai spec lain. Sejak aturan tumpang
+ * tindih periode menjadi PER MILL (2026-09-26), spec-spec yang berbagi satu
+ * mill tidak boleh lagi memakai rentang tanggal yang sama; alasan lengkap dan
+ * aritmetikanya ada di tests/support/period-lanes.ts.
+ */
+const RUN_OFFSET = laneOffset(Math.floor(Date.now() / 1000) % 150000, 'sterilizer')
 
 function isoDate(dayOffset: number): string {
   return new Date(Date.UTC(2600, 0, 1) + dayOffset * 86400000).toISOString().slice(0, 10)
@@ -73,15 +107,15 @@ const MAIN = windowFor(1)
 const UNIFORM = windowFor(2)
 const EMPTY = windowFor(3)
 const CLOSED = windowFor(4)
-const ALL_TYPES = windowFor(5)
-const OTHER_TYPE = windowFor(6)
+const WHOLE_MILL = windowFor(5)
+const OTHER_MILL_WINDOW = windowFor(6)
 
 const PERIOD_MAIN = `Sterilizer Lengkap ${RUN_OFFSET}`
 const PERIOD_UNIFORM = `Sterilizer Seragam ${RUN_OFFSET}`
 const PERIOD_EMPTY = `Sterilizer Kosong ${RUN_OFFSET}`
 const PERIOD_CLOSED = `Sterilizer Tertutup ${RUN_OFFSET}`
-const PERIOD_ALL_TYPES = `Sterilizer Semua Stasiun ${RUN_OFFSET}`
-const PERIOD_OTHER_TYPE = `Sterilizer Jenis Lain ${RUN_OFFSET}`
+const PERIOD_WHOLE_MILL = `Sterilizer Seluruh Mill ${RUN_OFFSET}`
+const PERIOD_OTHER_MILL = `Sterilizer Mill Lain ${RUN_OFFSET}`
 
 /** The date one day BEFORE the main window — must never be reported. */
 const OUTSIDE_DATE = isoDate(MAIN.startDay - 1)
@@ -90,40 +124,16 @@ const OUTSIDE_DATE = isoDate(MAIN.startDay - 1)
 // Fixture builders (other screens' UI)
 // ---------------------------------------------------------------------
 
-/** #business_unit_id / #station_type are x-searchable-select comboboxes. */
-async function selectSearchable(page: Page, id: string, label: string): Promise<void> {
-  await page.locator(`#${id}`).click()
-  await page.locator(`#${id}`).fill(label)
-  await page.locator(`#${id}-listbox`).getByRole('option', { name: label, exact: true }).click()
-}
-
 async function createPeriod(
   page: Page,
-  options: { name: string; start: string; end: string; stationType: string | null },
+  options: { name: string; start: string; end: string; businessUnit?: string },
 ): Promise<void> {
-  await page.locator('[data-testid="add-period-button"]').click()
-  await selectSearchable(page, 'business_unit_id', BUSINESS_UNIT)
-
-  // Leaving the station type untouched is the "every station type" scope.
-  if (options.stationType) {
-    await selectSearchable(page, 'station_type', options.stationType)
-  }
-
-  await page.locator('#name').fill(options.name)
-  await page.locator('#start_date').fill(options.start)
-  await page.locator('#end_date').fill(options.end)
-  await page.locator('[data-testid="save-button"]').click()
-
-  await expect(page.locator('.kc-table__row', { hasText: options.name })).toBeVisible()
-}
-
-async function closePeriod(page: Page, name: string): Promise<void> {
-  const row = page.locator('.kc-table__row', { hasText: name })
-
-  await row.locator('button', { hasText: 'Tutup Periode' }).click()
-  await page.locator('[data-testid="confirm-close-button"]').click()
-
-  await expect(row.locator('.kc-badge')).toHaveText('Tertutup')
+  await createPeriodViaUi(page, {
+    businessUnit: options.businessUnit ?? BUSINESS_UNIT,
+    name: options.name,
+    start: options.start,
+    end: options.end,
+  })
 }
 
 /** 07:00 plus `minutes`, as HH:MM — the form derives the duration from it. */
@@ -239,17 +249,27 @@ test.describe('Laporan Sterilizer', () => {
       await login(page, ADMIN, PASSWORD)
       await page.goto(PERIODS_PATH)
 
-      await createPeriod(page, { name: PERIOD_MAIN, start: MAIN.start, end: MAIN.end, stationType: STATION_TYPE })
-      await createPeriod(page, { name: PERIOD_UNIFORM, start: UNIFORM.start, end: UNIFORM.end, stationType: STATION_TYPE })
-      await createPeriod(page, { name: PERIOD_EMPTY, start: EMPTY.start, end: EMPTY.end, stationType: STATION_TYPE })
-      await createPeriod(page, { name: PERIOD_CLOSED, start: CLOSED.start, end: CLOSED.end, stationType: STATION_TYPE })
-      // station_type null — "covers every station type", so it MUST be
-      // offered by this screen's period picker.
-      await createPeriod(page, { name: PERIOD_ALL_TYPES, start: ALL_TYPES.start, end: ALL_TYPES.end, stationType: null })
-      // Another station type entirely — it must NOT be offered.
-      await createPeriod(page, { name: PERIOD_OTHER_TYPE, start: OTHER_TYPE.start, end: OTHER_TYPE.end, stationType: OTHER_STATION_TYPE })
+      await createPeriod(page, { name: PERIOD_MAIN, start: MAIN.start, end: MAIN.end })
+      await createPeriod(page, { name: PERIOD_UNIFORM, start: UNIFORM.start, end: UNIFORM.end })
+      await createPeriod(page, { name: PERIOD_EMPTY, start: EMPTY.start, end: EMPTY.end })
+      await createPeriod(page, { name: PERIOD_CLOSED, start: CLOSED.start, end: CLOSED.end })
+      // Covers the whole mill, Sterilizer included — so it MUST be offered by
+      // this screen's period picker. Before 2026-09-26 this was a period with
+      // station_type NULL; the all-stations scope is now expressed by HAVING
+      // one row per station type instead.
+      await createPeriod(page, { name: PERIOD_WHOLE_MILL, start: WHOLE_MILL.start, end: WHOLE_MILL.end })
+      // Another mill, and one without a single active station — it must NOT
+      // be offered. See OTHER_MILL.
+      await createPeriod(page, {
+        name: PERIOD_OTHER_MILL,
+        start: OTHER_MILL_WINDOW.start,
+        end: OTHER_MILL_WINDOW.end,
+        businessUnit: OTHER_MILL,
+      })
 
-      await closePeriod(page, PERIOD_CLOSED)
+      // Closing is PER STATION now: only the Sterilizer row of this period is
+      // closed, and the report must stay fully readable and exportable.
+      await closeStation(page, PERIOD_CLOSED, STATION_TYPE)
 
       // --- Cycles (Supervisor, screen-126) -----------------------------
       await page.context().clearCookies()
@@ -475,22 +495,43 @@ test.describe('Laporan Sterilizer', () => {
 
   // Scenario: "periode yang tidak mencakup jenis stasiun Sterilizer tidak
   // dapat dipilih"
-  test('pemilih periode: memuat periode Sterilizer dan semua-stasiun, bukan periode jenis lain', async ({ page }) => {
+  test('pemilih periode: memuat periode yang punya baris Sterilizer, bukan periode tanpa baris itu', async ({ page, browser }) => {
     await openReport(page, SUPERVISOR)
 
     const options = page.locator('[data-testid="period-select"] option')
 
     await expect(options.filter({ hasText: PERIOD_MAIN })).toHaveCount(1)
-    await expect(options.filter({ hasText: PERIOD_ALL_TYPES })).toHaveCount(1)
-    await expect(options.filter({ hasText: PERIOD_OTHER_TYPE })).toHaveCount(0)
+    await expect(options.filter({ hasText: PERIOD_WHOLE_MILL })).toHaveCount(1)
+    await expect(options.filter({ hasText: PERIOD_OTHER_MILL })).toHaveCount(0)
 
-    // Newest first: this run's latest window is the "jenis lain" one, so
-    // among the offered ones the all-station-type period leads.
+    // Newest first: this run's latest window belongs to the other mill, so
+    // among the offered ones the whole-mill period leads.
     const labels = await options.allTextContents()
-    const allTypesIndex = labels.findIndex((label) => label.includes(PERIOD_ALL_TYPES))
+    const wholeMillIndex = labels.findIndex((label) => label.includes(PERIOD_WHOLE_MILL))
     const mainIndex = labels.findIndex((label) => label.includes(PERIOD_MAIN))
 
-    expect(allTypesIndex).toBeLessThan(mainIndex)
+    expect(wholeMillIndex).toBeLessThan(mainIndex)
+
+    // The option is labelled with THIS screen's station type, never blank and
+    // never the "Semua Stasiun" wording the NULL scope used to produce —
+    // periodOption().station_type is not nullable any more.
+    expect(labels[wholeMillIndex]).toContain(STATION_TYPE)
+
+    // WHY THE PERIOD IS OFFERED, checked at the source rather than inferred:
+    // it HAS a `period_stations` row for Sterilizer. That row is what the
+    // picker's whereHas() matches, and it is visible on screen-128 once the
+    // period's station rows are expanded.
+    const adminContext = await browser.newContext()
+    const adminPage = await adminContext.newPage()
+
+    try {
+      await login(adminPage, ADMIN, PASSWORD)
+      await adminPage.goto(PERIODS_PATH)
+      const { stationId } = await openStationRow(adminPage, PERIOD_WHOLE_MILL, STATION_TYPE)
+      await expect(adminPage.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Draft')
+    } finally {
+      await adminContext.close()
+    }
   })
 
   // Scenario: "rentang inklusif memakai tanggal kejadian"

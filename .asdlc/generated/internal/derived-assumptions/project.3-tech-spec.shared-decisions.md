@@ -16,3 +16,9 @@
 - pagination.notes += endpoint laporan periode tidak dipaginasi ← agent decision; user never discussed pagination for the new report screens
 - auth.notes += catatan route ekspor menumpuk middleware 'web' ← documents the 401 root cause found and fixed earlier in this same session; user asked "kenapa unauthenticated saat export?" but did not ask for it to be recorded in shared-decisions
 - autopilot: seluruh sub-bagian shared-decisions lain (auth mechanism, pagination strategy, naming conventions, integrations) dibawa apa adanya dari v4 tanpa konfirmasi ulang, sesuai Step 6 fast-path
+
+## v6 — 2026-09-25
+
+- `other_decisions[3]` ditulis ulang ke bentuk per-stasiun, termasuk kueri JOIN ← user tidak menyebut artefak ini sama sekali; ditemukan lewat pemeriksaan bahwa 21 kemunculan kata "period" ada di dalamnya. Tanpa pembaruan ini, `shared-decisions` akan tetap menyatakan kunci berlaku per periode sementara `entity-catalog` menyatakan per stasiun — dua sumber kebenaran yang bertentangan.
+- `other_decisions[6]`: peringatan record belum terverifikasi dihitung UNTUK JENIS STASIUN YANG AKAN DITUTUP ← user tidak menyatakan cakupan hitungannya. Dipilih per-stasiun karena aksi tutup kini bertarget satu stasiun; hitungan se-periode akan memasukkan stasiun yang tidak terdampak aksi itu dan membuat peringatannya menyesatkan.
+- `other_decisions[8]` (baru) "PERIODE ADALAH INDUK TANPA STATUS" ← tidak diminta; ditambahkan agar bahaya atribut-hilang-jadi-null terdokumentasi di tingkat proyek, bukan hanya di constraint satu entitas, karena yang terdampak tersebar di service, Livewire, dan lima ReportService.

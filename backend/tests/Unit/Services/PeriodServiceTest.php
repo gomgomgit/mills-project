@@ -24,12 +24,29 @@
  * field (documented in the screen's 4-implement known_issues). These tests
  * assert the status and the message, deliberately not `code`.
  *
- * SCOPE OF A PERIOD is (business_unit_id, station_type), station_type NULL
- * meaning "every station type in this mill" — the wildcard behaviour in
- * both directions is what cases 20 and 21 pin down. `station_type` is a FK
- * to `station_types`.`code` (seeded by migration 2026_09_22_000029), so
- * every value used here ('sterilizer', 'boiler-room', 'clarification') is
- * a real row in that master table, never an invented string.
+ * WHAT CHANGED 2026-09-25 AND WHAT THESE TESTS NOW PIN DOWN
+ * A period's scope is its MILL, full stop — `periods.station_type` is gone
+ * and so is the NULL = "every station type" wildcard. The consequences are
+ * each guarded by a test here:
+ *
+ *  - ONE DATE, ONE PERIOD PER MILL: overlap is rejected even when the two
+ *    periods carry different station types (cases 20/21) — that exact pair
+ *    of cases previously asserted the OPPOSITE via the NULL wildcard.
+ *  - NAME UNIQUENESS is per mill, not per (mill, station type) — case 16
+ *    rejects, case 17 allows the same name in a DIFFERENT mill only.
+ *  - `station_type` IS NOT AN INPUT: a caller that still sends one is
+ *    ignored, never 422'd (see "mengabaikan station_type" below).
+ *  - create() DERIVES the station list from the mill's own active stations
+ *    (case 22 + the three activeStationTypesForMill tests).
+ *  - update()/delete() refuse when AT LEAST ONE station row is closed
+ *    (cases 24/28 plus the two "hanya satu stasiun tertutup" tests).
+ *  - toRow() is nested: per-station status/closure live in `stations[]`,
+ *    the parent has `status_summary`/`is_immutable` instead of `status`.
+ *
+ * Every station type used here ('sterilizer', 'boiler-room',
+ * 'clarification') is a real row in the `station_types` master table
+ * (seeded by migration 2026_09_22_000029) — `period_stations.station_type`
+ * and `stations.type` are both FKs to its `code`, never invented strings.
  */
 
 use App\Enums\PeriodStatus;
@@ -38,6 +55,9 @@ use App\Exceptions\PeriodClosedImmutableException;
 use App\Exceptions\PeriodOverlapException;
 use App\Models\BusinessUnit;
 use App\Models\Period;
+use App\Models\PeriodStation;
+use App\Models\Station;
+use App\Models\StationType;
 use App\Models\User;
 use App\Services\PeriodService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -56,23 +76,69 @@ beforeEach(function () {
     $this->admin = User::factory()->role(UserRole::Admin)->create(['name' => 'Admin X']);
     $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
 
+    // BusinessUnit::factory() creates no production line and no station at
+    // all, so a mill has NO station types until a test gives it some — and
+    // PeriodService::create() derives a period's station rows from exactly
+    // that inventory. Mill Alpha gets three of the 19 master types so the
+    // difference between "the mill's types" and "every master type" is
+    // visible in every create() assertion below.
+    millStations($this->businessUnitA, ['sterilizer', 'boiler-room', 'clarification']);
+
     // PeriodService::create()/update() stamp created_by/updated_by from
     // auth()->id(), and periods.created_by is NOT NULL.
     $this->actingAs($this->admin, 'web');
 });
 
 /**
+ * Gives a mill one ACTIVE station per type. Station::factory()->
+ * forBusinessUnit() auto-creates a matching ProductionLine, so the two FKs
+ * never disagree.
+ *
+ * @param  list<string>  $types
+ */
+function millStations(BusinessUnit $businessUnit, array $types): void
+{
+    foreach ($types as $type) {
+        Station::factory()
+            ->forBusinessUnit($businessUnit)
+            ->create(['type' => $type]);
+    }
+}
+
+/**
  * Valid create payload; override only what a test is actually about.
+ * `station_type` is deliberately absent — a period takes no station choice
+ * from its caller since 2026-09-25.
  */
 function periodPayload(array $overrides = []): array
 {
     return array_merge([
         'business_unit_id' => null,
-        'station_type' => 'sterilizer',
         'name' => 'Oktober 2026',
         'start_date' => '2026-10-01',
         'end_date' => '2026-10-31',
     ], $overrides);
+}
+
+/**
+ * A period whose station rows are NOT uniform: Sterilizer closed while
+ * Clarification is still open. This shape could not exist before
+ * 2026-09-25 (one status per period) and is the entire reason
+ * `period_stations` was split out.
+ */
+function halfClosedPeriod(BusinessUnit $businessUnit, User $closer): Period
+{
+    $period = Period::factory()
+        ->forBusinessUnit($businessUnit)
+        ->noStations()
+        ->named('Oktober 2026 separuh')
+        ->range('2026-10-01', '2026-10-31')
+        ->create();
+
+    PeriodStation::factory()->forPeriod($period)->stationType('sterilizer')->closed($closer, '2026-11-01 09:14:00')->create();
+    PeriodStation::factory()->forPeriod($period)->stationType('clarification')->open()->create();
+
+    return $period->refresh();
 }
 
 // ── list (cases 1–9) ────────────────────────────────────────────────────
@@ -102,7 +168,7 @@ it('menolak 403 FORBIDDEN pada GET /api/periods saat actor bukan Admin', functio
 
 // Case 3
 it('memakai default page=1 dan per_page=20 ketika query kosong', function () {
-    Period::factory()->forBusinessUnit($this->businessUnitA)->count(35)->create();
+    Period::factory()->forBusinessUnit($this->businessUnitA)->noStations()->count(35)->create();
 
     $result = $this->service->listPeriods(1, 20);
 
@@ -114,7 +180,7 @@ it('memakai default page=1 dan per_page=20 ketika query kosong', function () {
 
 // Case 4
 it('membatasi per_page maksimal 100 ketika diminta lebih besar', function () {
-    Period::factory()->forBusinessUnit($this->businessUnitA)->count(3)->create();
+    Period::factory()->forBusinessUnit($this->businessUnitA)->noStations()->count(3)->create();
 
     $result = $this->service->listPeriods(1, 500);
 
@@ -135,44 +201,115 @@ it('menyaring daftar berdasarkan business_unit_id', function () {
     ))->toBeTrue();
 });
 
-// Case 6
-it('menyaring daftar berdasarkan status', function () {
-    Period::factory()->forBusinessUnit($this->businessUnitA)->draft()->create();
-    Period::factory()->forBusinessUnit($this->businessUnitA)->open()->create();
-    Period::factory()->forBusinessUnit($this->businessUnitA)->closed($this->admin)->create();
+// Case 6 — the filter now runs through the child table, and it means "HAS
+// at least one station in this status", never "all of them are".
+it('menyaring daftar berdasarkan status lewat tabel period_stations', function () {
+    Period::factory()->forBusinessUnit($this->businessUnitA)->draft()->range('2026-08-01', '2026-08-31')->create();
+    Period::factory()->forBusinessUnit($this->businessUnitA)->open()->range('2026-09-01', '2026-09-30')->create();
+    $closed = Period::factory()->forBusinessUnit($this->businessUnitA)->closed($this->admin)->range('2026-10-01', '2026-10-31')->create();
 
     $result = $this->service->listPeriods(1, 20, null, 'closed');
 
     expect($result['data'])->toHaveCount(1);
-    expect($result['data'][0]['status'])->toBe('closed');
+    expect($result['data'][0]['id'])->toBe($closed->id);
+    expect($result['data'][0]['status_summary'])->toBe('closed');
+    expect($result['data'][0]['closed_station_count'])->toBe($result['data'][0]['station_count']);
 });
 
-// Case 7
-it("menampilkan station_type_label 'Semua Stasiun' ketika station_type NULL", function () {
-    Period::factory()->forBusinessUnit($this->businessUnitA)->stationType(null)->create();
+// Case 6b — the reading the filter deliberately does NOT use. Under an
+// "all stations are X" rule this period would match neither 'closed' nor
+// 'open' and would vanish from every filtered view while plainly existing
+// unfiltered; under "any" it shows up in both, which is what it is.
+it('menyaring status: periode separuh tertutup muncul pada filter closed DAN open', function () {
+    $period = halfClosedPeriod($this->businessUnitA, $this->admin);
 
-    $result = $this->service->listPeriods(1, 20);
+    $closedResult = $this->service->listPeriods(1, 20, null, 'closed');
+    $openResult = $this->service->listPeriods(1, 20, null, 'open');
+    $draftResult = $this->service->listPeriods(1, 20, null, 'draft');
 
-    expect($result['data'][0]['station_type'])->toBeNull();
-    expect($result['data'][0]['station_type_label'])->toBe('Semua Stasiun');
+    expect(collect($closedResult['data'])->pluck('id')->all())->toBe([$period->id]);
+    expect(collect($openResult['data'])->pluck('id')->all())->toBe([$period->id]);
+    // It has no draft station at all, so 'draft' must not match it.
+    expect($draftResult['data'])->toBe([]);
 });
 
-// Case 8
-it('mengembalikan closed_by_name dan closed_at untuk periode tertutup', function () {
+// Case 7 — replaces the old "station_type_label 'Semua Stasiun' ketika
+// station_type NULL": both the NULL scope and that label are gone. The
+// station list is explicit now, one entry per registered type.
+it('toRow: menyertakan satu entri stations per jenis stasiun beserta labelnya, urut proses', function () {
     $period = Period::factory()
         ->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['clarification', 'sterilizer'])
+        ->create();
+
+    $result = $this->service->listPeriods(1, 20);
+    $row = collect($result['data'])->firstWhere('id', $period->id);
+
+    // Ordered by the master table's sort_order (process order), NOT by the
+    // order the rows were inserted in: sterilizer (40) before
+    // clarification (70).
+    expect(array_column($row['stations'], 'station_type'))->toBe(['sterilizer', 'clarification']);
+    expect(array_column($row['stations'], 'station_type_label'))->toBe(['Sterilizer', 'Clarification']);
+    expect($row['stations'][0]['id'])->toBe(
+        PeriodStation::query()->where('period_id', $period->id)->where('station_type', 'sterilizer')->value('id')
+    );
+    expect($row['station_count'])->toBe(2);
+    expect($row['closed_station_count'])->toBe(0);
+    expect($row['is_immutable'])->toBeFalse();
+    expect($row['status_summary'])->toBe('draft');
+
+    // The keys that became plural are NOT flattened back onto the parent —
+    // a parent `status` in particular would keep the old silently-false
+    // `$row['status'] === 'closed'` comparisons alive.
+    expect($row)->not->toHaveKey('status');
+    expect($row)->not->toHaveKey('station_type');
+    expect($row)->not->toHaveKey('closed_by');
+    expect($row)->not->toHaveKey('closed_at');
+});
+
+// Case 8 — the closure record is per station row now.
+it('mengembalikan closed_by_name dan closed_at pada entri stations yang tertutup', function () {
+    $period = Period::factory()
+        ->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['sterilizer'])
         ->closed($this->admin, '2026-11-01 09:14:00')
         ->create();
 
     $result = $this->service->listPeriods(1, 20);
 
     $row = collect($result['data'])->firstWhere('id', $period->id);
+    $station = $row['stations'][0];
 
-    expect($row['closed_by'])->toBe($this->admin->id);
-    expect($row['closed_by_name'])->toBe('Admin X');
-    expect($row['closed_at'])->not->toBeNull();
+    expect($station['status'])->toBe('closed');
+    expect($station['closed_by'])->toBe($this->admin->id);
+    expect($station['closed_by_name'])->toBe('Admin X');
+    expect($station['closed_at'])->not->toBeNull();
     // ISO 8601 (Carbon::toIso8601String()).
-    expect($row['closed_at'])->toMatch('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/');
+    expect($station['closed_at'])->toMatch('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/');
+});
+
+// Case 8b — TWO STATIONS OF ONE PERIOD IN DIFFERENT STATUSES. The shape
+// the table split exists for; impossible to express before 2026-09-25.
+it('toRow: dua jenis stasiun pada periode yang sama dapat berstatus berbeda', function () {
+    $period = halfClosedPeriod($this->businessUnitA, $this->admin);
+
+    $result = $this->service->listPeriods(1, 20);
+    $row = collect($result['data'])->firstWhere('id', $period->id);
+
+    expect(collect($row['stations'])->pluck('status', 'station_type')->all())->toBe([
+        'sterilizer' => 'closed',
+        'clarification' => 'open',
+    ]);
+    expect($row['station_count'])->toBe(2);
+    expect($row['closed_station_count'])->toBe(1);
+    // One closed station is enough to freeze the period — same condition
+    // update()/delete() refuse on.
+    expect($row['is_immutable'])->toBeTrue();
+    expect($row['status_summary'])->toBe('mixed');
+
+    // Only the closed one carries a closure record.
+    expect(collect($row['stations'])->firstWhere('station_type', 'clarification')['closed_by'])->toBeNull();
+    expect(collect($row['stations'])->firstWhere('station_type', 'clarification')['closed_at'])->toBeNull();
 });
 
 // Case 9
@@ -265,11 +402,14 @@ it('create: menolak 422 ketika name kosong', function () {
     expect(Period::count())->toBe(0);
 });
 
-// Case 16
-it('create: menolak 422 ketika name sudah dipakai pada (business_unit_id, station_type) yang sama', function () {
+// Case 16 — uniqueness is scoped to the MILL alone now. The old rule also
+// keyed on station_type and matched the NULL scope with whereNull(), which
+// PostgreSQL's UNIQUE index can never enforce (every NULL is distinct
+// there), so two all-station periods of one mill could share a name.
+it('create: menolak 422 ketika name sudah dipakai pada mill yang sama', function () {
     Period::factory()
         ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
+        ->stationTypes(['sterilizer'])
         ->named('Oktober 2026')
         ->range('2026-10-01', '2026-10-31')
         ->create();
@@ -277,8 +417,10 @@ it('create: menolak 422 ketika name sudah dipakai pada (business_unit_id, statio
     try {
         $this->service->create(periodPayload([
             'business_unit_id' => $this->businessUnitA->id,
-            'station_type' => 'sterilizer',
             'name' => 'Oktober 2026',
+            // A different station type no longer buys a second period the
+            // same name — and the range is far away so this is the name
+            // rule failing, not the overlap rule.
             'start_date' => '2026-12-01',
             'end_date' => '2026-12-31',
         ]));
@@ -291,25 +433,23 @@ it('create: menolak 422 ketika name sudah dipakai pada (business_unit_id, statio
     expect(Period::count())->toBe(1);
 });
 
-// Case 17
-it('create: mengizinkan name sama pada station_type berbeda di mill yang sama', function () {
+// Case 17 — the ONLY axis a duplicate name is still allowed on.
+it('create: mengizinkan name sama pada mill yang berbeda', function () {
     Period::factory()
         ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
         ->named('Oktober 2026')
         ->range('2026-10-01', '2026-10-31')
         ->create();
 
     $row = $this->service->create(periodPayload([
-        'business_unit_id' => $this->businessUnitA->id,
-        'station_type' => 'boiler-room',
+        'business_unit_id' => $this->businessUnitB->id,
         'name' => 'Oktober 2026',
-        'start_date' => '2026-12-01',
-        'end_date' => '2026-12-31',
+        'start_date' => '2026-10-01',
+        'end_date' => '2026-10-31',
     ]));
 
     expect($row['name'])->toBe('Oktober 2026');
-    expect($row['station_type'])->toBe('boiler-room');
+    expect($row['business_unit_id'])->toBe($this->businessUnitB->id);
     expect(Period::count())->toBe(2);
 });
 
@@ -330,10 +470,10 @@ it('create: menolak 422 ketika end_date lebih awal dari start_date', function ()
 });
 
 // Case 19
-it('create: melempar PeriodOverlapException ketika rentang beririsan pada cakupan sama', function () {
+it('create: melempar PeriodOverlapException ketika rentang beririsan pada mill yang sama', function () {
     Period::factory()
         ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
+        ->stationTypes(['sterilizer'])
         ->named('September-Oktober 2026')
         ->range('2026-09-15', '2026-10-15')
         ->create();
@@ -341,7 +481,6 @@ it('create: melempar PeriodOverlapException ketika rentang beririsan pada cakupa
     try {
         $this->service->create(periodPayload([
             'business_unit_id' => $this->businessUnitA->id,
-            'station_type' => 'sterilizer',
             'name' => 'Oktober Tambahan',
             'start_date' => '2026-10-01',
             'end_date' => '2026-10-31',
@@ -352,72 +491,147 @@ it('create: melempar PeriodOverlapException ketika rentang beririsan pada cakupa
         expect($e->errorCode())->toBe('PERIOD_OVERLAP');
         // The message must name the conflicting period.
         expect($e->getMessage())->toContain('September-Oktober 2026');
+        // ...and must no longer claim the collision is station-type-bound.
+        expect($e->getMessage())->not->toContain('jenis stasiun');
     }
 
     expect(Period::count())->toBe(1);
 });
 
-// Case 20
-it('create: melempar PeriodOverlapException ketika periode station_type NULL beririsan dengan periode jenis tertentu', function () {
+// Case 20 — THE RULE THAT INVERTED. Two periods of one mill overlapping on
+// different station types used to be perfectly legal (the old clause keyed
+// on station_type); it is now refused, because a record dated inside both
+// ranges had no answerable period.
+it('create: melempar PeriodOverlapException meski jenis stasiunnya berbeda', function () {
     Period::factory()
         ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
-        ->named('Oktober Sterilizer')
+        ->stationTypes(['boiler-room'])
+        ->named('Oktober Boiler')
         ->range('2026-10-01', '2026-10-31')
         ->create();
 
-    expect(fn () => $this->service->create(periodPayload([
-        'business_unit_id' => $this->businessUnitA->id,
-        'station_type' => null,
-        'name' => 'Semua Stasiun Okt',
-        'start_date' => '2026-10-10',
-        'end_date' => '2026-10-20',
-    ])))->toThrow(PeriodOverlapException::class);
+    try {
+        $this->service->create(periodPayload([
+            'business_unit_id' => $this->businessUnitA->id,
+            'name' => 'Oktober Sterilizer',
+            'start_date' => '2026-10-10',
+            'end_date' => '2026-10-20',
+        ]));
+        $this->fail('Expected PeriodOverlapException was not thrown.');
+    } catch (PeriodOverlapException $e) {
+        expect($e->errorCode())->toBe('PERIOD_OVERLAP');
+        expect($e->getMessage())->toContain('Oktober Boiler');
+    }
 
     expect(Period::count())->toBe(1);
 });
 
-// Case 21
-it('create: melempar PeriodOverlapException ketika periode jenis tertentu beririsan dengan periode NULL yang sudah ada', function () {
+// Case 21 — the same rule from the other direction: a new range fully
+// CONTAINING an existing one is just as much a collision, again regardless
+// of which station types either period registers.
+it('create: melempar PeriodOverlapException ketika rentang baru memuat periode lain seluruhnya', function () {
     Period::factory()
         ->forBusinessUnit($this->businessUnitA)
-        ->stationType(null)
-        ->named('Semua Stasiun Okt')
-        ->range('2026-10-01', '2026-10-31')
+        ->stationTypes(['clarification'])
+        ->named('Pertengahan Oktober')
+        ->range('2026-10-10', '2026-10-20')
         ->create();
 
     expect(fn () => $this->service->create(periodPayload([
         'business_unit_id' => $this->businessUnitA->id,
-        'station_type' => 'clarification',
-        'name' => 'Oktober Clarification',
-        'start_date' => '2026-10-10',
-        'end_date' => '2026-10-20',
+        'name' => 'Oktober Penuh',
+        'start_date' => '2026-10-01',
+        'end_date' => '2026-10-31',
     ])))->toThrow(PeriodOverlapException::class);
 
     expect(Period::count())->toBe(1);
 });
 
 // Case 22
-it('create: menyimpan periode baru dengan status draft ketika seluruh validasi lolos', function () {
+it('create: menyimpan periode baru dengan seluruh stasiun mill berstatus draft', function () {
     $row = $this->service->create(periodPayload([
         'business_unit_id' => $this->businessUnitA->id,
-        'station_type' => 'sterilizer',
         'name' => 'Oktober 2026',
         'start_date' => '2026-10-01',
         'end_date' => '2026-10-31',
     ]));
 
-    expect($row['status'])->toBe('draft');
-    expect($row['closed_by'])->toBeNull();
-    expect($row['closed_at'])->toBeNull();
     expect($row['business_unit_name'])->toBe('Mill Alpha');
-    expect($row['station_type_label'])->toBe('Sterilizer');
+    expect($row['status_summary'])->toBe('draft');
+    expect($row['is_immutable'])->toBeFalse();
+    expect($row['closed_station_count'])->toBe(0);
+
+    // One row per station type active in THIS mill (3 of the 19 master
+    // types), in process order — never the whole master table.
+    expect(array_column($row['stations'], 'station_type'))->toBe([
+        'sterilizer', 'clarification', 'boiler-room',
+    ]);
+    expect(collect($row['stations'])->every(fn (array $s) => $s['status'] === 'draft'))->toBeTrue();
+    expect(collect($row['stations'])->every(fn (array $s) => $s['closed_by'] === null && $s['closed_at'] === null))->toBeTrue();
 
     $stored = Period::findOrFail($row['id']);
-    expect($stored->status)->toBe(PeriodStatus::Draft);
     expect($stored->created_by)->toBe($this->admin->id);
     expect($stored->start_date->toDateString())->toBe('2026-10-01');
     expect($stored->end_date->toDateString())->toBe('2026-10-31');
+    expect($stored->stations()->count())->toBe(3);
+    expect($stored->stations()->where('status', PeriodStatus::Draft->value)->count())->toBe(3);
+});
+
+// Case 22b
+it('create: mengabaikan station_type yang masih dikirim pemanggil lama', function () {
+    // Not a 422: the field carries no meaning any more, so an outdated
+    // client must not be broken by it — and it must not be able to narrow
+    // the station list either.
+    $row = $this->service->create(periodPayload([
+        'business_unit_id' => $this->businessUnitA->id,
+        'station_type' => 'stasiun-karangan',
+        'name' => 'Oktober 2026',
+    ]));
+
+    expect(array_column($row['stations'], 'station_type'))->toBe([
+        'sterilizer', 'clarification', 'boiler-room',
+    ]);
+    expect($row)->not->toHaveKey('station_type');
+});
+
+// Case 22c
+it('create: hanya mendaftarkan jenis stasiun yang aktif di mill itu', function () {
+    // A station the mill retired, and a master type the mill simply does
+    // not have, must BOTH stay out of the period's station list: a closure
+    // action that seals nothing is worse than no action.
+    Station::factory()->forBusinessUnit($this->businessUnitA)->create([
+        'type' => 'threshing',
+        'is_active' => false,
+    ]);
+    StationType::query()->where('code', 'clarification')->update(['is_active' => false]);
+
+    $row = $this->service->create(periodPayload([
+        'business_unit_id' => $this->businessUnitA->id,
+        'name' => 'Oktober 2026',
+    ]));
+
+    expect(array_column($row['stations'], 'station_type'))->toBe(['sterilizer', 'boiler-room']);
+});
+
+// Case 22d
+it('create: mill tanpa stasiun sama sekali menghasilkan periode tanpa baris stasiun', function () {
+    // Mill Beta has no station at all (BusinessUnit::factory() creates
+    // none). The period is still created — an Admin may plan periods for a
+    // mill still being provisioned, and a mill without stations has no
+    // station records that could escape a lock. It simply has nothing to
+    // close, and stays editable and deletable.
+    $row = $this->service->create(periodPayload([
+        'business_unit_id' => $this->businessUnitB->id,
+        'name' => 'Oktober Beta',
+    ]));
+
+    expect($row['stations'])->toBe([]);
+    expect($row['station_count'])->toBe(0);
+    expect($row['status_summary'])->toBe('empty');
+    expect($row['is_immutable'])->toBeFalse();
+
+    $this->service->delete($row['id']);
+    expect(Period::find($row['id']))->toBeNull();
 });
 
 // ── update (cases 23–26) ────────────────────────────────────────────────
@@ -431,10 +645,10 @@ it('update: melempar 404 ketika periode tidak ditemukan (sudah dihapus Admin lai
 });
 
 // Case 24
-it('update: menolak 409 PERIOD_CLOSED_IMMUTABLE ketika periode berstatus closed', function () {
+it('update: menolak 409 PERIOD_CLOSED_IMMUTABLE ketika stasiun periode tertutup', function () {
     $period = Period::factory()
         ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
+        ->stationTypes(['sterilizer'])
         ->named('Oktober 2026')
         ->range('2026-10-01', '2026-10-31')
         ->closed($this->admin)
@@ -443,7 +657,6 @@ it('update: menolak 409 PERIOD_CLOSED_IMMUTABLE ketika periode berstatus closed'
     try {
         $this->service->update($period->id, periodPayload([
             'business_unit_id' => $this->businessUnitA->id,
-            'station_type' => 'sterilizer',
             'name' => 'Oktober 2026 Revisi',
             'start_date' => '2026-10-01',
             'end_date' => '2026-10-31',
@@ -457,14 +670,38 @@ it('update: menolak 409 PERIOD_CLOSED_IMMUTABLE ketika periode berstatus closed'
 
     // No UPDATE — the row is bit-for-bit unchanged.
     expect($period->fresh()->name)->toBe('Oktober 2026');
-    expect($period->fresh()->status)->toBe(PeriodStatus::Closed);
+    expect($period->stations()->where('status', PeriodStatus::Closed->value)->count())->toBe(1);
+});
+
+// Case 24b — "ANY", NOT "ALL". One closed station out of two freezes the
+// whole period: moving its date range moves what that closed station
+// locks, which loses a seal just as surely as deleting it would.
+it('update: menolak 409 PERIOD_CLOSED_IMMUTABLE meski hanya SATU stasiun yang tertutup', function () {
+    $period = halfClosedPeriod($this->businessUnitA, $this->admin);
+
+    try {
+        $this->service->update($period->id, periodPayload([
+            'business_unit_id' => $this->businessUnitA->id,
+            'name' => 'Oktober 2026 separuh (revisi)',
+            'start_date' => '2026-10-05',
+            'end_date' => '2026-10-25',
+        ]));
+        $this->fail('Expected PeriodClosedImmutableException was not thrown.');
+    } catch (PeriodClosedImmutableException $e) {
+        expect($e->errorCode())->toBe('PERIOD_CLOSED_IMMUTABLE');
+    }
+
+    $fresh = $period->fresh();
+    expect($fresh->name)->toBe('Oktober 2026 separuh');
+    expect($fresh->start_date->toDateString())->toBe('2026-10-01');
+    expect($fresh->end_date->toDateString())->toBe('2026-10-31');
 });
 
 // Case 25
 it('update: melempar PeriodOverlapException ketika rentang baru beririsan, mengecualikan dirinya sendiri', function () {
     $p1 = Period::factory()
         ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
+        ->stationTypes(['sterilizer'])
         ->named('Oktober 2026')
         ->range('2026-10-01', '2026-10-15')
         ->open()
@@ -472,7 +709,7 @@ it('update: melempar PeriodOverlapException ketika rentang baru beririsan, menge
 
     Period::factory()
         ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
+        ->stationTypes(['sterilizer'])
         ->named('November 2026')
         ->range('2026-11-01', '2026-11-30')
         ->open()
@@ -480,7 +717,6 @@ it('update: melempar PeriodOverlapException ketika rentang baru beririsan, menge
 
     expect(fn () => $this->service->update($p1->id, periodPayload([
         'business_unit_id' => $this->businessUnitA->id,
-        'station_type' => 'sterilizer',
         'name' => 'Oktober 2026',
         'start_date' => '2026-10-20',
         'end_date' => '2026-11-05',
@@ -494,7 +730,7 @@ it('update: melempar PeriodOverlapException ketika rentang baru beririsan, menge
 it('update: mengizinkan perubahan rentang yang tidak menimbulkan tumpang tindih pada periode terbuka', function () {
     $period = Period::factory()
         ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
+        ->stationTypes(['sterilizer'])
         ->named('Oktober 2026')
         ->range('2026-10-01', '2026-10-15')
         ->open()
@@ -502,7 +738,6 @@ it('update: mengizinkan perubahan rentang yang tidak menimbulkan tumpang tindih 
 
     $row = $this->service->update($period->id, periodPayload([
         'business_unit_id' => $this->businessUnitA->id,
-        'station_type' => 'sterilizer',
         'name' => 'Oktober 2026',
         'start_date' => '2026-10-05',
         'end_date' => '2026-10-20',
@@ -510,7 +745,28 @@ it('update: mengizinkan perubahan rentang yang tidak menimbulkan tumpang tindih 
 
     expect($row['start_date'])->toBe('2026-10-05');
     expect($row['end_date'])->toBe('2026-10-20');
-    expect($row['status'])->toBe('open');
+
+    // EDITING NEVER TOUCHES AN EXISTING STATION'S STATUS — Sterilizer is
+    // still 'open', with no closure record invented for it.
+    expect(collect($row['stations'])->firstWhere('station_type', 'sterilizer')['status'])->toBe('open');
+
+    // BUT A SUCCESSFUL update() BACKFILLS THE MISSING STATION ROWS (keputusan
+    // user 2026-09-26, see PeriodService::update()). This period was built
+    // with Sterilizer alone while Mill Alpha also has Boiler Room and
+    // Clarification, so those two are added as 'draft' — that is the whole
+    // point: a station type with no row cannot be closed and its records are
+    // never locked. The summary therefore becomes 'mixed', which is an
+    // accurate reading of one open station and two draft ones.
+    expect($row['station_count'])->toBe(3);
+    // Ordered by the master table's sort_order (process order), not by when
+    // the rows were inserted.
+    expect(collect($row['stations'])->pluck('status', 'station_type')->all())->toBe([
+        'sterilizer' => 'open',
+        'clarification' => 'draft',
+        'boiler-room' => 'draft',
+    ]);
+    expect($row['status_summary'])->toBe('mixed');
+    expect($row['is_immutable'])->toBeFalse();
 
     $fresh = $period->fresh();
     expect($fresh->start_date->toDateString())->toBe('2026-10-05');
@@ -526,7 +782,7 @@ it('delete: melempar 404 ketika periode sudah dihapus pengguna lain', function (
 });
 
 // Case 28
-it('delete: menolak 409 PERIOD_CLOSED_IMMUTABLE ketika periode berstatus closed', function () {
+it('delete: menolak 409 PERIOD_CLOSED_IMMUTABLE ketika stasiun periode tertutup', function () {
     $period = Period::factory()
         ->forBusinessUnit($this->businessUnitA)
         ->closed($this->admin)
@@ -543,16 +799,29 @@ it('delete: menolak 409 PERIOD_CLOSED_IMMUTABLE ketika periode berstatus closed'
     expect(Period::find($period->id))->not->toBeNull();
 });
 
+// Case 28b — the reason the rule is "any": period_stations.period_id is
+// cascadeOnDelete, so an "all stations closed" rule would let this delete
+// through and silently unlock the sealed Sterilizer records with it.
+it('delete: menolak 409 PERIOD_CLOSED_IMMUTABLE meski hanya SATU stasiun yang tertutup', function () {
+    $period = halfClosedPeriod($this->businessUnitA, $this->admin);
+
+    expect(fn () => $this->service->delete($period->id))
+        ->toThrow(PeriodClosedImmutableException::class);
+
+    expect(Period::find($period->id))->not->toBeNull();
+    expect(PeriodStation::query()->where('period_id', $period->id)->count())->toBe(2);
+});
+
 // Case 29
 it('delete: menghapus periode ketika seluruh syarat terpenuhi', function (string $status) {
-    $period = Period::factory()
-        ->forBusinessUnit($this->businessUnitA)
-        ->state(['status' => $status])
-        ->create();
+    $factory = Period::factory()->forBusinessUnit($this->businessUnitA);
+    $period = ($status === 'draft' ? $factory->draft() : $factory->open())->create();
 
     $this->service->delete($period->id);
 
     expect(Period::find($period->id))->toBeNull();
+    // Cascade took the station rows with it.
+    expect(PeriodStation::query()->where('period_id', $period->id)->count())->toBe(0);
 })->with([
     'draft' => ['draft'],
     'open' => ['open'],
@@ -563,7 +832,6 @@ it('delete: menghapus periode ketika seluruh syarat terpenuhi', function (string
 it('findOverlapping: memperlakukan batas rentang sebagai inklusif', function () {
     Period::factory()
         ->forBusinessUnit($this->businessUnitA)
-        ->stationType('sterilizer')
         ->named('Oktober 2026')
         ->range('2026-10-01', '2026-10-31')
         ->create();
@@ -571,7 +839,6 @@ it('findOverlapping: memperlakukan batas rentang sebagai inklusif', function () 
     // A range starting exactly on the existing end_date DOES overlap.
     expect($this->service->findOverlapping(
         $this->businessUnitA->id,
-        'sterilizer',
         '2026-10-31',
         '2026-11-30'
     ))->not->toBeNull();
@@ -579,7 +846,6 @@ it('findOverlapping: memperlakukan batas rentang sebagai inklusif', function () 
     // One day later it does not.
     expect($this->service->findOverlapping(
         $this->businessUnitA->id,
-        'sterilizer',
         '2026-11-01',
         '2026-11-30'
     ))->toBeNull();
@@ -588,16 +854,23 @@ it('findOverlapping: memperlakukan batas rentang sebagai inklusif', function () 
 it('findOverlapping: tidak melihat periode milik Business Unit lain', function () {
     Period::factory()
         ->forBusinessUnit($this->businessUnitB)
-        ->stationType('sterilizer')
         ->range('2026-10-01', '2026-10-31')
         ->create();
 
     expect($this->service->findOverlapping(
         $this->businessUnitA->id,
-        'sterilizer',
         '2026-10-05',
         '2026-10-10'
     ))->toBeNull();
+});
+
+it('activeStationTypesForMill: hanya jenis stasiun mill itu, urut proses', function () {
+    expect($this->service->activeStationTypesForMill($this->businessUnitA->id))
+        ->toBe(['sterilizer', 'clarification', 'boiler-room']);
+
+    // Mill Beta has no station, and a mill's inventory is never inferred
+    // from the master table.
+    expect($this->service->activeStationTypesForMill($this->businessUnitB->id))->toBe([]);
 });
 
 it('stationTypeOptions: membaca tabel master station_types dalam urutan proses', function () {
@@ -611,20 +884,10 @@ it('stationTypeOptions: membaca tabel master station_types dalam urutan proses',
 
 it('stationTypeLabel: memakai nama dari tabel master dan fallback ke kode tak dikenal', function () {
     expect($this->service->stationTypeLabel('sterilizer'))->toBe('Sterilizer');
-    expect($this->service->stationTypeLabel(null))->toBe('Semua Stasiun');
     expect($this->service->stationTypeLabel('kode-tidak-dikenal'))->toBe('kode-tidak-dikenal');
-});
 
-it('create: menolak 422 ketika station_type tidak ada di tabel master station_types', function () {
-    try {
-        $this->service->create(periodPayload([
-            'business_unit_id' => $this->businessUnitA->id,
-            'station_type' => 'stasiun-karangan',
-        ]));
-        $this->fail('Expected ValidationException was not thrown.');
-    } catch (ValidationException $e) {
-        expect($e->errors())->toHaveKey('station_type');
-    }
-
-    expect(Period::count())->toBe(0);
+    // The NULL scope is gone, so the "Semua Stasiun" constant that named it
+    // is gone too — asserted here because five *ReportService classes used
+    // to borrow it and a re-introduction would quietly revive the concept.
+    expect(defined(PeriodService::class.'::ALL_STATION_TYPES_LABEL'))->toBeFalse();
 });

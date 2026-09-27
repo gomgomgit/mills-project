@@ -63,6 +63,7 @@ use App\Models\BusinessUnit;
 use App\Models\ClarificationDetail;
 use App\Models\ClarificationRecord;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\ClarificationRecordService;
@@ -1213,7 +1214,7 @@ it('baca saja: repeated reads change nothing, and no write verb is routed on the
 // =====================================================================
 // Scenario 23: "daftar periode hanya yang mencakup Clarification"
 // =====================================================================
-it('daftar periode: Clarification and all-station-types are offered, the two other station types are not', function () {
+it('daftar periode: hanya yang punya baris period_stations clarification yang ditawarkan', function () {
     $supervisorB = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitB)->create();
 
     $clarification = Period::factory()->forBusinessUnit($this->businessUnitB)->stationType('clarification')
@@ -1236,13 +1237,62 @@ it('daftar periode: Clarification and all-station-types are offered, the two oth
     expect($ids)->not->toContain((string) $sterilizer->id);
     expect($ids)->not->toContain((string) $boilerRoom->id);
 
-    // Newest first, and a NULL station type is labelled rather than blank.
+    // Newest first.
     expect($ids[0])->toBe((string) $allTypes->id);
 
+    // KONTRAK API TETAP DATAR setelah pemisahan periods/period_stations
+    // (2026-09-25): stationType(null) kini berarti "satu baris per jenis
+    // stasiun", jadi opsi ini adalah pasangan (periode, clarification) —
+    // station_type selalu terisi dan label 'Semua Stasiun' sudah tidak ada.
     $all = collect($periods->json('data'))->firstWhere('id', (string) $allTypes->id);
 
-    expect($all['station_type'])->toBeNull();
-    expect($all['station_type_label'])->not->toBe('');
+    expect($all['station_type'])->toBe('clarification');
+    expect($all['station_type_label'])->toBe('Clarification');
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): periode tanpa baris period_stations untuk
+// clarification tidak boleh muncul — perilaku yang DULU dijamin cabang
+// orWhereNull('station_type') pada listPeriods() dan kini sengaja dibuang.
+// Cakupan "semua stasiun" hanya ada lewat ADANYA baris per jenis stasiun.
+// =====================================================================
+it('daftar periode: periode tanpa baris clarification tidak ditawarkan', function () {
+    $supervisorB = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitB)->create();
+
+    $otherTypesOnly = Period::factory()->forBusinessUnit($this->businessUnitB)
+        ->stationTypes(['sterilizer', 'boiler-room'])
+        ->range('2026-05-01', '2026-05-31')->named('Periode Tanpa Clarification')->open()->create();
+    $noStations = Period::factory()->forBusinessUnit($this->businessUnitB)
+        ->noStations()->range('2026-06-01', '2026-06-30')->named('Periode Tanpa Stasiun')->create();
+
+    $periods = $this->actingAs($supervisorB, 'web')->getJson('/api/clarification-reports/periods');
+    $periods->assertOk();
+
+    $ids = collect($periods->json('data'))->pluck('id')->all();
+
+    expect($ids)->not->toContain((string) $otherTypesOnly->id);
+    expect($ids)->not->toContain((string) $noStations->id);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): status yang dilaporkan adalah status STASIUN
+// INI di dalam periode itu, bukan status periode — periode tidak punya status
+// lagi. Bentuk ini (Clarification terbuka sementara Sterilizer tertutup di periode
+// yang sama) sebelumnya mustahil dinyatakan.
+// =====================================================================
+it('daftar periode: status yang ditampilkan adalah status clarification, bukan status stasiun lain di periode yang sama', function () {
+    $supervisorB = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitB)->create();
+
+    $period = Period::factory()->forBusinessUnit($this->businessUnitB)
+        ->noStations()->range('2026-05-01', '2026-05-31')->named('Periode Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($period)->stationType('clarification')->open()->create();
+    PeriodStation::factory()->forPeriod($period)->stationType('sterilizer')->closed()->create();
+
+    $periods = $this->actingAs($supervisorB, 'web')->getJson('/api/clarification-reports/periods');
+    $periods->assertOk();
+
+    expect(collect($periods->json('data'))->firstWhere('id', (string) $period->id)['status'])->toBe('open');
 });
 
 // =====================================================================

@@ -104,6 +104,7 @@ use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Models\BusinessUnit;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\StorageTankDetail;
 use App\Models\StorageTankRecord;
@@ -1353,7 +1354,7 @@ it('case 31 — tidak ada penandaan ambang pada payload, menurut nama kunci', fu
 // ---------------------------------------------------------------------
 // Case 32 — only periods covering Storage Tank (or every type) are listed
 // ---------------------------------------------------------------------
-it('case 32 — daftar periode hanya yang mencakup Storage Tank atau berlaku semua jenis stasiun', function () {
+it('case 32 — daftar periode hanya yang punya baris period_stations untuk Storage Tank', function () {
     $this->actingAs($this->supervisorA);
 
     $periodOther = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('sterilizer')
@@ -1370,9 +1371,59 @@ it('case 32 — daftar periode hanya yang mencakup Storage Tank atau berlaku sem
     expect($ids)->not->toContain((string) $periodOther->id);
 
     // A CLOSED period is listed exactly like an open one: the period lock
-    // governs writing data, not reading a report.
+    // governs writing data, not reading a report. Statusnya kini datang dari
+    // baris period_stations 'storage-tank', bukan dari periodenya.
     $closed = collect($this->service->listPeriods())->firstWhere('id', (string) $periodStorage->id);
     expect($closed['status'])->toBe('closed');
+
+    // stationType(null) tidak lagi berarti `station_type` NULL — kolom itu
+    // hilang 2026-09-25, dan cakupan semua-stasiun kini berarti satu baris
+    // period_stations per jenis stasiun. Setiap opsi adalah pasangan
+    // (periode, storage-tank): jenis stasiunnya terisi, 'Semua Stasiun' tiada.
+    $allTypes = collect($this->service->listPeriods())->firstWhere('id', (string) $periodAllTypes->id);
+
+    expect($allTypes['station_type'])->toBe('storage-tank');
+    expect($allTypes['station_type_label'])->toBe('Storage Tank');
+});
+
+// ---------------------------------------------------------------------
+// Case 32b — BARU 2026-09-26, bersama pemisahan periods/period_stations.
+// Perilaku yang DULU dijamin cabang orWhereNull('station_type') dan kini
+// sengaja dibuang: tanpa baris 'storage-tank', periode itu bukan periode
+// Storage Tank.
+// ---------------------------------------------------------------------
+it('case 32b — periode tanpa baris period_stations storage-tank tidak ikut terdaftar', function () {
+    $this->actingAs($this->supervisorA);
+
+    $otherTypesOnly = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['sterilizer', 'boiler-room'])
+        ->range('2026-10-01', '2026-10-31')->open()->create();
+    $noStations = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-09-01', '2026-09-30')->create();
+
+    $ids = array_column($this->service->listPeriods(), 'id');
+
+    expect($ids)->not->toContain((string) $otherTypesOnly->id);
+    expect($ids)->not->toContain((string) $noStations->id);
+});
+
+// ---------------------------------------------------------------------
+// Case 32c — BARU 2026-09-26. Inti pemisahan model ini: dua jenis stasiun
+// berstatus berbeda di satu periode.
+// ---------------------------------------------------------------------
+it('case 32c — laporan menampilkan status storage-tank, bukan status stasiun lain di periode yang sama', function () {
+    $this->actingAs($this->supervisorA);
+
+    $period = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-11-01', '2026-11-30')->named('Periode Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($period)->stationType('storage-tank')->open()->create();
+    PeriodStation::factory()->forPeriod($period)->stationType('sterilizer')->closed()->create();
+
+    $option = collect($this->service->listPeriods())->firstWhere('id', (string) $period->id);
+
+    expect($option['status'])->toBe('open');
+    expect($this->service->summary($period)['period']['status'])->toBe('open');
 });
 
 // ---------------------------------------------------------------------

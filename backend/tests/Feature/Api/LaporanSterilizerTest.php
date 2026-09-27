@@ -41,6 +41,7 @@
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\SterilizerDetail;
 use App\Models\SterilizerRecord;
@@ -416,7 +417,7 @@ it('periode tertutup: summary renders normally and export still works', function
 // Scenario: "periode yang tidak mencakup jenis stasiun Sterilizer tidak
 // dapat dipilih"
 // =====================================================================
-it('pemilih periode: only sterilizer-scoped and all-station-type periods are offered, newest first', function () {
+it('pemilih periode: only periods with a sterilizer period_stations row are offered, newest first', function () {
     $allTypes = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType(null)
         ->range('2026-10-01', '2026-10-31')->named('Periode Oktober Semua Stasiun')->create();
     $otherType = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('boiler-room')
@@ -433,6 +434,66 @@ it('pemilih periode: only sterilizer-scoped and all-station-type periods are off
     expect($ids)->not->toContain((string) $otherType->id);
     // start_date descending: October before September.
     expect($ids)->toBe([(string) $allTypes->id, (string) $this->periodA->id]);
+
+    // KONTRAK API TETAP DATAR setelah pemisahan periods/period_stations
+    // (2026-09-25): station_type kini selalu terisi dengan jenis stasiun layar
+    // ini — stationType(null) berarti "satu baris per jenis stasiun", bukan
+    // lagi "tanpa jenis" — dan label 'Semua Stasiun' sudah tidak ada.
+    $all = collect($periods->json('data'))->firstWhere('id', (string) $allTypes->id);
+
+    expect($all['station_type'])->toBe('sterilizer');
+    expect($all['station_type_label'])->toBe('Sterilizer');
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): periode tanpa baris period_stations untuk
+// sterilizer tidak boleh muncul. Ini perilaku yang DULU dijamin cabang
+// orWhereNull('station_type') pada listPeriods() dan kini sengaja dibuang —
+// cakupan "semua stasiun" hanya ada lewat ADANYA baris per jenis stasiun.
+// =====================================================================
+it('pemilih periode: periode tanpa baris sterilizer tidak ditawarkan', function () {
+    $otherTypesOnly = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['boiler-room', 'clarification'])
+        ->range('2026-10-01', '2026-10-31')->named('Periode Tanpa Sterilizer')->create();
+    $noStations = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-11-01', '2026-11-30')->named('Periode Tanpa Stasiun')->create();
+
+    $periods = $this->actingAs($this->supervisor, 'web')->getJson('/api/sterilizer-reports/periods');
+
+    $periods->assertOk();
+
+    $ids = collect($periods->json('data'))->pluck('id')->all();
+
+    expect($ids)->not->toContain((string) $otherTypesOnly->id);
+    expect($ids)->not->toContain((string) $noStations->id);
+    expect($ids)->toBe([(string) $this->periodA->id]);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): status yang dilaporkan adalah status STASIUN
+// INI, bukan status periode — periode tidak punya status lagi. Bentuk ini
+// (Sterilizer terbuka sementara Boiler Room tertutup di periode yang sama)
+// sebelumnya mustahil dinyatakan, dan itulah alasan tabel period_stations ada.
+// =====================================================================
+it('status: payload memakai status sterilizer, bukan status stasiun lain di periode yang sama', function () {
+    $period = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-09-01', '2026-09-30')->named('Periode Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($period)->stationType('sterilizer')->open()->create();
+    PeriodStation::factory()->forPeriod($period)->stationType('boiler-room')->closed()->create();
+
+    $periods = $this->actingAs($this->supervisor, 'web')->getJson('/api/sterilizer-reports/periods');
+    $periods->assertOk();
+
+    $option = collect($periods->json('data'))->firstWhere('id', (string) $period->id);
+
+    expect($option['status'])->toBe('open');
+
+    $summary = $this->actingAs($this->supervisor, 'web')
+        ->getJson('/api/sterilizer-reports/summary?'.http_build_query(['period_id' => (string) $period->id]));
+
+    $summary->assertOk();
+    expect($summary->json('period.status'))->toBe('open');
 });
 
 // =====================================================================

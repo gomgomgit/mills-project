@@ -12,8 +12,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * Added 2026-09-22 to replace the CHECK-constraint-plus-enum arrangement that
  * required a migration every time a station type was added. Adding a type is
- * now an INSERT here; `stations.type` and `periods.station_type` both carry a
- * foreign key to this table's `code` column.
+ * now an INSERT here; `stations.type` and
+ * `period_stations.station_type` both carry a foreign key to this table's
+ * `code` column (`periods.station_type` did too until 2026-09-25, when the
+ * column moved to `period_stations`).
  *
  * NOT TO BE CONFUSED WITH App\Enums\StationType, which still exists and is
  * still correct to use. The division is:
@@ -56,11 +58,17 @@ class StationType extends Model
     }
 
     /**
-     * Reporting periods scoped to this type. A period with a null
-     * `station_type` covers every type and belongs to none of them.
+     * Baris period_stations yang menunjuk jenis stasiun ini — satu per periode
+     * yang mengelolanya, beserta status tutup/bukanya.
+     *
+     * Sebelum 2026-09-25 relasi ini menunjuk `periods` langsung, dan sebuah
+     * periode ber-`station_type` NULL berarti "mencakup semua jenis dan tidak
+     * dimiliki jenis mana pun". Kolom itu — beserta seluruh konsep NULL =
+     * semua-stasiun — sudah tidak ada: cakupan semua-stasiun kini dinyatakan
+     * lewat adanya satu baris period_stations per jenis stasiun.
      */
-    public function periods(): HasMany
+    public function periodStations(): HasMany
     {
-        return $this->hasMany(Period::class, 'station_type', 'code');
+        return $this->hasMany(PeriodStation::class, 'station_type', 'code');
     }
 }

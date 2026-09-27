@@ -16,8 +16,7 @@ import type { Page } from '@playwright/test'
  *     dan baris yang baru dibuat test terdorong ke halaman 2 — sehingga
  *     toBeVisible() gagal di dalam helper createPeriod(), SEBELUM satu pun
  *     asersi perilaku sempat dieksekusi.
- *   - Ditambah tabrakan PERIOD_OVERLAP antar-run pada mill + jenis stasiun
- *     yang sama.
+ *   - Ditambah tabrakan PERIOD_OVERLAP antar-run pada mill yang sama.
  *
  * Pada 2026-09-23 database dev berisi 117 periode yang 116 di antaranya
  * residu (hanya 1 nyata). Setelah dibersihkan, suite hijau penuh: 53 lolos.
@@ -28,14 +27,41 @@ import type { Page } from '@playwright/test'
  *
  * Memakai `page.request`, yang mewarisi cookie sesi dari konteks browser
  * setelah login lewat UI — jadi tidak perlu login kedua kali, dan seluruh
- * penjagaan peran tetap berlaku (rute /api/periods/* adalah Admin-only).
- * Penghapusan lewat API jauh lebih murah dan jauh lebih tahan daripada
- * mengulang dialog konfirmasi di UI untuk tiap baris.
+ * penjagaan peran tetap berlaku (rute /api/periods/* dan
+ * /api/period-stations/* adalah Admin-only). Penghapusan lewat API jauh
+ * lebih murah dan jauh lebih tahan daripada mengulang dialog konfirmasi di
+ * UI untuk tiap baris.
  *
- * Periode berstatus `closed` TIDAK dapat langsung dihapus — PeriodService
- * ::delete() menolaknya dengan PERIOD_CLOSED_IMMUTABLE. Karena itu periode
- * tertutup dibuka kembali dulu lewat POST /reopen, baru dihapus. Inilah
- * sebabnya pembersihan ini tidak bisa sekadar DELETE beruntun.
+ * ── APA YANG BERUBAH PADA 2026-09-26 ────────────────────────────────────
+ *
+ * Periode dipecah menjadi induk (`periods`) + anak (`period_stations`).
+ * Status tutup/buka HIDUP DI ANAK, satu baris per jenis stasiun, dan induk
+ * TIDAK punya kunci `status` lagi — membaca `period.status` dari respons
+ * daftar kini selalu `undefined`, yang berarti versi lama helper ini
+ * mengira TIDAK ADA periode yang perlu dibuka kembali, lalu menelan 409-nya
+ * dan meninggalkan residu. Kegagalan itu tidak terlihat pada run yang
+ * sedang berjalan: ia muncul 1-2 run kemudian sebagai kegagalan paginasi di
+ * spec lain (lihat blok di atas), yang mahal sekali didiagnosis.
+ *
+ * Karena itu:
+ *
+ *  1. Yang dibaca sekarang `stations[]` + `is_immutable`.
+ *     PeriodService::delete() menolak periode yang punya MINIMAL SATU
+ *     stasiun `closed` (409 PERIOD_CLOSED_IMMUTABLE) — `is_immutable`
+ *     adalah kondisi itu persis, jadi ia tidak diturunkan ulang di sini.
+ *  2. Pembukaan kembali dilakukan PER STASIUN, satu per satu, lewat
+ *     POST /api/period-stations/{station_id}/reopen. Rute lama
+ *     POST /api/periods/{id}/reopen sudah 404. `stations[n].id` adalah id
+ *     `period_stations`, BUKAN id periode — menukarnya berarti 404, atau
+ *     lebih buruk, membuka baris milik periode lain.
+ *  3. SETIAP 409 yang tersisa DILAPORKAN, tidak ditelan diam-diam: kalau
+ *     DELETE tetap ditolak, console.warn menyebut nama periode dan jenis
+ *     stasiun yang masih tertutup, supaya penyebabnya terbaca di run yang
+ *     sama alih-alih menjadi kegagalan paginasi dua run kemudian.
+ *
+ * Periode berstatus tertutup sebagian TIDAK dapat langsung dihapus, dan
+ * juga tidak dapat diubah — inilah sebabnya pembersihan ini tidak bisa
+ * sekadar DELETE beruntun.
  *
  * Pembersihan sengaja dibuat TIDAK PERNAH menggagalkan test: ia dipanggil
  * dari afterAll, dan kegagalan membersihkan bukan kegagalan produk. Galat
@@ -86,10 +112,28 @@ async function statefulHeaders(page: Page): Promise<Record<string, string>> {
   }
 }
 
+/**
+ * Satu entri `stations[]` dari GET /api/periods. `id` adalah id
+ * `period_stations` — id yang diterima aksi tutup/buka/buka-kembali.
+ */
+interface PeriodStationRow {
+  id: string
+  station_type: string
+  station_type_label: string
+  status: 'draft' | 'open' | 'closed'
+}
+
+/**
+ * Bentuk baris daftar periode SEJAK 2026-09-26. Tidak ada `status`,
+ * `station_type`, `closed_by` maupun `closed_at` di tingkat induk — kalau
+ * salah satu dibutuhkan, ia ada di `stations[]`.
+ */
 interface PeriodRow {
   id: string
   name: string
-  status: string
+  is_immutable: boolean
+  closed_station_count: number
+  stations: PeriodStationRow[]
 }
 
 /**
@@ -138,16 +182,29 @@ export async function deletePeriodsByPrefix(page: Page, prefixes: string[]): Pro
 
   for (const period of targets) {
     try {
-      // Periode tertutup harus dibuka kembali dulu — delete() menolak
-      // status 'closed' dengan PERIOD_CLOSED_IMMUTABLE.
-      if (period.status === 'closed') {
-        const reopened = await page.request.post(`/api/periods/${period.id}/reopen`, { headers })
+      // SETIAP stasiun tertutup harus dibuka kembali lebih dulu — satu pun
+      // yang tertinggal membuat DELETE dijawab 409
+      // PERIOD_CLOSED_IMMUTABLE. `is_immutable` adalah kondisi itu persis,
+      // tapi yang dipakai di sini daftar stasiunnya, karena yang perlu
+      // dibuka adalah baris-barisnya, bukan periodenya.
+      const stillClosed: PeriodStationRow[] = []
+
+      for (const station of period.stations ?? []) {
+        if (station.status !== 'closed') {
+          continue
+        }
+
+        const reopened = await page.request.post(
+          `/api/period-stations/${station.id}/reopen`,
+          { headers },
+        )
 
         if (!reopened.ok()) {
+          stillClosed.push(station)
           console.warn(
-            `[cleanup] gagal membuka kembali "${period.name}" (${reopened.status()}) — dilewati`,
+            `[cleanup] gagal membuka kembali "${period.name}" / ${station.station_type_label} `
+            + `(${reopened.status()})`,
           )
-          continue
         }
       }
 
@@ -155,9 +212,22 @@ export async function deletePeriodsByPrefix(page: Page, prefixes: string[]): Pro
 
       if (removed.ok()) {
         deleted += 1
-      } else {
-        console.warn(`[cleanup] gagal menghapus "${period.name}" (${removed.status()})`)
+        continue
       }
+
+      // BERISIK ON PURPOSE. 409 di sini berarti masih ada stasiun tertutup,
+      // dan periodenya akan tertinggal di database — akibatnya baru terasa
+      // 1-2 run kemudian lewat paginasi, jadi penyebabnya harus terbaca
+      // SEKARANG, lengkap dengan stasiun mana yang menahannya.
+      const remaining = stillClosed.length > 0
+        ? stillClosed.map((station) => station.station_type_label).join(', ')
+        : '(tidak ada yang gagal dibuka kembali — periksa stasiun yang ditutup setelah daftar ini dibaca)'
+
+      console.warn(
+        `[cleanup] gagal menghapus "${period.name}" (${removed.status()}); `
+        + `closed_station_count saat daftar dibaca = ${period.closed_station_count}; `
+        + `stasiun yang masih tertutup: ${remaining}`,
+      )
     } catch (error) {
       console.warn(`[cleanup] galat saat menghapus "${period.name}":`, error)
     }

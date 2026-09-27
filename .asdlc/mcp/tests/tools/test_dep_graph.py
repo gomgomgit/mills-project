@@ -677,6 +677,95 @@ class TestResolveDepVer:
         assert _resolve_dep_ver("project.1-foundation.prd", project, {}) is None
 
 
+# ── Artifact-level dep keys (AL) ───────────────────────────────────────────────
+#
+# Regression group added 2026-09-26. Every project-level dep key that CLAUDE.md
+# §7 tells commands to pass -- "project.1-foundation.prd",
+# "project.3-tech-spec.entity-catalog" -- points at an artifact, and a real
+# project.json stores artifacts as a dict of FIELD-GROUP leaves, not as a leaf.
+# _resolve_dep_ver used to return None for that shape, _snapshot_depends_on read
+# None as "not started" and dropped the dep without raising, so not one
+# project-level dependency was ever recorded: measured on this repo, 141/141
+# screen nodes held only their self.* chain and project->screen staleness was
+# undetectable.
+#
+# The 328 tests that passed while the bug was live all built prd as a LEAF
+# ("prd": _leaf(3)), which is not the shape the tool ever sees on disk. These
+# tests use the real nested shape instead -- that difference is the whole point.
+
+
+def _artifact(**field_groups):
+    """An artifact node the way project.json really stores it: field-group leaves."""
+    return {name: _leaf(ver) for name, ver in field_groups.items()}
+
+
+class TestArtifactLevelDepKeys:
+    def _project(self, goals=5, constraints=3):
+        return {
+            "project": {
+                "1-foundation": {
+                    "prd": _artifact(goals=goals, constraints=constraints),
+                },
+                "3-tech-spec": {
+                    "entity-catalog": _artifact(entities=18),
+                    "shared-decisions": None,          # registered, not written
+                },
+            }
+        }
+
+    def test_al1_artifact_key_resolves_instead_of_returning_none(self):
+        # The regression itself: before the fix this was None and the dep was
+        # silently dropped.
+        assert _resolve_dep_ver("project.1-foundation.prd", self._project(), {}) is not None
+
+    def test_al2_single_field_group_artifact_resolves_to_that_ver(self):
+        project = self._project()
+        assert _resolve_dep_ver("project.3-tech-spec.entity-catalog", project, {}) == 18
+
+    def test_al3_bumping_any_field_group_changes_the_resolved_value(self):
+        before = _resolve_dep_ver("project.1-foundation.prd", self._project(goals=5), {})
+        after  = _resolve_dep_ver("project.1-foundation.prd", self._project(goals=6), {})
+        assert before != after
+
+    def test_al4_a_new_field_group_also_changes_the_resolved_value(self):
+        project = self._project()
+        before  = _resolve_dep_ver("project.1-foundation.prd", project, {})
+        project["project"]["1-foundation"]["prd"]["non_goals"] = _leaf(1)
+        assert _resolve_dep_ver("project.1-foundation.prd", project, {}) != before
+
+    def test_al5_field_group_key_still_resolves_to_exactly_that_leaf(self):
+        # The fix must not blur the precise form commands may also use.
+        project = self._project(goals=5)
+        assert _resolve_dep_ver("project.1-foundation.prd.goals", project, {}) == 5
+
+    def test_al6_unwritten_artifact_still_reads_as_not_started(self):
+        # None here is correct and load-bearing: _snapshot_depends_on skips
+        # not-started deps on purpose, and that contract must survive the fix.
+        project = self._project()
+        assert _resolve_dep_ver("project.3-tech-spec.shared-decisions", project, {}) is None
+
+    def test_al7_stale_is_detected_through_an_artifact_level_key(self):
+        deps = {"project.1-foundation.prd": _resolve_dep_ver(
+            "project.1-foundation.prd", self._project(goals=5), {})}
+        stale, keys = _compute_stale(deps, self._project(goals=6), {})
+        assert stale is True
+        assert keys == ["project.1-foundation.prd"]
+
+    def test_al8_snapshot_records_the_artifact_level_dep_rather_than_dropping_it(self):
+        # End-to-end on the function that did the dropping.
+        node    = _blank_leaf_node()
+        project = self._project()
+        unknown = _snapshot_depends_on(
+            node,
+            ["project.1-foundation.prd", "project.3-tech-spec.entity-catalog"],
+            project,
+            {},
+        )
+        assert unknown == []
+        assert "project.1-foundation.prd" in node["depends_on"]
+        assert node["depends_on"]["project.3-tech-spec.entity-catalog"] == 18
+
+
 # ── _compute_stale (CS) ────────────────────────────────────────────────────────
 
 class TestComputeStale:

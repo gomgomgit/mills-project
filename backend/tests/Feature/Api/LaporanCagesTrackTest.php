@@ -45,6 +45,7 @@ use App\Models\BusinessUnit;
 use App\Models\CagesTippedTime;
 use App\Models\CagesTrackRecord;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -634,7 +635,7 @@ it('periode tertutup: summary renders in full and export still streams', functio
 // =====================================================================
 // Scenario 15: "periode yang tidak mencakup Cages & Tracks tidak boleh muncul"
 // =====================================================================
-it('pemilih periode: only cages-track and all-station-type periods are offered, newest first', function () {
+it('pemilih periode: only periods with a cages-track period_stations row are offered, newest first', function () {
     $allTypes = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType(null)
         ->range('2026-05-01', '2026-05-31')->named('Periode Mei Semua Stasiun')->create();
     $sterilizer = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('sterilizer')
@@ -652,9 +653,54 @@ it('pemilih periode: only cages-track and all-station-type periods are offered, 
     // start_date descending: May before March.
     expect($ids)->toBe([(string) $allTypes->id, (string) $this->periodA->id]);
 
-    // The NULL-typed period is labelled rather than shown as a blank type.
-    expect(collect($periods->json('data'))->firstWhere('id', (string) $allTypes->id)['station_type_label'])
-        ->toBe('Semua Stasiun');
+    // KONTRAK API TETAP DATAR setelah pemisahan periods/period_stations
+    // (2026-09-25): stationType(null) kini berarti "satu baris per jenis
+    // stasiun", jadi opsi ini adalah pasangan (periode, cages-track) —
+    // station_type selalu terisi dan label 'Semua Stasiun' sudah tidak ada.
+    $all = collect($periods->json('data'))->firstWhere('id', (string) $allTypes->id);
+
+    expect($all['station_type'])->toBe('cages-track');
+    expect($all['station_type_label'])->toBe('Cages Track');
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): periode tanpa baris period_stations untuk
+// cages-track tidak boleh muncul — perilaku yang DULU dijamin cabang
+// orWhereNull('station_type') dan kini sengaja dibuang.
+// =====================================================================
+it('pemilih periode: periode tanpa baris cages-track tidak ditawarkan', function () {
+    $otherTypesOnly = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['sterilizer', 'boiler-room'])
+        ->range('2026-05-01', '2026-05-31')->named('Periode Tanpa Cages')->create();
+    $noStations = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-06-01', '2026-06-30')->named('Periode Tanpa Stasiun')->create();
+
+    $periods = $this->actingAs($this->supervisor, 'web')->getJson('/api/cages-track-reports/periods');
+
+    $periods->assertOk();
+
+    $ids = collect($periods->json('data'))->pluck('id')->all();
+
+    expect($ids)->not->toContain((string) $otherTypesOnly->id);
+    expect($ids)->not->toContain((string) $noStations->id);
+    expect($ids)->toBe([(string) $this->periodA->id]);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): status yang dilaporkan adalah status stasiun
+// ini di dalam periode itu, bukan status periode.
+// =====================================================================
+it('status: payload memakai status cages-track, bukan status stasiun lain di periode yang sama', function () {
+    $period = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-04-01', '2026-04-30')->named('Periode Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($period)->stationType('cages-track')->open()->create();
+    PeriodStation::factory()->forPeriod($period)->stationType('sterilizer')->closed()->create();
+
+    $periods = $this->actingAs($this->supervisor, 'web')->getJson('/api/cages-track-reports/periods');
+    $periods->assertOk();
+
+    expect(collect($periods->json('data'))->firstWhere('id', (string) $period->id)['status'])->toBe('open');
 });
 
 // =====================================================================

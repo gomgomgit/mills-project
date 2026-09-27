@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\PeriodStatus;
 use App\Enums\StationType as StationTypeEnum;
 use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Models\BusinessUnit;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\StationType;
 use App\Models\StorageTankDetail;
 use App\Models\StorageTankRecord;
@@ -193,8 +195,18 @@ class StorageTankReportService
      */
     public const EXPORT_ROW_LIMIT = 50000;
 
-    /** Label shown for a period whose station_type is NULL (covers every type). */
-    public const ALL_STATION_TYPES_LABEL = PeriodService::ALL_STATION_TYPES_LABEL;
+    /**
+     * Jenis stasiun yang dilaporkan layar ini — kunci baris
+     * `period_stations` yang statusnya dipakai di seluruh payload layar ini.
+     *
+     * Menggantikan ALL_STATION_TYPES_LABEL ('Semua Stasiun'), yang hilang
+     * bersama `periods.station_type` pada 2026-09-25: sebuah periode tidak
+     * lagi bisa berlaku "untuk semua jenis stasiun" lewat station_type NULL —
+     * cakupan itu kini dinyatakan lewat ADANYA satu baris period_stations per
+     * jenis stasiun. Karena itu daftar periode layar ini adalah daftar
+     * pasangan (periode, storage-tank), dan tidak ada lagi opsi tanpa jenis stasiun.
+     */
+    protected const STATION_TYPE = StationTypeEnum::StorageTank->value;
 
     /** Export formats this report understands. Anything else is 422. */
     public const SUPPORTED_FORMATS = ['csv', 'excel'];
@@ -474,11 +486,14 @@ class StorageTankReportService
     /**
      * business_logic step 2 — the periods selectable for this mill.
      *
-     * A period covers Storage Tank when its station_type is 'storage-tank'
-     * OR NULL (NULL = the period applies to every station type in that
-     * mill). Newest first. An empty array is a valid answer — a mill with no
-     * period yet gets [] with HTTP 200 and a UI hint pointing at Kelola
-     * Periode Pelaporan, never a 404 and never an exception.
+     * A period covers Storage Tank when it HAS a `period_stations` row for
+     * station_type 'storage-tank'. The old second branch — station_type NULL,
+     * meaning "this period applies to every station type" — is GONE with the
+     * column itself (2026-09-25): all-station scope is now expressed by the
+     * PRESENCE of one row per station type, so a period WITHOUT a 'storage-tank'
+     * row is deliberately not listed here at all. Newest first. An empty array
+     * is a valid answer — a mill with no period yet gets [] with HTTP 200 and a
+     * UI hint pointing at Kelola Periode Pelaporan, never a 404 and never an exception.
      *
      * A CLOSED period is listed exactly like an open one: the period lock
      * governs writing data, not reading a report.
@@ -488,7 +503,7 @@ class StorageTankReportService
      * calling it as a bound role with someone else's id still reads the
      * caller's own mill.
      *
-     * @return list<array{id: string, name: string, start_date: string, end_date: string, status: string, station_type: string|null, station_type_label: string}>
+     * @return list<array{id: string, name: string, start_date: string, end_date: string, status: string, station_type: string, station_type_label: string}>
      */
     public function listPeriods(?string $businessUnitId = null): array
     {
@@ -496,10 +511,10 @@ class StorageTankReportService
 
         return Period::query()
             ->where('business_unit_id', $businessUnitId)
-            ->where(function (Builder $query) {
-                $query->where('station_type', StationTypeEnum::StorageTank->value)
-                    ->orWhereNull('station_type');
-            })
+            ->whereHas('stations', fn (Builder $query) => $query->where('station_type', self::STATION_TYPE))
+            // Dimuat terbatas pada jenis stasiun ini supaya statusValue()
+            // tidak menembak satu kueri per periode (N+1).
+            ->with(['stations' => fn ($query) => $query->where('station_type', self::STATION_TYPE)])
             ->orderByDesc('start_date')
             ->orderBy('name')
             ->get()
@@ -1388,7 +1403,19 @@ class StorageTankReportService
     }
 
     /**
-     * @return array{id: string, name: string, start_date: string, end_date: string, status: string, station_type: string|null, station_type_label: string}
+     * Satu opsi periode UNTUK LAYAR INI. Bentuknya sengaja tetap DATAR,
+     * persis seperti sebelum 2026-09-25, karena layar mobile dan blade
+     * membacanya apa adanya — pemisahan periods/period_stations tidak
+     * merembes ke kontrak API.
+     *
+     * Bacaannya: yang diminta layar ini bukan periode telanjang melainkan
+     * pasangan (periode, storage-tank). Karena itu `status` adalah status
+     * STASIUN INI di periode itu (period_stations.status) — periode sendiri
+     * tidak punya status lagi — dan `station_type` selalu terisi: ia tidak
+     * pernah null lagi karena hanya periode yang punya baris untuk jenis
+     * ini yang sampai ke sini.
+     *
+     * @return array{id: string, name: string, start_date: string, end_date: string, status: string, station_type: string, station_type_label: string}
      */
     protected function periodOption(Period $period): array
     {
@@ -1398,14 +1425,51 @@ class StorageTankReportService
             'start_date' => $period->start_date->toDateString(),
             'end_date' => $period->end_date->toDateString(),
             'status' => $this->statusValue($period),
-            'station_type' => $period->station_type,
-            'station_type_label' => $this->stationTypeLabel($period->station_type),
+            'station_type' => self::STATION_TYPE,
+            'station_type_label' => $this->stationTypeLabel(self::STATION_TYPE),
         ];
     }
 
+    /**
+     * Status yang dilaporkan layar ini adalah status BARIS period_stations
+     * untuk jenis stasiun layar ini, bukan status periode: sejak 2026-09-25
+     * periode tidak punya status sendiri (Period::$status melempar
+     * LogicException), karena stasiun tidak ditutup serentak — Sterilizer
+     * bisa tertutup sementara Clarification masih terbuka di periode yang
+     * sama.
+     *
+     * Tanpa baris untuk jenis ini, jenis stasiun ini tidak dikelola periode
+     * itu, dan jawabannya 'draft' — arti draft memang "stasiun ini belum
+     * dipakai di periode ini". Sengaja bukan string kosong: nilai status
+     * harus tetap salah satu dari draft/open/closed karena blade dan layar
+     * mobile mencocokkannya. Bentuk ini hanya bisa muncul lewat summary()/
+     * export(): listPeriods() tidak pernah memulangkan periode tanpa baris.
+     */
     protected function statusValue(Period $period): string
     {
-        return is_object($period->status) ? $period->status->value : (string) $period->status;
+        $status = $this->stationRowOf($period)?->status;
+
+        if ($status === null) {
+            return PeriodStatus::Draft->value;
+        }
+
+        return is_object($status) ? $status->value : (string) $status;
+    }
+
+    /**
+     * Baris period_stations untuk jenis stasiun layar ini. Memakai relasi
+     * yang sudah di-eager-load bila ada — listPeriods() memuatnya terbatas
+     * pada jenis ini — dan baru menembak kueri sendiri bila belum.
+     */
+    protected function stationRowOf(Period $period): ?PeriodStation
+    {
+        if ($period->relationLoaded('stations')) {
+            return $period->stations->firstWhere('station_type', self::STATION_TYPE);
+        }
+
+        return $period->stations()
+            ->where('station_type', self::STATION_TYPE)
+            ->first();
     }
 
     protected function recordStatusValue(StorageTankRecord $record): string
@@ -1420,12 +1484,8 @@ class StorageTankReportService
      * App\Enums\StationType — station types are DATA since 2026-09-22, so a
      * type added by INSERT must render its real name without a code change.
      */
-    protected function stationTypeLabel(?string $code): string
+    protected function stationTypeLabel(string $code): string
     {
-        if ($code === null) {
-            return self::ALL_STATION_TYPES_LABEL;
-        }
-
         if ($this->stationTypeNames === null) {
             $this->stationTypeNames = StationType::query()
                 ->get(['code', 'name'])

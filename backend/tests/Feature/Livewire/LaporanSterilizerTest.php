@@ -26,6 +26,7 @@ use App\Enums\UserRole;
 use App\Livewire\Dashboard\LaporanSterilizer;
 use App\Models\BusinessUnit;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\SterilizerDetail;
 use App\Models\SterilizerRecord;
@@ -345,7 +346,7 @@ it('periode tertutup: the report renders as usual, the status shows as a caption
 // Scenario: "periode yang tidak mencakup jenis stasiun Sterilizer tidak
 // dapat dipilih"
 // =====================================================================
-it('pemilih periode: offers sterilizer and all-station-type periods only, newest first', function () {
+it('pemilih periode: offers only periods with a sterilizer period_stations row, newest first', function () {
     Period::factory()->forBusinessUnit($this->businessUnitA)->stationType(null)
         ->range('2026-10-01', '2026-10-31')->named('Periode Oktober Semua Stasiun')->create();
     Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('boiler-room')
@@ -362,6 +363,59 @@ it('pemilih periode: offers sterilizer and all-station-type periods only, newest
     // Newest first, so the auto-selected option is the October one.
     expect(strpos($html, 'Periode Oktober Semua Stasiun'))
         ->toBeLessThan(strpos($html, 'Periode September Alpha'));
+
+    // Periode Oktober dibuat dengan stationType(null), yang sejak 2026-09-25
+    // berarti "satu baris period_stations per jenis stasiun" — bukan lagi
+    // station_type NULL. Karena itu setiap opsi membawa jenis stasiun layar
+    // ini, dan label bersama 'Semua Stasiun' sudah tidak ada.
+    expect(array_column($component->viewData('periods'), 'station_type_label'))
+        ->toBe(['Sterilizer', 'Sterilizer']);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): periode tanpa baris period_stations untuk
+// sterilizer tidak muncul di pemilih — perilaku yang DULU dijamin cabang
+// orWhereNull('station_type') dan kini sengaja dibuang.
+// =====================================================================
+it('pemilih periode: periode tanpa baris sterilizer tidak ditawarkan', function () {
+    Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['boiler-room', 'clarification'])
+        ->range('2026-10-01', '2026-10-31')->named('Periode Oktober Tanpa Sterilizer')->create();
+    Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-11-01', '2026-11-30')->named('Periode November Tanpa Stasiun')->create();
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanSterilizer::class)
+        ->assertSee('Periode September Alpha')
+        ->assertDontSee('Periode Oktober Tanpa Sterilizer')
+        ->assertDontSee('Periode November Tanpa Stasiun');
+
+    expect(array_column($component->viewData('periods'), 'id'))
+        ->toBe([(string) $this->periodA->id]);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): chip status di hero memakai status STASIUN INI,
+// bukan status periode — periode tidak punya status lagi. Sterilizer terbuka
+// sementara Boiler Room tertutup di periode yang sama adalah bentuk yang
+// menjadi alasan tabel period_stations dipisah.
+// =====================================================================
+it('chip status: menampilkan status sterilizer, bukan status stasiun lain di periode yang sama', function () {
+    $mixed = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-12-01', '2026-12-31')->named('Periode Desember Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($mixed)->stationType('sterilizer')->open()->create();
+    PeriodStation::factory()->forPeriod($mixed)->stationType('boiler-room')->closed()->create();
+
+    // Newest first, jadi periode campuran inilah yang terpilih otomatis.
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanSterilizer::class);
+
+    expect($component->viewData('selectedPeriod')['id'])->toBe((string) $mixed->id);
+    expect($component->viewData('selectedPeriod')['status'])->toBe('open');
+
+    preg_match('/data-testid="hero-status">(.*?)<\/span>/s', $component->html(), $matches);
+
+    expect(trim($matches[1] ?? ''))->toBe('Terbuka');
 });
 
 // =====================================================================

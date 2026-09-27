@@ -64,6 +64,7 @@ use App\Models\BusinessUnit;
 use App\Models\ClarificationDetail;
 use App\Models\ClarificationRecord;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\ClarificationRecordService;
@@ -1034,7 +1035,7 @@ it('baca saja: no write-flavoured control anywhere, and rendering changes not on
 // =====================================================================
 // Scenario 23: "daftar periode hanya yang mencakup Clarification"
 // =====================================================================
-it('pemilih periode: exactly two options — Clarification and all-station-types, never another station type', function () {
+it('pemilih periode: exactly two options — hanya periode yang punya baris period_stations clarification', function () {
     $supervisorB = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitB)->create();
 
     Period::factory()->forBusinessUnit($this->businessUnitB)->stationType('clarification')
@@ -1058,6 +1059,55 @@ it('pemilih periode: exactly two options — Clarification and all-station-types
     expect(substr_count($component->html(), '<option value="'))->toBe(2);
 
     $component->assertViewHas('periods', fn ($periods) => count($periods) === 2);
+
+    // 'Periode Semua Stasiun B' dibuat dengan stationType(null), yang sejak
+    // 2026-09-25 berarti "satu baris period_stations per jenis stasiun" — bukan
+    // station_type NULL. Setiap opsi karena itu berlabel jenis stasiun layar
+    // ini; label bersama 'Semua Stasiun' sudah tidak ada.
+    expect(array_column($component->viewData('periods'), 'station_type_label'))
+        ->toBe(['Clarification', 'Clarification']);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): periode tanpa baris period_stations untuk
+// clarification tidak ditawarkan — perilaku yang DULU dijamin cabang
+// orWhereNull('station_type') dan kini sengaja dibuang.
+// =====================================================================
+it('pemilih periode: periode tanpa baris clarification tidak ditawarkan', function () {
+    $supervisorB = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitB)->create();
+
+    Period::factory()->forBusinessUnit($this->businessUnitB)
+        ->stationTypes(['sterilizer', 'boiler-room'])
+        ->range('2026-05-01', '2026-05-31')->named('Periode Tanpa Clarification')->open()->create();
+    Period::factory()->forBusinessUnit($this->businessUnitB)
+        ->noStations()->range('2026-06-01', '2026-06-30')->named('Periode Tanpa Stasiun')->create();
+
+    $component = Livewire::actingAs($supervisorB)
+        ->test(LaporanClarification::class)
+        ->assertDontSee('Periode Tanpa Clarification')
+        ->assertDontSee('Periode Tanpa Stasiun');
+
+    expect($component->viewData('periods'))->toBe([]);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): status opsi memakai status clarification, bukan
+// status stasiun lain di periode yang sama.
+// =====================================================================
+it('pemilih periode: status opsi memakai status clarification, bukan status stasiun lain', function () {
+    $supervisorB = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitB)->create();
+
+    $mixed = Period::factory()->forBusinessUnit($this->businessUnitB)
+        ->noStations()->range('2026-05-01', '2026-05-31')->named('Periode Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($mixed)->stationType('clarification')->open()->create();
+    PeriodStation::factory()->forPeriod($mixed)->stationType('sterilizer')->closed()->create();
+
+    $component = Livewire::actingAs($supervisorB)->test(LaporanClarification::class);
+
+    $option = collect($component->viewData('periods'))->firstWhere('id', (string) $mixed->id);
+
+    expect($option['status'])->toBe('open');
 });
 
 // =====================================================================

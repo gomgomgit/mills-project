@@ -84,8 +84,11 @@
  * PERIOD_EXTREME — FFA 42,0 and Suhu Rata-rata 150,0 beside ordinary
  *   values: rendered as-is, flagged nowhere, with byte-identical card
  *   classes.
- * PERIOD_ALL_TYPES (station_type NULL) and PERIOD_OTHER_TYPE (Sterilizer) —
- *   the two period-picker membership cases; neither carries a record.
+ * PERIOD_WHOLE_MILL and PERIOD_OTHER_MILL — the two period-picker membership
+ *   cases; neither carries a record. Since 2026-09-26 a period covers its
+ *   whole mill, so WHOLE_MILL is simply a period of THIS mill (it carries a
+ *   Storage Tank row like every other one) and OTHER_MILL is a period of a
+ *   mill with no active station at all, hence with no station row to match.
  *
  * TIME SLOTS MUST BE PICKED IN ASCENDING ORDER WITHIN ONE RECORD.
  * FormStorageTank::availableTimeSlotOptions() only offers slots whose index
@@ -95,18 +98,23 @@
  * therefore filled front to back; the single-row records are free to use any
  * slot, which is how 06:00 (the LAST canonical slot) is reachable at all.
  *
- * WINDOWS ARE UNIQUE PER RUN AND SIT IN THEIR OWN CENTURY LANE. A period may
- * not overlap another on the same (mill, station type) — and station_type
- * NULL is a wildcard in BOTH directions — so every window is derived from
- * RUN_OFFSET and laid out end to end by a cursor. The epoch is the year 2800
- * rather than the 2700 used by laporan-clarification or the 2600 used by
- * laporan-cages-track / laporan-sterilizer / laporan-boiler-room: this spec
- * creates a station_type NULL period in the same mill as those do, and a
- * NULL period overlapping ANY of their windows would be refused at creation
- * time. A separate lane removes that coupling entirely. The stride between
- * runs is wider than one run's whole span because periods are cleaned up
- * afterwards and the RECORDS are not: an older run's records falling inside
- * a newer run's window would silently shift every figure above.
+ * WINDOWS ARE UNIQUE PER RUN AND SIT IN THEIR OWN DATE LANE. A period may
+ * not overlap another IN THE SAME MILL — since 2026-09-26 the overlap rule
+ * ignores the station type entirely — so every window is derived from
+ * RUN_OFFSET and laid out end to end by a cursor, and RUN_OFFSET itself is
+ * pushed into this spec's own lane by laneOffset().
+ *
+ * THE LANE IS NOT THE EPOCH ANY MORE. This header used to claim separation by
+ * century (year 2800 here against 2600 elsewhere). That separation was
+ * illusory: the day offsets themselves reach ~2.4 MILLION days (~6,500
+ * years), so all the "centuries" overlapped across years 2600-9400 and the
+ * four Business Unit A specs collided on 0.024% of seconds. The epoch is now
+ * 2600 everywhere and the real separation is arithmetic — see
+ * tests/support/period-lanes.ts.
+ *
+ * The stride between runs is still wider than one run's whole span so an
+ * older run's leftover records cannot fall inside a newer run's window and
+ * silently shift every figure above.
  *
  * CLEANUP IS MANDATORY, not tidiness. Without the deletePeriodsByPrefix()
  * call in afterAll this suite poisons itself, and that is measured rather
@@ -139,6 +147,8 @@ import { readFile } from 'node:fs/promises'
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
 import { deletePeriodsByPrefix } from './support/periods'
+import { closeStation, createPeriodViaUi, openStationRow } from './support/period-screen'
+import { laneOffset } from './support/period-lanes'
 
 const REPORT_PATH = '/reports/storage-tank'
 const PERIODS_PATH = '/master-data/periods'
@@ -147,7 +157,22 @@ const STORAGE_TANK_FORM_PATH = '/data/storage-tank/create'
 /** The mill these fixtures live in — the same one the other report specs use. */
 const BUSINESS_UNIT = 'Business Unit A'
 const STATION_TYPE = 'Storage Tank'
-const OTHER_STATION_TYPE = 'Sterilizer'
+/**
+ * The mill of the period this screen must NOT offer.
+ *
+ * WHY A MILL AND NOT A STATION TYPE ANY MORE. listPeriods() offers a period
+ * when it belongs to the caller's mill AND has a `period_stations` row for
+ * this screen's station type. Within one provisioned mill that second clause
+ * can no longer be made false from the UI: creating a period registers a row
+ * for EVERY station type the mill has, so there is no such thing as a period
+ * of this mill that skips Storage Tank. "Mill Kode Duplikat" has no active
+ * station at all, so its period gets NO station row whatsoever — it fails
+ * both clauses at once, and it is the only browser-reachable shape of "a
+ * period that does not cover this station type". The station-row clause on
+ * its own is asserted where it can be produced directly, in
+ * backend/tests/Feature/Api/LaporanStorageTankTest.php.
+ */
+const OTHER_MILL = 'Mill Kode Duplikat'
 
 const SUPERVISOR = 'supervisor01'
 const MILL_MANAGEMENT = 'millmanagement-a'
@@ -172,19 +197,27 @@ const OPERATOR = 'operator01'
  * The modulus keeps the resulting year inside four digits, which
  * Date#toISOString() requires.
  */
-const RUN_OFFSET = (Math.floor(Date.now() / 1000) % 20000) * 120
+/**
+ * LAJUR TANGGAL SPEC INI. Offset mentah di bawah tetap seperti semula —
+ * stride-nya dipilih demi keperluan spec ini sendiri — lalu laneOffset()
+ * menggesernya ke lajur yang tidak dipakai spec lain. Sejak aturan tumpang
+ * tindih periode menjadi PER MILL (2026-09-26), spec-spec yang berbagi satu
+ * mill tidak boleh lagi memakai rentang tanggal yang sama; alasan lengkap dan
+ * aritmetikanya ada di tests/support/period-lanes.ts.
+ */
+const RUN_OFFSET = laneOffset((Math.floor(Date.now() / 1000) % 20000) * 120, 'storage-tank')
 
 /** Name prefix every period of this spec carries — also the cleanup key. */
 const PERIOD_PREFIX = 'Storage Tank '
 
 /**
- * Year 2800, NOT the 2700 laporan-clarification uses nor the 2600 of the
- * other three station-report specs — see the file header: this spec creates
- * a station_type NULL period in the same mill, and a NULL period is an
- * overlap wildcard in both directions.
+ * Year 2600, the SAME epoch every period-seeding spec uses. Separation from
+ * the other specs comes from laneOffset() (tests/support/period-lanes.ts),
+ * not from the epoch — see the file header for why a century was never wide
+ * enough to separate anything here.
  */
 function isoDate(dayOffset: number): string {
-  return new Date(Date.UTC(2800, 0, 1) + dayOffset * 86400000).toISOString().slice(0, 10)
+  return new Date(Date.UTC(2600, 0, 1) + dayOffset * 86400000).toISOString().slice(0, 10)
 }
 
 /** The month abbreviations the screen renders — must match the blade's map. */
@@ -206,8 +239,8 @@ function instantLabel(iso: string, slot: string): string {
  * Windows are laid out END TO END by a cursor with a two-day gap, rather
  * than at fixed slots: the windows here range from one day to twenty, and a
  * fixed spacing would have the long ones overlap their neighbours — and
- * station_type NULL (PERIOD_ALL_TYPES) has to keep clear of every other
- * window too.
+ * every window of this spec must keep clear of every other one: the overlap
+ * rule is per mill and no longer looks at the station type at all.
  *
  * The cursor starts one day AFTER RUN_OFFSET so the inclusive-range
  * scenario's "day before" record still belongs to this run's lane.
@@ -237,8 +270,8 @@ const CLOSED = nextWindow()
 const LONG = nextWindow(20)
 const INCLUSIVE = nextWindow(10)
 const EXTREME = nextWindow()
-const ALL_TYPES = nextWindow()
-const OTHER_TYPE = nextWindow()
+const WHOLE_MILL = nextWindow()
+const OTHER_MILL_WINDOW = nextWindow()
 
 const PERIOD_MAIN = `${PERIOD_PREFIX}Lengkap ${RUN_OFFSET}`
 const PERIOD_SINGLE = `${PERIOD_PREFIX}Pembacaan Tunggal ${RUN_OFFSET}`
@@ -256,8 +289,8 @@ const PERIOD_CLOSED = `${PERIOD_PREFIX}Tertutup ${RUN_OFFSET}`
 const PERIOD_LONG = `${PERIOD_PREFIX}Rekap Panjang ${RUN_OFFSET}`
 const PERIOD_INCLUSIVE = `${PERIOD_PREFIX}Rentang Inklusif ${RUN_OFFSET}`
 const PERIOD_EXTREME = `${PERIOD_PREFIX}Nilai Ekstrem ${RUN_OFFSET}`
-const PERIOD_ALL_TYPES = `${PERIOD_PREFIX}Semua Stasiun ${RUN_OFFSET}`
-const PERIOD_OTHER_TYPE = `${PERIOD_PREFIX}Jenis Lain ${RUN_OFFSET}`
+const PERIOD_WHOLE_MILL = `${PERIOD_PREFIX}Seluruh Mill ${RUN_OFFSET}`
+const PERIOD_OTHER_MILL = `${PERIOD_PREFIX}Mill Lain ${RUN_OFFSET}`
 
 /** The tanks of this run, unique per run so old records cannot blend in. */
 const TANK_SCRAMBLED = `ST-${RUN_OFFSET}-SCR`
@@ -347,40 +380,16 @@ async function resolveProductionLine(page: Page): Promise<void> {
 // Fixture builders (other screens' UI)
 // ---------------------------------------------------------------------
 
-/** #business_unit_id / #station_type are x-searchable-select comboboxes. */
-async function selectSearchable(page: Page, id: string, label: string): Promise<void> {
-  await page.locator(`#${id}`).click()
-  await page.locator(`#${id}`).fill(label)
-  await page.locator(`#${id}-listbox`).getByRole('option', { name: label, exact: true }).click()
-}
-
 async function createPeriod(
   page: Page,
-  options: { name: string; start: string; end: string; stationType: string | null },
+  options: { name: string; start: string; end: string; businessUnit?: string },
 ): Promise<void> {
-  await page.locator('[data-testid="add-period-button"]').click()
-  await selectSearchable(page, 'business_unit_id', BUSINESS_UNIT)
-
-  // Leaving the station type untouched is the "every station type" scope.
-  if (options.stationType) {
-    await selectSearchable(page, 'station_type', options.stationType)
-  }
-
-  await page.locator('#name').fill(options.name)
-  await page.locator('#start_date').fill(options.start)
-  await page.locator('#end_date').fill(options.end)
-  await page.locator('[data-testid="save-button"]').click()
-
-  await expect(page.locator('.kc-table__row', { hasText: options.name })).toBeVisible()
-}
-
-async function closePeriod(page: Page, name: string): Promise<void> {
-  const row = page.locator('.kc-table__row', { hasText: name })
-
-  await row.locator('button', { hasText: 'Tutup Periode' }).click()
-  await page.locator('[data-testid="confirm-close-button"]').click()
-
-  await expect(row.locator('.kc-badge')).toHaveText('Tertutup')
+  await createPeriodViaUi(page, {
+    businessUnit: options.businessUnit ?? BUSINESS_UNIT,
+    name: options.name,
+    start: options.start,
+    end: options.end,
+  })
 }
 
 interface SlotRow {
@@ -563,18 +572,21 @@ test.describe('Laporan Storage Tank', () => {
         [PERIOD_INCLUSIVE, INCLUSIVE],
         [PERIOD_EXTREME, EXTREME],
       ] as Array<[string, typeof MAIN]>) {
-        await createPeriod(page, { name, start: window.start, end: window.end, stationType: STATION_TYPE })
+        await createPeriod(page, { name, start: window.start, end: window.end })
       }
 
-      // station_type null — "covers every station type", so it MUST be
-      // offered by this screen's period picker.
-      await createPeriod(page, { name: PERIOD_ALL_TYPES, start: ALL_TYPES.start, end: ALL_TYPES.end, stationType: null })
-      // Another station type entirely — it must NOT be offered.
+      // Covers the whole mill, Storage Tank included — so it MUST be offered by this
+      // screen's period picker. Before 2026-09-26 this was a period with
+      // station_type NULL; the all-stations scope is now expressed by HAVING
+      // one row per station type instead.
+      await createPeriod(page, { name: PERIOD_WHOLE_MILL, start: WHOLE_MILL.start, end: WHOLE_MILL.end })
+      // Another mill, and one without a single active station — it must NOT
+      // be offered. See OTHER_MILL.
       await createPeriod(page, {
-        name: PERIOD_OTHER_TYPE,
-        start: OTHER_TYPE.start,
-        end: OTHER_TYPE.end,
-        stationType: OTHER_STATION_TYPE,
+        name: PERIOD_OTHER_MILL,
+        start: OTHER_MILL_WINDOW.start,
+        end: OTHER_MILL_WINDOW.end,
+        businessUnit: OTHER_MILL,
       })
 
       // Resolve the production line BY ID while still Admin.
@@ -820,7 +832,9 @@ test.describe('Laporan Storage Tank', () => {
       await page.context().clearCookies()
       await login(page, ADMIN, PASSWORD)
       await page.goto(PERIODS_PATH)
-      await closePeriod(page, PERIOD_CLOSED)
+      // Closing is PER STATION now: only the Storage Tank row of this period
+      // is closed, and the report must stay fully readable and exportable.
+      await closeStation(page, PERIOD_CLOSED, STATION_TYPE)
     } finally {
       await page.close()
     }
@@ -1629,29 +1643,48 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   // Scenario 27: "daftar periode hanya yang mencakup Storage Tank"
   // =====================================================================
-  test('pemilih periode: hanya periode Storage Tank dan periode semua jenis stasiun, bukan periode jenis lain', async ({ page }) => {
+  test('pemilih periode: hanya periode yang punya baris Storage Tank, bukan periode tanpa baris itu', async ({ page, browser }) => {
     await openReport(page, SUPERVISOR)
 
     const options = page.locator('[data-testid="period-select"] option')
 
     await expect(options.filter({ hasText: PERIOD_MAIN })).toHaveCount(1)
-    await expect(options.filter({ hasText: PERIOD_ALL_TYPES })).toHaveCount(1)
+    await expect(options.filter({ hasText: PERIOD_WHOLE_MILL })).toHaveCount(1)
     // A closed period is offered exactly like an open one: the period lock
     // governs writing data, not reading a report.
     await expect(options.filter({ hasText: PERIOD_CLOSED })).toHaveCount(1)
-    // A period belonging to another station type is not offered at all.
-    await expect(options.filter({ hasText: PERIOD_OTHER_TYPE })).toHaveCount(0)
+    // A period of another mill — one with no active station at all, so with
+    // no `period_stations` row either — is not offered.
+    await expect(options.filter({ hasText: PERIOD_OTHER_MILL })).toHaveCount(0)
 
     const labels = await options.allTextContents()
-    const allTypesIndex = labels.findIndex((label) => label.includes(PERIOD_ALL_TYPES))
+    const wholeMillIndex = labels.findIndex((label) => label.includes(PERIOD_WHOLE_MILL))
     const mainIndex = labels.findIndex((label) => label.includes(PERIOD_MAIN))
 
-    // Newest first: this run's latest offered window is the all-station-type
-    // one, so it leads the main period.
-    expect(allTypesIndex).toBeGreaterThanOrEqual(0)
+    // Newest first: this run's latest offered window is the whole-mill one,
+    // so it leads the main period.
+    expect(wholeMillIndex).toBeGreaterThanOrEqual(0)
     expect(mainIndex).toBeGreaterThanOrEqual(0)
-    expect(allTypesIndex).toBeLessThan(mainIndex)
-    // A NULL station type is labelled, never shown blank.
-    expect(labels[allTypesIndex]).toContain('Semua Stasiun')
+    expect(wholeMillIndex).toBeLessThan(mainIndex)
+    // The option is labelled with THIS screen's station type, never blank and
+    // never the "Semua Stasiun" wording the NULL scope used to produce —
+    // periodOption().station_type is not nullable any more.
+    expect(labels[wholeMillIndex]).toContain(STATION_TYPE)
+
+    // WHY THE PERIOD IS OFFERED, checked at the source rather than inferred:
+    // it HAS a `period_stations` row for this screen's station type. That row
+    // is what the picker's whereHas() matches, and it is visible on
+    // screen-128 once the period's station rows are expanded.
+    const adminContext = await browser.newContext()
+    const adminPage = await adminContext.newPage()
+
+    try {
+      await login(adminPage, ADMIN, PASSWORD)
+      await adminPage.goto(PERIODS_PATH)
+      const { stationId } = await openStationRow(adminPage, PERIOD_WHOLE_MILL, STATION_TYPE)
+      await expect(adminPage.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Draft')
+    } finally {
+      await adminContext.close()
+    }
   })
 })

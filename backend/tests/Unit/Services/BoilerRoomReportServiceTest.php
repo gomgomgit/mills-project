@@ -73,6 +73,7 @@ use App\Models\BoilerRoomDetail;
 use App\Models\BoilerRoomRecord;
 use App\Models\BusinessUnit;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\BoilerRoomRecordService;
@@ -1122,21 +1123,69 @@ it('aggregates in PHP over raw rows and issues no avg/sum/group by at the SQL la
 // Case 27
 // =====================================================================
 
-it('lists only periods that cover Boiler Room or every station type', function () {
+it('lists periods that cover Boiler Room, including every-station-type ones, always as the boiler-room pair', function () {
     $this->actingAs($this->supervisorA);
 
     $boilerRoom = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('boiler-room')
         ->range('2026-05-01', '2026-05-31')->named('Periode Boiler Room')->open()->create();
+    // stationType(null) tidak lagi berarti `station_type` NULL — kolom itu
+    // hilang 2026-09-25. Cakupan semua-stasiun kini berarti satu baris
+    // period_stations per jenis stasiun, dan baris 'boiler-room'-nya itulah
+    // yang membuat periode ini terpungut.
     $allTypes = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType(null)
         ->range('2026-06-01', '2026-06-30')->named('Periode Semua Stasiun')->open()->create();
     $otherType = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('sterilizer')
         ->range('2026-07-01', '2026-07-31')->named('Periode Sterilizer')->open()->create();
 
-    $ids = array_column($this->service->listPeriods(), 'id');
+    $periods = $this->service->listPeriods();
+    $ids = array_column($periods, 'id');
 
     expect($ids)->toContain((string) $boilerRoom->id);
     expect($ids)->toContain((string) $allTypes->id);
     expect($ids)->not->toContain((string) $otherType->id);
+
+    // Label 'Semua Stasiun' lenyap: setiap opsi adalah pasangan
+    // (periode, boiler-room), jadi jenis stasiunnya selalu terisi.
+    $option = collect($periods)->firstWhere('id', (string) $allTypes->id);
+
+    expect($option['station_type'])->toBe('boiler-room');
+    expect($option['station_type_label'])->toBe('Boiler Room');
+});
+
+// BARU 2026-09-26, bersama pemisahan periods/period_stations. Perilaku yang
+// DULU dijamin cabang orWhereNull('station_type') dan kini sengaja dibuang:
+// tanpa baris period_stations untuk boiler-room, sebuah periode bukan periode
+// Boiler Room, sekalipun milik mill yang sama.
+it('does NOT list a period with no period_stations row for boiler-room', function () {
+    $this->actingAs($this->supervisorA);
+
+    $otherTypesOnly = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['sterilizer', 'clarification'])
+        ->range('2026-05-01', '2026-05-31')->open()->create();
+    $noStations = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-06-01', '2026-06-30')->create();
+
+    $ids = array_column($this->service->listPeriods(), 'id');
+
+    expect($ids)->not->toContain((string) $otherTypesOnly->id);
+    expect($ids)->not->toContain((string) $noStations->id);
+});
+
+// BARU 2026-09-26. Inti pemisahan model ini, dan bentuk yang sebelumnya
+// mustahil diuji: dua jenis stasiun berstatus berbeda di periode yang sama.
+it('reports the boiler-room status, not another station type status in the same period', function () {
+    $this->actingAs($this->supervisorA);
+
+    $period = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-05-01', '2026-05-31')->named('Periode Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($period)->stationType('boiler-room')->open()->create();
+    PeriodStation::factory()->forPeriod($period)->stationType('sterilizer')->closed()->create();
+
+    $option = collect($this->service->listPeriods())->firstWhere('id', (string) $period->id);
+
+    expect($option['status'])->toBe('open');
+    expect($this->service->summary($period)['period']['status'])->toBe('open');
 });
 
 // =====================================================================

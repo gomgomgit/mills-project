@@ -9,11 +9,10 @@ use App\Exceptions\PeriodNotClosedException;
 use App\Exceptions\PeriodNotDraftException;
 use App\Exceptions\PeriodOverlapException;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Services\PeriodClosureService;
 use App\Services\PeriodService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Url;
@@ -22,33 +21,58 @@ use Livewire\Component;
 /**
  * KelolaPeriodePelaporan — screen-128--kelola-periode-pelaporan /
  * usecase-128 (CRUD) + usecase-140 (tutup & buka kembali) + usecase-144
- * (buka periode draft). Livewire web
- * screen at /master-data/periods, route name `master-data.periods`.
+ * (buka periode draft). Livewire web screen at /master-data/periods, route
+ * name `master-data.periods`.
  *
  * Reuses PeriodService and PeriodClosureService — the exact same services
  * App\Http\Controllers\Api\PeriodController uses — so the web form and the
- * API never disagree on a rule. Structure mirrors
- * App\Livewire\MasterData\KelolaProductionLine closely (a filter bar, an
- * inline delete confirmation, a modal form), with two additions this
- * screen needs and the other master-data screens do not:
+ * API never disagree on a rule.
  *
- *   1. A SECOND filter (status), alongside the Business Unit one.
- *   2. A CLOSE-CONFIRMATION MODAL. Closing a period is the one
- *      wide-blast-radius action on this screen — it locks every station
- *      record dated inside the range from input, edit AND verification —
- *      so the dialog first shows how many records in the range are still
- *      unverified (fetched on demand via PeriodClosureService::
- *      unverifiedCount(), never on the list, since it touches up to 18
- *      tables). The figure is a WARNING, not a blocker: the confirm button
- *      stays enabled whatever it says.
+ * ── WHAT 2026-09-25/26 CHANGED ON THIS SCREEN ───────────────────────────
  *
- * Reopen uses the same inline-confirmation idea as delete (confirmingReopenId)
- * rather than a modal — there is nothing to warn about, it only unlocks.
+ * A period no longer HAS a station type, a status, a closer or a closing
+ * time. It has a LIST of station rows, each with its own status, and the
+ * period only summarises them (PeriodService::toRow(): `status_summary`,
+ * `station_count`, `closed_station_count`, `is_immutable`). Three consequences
+ * shape everything below:
  *
- * STATION TYPE DROPDOWN is filled from the `station_types` master table
- * via PeriodService::stationTypeOptions(), never from a hardcoded list or
- * from App\Enums\StationType, with an empty first option labelled
- * "Semua Stasiun" standing for the NULL (all types) scope.
+ *  1. THE FORM TAKES NO STATION CHOICE. The "Jenis Stasiun" select and the
+ *     `$station_type` property are gone: create() registers every station
+ *     type active in the mill by itself, and update() backfills the ones the
+ *     mill has gained since. The Admin lost a control they used to have, so
+ *     the form SHOWS them what the period will cover instead — the preview
+ *     list built in render() from PeriodService::activeStationTypesForMill(),
+ *     never from a rule re-derived here.
+ *
+ *  2. THE LIST IS ONE PARENT ROW PER PERIOD, EXPANDABLE. A mill can have 19
+ *     station types, so rendering every station row of every period would
+ *     make the list unreadable. The parent row carries the summary, and
+ *     `$expandedPeriodIds` decides whose station rows are rendered under it.
+ *     Nothing is expanded by default; askClose()/askOpen()/askReopen() expand
+ *     the affected period so the outcome is visible where the action was.
+ *
+ *  3. CLOSE / OPEN / REOPEN ARE PER STATION, AND CARRY A period_stations id.
+ *     The three properties holding the current action's target are named
+ *     `...StationId`, and the dialogs read their labels from a snapshot of
+ *     THAT station row — so the warning can never talk about a station other
+ *     than the one being closed. askClose() reads unverifiedCount($id) and
+ *     confirmClose() passes the identical `$this->closingStationId` to
+ *     close(); there is no second id anywhere in that path to get wrong.
+ *
+ * EDIT / HAPUS ARE DRIVEN BY `is_immutable`, NOT RE-DERIVED. That flag is
+ * exactly the condition PeriodService::update()/delete() refuse on (409
+ * PERIOD_CLOSED_IMMUTABLE — at least one station closed). The buttons are
+ * rendered DISABLED rather than hidden: an Admin looking at a period with one
+ * closed station out of nineteen needs to see that editing exists and is
+ * blocked, not wonder where it went.
+ *
+ * VALIDATION HAS ONE SOURCE. This component used to mirror
+ * PeriodService::validate() in a local buildValidator(). The copy had drifted
+ * (it scoped the unique-name rule to `station_type` and added a
+ * whereNull('business_unit_id') branch the service never had), which means
+ * the form and the API could accept or refuse different input. The mirror is
+ * GONE: save() calls the service and maps its ValidationException onto this
+ * form's binding keys. One rule set, no second place to keep in step.
  *
  * Access control: route-level only. routes/web.php guards
  * /master-data/periods with 'auth' + 'role:admin' — EnsureRole::forbidden()
@@ -66,22 +90,33 @@ class KelolaPeriodePelaporan extends Component
     #[Url]
     public string $filterBusinessUnitId = '';
 
-    /** Filter status — draft | open | closed, '' = semua status. */
+    /**
+     * Filter status — draft | open | closed, '' = semua status. Matches a
+     * period that has AT LEAST ONE station in that status (see
+     * PeriodService::listPeriods()), which is why a period can appear under
+     * two different filter values.
+     */
     #[Url]
     public string $filterStatus = '';
+
+    /**
+     * Periods whose station rows are currently rendered. Collapsed is the
+     * default on purpose — see the class docblock, point 2.
+     *
+     * @var list<string>
+     */
+    public array $expandedPeriodIds = [];
 
     public bool $showForm = false;
 
     public ?string $editingId = null;
 
-    public string $business_unit_id = '';
-
     /**
-     * Kept out of $form (same reasoning as $business_unit_id): it is bound
-     * directly by x-searchable-select, and '' means the NULL all-types
-     * scope rather than a missing value.
+     * Kept out of $form because it is bound directly by x-searchable-select.
+     * Bound `.live` so the station preview under it follows the selected mill
+     * without waiting for a save.
      */
-    public string $station_type = '';
+    public string $business_unit_id = '';
 
     /** @var array<string, string> */
     public array $form = [];
@@ -94,23 +129,25 @@ class KelolaPeriodePelaporan extends Component
 
     public ?string $deleteErrorMessage = null;
 
-    public ?string $confirmingReopenId = null;
+    /** `period_stations` id of the row whose inline reopen confirmation is up. */
+    public ?string $confirmingReopenStationId = null;
 
     /**
-     * Period currently shown in the open-confirmation dialog (usecase-144).
-     * Draft → open is irreversible (there is no way back to Draft), so it
-     * gets a real dialog rather than the inline confirmation reopen uses.
+     * `period_stations` id shown in the open-confirmation dialog
+     * (usecase-144). Draft → open is irreversible (there is no way back to
+     * Draft), so it gets a real dialog rather than the inline confirmation
+     * reopen uses.
      */
-    public ?string $openingId = null;
+    public ?string $openingStationId = null;
 
-    /** @var array<string, mixed>|null snapshot of the opening period's row */
-    public ?array $openingPeriod = null;
+    /** @var array<string, mixed>|null snapshot of the opening station row */
+    public ?array $openingStation = null;
 
-    /** Period currently shown in the close-confirmation dialog. */
-    public ?string $closingId = null;
+    /** `period_stations` id shown in the close-confirmation dialog. */
+    public ?string $closingStationId = null;
 
-    /** @var array<string, mixed>|null snapshot of the closing period's row */
-    public ?array $closingPeriod = null;
+    /** @var array<string, mixed>|null snapshot of the closing station row */
+    public ?array $closingStation = null;
 
     public int $closingUnverifiedCount = 0;
 
@@ -147,69 +184,27 @@ class KelolaPeriodePelaporan extends Component
     }
 
     /**
-     * Client-side mirror of PeriodService::validate() (defense in depth —
-     * same rules, same DB-backed exists/unique lookups, so this never
-     * disagrees with the service). The overlap check is deliberately NOT
-     * mirrored: it is one query the service already owns, and duplicating
-     * it here would mean two places to keep the NULL-wildcard semantics
-     * right. A PeriodOverlapException from the service is caught in save()
-     * and surfaced as a form-level message instead.
+     * Show / hide one period's station rows. Purely presentational — it
+     * touches no data and needs no confirmation.
      */
-    protected function buildValidator(): \Illuminate\Validation\Validator
+    public function toggleExpanded(string $periodId): void
     {
-        $businessUnitId = $this->business_unit_id !== '' ? $this->business_unit_id : null;
-        $stationType = $this->station_type !== '' ? $this->station_type : null;
+        if (in_array($periodId, $this->expandedPeriodIds, true)) {
+            $this->expandedPeriodIds = array_values(
+                array_filter($this->expandedPeriodIds, fn (string $id) => $id !== $periodId)
+            );
 
-        $nameUniqueRule = Rule::unique('periods', 'name')
-            ->where(function ($query) use ($businessUnitId, $stationType) {
-                if ($businessUnitId === null) {
-                    $query->whereNull('business_unit_id');
-                } else {
-                    $query->where('business_unit_id', $businessUnitId);
-                }
-
-                return $stationType === null
-                    ? $query->whereNull('station_type')
-                    : $query->where('station_type', $stationType);
-            });
-
-        if ($this->editingId !== null) {
-            $nameUniqueRule = $nameUniqueRule->ignore($this->editingId);
+            return;
         }
 
-        $payload = [
-            'business_unit_id' => $businessUnitId,
-            'station_type' => $stationType,
-            'form' => [
-                'name' => $this->form['name'] !== '' ? $this->form['name'] : null,
-                'start_date' => $this->form['start_date'] !== '' ? $this->form['start_date'] : null,
-                'end_date' => $this->form['end_date'] !== '' ? $this->form['end_date'] : null,
-            ],
-        ];
+        $this->expandedPeriodIds[] = $periodId;
+    }
 
-        $rules = [
-            'business_unit_id' => ['required', 'string', Rule::exists('business_units', 'id')],
-            'station_type' => ['nullable', 'string', Rule::exists('station_types', 'code')],
-            'form.name' => ['required', 'string', 'max:255', $nameUniqueRule],
-            'form.start_date' => ['required', 'date'],
-            'form.end_date' => ['required', 'date', 'after_or_equal:form.start_date'],
-        ];
-
-        $messages = [
-            'business_unit_id.required' => 'Business Unit wajib dipilih.',
-            'business_unit_id.exists' => 'Business Unit yang dipilih tidak ditemukan.',
-            'station_type.exists' => 'Jenis stasiun yang dipilih tidak ditemukan.',
-            'form.name.required' => 'Nama Periode wajib diisi.',
-            'form.name.max' => 'Nama Periode maksimal 255 karakter.',
-            'form.name.unique' => 'Nama Periode sudah digunakan pada Business Unit dan jenis stasiun ini.',
-            'form.start_date.required' => 'Tanggal Mulai wajib diisi.',
-            'form.start_date.date' => 'Tanggal Mulai tidak valid.',
-            'form.end_date.required' => 'Tanggal Selesai wajib diisi.',
-            'form.end_date.date' => 'Tanggal Selesai tidak valid.',
-            'form.end_date.after_or_equal' => 'Tanggal Selesai tidak boleh lebih awal dari Tanggal Mulai.',
-        ];
-
-        return Validator::make($payload, $rules, $messages);
+    protected function expand(?string $periodId): void
+    {
+        if ($periodId !== null && ! in_array($periodId, $this->expandedPeriodIds, true)) {
+            $this->expandedPeriodIds[] = $periodId;
+        }
     }
 
     public function openCreateForm(): void
@@ -217,7 +212,6 @@ class KelolaPeriodePelaporan extends Component
         $this->resetValidation();
         $this->editingId = null;
         $this->business_unit_id = '';
-        $this->station_type = '';
         $this->form = $this->emptyForm();
         $this->formErrorMessage = null;
         $this->successMessage = null;
@@ -225,9 +219,9 @@ class KelolaPeriodePelaporan extends Component
     }
 
     /**
-     * "Edit" row action. A closed period may not be edited at all — the
-     * table does not render the button for one, and this second guard
-     * keeps a forged/stale call from even opening the form (the service
+     * "Edit" row action. A period with at least one CLOSED station may not be
+     * edited — the table renders the button disabled for one, and this second
+     * guard keeps a forged/stale call from even opening the form (the service
      * would refuse the save anyway with PERIOD_CLOSED_IMMUTABLE).
      */
     public function openEditForm(string $id): void
@@ -240,7 +234,7 @@ class KelolaPeriodePelaporan extends Component
             return;
         }
 
-        if ($this->statusValue($period) === PeriodStatus::Closed->value) {
+        if ($this->hasClosedStation($period)) {
             $this->deleteErrorMessage = (new PeriodClosedImmutableException)->getMessage();
 
             return;
@@ -251,7 +245,6 @@ class KelolaPeriodePelaporan extends Component
         $this->successMessage = null;
         $this->editingId = $period->id;
         $this->business_unit_id = (string) $period->business_unit_id;
-        $this->station_type = (string) ($period->station_type ?? '');
 
         $this->form = [
             'name' => (string) ($period->name ?? ''),
@@ -267,7 +260,6 @@ class KelolaPeriodePelaporan extends Component
         $this->showForm = false;
         $this->editingId = null;
         $this->business_unit_id = '';
-        $this->station_type = '';
         $this->form = $this->emptyForm();
         $this->formErrorMessage = null;
         $this->resetValidation();
@@ -275,6 +267,11 @@ class KelolaPeriodePelaporan extends Component
 
     /**
      * "Simpan" — create or update, per whether $editingId is set.
+     *
+     * NO CLIENT-SIDE MIRROR OF THE RULES (see the class docblock): the
+     * service validates, and its ValidationException is remapped onto this
+     * form's binding keys below, so the field-level errors under each input
+     * are the service's own verdict rather than a second opinion.
      *
      * Every failure path deliberately LEAVES THE MODAL OPEN with the
      * Admin's input intact (the screen's test_scenarios assert exactly
@@ -285,14 +282,12 @@ class KelolaPeriodePelaporan extends Component
     {
         $this->formErrorMessage = null;
         $this->successMessage = null;
-
-        $this->buildValidator()->validate();
+        $this->resetValidation();
 
         $service = app(PeriodService::class);
 
         $payload = [
             'business_unit_id' => $this->business_unit_id,
-            'station_type' => $this->station_type,
             'name' => $this->form['name'],
             'start_date' => $this->form['start_date'],
             'end_date' => $this->form['end_date'],
@@ -312,7 +307,8 @@ class KelolaPeriodePelaporan extends Component
 
             return;
         } catch (PeriodClosedImmutableException $e) {
-            // Closed by another Admin while this form was open.
+            // A station of this period was closed by another Admin while
+            // this form was open.
             $this->formErrorMessage = $e->getMessage();
 
             return;
@@ -324,12 +320,11 @@ class KelolaPeriodePelaporan extends Component
 
             return;
         } catch (ValidationException $e) {
-            // Server-side re-validation caught something the client-side
-            // mirror missed (e.g. a race with another Admin's create).
-            // Remapped from the service's plain field keys onto this
-            // form's binding keys.
+            // The service's plain field keys remapped onto this form's
+            // binding keys: `business_unit_id` is a top-level property,
+            // everything else lives under `form.`.
             foreach ($e->errors() as $field => $messages) {
-                $key = in_array($field, ['business_unit_id', 'station_type'], true) ? $field : "form.$field";
+                $key = $field === 'business_unit_id' ? $field : "form.$field";
                 $this->addError($key, $messages[0] ?? 'Validasi gagal.');
             }
 
@@ -343,7 +338,6 @@ class KelolaPeriodePelaporan extends Component
         $this->showForm = false;
         $this->editingId = null;
         $this->business_unit_id = '';
-        $this->station_type = '';
         $this->form = $this->emptyForm();
         $this->resetValidation();
     }
@@ -362,8 +356,8 @@ class KelolaPeriodePelaporan extends Component
 
     /**
      * Confirming the delete — 404 (already gone) and 409
-     * PERIOD_CLOSED_IMMUTABLE (closed) both surface inline and leave the
-     * row in place; only a clean delete removes it.
+     * PERIOD_CLOSED_IMMUTABLE (a station is closed) both surface inline and
+     * leave the row in place; only a clean delete removes it.
      */
     public function confirmDelete(): void
     {
@@ -386,127 +380,130 @@ class KelolaPeriodePelaporan extends Component
     }
 
     /**
-     * "Tutup Periode" — opens the confirmation dialog and fetches the
-     * unverified-record figure for the range. The figure is fetched HERE
-     * (not on the list) because it touches up to 18 record tables; the
-     * cost is only paid when an Admin actually intends to close.
+     * "Tutup Stasiun" — opens the confirmation dialog for ONE station row and
+     * fetches the unverified-record figure FOR THAT STATION TYPE only. The
+     * figure is fetched HERE (not on the list) because it touches a station
+     * record table; the cost is only paid when an Admin actually intends to
+     * close.
+     *
+     * $periodStationId is a `period_stations` id — the `stations[].id` of
+     * PeriodService::toRow(). It is stored verbatim and handed to
+     * PeriodClosureService::close() unchanged by confirmClose(), so the
+     * number in the warning and the row that gets closed are the same row by
+     * construction.
      */
-    public function askClose(string $id): void
+    public function askClose(string $periodStationId): void
     {
         $this->closeErrorMessage = null;
         $this->successMessage = null;
         $this->confirmingDeleteId = null;
-        $this->confirmingReopenId = null;
+        $this->confirmingReopenStationId = null;
 
-        $service = app(PeriodService::class);
+        $station = $this->findStationForDialog($periodStationId);
 
-        try {
-            $period = Period::with(['businessUnit', 'closedBy'])->findOrFail($id);
-            $result = app(PeriodClosureService::class)->unverifiedCount($id);
-        } catch (ModelNotFoundException) {
-            $this->closingId = null;
-            $this->closingPeriod = null;
-            $this->deleteErrorMessage = 'Periode tidak ditemukan, mungkin sudah dihapus.';
+        if ($station === null) {
+            $this->closingStationId = null;
+            $this->closingStation = null;
+            $this->deleteErrorMessage = 'Stasiun periode tidak ditemukan, mungkin sudah dihapus.';
 
             return;
         }
 
-        $this->closingId = $id;
-        $this->closingPeriod = [
-            'id' => $period->id,
-            'name' => $period->name,
-            'business_unit_name' => optional($period->businessUnit)->name,
-            'station_type_label' => $service->stationTypeLabel($period->station_type),
-            'start_date' => optional($period->start_date)->toDateString(),
-            'end_date' => optional($period->end_date)->toDateString(),
-        ];
+        $result = app(PeriodClosureService::class)->unverifiedCount($periodStationId);
+
+        $this->closingStationId = $periodStationId;
+        $this->closingStation = $this->stationSnapshot($station);
         $this->closingUnverifiedCount = (int) $result['unverified_count'];
         $this->closingBreakdown = $result['breakdown'];
+        $this->expand($station->period_id);
     }
 
     public function cancelClose(): void
     {
-        $this->closingId = null;
-        $this->closingPeriod = null;
+        $this->closingStationId = null;
+        $this->closingStation = null;
         $this->closingUnverifiedCount = 0;
         $this->closingBreakdown = [];
         $this->closeErrorMessage = null;
     }
 
     /**
-     * "Ya, Tutup Periode". The unverified count NEVER blocks this — it is
+     * "Ya, Tutup Stasiun". The unverified count NEVER blocks this — it is
      * shown so the Admin decides knowingly, exactly as the business spec's
      * edge case requires.
      *
      * A 409 PERIOD_ALREADY_CLOSED here means another Admin closed the same
-     * period first: the dialog closes, their name and time are surfaced,
+     * STATION first: the dialog closes, their name and time are surfaced,
      * and the next render() shows the list with THEIR closure recorded —
      * this Admin's action had no effect and must not appear to have had
-     * one.
+     * one. Every other station row of that period is untouched either way.
      */
     public function confirmClose(): void
     {
-        if ($this->closingId === null) {
+        if ($this->closingStationId === null) {
             return;
         }
 
         try {
-            app(PeriodClosureService::class)->close($this->closingId);
-            $this->successMessage = 'Periode berhasil ditutup.';
+            app(PeriodClosureService::class)->close($this->closingStationId);
+            $this->successMessage = 'Stasiun periode berhasil ditutup.';
             $this->closeErrorMessage = null;
         } catch (PeriodAlreadyClosedException $e) {
             $this->closeErrorMessage = $e->getMessage();
         } catch (ModelNotFoundException) {
-            $this->closeErrorMessage = 'Periode tidak ditemukan, mungkin sudah dihapus.';
+            $this->closeErrorMessage = 'Stasiun periode tidak ditemukan, mungkin sudah dihapus.';
         }
 
-        $this->closingId = null;
-        $this->closingPeriod = null;
+        $this->closingStationId = null;
+        $this->closingStation = null;
         $this->closingUnverifiedCount = 0;
         $this->closingBreakdown = [];
     }
 
-    public function askReopen(string $id): void
+    public function askReopen(string $periodStationId): void
     {
-        $this->confirmingReopenId = $id;
+        $this->confirmingReopenStationId = $periodStationId;
         $this->closeErrorMessage = null;
         $this->successMessage = null;
+
+        $station = PeriodStation::query()->find($periodStationId);
+        $this->expand($station?->period_id);
     }
 
     public function cancelReopen(): void
     {
-        $this->confirmingReopenId = null;
+        $this->confirmingReopenStationId = null;
     }
 
     /**
-     * Confirming the reopen — clears closed_by/closed_at and unlocks the
-     * range again. 409 PERIOD_NOT_CLOSED (someone reopened it first)
-     * surfaces inline rather than throwing.
+     * Confirming the reopen of ONE station — clears its closed_by/closed_at
+     * and unlocks that station type's records again. 409 PERIOD_NOT_CLOSED
+     * (someone reopened it first) surfaces inline rather than throwing.
      */
     public function confirmReopen(): void
     {
-        if ($this->confirmingReopenId === null) {
+        if ($this->confirmingReopenStationId === null) {
             return;
         }
 
         try {
-            app(PeriodClosureService::class)->reopen($this->confirmingReopenId);
-            $this->successMessage = 'Periode berhasil dibuka kembali.';
+            app(PeriodClosureService::class)->reopen($this->confirmingReopenStationId);
+            $this->successMessage = 'Stasiun periode berhasil dibuka kembali.';
             $this->closeErrorMessage = null;
         } catch (PeriodNotClosedException $e) {
             $this->closeErrorMessage = $e->getMessage();
         } catch (ModelNotFoundException) {
-            $this->closeErrorMessage = 'Periode tidak ditemukan, mungkin sudah dihapus.';
+            $this->closeErrorMessage = 'Stasiun periode tidak ditemukan, mungkin sudah dihapus.';
         }
 
-        $this->confirmingReopenId = null;
+        $this->confirmingReopenStationId = null;
     }
 
     /**
-     * "Buka Periode" — usecase-144. Only offered on a DRAFT row (the table
-     * renders the button for no other status), and the dialog it opens
-     * spells out that the step cannot be undone: the status cycle runs
-     * draft -> open -> closed, with no way back to draft.
+     * "Buka Stasiun" — usecase-144, per station row. Only offered on a DRAFT
+     * station (the table renders the button for no other status), and the
+     * dialog it opens spells out that the step cannot be undone: the status
+     * cycle runs draft -> open -> closed, with no way back to draft.
      *
      * Deliberately does NOT re-check the status here. The authoritative
      * refusal lives in PeriodClosureService::open()'s conditional UPDATE,
@@ -515,66 +512,60 @@ class KelolaPeriodePelaporan extends Component
      * meantime simply opens the dialog with no snapshot and fails on
      * confirm with "tidak ditemukan".
      */
-    public function askOpen(string $id): void
+    public function askOpen(string $periodStationId): void
     {
         $this->closeErrorMessage = null;
         $this->successMessage = null;
         $this->confirmingDeleteId = null;
-        $this->confirmingReopenId = null;
+        $this->confirmingReopenStationId = null;
 
-        $this->openingId = $id;
-        $this->openingPeriod = null;
+        $this->openingStationId = $periodStationId;
+        $this->openingStation = null;
 
-        $period = Period::with('businessUnit')->find($id);
+        $station = $this->findStationForDialog($periodStationId);
 
-        if ($period !== null) {
-            $this->openingPeriod = [
-                'id' => $period->id,
-                'name' => $period->name,
-                'business_unit_name' => optional($period->businessUnit)->name,
-                'station_type_label' => app(PeriodService::class)->stationTypeLabel($period->station_type),
-                'start_date' => optional($period->start_date)->toDateString(),
-                'end_date' => optional($period->end_date)->toDateString(),
-            ];
+        if ($station !== null) {
+            $this->openingStation = $this->stationSnapshot($station);
+            $this->expand($station->period_id);
         }
     }
 
     public function cancelOpen(): void
     {
-        $this->openingId = null;
-        $this->openingPeriod = null;
+        $this->openingStationId = null;
+        $this->openingStation = null;
         $this->closeErrorMessage = null;
     }
 
     /**
-     * "Ya, Buka Periode". Touches the period status and nothing else — no
-     * station record is read, validated or changed here, unlike
+     * "Ya, Buka Stasiun". Touches that station row's status and nothing else
+     * — no station record is read, validated or changed here, unlike
      * confirmClose() which first surfaces an unverified-record count.
      *
-     * A 409 PERIOD_NOT_DRAFT means the period was not draft after all
+     * A 409 PERIOD_NOT_DRAFT means the station was not draft after all
      * (already open, already closed, or opened by another Admin a moment
      * earlier). The service's message distinguishes those cases — in
-     * particular a closed period is pointed at "Buka Kembali Periode" —
-     * so it is surfaced verbatim, inline, exactly as reopen does.
+     * particular a closed station is pointed at "Buka Kembali" — so it is
+     * surfaced verbatim, inline, exactly as reopen does.
      */
     public function confirmOpen(): void
     {
-        if ($this->openingId === null) {
+        if ($this->openingStationId === null) {
             return;
         }
 
         try {
-            app(PeriodClosureService::class)->open($this->openingId);
-            $this->successMessage = 'Periode berhasil dibuka.';
+            app(PeriodClosureService::class)->open($this->openingStationId);
+            $this->successMessage = 'Stasiun periode berhasil dibuka.';
             $this->closeErrorMessage = null;
         } catch (PeriodNotDraftException $e) {
             $this->closeErrorMessage = $e->getMessage();
         } catch (ModelNotFoundException) {
-            $this->closeErrorMessage = 'Periode tidak ditemukan, mungkin sudah dihapus.';
+            $this->closeErrorMessage = 'Stasiun periode tidak ditemukan, mungkin sudah dihapus.';
         }
 
-        $this->openingId = null;
-        $this->openingPeriod = null;
+        $this->openingStationId = null;
+        $this->openingStation = null;
     }
 
     public function nextPage(): void
@@ -589,11 +580,81 @@ class KelolaPeriodePelaporan extends Component
         }
     }
 
-    protected function statusValue(Period $period): ?string
+    /**
+     * The exact condition PeriodService::update()/delete() refuse on. Read
+     * from `period_stations` with the table-qualified column, the only
+     * spelling PeriodQueryBuilder allows for a name that used to live on
+     * `periods`.
+     */
+    protected function hasClosedStation(Period $period): bool
     {
-        return $period->status instanceof PeriodStatus
-            ? $period->status->value
-            : $period->status;
+        return $period->stations()
+            ->where('period_stations.status', PeriodStatus::Closed->value)
+            ->exists();
+    }
+
+    protected function findStationForDialog(string $periodStationId): ?PeriodStation
+    {
+        return PeriodStation::query()
+            ->with(['period.businessUnit', 'stationTypeRef'])
+            ->find($periodStationId);
+    }
+
+    /**
+     * Everything a close/open dialog needs to name WHAT it is about to
+     * change: the station type first, then the period it sits in. The
+     * station's own id is carried along so a reader of the snapshot can see
+     * it is a `period_stations` id and not a period one.
+     *
+     * @return array<string, mixed>
+     */
+    protected function stationSnapshot(PeriodStation $station): array
+    {
+        return [
+            'period_station_id' => $station->id,
+            'period_id' => $station->period_id,
+            'station_type' => $station->station_type,
+            'station_type_label' => optional($station->stationTypeRef)->name ?? $station->station_type,
+            'period_name' => optional($station->period)->name,
+            'business_unit_name' => optional(optional($station->period)->businessUnit)->name,
+            'start_date' => optional(optional($station->period)->start_date)->toDateString(),
+            'end_date' => optional(optional($station->period)->end_date)->toDateString(),
+        ];
+    }
+
+    /**
+     * The station types the period being edited/created will cover, for the
+     * form's preview. Derived from PeriodService::activeStationTypesForMill()
+     * — the same call create() and update()'s backfill use — never from a
+     * rule spelled out again here.
+     *
+     * `is_new` marks a type that has no row yet: on a create that is all of
+     * them, on an edit it is exactly what update()'s backfill will add.
+     *
+     * @param  array<string, string>  $labels  code => name
+     * @return list<array{code: string, label: string, is_new: bool}>
+     */
+    protected function stationPreview(PeriodService $service, array $labels): array
+    {
+        if (! $this->showForm || $this->business_unit_id === '') {
+            return [];
+        }
+
+        $existing = $this->editingId !== null
+            ? PeriodStation::query()
+                ->where('period_id', $this->editingId)
+                ->pluck('station_type')
+                ->all()
+            : [];
+
+        return array_map(
+            fn (string $code) => [
+                'code' => $code,
+                'label' => $labels[$code] ?? $code,
+                'is_new' => ! in_array($code, $existing, true),
+            ],
+            $service->activeStationTypesForMill($this->business_unit_id)
+        );
     }
 
     public function render()
@@ -607,18 +668,18 @@ class KelolaPeriodePelaporan extends Component
             $this->filterStatus !== '' ? $this->filterStatus : null
         );
 
-        $stationTypeOptions = $service->stationTypeOptions();
+        // code => name, so the close dialog's breakdown and the form's
+        // station preview can render a human label without a second query.
+        $stationTypeLabels = collect($service->stationTypeOptions())
+            ->mapWithKeys(fn (array $option) => [$option['code'] => $option['name']])
+            ->all();
 
         return view('livewire.master-data.kelola-periode-pelaporan', [
             'periods' => $result['data'],
             'meta' => $result['meta'],
             'businessUnitOptions' => $service->businessUnitOptions(),
-            'stationTypeOptions' => $stationTypeOptions,
-            // code => name, so the close dialog's breakdown can render a
-            // human label per station type without a second query.
-            'stationTypeLabels' => collect($stationTypeOptions)
-                ->mapWithKeys(fn (array $option) => [$option['code'] => $option['name']])
-                ->all(),
+            'stationTypeLabels' => $stationTypeLabels,
+            'stationPreview' => $this->stationPreview($service, $stationTypeLabels),
         ]);
     }
 }

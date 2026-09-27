@@ -53,6 +53,7 @@ use App\Models\BoilerRoomDetail;
 use App\Models\BoilerRoomRecord;
 use App\Models\BusinessUnit;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\BoilerRoomRecordService;
@@ -591,7 +592,7 @@ it('baca saja: no write-flavoured control anywhere, and rendering changes not on
 // =====================================================================
 // Scenario 16: "daftar periode hanya yang mencakup Boiler Room"
 // =====================================================================
-it('pemilih periode: Boiler Room and all-station-types are offered, another station type is not', function () {
+it('pemilih periode: hanya periode yang punya baris period_stations boiler-room yang ditawarkan', function () {
     $allTypes = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType(null)
         ->range('2026-06-01', '2026-06-30')->named('Periode Semua Stasiun')->open()->create();
     $otherType = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('sterilizer')
@@ -612,9 +613,52 @@ it('pemilih periode: Boiler Room and all-station-types are offered, another stat
             && ! in_array((string) $otherType->id, $ids, true);
     });
 
-    // Newest first, and a NULL station type is labelled rather than blank.
+    // Newest first. Periode 'Semua Stasiun' dibuat dengan stationType(null),
+    // yang sejak 2026-09-25 berarti "satu baris period_stations per jenis
+    // stasiun" — bukan station_type NULL. Setiap opsi karena itu berlabel jenis
+    // stasiun layar ini; label bersama 'Semua Stasiun' sudah tidak ada.
     expect($component->viewData('periods')[0]['id'])->toBe((string) $allTypes->id);
-    expect($component->viewData('periods')[0]['station_type_label'])->not->toBe('');
+    expect($component->viewData('periods')[0]['station_type'])->toBe('boiler-room');
+    expect($component->viewData('periods')[0]['station_type_label'])->toBe('Boiler Room');
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): periode tanpa baris period_stations untuk
+// boiler-room tidak ditawarkan — perilaku yang DULU dijamin cabang
+// orWhereNull('station_type') dan kini sengaja dibuang.
+// =====================================================================
+it('pemilih periode: periode tanpa baris boiler-room tidak ditawarkan', function () {
+    Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['sterilizer', 'clarification'])
+        ->range('2026-06-01', '2026-06-30')->named('Periode Tanpa Boiler')->open()->create();
+    Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-07-01', '2026-07-31')->named('Periode Tanpa Stasiun')->create();
+
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class)
+        ->assertSee('Periode Maret Alpha')
+        ->assertDontSee('Periode Tanpa Boiler')
+        ->assertDontSee('Periode Tanpa Stasiun');
+
+    expect(array_column($component->viewData('periods'), 'id'))
+        ->toBe([(string) $this->periodA->id]);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): status opsi memakai status boiler-room, bukan
+// status stasiun lain di periode yang sama.
+// =====================================================================
+it('pemilih periode: status opsi memakai status boiler-room, bukan status stasiun lain', function () {
+    $mixed = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-06-01', '2026-06-30')->named('Periode Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($mixed)->stationType('boiler-room')->open()->create();
+    PeriodStation::factory()->forPeriod($mixed)->stationType('sterilizer')->closed()->create();
+
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class);
+
+    $option = collect($component->viewData('periods'))->firstWhere('id', (string) $mixed->id);
+
+    expect($option['status'])->toBe('open');
 });
 
 // =====================================================================

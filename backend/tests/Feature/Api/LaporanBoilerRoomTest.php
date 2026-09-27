@@ -62,6 +62,7 @@ use App\Models\BoilerRoomDetail;
 use App\Models\BoilerRoomRecord;
 use App\Models\BusinessUnit;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\StationType;
 use App\Models\User;
@@ -835,7 +836,7 @@ it('baca saja: repeated summary calls change nothing and no write verb is routed
 // =====================================================================
 // Scenario 16: "daftar periode hanya yang mencakup Boiler Room"
 // =====================================================================
-it('daftar periode: Boiler Room and all-station-types are offered, another station type is not', function () {
+it('daftar periode: hanya yang punya baris period_stations boiler-room yang ditawarkan', function () {
     $allTypes = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType(null)
         ->range('2026-06-01', '2026-06-30')->named('Periode Semua Stasiun')->open()->create();
     $otherType = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('sterilizer')
@@ -850,11 +851,57 @@ it('daftar periode: Boiler Room and all-station-types are offered, another stati
     expect($ids)->toContain((string) $allTypes->id);
     expect($ids)->not->toContain((string) $otherType->id);
 
-    // Newest first, and a NULL station type is labelled rather than blank.
+    // Newest first.
     expect($ids[0])->toBe((string) $allTypes->id);
+
+    // KONTRAK API TETAP DATAR setelah pemisahan periods/period_stations
+    // (2026-09-25): stationType(null) kini berarti "satu baris per jenis
+    // stasiun", jadi opsi ini adalah pasangan (periode, boiler-room) —
+    // station_type selalu terisi dan label 'Semua Stasiun' sudah tidak ada.
     $all = collect($periods->json('data'))->firstWhere('id', (string) $allTypes->id);
-    expect($all['station_type'])->toBeNull();
-    expect($all['station_type_label'])->not->toBe('');
+    expect($all['station_type'])->toBe('boiler-room');
+    expect($all['station_type_label'])->toBe('Boiler Room');
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): periode tanpa baris period_stations untuk
+// boiler-room tidak boleh muncul — perilaku yang DULU dijamin cabang
+// orWhereNull('station_type') pada listPeriods() dan kini sengaja dibuang.
+// Cakupan "semua stasiun" hanya ada lewat ADANYA baris per jenis stasiun.
+// =====================================================================
+it('daftar periode: periode tanpa baris boiler-room tidak ditawarkan', function () {
+    $otherTypesOnly = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['sterilizer', 'clarification'])
+        ->range('2026-05-01', '2026-05-31')->named('Periode Tanpa Boiler Room')->open()->create();
+    $noStations = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-06-01', '2026-06-30')->named('Periode Tanpa Stasiun')->create();
+
+    $periods = $this->actingAs($this->supervisor, 'web')->getJson('/api/boiler-room-reports/periods');
+    $periods->assertOk();
+
+    $ids = collect($periods->json('data'))->pluck('id')->all();
+
+    expect($ids)->not->toContain((string) $otherTypesOnly->id);
+    expect($ids)->not->toContain((string) $noStations->id);
+});
+
+// =====================================================================
+// Scenario (BARU 2026-09-26): status yang dilaporkan adalah status STASIUN
+// INI di dalam periode itu, bukan status periode — periode tidak punya status
+// lagi. Bentuk ini (Boiler Room terbuka sementara Sterilizer tertutup di periode
+// yang sama) sebelumnya mustahil dinyatakan.
+// =====================================================================
+it('daftar periode: status yang ditampilkan adalah status boiler-room, bukan status stasiun lain di periode yang sama', function () {
+    $period = Period::factory()->forBusinessUnit($this->businessUnitA)
+        ->noStations()->range('2026-05-01', '2026-05-31')->named('Periode Campuran')->create();
+
+    PeriodStation::factory()->forPeriod($period)->stationType('boiler-room')->open()->create();
+    PeriodStation::factory()->forPeriod($period)->stationType('sterilizer')->closed()->create();
+
+    $periods = $this->actingAs($this->supervisor, 'web')->getJson('/api/boiler-room-reports/periods');
+    $periods->assertOk();
+
+    expect(collect($periods->json('data'))->firstWhere('id', (string) $period->id)['status'])->toBe('open');
 });
 
 // =====================================================================

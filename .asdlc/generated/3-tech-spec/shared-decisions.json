@@ -1,8 +1,8 @@
 {
-  "ver": 5,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-22"
+    "updated_at": "2026-09-25"
   },
   "auth": {
     "mechanism": "Laravel Sanctum (token-based) untuk mobile/API + Laravel session cookie untuk web (Livewire)",
@@ -30,10 +30,11 @@
     "Timestamps disimpan UTC format ISO 8601",
     "File upload (machinery picture, logo) disimpan di Laravel Filesystem local disk (on-premise), path/URL disimpan di kolom string",
     "ID entitas yang bisa dibuat offline di mobile (record stasiun) menggunakan UUID agar stabil saat sync ke server pusat",
-    "KUNCI PERIODE TERTUTUP (2026-09-22): bila sebuah Periode Pelaporan (entitas period) berstatus closed, seluruh record stasiun yang kolom date-nya jatuh di dalam [start_date, end_date] periode itu tidak boleh dibuat, diubah, maupun diverifikasi (checked_by/acknowledged_by ikut terkunci). Penentuan periode memakai record.date — tanggal kejadian di pabrik — BUKAN created_at atau waktu sync.",
+    "KUNCI PERIODE TERTUTUP (2026-09-22, bentuknya diperbarui 2026-09-25): kunci berlaku per JENIS STASIUN di dalam sebuah periode, bukan per periode. Bila baris period-station untuk (periode, jenis stasiun) berstatus closed, seluruh record stasiun jenis itu yang kolom date-nya jatuh di dalam [start_date, end_date] PERIODE INDUK tidak boleh dibuat, diubah, maupun diverifikasi (checked_by/acknowledged_by ikut terkunci). Jenis stasiun lain di periode yang sama TIDAK ikut terkunci — itulah inti pemecahan period menjadi period + period-station: stasiun tidak selesai serentak. Bentuk kuerinya JOIN induk-anak: periods p JOIN period_stations ps ON ps.period_id = p.id WHERE p.business_unit_id = ? AND ps.station_type = ? AND ps.status = 'closed' AND <record.date> BETWEEN p.start_date AND p.end_date. Penentuan periode memakai record.date — tanggal kejadian di pabrik — BUKAN created_at atau waktu sync.",
     "Penegakan kunci periode WAJIB di layer service backend pada create(), update(), dan aksi verifikasi — tidak cukup di UI. Alasannya konkret: aplikasi mobile mengirim record satu per satu langsung ke POST /api/{stasiun}-records, sehingga kunci yang hanya dipasang di layar dapat dilewati sepenuhnya.",
     "Penolakan akibat periode tertutup memakai HTTP 422 dengan code=PERIOD_CLOSED. Klien mobile WAJIB memperlakukan kode ini sebagai penolakan SEMENTARA: record tetap tertahan di antrean sync lokal, tidak dibuang, dan ikut terkirim lagi secara otomatis setelah Admin membuka kembali periode. Ini berbeda dari error validasi biasa yang menuntut perbaikan data oleh operator.",
-    "Hanya actor-admin yang boleh menutup dan membuka kembali Periode Pelaporan. Karena verifikasi ikut terkunci, layar Kelola Periode Pelaporan (screen-128) menampilkan jumlah record yang belum terverifikasi sebagai peringatan sebelum penutupan dikonfirmasi.",
-    "Laporan periode per stasiun (Full Cycle) tahap pertama mencakup 5 stasiun — Sterilizer, Cages & Tracks, Boiler Room, Clarification, Storage Tank — tetapi aturan kunci periode dirancang generik dan berlaku untuk seluruh 18 stasiun sejak awal, bukan hanya kelima stasiun tersebut."
+    "Hanya actor-admin yang boleh menutup dan membuka kembali stasiun di dalam Periode Pelaporan. Sejak 2026-09-25 aksi tutup/buka bertarget (periode, jenis stasiun), bukan periode utuh: satu periode dapat berisi stasiun yang sudah tertutup dan stasiun yang masih terbuka pada saat yang sama. Karena verifikasi ikut terkunci, layar Kelola Periode Pelaporan (screen-128) menampilkan jumlah record yang belum terverifikasi UNTUK JENIS STASIUN YANG AKAN DITUTUP sebagai peringatan sebelum penutupan dikonfirmasi — bukan jumlah se-periode, yang akan menghitung stasiun yang tidak terdampak aksi itu.",
+    "Laporan periode per stasiun (Full Cycle) tahap pertama mencakup 5 stasiun — Sterilizer, Cages & Tracks, Boiler Room, Clarification, Storage Tank — tetapi aturan kunci periode dirancang generik dan berlaku untuk seluruh 18 stasiun sejak awal, bukan hanya kelima stasiun tersebut.",
+    "PERIODE ADALAH INDUK TANPA STATUS (2026-09-25). Entitas period tidak lagi punya kolom status, station_type, closed_by, maupun closed_at — semuanya pindah ke period-station. Konsekuensi yang wajib dijaga di setiap layer: kode yang menolak aksi lewat perbandingan status periode === 'closed' akan diam-diam berhenti bekerja pada ORM yang mengembalikan null untuk atribut yang tidak ada (Eloquent), TANPA satu baris pun gagal kompilasi dan tanpa exception. Model period WAJIB memasang penjaga eksplisit yang melempar exception bila status dibaca dari induk. Aturan turunannya: periode tidak boleh diubah maupun dihapus bila ADA satu saja stasiunnya yang berstatus closed."
   ]
 }

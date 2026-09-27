@@ -15,6 +15,15 @@ use Illuminate\Http\Request;
  * (usecase-128) plus unverifiedCount() / close() / reopen()
  * (usecase-140) and open() (usecase-144).
  *
+ * TWO RESOURCES, TWO URL PREFIXES (2026-09-26). The first five actions are
+ * about a PERIOD and live under /api/periods. The last four are about ONE
+ * STATION INSIDE a period and live under /api/period-stations/{id}/... — they
+ * take a `period_stations` id, the `stations[].id` of
+ * PeriodService::toRow(), and they would 404 on a period id. They used to sit
+ * under /api/periods/{id}/... , which made the path claim the opposite of what
+ * the handler does: every reader had to be told that {id} there was not a
+ * period. A URL that has to be explained is a URL that will be misused.
+ *
  * All validation and business logic is delegated to PeriodService and
  * PeriodClosureService — the exact same services the Livewire component
  * (App\Livewire\MasterData\KelolaPeriodePelaporan) calls, so web and API
@@ -27,16 +36,23 @@ use Illuminate\Http\Request;
  * not perform even though the reports they drive are Mill Management's.
  *
  * FIELDS — every Period field this screen's create/update forms accept
- * from the request. `status`, `closed_by`, `closed_at` and `created_by`
- * are never taken from the request: status starts at 'draft' and only ever
- * changes through close()/reopen(), and the actor is always resolved from
- * the session.
+ * from the request. `created_by`/`updated_by` are never taken from the
+ * request (the actor is always resolved from the session), and
+ * `status`/`closed_by`/`closed_at` are not Period fields at all any more —
+ * they live on `period_stations`, one set per station type, and only ever
+ * change through close()/reopen()/open().
  */
 class PeriodController extends Controller
 {
+    /**
+     * `station_type` IS NOT ONE OF THEM ANY MORE (2026-09-25). A period takes
+     * no station choice: PeriodService::create() derives its station rows from
+     * the mill's own inventory and update() backfills the ones added since. A
+     * `station_type` key sent by a stale client is simply not forwarded, so it
+     * neither takes effect nor 422s.
+     */
     protected const FIELDS = [
         'business_unit_id',
-        'station_type',
         'name',
         'start_date',
         'end_date',
@@ -86,7 +102,8 @@ class PeriodController extends Controller
 
     /**
      * store() — POST /api/periods. Validation → PERIOD_OVERLAP check →
-     * INSERT with status='draft'. 201 Created, mirroring
+     * INSERT the period AND one `period_stations` row per station type active
+     * in that mill, all status='draft'. 201 Created, mirroring
      * ProductionLineController::store().
      */
     public function store(Request $request): JsonResponse
@@ -98,8 +115,10 @@ class PeriodController extends Controller
 
     /**
      * update() — PATCH /api/periods/{id}. 404 if unknown, 409
-     * PERIOD_CLOSED_IMMUTABLE if already closed, then the same validation
-     * and overlap check as store() with this row excluded.
+     * PERIOD_CLOSED_IMMUTABLE if at least one of its stations is closed, then
+     * the same validation and overlap check as store() with this row
+     * excluded, and finally the station-row backfill (see
+     * PeriodService::update()).
      */
     public function update(Request $request, string $id): JsonResponse
     {
@@ -110,7 +129,8 @@ class PeriodController extends Controller
 
     /**
      * destroy() — DELETE /api/periods/{id}. 404 if unknown, 409
-     * PERIOD_CLOSED_IMMUTABLE if closed, else delete.
+     * PERIOD_CLOSED_IMMUTABLE if at least one of its stations is closed, else
+     * delete (the station rows go with it — cascadeOnDelete).
      */
     public function destroy(string $id): JsonResponse
     {
@@ -120,44 +140,49 @@ class PeriodController extends Controller
     }
 
     /**
-     * unverifiedCount() — GET /api/periods/{id}/unverified-count. Feeds
-     * the close-confirmation dialog's warning figure; never blocks the
-     * closure itself.
+     * unverifiedCount() — GET /api/period-stations/{id}/unverified-count.
+     * Feeds the close-confirmation dialog's warning figure for ONE station
+     * type; never blocks the closure itself.
+     *
+     * $periodStationId is a `period_stations` id, not a period id — for all
+     * four actions below. The parameter is named after what it holds so the
+     * next reader does not have to check the route file to find out.
      */
-    public function unverifiedCount(string $id): JsonResponse
+    public function unverifiedCount(string $periodStationId): JsonResponse
     {
-        return response()->json($this->closureService->unverifiedCount($id));
+        return response()->json($this->closureService->unverifiedCount($periodStationId));
     }
 
     /**
-     * close() — POST /api/periods/{id}/close. Conditional UPDATE; 409
-     * PERIOD_ALREADY_CLOSED when another Admin got there first.
+     * close() — POST /api/period-stations/{id}/close. Conditional UPDATE on
+     * the one station row; 409 PERIOD_ALREADY_CLOSED when another Admin got
+     * there first. Every other station of the period is untouched.
      */
-    public function close(string $id): JsonResponse
+    public function close(string $periodStationId): JsonResponse
     {
-        return response()->json($this->closureService->close($id));
+        return response()->json($this->closureService->close($periodStationId));
     }
 
     /**
-     * reopen() — POST /api/periods/{id}/reopen. 409 PERIOD_NOT_CLOSED
-     * unless the period is actually closed.
+     * reopen() — POST /api/period-stations/{id}/reopen. 409
+     * PERIOD_NOT_CLOSED unless THAT station is actually closed.
      */
-    public function reopen(string $id): JsonResponse
+    public function reopen(string $periodStationId): JsonResponse
     {
-        return response()->json($this->closureService->reopen($id));
+        return response()->json($this->closureService->reopen($periodStationId));
     }
 
     /**
-     * open() — POST /api/periods/{id}/open (usecase-144). Draft → open
-     * via the same conditional-UPDATE contract as close(); 409
-     * PERIOD_NOT_DRAFT when the period is already open, already closed, or
-     * when another Admin opened it first. No station data is touched.
+     * open() — POST /api/period-stations/{id}/open (usecase-144). Draft →
+     * open for one station via the same conditional-UPDATE contract as
+     * close(); 409 PERIOD_NOT_DRAFT when it is already open, already closed,
+     * or when another Admin opened it first. No station data is touched.
      *
      * Like close() and reopen(), this contract lists 404 / 409 / 403 only
      * — session handling lives in the middleware layer, not here.
      */
-    public function open(string $id): JsonResponse
+    public function open(string $periodStationId): JsonResponse
     {
-        return response()->json($this->closureService->open($id));
+        return response()->json($this->closureService->open($periodStationId));
     }
 }

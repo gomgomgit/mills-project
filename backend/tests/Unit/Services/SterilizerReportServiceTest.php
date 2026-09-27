@@ -26,6 +26,7 @@ use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Models\BusinessUnit;
 use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\SterilizerDetail;
 use App\Models\SterilizerRecord;
@@ -204,7 +205,11 @@ it('listPeriods includes a period whose station_type is sterilizer', function ()
 });
 
 // Case 8
-it('listPeriods includes a period whose station_type is NULL (every station type)', function () {
+it('listPeriods includes a period that covers every station type, reported AS the sterilizer pair', function () {
+    // stationType(null) tidak lagi berarti `station_type` NULL — kolom itu
+    // hilang 2026-09-25. Cakupan semua-stasiun kini berarti SATU BARIS
+    // period_stations per jenis stasiun, termasuk satu untuk sterilizer, dan
+    // baris itulah alasan periode ini terpungut.
     $allTypes = Period::factory()
         ->forBusinessUnit($this->businessUnitA)
         ->stationType(null)
@@ -213,9 +218,16 @@ it('listPeriods includes a period whose station_type is NULL (every station type
 
     $this->actingAs($this->supervisorA);
 
-    $ids = collect($this->service->listPeriods($this->businessUnitA->id))->pluck('id')->all();
+    $option = collect($this->service->listPeriods($this->businessUnitA->id))
+        ->firstWhere('id', (string) $allTypes->id);
 
-    expect($ids)->toContain((string) $allTypes->id);
+    expect($option)->not->toBeNull();
+
+    // Label 'Semua Stasiun' lenyap bersama station_type NULL: opsi ini adalah
+    // pasangan (periode, sterilizer), jadi jenis stasiun yang dilaporkan
+    // selalu jenis stasiun layar ini — dan tidak pernah null lagi.
+    expect($option['station_type'])->toBe('sterilizer');
+    expect($option['station_type_label'])->toBe('Sterilizer');
 });
 
 // Case 9
@@ -231,6 +243,68 @@ it('listPeriods excludes a period scoped to another station type', function () {
     $ids = collect($this->service->listPeriods($this->businessUnitA->id))->pluck('id')->all();
 
     expect($ids)->not->toContain((string) $boilerRoom->id);
+});
+
+// Case 9b — BARU 2026-09-26, bersama pemisahan periods/period_stations.
+// Inilah perilaku yang DULU dijamin cabang orWhereNull('station_type') dan
+// kini sengaja dibuang: tanpa baris period_stations untuk sterilizer, sebuah
+// periode bukan periode Sterilizer — sekalipun ia milik mill yang sama, dan
+// sekalipun ia mengelola jenis stasiun lain.
+it('listPeriods does NOT pick up a period with no period_stations row for sterilizer', function () {
+    $otherTypesOnly = Period::factory()
+        ->forBusinessUnit($this->businessUnitA)
+        ->stationTypes(['boiler-room', 'clarification'])
+        ->range('2026-07-01', '2026-07-31')
+        ->create();
+
+    // Induk tanpa satu pun baris anak — dulu mustahil (station_type NULL
+    // justru berarti "semua"), kini berarti "tidak ada stasiun yang dikelola".
+    $noStations = Period::factory()
+        ->forBusinessUnit($this->businessUnitA)
+        ->noStations()
+        ->range('2026-06-01', '2026-06-30')
+        ->create();
+
+    $this->actingAs($this->supervisorA);
+
+    $ids = collect($this->service->listPeriods($this->businessUnitA->id))->pluck('id')->all();
+
+    expect($ids)->not->toContain((string) $otherTypesOnly->id);
+    expect($ids)->not->toContain((string) $noStations->id);
+});
+
+// Case 9c — BARU 2026-09-26. Inti pemisahan model ini, dan bentuk yang
+// sebelumnya MUSTAHIL diuji: satu periode dengan dua jenis stasiun berstatus
+// berbeda. Laporan Sterilizer harus melaporkan status Sterilizer, bukan status
+// stasiun lain yang kebetulan ada di periode yang sama.
+it('reports the sterilizer status, not another station type status in the same period', function () {
+    $period = Period::factory()
+        ->forBusinessUnit($this->businessUnitA)
+        ->noStations()
+        ->range('2026-09-01', '2026-09-30')
+        ->named('Periode Campuran')
+        ->create();
+
+    PeriodStation::factory()->forPeriod($period)->stationType('sterilizer')->open()->create();
+    PeriodStation::factory()->forPeriod($period)->stationType('boiler-room')->closed()->create();
+
+    $this->actingAs($this->supervisorA);
+
+    $option = collect($this->service->listPeriods($this->businessUnitA->id))
+        ->firstWhere('id', (string) $period->id);
+
+    expect($option['status'])->toBe('open');
+
+    // Header summary() memakai jalur yang sama, tanpa relasi ter-eager-load.
+    expect($this->service->summary($period)['period']['status'])->toBe('open');
+
+    // Dan sebaliknya: Sterilizer tertutup sementara Boiler Room terbuka.
+    $period->stations()->where('station_type', 'sterilizer')->delete();
+    $period->stations()->where('station_type', 'boiler-room')->delete();
+    PeriodStation::factory()->forPeriod($period)->stationType('sterilizer')->closed()->create();
+    PeriodStation::factory()->forPeriod($period)->stationType('boiler-room')->open()->create();
+
+    expect($this->service->summary($period->fresh())['period']['status'])->toBe('closed');
 });
 
 // Case 10

@@ -878,21 +878,35 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
 // registered BEFORE the parameterised /periods/{id} routes below, or
 // Laravel matches the literal "business-units" segment against {id}.
 // Same requirement as /production-lines/business-units/options and
-// /mill-settings/current. The literal sub-resources of {id}
-// (/unverified-count, /close, /reopen, /open) carry a distinct extra
-// segment, so they cannot collide with PATCH/DELETE /periods/{id} — which
-// is exactly why every suffixed route must stay registered BEFORE the
-// PATCH/DELETE /periods/{id} pair below.
+// /mill-settings/current: the literal /periods/business-units/options must
+// stay registered BEFORE anything that could match "business-units" as a
+// {id} segment.
+//
+// TWO PREFIXES, ONE CONTROLLER (2026-09-26). /periods/{id} takes a PERIOD
+// id; /period-stations/{id}/... takes a `period_stations` id — the
+// `stations[].id` of PeriodService::toRow(), one row per station type inside
+// a period, which is what PeriodClosureService::close()/reopen()/open()/
+// unverifiedCount() have taken since the table was split.
+//
+// These four used to live at /periods/{id}/close and friends. They were
+// moved because the old path LIED: it said "period" while {id} had to be a
+// period_station, so every caller and every test URL had to be accompanied
+// by a note explaining that. A path that needs a footnote to be used
+// correctly is a trap for the next reader, and the closure tests carried
+// exactly that footnote. The literal extra segment meant the old routes
+// could not collide with PATCH/DELETE /periods/{id}; the new prefix means
+// they cannot even be confused with them.
 Route::middleware(['auth:web', 'role:admin'])->group(function () {
     Route::get('/periods', [PeriodController::class, 'index']);
     Route::get('/periods/business-units/options', [PeriodController::class, 'businessUnitOptions']);
     Route::post('/periods', [PeriodController::class, 'store']);
-    Route::get('/periods/{id}/unverified-count', [PeriodController::class, 'unverifiedCount']);
-    Route::post('/periods/{id}/close', [PeriodController::class, 'close']);
-    Route::post('/periods/{id}/reopen', [PeriodController::class, 'reopen']);
-    Route::post('/periods/{id}/open', [PeriodController::class, 'open']);
     Route::patch('/periods/{id}', [PeriodController::class, 'update']);
     Route::delete('/periods/{id}', [PeriodController::class, 'destroy']);
+
+    Route::get('/period-stations/{id}/unverified-count', [PeriodController::class, 'unverifiedCount']);
+    Route::post('/period-stations/{id}/close', [PeriodController::class, 'close']);
+    Route::post('/period-stations/{id}/reopen', [PeriodController::class, 'reopen']);
+    Route::post('/period-stations/{id}/open', [PeriodController::class, 'open']);
 });
 
 // screen-129--laporan-sterilizer-web (usecase-129 — Laporan Periode

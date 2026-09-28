@@ -59,6 +59,28 @@ class ProductionLineController extends Controller
     }
 
     /**
+     * optionsForReport() — GET /api/production-lines/options-for-report?business_unit_id=.
+     *
+     * The mill-scoped counterpart to current(), for the five mobile report
+     * screens (Sterilizer / Cages Track / Boiler Room / Clarification /
+     * Storage Tank), which require a Production Line before they show a
+     * single number and therefore need a list that works for Admin too —
+     * current() is self-scoped and cannot serve an actor who is not
+     * mill-bound. Scope is decided entirely by
+     * ScopesToActorMill::resolveReadMillId() inside the service: a
+     * mill-bound actor's `business_unit_id` query param is DISCARDED, Admin
+     * may pick freely. Same {id, name, code} rows as current().
+     */
+    public function optionsForReport(Request $request): JsonResponse
+    {
+        $businessUnitId = $request->query('business_unit_id');
+
+        return response()->json([
+            'data' => $this->service->listForReport($businessUnitId !== null ? (string) $businessUnitId : null),
+        ]);
+    }
+
+    /**
      * index() — GET /api/production-lines. business_logic step "list":
      * paginate, optional business_unit_id filter, eager-load businessUnit +
      * withCount('stations').

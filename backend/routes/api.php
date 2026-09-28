@@ -296,6 +296,26 @@ Route::middleware(['auth:web', 'role:admin'])->group(function () {
 Route::middleware(['auth:web,sanctum', 'role:operator,supervisor,mill_management,admin'])->group(function () {
     Route::get('/production-lines/current', [ProductionLineController::class, 'current']);
     Route::get('/production-lines/current/stations', [ProductionLineController::class, 'currentStations']);
+    // /production-lines/options-for-report — added 2026-09-28. SAME ROUTE-
+    // ORDERING CONSTRAINT as /current above, and the reason it is declared
+    // HERE rather than next to the admin CRUD block below: "options-for-
+    // report" is a literal segment that a /production-lines/{id}-shaped
+    // route would swallow, so it must be registered before the admin group.
+    //
+    // It sits in THIS group (not the admin one) because its whole purpose is
+    // to be reachable by a mobile Sanctum token: the five mobile report
+    // screens require a Production Line before showing any number, and the
+    // only list endpoint they had (/current) is SELF-SCOPED, so Admin — who
+    // is deliberately not mill-bound — was left with no way to pick a line
+    // at all. The pre-existing GET /production-lines/options could not be
+    // reused: it is 'auth:web' + 'role:admin' (session guard), unreachable
+    // with a mobile token, and admin-only.
+    //
+    // Widening the audience does NOT widen the data: scope is resolved by
+    // ScopesToActorMill::resolveReadMillId() inside the service, which
+    // DISCARDS a mill-bound actor's `business_unit_id` query param, 422s an
+    // actor whose account has no mill, and only lets Admin choose.
+    Route::get('/production-lines/options-for-report', [ProductionLineController::class, 'optionsForReport']);
 });
 
 // Admin-only CRUD — mirrors MachineryGroupController's registration

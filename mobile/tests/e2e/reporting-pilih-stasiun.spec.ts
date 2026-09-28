@@ -134,7 +134,7 @@ test.describe('Reporting — Pilih Stasiun Mobile (screen-141)', () => {
     expect(backendRequests).toEqual([])
 
     await page.getByTestId('station-tile-sterilizer').click()
-    await page.waitForURL('**/reports/sterilizer')
+    await page.waitForURL('**/reports/sterilizer**') // sufiks ** — alamatnya kini dapat membawa ?production_line_id=
   })
 
   // Scenario: "Pilih Stasiun untuk Laporan (Mobile) — Menekan stasiun yang
@@ -387,6 +387,190 @@ test.describe('Reporting — Pilih Stasiun Mobile (screen-141)', () => {
     await expect(page.getByText(/pilih mill|pilih business unit/i)).toHaveCount(0)
 
     await page.getByTestId('station-tile-sterilizer').click()
-    await page.waitForURL('**/reports/sterilizer')
+    await page.waitForURL('**/reports/sterilizer**') // sufiks ** — alamatnya kini dapat membawa ?production_line_id=
+  })
+})
+
+/* ================================================================== */
+/* Membawa Production Line ke laporan tujuan (2026-09-28)              */
+/* ================================================================== */
+
+/**
+ * RANTAI PENUH, BUKAN SEKADAR MEMERIKSA URL.
+ *
+ * Kelima layar laporan mobile kini menolak menampilkan angka sebelum ada
+ * satu Production Line yang berlaku. Layar ini adalah pintu masuknya, jadi
+ * yang harus dibuktikan bukan "query-nya ada", melainkan: menekan tile di
+ * sini MENDARATKAN laporan yang SUDAH TERISI line-nya — tanpa pertanyaan
+ * kedua kepada pengguna.
+ *
+ * Endpoint laporan di-stub (screen-135 sendiri sudah diuji terhadap data
+ * sungguhan di e2e-web), tetapi GET /api/production-lines/current SENGAJA
+ * TIDAK di-stub: line yang dibawa layar ini berasal dari pilihan nyata
+ * pengguna di layar Daftar Stasiun, dan laporan tujuan memvalidasinya
+ * terhadap daftar nyata dari backend. Kalau keduanya sampai memakai kunci
+ * atau sumber yang berbeda, test ini yang menangkapnya.
+ */
+const REPORT_API_GLOB = '**/api/sterilizer-reports/**'
+
+const REPORT_CORS_HEADERS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-headers': '*',
+  'access-control-allow-methods': 'GET,POST,OPTIONS',
+}
+
+const STUB_PERIOD = {
+  id: 'per-1',
+  name: 'Periode Agustus 2026',
+  start_date: '2026-08-01',
+  end_date: '2026-08-31',
+  status: 'open',
+  station_type: 'sterilizer',
+  station_type_label: 'Sterilizer',
+}
+
+async function stubSterilizerReport(page: Page): Promise<{ urls: string[] }> {
+  const state = { urls: [] as string[] }
+
+  await page.route(REPORT_API_GLOB, async (route) => {
+    const request = route.request()
+
+    if (request.method() === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers: REPORT_CORS_HEADERS, body: '' })
+
+      return
+    }
+
+    const url = request.url()
+    state.urls.push(url)
+
+    if (url.includes('/periods')) {
+      await route.fulfill({ status: 200, headers: REPORT_CORS_HEADERS, json: { data: [STUB_PERIOD] } })
+
+      return
+    }
+
+    if (url.includes('/summary')) {
+      const lineId = new URL(url).searchParams.get('production_line_id') ?? ''
+
+      await route.fulfill({
+        status: 200,
+        headers: REPORT_CORS_HEADERS,
+        json: {
+          period: { ...STUB_PERIOD, business_unit_name: 'Business Unit A' },
+          production_line: { id: lineId, name: 'Line terpilih' },
+          kpi: {
+            total_cycles: 6421,
+            total_cages: 15678,
+            avg_duration_minutes: 95.5,
+            min_duration_minutes: 70,
+            max_duration_minutes: 130,
+            cycles_without_duration: 4,
+            triple_peak_compliance_percent: 87.5,
+          },
+          daily: [],
+          by_unit: [],
+          outliers: {
+            method: 'iqr',
+            q1: null,
+            q3: null,
+            iqr: null,
+            lower_bound: null,
+            upper_bound: null,
+            sample_size: 0,
+            min_sample_size: 8,
+            insufficient_data: true,
+            items: [],
+          },
+          total: {
+            cycles: 999,
+            cages: 8888,
+            avg_duration: 95.5,
+            min_duration: 70,
+            max_duration: 130,
+            triple_peak_complete: 777,
+            cycles_without_duration: 4,
+          },
+        },
+      })
+
+      return
+    }
+
+    await route.continue()
+  })
+
+  return state
+}
+
+/** Line yang diingat layar Daftar Stasiun untuk pengguna yang sedang masuk. */
+async function rememberedLineId(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const raw = localStorage.getItem('msl_auth_user')
+    const userId = raw ? (JSON.parse(raw).id ?? '') : ''
+
+    return localStorage.getItem(`msl_production_line_${userId}`) ?? ''
+  })
+}
+
+test.describe('Reporting — Pilih Stasiun Mobile (screen-141): membawa Production Line', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('menekan tile stasiun mendaratkan laporan yang SUDAH terisi Production Line-nya', async ({ page }) => {
+    await login(page)
+    // seedLocalStations() memilih line pertama bila mill punya lebih dari
+    // satu — pilihan itulah yang diingat, dan itulah yang harus terbawa.
+    await seedLocalStations(page)
+
+    const lineId = await rememberedLineId(page)
+    expect(lineId, 'layar Daftar Stasiun tidak mengingat satu line pun').not.toBe('')
+
+    const report = await stubSterilizerReport(page)
+
+    await goToReports(page)
+    await page.getByTestId('station-tile-sterilizer').click()
+    await page.waitForURL('**/reports/sterilizer**')
+
+    // 1. Line ikut terbawa di alamatnya.
+    expect(page.url()).toContain(`production_line_id=${lineId}`)
+
+    // 2. Dan benar-benar BERLAKU di layar tujuan: tidak ada pertanyaan
+    //    kedua, dan nama line yang berlaku terbaca.
+    await expect(page.getByTestId('laporan-sterilizer-mobile')).toBeVisible()
+    await expect(page.getByTestId('production-line-required-hint')).toHaveCount(0)
+    await expect(page.getByTestId('production-line-unavailable')).toHaveCount(0)
+    await expect(page.getByTestId('production-line-current')).toBeVisible()
+
+    // 3. Memilih periode langsung memunculkan angka — tanpa satu langkah
+    //    tambahan pun, dan permintaannya membawa line yang sama.
+    await page.getByTestId('period-select').selectOption('per-1')
+    await expect(page.getByTestId('kpi-total-cycles')).toHaveText('6.421')
+
+    expect(
+      report.urls.some((url) => url.includes('/summary') && url.includes(`production_line_id=${lineId}`)),
+    ).toBe(true)
+    // Daftar periode TIDAK tersaring line — periode milik mill.
+    expect(report.urls.filter((url) => url.includes('/periods')).every((url) => !url.includes('production_line_id'))).toBe(true)
+  })
+
+  test('tanpa ingatan line, tile tetap berpindah — laporan tujuan yang bertanya', async ({ page }) => {
+    await login(page)
+    await seedLocalStations(page)
+
+    // Ingatan dihapus: keadaan pengguna yang belum pernah memilih line.
+    await page.evaluate(() => {
+      const raw = localStorage.getItem('msl_auth_user')
+      const userId = raw ? (JSON.parse(raw).id ?? '') : ''
+      localStorage.removeItem(`msl_production_line_${userId}`)
+    })
+
+    await stubSterilizerReport(page)
+
+    await goToReports(page)
+    await page.getByTestId('station-tile-sterilizer').click()
+    await page.waitForURL('**/reports/sterilizer**')
+
+    expect(page.url()).not.toContain('production_line_id')
+    await expect(page.getByTestId('laporan-sterilizer-mobile')).toBeVisible()
   })
 })

@@ -53,6 +53,60 @@ describe('productionLineRepo — fetchCurrentProductionLines()', () => {
   })
 })
 
+/**
+ * fetchProductionLinesForReport() — endpoint kedua, ditambahkan 2026-09-28
+ * untuk kelima layar laporan mobile. Berbeda dari fetchCurrentProductionLines()
+ * yang swa-cakup, endpoint ini menerima business_unit_id sehingga Admin —
+ * yang tidak terikat mill — dapat memilih line mill yang ia pilih.
+ *
+ * Yang dijaga di sini: parameter itu hanya berangkat bila ADA nilainya.
+ * Mengirim `business_unit_id=` kosong bukan hal yang netral — server akan
+ * memperlakukannya sebagai "tidak memilih mill", dan bagi Admin itu berarti
+ * daftar lintas mill, bukan daftar kosong.
+ */
+describe('productionLineRepo — fetchProductionLinesForReport()', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('GETs /api/production-lines/options-for-report with business_unit_id when one is given', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({
+      data: { data: [{ id: 'pl-1', name: 'Line 01', code: 'L1' }] },
+    })
+
+    const result = await productionLineRepo.fetchProductionLinesForReport('bu-9')
+
+    expect(apiClient.get).toHaveBeenCalledWith('/api/production-lines/options-for-report', {
+      params: { business_unit_id: 'bu-9' },
+    })
+    // Bentuk barisnya sama persis dengan fetchCurrentProductionLines() —
+    // tidak ada pemeta kedua.
+    expect(result).toEqual([{ id: 'pl-1', name: 'Line 01', code: 'L1' }])
+  })
+
+  it('omits business_unit_id entirely when it is null/undefined — never sends an empty one', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { data: [] } })
+
+    await productionLineRepo.fetchProductionLinesForReport(null)
+    await productionLineRepo.fetchProductionLinesForReport()
+
+    expect(apiClient.get).toHaveBeenNthCalledWith(1, '/api/production-lines/options-for-report', { params: {} })
+    expect(apiClient.get).toHaveBeenNthCalledWith(2, '/api/production-lines/options-for-report', { params: {} })
+  })
+
+  it('returns an empty array when the response has no data', async () => {
+    vi.mocked(apiClient.get).mockResolvedValue({ data: {} })
+
+    await expect(productionLineRepo.fetchProductionLinesForReport('bu-1')).resolves.toEqual([])
+  })
+
+  it('propagates a rejection (offline/422/401) to the caller', async () => {
+    vi.mocked(apiClient.get).mockRejectedValue(new Error('offline'))
+
+    await expect(productionLineRepo.fetchProductionLinesForReport('bu-1')).rejects.toThrow('offline')
+  })
+})
+
 describe('productionLineRepo — fetchAndCacheStationsForProductionLine()', () => {
   beforeEach(() => {
     vi.clearAllMocks()

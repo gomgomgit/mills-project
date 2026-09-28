@@ -263,7 +263,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
 
     await tile.trigger('click')
     expect(pushMock).toHaveBeenCalledTimes(1)
-    expect(pushMock).toHaveBeenCalledWith({ name: 'report-sterilizer' })
+    expect(pushMock).toHaveBeenCalledWith({ name: 'report-sterilizer', query: {} })
     expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
   })
 
@@ -397,7 +397,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     await wrapper.get('[data-testid="station-tile-sterilizer"]').trigger('click')
 
     expect(pushMock).toHaveBeenCalledTimes(1)
-    expect(pushMock).toHaveBeenCalledWith({ name: 'report-sterilizer' })
+    expect(pushMock).toHaveBeenCalledWith({ name: 'report-sterilizer', query: {} })
     expect(wrapper.find('[data-testid="info-message"]').exists()).toBe(false)
   })
 
@@ -554,7 +554,7 @@ describe('ReportingPilihStasiunView — "Pilih Stasiun untuk Laporan (Mobile)"',
     expect(wrapper.text()).not.toMatch(/pilih mill|pilih business unit|pilih unit/i)
 
     await wrapper.get('[data-testid="station-tile-sterilizer"]').trigger('click')
-    expect(pushMock).toHaveBeenCalledWith({ name: 'report-sterilizer' })
+    expect(pushMock).toHaveBeenCalledWith({ name: 'report-sterilizer', query: {} })
   })
 
   // Scenario "layar tetap terbuka untuk semua peran mobile" — layar ini
@@ -632,5 +632,130 @@ describe('ReportingPilihStasiunView — penjagaan router "Belum masuk"', () => {
 
     expect(router.currentRoute.value.name).toBe('login')
     expect(router.currentRoute.value.query.redirect).toBe('/reports')
+  })
+})
+
+/* ================================================================== */
+/* Membawa Production Line ke layar laporan (2026-09-28)               */
+/* ================================================================== */
+
+/**
+ * Kelima layar laporan mobile kini menolak menampilkan angka sebelum ada
+ * satu Production Line yang berlaku. Layar ini adalah pintu masuknya, jadi
+ * ia wajib membawa line yang sudah dipilih pengguna — kalau tidak, setiap
+ * pengguna ditanyai dua kali atas satu keputusan yang sama.
+ *
+ * Sumbernya localStorage, kunci yang sama persis yang dipakai
+ * `loadStations()` di layar ini dan yang ditulis StationListView.vue —
+ * jadi tile yang ditekan dan angka yang muncul mustahil berasal dari line
+ * yang berbeda. TIDAK ADA pemanggilan jaringan yang ditambahkan.
+ */
+describe('ReportingPilihStasiunView — membawa Production Line ke laporan', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+    logoutMock.mockResolvedValue(undefined)
+    mockAuthUser('operator')
+    getActiveAndPlaceholderStationsMock.mockResolvedValue([])
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue([])
+  })
+
+  it('menyertakan production_line_id pada rute laporan ketika pengguna sudah punya line aktif', async () => {
+    window.localStorage.setItem('msl_production_line_user-1', 'pl-2')
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue(THREE_STATIONS)
+
+    const wrapper = mount(ReportingPilihStasiunView)
+    await flushPromises()
+
+    // Daftar tile-nya pun dibaca dari line yang sama — satu sumber, bukan dua.
+    expect(getActiveAndPlaceholderStationsForProductionLineMock).toHaveBeenCalledWith('pl-2')
+    expect(getActiveAndPlaceholderStationsMock).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="station-tile-sterilizer"]').trigger('click')
+
+    expect(pushMock).toHaveBeenCalledTimes(1)
+    expect(pushMock).toHaveBeenCalledWith({
+      name: 'report-sterilizer',
+      query: { production_line_id: 'pl-2' },
+    })
+  })
+
+  it('membawa line yang sama ke SETIAP laporan, bukan hanya Sterilizer', async () => {
+    window.localStorage.setItem('msl_production_line_user-1', 'pl-9')
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue([
+      makeStation({ id: 'st-a', name: 'Cages & Tracks', type: 'cages-track', isActive: true }),
+      makeStation({ id: 'st-b', name: 'Boiler Room', type: 'boiler-room', isActive: true }),
+      makeStation({ id: 'st-c', name: 'Clarification', type: 'clarification', isActive: true }),
+      makeStation({ id: 'st-d', name: 'Storage Tank', type: 'storage-tank', isActive: true }),
+    ])
+
+    const wrapper = mount(ReportingPilihStasiunView)
+    await flushPromises()
+
+    const expected: Array<[string, string]> = [
+      ['cages-track', 'report-cages-track'],
+      ['boiler-room', 'report-boiler-room'],
+      ['clarification', 'report-clarification'],
+      ['storage-tank', 'report-storage-tank'],
+    ]
+
+    for (const [type, routeName] of expected) {
+      pushMock.mockClear()
+      await wrapper.get(`[data-testid="station-tile-${type}"]`).trigger('click')
+      expect(pushMock).toHaveBeenCalledWith({ name: routeName, query: { production_line_id: 'pl-9' } })
+    }
+  })
+
+  it('tanpa ingatan line, query dibiarkan KOSONG — layar laporan yang bertanya, bukan layar ini yang menebak', async () => {
+    getActiveAndPlaceholderStationsMock.mockResolvedValue(THREE_STATIONS)
+
+    const wrapper = mount(ReportingPilihStasiunView)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="station-tile-sterilizer"]').trigger('click')
+
+    expect(pushMock).toHaveBeenCalledWith({ name: 'report-sterilizer', query: {} })
+    expect(JSON.stringify(pushMock.mock.calls)).not.toContain('production_line_id')
+  })
+
+  it('ingatan line milik pengguna LAIN tidak pernah terbawa', async () => {
+    window.localStorage.setItem('msl_production_line_user-99', 'pl-orang-lain')
+    getActiveAndPlaceholderStationsMock.mockResolvedValue(THREE_STATIONS)
+
+    const wrapper = mount(ReportingPilihStasiunView)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="station-tile-sterilizer"]').trigger('click')
+
+    expect(pushMock).toHaveBeenCalledWith({ name: 'report-sterilizer', query: {} })
+    expect(JSON.stringify(pushMock.mock.calls)).not.toContain('pl-orang-lain')
+  })
+
+  it('tetap NOL pemanggilan jaringan — line dibaca dari perangkat, bukan diminta ke server', async () => {
+    window.localStorage.setItem('msl_production_line_user-1', 'pl-2')
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue(THREE_STATIONS)
+
+    const wrapper = mount(ReportingPilihStasiunView)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="station-tile-sterilizer"]').trigger('click')
+
+    expect(apiClientGetMock).not.toHaveBeenCalled()
+    expect(apiClientPostMock).not.toHaveBeenCalled()
+  })
+
+  it('tile tanpa laporan tetap tidak berpindah rute, walau ada line aktif', async () => {
+    window.localStorage.setItem('msl_production_line_user-1', 'pl-2')
+    getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue([
+      makeStation({ id: 'st-x', name: 'Weighbridge', type: 'weighbridge', isActive: true }),
+    ])
+
+    const wrapper = mount(ReportingPilihStasiunView)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="station-tile-weighbridge"]').trigger('click')
+
+    expect(pushMock).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="info-message"]').text()).toContain('belum tersedia')
   })
 })

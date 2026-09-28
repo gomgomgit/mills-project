@@ -53,11 +53,20 @@ import sterilizerReportRepo from '@/services/sterilizerReportRepo'
 /* Mock modul                                                          */
 /* ------------------------------------------------------------------ */
 
-const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }))
+const { pushMock, routeQuery } = vi.hoisted(() => ({
+  pushMock: vi.fn(),
+  /**
+   * Query rute — dapat disetel per test. screen-141 (Pilih Stasiun untuk
+   * Laporan) menyisipkan `?production_line_id=` di sini ketika pengguna
+   * menekan sebuah tile stasiun, sejajar dengan `report_path` milik
+   * screen-140 web.
+   */
+  routeQuery: {} as Record<string, string>,
+}))
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: pushMock }),
-  useRoute: () => ({ params: {}, query: {} }),
+  useRoute: () => ({ params: {}, query: routeQuery }),
 }))
 
 const { useAuthStoreMock, logoutMock } = vi.hoisted(() => ({
@@ -120,6 +129,13 @@ interface ApiStubs {
   periods?: Stub
   summary?: Stub
   export?: Stub
+  /** GET /api/production-lines/options-for-report — daftar Production Line mill yang berlaku. */
+  productionLines?: Stub
+  /**
+   * Ringkasan per production_line_id. Dipakai test yang membuktikan angka
+   * yang tampil adalah milik SATU line, bukan gabungan dua line.
+   */
+  summaryByLine?: Record<string, unknown>
 }
 
 const currentStubs: ApiStubs = {}
@@ -190,6 +206,23 @@ const BUSINESS_UNITS = [
   { id: 'bu-1', name: 'Mill Utara' },
   { id: 'bu-2', name: 'Mill Selatan' },
 ]
+
+/**
+ * PRODUCTION LINE — konteks yang DIPILIH, bukan ikatan akun.
+ *
+ * Bawaan berkas ini SATU line: mill dengan satu line tidak punya keputusan
+ * untuk diminta, line itu berlaku otomatis, dan seluruh test lama tetap
+ * berbicara tentang apa yang memang mereka uji (pemetaan respons ke layar)
+ * — bukan tentang pemilih line. Test yang memang menguji pemilihnya
+ * men-stub DUA line secara eksplisit lewat `stubApi({ productionLines })`.
+ *
+ * Perhatikan: dengan satu line pun `production_line_id` TETAP terkirim.
+ * "Satu line" bukan "tanpa line" — angka yang tampil tetap milik satu line
+ * tertentu, dan itu harus terbaca pada permintaannya.
+ */
+const LINE_1 = { id: 'pl-1', name: 'Line 1', code: 'L1' }
+const LINE_2 = { id: 'pl-2', name: 'Line 2', code: 'L2' }
+const TWO_LINES = [LINE_1, LINE_2]
 
 /**
  * Blok `kpi` memakai sufiks _minutes; `daily`/`by_unit`/`total` tidak.
@@ -353,15 +386,26 @@ beforeEach(() => {
   // berkas/test lain tidak boleh bocor ke sini.
   window.localStorage.clear()
 
+  for (const key of Object.keys(routeQuery)) {
+    delete routeQuery[key]
+  }
+
+  delete currentStubs.summaryByLine
+
   asRole('operator', 'bu-1')
 
   // Stub bawaan: mill terisi, satu periode Sterilizer, ringkasan lengkap.
+  currentStubs.productionLines = ok({ data: [LINE_1] })
   currentStubs.units = ok({ data: BUSINESS_UNITS })
   currentStubs.periods = ok({ data: [PERIOD_STER] })
   currentStubs.summary = ok(makeSummary())
   currentStubs.export = ok(new Blob(['csv'], { type: 'text/csv' }))
 
-  apiGetMock.mockImplementation((url: string) => {
+  apiGetMock.mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
+    if (String(url).includes('/api/production-lines/options-for-report')) {
+      return settle(currentStubs.productionLines, { data: [] })
+    }
+
     if (String(url).includes('/business-units/options')) {
       return settle(currentStubs.units, { data: [] })
     }
@@ -371,6 +415,13 @@ beforeEach(() => {
     }
 
     if (String(url).includes('/summary')) {
+      const lineId = String(config?.params?.production_line_id ?? '')
+      const perLine = currentStubs.summaryByLine?.[lineId]
+
+      if (perLine !== undefined) {
+        return Promise.resolve({ data: perLine })
+      }
+
       return settle(currentStubs.summary, makeSummary())
     }
 
@@ -514,7 +565,7 @@ describe('LaporanSterilizerView — unit_test_cases (tech spec screen-135)', () 
 
     expect(callsTo('/api/sterilizer-reports/summary')).toHaveLength(1)
     expect(apiGetMock).toHaveBeenCalledWith('/api/sterilizer-reports/summary', {
-      params: { period_id: 'per-1' },
+      params: { period_id: 'per-1', production_line_id: 'pl-1' },
     })
   })
 
@@ -782,7 +833,7 @@ describe('LaporanSterilizerView — unit_test_cases (tech spec screen-135)', () 
     await flushPromises()
 
     expect(apiGetMock).toHaveBeenCalledWith('/api/sterilizer-reports/export', {
-      params: { period_id: 'per-1', format: 'csv' },
+      params: { period_id: 'per-1', format: 'csv', production_line_id: 'pl-1' },
       responseType: 'blob',
     })
     // Mekanisme penyimpanan berkas dipanggil tepat satu kali.
@@ -873,8 +924,27 @@ describe('LaporanSterilizerView — test_scenarios / component_test (tech spec s
     expect(callsTo('/api/sterilizer-reports/export')).toHaveLength(1)
   })
 
-  // Scenario: "success as Admin"
-  it('success as Admin — periode baru terisi setelah mill dipilih, lalu seluruh angka terisi', async () => {
+  /*
+   * Scenario "success as Admin" — DIPULIHKAN 2026-09-28 (tahap 4b) ke bentuk
+   * aslinya: Admin memilih mill, line berlaku, dan ANGKANYA TAMPIL.
+   *
+   * Bentuk sementara sebelumnya ("nol angka, karena tidak ada jalan") lahir
+   * dari satu keterbatasan backend, bukan dari keputusan produk: satu-satunya
+   * endpoint mobile yang mendaftar Production Line saat itu
+   * (GET /api/production-lines/current) bersifat SWA-CAKUP — ia memulangkan
+   * line milik mill AKUN PEMANGGIL, dan Admin tidak terikat mill, sehingga
+   * memanggilnya atas nama Admin akan memulangkan line milik mill yang BUKAN
+   * mill terpilih: angka yang terlihat sah untuk line yang salah. Endpoint
+   * baru GET /api/production-lines/options-for-report?business_unit_id=
+   * menutup lubang itu.
+   *
+   * Asersi di bawah lebih kuat daripada bentuk aslinya MAUPUN daripada
+   * bentuk sementara itu: pemilih Mill utuh, daftar line diminta DENGAN
+   * business_unit_id mill terpilih, /summary membawa mill DAN line, daftar
+   * periode TIDAK PERNAH membawa production_line_id, dan mengganti mill
+   * memuat ulang keduanya.
+   */
+  it('success as Admin — periode + daftar line terisi setelah mill dipilih, lalu seluruh angka terisi', async () => {
     asRole('admin', null)
 
     const wrapper = await mountView()
@@ -885,12 +955,21 @@ describe('LaporanSterilizerView — test_scenarios / component_test (tech spec s
     expect(millOptions[1].text()).toBe('Mill Utara')
     expect(millOptions[2].text()).toBe('Mill Selatan')
 
-    // period-select masih kosong sebelum mill dipilih.
+    // period-select masih kosong sebelum mill dipilih, dan daftar line pun
+    // belum diminta — tanpa mill tidak ada daftar line yang berarti.
     expect(wrapper.findAll('[data-testid="period-select"] option')).toHaveLength(1)
     expect(callsTo('/api/sterilizer-reports/periods')).toHaveLength(0)
+    expect(callsTo('/api/production-lines/options-for-report')).toHaveLength(0)
 
     await selectMill(wrapper, 'bu-1')
 
+    // Daftar line diminta UNTUK MILL TERPILIH — inilah yang membedakan
+    // endpoint ini dari /production-lines/current yang swa-cakup.
+    expect(apiGetMock).toHaveBeenCalledWith('/api/production-lines/options-for-report', {
+      params: { business_unit_id: 'bu-1' },
+    })
+
+    // Cakupan mill tetap bekerja seperti sebelumnya.
     expect(apiGetMock).toHaveBeenCalledWith('/api/sterilizer-reports/periods', {
       params: { business_unit_id: 'bu-1' },
     })
@@ -898,8 +977,9 @@ describe('LaporanSterilizerView — test_scenarios / component_test (tech spec s
 
     await selectPeriod(wrapper, 'per-1')
 
+    // Angkanya milik SATU line, dan permintaannya mengatakannya.
     expect(apiGetMock).toHaveBeenCalledWith('/api/sterilizer-reports/summary', {
-      params: { period_id: 'per-1', business_unit_id: 'bu-1' },
+      params: { period_id: 'per-1', business_unit_id: 'bu-1', production_line_id: 'pl-1' },
     })
     expect(text(wrapper, 'kpi-total-cycles')).toBe('1.234')
     expect(text(wrapper, 'kpi-total-cages')).toBe('15.678')
@@ -907,10 +987,30 @@ describe('LaporanSterilizerView — test_scenarios / component_test (tech spec s
     expect(exists(wrapper, 'by-unit')).toBe(true)
     // Admin tidak mendapat keterangan mill akun — ia memilih sendiri.
     expect(exists(wrapper, 'mill-current')).toBe(false)
+    // Dan tidak ada lagi pesan buntu "pakai versi web".
+    expect(exists(wrapper, 'production-line-unavailable')).toBe(false)
 
     await wrapper.get('[data-testid="export-button"]').trigger('click')
     await flushPromises()
     expect(callsTo('/api/sterilizer-reports/export')).toHaveLength(1)
+
+    // Daftar periode TIDAK PERNAH tersaring line — periode milik MILL.
+    expect(
+      apiGetMock.mock.calls
+        .filter(([url]: [string]) => String(url).includes('/api/sterilizer-reports/periods'))
+        .every(([, config]: [string, { params?: Record<string, unknown> }?]) =>
+          config?.params?.production_line_id === undefined),
+    ).toBe(true)
+
+    // Mengganti mill memuat ulang periode DAN daftar line mill baru.
+    await selectMill(wrapper, 'bu-2')
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/production-lines/options-for-report', {
+      params: { business_unit_id: 'bu-2' },
+    })
+    expect(apiGetMock).toHaveBeenCalledWith('/api/sterilizer-reports/periods', {
+      params: { business_unit_id: 'bu-2' },
+    })
   })
 
   // Scenario: "Mill belum punya periode"
@@ -1136,7 +1236,7 @@ describe('LaporanSterilizerView — test_scenarios / component_test (tech spec s
     await flushPromises()
 
     expect(apiGetMock).toHaveBeenCalledWith('/api/sterilizer-reports/summary', {
-      params: { period_id: 'per-1' },
+      params: { period_id: 'per-1', production_line_id: 'pl-1' },
     })
     expect(exists(wrapper, 'network-error')).toBe(false)
     expect(text(wrapper, 'kpi-total-cycles')).toBe('1.234')
@@ -1190,7 +1290,7 @@ describe('LaporanSterilizerView — test_scenarios / component_test (tech spec s
     await flushPromises()
 
     expect(apiGetMock).toHaveBeenCalledWith('/api/sterilizer-reports/export', {
-      params: { period_id: 'per-3', format: 'csv' },
+      params: { period_id: 'per-3', format: 'csv', production_line_id: 'pl-1' },
       responseType: 'blob',
     })
   })
@@ -1318,5 +1418,295 @@ describe('LaporanSterilizerView — test_scenarios / component_test (tech spec s
     expect(threshold).toContain('Q3')
 
     expect(exists(wrapper, 'insufficient-data')).toBe(false)
+  })
+})
+
+/* ================================================================== */
+/* Production Line wajib (2026-09-28)                                  */
+/* ================================================================== */
+
+/**
+ * Laporan ini memulangkan ANGKA GABUNGAN satu periode. Menjumlahkan
+ * beberapa Production Line ke dalam satu angka menghasilkan bilangan yang
+ * tidak dapat ditindaklanjuti siapa pun — karena itu memilih line di sini
+ * WAJIB dan tidak ada opsi "semua line". (Data Browser versi web memang
+ * punya opsi "Semua Line"; di sana barisnya tetap terpisah per record,
+ * jadi perbedaan itu disengaja.)
+ *
+ * FIXTURE DUA LINE SENGAJA BERBEDA NILAINYA, DAN SENGAJA TIDAK KONSISTEN
+ * SECARA ARITMETIKA — jumlah keduanya (300 + 45 = 345) bukan angka mana
+ * pun yang boleh muncul di layar. Layar yang benar menampilkan 300 ATAU 45;
+ * layar yang diam-diam menggabungkan akan menampilkan 345 dan gagal di
+ * sini. JANGAN "merapikan" angka-angka ini.
+ */
+const SUMMARY_LINE_1 = makeSummary({
+  production_line: { id: 'pl-1', name: 'Line 1' },
+  kpi: {
+    total_cycles: 300,
+    total_cages: 3600,
+    avg_duration_minutes: 91.5,
+    min_duration_minutes: 70,
+    max_duration_minutes: 130,
+    cycles_without_duration: 1,
+    triple_peak_compliance_percent: 88.5,
+  },
+})
+
+const SUMMARY_LINE_2 = makeSummary({
+  production_line: { id: 'pl-2', name: 'Line 2' },
+  kpi: {
+    total_cycles: 45,
+    total_cages: 540,
+    avg_duration_minutes: 102.25,
+    min_duration_minutes: 80,
+    max_duration_minutes: 140,
+    cycles_without_duration: 3,
+    triple_peak_compliance_percent: 61.5,
+  },
+})
+
+/** Ringkasan per line, dipasang lewat stubApi({ summaryByLine: ... }). */
+const SUMMARY_BY_LINE = { 'pl-1': SUMMARY_LINE_1, 'pl-2': SUMMARY_LINE_2 }
+
+async function selectProductionLine(wrapper: VueWrapper, lineId: string): Promise<void> {
+  await wrapper.get('[data-testid="production-line-select"]').setValue(lineId)
+  await flushPromises()
+}
+
+describe('LaporanSterilizerView — Production Line wajib (screen-135)', () => {
+  it('dua line dan belum ada yang berlaku — pemilih tampil, NOL angka, dan summary tidak pernah dipanggil', async () => {
+    stubApi({ productionLines: ok({ data: TWO_LINES }) })
+
+    const wrapper = await mountView()
+
+    expect(exists(wrapper, 'production-line-select')).toBe(true)
+    expect(wrapper.findAll('[data-testid="production-line-select"] option')).toHaveLength(3) // placeholder + 2
+    expect(selectValue(wrapper, 'production-line-select')).toBe('Pilih Production Line')
+    expect(exists(wrapper, 'production-line-current')).toBe(false)
+    expect(exists(wrapper, 'production-line-required-hint')).toBe(true)
+    expect(text(wrapper, 'production-line-required-hint')).toContain('Pilih Production Line')
+
+    // Periode boleh dipilih — /periods memang TIDAK tersaring line. Yang
+    // ditahan hanyalah angkanya.
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(callsTo('/api/sterilizer-reports/summary')).toHaveLength(0)
+    expect(exists(wrapper, 'kpi-total-cycles')).toBe(false)
+    expect(exists(wrapper, 'daily-trend')).toBe(false)
+    expect(exists(wrapper, 'period-meta')).toBe(false)
+    expect(exists(wrapper, 'export-button')).toBe(false)
+    // Tidak ada opsi gabungan yang diam-diam ditawarkan.
+    expect(wrapper.text()).not.toMatch(/semua line/i)
+    expect(
+      wrapper
+        .findAll('[data-testid="production-line-select"] option')
+        .map((option) => option.text()),
+    ).toEqual(['Pilih Production Line', 'Line 1', 'Line 2'])
+  })
+
+  it('angka yang tampil milik SATU line — bukan jumlah kedua line', async () => {
+    stubApi({ productionLines: ok({ data: TWO_LINES }), summaryByLine: SUMMARY_BY_LINE })
+
+    const wrapper = await mountView()
+
+    await selectProductionLine(wrapper, 'pl-1')
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(text(wrapper, 'kpi-total-cycles')).toBe('300')
+    expect(text(wrapper, 'kpi-total-cages')).toBe('3.600')
+    // Jumlah kedua line TIDAK PERNAH muncul.
+    expect(wrapper.text()).not.toContain('345')
+    expect(wrapper.text()).not.toContain('4.140')
+
+    // Ganti line: angka lama tidak boleh tertinggal, dan permintaannya
+    // membawa id yang baru.
+    await selectProductionLine(wrapper, 'pl-2')
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/sterilizer-reports/summary', {
+      params: { period_id: 'per-1', production_line_id: 'pl-2' },
+    })
+    expect(text(wrapper, 'kpi-total-cycles')).toBe('45')
+    expect(text(wrapper, 'kpi-total-cages')).toBe('540')
+    expect(wrapper.text()).not.toContain('3.600')
+    expect(wrapper.text()).not.toContain('345')
+  })
+
+  it('nama line yang berlaku terbaca di layar, diambil dari jawaban server', async () => {
+    stubApi({ productionLines: ok({ data: TWO_LINES }), summaryByLine: SUMMARY_BY_LINE })
+
+    const wrapper = await mountView()
+
+    await selectProductionLine(wrapper, 'pl-2')
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(exists(wrapper, 'production-line-current')).toBe(true)
+    expect(text(wrapper, 'production-line-current')).toContain('Line 2')
+    expect(text(wrapper, 'production-line-current')).not.toContain('Line 1')
+  })
+
+  it('ekspor membawa production_line_id — berkasnya mengikuti cakupan angka di layar', async () => {
+    stubApi({ productionLines: ok({ data: TWO_LINES }), summaryByLine: SUMMARY_BY_LINE })
+
+    const wrapper = await mountView()
+
+    await selectProductionLine(wrapper, 'pl-2')
+    await selectPeriod(wrapper, 'per-1')
+
+    await wrapper.get('[data-testid="export-button"]').trigger('click')
+    await flushPromises()
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/sterilizer-reports/export', {
+      params: { period_id: 'per-1', format: 'csv', production_line_id: 'pl-2' },
+      responseType: 'blob',
+    })
+  })
+
+  it('ingatan line dari layar Daftar Stasiun dipakai ulang — pengguna TIDAK diminta memilih dua kali', async () => {
+    // Kunci yang sama persis yang ditulis StationListView.vue.
+    window.localStorage.setItem('msl_production_line_user-1', 'pl-2')
+    stubApi({ productionLines: ok({ data: TWO_LINES }), summaryByLine: SUMMARY_BY_LINE })
+
+    const wrapper = await mountView()
+
+    // Tidak ada pertanyaan kedua: line sudah berlaku sejak render pertama.
+    expect(exists(wrapper, 'production-line-required-hint')).toBe(false)
+    expect(selectValue(wrapper, 'production-line-select')).toBe('pl-2')
+
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/sterilizer-reports/summary', {
+      params: { period_id: 'per-1', production_line_id: 'pl-2' },
+    })
+    expect(text(wrapper, 'kpi-total-cycles')).toBe('45')
+    expect(text(wrapper, 'production-line-current')).toContain('Line 2')
+  })
+
+  it('production_line_id dari rute (dibawa screen-141) berlaku, dan menang atas ingatan', async () => {
+    window.localStorage.setItem('msl_production_line_user-1', 'pl-1')
+    routeQuery.production_line_id = 'pl-2'
+    stubApi({ productionLines: ok({ data: TWO_LINES }), summaryByLine: SUMMARY_BY_LINE })
+
+    const wrapper = await mountView()
+
+    expect(selectValue(wrapper, 'production-line-select')).toBe('pl-2')
+
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(text(wrapper, 'kpi-total-cycles')).toBe('45')
+    // Dan pilihan itu ikut menjadi ingatan, supaya layar Daftar Stasiun dan
+    // layar laporan tidak pernah berbeda konteks.
+    expect(window.localStorage.getItem('msl_production_line_user-1')).toBe('pl-2')
+  })
+
+  it('ingatan maupun query yang tidak ada di daftar line TIDAK dipercaya — pemilih muncul kembali', async () => {
+    window.localStorage.setItem('msl_production_line_user-1', 'pl-sudah-dihapus')
+    routeQuery.production_line_id = 'pl-mill-lain'
+    stubApi({ productionLines: ok({ data: TWO_LINES }) })
+
+    const wrapper = await mountView()
+
+    expect(selectValue(wrapper, 'production-line-select')).toBe('Pilih Production Line')
+    expect(exists(wrapper, 'production-line-current')).toBe(false)
+    expect(exists(wrapper, 'production-line-required-hint')).toBe(true)
+
+    await selectPeriod(wrapper, 'per-1')
+    expect(callsTo('/api/sterilizer-reports/summary')).toHaveLength(0)
+  })
+
+  it('ingatan milik pengguna LAIN tidak pernah terbawa setelah ganti akun di perangkat yang sama', async () => {
+    window.localStorage.setItem('msl_production_line_user-99', 'pl-2')
+    stubApi({ productionLines: ok({ data: TWO_LINES }) })
+
+    const wrapper = await mountView()
+
+    expect(selectValue(wrapper, 'production-line-select')).toBe('Pilih Production Line')
+    expect(exists(wrapper, 'production-line-current')).toBe(false)
+    expect(exists(wrapper, 'production-line-required-hint')).toBe(true)
+  })
+
+  it('satu line di mill — berlaku otomatis, tanpa pemilih, dan id-nya tetap terkirim', async () => {
+    const wrapper = await mountView() // bawaan berkas ini: satu line
+
+    expect(exists(wrapper, 'production-line-select')).toBe(false)
+    expect(exists(wrapper, 'production-line-required-hint')).toBe(false)
+    expect(text(wrapper, 'production-line-current')).toContain('Line 1')
+
+    await selectPeriod(wrapper, 'per-1')
+
+    // "Satu line" bukan "tanpa line": parameternya TETAP dikirim.
+    expect(apiGetMock).toHaveBeenCalledWith('/api/sterilizer-reports/summary', {
+      params: { period_id: 'per-1', production_line_id: 'pl-1' },
+    })
+  })
+
+  it('memilih line menuliskan ingatannya — konteksnya dibagi dengan layar Daftar Stasiun', async () => {
+    stubApi({ productionLines: ok({ data: TWO_LINES }), summaryByLine: SUMMARY_BY_LINE })
+
+    const wrapper = await mountView()
+    expect(window.localStorage.getItem('msl_production_line_user-1')).toBeNull()
+
+    await selectProductionLine(wrapper, 'pl-2')
+
+    expect(window.localStorage.getItem('msl_production_line_user-1')).toBe('pl-2')
+  })
+
+  it('daftar periode TIDAK PERNAH tersaring per line — periode milik mill', async () => {
+    stubApi({ productionLines: ok({ data: TWO_LINES }), summaryByLine: SUMMARY_BY_LINE })
+
+    const wrapper = await mountView()
+    await selectProductionLine(wrapper, 'pl-2')
+
+    const periodCalls = callsTo('/api/sterilizer-reports/periods')
+    expect(periodCalls).toHaveLength(1)
+    expect(apiGetMock).toHaveBeenCalledWith('/api/sterilizer-reports/periods', { params: {} })
+    expect(JSON.stringify(periodCalls)).not.toContain('production_line_id')
+  })
+
+  it('daftar line gagal dimuat — tanpa angka, dengan tombol coba lagi, dan BUKAN sebagai galat laporan', async () => {
+    stubApi({ productionLines: fail(NETWORK_ERROR) })
+
+    const wrapper = await mountView()
+
+    expect(exists(wrapper, 'production-line-unavailable')).toBe(true)
+    expect(text(wrapper, 'production-line-unavailable')).toContain('koneksi')
+    expect(exists(wrapper, 'production-line-retry')).toBe(true)
+    // Bukan jalur galat laporan: pemilih periode tetap terisi dan tidak ada
+    // network-error milik ringkasan yang menyamar sebagai kegagalan ini.
+    expect(exists(wrapper, 'network-error')).toBe(false)
+    expect(wrapper.findAll('[data-testid="period-select"] option')).toHaveLength(2)
+
+    await selectPeriod(wrapper, 'per-1')
+    expect(callsTo('/api/sterilizer-reports/summary')).toHaveLength(0)
+    expect(exists(wrapper, 'kpi-total-cycles')).toBe(false)
+
+    // Coba Lagi memuat ulang daftarnya, dan sekali berhasil layar hidup lagi.
+    stubApi({ productionLines: ok({ data: [LINE_2] }) })
+    await wrapper.get('[data-testid="production-line-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(exists(wrapper, 'production-line-unavailable')).toBe(false)
+    expect(text(wrapper, 'production-line-current')).toContain('Line 2')
+  })
+
+  it('mill tanpa satu pun Production Line — arahan menghubungi Admin, tanpa tombol coba lagi', async () => {
+    stubApi({ productionLines: ok({ data: [] }) })
+
+    const wrapper = await mountView()
+
+    expect(exists(wrapper, 'production-line-unavailable')).toBe(true)
+    expect(text(wrapper, 'production-line-unavailable')).toContain('hubungi Admin')
+    expect(exists(wrapper, 'production-line-retry')).toBe(false)
+    expect(exists(wrapper, 'kpi-total-cycles')).toBe(false)
+  })
+
+  it('akun tanpa mill tetap NOL permintaan — termasuk ke endpoint daftar Production Line', async () => {
+    asRole('operator', null)
+
+    const wrapper = await mountView()
+
+    expect(apiGetMock).not.toHaveBeenCalled()
+    expect(exists(wrapper, 'no-mill-for-account')).toBe(true)
+    expect(exists(wrapper, 'production-line-select')).toBe(false)
+    expect(exists(wrapper, 'production-line-unavailable')).toBe(false)
   })
 })

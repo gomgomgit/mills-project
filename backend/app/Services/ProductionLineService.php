@@ -8,6 +8,7 @@ use App\Models\Machinery;
 use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
+use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +39,8 @@ use Illuminate\Validation\ValidationException;
  */
 class ProductionLineService
 {
+    use ScopesToActorMill;
+
     /**
      * The 18 canonical stations every Production Line is auto-provisioned
      * with on create() — ALL 18 are now MVP-functional and active
@@ -191,6 +194,80 @@ class ProductionLineService
             ->map(fn (ProductionLine $productionLine) => [
                 'id' => $productionLine->id,
                 'name' => $productionLine->name,
+                'code' => $productionLine->code,
+            ])
+            ->all();
+    }
+
+    /**
+     * listForReport() — GET /api/production-lines/options-for-report?business_unit_id=.
+     *
+     * WHY THIS EXISTS ALONGSIDE listCurrentForUser() (2026-09-28)
+     * ----------------------------------------------------------
+     * listCurrentForUser() is SELF-SCOPED: it resolves the mill from
+     * `$user->business_unit_id` and throws ModelNotFoundException when that
+     * column is null. That is exactly right for the Station List picker
+     * (an Operator only ever works in their own mill), and exactly WRONG
+     * for the five mobile report screens, where Admin picks a mill first
+     * and is deliberately NOT mill-bound (`business_unit_id` is ignored for
+     * Admin project-wide — see ScopesToActorMill's class docblock). Calling
+     * the self-scoped endpoint as Admin would return ANOTHER mill's lines
+     * while the screen shows the picked mill's period: numbers that look
+     * legitimate for the wrong line, the worst failure shape a report has.
+     *
+     * So the scope decision is delegated to the ONE place that already owns
+     * it — ScopesToActorMill::resolveReadMillId(), the same method every
+     * Data Browser read funnels through:
+     *
+     *   - mill-bound actor (Operator / Supervisor / Mill Management): the
+     *     client-supplied `business_unit_id` is DISCARDED — not compared,
+     *     not 403'd. Sending another mill's id changes nothing.
+     *   - mill-bound actor with no `business_unit_id`: 422 (fail closed),
+     *     never "every mill".
+     *   - no authenticated actor: 401.
+     *   - Admin: free to pick any mill.
+     *
+     * ADMIN WITH NO `business_unit_id` PARAMETER returns EVERY mill's lines
+     * with each `name` prefixed by its mill name ("Mill Utara — Line 1"),
+     * mirroring productionLineOptionsForReadActor()'s existing decision for
+     * the Data Browsers rather than inventing a second rule: two mills may
+     * legitimately both call a line "Line 01", and an ambiguous option is
+     * worse than a long one. An empty list was the alternative; it would
+     * have made an unparameterised call look like "this mill has no lines",
+     * which is a different (and false) statement. The mobile report screens
+     * never reach this branch — they gate on a picked mill first.
+     *
+     * RESPONSE SHAPE is identical to listCurrentForUser() — {id, name, code}
+     * — on purpose: mobile then needs ONE mapper for both endpoints, and a
+     * screen can switch source without touching how it reads the rows.
+     *
+     * @throws \Illuminate\Auth\AuthenticationException 401
+     * @throws ValidationException 422 — mill-bound actor without a mill
+     */
+    public function listForReport(?string $requestedMillId): array
+    {
+        $millId = $this->resolveReadMillId($requestedMillId);
+
+        $query = ProductionLine::query()->orderBy('name');
+
+        if ($millId !== null) {
+            return $query->where('business_unit_id', $millId)
+                ->get(['id', 'name', 'code'])
+                ->map(fn (ProductionLine $productionLine) => [
+                    'id' => $productionLine->id,
+                    'name' => $productionLine->name,
+                    'code' => $productionLine->code,
+                ])
+                ->all();
+        }
+
+        return $query->with('businessUnit:id,name')
+            ->get(['id', 'name', 'code', 'business_unit_id'])
+            ->map(fn (ProductionLine $productionLine) => [
+                'id' => $productionLine->id,
+                'name' => $productionLine->businessUnit?->name
+                    ? $productionLine->businessUnit->name.' — '.$productionLine->name
+                    : $productionLine->name,
                 'code' => $productionLine->code,
             ])
             ->all();

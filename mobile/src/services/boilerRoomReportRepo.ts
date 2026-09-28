@@ -216,8 +216,25 @@ export interface BoilerRoomReportTotal {
   reading_rows: number
 }
 
+/**
+ * Blok `production_line` pada respons /summary — KUNCI BARU (2026-09-28),
+ * ADITIF. Bernilai null ketika permintaan tidak membawa production_line_id,
+ * atau ketika line yang dikirim bukan milik mill yang berlaku. Tidak satu
+ * pun kunci lama berubah nama, bentuk, maupun urutan karena kunci ini ada.
+ *
+ * Ini SATU-SATUNYA sumber nama Production Line yang server akui untuk
+ * angka yang sedang ditampilkan — layar boleh menampilkan nama dari
+ * daftarnya sendiri sebagai cadangan, tetapi nilai inilah yang benar-benar
+ * menyertai angkanya.
+ */
+export interface BoilerRoomReportProductionLineRef {
+  id: string
+  name: string
+}
+
 export interface BoilerRoomReportSummary {
   period: BoilerRoomReportPeriodHeader | null
+  production_line: BoilerRoomReportProductionLineRef | null
   business_unit: BoilerRoomReportBusinessUnitRef | null
   /**
    * Penanda milik SERVER. Membedakan "tidak ada yang bisa dilaporkan" dari
@@ -242,6 +259,13 @@ export interface BoilerRoomReportSummary {
 export interface BoilerRoomReportScope {
   isAdmin?: boolean
   businessUnitId?: string | null
+  /**
+   * Production Line yang angkanya diminta. Dikirim ke /summary dan /export
+   * saja — lihat productionLineParams(). Tanpa nilai ini repo tidak
+   * mengirim parameternya sama sekali, dan jawaban server identik dengan
+   * sebelum fitur Production Line ada.
+   */
+  productionLineId?: string | null
 }
 
 /**
@@ -325,6 +349,31 @@ function scopeParams(scope?: BoilerRoomReportScope): Record<string, string> {
 }
 
 /**
+ * production_line_id — PARAMETER BARU (2026-09-28), dikirim HANYA ke
+ * /summary dan /export.
+ *
+ * TIDAK PERNAH ke /periods. Periode adalah milik MILL, bukan milik
+ * Production Line (periods.business_unit_id, tanpa production_line_id), dan
+ * backend pun tidak menerima parameter ini di sana. Menyaring daftar
+ * periode per line akan mengarang penyempitan yang tidak ada di data.
+ *
+ * Berbeda dari scopeParams(), fungsi ini TIDAK bercabang berdasarkan peran:
+ * production_line_id bukan kewenangan melainkan konteks angka, dan server
+ * sudah mengabaikan line milik mill lain (laporan kosong, bukan 403). Yang
+ * dijaga di sini hanya satu: nilai kosong tidak pernah dikirim sebagai
+ * parameter kosong.
+ */
+function productionLineParams(scope?: BoilerRoomReportScope): Record<string, string> {
+  const productionLineId = scope?.productionLineId
+
+  if (!productionLineId) {
+    return {}
+  }
+
+  return { production_line_id: productionLineId }
+}
+
+/**
  * Respons /summary dikirim controller TANPA pembungkus `data`
  * (`response()->json($this->service->summary($period))`), sementara
  * /periods dan /business-units/options MEMAKAI pembungkus itu. Kedua
@@ -394,13 +443,14 @@ export async function fetchSummary(
   scope?: BoilerRoomReportScope,
 ): Promise<BoilerRoomReportSummary> {
   const response = await apiClient.get('/api/boiler-room-reports/summary', {
-    params: { period_id: periodId, ...scopeParams(scope) },
+    params: { period_id: periodId, ...scopeParams(scope), ...productionLineParams(scope) },
   })
 
   const body = (unwrap<Record<string, unknown>>(response.data) ?? {}) as Record<string, unknown>
 
   return {
     period: (body.period ?? null) as BoilerRoomReportPeriodHeader | null,
+    production_line: (body.production_line ?? null) as BoilerRoomReportProductionLineRef | null,
     business_unit: (body.business_unit ?? null) as BoilerRoomReportBusinessUnitRef | null,
     has_data: (body.has_data ?? false) as boolean,
     coverage: (body.coverage ?? { ...EMPTY_COVERAGE }) as BoilerRoomReportCoverage,
@@ -421,9 +471,9 @@ export async function fetchSummary(
  * web, karena endpoint-nya memang sama. Repo tidak pernah menyusun CSV dari
  * angka yang sedang tampil di layar.
  */
-export async function exportCsv(periodId: string): Promise<Blob> {
+export async function exportCsv(periodId: string, scope?: BoilerRoomReportScope): Promise<Blob> {
   const response = await apiClient.get('/api/boiler-room-reports/export', {
-    params: { period_id: periodId, format: 'csv' },
+    params: { period_id: periodId, format: 'csv', ...scopeParams(scope), ...productionLineParams(scope) },
     responseType: 'blob',
   })
 

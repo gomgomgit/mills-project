@@ -794,6 +794,7 @@ describe('clarificationReportRepo — lapisan repo (screen-138)', () => {
     expect(summary.metrics.clarification_tank_temp_c.avg).toBeNull()
     expect(summary).toEqual({
       period: emptyBody.period,
+      production_line: null,
       business_unit: emptyBody.business_unit,
       has_data: false,
       coverage: emptyBody.coverage,
@@ -1054,5 +1055,179 @@ describe('clarificationReportRepo — lapisan repo (screen-138)', () => {
     // Ekspor tidak pernah menyertakan business_unit_id — period_id sudah
     // menentukan mill-nya di sisi server.
     expect(paramsOf('/api/clarification-reports/export')).toEqual({ period_id: 'per-1', format: 'csv' })
+  })
+})
+
+/* ================================================================== */
+/* Production Line — parameter permintaan baru (2026-09-28)            */
+/* ================================================================== */
+
+/**
+ * Production Line adalah KONTEKS YANG DIPILIH, bukan ikatan akun: tidak ada
+ * `users.production_line_id` dan tidak boleh ada. Yang dijaga berkas ini
+ * hanyalah kontrak lapisan repo-nya:
+ *
+ *   - production_line_id hanya berangkat ke /summary dan /export;
+ *   - ia TIDAK PERNAH berangkat ke /periods — periode milik MILL, dan
+ *     menyaring daftarnya per line akan mengarang penyempitan yang tidak
+ *     ada di data;
+ *   - tanpa nilai, parameternya ABSEN (bukan kosong), sehingga jawaban
+ *     server identik dengan sebelum fitur ini ada;
+ *   - `production_line` pada respons dipetakan apa adanya, dan repo tidak
+ *     pernah menggabungkan dua line menjadi satu angka.
+ */
+describe('clarificationReportRepo — production_line_id (konteks yang dipilih, bukan ikatan akun)', () => {
+  it('fetchSummary mengirim production_line_id ketika ada, dan MENGABSENKAN parameternya ketika tidak', async () => {
+    await fetchSummary('per-1', { productionLineId: 'pl-2' })
+
+    expect(paramsOf('/api/clarification-reports/summary')).toEqual({
+      period_id: 'per-1',
+      production_line_id: 'pl-2',
+    })
+
+    // Tanpa nilai: bukan null, bukan string kosong — kuncinya ABSEN, agar
+    // jawaban server persis sama dengan sebelum fitur ini ada.
+    apiGetMock.mockClear()
+    await fetchSummary('per-1')
+    await fetchSummary('per-1', { productionLineId: null })
+    await fetchSummary('per-1', { productionLineId: '' })
+
+    expect(callsTo('/api/clarification-reports/summary')).toHaveLength(3)
+    expect(JSON.stringify(apiGetMock.mock.calls)).not.toContain('production_line_id')
+  })
+
+  it('production_line_id tidak bercabang menurut peran — ia konteks angka, bukan kewenangan', async () => {
+    // Peran terikat mill: business_unit_id tetap ditahan (gagal tertutup),
+    // tetapi production_line_id TETAP berangkat. Keduanya memang menjawab
+    // pertanyaan yang berbeda.
+    await fetchSummary('per-1', { isAdmin: false, businessUnitId: 'bu-9', productionLineId: 'pl-2' })
+
+    expect(paramsOf('/api/clarification-reports/summary')).toEqual({
+      period_id: 'per-1',
+      production_line_id: 'pl-2',
+    })
+
+    apiGetMock.mockClear()
+    await fetchSummary('per-1', { isAdmin: true, businessUnitId: 'bu-9', productionLineId: 'pl-2' })
+
+    expect(paramsOf('/api/clarification-reports/summary')).toEqual({
+      period_id: 'per-1',
+      business_unit_id: 'bu-9',
+      production_line_id: 'pl-2',
+    })
+  })
+
+  it('fetchPeriods TIDAK PERNAH menyaring per Production Line — periode milik mill', async () => {
+    await fetchPeriods({ productionLineId: 'pl-2' })
+    await fetchPeriods({ isAdmin: true, businessUnitId: 'bu-9', productionLineId: 'pl-2' })
+
+    expect(callsTo('/api/clarification-reports/periods')).toHaveLength(2)
+    expect(paramsOf('/api/clarification-reports/periods')).toEqual({})
+
+    const periodCalls = apiGetMock.mock.calls.filter((call) => String(call[0]).includes('/periods'))
+    expect(JSON.stringify(periodCalls)).not.toContain('production_line_id')
+    expect(JSON.stringify(periodCalls)).not.toContain('pl-2')
+  })
+
+  it('exportCsv membawa production_line_id — berkas mengikuti cakupan angka di layar', async () => {
+    await exportCsv('per-1', { productionLineId: 'pl-2' })
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/clarification-reports/export', {
+      params: { period_id: 'per-1', format: 'csv', production_line_id: 'pl-2' },
+      responseType: 'blob',
+    })
+
+    // Tanpa line, bentuk permintaannya persis seperti sebelum fitur ini ada
+    // — nama berkas dan kolom CSV pun tidak berubah (dibentuk SERVER).
+    apiGetMock.mockClear()
+    await exportCsv('per-1')
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/clarification-reports/export', {
+      params: { period_id: 'per-1', format: 'csv' },
+      responseType: 'blob',
+    })
+  })
+
+  it('exportCsv membawa business_unit_id untuk Admin — tanpa itu server menjawab 422', async () => {
+    // CACAT PRA-ADA yang ditutup 2026-09-28: exportCsv mengirim
+    // productionLineParams tapi TIDAK scopeParams, padahal fetchSummary di
+    // berkas yang sama mengirimnya. Untuk Admin (yang tidak terikat mill)
+    // clarification-reports/export memanggil resolveBusinessUnit(null) dan
+    // melempar 422 "Pilih mill terlebih dahulu" -- jadi tombol Ekspor
+    // Admin di mobile menghasilkan galat, bukan berkas.
+    //
+    // Test lama tidak menangkapnya karena scope-nya hanya membawa line,
+    // tidak pernah membawa mill; scopeParams() sendiri hanya mengirim mill
+    // bagi Admin, sebab mill non-Admin memang dibuang server.
+    await exportCsv('per-1', { isAdmin: true, businessUnitId: 'BU-B', productionLineId: 'pl-2' })
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/clarification-reports/export', {
+      params: { period_id: 'per-1', format: 'csv', business_unit_id: 'BU-B', production_line_id: 'pl-2' },
+      responseType: 'blob',
+    })
+
+    // Non-Admin: mill TIDAK dikirim -- server menurunkannya dari akun, dan
+    // mengirimnya hanya akan jadi nilai yang dibuang.
+    apiGetMock.mockClear()
+    await exportCsv('per-1', { isAdmin: false, businessUnitId: 'BU-A', productionLineId: 'pl-2' })
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/clarification-reports/export', {
+      params: { period_id: 'per-1', format: 'csv', production_line_id: 'pl-2' },
+      responseType: 'blob',
+    })
+  })
+
+  it('production_line pada respons dipetakan apa adanya, dan null ketika server tidak mengirimnya', async () => {
+    apiGetMock.mockResolvedValueOnce({ data: { production_line: { id: 'pl-2', name: 'Line 2' } } })
+
+    const withLine = await fetchSummary('per-1', { productionLineId: 'pl-2' })
+
+    expect(withLine.production_line).toEqual({ id: 'pl-2', name: 'Line 2' })
+
+    // Permintaan tanpa line, atau line milik mill lain: server menjawab
+    // null — BUKAN 403, dan bukan pula nama karangan sisi klien.
+    apiGetMock.mockResolvedValueOnce({ data: {} })
+
+    const withoutLine = await fetchSummary('per-1')
+
+    expect(withoutLine.production_line).toBeNull()
+  })
+
+  it('dua line dengan isi berbeda — repo memulangkan milik line yang diminta, tidak pernah menggabungkannya', async () => {
+    // Server menjawab menurut production_line_id yang dikirim. Repo yang
+    // benar meneruskan jawaban itu apa adanya; repo yang "membantu" dengan
+    // menggabungkan dua line akan gagal di sini.
+    apiGetMock.mockImplementation((url: string, config?: { params?: Record<string, string> }) => {
+      if (!String(url).includes('/summary')) {
+        return Promise.reject(new Error(`Endpoint tak terduga: ${url}`))
+      }
+
+      const lineId = String(config?.params?.production_line_id ?? '')
+
+      return Promise.resolve({
+        data: {
+          production_line: { id: lineId, name: lineId === 'pl-1' ? 'Line 1' : 'Line 2' },
+          period: { id: 'per-1', name: `Periode ${lineId}` },
+        },
+      })
+    })
+
+    const lineOne = await fetchSummary('per-1', { productionLineId: 'pl-1' })
+    const lineTwo = await fetchSummary('per-1', { productionLineId: 'pl-2' })
+
+    expect(lineOne.production_line).toEqual({ id: 'pl-1', name: 'Line 1' })
+    expect(lineTwo.production_line).toEqual({ id: 'pl-2', name: 'Line 2' })
+    expect(lineOne.period?.name).toBe('Periode pl-1')
+    expect(lineTwo.period?.name).toBe('Periode pl-2')
+    expect(lineOne).not.toEqual(lineTwo)
+  })
+
+  it('objek default mengekspos exportCsv yang menerima cakupan line', async () => {
+    await clarificationReportRepo.exportCsv('per-1', { productionLineId: 'pl-3' })
+
+    expect(apiGetMock).toHaveBeenCalledWith('/api/clarification-reports/export', {
+      params: { period_id: 'per-1', format: 'csv', production_line_id: 'pl-3' },
+      responseType: 'blob',
+    })
   })
 })

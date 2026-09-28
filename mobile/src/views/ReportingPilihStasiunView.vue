@@ -174,12 +174,36 @@ function onTileTap(station: StationSlot) {
   const routeName = REPORT_ROUTES[station.type]
 
   if (routeName) {
-    router.push({ name: routeName })
+    router.push({ name: routeName, query: reportQuery() })
 
     return
   }
 
   infoMessage.value = `Laporan ${station.name} belum tersedia.`
+}
+
+/**
+ * Production Line yang berlaku IKUT DIBAWA ke layar laporan tujuan —
+ * sejajar dengan `report_path` milik screen-140 web, yang sejak 2026-09-28
+ * menyisipkan `&production_line_id=<uuid>` pada setiap tautan stasiunnya.
+ *
+ * Kenapa ini penting justru DI SINI: kelima layar laporan mobile kini
+ * menolak menampilkan angka sebelum ada satu Production Line yang berlaku
+ * (angka gabungan lintas line tidak dapat ditindaklanjuti). Tanpa parameter
+ * ini, pengguna yang sudah memilih line di layar Daftar Stasiun akan
+ * disambut pemilih line LAGI begitu ia menekan sebuah tile di sini —
+ * pertanyaan kedua atas keputusan yang sudah ia jawab.
+ *
+ * Nilainya dibaca dari sumber yang sama persis yang dipakai `loadStations()`
+ * di atas, sehingga tile yang ditekan dan angka yang muncul pasti berasal
+ * dari line yang sama. Ketika tidak ada line yang tersimpan, query dibiarkan
+ * KOSONG — bukan diisi tebakan: layar laporan tujuan punya pemilihnya
+ * sendiri, dan itulah tempat yang benar untuk bertanya.
+ */
+function reportQuery(): Record<string, string> {
+  const productionLineId = readActiveProductionLineId()
+
+  return productionLineId ? { production_line_id: productionLineId } : {}
 }
 
 /**

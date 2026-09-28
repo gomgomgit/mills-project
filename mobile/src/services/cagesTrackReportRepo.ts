@@ -147,8 +147,25 @@ export interface CagesTrackReportTotal {
   days: number
 }
 
+/**
+ * Blok `production_line` pada respons /summary — KUNCI BARU (2026-09-28),
+ * ADITIF. Bernilai null ketika permintaan tidak membawa production_line_id,
+ * atau ketika line yang dikirim bukan milik mill yang berlaku. Tidak satu
+ * pun kunci lama berubah nama, bentuk, maupun urutan karena kunci ini ada.
+ *
+ * Ini SATU-SATUNYA sumber nama Production Line yang server akui untuk
+ * angka yang sedang ditampilkan — layar boleh menampilkan nama dari
+ * daftarnya sendiri sebagai cadangan, tetapi nilai inilah yang benar-benar
+ * menyertai angkanya.
+ */
+export interface CagesTrackReportProductionLineRef {
+  id: string
+  name: string
+}
+
 export interface CagesTrackReportSummary {
   period: CagesTrackReportPeriodHeader | null
+  production_line: CagesTrackReportProductionLineRef | null
   kpi: CagesTrackReportKpi
   hourly: CagesTrackReportHourlyRow[]
   daily: CagesTrackReportDailyRow[]
@@ -164,6 +181,13 @@ export interface CagesTrackReportSummary {
 export interface CagesTrackReportScope {
   isAdmin?: boolean
   businessUnitId?: string | null
+  /**
+   * Production Line yang angkanya diminta. Dikirim ke /summary dan /export
+   * saja — lihat productionLineParams(). Tanpa nilai ini repo tidak
+   * mengirim parameternya sama sekali, dan jawaban server identik dengan
+   * sebelum fitur Production Line ada.
+   */
+  productionLineId?: string | null
 }
 
 /**
@@ -217,6 +241,31 @@ function scopeParams(scope?: CagesTrackReportScope): Record<string, string> {
   }
 
   return { business_unit_id: businessUnitId }
+}
+
+/**
+ * production_line_id — PARAMETER BARU (2026-09-28), dikirim HANYA ke
+ * /summary dan /export.
+ *
+ * TIDAK PERNAH ke /periods. Periode adalah milik MILL, bukan milik
+ * Production Line (periods.business_unit_id, tanpa production_line_id), dan
+ * backend pun tidak menerima parameter ini di sana. Menyaring daftar
+ * periode per line akan mengarang penyempitan yang tidak ada di data.
+ *
+ * Berbeda dari scopeParams(), fungsi ini TIDAK bercabang berdasarkan peran:
+ * production_line_id bukan kewenangan melainkan konteks angka, dan server
+ * sudah mengabaikan line milik mill lain (laporan kosong, bukan 403). Yang
+ * dijaga di sini hanya satu: nilai kosong tidak pernah dikirim sebagai
+ * parameter kosong.
+ */
+function productionLineParams(scope?: CagesTrackReportScope): Record<string, string> {
+  const productionLineId = scope?.productionLineId
+
+  if (!productionLineId) {
+    return {}
+  }
+
+  return { production_line_id: productionLineId }
 }
 
 /**
@@ -288,13 +337,14 @@ export async function fetchSummary(
   scope?: CagesTrackReportScope,
 ): Promise<CagesTrackReportSummary> {
   const response = await apiClient.get('/api/cages-track-reports/summary', {
-    params: { period_id: periodId, ...scopeParams(scope) },
+    params: { period_id: periodId, ...scopeParams(scope), ...productionLineParams(scope) },
   })
 
   const body = (unwrap<Record<string, unknown>>(response.data) ?? {}) as Record<string, unknown>
 
   return {
     period: (body.period ?? null) as CagesTrackReportPeriodHeader | null,
+    production_line: (body.production_line ?? null) as CagesTrackReportProductionLineRef | null,
     kpi: (body.kpi ?? { ...EMPTY_KPI }) as CagesTrackReportKpi,
     hourly: (body.hourly ?? []) as CagesTrackReportHourlyRow[],
     daily: (body.daily ?? []) as CagesTrackReportDailyRow[],
@@ -311,9 +361,9 @@ export async function fetchSummary(
  * web, karena endpoint-nya memang sama. Repo tidak pernah menyusun CSV
  * dari angka yang sedang tampil di layar.
  */
-export async function exportCsv(periodId: string): Promise<Blob> {
+export async function exportCsv(periodId: string, scope?: CagesTrackReportScope): Promise<Blob> {
   const response = await apiClient.get('/api/cages-track-reports/export', {
-    params: { period_id: periodId, format: 'csv' },
+    params: { period_id: periodId, format: 'csv', ...scopeParams(scope), ...productionLineParams(scope) },
     responseType: 'blob',
   })
 

@@ -116,8 +116,9 @@
  * objek DATAR { message, errors?, status? } dan MEMBUANG `response`. Berkas
  * ini membaca `error.status` saja; `error.response.status` tidak pernah ada
  * di produksi dan mengeceknya hanya akan menyembunyikan kesalahan.
- * (LaporanCagesTrackView masih membaca `candidate?.response?.status` — itu
- * cacat yang sudah tercatat dan sengaja TIDAK ditiru di sini.)
+ * (LaporanCagesTrackView dan LaporanSterilizerView dulu masih membaca
+ * `candidate?.response?.status`; cacat itu dibereskan 2026-09-28 sehingga
+ * kelima layar laporan kini seragam.)
  *
  * SATU KOLOM, TANPA GULIRAN MENDATAR PADA HALAMAN. Yang lebar bukan
  * halamannya melainkan isi kartunya: kedua grafik tren, tabel rekap per
@@ -126,8 +127,9 @@
  * overflow-x: hidden.
  */
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { productionLineRepo, type ProductionLineOption } from '@/services/productionLineRepo'
 import { useFloatingClockStore } from '@/stores/floatingClock'
 import { useAiAssistantStore } from '@/stores/aiAssistant'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -142,6 +144,7 @@ import storageTankReportRepo, {
 } from '@/services/storageTankReportRepo'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const floatingClockStore = useFloatingClockStore()
 const aiAssistantStore = useAiAssistantStore()
@@ -180,9 +183,239 @@ const millRequired = computed(() => isAdmin.value && !selectedBusinessUnitId.val
  * mill-nya dari akun di sisi server, jadi layar ini memang tidak punya cara
  * untuk menyebut mill lain.
  */
+/* ------------------------------------------------------------------ */
+/* Production Line — KONTEKS YANG DIPILIH, BUKAN IKATAN AKUN           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * MEMILIH LINE ITU WAJIB DI LAYAR INI, DAN TIDAK ADA OPSI "SEMUA LINE".
+ *
+ * Laporan memulangkan angka GABUNGAN satu periode. Menjumlahkan beberapa
+ * Production Line ke dalam satu angka menghasilkan bilangan yang tidak
+ * dapat ditindaklanjuti siapa pun: tidak ada satu orang pun yang
+ * bertanggung jawab atasnya. Karena itu tidak ada angka di layar ini
+ * sebelum ada satu line yang berlaku — bukan sekadar pilihan bawaan yang
+ * "kebetulan" line pertama.
+ *
+ * (Data Browser versi web sengaja BERBEDA: di sana barisnya tetap terpisah
+ * per record, jadi "Semua Line" di sana tetap dapat dibaca. Perbedaan itu
+ * disengaja, bukan ketidakkonsistenan.)
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ * MEMAKAI ULANG INGATAN LINE MILIK LAYAR DAFTAR STASIUN
+ * ────────────────────────────────────────────────────────────────────────
+ * Kunci localStorage-nya SAMA PERSIS dengan yang ditulis StationListView.vue
+ * (`msl_production_line_{userId}`) dan yang sudah dibaca
+ * ReportingPilihStasiunView.vue. Alasannya: line adalah konteks kerja satu
+ * orang pada satu shift, bukan pengaturan per layar. Pengguna yang sudah
+ * memilih Line 2 di Daftar Stasiun tidak boleh diminta memilih lagi begitu
+ * ia membuka laporan.
+ *
+ * Tetapi ingatan itu TIDAK CUKUP dijadikan satu-satunya sumber: laporan
+ * dicapai lewat cabang navigasi yang lain (Home → Dashboard & Reporting →
+ * Reporting → tile stasiun), sedangkan ingatannya ditulis di cabang
+ * Home → Daftar Stasiun. Pengguna yang hanya memakai Reporting bisa saja
+ * belum pernah punya ingatan itu sama sekali. Karena itu layar ini punya
+ * PEMILIHNYA SENDIRI, dan ingatan hanyalah nilai awalnya.
+ *
+ * Urutan penentuan line yang berlaku (resolveProductionLine):
+ *   1. `?production_line_id=` pada rute — dibawa screen-141 saat menekan
+ *      tile stasiun, sejajar dengan `report_path` milik screen-140 web.
+ *   2. Ingatan localStorage — pilihan terakhir pengguna ini di perangkat ini.
+ *   3. Tepat satu line di mill ini — tidak ada yang perlu dipilih.
+ *   4. Selain itu: pemilih ditampilkan, dan TIDAK ADA ANGKA.
+ *
+ * Nilai dari (1) dan (2) TIDAK PERNAH dipercaya begitu saja — keduanya
+ * hanya dipakai bila masih ada di daftar line yang baru diambil dari
+ * server, persis kehati-hatian yang sama yang dipakai StationListView.vue.
+ * Line yang dihapus, atau pengguna yang dipindah mill, kembali memunculkan
+ * pemilih seperti seharusnya.
+ *
+ * ADMIN: daftar line diambil dari GET /api/production-lines/options-for-report
+ * ?business_unit_id=<mill terpilih>, BUKAN dari /api/production-lines/current.
+ * Yang terakhir itu swa-cakup — ia memulangkan line milik mill AKUN
+ * PEMANGGIL, sedangkan Admin tidak terikat mill sama sekali, sehingga
+ * memanggilnya atas nama Admin akan memulangkan line dari mill yang BUKAN
+ * mill terpilih: bentuk kesalahan paling berbahaya di layar laporan, yaitu
+ * angka yang terlihat sah untuk line yang salah.
+ *
+ * Endpoint baru itu menerima business_unit_id, tetapi HANYA dari Admin:
+ * server membuang nilai kiriman klien untuk peran yang terikat mill
+ * (ScopesToActorMill::resolveReadMillId()), dan repo di sini pun tidak
+ * mengirimkannya untuk mereka. Karena itu urutan bagi Admin adalah pilih
+ * mill dahulu, baru daftar line-nya diminta — tanpa mill tidak ada satu pun
+ * permintaan daftar line, dan tanpa line tidak ada satu pun angka.
+ */
+const productionLines = ref<ProductionLineOption[]>([])
+const selectedProductionLineId = ref<string | null>(null)
+const loadingProductionLines = ref(false)
+
+/** Pengambilan daftar line gagal (jaringan/server) — bukan "mill tanpa line". */
+const productionLineFetchFailed = ref(false)
+
+const activeProductionLine = computed<ProductionLineOption | null>(
+  () => productionLines.value.find((line) => line.id === selectedProductionLineId.value) ?? null,
+)
+
+/**
+ * Nama line yang menyertai angka yang sedang tampil. Nilai dari SERVER
+ * (`summary.production_line`) didahulukan: itulah line yang benar-benar
+ * dipakai saat menghitung, sedangkan daftar lokal hanyalah cadangan untuk
+ * keadaan sebelum ringkasan pertama tiba.
+ */
+const activeProductionLineName = computed(
+  () => summary.value?.production_line?.name || activeProductionLine.value?.name || '',
+)
+
+/** Ada line yang dapat dipilih, tetapi belum ada yang dipilih. */
+const productionLineRequired = computed(
+  () =>
+    !noMillForAccount.value &&
+    !millRequired.value &&
+    productionLines.value.length > 0 &&
+    !selectedProductionLineId.value,
+)
+
+/** Tidak ada satu pun line yang dapat dipilih di layar ini. */
+const productionLineBlocked = computed(
+  () =>
+    !noMillForAccount.value &&
+    !millRequired.value &&
+    !loadingProductionLines.value &&
+    productionLines.value.length === 0,
+)
+
+const productionLineNotice = computed(() => {
+  if (productionLineFetchFailed.value) {
+    return (
+      'Daftar Production Line tidak dapat dimuat, sehingga laporan belum dapat menampilkan angka. ' +
+      'Periksa koneksi jaringan Anda, lalu coba lagi.'
+    )
+  }
+
+  return 'Mill ini belum memiliki Production Line, sehingga belum ada angka yang dapat dilaporkan. Silakan hubungi Admin.'
+})
+
+/**
+ * Kunci ingatan dimuati id PENGGUNA: sebuah Production Line milik satu
+ * mill, jadi pilihan pengguna lain tidak boleh terbawa setelah ganti akun
+ * di perangkat yang sama. Sama persis dengan StationListView.vue.
+ *
+ * localStorage dibungkus try/catch mengikuti pola floatingClock.ts: pada
+ * mode privat penyimpanan bisa melempar, dan gagal mengingat pilihan tidak
+ * boleh mematahkan layar.
+ */
+function rememberedProductionLineKey(): string | null {
+  const userId = authStore.currentUser?.id
+
+  return userId ? `msl_production_line_${userId}` : null
+}
+
+function readRememberedProductionLineId(): string | null {
+  const key = rememberedProductionLineKey()
+
+  if (!key) {
+    return null
+  }
+
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function rememberProductionLineId(lineId: string): void {
+  const key = rememberedProductionLineKey()
+
+  if (!key) {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(key, lineId)
+  } catch {
+    // Pilihan tetap berlaku untuk sesi ini, hanya tidak bertahan.
+  }
+}
+
+function routeProductionLineId(): string | null {
+  const raw = route.query.production_line_id
+
+  const value = Array.isArray(raw) ? raw[0] : raw
+
+  return typeof value === 'string' && value !== '' ? value : null
+}
+
+/** Lihat urutan penentuan pada docblock blok ini. */
+function resolveProductionLine(lines: ProductionLineOption[]): void {
+  const fromRoute = lines.find((line) => line.id === routeProductionLineId())
+  const remembered = lines.find((line) => line.id === readRememberedProductionLineId())
+  const onlyOne = lines.length === 1 ? lines[0] : null
+
+  const resolved = fromRoute ?? remembered ?? onlyOne ?? null
+
+  selectedProductionLineId.value = resolved?.id ?? null
+
+  if (resolved) {
+    // Ditulis kembali supaya pilihan yang dibawa screen-141 ikut menjadi
+    // ingatan — layar Daftar Stasiun dan layar laporan berbagi satu konteks.
+    rememberProductionLineId(resolved.id)
+  }
+}
+
+async function loadProductionLines(): Promise<void> {
+  if (isAdmin.value && !selectedBusinessUnitId.value) {
+    // Admin memilih mill lebih dulu. Tanpa mill tidak ada daftar line yang
+    // dapat diminta — dan tidak ada permintaan yang dikirim.
+    productionLines.value = []
+    selectedProductionLineId.value = null
+    productionLineFetchFailed.value = false
+
+    return
+  }
+
+  loadingProductionLines.value = true
+  productionLineFetchFailed.value = false
+
+  try {
+    // business_unit_id hanya ikut untuk Admin — peran lain dipaksa ke mill
+    // akunnya oleh server, dan repo pun menolak mengirimkannya.
+    const lines = await productionLineRepo.fetchProductionLinesForReport(
+      isAdmin.value ? selectedBusinessUnitId.value : null,
+    )
+
+    productionLines.value = lines
+    resolveProductionLine(lines)
+  } catch {
+    // Kegagalan di sini BUKAN kegagalan laporan: tidak memakai handleError()
+    // supaya tidak menyamar sebagai galat ringkasan dan tidak menimpa
+    // penanganan 401/jaringan milik laporan itu sendiri.
+    productionLines.value = []
+    selectedProductionLineId.value = null
+    productionLineFetchFailed.value = true
+  } finally {
+    loadingProductionLines.value = false
+  }
+}
+
+async function onProductionLineChange(): Promise<void> {
+  clearErrors()
+  summary.value = null
+
+  if (!selectedProductionLineId.value) {
+    return
+  }
+
+  rememberProductionLineId(selectedProductionLineId.value)
+
+  await loadSummary()
+}
+
 const scope = computed(() => ({
   isAdmin: isAdmin.value,
   businessUnitId: selectedBusinessUnitId.value,
+  productionLineId: selectedProductionLineId.value,
 }))
 
 /* ------------------------------------------------------------------ */
@@ -365,7 +598,10 @@ async function loadPeriods(): Promise<void> {
 async function loadSummary(): Promise<void> {
   const periodId = selectedPeriodId.value
 
-  if (!periodId) {
+  // Tidak ada satu angka pun sebelum ada line yang berlaku. Penjagaan
+  // ini ada DI SINI, bukan hanya di template, supaya tidak ada jalur
+  // pemanggilan (retry, ganti periode, ganti mill) yang bisa melewatinya.
+  if (!periodId || !selectedProductionLineId.value) {
     return
   }
 
@@ -396,17 +632,25 @@ async function onBusinessUnitChange(): Promise<void> {
   periods.value = []
   selectedPeriodId.value = null
   summary.value = null
+  // Line milik mill LAMA tidak boleh tertinggal: sebuah Production Line
+  // milik satu mill, jadi mengganti mill selalu membatalkan pilihan line.
+  productionLines.value = []
+  selectedProductionLineId.value = null
 
   if (!selectedBusinessUnitId.value) {
     return
   }
 
+  // Urutan yang sama dengan onMounted bagi peran terikat mill: daftar line
+  // lebih dulu, periode menyusul — /periods memang TIDAK tersaring line.
+  await loadProductionLines()
   await loadPeriods()
 }
 
 onMounted(async () => {
   if (isAdmin.value) {
-    // Admin tidak terikat mill: pilih dulu, baru periode dimuat.
+    // Admin tidak terikat mill: pilih mill dulu, baru daftar line dan
+    // periode dimuat — keduanya oleh onBusinessUnitChange().
     await loadBusinessUnits()
 
     return
@@ -419,6 +663,9 @@ onMounted(async () => {
     return
   }
 
+  // Daftar line lebih dulu: pemilih periode boleh terisi tanpa line,
+  // tetapi angkanya tidak — dan /periods memang TIDAK tersaring line.
+  await loadProductionLines()
   await loadPeriods()
 })
 
@@ -438,7 +685,10 @@ function exportFilename(): string {
 async function onExport(): Promise<void> {
   const periodId = selectedPeriodId.value
 
-  if (!periodId || exporting.value) {
+  // Ekspor mengikuti cakupan yang sama dengan angka di layar: tanpa
+  // line, tidak ada berkas — berkas yang mencampur line adalah bentuk
+  // kesalahan yang paling sulit dibantah setelah terkirim.
+  if (!periodId || !selectedProductionLineId.value || exporting.value) {
     return
   }
 
@@ -448,7 +698,7 @@ async function onExport(): Promise<void> {
     // Isi CSV dibentuk SERVER (satu baris per slot waktu, empat kolom
     // konteks record diulang, kolom teks verbatim). Layar ini tidak pernah
     // menyusun berkasnya dari angka yang sedang tampil.
-    const blob = await storageTankReportRepo.exportCsv(periodId)
+    const blob = await storageTankReportRepo.exportCsv(periodId, scope.value)
     storageTankReportRepo.saveCsvFile(blob, exportFilename())
   } catch (error) {
     // Kegagalan ekspor tidak dapat "diulang" secara bermakna oleh tombol
@@ -907,6 +1157,30 @@ function onBack(): void {
           Mill: <strong>{{ currentMillName || NOT_AVAILABLE }}</strong>
         </p>
 
+        <!-- Pemilih Production Line — WAJIB, dan SENGAJA tanpa opsi
+             "semua line". Hanya dirender ketika mill ini memang punya
+             lebih dari satu line: dengan satu line tidak ada keputusan
+             yang perlu diminta. -->
+        <label v-if="productionLines.length > 1" class="filter-field">
+          <span>Production Line</span>
+          <select
+            v-model="selectedProductionLineId"
+            data-testid="production-line-select"
+            @change="onProductionLineChange"
+          >
+            <option :value="null">Pilih Production Line</option>
+            <option v-for="line in productionLines" :key="line.id" :value="line.id">{{ line.name }}</option>
+          </select>
+        </label>
+
+        <!-- Nama line yang menyertai angka yang sedang tampil — dirender
+             di kedua cabang (satu line maupun banyak), supaya tidak pernah
+             ada angka di layar ini yang tidak dapat ditelusuri ke satu
+             line tertentu. -->
+        <p v-if="activeProductionLineName" class="mill-current" data-testid="production-line-current">
+          Production Line: <strong>{{ activeProductionLineName }}</strong>
+        </p>
+
         <!-- Pemilih Periode selalu dirender (bukan v-if millRequired): bagi
              Admin yang belum memilih mill ia tampil KOSONG, bukan hilang —
              pemilih yang lenyap dan pemilih yang kosong menceritakan hal
@@ -927,6 +1201,31 @@ function onBack(): void {
       <p v-if="millRequired" class="notice" data-testid="mill-required-hint">
         Pilih mill terlebih dahulu untuk menampilkan laporan.
       </p>
+
+      <!-- Line belum dipilih: tidak ada angka sama sekali. -->
+      <p v-else-if="productionLineRequired" class="notice" data-testid="production-line-required-hint">
+        Pilih Production Line terlebih dahulu untuk menampilkan laporan. Angka laporan dihitung per
+        Production Line, sehingga tidak ada pilihan gabungan lintas line.
+      </p>
+
+      <!-- Tidak ada satu pun line yang dapat dipilih di layar ini. -->
+      <div
+        v-else-if="productionLineBlocked"
+        class="notice notice--warning notice--stack"
+        role="alert"
+        data-testid="production-line-unavailable"
+      >
+        <p class="notice-text">{{ productionLineNotice }}</p>
+        <button
+          v-if="productionLineFetchFailed"
+          type="button"
+          class="action-button action-button--secondary"
+          data-testid="production-line-retry"
+          @click="loadProductionLines"
+        >
+          Coba Lagi
+        </button>
+      </div>
 
       <!-- Mill belum punya satu pun periode: arahan, bukan pesan teknis. -->
       <p v-else-if="noPeriods" class="notice" data-testid="no-periods">
@@ -1355,7 +1654,7 @@ function onBack(): void {
         <!-- Ekspor TIDAK PERNAH dinonaktifkan oleh status periode: kunci
              periode mengatur penulisan data, bukan pembacaan laporan. -->
         <button
-          v-if="selectedPeriodId"
+          v-if="selectedPeriodId && selectedProductionLineId"
           type="button"
           class="action-button action-button--primary"
           data-testid="export-button"
@@ -1425,6 +1724,7 @@ function onBack(): void {
 .notice--warning { border-color: #fcd34d; background: #fffbeb; color: #92400e; }
 .notice--error { display: flex; flex-direction: column; gap: 10px; border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
 .notice-text { margin: 0; }
+.notice--stack { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 
 .metric-stack { display: flex; flex-direction: column; gap: 10px; }
 .metric-card { display: flex; flex-direction: column; gap: 4px; padding: 14px; border: 1px solid #e5e7eb; border-radius: 8px; }

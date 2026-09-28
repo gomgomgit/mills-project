@@ -373,3 +373,143 @@ it('returns 401 for current()/currentStations() when there is no authenticated s
     $this->getJson('/api/production-lines/current')->assertStatus(401);
     $this->getJson("/api/production-lines/current/stations?production_line_id={$productionLine->id}")->assertStatus(401);
 });
+
+// ── GET /api/production-lines/options-for-report ───────────────────────
+//
+// The mill-scoped counterpart to current(), added 2026-09-28 so the five
+// mobile report screens can offer a Production Line picker to EVERY role,
+// Admin included. current() resolves the mill from the caller's own
+// `business_unit_id` and therefore cannot serve Admin at all (Admin is
+// deliberately not mill-bound project-wide); calling it as Admin would
+// have listed some OTHER mill's lines next to the picked mill's period.
+//
+// Every assertion below is TWO-DIRECTIONAL on purpose — "my mill's line IS
+// there" AND "the other mill's line is NOT". SQLite evaluates a WHERE on a
+// column that does not exist as a string literal (0 rows, no error) where
+// PostgreSQL raises, so a one-directional test ("my line is there") would
+// stay green against a scope that had quietly stopped filtering, and a
+// test that only counted rows would stay green against a scope that
+// filtered on the wrong column.
+
+it('options-for-report: mill-bound actor sending ANOTHER mill\'s business_unit_id still gets only their own mill\'s lines', function (string $role) {
+    $actor = User::factory()->role(UserRole::from($role))->forBusinessUnit($this->businessUnit)->create();
+
+    $ownLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Line Milikku']);
+    $otherBusinessUnit = BusinessUnit::factory()->create(['name' => 'Mill Sebelah']);
+    ProductionLine::factory()->forBusinessUnit($otherBusinessUnit)->create(['name' => 'Line Bukan Milikku']);
+
+    $response = $this->actingAs($actor, 'web')
+        ->getJson("/api/production-lines/options-for-report?business_unit_id={$otherBusinessUnit->id}");
+
+    $response->assertOk();
+    // The client-supplied mill is DISCARDED, not 403'd — same treatment
+    // every mill-scoped read in this project already gives it.
+    $response->assertJsonFragment(['id' => $ownLine->id, 'name' => 'Line Milikku']);
+    $response->assertJsonMissing(['name' => 'Line Bukan Milikku']);
+    expect(collect($response->json('data'))->pluck('id')->all())->toBe([$ownLine->id]);
+})->with([
+    'operator' => 'operator',
+    'supervisor' => 'supervisor',
+    'mill_management' => 'mill_management',
+]);
+
+it('options-for-report: mill-bound actor sending NO business_unit_id gets exactly their own mill\'s lines', function () {
+    $ownLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Line Milikku']);
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+    ProductionLine::factory()->forBusinessUnit($otherBusinessUnit)->create(['name' => 'Line Bukan Milikku']);
+
+    $response = $this->actingAs($this->supervisor, 'web')->getJson('/api/production-lines/options-for-report');
+
+    $response->assertOk();
+    $response->assertJsonFragment(['id' => $ownLine->id]);
+    $response->assertJsonMissing(['name' => 'Line Bukan Milikku']);
+});
+
+it('options-for-report: Admin gets the lines of the mill they asked for, and a different mill gives a different list', function () {
+    $millA = BusinessUnit::factory()->create(['name' => 'Mill A']);
+    $millB = BusinessUnit::factory()->create(['name' => 'Mill B']);
+    $lineA = ProductionLine::factory()->forBusinessUnit($millA)->create(['name' => 'Line A1']);
+    $lineB = ProductionLine::factory()->forBusinessUnit($millB)->create(['name' => 'Line B1']);
+
+    $responseA = $this->actingAs($this->admin, 'web')
+        ->getJson("/api/production-lines/options-for-report?business_unit_id={$millA->id}");
+    $responseA->assertOk();
+    expect(collect($responseA->json('data'))->pluck('id')->all())->toBe([$lineA->id]);
+    $responseA->assertJsonMissing(['name' => 'Line B1']);
+
+    // The SAME Admin, a different mill — a different list. This is the
+    // whole point of the endpoint: without it Admin could only ever have
+    // seen the lines of whatever mill their own row happens to point at.
+    $responseB = $this->actingAs($this->admin, 'web')
+        ->getJson("/api/production-lines/options-for-report?business_unit_id={$millB->id}");
+    $responseB->assertOk();
+    expect(collect($responseB->json('data'))->pluck('id')->all())->toBe([$lineB->id]);
+    $responseB->assertJsonMissing(['name' => 'Line A1']);
+});
+
+it('options-for-report: Admin without a business_unit_id param gets every mill\'s lines, each labelled with its mill name', function () {
+    $millA = BusinessUnit::factory()->create(['name' => 'Mill A']);
+    $millB = BusinessUnit::factory()->create(['name' => 'Mill B']);
+    ProductionLine::factory()->forBusinessUnit($millA)->create(['name' => 'Line 01']);
+    ProductionLine::factory()->forBusinessUnit($millB)->create(['name' => 'Line 01']);
+
+    $response = $this->actingAs($this->admin, 'web')->getJson('/api/production-lines/options-for-report');
+
+    $response->assertOk();
+    // Two mills may legitimately both call a line "Line 01" — the label
+    // must stay unambiguous, so it carries the mill name.
+    $response->assertJsonFragment(['name' => 'Mill A — Line 01']);
+    $response->assertJsonFragment(['name' => 'Mill B — Line 01']);
+});
+
+it('options-for-report: returns the same {id, name, code} row shape as current(), so mobile needs one mapper', function () {
+    $line = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->withCode('PL-SHAPE')->create(['name' => 'Line Bentuk']);
+
+    $reportRows = $this->actingAs($this->operator, 'web')
+        ->getJson('/api/production-lines/options-for-report')->assertOk()->json('data');
+    $currentRows = $this->actingAs($this->operator, 'web')
+        ->getJson('/api/production-lines/current')->assertOk()->json('data');
+
+    expect($reportRows)->toBe($currentRows);
+    expect($reportRows[0])->toBe(['id' => $line->id, 'name' => 'Line Bentuk', 'code' => 'PL-SHAPE']);
+});
+
+it('options-for-report: returns 422 for a mill-bound actor whose account has no business_unit_id — fail closed, never every mill', function () {
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+    ProductionLine::factory()->forBusinessUnit($otherBusinessUnit)->create(['name' => 'Line Bukan Milikku']);
+    $millessSupervisor = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+
+    $response = $this->actingAs($millessSupervisor, 'web')->getJson('/api/production-lines/options-for-report');
+
+    $response->assertStatus(422);
+    // And it did NOT widen to "every mill" on the way out.
+    expect($response->json())->not->toHaveKey('data');
+});
+
+it('options-for-report: is reachable with a mobile Sanctum token — the whole reason this endpoint exists', function () {
+    $line = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Line Token']);
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+    $otherLine = ProductionLine::factory()->forBusinessUnit($otherBusinessUnit)->create(['name' => 'Line Mill Lain']);
+
+    // Supervisor via Sanctum: own mill's line present, other mill's absent.
+    \Laravel\Sanctum\Sanctum::actingAs($this->supervisor, ['*']);
+    $supervisorResponse = $this->getJson("/api/production-lines/options-for-report?business_unit_id={$otherBusinessUnit->id}");
+    $supervisorResponse->assertOk();
+    $supervisorResponse->assertJsonFragment(['id' => $line->id]);
+    $supervisorResponse->assertJsonMissing(['name' => 'Line Mill Lain']);
+
+    // Admin via Sanctum: the picked mill's line, which is precisely what
+    // /production-lines/current could never give them.
+    $adminViaToken = User::factory()->role(UserRole::Admin)->create(['business_unit_id' => $this->businessUnit->id]);
+    \Laravel\Sanctum\Sanctum::actingAs($adminViaToken, ['*']);
+    $adminResponse = $this->getJson("/api/production-lines/options-for-report?business_unit_id={$otherBusinessUnit->id}");
+    $adminResponse->assertOk();
+    expect(collect($adminResponse->json('data'))->pluck('id')->all())->toBe([$otherLine->id]);
+});
+
+it('options-for-report: returns 401 when there is no authenticated session or token', function () {
+    ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+
+    $this->getJson('/api/production-lines/options-for-report')->assertStatus(401);
+    $this->getJson("/api/production-lines/options-for-report?business_unit_id={$this->businessUnit->id}")->assertStatus(401);
+});

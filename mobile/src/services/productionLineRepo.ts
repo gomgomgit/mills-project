@@ -72,6 +72,48 @@ export async function fetchCurrentProductionLines(): Promise<ProductionLineOptio
 }
 
 /**
+ * fetchProductionLinesForReport() — GET
+ * /api/production-lines/options-for-report?business_unit_id=<uuid>.
+ *
+ * KENAPA ADA DUA FUNGSI, DAN KAPAN MEMAKAI YANG MANA (2026-09-28)
+ * ---------------------------------------------------------------
+ * fetchCurrentProductionLines() di atas memakai endpoint SWA-CAKUP: server
+ * menentukan mill dari `business_unit_id` AKUN PEMANGGIL. Itu tepat untuk
+ * layar Daftar Stasiun — seorang Operator hanya pernah bekerja di mill-nya
+ * sendiri — dan justru SALAH untuk kelima layar laporan, tempat Admin
+ * memilih mill lebih dulu dan memang TIDAK terikat mill sama sekali.
+ * Memanggil endpoint swa-cakup atas nama Admin akan memulangkan line milik
+ * mill LAIN berdampingan dengan periode mill yang dipilih: angka yang
+ * terlihat sah untuk line yang salah.
+ *
+ * Endpoint di sini menerima `business_unit_id`, tetapi nilai itu hanya
+ * bermakna bagi Admin — server MEMBUANG-nya untuk peran yang terikat mill
+ * (ScopesToActorMill::resolveReadMillId()). Karena itu pemanggil di sini
+ * pun tidak mengirimkannya untuk peran lain: gagal tertutup di dua tempat,
+ * sengaja, sama seperti scopeParams() pada kelima repo laporan.
+ *
+ * Bentuk barisnya SAMA PERSIS dengan fetchCurrentProductionLines()
+ * ({id, name, code}) — itu keputusan sisi server, dan akibatnya tidak ada
+ * pemeta kedua di sini.
+ *
+ * Tanpa cache lokal, dengan alasan yang sama seperti
+ * fetchCurrentProductionLines(): daftar line adalah master data yang
+ * ditulis di web, dan pemanggil memperlakukan promise yang ditolak sebagai
+ * "tidak ada daftar line yang diketahui sekarang".
+ */
+export async function fetchProductionLinesForReport(
+  businessUnitId?: string | null,
+): Promise<ProductionLineOption[]> {
+  const { default: apiClient } = await import('@/services/apiClient')
+
+  const response = await apiClient.get('/api/production-lines/options-for-report', {
+    params: businessUnitId ? { business_unit_id: businessUnitId } : {},
+  })
+
+  return (response.data?.data ?? []) as ProductionLineOption[]
+}
+
+/**
  * fetchAndCacheStationsForProductionLine() — GET
  * /api/production-lines/current/stations?production_line_id=<id>, then
  * upserts each returned row into the local `station` table keyed by its
@@ -137,6 +179,7 @@ export async function fetchAndCacheStationsForProductionLine(
 
 export const productionLineRepo = {
   fetchCurrentProductionLines,
+  fetchProductionLinesForReport,
   fetchAndCacheStationsForProductionLine,
 }
 

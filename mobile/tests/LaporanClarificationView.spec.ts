@@ -71,9 +71,12 @@ const { pushMock, replaceMock } = vi.hoisted(() => ({
   replaceMock: vi.fn(),
 }))
 
+/** Query rute — screen-141 menyisipkan production_line_id di sini. */
+const { routeQuery } = vi.hoisted(() => ({ routeQuery: {} as Record<string, string> }))
+
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: pushMock, replace: replaceMock }),
-  useRoute: () => ({ params: {}, query: {} }),
+  useRoute: () => ({ params: {}, query: routeQuery }),
 }))
 
 const { useAuthStoreMock, logoutMock } = vi.hoisted(() => ({
@@ -113,6 +116,27 @@ vi.mock('@/services/clarificationReportRepo', () => ({
   default: repoMocks,
   ...repoMocks,
 }))
+
+/**
+ * productionLineRepo — daftar Production Line untuk mill yang berlaku
+ * (GET /api/production-lines/options-for-report). Di-stub di tingkat repo, sama
+ * seperti repo laporan berkas ini, karena yang diuji di sini adalah
+ * KEPUTUSAN LAYAR atas daftar itu, bukan bentuk permintaan HTTP-nya (itu
+ * milik clarificationReportRepo.spec.ts).
+ */
+const { productionLineMocks } = vi.hoisted(() => ({
+  productionLineMocks: {
+    fetchProductionLinesForReport: vi.fn(),
+    fetchAndCacheStationsForProductionLine: vi.fn(),
+  },
+}))
+
+vi.mock('@/services/productionLineRepo', () => ({
+  default: productionLineMocks,
+  productionLineRepo: productionLineMocks,
+  ...productionLineMocks,
+}))
+
 
 /* ------------------------------------------------------------------ */
 /* Bentuk galat NYATA (apiClient.normalizeError) — DATAR, tanpa         */
@@ -422,13 +446,36 @@ function domPosition(wrapper: VueWrapper, testid: string): number {
   return wrapper.html().indexOf(`data-testid="${testid}"`)
 }
 
+
+/**
+ * PRODUCTION LINE — konteks yang DIPILIH, bukan ikatan akun.
+ *
+ * Bawaan berkas ini SATU line: mill dengan satu line tidak punya keputusan
+ * untuk diminta, line itu berlaku otomatis, dan seluruh test lama tetap
+ * berbicara tentang apa yang memang mereka uji (pemetaan respons ke layar)
+ * — bukan tentang pemilih line. Test yang memang menguji pemilihnya
+ * men-stub DUA line secara eksplisit.
+ *
+ * Perhatikan: dengan satu line pun `productionLineId` TETAP ikut pada
+ * cakupan yang diteruskan ke repo. "Satu line" bukan "tanpa line".
+ */
+const LINE_1 = { id: 'pl-1', name: 'Line 1', code: 'L1' }
+const LINE_2 = { id: 'pl-2', name: 'Line 2', code: 'L2' }
+const TWO_LINES = [LINE_1, LINE_2]
+
 beforeEach(() => {
   vi.clearAllMocks()
   // Aturan repo: setiap test yang dapat menyentuh localStorage wajib
   // membersihkannya — jsdom membagi satu objek localStorage per berkas.
   window.localStorage.clear()
 
+  for (const key of Object.keys(routeQuery)) {
+    delete routeQuery[key]
+  }
+
   asRole('operator', 'bu-1')
+
+  productionLineMocks.fetchProductionLinesForReport.mockResolvedValue([LINE_1])
 
   repoMocks.fetchBusinessUnits.mockResolvedValue(BUSINESS_UNITS)
   repoMocks.fetchPeriods.mockResolvedValue([PERIOD_CLF])
@@ -485,26 +532,51 @@ describe('LaporanClarificationView — test_scenarios / component_test (tech spe
   })
 
   // Scenario 2: "berhasil dilihat Admin setelah memilih mill"
-  it('Admin — pemilih Mill dirender, memilih mill memuat ulang periode, lalu seluruh angka tampil untuk mill itu', async () => {
+  /*
+   * DIPULIHKAN 2026-09-28 (tahap 4b) ke bentuk aslinya: Admin memilih mill,
+   * memilih line, dan MELIHAT ANGKA.
+   *
+   * Bentuk sementara sebelumnya ("nol angka, karena tidak ada jalan") lahir
+   * dari satu keterbatasan backend, bukan dari keputusan produk: satu-satunya
+   * endpoint mobile yang mendaftar Production Line saat itu
+   * (GET /api/production-lines/current) bersifat SWA-CAKUP — ia memulangkan
+   * line milik mill AKUN PEMANGGIL, dan Admin tidak terikat mill. Endpoint
+   * baru GET /api/production-lines/options-for-report?business_unit_id=
+   * menutup lubang itu, jadi Admin kembali mendapat pemilih line yang
+   * sesungguhnya seperti peran lain.
+   *
+   * Asersi di bawah lebih kuat daripada bentuk aslinya MAUPUN daripada
+   * bentuk sementara itu: pemilih Mill tetap utuh, daftar line diminta
+   * DENGAN business_unit_id mill terpilih (bukan swa-cakup), mengganti mill
+   * memuat ulang periode DAN daftar line mill baru, dan angkanya menyertai
+   * satu line tertentu.
+   */
+  it('Admin — pemilih Mill dirender, memilih mill memuat daftar line + periode, lalu seluruh angka tampil untuk mill itu', async () => {
     asRole('admin', null)
 
     const wrapper = await mountView()
 
     expect(repoMocks.fetchBusinessUnits).toHaveBeenCalledTimes(1)
     expect(exists(wrapper, 'mill-select')).toBe(true)
-    // Periode belum dimuat sebelum mill dipilih.
+    // Periode dan daftar line belum dimuat sebelum mill dipilih.
     expect(repoMocks.fetchPeriods).not.toHaveBeenCalled()
+    expect(productionLineMocks.fetchProductionLinesForReport).not.toHaveBeenCalled()
 
     await selectMill(wrapper, 'bu-2')
 
+    // Daftar line diminta UNTUK MILL TERPILIH.
+    expect(productionLineMocks.fetchProductionLinesForReport).toHaveBeenCalledTimes(1)
+    expect(productionLineMocks.fetchProductionLinesForReport).toHaveBeenCalledWith('bu-2')
+
     expect(repoMocks.fetchPeriods).toHaveBeenCalledTimes(1)
-    expect(repoMocks.fetchPeriods).toHaveBeenCalledWith({ isAdmin: true, businessUnitId: 'bu-2' })
+    expect(repoMocks.fetchPeriods).toHaveBeenCalledWith({ isAdmin: true, businessUnitId: 'bu-2', productionLineId: 'pl-1' })
 
     await selectPeriod(wrapper, 'per-1')
 
     expect(repoMocks.fetchSummary).toHaveBeenCalledWith('per-1', {
       isAdmin: true,
       businessUnitId: 'bu-2',
+      productionLineId: 'pl-1',
     })
     expect(text(wrapper, 'production-total')).toBe('128,5')
     expect(text(wrapper, 'production-reading-count')).toContain('96')
@@ -514,6 +586,18 @@ describe('LaporanClarificationView — test_scenarios / component_test (tech spe
     expect(text(wrapper, 'coverage-percent')).toBe('6,3%')
     expect(exists(wrapper, 'daily-trend-production')).toBe(true)
     expect(exists(wrapper, 'daily-recap')).toBe(true)
+    // Dan tidak ada lagi pesan buntu "pakai versi web".
+    expect(exists(wrapper, 'production-line-unavailable')).toBe(false)
+
+    // Mengganti mill memuat ulang daftar periode DAN daftar line mill baru,
+    // lalu membuang angka lama.
+    await selectMill(wrapper, 'bu-1')
+
+    expect(productionLineMocks.fetchProductionLinesForReport).toHaveBeenCalledTimes(2)
+    expect(productionLineMocks.fetchProductionLinesForReport).toHaveBeenLastCalledWith('bu-1')
+    expect(repoMocks.fetchPeriods).toHaveBeenCalledTimes(2)
+    expect(repoMocks.fetchPeriods).toHaveBeenLastCalledWith({ isAdmin: true, businessUnitId: 'bu-1', productionLineId: 'pl-1' })
+    expect(exists(wrapper, 'production-total')).toBe(false)
   })
 
   // Scenario 3: "Operator membuka laporan"
@@ -538,10 +622,11 @@ describe('LaporanClarificationView — test_scenarios / component_test (tech spe
 
     // scopeParams menghasilkan objek kosong: businessUnitId null diteruskan
     // ke repo, yang membuangnya karena isAdmin false.
-    expect(repoMocks.fetchPeriods).toHaveBeenCalledWith({ isAdmin: false, businessUnitId: null })
+    expect(repoMocks.fetchPeriods).toHaveBeenCalledWith({ isAdmin: false, businessUnitId: null, productionLineId: 'pl-1' })
     expect(repoMocks.fetchSummary).toHaveBeenCalledWith('per-1', {
       isAdmin: false,
       businessUnitId: null,
+      productionLineId: 'pl-1',
     })
   })
 
@@ -861,11 +946,11 @@ describe('LaporanClarificationView — test_scenarios / component_test (tech spe
     await selectPeriod(wrapper, 'per-1')
 
     for (const call of repoMocks.fetchPeriods.mock.calls) {
-      expect(call[0]).toEqual({ isAdmin: false, businessUnitId: null })
+      expect(call[0]).toEqual({ isAdmin: false, businessUnitId: null, productionLineId: 'pl-1' })
     }
 
     for (const call of repoMocks.fetchSummary.mock.calls) {
-      expect(call[1]).toEqual({ isAdmin: false, businessUnitId: null })
+      expect(call[1]).toEqual({ isAdmin: false, businessUnitId: null, productionLineId: 'pl-1' })
     }
 
     // Tidak ada kendali apa pun untuk memasukkan mill lain.
@@ -901,7 +986,7 @@ describe('LaporanClarificationView — test_scenarios / component_test (tech spe
 
     // period_id yang SAMA, tanpa memilih ulang.
     expect(repoMocks.fetchSummary).toHaveBeenCalledTimes(1)
-    expect(repoMocks.fetchSummary).toHaveBeenCalledWith('per-1', { isAdmin: false, businessUnitId: null })
+    expect(repoMocks.fetchSummary).toHaveBeenCalledWith('per-1', { isAdmin: false, businessUnitId: null, productionLineId: 'pl-1' })
     expect(exists(wrapper, 'network-error')).toBe(false)
     expect(text(wrapper, 'production-total')).toBe('128,5')
     expect(selectValue(wrapper, 'period-select')).toBe('per-1')
@@ -1280,7 +1365,11 @@ describe('LaporanClarificationView — test_scenarios / component_test (tech spe
     await flushPromises()
 
     expect(repoMocks.exportCsv).toHaveBeenCalledTimes(1)
-    expect(repoMocks.exportCsv).toHaveBeenCalledWith('per-1')
+    expect(repoMocks.exportCsv).toHaveBeenCalledWith('per-1', {
+      isAdmin: false,
+      businessUnitId: null,
+      productionLineId: 'pl-1',
+    })
 
     expect(repoMocks.saveCsvFile).toHaveBeenCalledTimes(1)
     const [blob, filename] = repoMocks.saveCsvFile.mock.calls[0]
@@ -1336,5 +1425,276 @@ describe('LaporanClarificationView — penanganan galat khusus view', () => {
     await flushPromises()
 
     expect(replaceMock).toHaveBeenCalledWith({ name: 'login' })
+  })
+})
+
+/* ================================================================== */
+/* Production Line wajib (2026-09-28)                                  */
+/* ================================================================== */
+
+/**
+ * Laporan ini memulangkan ANGKA GABUNGAN satu periode. Menjumlahkan
+ * beberapa Production Line ke dalam satu angka menghasilkan bilangan yang
+ * tidak dapat ditindaklanjuti siapa pun — karena itu memilih line di sini
+ * WAJIB dan tidak ada opsi "semua line". (Data Browser versi web memang
+ * punya opsi "Semua Line"; di sana barisnya tetap terpisah per record,
+ * jadi perbedaan itu disengaja, bukan ketidakkonsistenan.)
+ *
+ * FIXTURE DUA LINE SENGAJA BERBEDA NILAINYA, DAN JUMLAH KEDUANYA SENGAJA
+ * TIDAK MUNCUL DI MANA PUN. Layar yang benar menampilkan nilai salah satu
+ * line; layar yang diam-diam menggabungkan akan menampilkan jumlahnya dan
+ * gagal di sini. JANGAN "merapikan" angka-angka ini.
+ */
+const LINE_1_REF = { id: 'pl-1', name: 'Line 1' }
+const LINE_2_REF = { id: 'pl-2', name: 'Line 2' }
+
+const SUMMARY_LINE_1 = makeSummary({
+  production_line: LINE_1_REF,
+  production: { ...PRODUCTION, total_ton: 6421.5 },
+})
+
+const SUMMARY_LINE_2 = makeSummary({
+  production_line: LINE_2_REF,
+  production: { ...PRODUCTION, total_ton: 233.5 },
+})
+
+/** Server menjawab menurut line yang diminta — tidak pernah menggabungkan. */
+function stubSummaryPerLine(): void {
+  repoMocks.fetchSummary.mockImplementation(
+    (_periodId: string, scope?: { productionLineId?: string | null }) =>
+      Promise.resolve(scope?.productionLineId === 'pl-2' ? SUMMARY_LINE_2 : SUMMARY_LINE_1),
+  )
+}
+
+async function selectProductionLine(wrapper: VueWrapper, lineId: string): Promise<void> {
+  await wrapper.get('[data-testid="production-line-select"]').setValue(lineId)
+  await flushPromises()
+}
+
+describe('LaporanClarificationView — Production Line wajib (screen-138)', () => {
+  it('dua line dan belum ada yang berlaku — pemilih tampil, NOL angka, fetchSummary tidak pernah dipanggil', async () => {
+    productionLineMocks.fetchProductionLinesForReport.mockResolvedValue(TWO_LINES)
+
+    const wrapper = await mountView()
+
+    expect(exists(wrapper, 'production-line-select')).toBe(true)
+    expect(
+      wrapper.findAll('[data-testid="production-line-select"] option').map((option) => option.text()),
+    ).toEqual(['Pilih Production Line', 'Line 1', 'Line 2'])
+    expect(exists(wrapper, 'production-line-required-hint')).toBe(true)
+    expect(exists(wrapper, 'production-line-current')).toBe(false)
+    // Tidak ada opsi gabungan yang diam-diam ditawarkan.
+    expect(wrapper.text()).not.toMatch(/semua line/i)
+
+    // Periode tetap boleh dipilih — /periods memang TIDAK tersaring line.
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(repoMocks.fetchSummary).not.toHaveBeenCalled()
+    expect(exists(wrapper, 'production-total')).toBe(false)
+    expect(exists(wrapper, 'export-button')).toBe(false)
+  })
+
+  it('angka yang tampil milik SATU line — bukan jumlah kedua line', async () => {
+    productionLineMocks.fetchProductionLinesForReport.mockResolvedValue(TWO_LINES)
+    stubSummaryPerLine()
+
+    const wrapper = await mountView()
+
+    await selectProductionLine(wrapper, 'pl-1')
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(text(wrapper, 'production-total')).toBe('6.421,5')
+    for (const forbidden of ['6.655,0', '6655']) {
+      expect(wrapper.text()).not.toContain(forbidden)
+    }
+
+    // Ganti line: permintaannya membawa id baru, angka lama tidak tertinggal.
+    await selectProductionLine(wrapper, 'pl-2')
+
+    expect(repoMocks.fetchSummary).toHaveBeenLastCalledWith('per-1', {
+      isAdmin: false,
+      businessUnitId: null,
+      productionLineId: 'pl-2',
+    })
+    expect(text(wrapper, 'production-total')).toBe('233,5')
+    expect(wrapper.text()).not.toContain('6.421,5')
+  })
+
+  it('nama line yang berlaku terbaca di layar, diambil dari jawaban server', async () => {
+    productionLineMocks.fetchProductionLinesForReport.mockResolvedValue(TWO_LINES)
+    stubSummaryPerLine()
+
+    const wrapper = await mountView()
+    await selectProductionLine(wrapper, 'pl-2')
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(text(wrapper, 'production-line-current')).toContain('Line 2')
+    expect(text(wrapper, 'production-line-current')).not.toContain('Line 1')
+  })
+
+  it('ekspor membawa production_line_id — berkasnya mengikuti cakupan angka di layar', async () => {
+    productionLineMocks.fetchProductionLinesForReport.mockResolvedValue(TWO_LINES)
+    stubSummaryPerLine()
+
+    const wrapper = await mountView()
+    await selectProductionLine(wrapper, 'pl-2')
+    await selectPeriod(wrapper, 'per-1')
+
+    await wrapper.get('[data-testid="export-button"]').trigger('click')
+    await flushPromises()
+
+    expect(repoMocks.exportCsv).toHaveBeenCalledWith('per-1', {
+      isAdmin: false,
+      businessUnitId: null,
+      productionLineId: 'pl-2',
+    })
+  })
+
+  it('ingatan line dari layar Daftar Stasiun dipakai ulang — pengguna TIDAK diminta memilih dua kali', async () => {
+    // Kunci yang sama persis yang ditulis StationListView.vue.
+    window.localStorage.setItem('msl_production_line_user-1', 'pl-2')
+    productionLineMocks.fetchProductionLinesForReport.mockResolvedValue(TWO_LINES)
+    stubSummaryPerLine()
+
+    const wrapper = await mountView()
+
+    expect(exists(wrapper, 'production-line-required-hint')).toBe(false)
+    expect(selectValue(wrapper, 'production-line-select')).toBe('pl-2')
+
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(repoMocks.fetchSummary).toHaveBeenCalledWith('per-1', {
+      isAdmin: false,
+      businessUnitId: null,
+      productionLineId: 'pl-2',
+    })
+    expect(text(wrapper, 'production-total')).toBe('233,5')
+  })
+
+  it('production_line_id dari rute (dibawa screen-141) berlaku, dan menang atas ingatan', async () => {
+    window.localStorage.setItem('msl_production_line_user-1', 'pl-1')
+    routeQuery.production_line_id = 'pl-2'
+    productionLineMocks.fetchProductionLinesForReport.mockResolvedValue(TWO_LINES)
+    stubSummaryPerLine()
+
+    const wrapper = await mountView()
+
+    expect(selectValue(wrapper, 'production-line-select')).toBe('pl-2')
+
+    await selectPeriod(wrapper, 'per-1')
+
+    expect(text(wrapper, 'production-total')).toBe('233,5')
+    // Pilihan itu ikut menjadi ingatan — kedua layar berbagi satu konteks.
+    expect(window.localStorage.getItem('msl_production_line_user-1')).toBe('pl-2')
+  })
+
+  it('ingatan maupun query yang tidak ada di daftar line TIDAK dipercaya — pemilih muncul kembali', async () => {
+    window.localStorage.setItem('msl_production_line_user-1', 'pl-sudah-dihapus')
+    routeQuery.production_line_id = 'pl-mill-lain'
+    productionLineMocks.fetchProductionLinesForReport.mockResolvedValue(TWO_LINES)
+
+    const wrapper = await mountView()
+
+    expect(exists(wrapper, 'production-line-required-hint')).toBe(true)
+    expect(exists(wrapper, 'production-line-current')).toBe(false)
+
+    await selectPeriod(wrapper, 'per-1')
+    expect(repoMocks.fetchSummary).not.toHaveBeenCalled()
+  })
+
+  it('ingatan milik pengguna LAIN tidak pernah terbawa setelah ganti akun di perangkat yang sama', async () => {
+    window.localStorage.setItem('msl_production_line_user-99', 'pl-2')
+    productionLineMocks.fetchProductionLinesForReport.mockResolvedValue(TWO_LINES)
+
+    const wrapper = await mountView()
+
+    expect(exists(wrapper, 'production-line-required-hint')).toBe(true)
+  })
+
+  it('satu line di mill — berlaku otomatis, tanpa pemilih, dan id-nya tetap terkirim', async () => {
+    const wrapper = await mountView() // bawaan berkas ini: satu line
+
+    expect(exists(wrapper, 'production-line-select')).toBe(false)
+    expect(exists(wrapper, 'production-line-required-hint')).toBe(false)
+    expect(text(wrapper, 'production-line-current')).toContain('Line 1')
+
+    await selectPeriod(wrapper, 'per-1')
+
+    // "Satu line" bukan "tanpa line": id-nya TETAP ikut pada cakupan.
+    expect(repoMocks.fetchSummary).toHaveBeenCalledWith('per-1', {
+      isAdmin: false,
+      businessUnitId: null,
+      productionLineId: 'pl-1',
+    })
+  })
+
+  it('memilih line menuliskan ingatannya — konteksnya dibagi dengan layar Daftar Stasiun', async () => {
+    productionLineMocks.fetchProductionLinesForReport.mockResolvedValue(TWO_LINES)
+    stubSummaryPerLine()
+
+    const wrapper = await mountView()
+    expect(window.localStorage.getItem('msl_production_line_user-1')).toBeNull()
+
+    await selectProductionLine(wrapper, 'pl-2')
+
+    expect(window.localStorage.getItem('msl_production_line_user-1')).toBe('pl-2')
+  })
+
+  it('daftar periode TIDAK PERNAH tersaring per line — periode milik mill', async () => {
+    productionLineMocks.fetchProductionLinesForReport.mockResolvedValue(TWO_LINES)
+    stubSummaryPerLine()
+
+    const wrapper = await mountView()
+    await selectProductionLine(wrapper, 'pl-2')
+
+    // Daftar periode diambil TEPAT sekali, pada pemuatan awal — mengganti
+    // line tidak memuat ulangnya, karena periode memang milik mill.
+    expect(repoMocks.fetchPeriods).toHaveBeenCalledTimes(1)
+  })
+
+  it('daftar line gagal dimuat — tanpa angka, dengan tombol coba lagi, dan BUKAN sebagai galat laporan', async () => {
+    productionLineMocks.fetchProductionLinesForReport.mockRejectedValue(NETWORK_ERROR)
+
+    const wrapper = await mountView()
+
+    expect(exists(wrapper, 'production-line-unavailable')).toBe(true)
+    expect(text(wrapper, 'production-line-unavailable')).toContain('koneksi')
+    expect(exists(wrapper, 'production-line-retry')).toBe(true)
+    // Bukan jalur galat laporan: pemilih periode tetap terisi.
+    expect(exists(wrapper, 'network-error')).toBe(false)
+    expect(wrapper.findAll('[data-testid="period-select"] option').length).toBeGreaterThan(1)
+
+    await selectPeriod(wrapper, 'per-1')
+    expect(repoMocks.fetchSummary).not.toHaveBeenCalled()
+
+    // Coba Lagi memuat ulang daftarnya; sekali berhasil, layar hidup lagi.
+    productionLineMocks.fetchProductionLinesForReport.mockResolvedValue([LINE_2])
+    await wrapper.get('[data-testid="production-line-retry"]').trigger('click')
+    await flushPromises()
+
+    expect(exists(wrapper, 'production-line-unavailable')).toBe(false)
+    expect(text(wrapper, 'production-line-current')).toContain('Line 2')
+  })
+
+  it('mill tanpa satu pun Production Line — arahan menghubungi Admin, tanpa tombol coba lagi', async () => {
+    productionLineMocks.fetchProductionLinesForReport.mockResolvedValue([])
+
+    const wrapper = await mountView()
+
+    expect(exists(wrapper, 'production-line-unavailable')).toBe(true)
+    expect(text(wrapper, 'production-line-unavailable')).toContain('hubungi Admin')
+    expect(exists(wrapper, 'production-line-retry')).toBe(false)
+  })
+
+  it('akun tanpa mill tetap NOL permintaan — termasuk ke daftar Production Line', async () => {
+    asRole('operator', null)
+
+    const wrapper = await mountView()
+
+    expect(productionLineMocks.fetchProductionLinesForReport).not.toHaveBeenCalled()
+    expect(repoMocks.fetchPeriods).not.toHaveBeenCalled()
+    expect(exists(wrapper, 'no-mill-for-account')).toBe(true)
+    expect(exists(wrapper, 'production-line-select')).toBe(false)
+    expect(exists(wrapper, 'production-line-unavailable')).toBe(false)
   })
 })

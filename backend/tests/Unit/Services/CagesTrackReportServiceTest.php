@@ -1305,6 +1305,7 @@ it('export streams one line per tipping hour with the record context repeated', 
         DB::table('cages_track_records')->insert([
             'id' => $recordId,
             'station_id' => $this->stationA->id,
+            'production_line_id' => $this->stationA->production_line_id,
             'cages_track_number' => 'CT-EXPORT-'.$recordIndex,
             'date' => $date,
             'tippler_start_time' => $date.' 06:00:00',
@@ -1389,6 +1390,7 @@ it('export throws 422 EXPORT_FAILED when the number of HOURLY rows exceeds 50.00
         $recordRows[] = [
             'id' => $recordId,
             'station_id' => $this->stationA->id,
+            'production_line_id' => $this->stationA->production_line_id,
             'cages_track_number' => 'CT-LIMIT-'.$recordIndex,
             'date' => $date,
             'tippler_start_time' => $date.' 06:00:00',

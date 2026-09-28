@@ -199,6 +199,7 @@ function boilerRoomReportBulkSeed(Station $station, User $author, string $dateBa
         $recordRows[] = [
             'id' => $recordId,
             'station_id' => $station->id,
+            'production_line_id' => $station->production_line_id,
             'boiler_room_id' => 'BLR-BULK-'.$recordIndex,
             'date' => $dateBase.'-'.$day,
             'note' => null,

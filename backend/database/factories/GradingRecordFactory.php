@@ -39,6 +39,13 @@ class GradingRecordFactory extends Factory
     {
         return [
             'station_id' => Station::factory(),
+            // NOT NULL since 2026_09_28_000043, and deliberately derived
+            // from the station rather than faked independently: the same
+            // closure pattern as MachineryFactory::definition(), so any
+            // caller that sets only `station_id` (e.g. ->forStation()) still
+            // gets the CONSISTENT line, while a caller that sets both
+            // explicitly is honoured as-is.
+            'production_line_id' => fn (array $attributes) => Station::find($attributes['station_id'])?->production_line_id,
             'grading_number' => 'GR-'.$this->faker->unique()->numerify('######'),
             'date' => $this->faker->dateTimeBetween('-30 days', 'now'),
             'weighbridge_record_id' => WeighbridgeRecord::factory(),

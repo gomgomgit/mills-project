@@ -302,6 +302,7 @@ function clarificationReportBulkSeed(Station $station, User $author, string $dat
         $recordRows[] = [
             'id' => $recordId,
             'station_id' => $station->id,
+            'production_line_id' => $station->production_line_id,
             'clarification_id' => 'CLF-BULK-'.$recordIndex,
             'date' => $dateBase.'-'.$day,
             'note' => null,

@@ -124,6 +124,7 @@ it('Ekspor Gagal: returns 422 EXPORT_FAILED when the filtered dataset exceeds th
             $rows[] = [
                 'id' => (string) \Illuminate\Support\Str::uuid(),
                 'station_id' => $this->station->id,
+                'production_line_id' => $this->station->production_line_id,
                 'kernel_plant_id' => 'KP-BULK-'.($inserted + $i),
                 'date' => $now->toDateString(),
                 'note' => null,

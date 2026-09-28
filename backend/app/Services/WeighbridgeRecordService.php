@@ -297,6 +297,14 @@ class WeighbridgeRecordService
         }
 
         $attributes['station_id'] = $station->id;
+        // Snapshot the line from the RESOLVED STATION, never from the
+        // request: the client sends `production_line_id` only to SELECT the
+        // station, and trusting it back would let a record store a line
+        // different from its own station's — the class of bug the mill-scope
+        // guard above just closed. Stored (not derived at read time) so that
+        // moving this station to another line later cannot rewrite this
+        // record's history. See 2026_09_28_000041.
+        $attributes['production_line_id'] = $station->production_line_id;
         $attributes['status'] = 'saved';
         $attributes['created_by'] = $actor->id;
         $this->applyVerification($attributes, $data, $actor);

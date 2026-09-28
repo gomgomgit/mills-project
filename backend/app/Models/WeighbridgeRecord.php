@@ -21,6 +21,7 @@ class WeighbridgeRecord extends Model
 
     protected $fillable = [
         'station_id',
+        'production_line_id',
         'wb_card_number',
         'weighbridge_type',
         'record_datetime',
@@ -63,6 +64,18 @@ class WeighbridgeRecord extends Model
     public function station(): BelongsTo
     {
         return $this->belongsTo(Station::class);
+    }
+
+    /**
+     * The production line this record was written on — a point-in-time
+     * SNAPSHOT stored on the row (2026_09_28_000041), NOT a derivation of
+     * `station->production_line_id`. If the station is later moved to
+     * another line, this keeps pointing at the line the record was actually
+     * produced on. Read it from here, never through `station`.
+     */
+    public function productionLine(): BelongsTo
+    {
+        return $this->belongsTo(ProductionLine::class);
     }
 
     public function checkedBy(): BelongsTo

@@ -185,6 +185,7 @@ function laporanClarificationBulkSeed(Station $station, User $author, string $mo
         $recordRows[] = [
             'id' => $recordId,
             'station_id' => $station->id,
+            'production_line_id' => $station->production_line_id,
             'clarification_id' => 'CLF-BULK-'.$recordIndex,
             'date' => $monthPrefix.'-'.$day,
             'note' => null,

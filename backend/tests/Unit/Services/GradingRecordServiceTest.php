@@ -178,6 +178,7 @@ it('throws ExportFailedException when the filtered dataset exceeds the export ro
             $rows[] = [
                 'id' => (string) Str::uuid(),
                 'station_id' => $this->station->id,
+                'production_line_id' => $this->station->production_line_id,
                 'grading_number' => 'GR-BULK-'.($inserted + $i),
                 'date' => $now,
                 'weighbridge_record_id' => $weighbridgeRecord->id,

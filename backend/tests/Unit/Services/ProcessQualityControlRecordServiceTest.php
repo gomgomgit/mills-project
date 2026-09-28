@@ -151,6 +151,7 @@ it('throws ExportFailedException when the filtered dataset exceeds the export ro
             $rows[] = [
                 'id' => (string) Str::uuid(),
                 'station_id' => $this->station->id,
+                'production_line_id' => $this->station->production_line_id,
                 'process_qc_id' => 'PQC-BULK-'.($inserted + $i),
                 'date' => $now->toDateString(),
                 'note' => null,

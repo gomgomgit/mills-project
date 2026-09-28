@@ -1899,7 +1899,7 @@ it('case 44 — happy path: seluruh kondisi terpenuhi, payload lengkap', functio
     $summary = $this->service->summary($this->periodA);
 
     expect(array_keys($summary))->toBe([
-        'period', 'business_unit', 'has_data', 'coverage', 'stock', 'metrics', 'by_tank', 'daily', 'total',
+        'period', 'business_unit', 'production_line', 'has_data', 'coverage', 'stock', 'metrics', 'by_tank', 'daily', 'total',
     ]);
 
     expect(array_keys($summary['period']))

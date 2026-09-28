@@ -109,7 +109,7 @@ it('returns a paginated, filtered list with the shared pagination meta shape', f
 
     expect($result['meta'])->toBe(['page' => 1, 'per_page' => 2, 'total' => 3, 'total_pages' => 2]);
     expect($result['data'])->toHaveCount(2);
-    expect(array_keys($result['data'][0]))->toBe(['id', 'kernel_plant_id', 'date', 'filled_slot_count', 'status']);
+    expect(array_keys($result['data'][0]))->toBe(['id', 'kernel_plant_id', 'date', 'filled_slot_count', 'production_line_name', 'status']);
 });
 
 it('computes filled_slot_count as the number of detail rows with at least one non-null reading column', function () {

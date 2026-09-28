@@ -293,7 +293,7 @@ class SterilizerRecordService
      * (with cycle_count computed via withCount()), paginate, and return
      * the {data, meta} shape.
      *
-     * @param  array{date_from?: ?string, date_to?: ?string, business_unit_id?: ?string}  $filters
+     * @param  array{date_from?: ?string, date_to?: ?string, business_unit_id?: ?string, production_line_id?: ?string}  $filters
      */
     public function listRecords(array $filters, int $page, int $perPage): array
     {
@@ -301,7 +301,9 @@ class SterilizerRecordService
             ->withCount('sterilizerDetails')
             ->orderByDesc('date');
 
-        $paginator = $query->paginate(perPage: $perPage, page: $page);
+        // `productionLine` dimuat di sini, bukan lewat relasi `station`:
+        // kolom line milik record sendiri adalah sumber kebenarannya.
+        $paginator = $query->with('productionLine:id,name')->paginate(perPage: $perPage, page: $page);
 
         $formatted = Pagination::format($paginator);
         $formatted['data'] = collect($formatted['data'])
@@ -316,7 +318,7 @@ class SterilizerRecordService
      * the row limit, generate a CSV body, and return it as a
      * StreamedResponse for download.
      *
-     * @param  array{date_from?: ?string, date_to?: ?string, business_unit_id?: ?string}  $filters
+     * @param  array{date_from?: ?string, date_to?: ?string, business_unit_id?: ?string, production_line_id?: ?string}  $filters
      */
     public function export(array $filters, string $format): StreamedResponse
     {
@@ -338,6 +340,7 @@ class SterilizerRecordService
             $query = $baseQuery
                 ->withCount('sterilizerDetails')
                 ->with([
+                    'productionLine:id,name',
                     'checkedBy:id,name',
                     'acknowledgedBy:id,name',
                     'sterilizerDetails' => fn ($detailQuery) => $detailQuery->orderBy('sterilizer_no'),
@@ -355,6 +358,7 @@ class SterilizerRecordService
                 // record's context columns repeat on every detail line, so the
                 // file can be pivoted and filtered directly in a spreadsheet.
                 fputcsv($handle, [
+                    'Production Line',
                     'Sterilizer ID',
                     'Date',
                     'Note',
@@ -382,6 +386,7 @@ class SterilizerRecordService
                     foreach ($records as $record) {
                         /** @var SterilizerRecord $record */
                         $context = [
+                            $record->productionLine?->name,
                             $record->sterilizer_id,
                             optional($record->date)->toDateString(),
                             $record->note,
@@ -453,7 +458,7 @@ class SterilizerRecordService
     }
 
     /**
-     * @param  array{date_from?: ?string, date_to?: ?string, business_unit_id?: ?string}  $filters
+     * @param  array{date_from?: ?string, date_to?: ?string, business_unit_id?: ?string, production_line_id?: ?string}  $filters
      */
     protected function buildFilteredQuery(array $filters): Builder
     {
@@ -475,6 +480,7 @@ class SterilizerRecordService
         $dateFrom = $filters['date_from'] ?? null;
         $dateTo = $filters['date_to'] ?? null;
         $businessUnitId = $filters['business_unit_id'] ?? null;
+        $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
             throw new InvalidDateRangeException();
@@ -486,6 +492,23 @@ class SterilizerRecordService
             $query->whereHas('station', function (Builder $stationQuery) use ($businessUnitId) {
                 $stationQuery->where('business_unit_id', $businessUnitId);
             });
+        }
+
+        // PENYARINGAN PER LINE LANGSUNG DI TABEL RECORD, bukan lewat
+        // whereHas('station', ...). Sejak 2026_09_28_000041 setiap tabel
+        // record punya kolom `production_line_id` sendiri (NOT NULL,
+        // di-snapshot dari stasiun saat create), jadi tidak perlu subquery
+        // per halaman — dan, yang jauh lebih penting, nilainya PERMANEN:
+        // stasiun yang kemudian dipindah ke line lain tidak menarik record
+        // lamanya ikut pindah. Menyaring lewat station akan menyaring
+        // menurut konfigurasi HARI INI, bukan menurut line tempat data itu
+        // benar-benar dihasilkan.
+        //
+        // Nilainya sudah dijepit ke mill aktor oleh scopeFiltersToActorMill()
+        // di atas: line milik mill lain sudah menjadi null di sana (jatuh ke
+        // "semua line"), jadi baris ini tidak pernah bisa memperluas cakupan.
+        if ($productionLineId) {
+            $query->where('production_line_id', $productionLineId);
         }
 
         if ($dateFrom) {
@@ -506,6 +529,7 @@ class SterilizerRecordService
             'sterilizer_id' => $record->sterilizer_id,
             'date' => optional($record->date)->toDateString(),
             'cycle_count' => (int) $record->sterilizer_details_count,
+            'production_line_name' => $record->productionLine?->name,
             'status' => $record->status?->value,
         ];
     }

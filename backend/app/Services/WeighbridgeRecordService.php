@@ -51,13 +51,15 @@ class WeighbridgeRecordService
      * build the filtered query, paginate via the shared Pagination helper,
      * and return the {data, meta} shape.
      *
-     * @param  array{date_from?: ?string, date_to?: ?string, weighbridge_type?: ?string, business_unit_id?: ?string}  $filters
+     * @param  array{date_from?: ?string, date_to?: ?string, weighbridge_type?: ?string, business_unit_id?: ?string, production_line_id?: ?string}  $filters
      */
     public function listRecords(array $filters, int $page, int $perPage): array
     {
         $query = $this->buildFilteredQuery($filters)->orderByDesc('record_datetime');
 
-        $paginator = $query->paginate(perPage: $perPage, page: $page);
+        // `productionLine` dimuat di sini, bukan lewat relasi `station`:
+        // kolom line milik record sendiri adalah sumber kebenarannya.
+        $paginator = $query->with('productionLine:id,name')->paginate(perPage: $perPage, page: $page);
 
         $formatted = Pagination::format($paginator);
         $formatted['data'] = collect($formatted['data'])
@@ -73,7 +75,7 @@ class WeighbridgeRecordService
      * CSV-served-as-xlsx fallback — see implementation_notes) body, and
      * return it as a StreamedResponse for download.
      *
-     * @param  array{date_from?: ?string, date_to?: ?string, weighbridge_type?: ?string, business_unit_id?: ?string}  $filters
+     * @param  array{date_from?: ?string, date_to?: ?string, weighbridge_type?: ?string, business_unit_id?: ?string, production_line_id?: ?string}  $filters
      */
     public function export(array $filters, string $format): StreamedResponse
     {
@@ -86,7 +88,7 @@ class WeighbridgeRecordService
         }
 
         try {
-            $records = $query->get();
+            $records = $query->with('productionLine:id,name')->get();
 
             [$contentType, $filename] = $this->fileMetaFor($format);
 
@@ -96,6 +98,7 @@ class WeighbridgeRecordService
                 // Header row. Explicit $separator/$enclosure/$escape (PHP
                 // 8.4 deprecates relying on fputcsv()'s default $escape).
                 fputcsv($handle, [
+                    'Production Line',
                     'WB Card Number',
                     'Type',
                     'Record Datetime',
@@ -115,6 +118,7 @@ class WeighbridgeRecordService
                 foreach ($records as $record) {
                     /** @var WeighbridgeRecord $record */
                     fputcsv($handle, [
+                        $record->productionLine?->name,
                         $record->wb_card_number,
                         $record->weighbridge_type,
                         optional($record->record_datetime)->toDateTimeString(),
@@ -183,7 +187,7 @@ class WeighbridgeRecordService
      * business_unit_id (via station->business_unit_id), weighbridge_type,
      * and record_datetime BETWEEN filters.
      *
-     * @param  array{date_from?: ?string, date_to?: ?string, weighbridge_type?: ?string, business_unit_id?: ?string}  $filters
+     * @param  array{date_from?: ?string, date_to?: ?string, weighbridge_type?: ?string, business_unit_id?: ?string, production_line_id?: ?string}  $filters
      */
     protected function buildFilteredQuery(array $filters): Builder
     {
@@ -206,6 +210,7 @@ class WeighbridgeRecordService
         $dateTo = $filters['date_to'] ?? null;
         $weighbridgeType = $filters['weighbridge_type'] ?? null;
         $businessUnitId = $filters['business_unit_id'] ?? null;
+        $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
             throw new InvalidDateRangeException();
@@ -217,6 +222,23 @@ class WeighbridgeRecordService
             $query->whereHas('station', function (Builder $stationQuery) use ($businessUnitId) {
                 $stationQuery->where('business_unit_id', $businessUnitId);
             });
+        }
+
+        // PENYARINGAN PER LINE LANGSUNG DI TABEL RECORD, bukan lewat
+        // whereHas('station', ...). Sejak 2026_09_28_000041 setiap tabel
+        // record punya kolom `production_line_id` sendiri (NOT NULL,
+        // di-snapshot dari stasiun saat create), jadi tidak perlu subquery
+        // per halaman — dan, yang jauh lebih penting, nilainya PERMANEN:
+        // stasiun yang kemudian dipindah ke line lain tidak menarik record
+        // lamanya ikut pindah. Menyaring lewat station akan menyaring
+        // menurut konfigurasi HARI INI, bukan menurut line tempat data itu
+        // benar-benar dihasilkan.
+        //
+        // Nilainya sudah dijepit ke mill aktor oleh scopeFiltersToActorMill()
+        // di atas: line milik mill lain sudah menjadi null di sana (jatuh ke
+        // "semua line"), jadi baris ini tidak pernah bisa memperluas cakupan.
+        if ($productionLineId) {
+            $query->where('production_line_id', $productionLineId);
         }
 
         if ($weighbridgeType) {
@@ -492,6 +514,7 @@ class WeighbridgeRecordService
             'driver_name' => $record->driver_name,
             'destination' => $record->destination,
             'net_weight' => $record->net_weight,
+            'production_line_name' => $record->productionLine?->name,
             'status' => $record->status?->value,
         ];
     }

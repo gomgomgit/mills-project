@@ -9,6 +9,7 @@ use App\Exceptions\ExportFailedException;
 use App\Models\BusinessUnit;
 use App\Models\Period;
 use App\Models\PeriodStation;
+use App\Models\ProductionLine;
 use App\Models\StationType;
 use App\Models\SterilizerDetail;
 use App\Models\SterilizerRecord;
@@ -204,6 +205,67 @@ class SterilizerReportService
     }
 
     /**
+     * Pemilih Production Line — opsi line DI DALAM mill yang berlaku.
+     *
+     * Berlaku untuk SEMUA peran, tidak seperti businessUnitOptions() yang
+     * khusus Admin: production line BUKAN ikatan akun (tidak ada
+     * `users.production_line_id`, dan tidak boleh ada) melainkan KONTEKS
+     * YANG DIPILIH. Supervisor pun memilih line, karena satu mill di
+     * lapangan punya belasan production line dengan jenis stasiun yang
+     * sama berulang di tiap line.
+     *
+     * Daftar ini SELALU dibatasi mill yang berlaku, sehingga line mill lain
+     * tidak pernah menjadi opsi — itu separuh pertama dari jaminan "line
+     * mill lain diabaikan"; separuhnya lagi ada di resolveProductionLine(),
+     * yang menutup jalur properti/query string.
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    public function productionLineOptions(string $businessUnitId): array
+    {
+        return ProductionLine::query()
+            ->where('business_unit_id', $businessUnitId)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ProductionLine $line) => [
+                'id' => (string) $line->id,
+                'name' => (string) $line->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * Line yang benar-benar berlaku untuk laporan ini, atau null bila belum
+     * ada pilihan yang sah.
+     *
+     * MEMILIH LINE WAJIB di layar laporan — berbeda dari Data Browser, yang
+     * punya opsi "Semua Line". Alasannya menentukan: laporan menghasilkan
+     * ANGKA GABUNGAN, dan sebuah total yang mencampur belasan line bukan
+     * angka yang bisa ditindaklanjuti siapa pun. Karena itu null di sini
+     * berarti "jangan tampilkan angka apa pun", BUKAN "tampilkan semua
+     * line".
+     *
+     * Line milik mill lain DIABAIKAN, persis seperti business_unit_id
+     * kiriman klien diabaikan untuk peran terikat mill: ia dipulangkan
+     * sebagai null, sehingga hasilnya adalah layar yang meminta memilih
+     * line — bukan 403 (yang justru memastikan line itu ada), dan tidak
+     * pernah data mill lain.
+     */
+    public function resolveProductionLine(string $businessUnitId, ?string $requestedProductionLineId): ?string
+    {
+        if ($requestedProductionLineId === null || $requestedProductionLineId === '') {
+            return null;
+        }
+
+        $belongsToMill = ProductionLine::query()
+            ->whereKey($requestedProductionLineId)
+            ->where('business_unit_id', $businessUnitId)
+            ->exists();
+
+        return $belongsToMill ? $requestedProductionLineId : null;
+    }
+
+    /**
      * business_logic step 3 — load a period and prove the caller may read
      * it.
      *
@@ -263,11 +325,11 @@ class SterilizerReportService
      *                                 not have to re-read it)
      * @return array{period: array, kpi: array, daily: list<array>, by_unit: list<array>, outliers: array, total: array}
      */
-    public function summary(Period|string $period): array
+    public function summary(Period|string $period, ?string $productionLineId = null): array
     {
         $period = $this->resolvePeriod($period);
 
-        $cycles = $this->cyclesFor($period);
+        $cycles = $this->cyclesFor($period, $productionLineId);
 
         return [
             'period' => [
@@ -278,6 +340,9 @@ class SterilizerReportService
                 'status' => $this->statusValue($period),
                 'business_unit_name' => (string) ($period->businessUnit?->name ?? ''),
             ],
+            // TAMBAHAN, bukan perubahan bentuk: kunci baru di samping yang
+            // sudah ada, sehingga pembaca lama tidak terpengaruh sama sekali.
+            'production_line' => $this->productionLineInfo($productionLineId),
             'kpi' => $this->kpiOf($cycles),
             'daily' => $this->dailyOf($cycles),
             'by_unit' => $this->byUnitOf($cycles),
@@ -298,7 +363,7 @@ class SterilizerReportService
      *
      * @throws ExportFailedException 422 EXPORT_FAILED
      */
-    public function export(Period|string $period, string $format = 'csv', ?string $requestedBusinessUnitId = null): StreamedResponse
+    public function export(Period|string $period, string $format = 'csv', ?string $requestedBusinessUnitId = null, ?string $productionLineId = null): StreamedResponse
     {
         // DISERAGAMKAN 2026-09-25 — keempat service laporan kini menerima
         // mill yang berlaku dan memvalidasinya di lapis service. Sebelumnya
@@ -310,7 +375,7 @@ class SterilizerReportService
         $this->resolveBusinessUnit($requestedBusinessUnitId);
         $period = $this->resolvePeriod($period);
 
-        $recordQuery = $this->recordQueryFor($period);
+        $recordQuery = $this->recordQueryFor($period, $productionLineId);
 
         $cycleRowCount = SterilizerDetail::query()
             ->whereIn('sterilizer_record_id', (clone $recordQuery)->select('sterilizer_records.id'))
@@ -422,13 +487,17 @@ class SterilizerReportService
      *
      * @return Collection<int, object>
      */
-    protected function cyclesFor(Period $period): Collection
+    protected function cyclesFor(Period $period, ?string $productionLineId = null): Collection
     {
-        return SterilizerDetail::query()
+        $query = SterilizerDetail::query()
             ->join('sterilizer_records', 'sterilizer_records.id', '=', 'sterilizer_details.sterilizer_record_id')
             ->join('stations', 'stations.id', '=', 'sterilizer_records.station_id')
             ->where('stations.business_unit_id', $period->business_unit_id)
-            ->where('stations.type', StationTypeEnum::Sterilizer->value)
+            ->where('stations.type', StationTypeEnum::Sterilizer->value);
+
+        $this->scopeToProductionLine($query, $productionLineId);
+
+        return $query
             // Inclusive on both bounds, on the event date — not created_at.
             ->whereDate('sterilizer_records.date', '>=', $period->start_date->toDateString())
             ->whereDate('sterilizer_records.date', '<=', $period->end_date->toDateString())
@@ -723,15 +792,72 @@ class SterilizerReportService
      * Base query over the period's Sterilizer records (header rows) — used
      * by the export path, which streams headers and walks their cycles.
      */
-    protected function recordQueryFor(Period $period): Builder
+    protected function recordQueryFor(Period $period, ?string $productionLineId = null): Builder
     {
-        return SterilizerRecord::query()
+        $query = SterilizerRecord::query()
             ->join('stations', 'stations.id', '=', 'sterilizer_records.station_id')
             ->where('stations.business_unit_id', $period->business_unit_id)
             ->where('stations.type', StationTypeEnum::Sterilizer->value)
             ->whereDate('sterilizer_records.date', '>=', $period->start_date->toDateString())
             ->whereDate('sterilizer_records.date', '<=', $period->end_date->toDateString())
             ->select('sterilizer_records.*');
+
+        $this->scopeToProductionLine($query, $productionLineId);
+
+        return $query;
+    }
+
+    /**
+     * Blok `production_line` pada respons ringkasan — TAMBAHAN, bukan
+     * perubahan bentuk: seluruh kunci yang sudah ada tetap di tempatnya dan
+     * tetap datar, sehingga blade dan layar mobile yang membacanya apa
+     * adanya nol perubahan. null ketika tidak ada line yang berlaku.
+     *
+     * @return array{id: string, name: string}|null
+     */
+    protected function productionLineInfo(?string $productionLineId): ?array
+    {
+        if ($productionLineId === null || $productionLineId === '') {
+            return null;
+        }
+
+        /** @var ProductionLine|null $line */
+        $line = ProductionLine::query()->find($productionLineId, ['id', 'name']);
+
+        if ($line === null) {
+            return null;
+        }
+
+        return [
+            'id' => (string) $line->id,
+            'name' => (string) $line->name,
+        ];
+    }
+
+    /**
+     * Penyaringan per production line, DI KOLOM TABEL RECORD — bukan lewat
+     * join ke `stations`.
+     *
+     * Sejak commit ccc884d `sterilizer_records.production_line_id` adalah
+     * kolom nyata NOT NULL yang di-SNAPSHOT dari stasiun saat record dibuat
+     * dan tidak pernah berubah sesudahnya. Membaca dari kolom record itulah
+     * yang benar secara semantik: untuk record lama yang stasiunnya sudah
+     * DIPINDAH ke line lain, kolom record menunjuk line tempat data itu
+     * benar-benar dihasilkan, sedangkan `stations.production_line_id`
+     * menunjuk line stasiun itu SEKARANG. Menyaring lewat join ke
+     * `stations` akan menulis ulang sejarah setiap kali sebuah stasiun
+     * dipindahkan.
+     *
+     * Ia juga lebih murah: kolomnya ada di tabel record, jadi tidak perlu
+     * join tambahan sama sekali.
+     */
+    protected function scopeToProductionLine(mixed $query, ?string $productionLineId): void
+    {
+        if ($productionLineId === null || $productionLineId === '') {
+            return;
+        }
+
+        $query->where('sterilizer_records.production_line_id', $productionLineId);
     }
 
     protected function resolvePeriod(Period|string $period): Period

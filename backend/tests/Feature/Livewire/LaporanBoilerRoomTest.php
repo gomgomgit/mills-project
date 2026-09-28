@@ -54,9 +54,11 @@ use App\Models\BoilerRoomRecord;
 use App\Models\BusinessUnit;
 use App\Models\Period;
 use App\Models\PeriodStation;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\BoilerRoomRecordService;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 
 /**
@@ -104,12 +106,33 @@ const LAPORAN_BOILER_ROOM_METRIC_CARDS = [
     'steam-pressure', 'steam-temp', 'water-tds', 'water-ph', 'exhaust-gas-temp',
 ];
 
+/**
+ * Markup pemilih PERIODE saja. Sejak 2026-09-28 pemilih Production Line
+ * berdiri di sebelahnya dengan <option>-nya sendiri, jadi menghitung
+ * <option> di seluruh halaman tidak lagi menjawab pertanyaan yang skenario
+ * ini ajukan ("berapa periode yang ditawarkan"). Menyempitkannya ke elemen
+ * pemilih periode membuat asersinya lebih tepat, bukan lebih longgar.
+ */
+function laporanBoilerRoomPeriodSelectHtml(string $html): string
+{
+    preg_match('/<select[^>]*data-testid="period-select(?:or)?"[\s\S]*?<\/select>/', $html, $matches);
+
+    return $matches[0] ?? '';
+}
+
 beforeEach(function () {
     $this->businessUnitA = BusinessUnit::factory()->create(['name' => 'Mill Alpha']);
     $this->businessUnitB = BusinessUnit::factory()->create(['name' => 'Mill Beta']);
 
     $this->stationA = Station::factory()->forBusinessUnit($this->businessUnitA)->boilerRoom()->create();
     $this->stationB = Station::factory()->forBusinessUnit($this->businessUnitB)->boilerRoom()->create();
+
+    // Production line tempat tiap stasiun berdiri. Sejak 2026-09-28
+    // memilih line WAJIB di layar laporan, jadi hampir setiap skenario
+    // di berkas ini memilihnya lebih dulu — tanpa itu layar dengan sengaja
+    // tidak menampilkan satu angka pun.
+    $this->lineA = (string) $this->stationA->production_line_id;
+    $this->lineB = (string) $this->stationB->production_line_id;
 
     $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitA)->create();
     $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnitA)->create();
@@ -148,6 +171,7 @@ it('berhasil: no mill picker, the mill caption, every metric card with its own r
     foreach ([$this->supervisor, $this->millManagement] as $user) {
         $component = Livewire::actingAs($user)
             ->test(LaporanBoilerRoom::class)
+            ->set('productionLineId', $this->lineA)
             // The newest period is auto-selected, so the page is useful on
             // first paint rather than demanding a choice first.
             ->assertSet('periodId', (string) $this->periodA->id)
@@ -205,6 +229,7 @@ it('admin: the mill picker is rendered, the period list follows the chosen mill,
 
     $component = Livewire::actingAs($this->admin)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         // Admin is the one role not bound to a mill, so it gets the picker.
         ->assertSeeHtml('data-testid="mill-selector"')
         ->assertSeeHtml('data-testid="select-mill-first-hint"')
@@ -240,6 +265,7 @@ it('admin tanpa mill: the picker and the hint are shown, and not one report figu
 
     Livewire::actingAs($this->admin)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSeeHtml('data-testid="mill-selector"')
         ->assertSeeHtml('data-testid="select-mill-first-hint"')
         // The page asks for a mill instead of drawing an empty report that
@@ -258,7 +284,13 @@ it('admin tanpa mill: the picker and the hint are shown, and not one report figu
 it('mill tanpa periode: the period picker has no option at all and the contact-Admin hint is shown', function () {
     $supervisorB = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitB)->create();
 
-    $component = Livewire::actingAs($supervisorB)->test(LaporanBoilerRoom::class);
+    // Line milik Mill Beta: $this->lineA ada di Mill Alpha dan karena itu
+    // DIABAIKAN di sini — persis jaminan "line mill lain tidak pernah
+    // terpakai" yang diuji tersendiri di bawah.
+    $lineB = (string) $this->stationB->production_line_id;
+
+    $component = Livewire::actingAs($supervisorB)->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $lineB);
 
     $component
         ->assertSeeHtml('data-testid="period-selector"')
@@ -271,7 +303,7 @@ it('mill tanpa periode: the period picker has no option at all and the contact-A
 
     // Rendered deliberately WITHOUT a placeholder option — an empty picker,
     // not a fake "belum ada periode" entry.
-    expect($component->html())->not->toContain('<option value="');
+    expect(laporanBoilerRoomPeriodSelectHtml($component->html()))->not->toContain('<option value="');
 });
 
 // =====================================================================
@@ -280,6 +312,7 @@ it('mill tanpa periode: the period picker has no option at all and the contact-A
 it('periode tanpa data: the empty notice appears, every metric reads as unavailable rather than 0, and no chart is drawn', function () {
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSet('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="empty-period-notice"')
         // An empty chart would read as a measured flat line.
@@ -307,6 +340,7 @@ it('satu metrik kosong: the pH card reads unavailable with 0 readings while the 
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSeeHtml('<span data-testid="metric-water-ph-avg">–</span>')
         ->assertSeeHtml('<b data-testid="metric-water-ph-reading-count">0</b>')
         // Independent per metric — one empty metric does not touch another.
@@ -329,6 +363,7 @@ it('perawatan: the three states are rendered as three separate figures, and not 
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSeeHtml('<span data-testid="maintenance-blowdown-executed">3</span>')
         ->assertSeeHtml('<span data-testid="maintenance-blowdown-not-executed">2</span>')
         ->assertSeeHtml('<b data-testid="maintenance-blowdown-not-recorded">5</b>')
@@ -352,6 +387,7 @@ it('kelengkapan rendah: the coverage card sits above every figure, and the small
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $period->id)
         ->assertSeeHtml('data-testid="recording-coverage"')
         ->assertSeeHtml('<strong data-testid="coverage-filled-slots">6</strong>')
@@ -389,6 +425,7 @@ it('beberapa unit: three rows in the per-unit recap, the unrecorded unit among t
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSeeHtml('data-testid="per-unit-recap"')
         ->assertSeeHtml('data-testid="per-unit-row-BLR-1"')
         ->assertSeeHtml('data-testid="per-unit-row-BLR-2"')
@@ -419,6 +456,7 @@ it('akun tanpa mill: the contact-Admin notice, NO mill picker at all, and no fig
 
     Livewire::actingAs($noMillSupervisor)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSeeHtml('data-testid="no-mill-hint"')
         ->assertSee('Hubungi Admin')
         // FAIL CLOSED: offering the all-mills list to a role that is meant
@@ -447,6 +485,7 @@ it('mill lain: forcing businessUnitId changes nothing, and another mill period i
     // resolvedBusinessUnitId() never consults $businessUnitId for them.
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->set('businessUnitId', (string) $this->businessUnitB->id)
         ->assertSeeHtml('data-testid="mill-name"')
         ->assertSee('Mill Alpha')
@@ -504,6 +543,7 @@ it('periode tertutup: the status is a caption, the report is complete and the ex
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $closed->id)
         ->assertSeeHtml('data-testid="period-status"')
         ->assertSee('Tertutup')
@@ -534,6 +574,7 @@ it('rekap panjang: the toggle hides the recap on the first call and brings it ba
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSeeHtml('data-testid="daily-recap-toggle"')
         // OPEN on first render.
         ->assertSeeHtml('data-testid="daily-recap"')
@@ -573,6 +614,7 @@ it('baca saja: no write-flavoured control anywhere, and rendering changes not on
 
     $html = Livewire::actingAs($this->supervisor)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->call('toggleRekapHarian')
         ->call('toggleRekapHarian')
         ->html();
@@ -598,7 +640,8 @@ it('pemilih periode: hanya periode yang punya baris period_stations boiler-room 
     $otherType = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType('sterilizer')
         ->range('2026-07-01', '2026-07-31')->named('Periode Sterilizer Saja')->open()->create();
 
-    $component = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class);
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA);
 
     $component
         ->assertSee('Periode Maret Alpha')
@@ -635,6 +678,7 @@ it('pemilih periode: periode tanpa baris boiler-room tidak ditawarkan', function
         ->noStations()->range('2026-07-01', '2026-07-31')->named('Periode Tanpa Stasiun')->create();
 
     $component = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSee('Periode Maret Alpha')
         ->assertDontSee('Periode Tanpa Boiler')
         ->assertDontSee('Periode Tanpa Stasiun');
@@ -654,7 +698,8 @@ it('pemilih periode: status opsi memakai status boiler-room, bukan status stasiu
     PeriodStation::factory()->forPeriod($mixed)->stationType('boiler-room')->open()->create();
     PeriodStation::factory()->forPeriod($mixed)->stationType('sterilizer')->closed()->create();
 
-    $component = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class);
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA);
 
     $option = collect($component->viewData('periods'))->firstWhere('id', (string) $mixed->id);
 
@@ -672,6 +717,7 @@ it('rentang inklusif: the recap and the trend carry both bounds, and nothing fro
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSeeHtml('data-testid="daily-recap"')
         ->assertSeeHtml('data-testid="daily-recap-row-2026-03-01"')
         ->assertSeeHtml('data-testid="daily-recap-row-2026-03-31"')
@@ -707,6 +753,7 @@ it('penyebut terpisah: the pH card reads 7,0 over 4 readings while the pressure 
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         // 28.0 / 4 = 7.0, rendered with its own denominator beside it.
         ->assertSeeHtml('<span data-testid="metric-water-ph-avg">7,0</span>')
         ->assertSeeHtml('<b data-testid="metric-water-ph-reading-count">4</b>')
@@ -755,7 +802,8 @@ it('reading count: every metric card renders its average and its own reading cou
 
     laporanBoilerRoomComponentRecord($this->stationA, '2026-03-05', $rows);
 
-    $component = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class);
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA);
     $html = $component->html();
 
     $expected = [
@@ -795,7 +843,7 @@ it('teks bebas: no metric card, no trend and no per-unit column for fuel feed ra
         ],
     ]);
 
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class)->set('productionLineId', $this->lineA)->html();
 
     // Their units are mixed on the paper form (Hz / % / tons), so averaging
     // them is not merely wrong, it is meaningless.
@@ -823,7 +871,7 @@ it('tanpa ambang: extreme values render in the same neutral style, with no badge
         ['steam_pressure_bar' => 95.0, 'steam_temp_c' => 400.0],
     ]);
 
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanBoilerRoom::class)->set('productionLineId', $this->lineA)->html();
 
     // The extremes ARE rendered — they are simply not judged.
     expect($html)->toContain('data-testid="metric-steam-pressure-min"');
@@ -881,6 +929,7 @@ it('admin ekspor: an Admin who picked a mill actually downloads the CSV, and it 
 
     $component = Livewire::actingAs($this->admin)
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->set('businessUnitId', (string) $this->businessUnitA->id)
         ->assertSet('periodId', (string) $this->periodA->id);
 
@@ -947,6 +996,7 @@ it('hidrasi query string: Admin yang tiba dari tautan tile langsung melihat lapo
     Livewire::actingAs($this->admin)
         ->withQueryParams(['business_unit_id' => (string) $this->businessUnitA->id])
         ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSet('businessUnitId', (string) $this->businessUnitA->id)
         ->assertSet('periodId', (string) $this->periodA->id)
         ->assertViewHas('needsMillSelection', false)
@@ -990,6 +1040,7 @@ it('peran terikat mill: memaksa mill lain lewat query string tidak mengubah apa 
         Livewire::actingAs($user)
             ->withQueryParams(['business_unit_id' => (string) $this->businessUnitB->id])
             ->test(LaporanBoilerRoom::class)
+            ->set('productionLineId', $this->lineA)
             // Terhidrasi — dan tetap diabaikan.
             ->assertSet('businessUnitId', (string) $this->businessUnitB->id)
             ->assertSet('periodId', (string) $this->periodA->id)
@@ -997,4 +1048,213 @@ it('peran terikat mill: memaksa mill lain lewat query string tidak mengubah apa 
                 && $summary['period']['business_unit_name'] === 'Mill Alpha'
                 && $summary['period']['name'] === 'Periode Maret Alpha');
     }
+});
+
+// =====================================================================
+// PRODUCTION LINE — konsumen pertama kolom `production_line_id` (ccc884d)
+//
+// Lima jaminan, satu per skenario di bawah:
+//   1. belum memilih line  -> tidak ada satu angka pun, hanya arahan memilih
+//   2. memilih line        -> angkanya MILIK LINE ITU, bukan jumlah dua line
+//   3. line mill lain      -> diabaikan, lewat properti maupun query string
+//   4. ekspor CSV          -> ikut tersaring ke line terpilih
+//   5. stasiun dipindah    -> recordnya TETAP terhitung di line asalnya
+//
+// SETIAP skenario penyaringan dibuat DUA ARAH — data line terpilih ADA, data
+// line lain TIDAK ADA. Alasannya bukan gaya: test berjalan di SQLite,
+// produksi di PostgreSQL, dan SQLite memperlakukan `where "kolom_tak_ada" = ?`
+// sebagai perbandingan string literal — 0 baris, tanpa error. Tanpa sisi
+// "ADA", sebuah filter yang menyaring HABIS akan hijau di sini dan meledak di
+// PostgreSQL.
+// =====================================================================
+
+/**
+ * Line KEDUA di MILL YANG SAMA, lengkap dengan stasiun Boiler Room-nya
+ * sendiri. Sengaja satu mill: jaminan yang diuji di sini bukan cakupan mill
+ * (itu sudah ditutup ec32cd9) melainkan cakupan LINE DI DALAM satu mill.
+ */
+function laporanBoilerRoomSecondLine(BusinessUnit $businessUnit, string $name = 'Line Kedua'): Station
+{
+    $line = ProductionLine::factory()->create([
+        'business_unit_id' => $businessUnit->id,
+        'name' => $name,
+    ]);
+
+    return Station::factory()->forProductionLine($line)->boilerRoom()->create();
+}
+
+/** Isi berkas CSV yang benar-benar diunduh dari layar. */
+function laporanBoilerRoomDownloadedCsv(Testable $component): string
+{
+    return base64_decode((string) data_get($component->effects, 'download.content'));
+}
+
+it('production line: tanpa line terpilih tidak ada satu angka pun, hanya arahan memilih', function () {
+    // Line A: 2 slot terisi, tekanan 20,0 bar.
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-05',
+        laporanBoilerRoomComponentPressureRows(2, 20.0),
+        ['boiler_room_id' => 'BLR-LINE-A']);
+
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('needsProductionLineSelection', true)
+        // Tidak ada angka sama sekali — bukan laporan kosong, bukan nol.
+        ->assertViewHas('summary', null)
+        ->assertSeeHtml('data-testid="production-line-select"')
+        ->assertSeeHtml('data-testid="select-production-line-hint"')
+        ->assertSee('Pilih production line terlebih dahulu')
+        // TANPA opsi "semua" — itu perbedaan disengaja dari Data Browser.
+        ->assertDontSee('Semua Line')
+        ->assertDontSee('Semua Production Line')
+        ->assertDontSeeHtml('data-testid="recording-coverage"')
+        ->assertDontSeeHtml('data-testid="per-unit-recap"');
+});
+
+it('production line: angka yang tampil milik line terpilih, bukan jumlah dua line', function () {
+    // Line A: 2 slot terisi, tekanan 20,0 bar.
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-05',
+        laporanBoilerRoomComponentPressureRows(2, 20.0),
+        ['boiler_room_id' => 'BLR-LINE-A']);
+
+    $stationC = laporanBoilerRoomSecondLine($this->businessUnitA);
+    $lineC = (string) $stationC->production_line_id;
+    // Line C: 5 slot terisi, tekanan 60,0 bar. Rata-rata gabungan akan
+    // menjadi 48,57 — bukan 20,0 dan bukan 60,0, sehingga pencampuran
+    // ketahuan.
+    laporanBoilerRoomComponentRecord($stationC, '2026-03-06',
+        laporanBoilerRoomComponentPressureRows(5, 60.0),
+        ['boiler_room_id' => 'BLR-LINE-C']);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA);
+
+    // ARAH PERTAMA — line A: angkanya milik A, dan BUKAN A+C.
+    $component->assertViewHas('summary', fn ($summary) => $summary['coverage']['filled_slots'] === 2
+        && $summary['metrics']['steam_pressure_bar']['avg'] === 20.0
+        && $summary['metrics']['steam_pressure_bar']['reading_count'] === 2);
+
+    // ARAH KEDUA — line C: angkanya berpindah seluruhnya ke C. Tanpa arah ini
+    // sebuah filter yang menyaring habis juga akan hijau.
+    $component->set('productionLineId', $lineC)
+        ->assertViewHas('summary', fn ($summary) => $summary['coverage']['filled_slots'] === 5
+            && $summary['metrics']['steam_pressure_bar']['avg'] === 60.0
+            && $summary['metrics']['steam_pressure_bar']['reading_count'] === 5);
+});
+
+it('production line: line mill lain diabaikan, lewat properti maupun lewat query string', function () {
+    // Line A: 2 slot terisi, tekanan 20,0 bar.
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-05',
+        laporanBoilerRoomComponentPressureRows(2, 20.0),
+        ['boiler_room_id' => 'BLR-LINE-A']);
+
+    // (a) Lewat properti — dibuang saat render, jatuh ke "belum memilih".
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineB)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('needsProductionLineSelection', true)
+        ->assertViewHas('summary', null);
+
+    // (b) Lewat query string — sama saja.
+    Livewire::actingAs($this->supervisor)
+        ->withQueryParams(['production_line_id' => $this->lineB])
+        ->test(LaporanBoilerRoom::class)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('summary', null);
+
+    // (c) SISI POSITIFNYA, dan inilah yang menjaga `as: 'production_line_id'`:
+    // line yang sah dari query string BENAR-BENAR terhidrasi dan langsung
+    // memuat laporannya. Tanpa `as:`, Livewire memakai nama properti
+    // ('productionLineId') sebagai kunci query, keduanya tidak bertemu, dan
+    // asersi (a)/(b) di atas tetap hijau tanpa menandai apa pun.
+    Livewire::actingAs($this->supervisor)
+        ->withQueryParams(['production_line_id' => $this->lineA])
+        ->test(LaporanBoilerRoom::class)
+        ->assertSet('productionLineId', $this->lineA)
+        ->assertViewHas('needsProductionLineSelection', false)
+        ->assertViewHas('summary', fn ($summary) => $summary !== null && $summary['coverage']['filled_slots'] === 2
+        && $summary['metrics']['steam_pressure_bar']['avg'] === 20.0
+        && $summary['metrics']['steam_pressure_bar']['reading_count'] === 2);
+});
+
+it('production line: ekspor CSV hanya memuat baris line terpilih', function () {
+    // Line A: 2 slot terisi, tekanan 20,0 bar.
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-05',
+        laporanBoilerRoomComponentPressureRows(2, 20.0),
+        ['boiler_room_id' => 'BLR-LINE-A']);
+
+    $stationC = laporanBoilerRoomSecondLine($this->businessUnitA);
+    $lineC = (string) $stationC->production_line_id;
+    // Line C: 5 slot terisi, tekanan 60,0 bar. Rata-rata gabungan akan
+    // menjadi 48,57 — bukan 20,0 dan bukan 60,0, sehingga pencampuran
+    // ketahuan.
+    laporanBoilerRoomComponentRecord($stationC, '2026-03-06',
+        laporanBoilerRoomComponentPressureRows(5, 60.0),
+        ['boiler_room_id' => 'BLR-LINE-C']);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->set('productionLineId', $this->lineA);
+
+    $component->call('export', 'csv')->assertFileDownloaded(null, null, 'text/csv');
+
+    $csv = laporanBoilerRoomDownloadedCsv($component);
+
+    expect($csv)->toContain('BLR-LINE-A');
+    expect($csv)->not->toContain('BLR-LINE-C');
+
+    // Arah sebaliknya, berkas yang sama sekali berbeda isinya.
+    $component->set('productionLineId', $lineC)->call('export', 'csv');
+
+    $csvC = laporanBoilerRoomDownloadedCsv($component);
+
+    expect($csvC)->toContain('BLR-LINE-C');
+    expect($csvC)->not->toContain('BLR-LINE-A');
+});
+
+it('production line: tanpa line terpilih tidak ada berkas yang diunduh sama sekali', function () {
+    // Line A: 2 slot terisi, tekanan 20,0 bar.
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-05',
+        laporanBoilerRoomComponentPressureRows(2, 20.0),
+        ['boiler_room_id' => 'BLR-LINE-A']);
+
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class)
+        ->call('export', 'csv')
+        ->assertNoFileDownloaded();
+});
+
+it('production line: record yang stasiunnya sudah dipindah tetap terhitung di line asalnya', function () {
+    // Line A: 2 slot terisi, tekanan 20,0 bar.
+    laporanBoilerRoomComponentRecord($this->stationA, '2026-03-05',
+        laporanBoilerRoomComponentPressureRows(2, 20.0),
+        ['boiler_room_id' => 'BLR-LINE-A']);
+
+    // Stasiunnya dipindah ke line lain DI MILL YANG SAMA — perubahan
+    // konfigurasi yang sah, bukan perbaikan data.
+    $lineBaru = ProductionLine::factory()->create([
+        'business_unit_id' => $this->businessUnitA->id,
+        'name' => 'Line Baru',
+    ]);
+
+    $this->stationA->update(['production_line_id' => $lineBaru->id]);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanBoilerRoom::class);
+
+    // DI LINE ASALNYA: masih terhitung utuh. Hanya mungkin karena filternya
+    // membaca kolom `production_line_id` DI TABEL RECORD — sebuah join ke
+    // `stations` akan memindahkan angka ini ke Line Baru dan menulis ulang
+    // sejarah periode yang sudah lewat.
+    $component->set('productionLineId', $this->lineA)
+        ->assertViewHas('summary', fn ($summary) => $summary['coverage']['filled_slots'] === 2
+        && $summary['metrics']['steam_pressure_bar']['avg'] === 20.0
+        && $summary['metrics']['steam_pressure_bar']['reading_count'] === 2);
+
+    // DI LINE BARUNYA: tidak ada apa pun. Stasiunnya memang ada di sana
+    // sekarang, tetapi tidak satu pun record dihasilkan di sana.
+    $component->set('productionLineId', (string) $lineBaru->id)
+        ->assertViewHas('summary', fn ($summary) => $summary['coverage']['filled_slots'] === 0 && $summary['has_data'] === false);
 });

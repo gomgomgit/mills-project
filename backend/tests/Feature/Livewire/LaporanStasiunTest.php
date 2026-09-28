@@ -43,6 +43,7 @@ use App\Enums\UserRole;
 use App\Livewire\Dashboard\LaporanStasiun;
 use App\Models\BusinessUnit;
 use App\Models\Period;
+use App\Models\ProductionLine;
 use App\Models\StationType;
 use App\Models\User;
 use App\Services\StationReportService;
@@ -102,6 +103,19 @@ beforeEach(function () {
 
     // Broken master data: bound to a mill role, bound to no mill.
     $this->supervisorNoMill = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+
+    // Sejak 2026-09-28 layar ini juga memilih Production Line, dan tile
+    // membawanya di report_path bersama mill. Tanpa line terpilih grid
+    // stasiun ditahan sepenuhnya, jadi hampir setiap skenario memilihnya
+    // lebih dulu.
+    $this->lineA = ProductionLine::factory()->create([
+        'business_unit_id' => $this->businessUnitA->id,
+        'name' => 'Line Alpha 1',
+    ]);
+    $this->lineB = ProductionLine::factory()->create([
+        'business_unit_id' => $this->businessUnitB->id,
+        'name' => 'Line Beta 1',
+    ]);
 });
 
 // =====================================================================
@@ -110,6 +124,7 @@ beforeEach(function () {
 it('berhasil: Supervisor melihat mill aktif dan grid stasiun tanpa langkah memilih mill', function () {
     $html = Livewire::actingAs($this->supervisor)
         ->test(LaporanStasiun::class)
+        ->set('productionLineId', (string) $this->lineA->id)
         ->assertSeeHtml('data-testid="mill-current"')
         ->assertSee('Mill Alpha')
         ->assertSeeHtml('data-testid="station-grid"')
@@ -135,6 +150,7 @@ it('berhasil: Supervisor melihat mill aktif dan grid stasiun tanpa langkah memil
     // Mill Management is bound the same way and must render identically.
     Livewire::actingAs($this->millManagement)
         ->test(LaporanStasiun::class)
+        ->set('productionLineId', (string) $this->lineA->id)
         ->assertDontSeeHtml('data-testid="mill-select"')
         ->assertSeeHtml('data-testid="mill-current"')
         ->assertSee('Mill Alpha')
@@ -147,6 +163,7 @@ it('berhasil: Supervisor melihat mill aktif dan grid stasiun tanpa langkah memil
 it('berhasil: Admin melihat pemilih Mill lebih dulu, grid muncul setelah mill dipilih', function () {
     $component = Livewire::actingAs($this->admin)
         ->test(LaporanStasiun::class)
+        ->set('productionLineId', (string) $this->lineA->id)
         ->assertSeeHtml('data-testid="mill-select"')
         // Mill first, station second — the grid is withheld entirely until
         // the mill is settled.
@@ -172,6 +189,7 @@ it('berhasil: Admin melihat pemilih Mill lebih dulu, grid muncul setelah mill di
 it('admin tanpa mill: arahan memilih mill tampil dan grid tidak dirender, tanpa error', function () {
     Livewire::actingAs($this->admin)
         ->test(LaporanStasiun::class)
+        ->set('productionLineId', (string) $this->lineA->id)
         ->assertOk()
         ->assertSeeHtml('data-testid="mill-required-hint"')
         ->assertSee('Pilih mill terlebih dahulu untuk menampilkan stasiun.')
@@ -189,6 +207,7 @@ it('belum ada mill: keterangan master Business Unit kosong, tanpa opsi mill dan 
 
     Livewire::actingAs($this->admin)
         ->test(LaporanStasiun::class)
+        ->set('productionLineId', (string) $this->lineA->id)
         ->assertOk()
         ->assertSeeHtml('data-testid="no-business-units"')
         ->assertSee('Master Business Unit masih kosong')
@@ -205,6 +224,7 @@ it('belum ada mill: keterangan master Business Unit kosong, tanpa opsi mill dan 
 it('akun tanpa mill: pesan hubungi Admin, tanpa pemilih mill dan tanpa grid (gagal tertutup)', function () {
     Livewire::actingAs($this->supervisorNoMill)
         ->test(LaporanStasiun::class)
+        ->set('productionLineId', (string) $this->lineA->id)
         ->assertOk()
         ->assertSeeHtml('data-testid="no-mill-for-account"')
         ->assertSee('Akun Anda belum terhubung ke mill. Hubungi Admin.')
@@ -222,6 +242,7 @@ it('akun tanpa mill: pesan hubungi Admin, tanpa pemilih mill dan tanpa grid (gag
 it('tile belum tersedia: berkelas disabled, aria-disabled, tanpa href dan tanpa wire:click', function () {
     $html = Livewire::actingAs($this->supervisor)
         ->test(LaporanStasiun::class)
+        ->set('productionLineId', (string) $this->lineA->id)
         ->assertSeeHtml('data-testid="station-tile-threshing"')
         ->html();
 
@@ -246,6 +267,7 @@ it('master kosong: grid dirender tanpa tile apa pun dan keterangannya tampil, ta
 
     $html = Livewire::actingAs($this->supervisor)
         ->test(LaporanStasiun::class)
+        ->set('productionLineId', (string) $this->lineA->id)
         ->assertOk()
         ->assertSeeHtml('data-testid="station-grid"')
         ->assertSeeHtml('data-testid="no-station-types"')
@@ -282,6 +304,7 @@ it('operator: rute menolak sebelum mount, dan mount() sendiri juga menolak', fun
 it('supervisor tidak dapat mengganti mill: set businessUnitId tidak mengubah apa pun', function () {
     $html = Livewire::actingAs($this->supervisor)
         ->test(LaporanStasiun::class)
+        ->set('productionLineId', (string) $this->lineA->id)
         ->assertDontSeeHtml('data-testid="mill-select"')
         // The property exists on the component, so a hand-crafted request
         // can set it — it is simply never read for this role.
@@ -303,7 +326,7 @@ it('supervisor tidak dapat mengganti mill: set businessUnitId tidak mengubah apa
 // =====================================================================
 it('master berubah: tile jenis baru ikut tampil dan urutannya mengikuti sort_order terbaru', function () {
     $before = laporanStasiunTileCodes(
-        Livewire::actingAs($this->supervisor)->test(LaporanStasiun::class)->html(),
+        Livewire::actingAs($this->supervisor)->test(LaporanStasiun::class)->set('productionLineId', (string) $this->lineA->id)->html(),
     );
 
     // The master changes: one type added, and one existing type moved to
@@ -318,6 +341,7 @@ it('master berubah: tile jenis baru ikut tampil dan urutannya mengikuti sort_ord
 
     $html = Livewire::actingAs($this->supervisor)
         ->test(LaporanStasiun::class)
+        ->set('productionLineId', (string) $this->lineA->id)
         ->assertSeeHtml('data-testid="station-tile-stasiun-baru"')
         ->assertSee('Stasiun Baru')
         ->html();
@@ -337,7 +361,7 @@ it('master berubah: tile jenis baru ikut tampil dan urutannya mengikuti sort_ord
 // =====================================================================
 // Scenario: "jenis stasiun historis 'other' dikecualikan"
 // =====================================================================
-it("other dikecualikan: tile other tidak dirender, tile jenis lain tetap ada", function () {
+it('other dikecualikan: tile other tidak dirender, tile jenis lain tetap ada', function () {
     laporanStasiunComponentMaster([
         ['sterilizer', 'Sterilizer', 40],
         ['threshing', 'Threshing', 50],
@@ -346,6 +370,7 @@ it("other dikecualikan: tile other tidak dirender, tile jenis lain tetap ada", f
 
     $html = Livewire::actingAs($this->supervisor)
         ->test(LaporanStasiun::class)
+        ->set('productionLineId', (string) $this->lineA->id)
         ->assertDontSeeHtml('data-testid="station-tile-other"')
         ->assertSeeHtml('data-testid="station-tile-sterilizer"')
         ->assertSeeHtml('data-testid="station-tile-threshing"')
@@ -358,7 +383,7 @@ it("other dikecualikan: tile other tidak dirender, tile jenis lain tetap ada", f
 // Scenario: "stasiun yang belum dibangun tampil nonaktif, bukan disembunyikan"
 // =====================================================================
 it('belum dibangun tetap tampil: jumlah tile mengikuti master, hanya sterilizer yang aktif', function () {
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanStasiun::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanStasiun::class)->set('productionLineId', (string) $this->lineA->id)->html();
 
     $codes = laporanStasiunTileCodes($html);
 
@@ -381,6 +406,7 @@ it('belum dibangun tetap tampil: jumlah tile mengikuti master, hanya sterilizer 
 it('mill terbawa: setelah Admin berganti mill, href tile mengikuti mill terakhir', function () {
     $component = Livewire::actingAs($this->admin)
         ->test(LaporanStasiun::class)
+        ->set('productionLineId', (string) $this->lineA->id)
         ->set('businessUnitId', (string) $this->businessUnitA->id);
 
     $firstHtml = $component->html();
@@ -388,7 +414,15 @@ it('mill terbawa: setelah Admin berganti mill, href tile mengikuti mill terakhir
     expect(laporanStasiunTileMarkup($firstHtml, 'sterilizer'))
         ->toContain('business_unit_id='.$this->businessUnitA->id);
 
-    $secondHtml = $component->set('businessUnitId', (string) $this->businessUnitB->id)
+    // BERGANTI MILL MERESET PILIHAN LINE. Line Mill Alpha tidak ada di
+    // daftar Mill Beta, jadi ia dibuang dan grid ditahan sampai sebuah line
+    // Mill Beta dipilih — bukan dibiarkan mengirim tile ke line mill lain.
+    $component->set('businessUnitId', (string) $this->businessUnitB->id)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('needsProductionLineSelection', true)
+        ->assertDontSeeHtml('data-testid="station-grid"');
+
+    $secondHtml = $component->set('productionLineId', (string) $this->lineB->id)
         ->assertSee('Mill Beta')
         ->assertSeeHtml('data-testid="station-grid"')
         ->html();
@@ -397,6 +431,8 @@ it('mill terbawa: setelah Admin berganti mill, href tile mengikuti mill terakhir
 
     expect($sterilizer)->toContain('business_unit_id='.$this->businessUnitB->id);
     expect($sterilizer)->not->toContain('business_unit_id='.$this->businessUnitA->id);
+    expect($sterilizer)->toContain('production_line_id='.$this->lineB->id);
+    expect($sterilizer)->not->toContain('production_line_id='.$this->lineA->id);
 });
 
 // =====================================================================
@@ -413,19 +449,29 @@ it('mill terbawa: setelah Admin berganti mill, href tile mengikuti mill terakhir
 it('hidrasi query string: Admin yang tiba dengan business_unit_id di URL langsung melihat grid stasiun mill itu', function () {
     // (a) Permukaan HTTP.
     $response = $this->actingAs($this->admin, 'web')
-        ->get(route('reports.stations', ['business_unit_id' => $this->businessUnitA->id]));
+        ->get(route('reports.stations', [
+            'business_unit_id' => $this->businessUnitA->id,
+            'production_line_id' => $this->lineA->id,
+        ]));
 
     $response->assertOk();
     $response->assertDontSee('Pilih mill terlebih dahulu untuk menampilkan stasiun.');
+    $response->assertDontSee('Pilih production line terlebih dahulu untuk menampilkan stasiun.');
     $response->assertSeeHtml('data-testid="station-grid"');
     $response->assertDontSeeHtml('data-testid="mill-required-hint"');
 
     // (b) Permukaan komponen — propertinya benar-benar terhidrasi dan grid
     // yang dirender adalah grid mill itu.
     Livewire::actingAs($this->admin)
-        ->withQueryParams(['business_unit_id' => (string) $this->businessUnitA->id])
+        ->withQueryParams([
+            'business_unit_id' => (string) $this->businessUnitA->id,
+            'production_line_id' => (string) $this->lineA->id,
+        ])
         ->test(LaporanStasiun::class)
         ->assertSet('businessUnitId', (string) $this->businessUnitA->id)
+        // `as: 'production_line_id'` terbukti: tanpa itu kunci query dan
+        // nama properti tidak bertemu, dan yang berikut ini akan kosong.
+        ->assertSet('productionLineId', (string) $this->lineA->id)
         ->assertViewHas('needsMillSelection', false)
         ->assertViewHas('businessUnit', fn ($businessUnit) => $businessUnit !== null
             && $businessUnit['name'] === 'Mill Alpha')
@@ -456,6 +502,7 @@ it('peran terikat mill: memaksa mill lain lewat query string tidak mengubah grid
         Livewire::actingAs($user)
             ->withQueryParams(['business_unit_id' => (string) $this->businessUnitB->id])
             ->test(LaporanStasiun::class)
+            ->set('productionLineId', (string) $this->lineA->id)
             // Terhidrasi — dan tetap diabaikan.
             ->assertSet('businessUnitId', (string) $this->businessUnitB->id)
             ->assertViewHas('businessUnit', fn ($businessUnit) => $businessUnit !== null
@@ -513,5 +560,120 @@ it('rantai tautan tile: setiap report_path yang dibangun StationReportService be
         // Dan periode mill itu benar-benar termuat — bukan halaman kosong
         // yang kebetulan tidak memuat kalimat di atas.
         $response->assertSee('Periode Rantai '.$station['code']);
+    }
+});
+
+// =====================================================================
+// PRODUCTION LINE — layar ini pun memilihnya, dan tile membawanya.
+//
+// StationReportService::stationList() membangun satu tile per JENIS stasiun
+// hanya dari `business_unit_id`, yang mengandaikan satu stasiun per jenis per
+// mill. Andaian itu sudah salah: satu mill bisa punya belasan production line
+// dengan jenis stasiun yang sama berulang, sehingga layar ini ambigu sebelum
+// perubahan apa pun. Tile kini membawa line terpilih bersama mill.
+// =====================================================================
+
+it('production line: grid ditahan sampai line dipilih, lalu tile membawa mill DAN line', function () {
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanStasiun::class)
+        ->assertSeeHtml('data-testid="production-line-select"')
+        ->assertSeeHtml('data-testid="select-production-line-hint"')
+        ->assertSee('Pilih production line terlebih dahulu')
+        ->assertViewHas('needsProductionLineSelection', true)
+        // Tidak satu tile pun diserahkan ke blade — bukan sekadar
+        // disembunyikan lewat CSS.
+        ->assertViewHas('stations', [])
+        ->assertDontSeeHtml('data-testid="station-grid"')
+        // TANPA opsi "semua" — laporan tujuan menghasilkan angka gabungan.
+        ->assertDontSee('Semua Line');
+
+    $html = $component->set('productionLineId', (string) $this->lineA->id)
+        ->assertViewHas('needsProductionLineSelection', false)
+        ->assertSeeHtml('data-testid="station-grid"')
+        ->assertSeeHtml('data-testid="production-line-current"')
+        ->assertSee('Line Alpha 1')
+        ->html();
+
+    $sterilizer = laporanStasiunTileMarkup($html, 'sterilizer');
+
+    expect($sterilizer)->toContain('business_unit_id='.$this->businessUnitA->id);
+    expect($sterilizer)->toContain('production_line_id='.$this->lineA->id);
+});
+
+it('production line: line mill lain diabaikan, dan tidak pernah sampai ke report_path', function () {
+    $html = Livewire::actingAs($this->supervisor)
+        ->test(LaporanStasiun::class)
+        // Line Mill Beta, dipaksakan lewat properti.
+        ->set('productionLineId', (string) $this->lineB->id)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('needsProductionLineSelection', true)
+        ->assertViewHas('stations', [])
+        ->html();
+
+    expect($html)->not->toContain('production_line_id='.$this->lineB->id);
+
+    // Lewat query string — sama saja.
+    Livewire::actingAs($this->supervisor)
+        ->withQueryParams(['production_line_id' => (string) $this->lineB->id])
+        ->test(LaporanStasiun::class)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('stations', []);
+});
+
+// =====================================================================
+// RANTAI PENUH — tile -> layar laporan, KINI DENGAN LINE.
+//
+// Kembaran persis dari rantai mill di atasnya, dan ada karena alasan yang
+// sama: kalau kunci yang DIBANGUN service (`production_line_id`) dan kunci
+// yang DIBACA komponen laporan (nama properti, kalau `as:` hilang) berbeda,
+// tile akan mendaratkan pengguna di layar yang memintanya memilih line lagi —
+// persis cacat yang commit 8658f6e perbaiki untuk mill. URL-nya TIDAK ditulis
+// tangan; ia diambil dari report_path yang benar-benar dibangun service.
+// =====================================================================
+it('rantai tautan tile: report_path membawa line, dan layar tujuan terisi line itu tanpa bertanya lagi', function () {
+    foreach (array_keys(StationReportService::REPORT_ROUTES) as $code) {
+        Period::factory()
+            ->forBusinessUnit($this->businessUnitA)
+            ->stationType($code)
+            ->range('2026-03-01', '2026-03-31')
+            ->named('Periode Rantai '.$code)
+            ->open()
+            ->create();
+    }
+
+    $this->actingAs($this->admin, 'web');
+
+    $stations = collect(app(StationReportService::class)->stations(
+        (string) $this->businessUnitA->id,
+        (string) $this->lineA->id,
+    )['stations'])->where('report_available', true)->all();
+
+    expect($stations)->toHaveCount(count(StationReportService::REPORT_ROUTES));
+
+    foreach ($stations as $station) {
+        // Kedua konteks ada di tautannya, bukan hanya mill.
+        expect($station['report_path'])->toContain('business_unit_id='.$this->businessUnitA->id);
+        expect($station['report_path'])->toContain('production_line_id='.$this->lineA->id);
+
+        $response = $this->actingAs($this->admin, 'web')->get($station['report_path']);
+
+        $response->assertOk();
+        // Tidak ditanya dua kali — tidak soal mill, tidak soal line.
+        $response->assertDontSee('Pilih mill terlebih dahulu');
+        $response->assertDontSee('Pilih production line terlebih dahulu');
+        // Dan periodenya benar-benar termuat, bukan halaman kosong yang
+        // kebetulan tidak memuat kedua kalimat di atas.
+        $response->assertSee('Periode Rantai '.$station['code']);
+        // Dan layar tujuan MENAMAI line yang sedang dibacanya — bukti bahwa
+        // kunci yang dibangun service benar-benar bertemu propertinya di
+        // sana, bukan sekadar ikut menempel di URL.
+        $response->assertSee('data-testid="production-line-current"', false);
+        $response->assertSee('Line Alpha 1');
+        // Dan pemilihnya benar-benar menunjuk line itu di HTML yang dikirim
+        // server — Livewire 3 tidak menulis balik nilai <select> pada paint
+        // pertama, jadi tanpa @selected pengguna akan membaca "Pilih
+        // Production Line" di atas angka yang sudah milik line ini.
+        $response->assertSee('value="'.$this->lineA->id.'"', false);
+        $response->assertSee('selected', false);
     }
 });

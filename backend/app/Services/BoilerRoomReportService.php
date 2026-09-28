@@ -11,6 +11,7 @@ use App\Models\BoilerRoomRecord;
 use App\Models\BusinessUnit;
 use App\Models\Period;
 use App\Models\PeriodStation;
+use App\Models\ProductionLine;
 use App\Models\StationType;
 use DateTimeInterface;
 use Generator;
@@ -380,6 +381,67 @@ class BoilerRoomReportService
     }
 
     /**
+     * Pemilih Production Line — opsi line DI DALAM mill yang berlaku.
+     *
+     * Berlaku untuk SEMUA peran, tidak seperti businessUnitOptions() yang
+     * khusus Admin: production line BUKAN ikatan akun (tidak ada
+     * `users.production_line_id`, dan tidak boleh ada) melainkan KONTEKS
+     * YANG DIPILIH. Supervisor pun memilih line, karena satu mill di
+     * lapangan punya belasan production line dengan jenis stasiun yang
+     * sama berulang di tiap line.
+     *
+     * Daftar ini SELALU dibatasi mill yang berlaku, sehingga line mill lain
+     * tidak pernah menjadi opsi — itu separuh pertama dari jaminan "line
+     * mill lain diabaikan"; separuhnya lagi ada di resolveProductionLine(),
+     * yang menutup jalur properti/query string.
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    public function productionLineOptions(string $businessUnitId): array
+    {
+        return ProductionLine::query()
+            ->where('business_unit_id', $businessUnitId)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ProductionLine $line) => [
+                'id' => (string) $line->id,
+                'name' => (string) $line->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * Line yang benar-benar berlaku untuk laporan ini, atau null bila belum
+     * ada pilihan yang sah.
+     *
+     * MEMILIH LINE WAJIB di layar laporan — berbeda dari Data Browser, yang
+     * punya opsi "Semua Line". Alasannya menentukan: laporan menghasilkan
+     * ANGKA GABUNGAN, dan sebuah total yang mencampur belasan line bukan
+     * angka yang bisa ditindaklanjuti siapa pun. Karena itu null di sini
+     * berarti "jangan tampilkan angka apa pun", BUKAN "tampilkan semua
+     * line".
+     *
+     * Line milik mill lain DIABAIKAN, persis seperti business_unit_id
+     * kiriman klien diabaikan untuk peran terikat mill: ia dipulangkan
+     * sebagai null, sehingga hasilnya adalah layar yang meminta memilih
+     * line — bukan 403 (yang justru memastikan line itu ada), dan tidak
+     * pernah data mill lain.
+     */
+    public function resolveProductionLine(string $businessUnitId, ?string $requestedProductionLineId): ?string
+    {
+        if ($requestedProductionLineId === null || $requestedProductionLineId === '') {
+            return null;
+        }
+
+        $belongsToMill = ProductionLine::query()
+            ->whereKey($requestedProductionLineId)
+            ->where('business_unit_id', $businessUnitId)
+            ->exists();
+
+        return $belongsToMill ? $requestedProductionLineId : null;
+    }
+
+    /**
      * business_logic step 3 — load a period and prove the caller may read
      * it.
      *
@@ -465,7 +527,7 @@ class BoilerRoomReportService
      * @throws AuthorizationException 403 FORBIDDEN
      * @throws ModelNotFoundException 404 NOT_FOUND
      */
-    public function buildSummary(Period|string|null $period = null, ?string $requestedBusinessUnitId = null): array
+    public function buildSummary(Period|string|null $period = null, ?string $requestedBusinessUnitId = null, ?string $productionLineId = null): array
     {
         // Ordered deliberately: role first (403), then mill (422), then the
         // period id (422), then the period itself (404 / 403). A caller who
@@ -475,7 +537,7 @@ class BoilerRoomReportService
 
         $period = $this->requirePeriod($period);
 
-        $records = $this->recordsFor($period);
+        $records = $this->recordsFor($period, $productionLineId);
         $rows = $this->rowsOf($records);
         // "Reading rows" ARE the FILLED rows. A detail row whose 15
         // non-time_slot columns are all null is an untouched slot, already
@@ -510,6 +572,10 @@ class BoilerRoomReportService
                 'id' => (string) $period->business_unit_id,
                 'name' => (string) ($period->businessUnit?->name ?? ''),
             ],
+            // TAMBAHAN, bukan perubahan bentuk: kunci baru di samping yang
+            // sudah ada, sehingga pembaca lama (blade dan layar mobile) tidak
+            // terpengaruh sama sekali. null ketika tidak ada line berlaku.
+            'production_line' => $this->productionLineInfo($productionLineId),
             // has_data distinguishes "there is nothing to report" from "the
             // figures happen to be zero". The screen uses it to refuse to
             // draw an empty chart, which would read as a measured flat line.
@@ -545,9 +611,9 @@ class BoilerRoomReportService
      * CagesTrackReportService::summary() at the call sites. One
      * implementation, two names — never two implementations.
      */
-    public function summary(Period|string|null $period = null, ?string $requestedBusinessUnitId = null): array
+    public function summary(Period|string|null $period = null, ?string $requestedBusinessUnitId = null, ?string $productionLineId = null): array
     {
-        return $this->buildSummary($period, $requestedBusinessUnitId);
+        return $this->buildSummary($period, $requestedBusinessUnitId, $productionLineId);
     }
 
     /**
@@ -576,14 +642,14 @@ class BoilerRoomReportService
      * @throws ValidationException 422 VALIDATION_ERROR
      * @throws ExportFailedException 422 EXPORT_FAILED
      */
-    public function buildExportRows(Period|string|null $period = null, ?string $requestedBusinessUnitId = null): Generator
+    public function buildExportRows(Period|string|null $period = null, ?string $requestedBusinessUnitId = null, ?string $productionLineId = null): Generator
     {
         $this->guardAccess();
         $this->resolveBusinessUnit($requestedBusinessUnitId);
 
         $period = $this->requirePeriod($period);
 
-        $recordQuery = $this->recordQueryFor($period);
+        $recordQuery = $this->recordQueryFor($period, $productionLineId);
 
         $detailRowCount = BoilerRoomDetail::query()
             ->whereIn('boiler_room_record_id', (clone $recordQuery)->select('boiler_room_records.id'))
@@ -603,7 +669,7 @@ class BoilerRoomReportService
      * @throws ValidationException 422 VALIDATION_ERROR (unsupported format)
      * @throws ExportFailedException 422 EXPORT_FAILED
      */
-    public function export(Period|string|null $period = null, string $format = 'csv', ?string $requestedBusinessUnitId = null): StreamedResponse
+    public function export(Period|string|null $period = null, string $format = 'csv', ?string $requestedBusinessUnitId = null, ?string $productionLineId = null): StreamedResponse
     {
         $this->guardAccess();
 
@@ -618,7 +684,7 @@ class BoilerRoomReportService
         // Runs the guard + the row-limit check NOW, before a single byte of
         // the response is committed — a refused export must never begin
         // streaming.
-        $rows = $this->buildExportRows($resolvedPeriod, $requestedBusinessUnitId);
+        $rows = $this->buildExportRows($resolvedPeriod, $requestedBusinessUnitId, $productionLineId);
 
         try {
             [$contentType, $filename] = $this->fileMetaFor($format, $resolvedPeriod);
@@ -670,9 +736,9 @@ class BoilerRoomReportService
      *
      * @return Collection<int, object>
      */
-    protected function recordsFor(Period $period): Collection
+    protected function recordsFor(Period $period, ?string $productionLineId = null): Collection
     {
-        return $this->recordQueryFor($period)
+        return $this->recordQueryFor($period, $productionLineId)
             // time_slot is a TIME column: ordering uses the TIME value as
             // it stands. It is NOT an integer hour like Cages & Tracks'
             // tipped_hour, and casting it to one would collapse 06:00 and
@@ -1073,15 +1139,44 @@ class BoilerRoomReportService
      * sync time. boiler_room_records carries neither period_id nor
      * business_unit_id, so the join is the only way to scope it.
      */
-    protected function recordQueryFor(Period $period): Builder
+    protected function recordQueryFor(Period $period, ?string $productionLineId = null): Builder
     {
-        return BoilerRoomRecord::query()
+        $query = BoilerRoomRecord::query()
             ->join('stations', 'stations.id', '=', 'boiler_room_records.station_id')
             ->where('stations.business_unit_id', $period->business_unit_id)
             ->where('stations.type', StationTypeEnum::BoilerRoom->value)
             ->whereDate('boiler_room_records.date', '>=', $period->start_date->toDateString())
             ->whereDate('boiler_room_records.date', '<=', $period->end_date->toDateString())
             ->select('boiler_room_records.*');
+
+        $this->scopeToProductionLine($query, $productionLineId);
+
+        return $query;
+    }
+
+    /**
+     * Penyaringan per production line, DI KOLOM TABEL RECORD — bukan lewat
+     * join ke `stations`.
+     *
+     * Sejak commit ccc884d `boiler_room_records.production_line_id` adalah kolom nyata
+     * NOT NULL yang di-SNAPSHOT dari stasiun saat record dibuat dan tidak
+     * pernah berubah sesudahnya. Membaca dari kolom record itulah yang benar
+     * secara semantik: untuk record lama yang stasiunnya sudah DIPINDAH ke
+     * line lain, kolom record menunjuk line tempat data itu benar-benar
+     * dihasilkan, sedangkan `stations.production_line_id` menunjuk line
+     * stasiun itu SEKARANG. Menyaring lewat join ke `stations` akan menulis
+     * ulang sejarah setiap kali sebuah stasiun dipindahkan.
+     *
+     * Ia juga lebih murah: kolomnya ada di tabel record, jadi tidak perlu
+     * join tambahan sama sekali.
+     */
+    protected function scopeToProductionLine(mixed $query, ?string $productionLineId): void
+    {
+        if ($productionLineId === null || $productionLineId === '') {
+            return;
+        }
+
+        $query->where('boiler_room_records.production_line_id', $productionLineId);
     }
 
     /**
@@ -1156,6 +1251,33 @@ class BoilerRoomReportService
         }
 
         return $period;
+    }
+
+    /**
+     * Blok `production_line` pada respons ringkasan — TAMBAHAN, bukan
+     * perubahan bentuk: seluruh kunci yang sudah ada tetap di tempatnya dan
+     * tetap datar, sehingga blade dan layar mobile yang membacanya apa
+     * adanya nol perubahan. null ketika tidak ada line yang berlaku.
+     *
+     * @return array{id: string, name: string}|null
+     */
+    protected function productionLineInfo(?string $productionLineId): ?array
+    {
+        if ($productionLineId === null || $productionLineId === '') {
+            return null;
+        }
+
+        /** @var ProductionLine|null $line */
+        $line = ProductionLine::query()->find($productionLineId, ['id', 'name']);
+
+        if ($line === null) {
+            return null;
+        }
+
+        return [
+            'id' => (string) $line->id,
+            'name' => (string) $line->name,
+        ];
     }
 
     /**

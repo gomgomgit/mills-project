@@ -76,6 +76,35 @@ class LaporanBoilerRoom extends Component
     #[Url(as: 'business_unit_id')]
     public string $businessUnitId = '';
 
+    /**
+     * PRODUCTION LINE ADALAH KONTEKS YANG DIPILIH, BUKAN IKATAN AKUN.
+     *
+     * Tidak ada `users.production_line_id` dan tidak boleh ada: satu orang
+     * bekerja di line mana pun di millnya. Karena itu line tinggal di state
+     * komponen, persis seperti mill milik Admin.
+     *
+     * MEMILIHNYA WAJIB, dan itu berbeda dari Data Browser yang punya opsi
+     * "Semua Line". Alasannya menentukan: laporan menghasilkan ANGKA
+     * GABUNGAN, dan "Total 1.200" yang mencampur belasan line bukan angka
+     * yang bisa ditindaklanjuti siapa pun. Selama belum dipilih, layar ini
+     * tidak menampilkan satu angka pun — mekanismenya sama persis dengan
+     * needsMillSelection, bukan mekanisme kedua.
+     *
+     * `as: 'production_line_id'` WAJIB, dengan alasan yang sama seperti
+     * business_unit_id di atas: tautan tile yang dibangun
+     * StationReportService memakai kunci `production_line_id`, sedangkan
+     * tanpa `as:` Livewire memakai NAMA PROPERTI (`productionLineId`).
+     * Keduanya tidak akan pernah bertemu dan layar tetap meminta memilih
+     * line — persis bug yang 13 test penjaga pada commit 8658f6e ada untuk
+     * mencegah, hanya dengan nama lain.
+     *
+     * TIDAK MEMBUKA KEBOCORAN LINTAS MILL: keepProductionLineValid() hanya
+     * menerima line yang ada di dalam mill yang berlaku, jadi line mill lain
+     * lewat properti atau query string dibuang sebelum menyentuh data.
+     */
+    #[Url(as: 'production_line_id')]
+    public string $productionLineId = '';
+
     /** Selected reporting period; auto-filled with the newest one. */
     public string $periodId = '';
 
@@ -139,7 +168,13 @@ class LaporanBoilerRoom extends Component
      */
     public function export(string $format = 'csv')
     {
-        if ($this->periodId === '') {
+        $productionLineId = $this->resolvedProductionLineId();
+
+        // Tanpa periode ATAU tanpa production line tidak ada yang bisa
+        // diekspor. Line dijaga di sini dan bukan hanya di blade, supaya
+        // sebuah panggilan langsung ke method ini tidak bisa mengambil
+        // berkas yang mencampur seluruh line mill.
+        if ($this->periodId === '' || $productionLineId === null) {
             return null;
         }
 
@@ -149,6 +184,7 @@ class LaporanBoilerRoom extends Component
             $service->authorizePeriod($this->periodId),
             $format,
             $this->resolvedBusinessUnitId(),
+            $productionLineId,
         );
     }
 
@@ -165,18 +201,35 @@ class LaporanBoilerRoom extends Component
         $hasNoMillForAccount = ! $isAdmin && $businessUnitId === null;
 
         $businessUnitOptions = $isAdmin ? $service->businessUnitOptions() : [];
+        $productionLineOptions = [];
+        $productionLineId = null;
         $periods = [];
         $summary = null;
 
         if ($businessUnitId !== null) {
+            // Opsi line SELALU dibatasi mill yang berlaku, jadi line mill
+            // lain tidak pernah menjadi opsi — dan keepProductionLineValid()
+            // membuang sisa pilihan yang tidak ada di daftar itu, yang juga
+            // cara "Admin berganti mill -> pilihan line direset" bekerja
+            // tanpa hook updated* apa pun.
+            $productionLineOptions = $service->productionLineOptions($businessUnitId);
+
+            $this->keepProductionLineValid($productionLineOptions);
+
+            $productionLineId = $this->productionLineId !== '' ? $this->productionLineId : null;
+
             $periods = $service->listPeriods($businessUnitId);
 
             $this->keepSelectionValid($periods);
 
-            if ($this->periodId !== '') {
+            // PERIODE TETAP PER MILL — daftar periode di atas tidak
+            // bertambah dimensi line sama sekali. Yang tersaring adalah
+            // datanya, dan hanya ketika sebuah line sudah dipilih.
+            if ($productionLineId !== null && $this->periodId !== '') {
                 $summary = $service->buildSummary(
                     $service->authorizePeriod($this->periodId),
                     $businessUnitId,
+                    $productionLineId,
                 );
             }
         }
@@ -190,7 +243,16 @@ class LaporanBoilerRoom extends Component
             'summary' => $summary,
             // Admin who has not picked a mill yet: the page asks for one
             // instead of showing an empty report.
+            'productionLineOptions' => $productionLineOptions,
+            // Line yang sedang dibaca, dinamai. Angka laporan tidak ada
+            // artinya tanpa keterangan line mana yang menghasilkannya —
+            // itu justru alasan memilih line dijadikan wajib.
+            'selectedProductionLine' => collect($productionLineOptions)->firstWhere('id', $productionLineId),
             'needsMillSelection' => $isAdmin && $businessUnitId === null,
+            // Mill sudah pasti, line belum: layar meminta memilih line dan
+            // TIDAK menampilkan satu angka pun — mekanisme yang sama persis
+            // dengan needsMillSelection di atasnya, bukan mekanisme kedua.
+            'needsProductionLineSelection' => $businessUnitId !== null && $productionLineId === null,
             'hasNoMillForAccount' => $hasNoMillForAccount,
         ]);
     }
@@ -226,6 +288,47 @@ class LaporanBoilerRoom extends Component
         }
 
         return (string) (auth()->user()?->businessUnit?->name ?? '');
+    }
+
+    /**
+     * Line yang benar-benar dipakai untuk menyaring angka, atau null bila
+     * belum ada pilihan yang sah. Divalidasi ulang lewat service supaya
+     * jalur ekspor memakai jaminan yang sama dengan jalur render — sebuah
+     * line mill lain tidak pernah sampai ke berkas yang diunduh.
+     */
+    protected function resolvedProductionLineId(): ?string
+    {
+        $businessUnitId = $this->resolvedBusinessUnitId();
+
+        if ($businessUnitId === null || $this->productionLineId === '') {
+            return null;
+        }
+
+        return app(BoilerRoomReportService::class)->resolveProductionLine($businessUnitId, $this->productionLineId);
+    }
+
+    /**
+     * Membuang line yang tidak ada di dalam mill yang berlaku — line mill
+     * lain lewat query string, atau sisa pilihan setelah Admin berganti
+     * mill. Jatuh ke "belum memilih" (yang merender arahan memilih), bukan
+     * ke line pertama: memilih line adalah keputusan pembaca laporan, dan
+     * menebaknya akan menghasilkan angka yang tidak ia minta.
+     *
+     * Kembarannya keepSelectionValid() untuk periode; keduanya protected,
+     * sehingga permukaan publik komponen ini tetap sebatas pemilih, toggle
+     * dan ekspor.
+     *
+     * @param  list<array{id: string, name: string}>  $options
+     */
+    protected function keepProductionLineValid(array $options): void
+    {
+        if ($this->productionLineId === '') {
+            return;
+        }
+
+        if (! in_array($this->productionLineId, array_column($options, 'id'), true)) {
+            $this->productionLineId = '';
+        }
     }
 
     protected function isAdmin(): bool

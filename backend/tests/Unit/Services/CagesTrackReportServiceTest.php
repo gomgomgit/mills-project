@@ -1500,7 +1500,7 @@ it('returns the complete recap when every condition passes, and changes no stati
     $period = $this->service->authorizePeriod((string) $this->periodA->id);
     $summary = $this->service->summary($period);
 
-    expect(array_keys($summary))->toBe(['period', 'kpi', 'hourly', 'daily', 'queue', 'total']);
+    expect(array_keys($summary))->toBe(['period', 'production_line', 'kpi', 'hourly', 'daily', 'queue', 'total']);
     expect($summary['period']['status'])->toBe('open');
     expect($summary['period']['business_unit_name'])->toBe('Mill Alpha');
 

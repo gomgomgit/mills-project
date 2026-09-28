@@ -59,12 +59,22 @@ class StationReportController extends Controller
      * for Supervisor / Mill Management — it is not even read back for
      * those roles, which is why an unknown id from them still returns 200
      * instead of 404.
+     *
+     * production_line_id — PARAMETER PERMINTAAN BARU (2026-09-28), OPSIONAL
+     * DAN ADITIF. Bila dikirim DAN berada di dalam mill yang berlaku, ia
+     * ikut terbawa ke setiap `report_path`, sehingga layar laporan tujuan
+     * langsung terisi line-nya alih-alih meminta pengguna memilih lagi.
+     * Line milik mill lain DIABAIKAN, persis seperti business_unit_id
+     * diabaikan untuk peran terikat mill: report_path kembali hanya membawa
+     * mill, dan `production_line` pada respons bernilai null. Tanpa
+     * parameter ini jawabannya persis seperti sebelum perubahan.
      */
     public function stations(Request $request): JsonResponse
     {
         return response()->json([
             'data' => $this->service->stations(
                 $this->queryString($request, 'business_unit_id'),
+                $this->queryString($request, 'production_line_id'),
             ),
         ]);
     }

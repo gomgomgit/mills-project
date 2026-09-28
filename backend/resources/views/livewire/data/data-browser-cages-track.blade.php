@@ -45,12 +45,24 @@
                 class="ct-filterbar__input"
             />
         </div>
+
+        <div class="ct-filterbar__field">
+            <label for="production_line_id" class="ct-filterbar__label">Production Line</label>
+            <x-searchable-select
+                id="production_line_id"
+                wire:model.live="production_line_id"
+                :options="collect($productionLines)->map(fn ($line) => ['value' => $line['id'], 'label' => $line['name']])->all()"
+                placeholder="Semua Line"
+                class="ct-filterbar__input"
+            />
+        </div>
     </div>
 
     <div class="ct-table-wrap">
         <table class="ct-table">
             <thead class="ct-table__head">
                 <tr>
+                    <th>Production Line</th>
                     <th>No. Cages Track</th>
                     <th>Tanggal</th>
                     <th>Jumlah Cage/Lori Tercatat</th>
@@ -72,6 +84,11 @@
                             onclick="window.location.href='{{ $detailHref }}'"
                         @endif
                     >
+                        {{-- Diambil dari KOLOM RECORD (production_line_name), bukan
+                             dari station->productionLine: untuk record lama yang
+                             stasiunnya sudah dipindah, keduanya berbeda — dan yang
+                             benar adalah line tempat data itu benar-benar dihasilkan. --}}
+                        <td>{{ $record['production_line_name'] ?? '-' }}</td>
                         <td>{{ $record['cages_track_number'] }}</td>
                         <td>{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d/m/Y') : '-' }}</td>
                         <td>{{ $record['tipped_time_count'] }}</td>
@@ -81,7 +98,7 @@
                     </tr>
                 @empty
                     <tr class="ct-table__row ct-table__row--static">
-                        <td colspan="4">
+                        <td colspan="5">
                             <div class="ct-empty">
                                 <div class="ct-empty__illustration" aria-hidden="true">&#128203;</div>
                                 <p class="ct-empty__title">Tidak ada data</p>

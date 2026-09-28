@@ -96,7 +96,7 @@ it('returns a paginated, filtered list with the shared pagination meta shape', f
     expect($result['meta'])->toBe(['page' => 1, 'per_page' => 2, 'total' => 3, 'total_pages' => 2]);
     expect($result['data'])->toHaveCount(2);
     expect(array_keys($result['data'][0]))->toBe([
-        'id', 'kernel_dispatch_id', 'date', 'event_count', 'status',
+        'id', 'kernel_dispatch_id', 'date', 'event_count', 'production_line_name', 'status',
     ]);
 });
 

@@ -65,6 +65,7 @@ use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\Period;
 use App\Models\PeriodStation;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\StationType;
 use App\Models\StorageTankDetail;
@@ -1477,4 +1478,202 @@ it('reachability: REPORT_ROUTES memetakan storage-tank dan tetap urut menurut st
         ->all();
 
     expect(array_keys(StationReportService::REPORT_ROUTES))->toBe($sortOrderCodes);
+});
+
+// =====================================================================
+// PRODUCTION LINE — parameter permintaan `production_line_id` (2026-09-28)
+//
+// OPSIONAL DAN ADITIF, dengan sengaja: endpoint ini dibaca layar web DAN
+// layar mobile, dan mewajibkannya sekarang akan mematahkan mobile sebelum ia
+// sempat menumbuhkan pemilihnya. Tanpa parameter ini jawabannya persis
+// seperti sebelum perubahan — itulah yang diasersikan skenario terakhir di
+// bawah. Bentuk respons tidak berubah; ia hanya BERTAMBAH satu kunci
+// `production_line`.
+//
+// Penyaringan dibuat DUA ARAH — data line terpilih ADA, data line lain TIDAK
+// ADA — karena SQLite memperlakukan kolom yang tidak ada sebagai string
+// literal dan akan menghijaukan filter yang menyaring habis.
+// =====================================================================
+
+function laporanStorageTankApiSecondLine(BusinessUnit $businessUnit): Station
+{
+    $line = ProductionLine::factory()->create([
+        'business_unit_id' => $businessUnit->id,
+        'name' => 'Line Kedua',
+    ]);
+
+    return Station::factory()->forProductionLine($line)->storageTank()->create();
+}
+
+it('production_line_id: menyaring ringkasan ke satu line, dua arah', function () {
+    laporanStorageTankRecord($this->stationA, '2026-09-05', 'TK-LINE-A', [
+        ['calculated_weight_mt' => 100.0],
+        ['calculated_weight_mt' => 100.0],
+    ]);
+
+    $stationC = laporanStorageTankApiSecondLine($this->businessUnitA);
+    $lineC = (string) $stationC->production_line_id;
+    laporanStorageTankRecord($stationC, '2026-09-06', 'TK-LINE-C', [
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+    ]);
+
+    $lineA = (string) $this->stationA->production_line_id;
+    $periodId = (string) $this->periodA->id;
+
+    $a = $this->actingAs($this->supervisor, 'web')->getJson('/api/storage-tank-reports/summary?'.http_build_query([
+        'period_id' => $periodId,
+        'production_line_id' => $lineA,
+    ]));
+
+    $a->assertOk();
+    expect($a->json('coverage.filled_slots'))->toBe(2);
+    expect($a->json('metrics.calculated_weight_mt.avg'))->toEqual(100.0);
+
+    $c = $this->actingAs($this->supervisor, 'web')->getJson('/api/storage-tank-reports/summary?'.http_build_query([
+        'period_id' => $periodId,
+        'production_line_id' => $lineC,
+    ]));
+
+    $c->assertOk();
+    expect($c->json('coverage.filled_slots'))->toBe(5);
+    expect($c->json('metrics.calculated_weight_mt.avg'))->toEqual(500.0);
+});
+
+it('production_line_id: menambah blok production_line tanpa mengubah satu pun kunci yang sudah ada', function () {
+    laporanStorageTankRecord($this->stationA, '2026-09-05', 'TK-LINE-A', [
+        ['calculated_weight_mt' => 100.0],
+        ['calculated_weight_mt' => 100.0],
+    ]);
+
+    $lineA = (string) $this->stationA->production_line_id;
+    $periodId = (string) $this->periodA->id;
+
+    $tanpa = $this->actingAs($this->supervisor, 'web')
+        ->getJson('/api/storage-tank-reports/summary?'.http_build_query(['period_id' => $periodId]));
+
+    $dengan = $this->actingAs($this->supervisor, 'web')->getJson('/api/storage-tank-reports/summary?'.http_build_query([
+        'period_id' => $periodId,
+        'production_line_id' => $lineA,
+    ]));
+
+    $tanpa->assertOk();
+    $dengan->assertOk();
+
+    // Satu-satunya kunci baru, dan ia null ketika parameternya tidak dikirim.
+    expect($tanpa->json('production_line'))->toBeNull();
+    expect($dengan->json('production_line'))->toBe([
+        'id' => $lineA,
+        'name' => ProductionLine::findOrFail($lineA)->name,
+    ]);
+
+    // Kunci teratas yang sudah ada tetap sama persis, dalam urutan yang sama.
+    $lama = array_values(array_diff(array_keys($tanpa->json()), ['production_line']));
+    $baru = array_values(array_diff(array_keys($dengan->json()), ['production_line']));
+
+    expect($baru)->toBe($lama);
+});
+
+it('production_line_id: line mill lain tidak pernah memulangkan data mill itu', function () {
+    laporanStorageTankRecord($this->stationB, '2026-09-05', 'TK-MILL-B', [
+        ['calculated_weight_mt' => 999.0],
+    ]);
+
+    $lineB = (string) $this->stationB->production_line_id;
+
+    $response = $this->actingAs($this->supervisor, 'web')->getJson('/api/storage-tank-reports/summary?'.http_build_query([
+        'period_id' => (string) $this->periodA->id,
+        'production_line_id' => $lineB,
+    ]));
+
+    // Cakupan mill sudah ditegakkan lebih dulu, jadi menyaring ke line mill
+    // lain menghasilkan laporan KOSONG — bukan data Mill Beta.
+    $response->assertOk();
+    expect($response->json('coverage.filled_slots'))->toBe(0);
+    expect($response->json('has_data'))->toBeFalse();
+});
+
+it('production_line_id: ekspor ikut tersaring ke line terpilih', function () {
+    laporanStorageTankRecord($this->stationA, '2026-09-05', 'TK-LINE-A', [
+        ['calculated_weight_mt' => 100.0],
+        ['calculated_weight_mt' => 100.0],
+    ]);
+
+    $stationC = laporanStorageTankApiSecondLine($this->businessUnitA);
+    $lineC = (string) $stationC->production_line_id;
+    laporanStorageTankRecord($stationC, '2026-09-06', 'TK-LINE-C', [
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+    ]);
+
+    $lineA = (string) $this->stationA->production_line_id;
+    $periodId = (string) $this->periodA->id;
+
+    $a = $this->actingAs($this->supervisor, 'web')->get('/api/storage-tank-reports/export?'.http_build_query([
+        'period_id' => $periodId,
+        'format' => 'csv',
+        'production_line_id' => $lineA,
+    ]));
+
+    $a->assertOk();
+
+    $bodyA = $a->streamedContent();
+
+    expect($bodyA)->toContain('TK-LINE-A');
+    expect($bodyA)->not->toContain('TK-LINE-C');
+
+    $c = $this->actingAs($this->supervisor, 'web')->get('/api/storage-tank-reports/export?'.http_build_query([
+        'period_id' => $periodId,
+        'format' => 'csv',
+        'production_line_id' => $lineC,
+    ]));
+
+    $c->assertOk();
+
+    $bodyC = $c->streamedContent();
+
+    expect($bodyC)->toContain('TK-LINE-C');
+    expect($bodyC)->not->toContain('TK-LINE-A');
+});
+
+it('production_line_id: record yang stasiunnya sudah dipindah tetap terhitung di line asalnya', function () {
+    laporanStorageTankRecord($this->stationA, '2026-09-05', 'TK-LINE-A', [
+        ['calculated_weight_mt' => 100.0],
+        ['calculated_weight_mt' => 100.0],
+    ]);
+
+    $lineAsal = (string) $this->stationA->production_line_id;
+
+    $lineBaru = ProductionLine::factory()->create([
+        'business_unit_id' => $this->businessUnitA->id,
+        'name' => 'Line Baru',
+    ]);
+
+    $this->stationA->update(['production_line_id' => $lineBaru->id]);
+
+    $asal = $this->actingAs($this->supervisor, 'web')->getJson('/api/storage-tank-reports/summary?'.http_build_query([
+        'period_id' => (string) $this->periodA->id,
+        'production_line_id' => $lineAsal,
+    ]));
+
+    $asal->assertOk();
+    // Kolom di TABEL RECORD, bukan join ke `stations` — kalau ia join,
+    // angka ini pindah ke Line Baru dan sejarah periode lama tertulis ulang.
+    expect($asal->json('coverage.filled_slots'))->toBe(2);
+    expect($asal->json('metrics.calculated_weight_mt.avg'))->toEqual(100.0);
+
+    $baru = $this->actingAs($this->supervisor, 'web')->getJson('/api/storage-tank-reports/summary?'.http_build_query([
+        'period_id' => (string) $this->periodA->id,
+        'production_line_id' => (string) $lineBaru->id,
+    ]));
+
+    $baru->assertOk();
+    expect($baru->json('coverage.filled_slots'))->toBe(0);
+    expect($baru->json('has_data'))->toBeFalse();
 });

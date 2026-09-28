@@ -76,25 +76,30 @@ beforeEach(function () {
  *
  * Each row is [service, record model, detail model, detail FK, one expected
  * detail-column header, context column count, detail column count].
+ *
+ * Context column counts gained one on 2026-09-28: every export now leads with
+ * a Production Line column, read from the record's OWN `production_line_id`
+ * (2026_09_28_000041) rather than through `station`, so an exported row still
+ * names the line it was produced on after its station has been moved.
  */
 dataset('stations', [
-    'threshing' => [ThreshingRecordService::class, ThreshingRecord::class, ThreshingDetail::class, 'threshing_record_id', 'Drum Speed (RPM)', 6, 7],
-    'pressing' => [PressingRecordService::class, PressingRecord::class, PressingDetail::class, 'pressing_record_id', 'Digester Temp (°C)', 6, 7],
-    'depricarping' => [DepricarpingRecordService::class, DepricarpingRecord::class, DepricarpingDetail::class, 'depricarping_record_id', 'Kernel Recovery in Fibre (%)', 6, 10],
-    'kernel plant' => [KernelPlantRecordService::class, KernelPlantRecord::class, KernelPlantDetail::class, 'kernel_plant_record_id', 'Shell Loss (%)', 6, 10],
-    'clarification' => [ClarificationRecordService::class, ClarificationRecord::class, ClarificationDetail::class, 'clarification_record_id', 'Pure Oil Production Rate (Ton/Hour)', 6, 8],
-    'storage tank' => [StorageTankRecordService::class, StorageTankRecord::class, StorageTankDetail::class, 'storage_tank_record_id', 'Calculated Weight (MT)', 6, 18],
-    'boiler room' => [BoilerRoomRecordService::class, BoilerRoomRecord::class, BoilerRoomDetail::class, 'boiler_room_record_id', 'Water TDS (ppm)', 6, 16],
-    'engine room' => [EngineRoomRecordService::class, EngineRoomRecord::class, EngineRoomDetail::class, 'engine_room_record_id', 'Electrical Sync Total Factory Load (kW)', 6, 28],
-    'process water' => [ProcessWaterRecordService::class, ProcessWaterRecord::class, ProcessWaterDetail::class, 'process_water_record_id', 'Raw Water Flow (m³/h)', 6, 14],
-    'effluent plant' => [EffluentPlantRecordService::class, EffluentPlantRecord::class, EffluentPlantDetail::class, 'effluent_plant_record_id', 'Final Discharge BOD (mg/L)', 6, 20],
-    'process quality control' => [ProcessQualityControlRecordService::class, ProcessQualityControlRecord::class, ProcessQualityControlDetail::class, 'process_quality_control_record_id', 'Final Storage FFA (%)', 6, 17],
-    'sterilizer' => [SterilizerRecordService::class, SterilizerRecord::class, SterilizerDetail::class, 'sterilizer_record_id', 'Duration (Minutes)', 7, 14],
-    'cpo dispatch' => [CpoDispatchRecordService::class, CpoDispatchRecord::class, CpoDispatchDetail::class, 'cpo_dispatch_record_id', 'Net Weight (MT)', 7, 21],
-    'kernel dispatch' => [KernelDispatchRecordService::class, KernelDispatchRecord::class, KernelDispatchDetail::class, 'kernel_dispatch_record_id', 'Net Weight (MT)', 7, 21],
-    'solid waste disposal' => [SolidWasteDisposalRecordService::class, SolidWasteDisposalRecord::class, SolidWasteDisposalDetail::class, 'solid_waste_disposal_record_id', 'Net Weight (MT)', 7, 17],
-    'grading' => [GradingRecordService::class, GradingRecord::class, GradingDetail::class, 'grading_record_id', 'Quality Parameter', 13, 4],
-    'cages track' => [CagesTrackRecordService::class, CagesTrackRecord::class, CagesTippedTime::class, 'cages_track_record_id', 'Total Cages', 11, 4],
+    'threshing' => [ThreshingRecordService::class, ThreshingRecord::class, ThreshingDetail::class, 'threshing_record_id', 'Drum Speed (RPM)', 7, 7],
+    'pressing' => [PressingRecordService::class, PressingRecord::class, PressingDetail::class, 'pressing_record_id', 'Digester Temp (°C)', 7, 7],
+    'depricarping' => [DepricarpingRecordService::class, DepricarpingRecord::class, DepricarpingDetail::class, 'depricarping_record_id', 'Kernel Recovery in Fibre (%)', 7, 10],
+    'kernel plant' => [KernelPlantRecordService::class, KernelPlantRecord::class, KernelPlantDetail::class, 'kernel_plant_record_id', 'Shell Loss (%)', 7, 10],
+    'clarification' => [ClarificationRecordService::class, ClarificationRecord::class, ClarificationDetail::class, 'clarification_record_id', 'Pure Oil Production Rate (Ton/Hour)', 7, 8],
+    'storage tank' => [StorageTankRecordService::class, StorageTankRecord::class, StorageTankDetail::class, 'storage_tank_record_id', 'Calculated Weight (MT)', 7, 18],
+    'boiler room' => [BoilerRoomRecordService::class, BoilerRoomRecord::class, BoilerRoomDetail::class, 'boiler_room_record_id', 'Water TDS (ppm)', 7, 16],
+    'engine room' => [EngineRoomRecordService::class, EngineRoomRecord::class, EngineRoomDetail::class, 'engine_room_record_id', 'Electrical Sync Total Factory Load (kW)', 7, 28],
+    'process water' => [ProcessWaterRecordService::class, ProcessWaterRecord::class, ProcessWaterDetail::class, 'process_water_record_id', 'Raw Water Flow (m³/h)', 7, 14],
+    'effluent plant' => [EffluentPlantRecordService::class, EffluentPlantRecord::class, EffluentPlantDetail::class, 'effluent_plant_record_id', 'Final Discharge BOD (mg/L)', 7, 20],
+    'process quality control' => [ProcessQualityControlRecordService::class, ProcessQualityControlRecord::class, ProcessQualityControlDetail::class, 'process_quality_control_record_id', 'Final Storage FFA (%)', 7, 17],
+    'sterilizer' => [SterilizerRecordService::class, SterilizerRecord::class, SterilizerDetail::class, 'sterilizer_record_id', 'Duration (Minutes)', 8, 14],
+    'cpo dispatch' => [CpoDispatchRecordService::class, CpoDispatchRecord::class, CpoDispatchDetail::class, 'cpo_dispatch_record_id', 'Net Weight (MT)', 8, 21],
+    'kernel dispatch' => [KernelDispatchRecordService::class, KernelDispatchRecord::class, KernelDispatchDetail::class, 'kernel_dispatch_record_id', 'Net Weight (MT)', 8, 21],
+    'solid waste disposal' => [SolidWasteDisposalRecordService::class, SolidWasteDisposalRecord::class, SolidWasteDisposalDetail::class, 'solid_waste_disposal_record_id', 'Net Weight (MT)', 8, 17],
+    'grading' => [GradingRecordService::class, GradingRecord::class, GradingDetail::class, 'grading_record_id', 'Quality Parameter', 14, 4],
+    'cages track' => [CagesTrackRecordService::class, CagesTrackRecord::class, CagesTippedTime::class, 'cages_track_record_id', 'Total Cages', 12, 4],
 ]);
 
 /**

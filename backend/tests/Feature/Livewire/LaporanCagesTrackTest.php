@@ -34,8 +34,10 @@ use App\Models\CagesTippedTime;
 use App\Models\CagesTrackRecord;
 use App\Models\Period;
 use App\Models\PeriodStation;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 
 /**
@@ -85,6 +87,13 @@ beforeEach(function () {
     $this->stationA = Station::factory()->forBusinessUnit($this->businessUnitA)->cagesTrack()->create();
     $this->stationB = Station::factory()->forBusinessUnit($this->businessUnitB)->cagesTrack()->create();
 
+    // Production line tempat tiap stasiun berdiri. Sejak 2026-09-28
+    // memilih line WAJIB di layar laporan, jadi hampir setiap skenario
+    // di berkas ini memilihnya lebih dulu — tanpa itu layar dengan sengaja
+    // tidak menampilkan satu angka pun.
+    $this->lineA = (string) $this->stationA->production_line_id;
+    $this->lineB = (string) $this->stationB->production_line_id;
+
     $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitA)->create();
     $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnitA)->create();
     $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnitA)->create();
@@ -119,6 +128,7 @@ it('berhasil: no mill picker, the mill caption, every KPI card, the charts, the 
     foreach ([$this->supervisor, $this->millManagement] as $user) {
         $component = Livewire::actingAs($user)
             ->test(LaporanCagesTrack::class)
+            ->set('productionLineId', $this->lineA)
             // The newest period is auto-selected, so the page is useful on
             // first paint rather than demanding a choice first.
             ->assertSet('periodId', (string) $this->periodA->id)
@@ -179,6 +189,7 @@ it('admin: the mill picker is rendered, and picking a mill then a period fills t
 
     Livewire::actingAs($this->admin)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSet('businessUnitId', '')
         ->assertSeeHtml('data-testid="mill-select"')
         ->assertSee('Mill Alpha')
@@ -217,6 +228,7 @@ it('ekspor: the export action streams a CSV whose filename carries the period na
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSeeHtml('data-testid="export-csv"')
         ->assertSeeHtml('data-testid="export-excel"');
 
@@ -263,6 +275,7 @@ it('periode tanpa data: the KPI cards render as zero with an explicit notice and
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="report-kpis"')
         ->assertSeeHtml('data-testid="kpi-total-tipped"')
@@ -290,6 +303,7 @@ it('hari tanpa rincian: the recap keeps a row of 0 for that date and it still di
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->call('toggleRekapHarian')
         ->assertSeeHtml('data-testid="recap-row-2026-03-02"')
@@ -318,6 +332,7 @@ it('tanpa waktu berhenti: the duration card says unavailable rather than zero, n
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="kpi-tippler-duration"')
         ->assertSee('Durasi operasi tidak tersedia')
@@ -340,6 +355,7 @@ it('satu jam saja: the gap card states there is nothing to measure and never pri
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="kpi-longest-gap"')
         ->assertSeeHtml('data-testid="insufficient-gap"')
@@ -369,6 +385,7 @@ it('lintas tengah malam: the recap shows 6 hours (never negative) and idle follo
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->call('toggleRekapHarian')
         ->assertSeeHtml('data-testid="recap-row-2026-03-02"')
@@ -423,6 +440,7 @@ it('lintas tengah malam: the recap shows 6 hours (never negative) and idle follo
 it('admin tanpa mill: the page asks for a mill instead of drawing an empty report', function () {
     Livewire::actingAs($this->admin)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSet('businessUnitId', '')
         ->assertSeeHtml('data-testid="mill-select"')
         ->assertSeeHtml('data-testid="mill-required-hint"')
@@ -443,6 +461,7 @@ it('akun tanpa mill: a contact-Admin notice and NO mill picker offered in its pl
 
     Livewire::actingAs($noMill)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSeeHtml('data-testid="no-mill-for-account"')
         ->assertSee('Akun Anda belum terhubung ke mill')
         ->assertSee('Hubungi Admin')
@@ -467,6 +486,7 @@ it('belum ada periode: an empty period picker plus the contact-Admin hint, witho
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSet('periodId', '')
         ->assertSeeHtml('data-testid="period-select"')
         ->assertSee('Belum ada periode')
@@ -490,6 +510,7 @@ it('mill lain: forcing the businessUnitId property to another mill moves nothing
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         // resolvedBusinessUnitId() does not consult this property at all for
         // a bound role.
         ->set('businessUnitId', (string) $this->businessUnitB->id)
@@ -506,6 +527,7 @@ it('mill lain: forcing the businessUnitId property to another mill moves nothing
     // period id is replaced before authorizePeriod() ever sees it.
     Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $periodB->id)
         ->assertSet('periodId', (string) $this->periodA->id);
 });
@@ -544,6 +566,7 @@ it('periode tertutup: the status is a caption, the report is complete and the ex
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $closed->id)
         ->assertSeeHtml('data-testid="hero-status"')
         ->assertSee('Tertutup')
@@ -568,6 +591,7 @@ it('pemilih periode: offers only periods with a cages-track period_stations row,
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSee('Periode Mei Semua Stasiun')
         ->assertSee('Periode Maret Alpha')
         ->assertDontSee('Periode Februari Sterilizer');
@@ -600,6 +624,7 @@ it('pemilih periode: periode tanpa baris cages-track tidak ditawarkan', function
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSee('Periode Maret Alpha')
         ->assertDontSee('Periode Mei Tanpa Cages')
         ->assertDontSee('Periode Juni Tanpa Stasiun');
@@ -619,7 +644,8 @@ it('pemilih periode: status opsi memakai status cages-track, bukan status stasiu
     PeriodStation::factory()->forPeriod($mixed)->stationType('cages-track')->open()->create();
     PeriodStation::factory()->forPeriod($mixed)->stationType('sterilizer')->closed()->create();
 
-    $component = Livewire::actingAs($this->supervisor)->test(LaporanCagesTrack::class);
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA);
 
     $option = collect($component->viewData('periods'))->firstWhere('id', (string) $mixed->id);
 
@@ -637,6 +663,7 @@ it('rentang inklusif: both boundary dates appear in the trend and the recap, and
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->call('toggleRekapHarian')
         ->assertSeeHtml('data-testid="recap-row-2026-03-01"')
@@ -660,6 +687,7 @@ it('angka ringkasan: the screen shows the hourly-row total and never the header 
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->call('toggleRekapHarian')
         ->assertSeeHtml('data-testid="kpi-total-tipped"')
@@ -685,6 +713,7 @@ it('lori keluar: a record with cages_out 50 and eight hourly rows shows 50, not 
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="kpi-total-out"')
         ->assertSee('Dijumlahkan per record harian, bukan per baris rincian jam')
@@ -709,6 +738,7 @@ it('jam menganggur: only in-window empty hours are counted, and the chart marks 
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="kpi-idle-hours"')
         ->assertSee('Hanya dihitung di dalam jam operasi, bukan sepanjang 24 jam')
@@ -738,6 +768,7 @@ it('jeda terpanjang: the card shows the intra-day gap with one single date, not 
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="kpi-longest-gap"')
         ->assertSee('Diukur antar jam penumpahan dalam satu tanggal, tidak melintasi malam')
@@ -760,6 +791,7 @@ it('antrean tersisa: the queue card shows the lowest and the average snapshot, n
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="queue-card"')
         ->assertSeeHtml('data-testid="queue-min"')
@@ -792,6 +824,7 @@ it('baca saja: the component exposes no create/update/delete action and changes 
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->call('toggleRekapHarian')
         ->assertSeeHtml('data-testid="recap-table"');
@@ -851,6 +884,7 @@ it('admin ekspor: an Admin who picked a mill actually downloads the CSV, and it 
 
     $component = Livewire::actingAs($this->admin)
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->set('businessUnitId', (string) $this->businessUnitA->id)
         ->assertSet('periodId', (string) $this->periodA->id);
 
@@ -917,6 +951,7 @@ it('hidrasi query string: Admin yang tiba dari tautan tile langsung melihat lapo
     Livewire::actingAs($this->admin)
         ->withQueryParams(['business_unit_id' => (string) $this->businessUnitA->id])
         ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSet('businessUnitId', (string) $this->businessUnitA->id)
         ->assertSet('periodId', (string) $this->periodA->id)
         ->assertViewHas('needsMillSelection', false)
@@ -960,6 +995,7 @@ it('peran terikat mill: memaksa mill lain lewat query string tidak mengubah apa 
         Livewire::actingAs($user)
             ->withQueryParams(['business_unit_id' => (string) $this->businessUnitB->id])
             ->test(LaporanCagesTrack::class)
+            ->set('productionLineId', $this->lineA)
             // Terhidrasi — dan tetap diabaikan.
             ->assertSet('businessUnitId', (string) $this->businessUnitB->id)
             ->assertSet('periodId', (string) $this->periodA->id)
@@ -967,4 +1003,212 @@ it('peran terikat mill: memaksa mill lain lewat query string tidak mengubah apa 
                 && $summary['period']['business_unit_name'] === 'Mill Alpha'
                 && $summary['period']['name'] === 'Periode Maret Alpha');
     }
+});
+
+// =====================================================================
+// PRODUCTION LINE — konsumen pertama kolom `production_line_id` (ccc884d)
+//
+// Lima jaminan, satu per skenario di bawah:
+//   1. belum memilih line  -> tidak ada satu angka pun, hanya arahan memilih
+//   2. memilih line        -> angkanya MILIK LINE ITU, bukan jumlah dua line
+//   3. line mill lain      -> diabaikan, lewat properti maupun query string
+//   4. ekspor CSV          -> ikut tersaring ke line terpilih
+//   5. stasiun dipindah    -> recordnya TETAP terhitung di line asalnya
+//
+// SETIAP skenario penyaringan dibuat DUA ARAH — data line terpilih ADA, data
+// line lain TIDAK ADA. Alasannya bukan gaya: test berjalan di SQLite,
+// produksi di PostgreSQL, dan SQLite memperlakukan `where "kolom_tak_ada" = ?`
+// sebagai perbandingan string literal — 0 baris, tanpa error. Tanpa sisi
+// "ADA", sebuah filter yang menyaring HABIS akan hijau di sini dan meledak di
+// PostgreSQL.
+// =====================================================================
+
+/**
+ * Line KEDUA di MILL YANG SAMA, lengkap dengan stasiun Cages & Tracks-nya
+ * sendiri. Sengaja satu mill: jaminan yang diuji di sini bukan cakupan mill
+ * (itu sudah ditutup ec32cd9) melainkan cakupan LINE DI DALAM satu mill.
+ */
+function laporanCagesTrackSecondLine(BusinessUnit $businessUnit, string $name = 'Line Kedua'): Station
+{
+    $line = ProductionLine::factory()->create([
+        'business_unit_id' => $businessUnit->id,
+        'name' => $name,
+    ]);
+
+    return Station::factory()->forProductionLine($line)->cagesTrack()->create();
+}
+
+/** Isi berkas CSV yang benar-benar diunduh dari layar. */
+function laporanCagesTrackDownloadedCsv(Testable $component): string
+{
+    return base64_decode((string) data_get($component->effects, 'download.content'));
+}
+
+it('production line: tanpa line terpilih tidak ada satu angka pun, hanya arahan memilih', function () {
+    // Line A: 2 jam x 5 lori = 10 lori dituang.
+    laporanCagesTrackComponentRecord($this->stationA, '2026-03-05', [
+        ['hour' => 6, 'cages' => 5],
+        ['hour' => 7, 'cages' => 5],
+    ], ['cages_track_number' => 'CT-LINE-A', 'cages_out' => 11]);
+
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanCagesTrack::class)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('needsProductionLineSelection', true)
+        // Tidak ada angka sama sekali — bukan laporan kosong, bukan nol.
+        ->assertViewHas('summary', null)
+        ->assertSeeHtml('data-testid="production-line-select"')
+        ->assertSeeHtml('data-testid="select-production-line-hint"')
+        ->assertSee('Pilih production line terlebih dahulu')
+        // TANPA opsi "semua" — itu perbedaan disengaja dari Data Browser.
+        ->assertDontSee('Semua Line')
+        ->assertDontSee('Semua Production Line')
+        ->assertDontSeeHtml('data-testid="report-kpis"');
+});
+
+it('production line: angka yang tampil milik line terpilih, bukan jumlah dua line', function () {
+    // Line A: 2 jam x 5 lori = 10 lori dituang.
+    laporanCagesTrackComponentRecord($this->stationA, '2026-03-05', [
+        ['hour' => 6, 'cages' => 5],
+        ['hour' => 7, 'cages' => 5],
+    ], ['cages_track_number' => 'CT-LINE-A', 'cages_out' => 11]);
+
+    $stationC = laporanCagesTrackSecondLine($this->businessUnitA);
+    $lineC = (string) $stationC->production_line_id;
+    // Line C: 1 jam x 40 lori = 40 lori. Jumlah kedua line (50) tidak bisa
+    // lolos sebagai salah satu dari keduanya.
+    laporanCagesTrackComponentRecord($stationC, '2026-03-06', [
+        ['hour' => 9, 'cages' => 40],
+    ], ['cages_track_number' => 'CT-LINE-C', 'cages_out' => 44]);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA);
+
+    // ARAH PERTAMA — line A: angkanya milik A, dan BUKAN A+C.
+    $component->assertViewHas('summary', fn ($summary) => $summary['kpi']['total_cages_tipped'] === 10
+        && $summary['kpi']['total_cages_out'] === 11);
+
+    // ARAH KEDUA — line C: angkanya berpindah seluruhnya ke C. Tanpa arah ini
+    // sebuah filter yang menyaring habis juga akan hijau.
+    $component->set('productionLineId', $lineC)
+        ->assertViewHas('summary', fn ($summary) => $summary['kpi']['total_cages_tipped'] === 40
+            && $summary['kpi']['total_cages_out'] === 44);
+});
+
+it('production line: line mill lain diabaikan, lewat properti maupun lewat query string', function () {
+    // Line A: 2 jam x 5 lori = 10 lori dituang.
+    laporanCagesTrackComponentRecord($this->stationA, '2026-03-05', [
+        ['hour' => 6, 'cages' => 5],
+        ['hour' => 7, 'cages' => 5],
+    ], ['cages_track_number' => 'CT-LINE-A', 'cages_out' => 11]);
+
+    // (a) Lewat properti — dibuang saat render, jatuh ke "belum memilih".
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineB)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('needsProductionLineSelection', true)
+        ->assertViewHas('summary', null);
+
+    // (b) Lewat query string — sama saja.
+    Livewire::actingAs($this->supervisor)
+        ->withQueryParams(['production_line_id' => $this->lineB])
+        ->test(LaporanCagesTrack::class)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('summary', null);
+
+    // (c) SISI POSITIFNYA, dan inilah yang menjaga `as: 'production_line_id'`:
+    // line yang sah dari query string BENAR-BENAR terhidrasi dan langsung
+    // memuat laporannya. Tanpa `as:`, Livewire memakai nama properti
+    // ('productionLineId') sebagai kunci query, keduanya tidak bertemu, dan
+    // asersi (a)/(b) di atas tetap hijau tanpa menandai apa pun.
+    Livewire::actingAs($this->supervisor)
+        ->withQueryParams(['production_line_id' => $this->lineA])
+        ->test(LaporanCagesTrack::class)
+        ->assertSet('productionLineId', $this->lineA)
+        ->assertViewHas('needsProductionLineSelection', false)
+        ->assertViewHas('summary', fn ($summary) => $summary !== null && $summary['kpi']['total_cages_tipped'] === 10
+        && $summary['kpi']['total_cages_out'] === 11);
+});
+
+it('production line: ekspor CSV hanya memuat baris line terpilih', function () {
+    // Line A: 2 jam x 5 lori = 10 lori dituang.
+    laporanCagesTrackComponentRecord($this->stationA, '2026-03-05', [
+        ['hour' => 6, 'cages' => 5],
+        ['hour' => 7, 'cages' => 5],
+    ], ['cages_track_number' => 'CT-LINE-A', 'cages_out' => 11]);
+
+    $stationC = laporanCagesTrackSecondLine($this->businessUnitA);
+    $lineC = (string) $stationC->production_line_id;
+    // Line C: 1 jam x 40 lori = 40 lori. Jumlah kedua line (50) tidak bisa
+    // lolos sebagai salah satu dari keduanya.
+    laporanCagesTrackComponentRecord($stationC, '2026-03-06', [
+        ['hour' => 9, 'cages' => 40],
+    ], ['cages_track_number' => 'CT-LINE-C', 'cages_out' => 44]);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanCagesTrack::class)
+        ->set('productionLineId', $this->lineA);
+
+    $component->call('export', 'csv')->assertFileDownloaded(null, null, 'text/csv');
+
+    $csv = laporanCagesTrackDownloadedCsv($component);
+
+    expect($csv)->toContain('CT-LINE-A');
+    expect($csv)->not->toContain('CT-LINE-C');
+
+    // Arah sebaliknya, berkas yang sama sekali berbeda isinya.
+    $component->set('productionLineId', $lineC)->call('export', 'csv');
+
+    $csvC = laporanCagesTrackDownloadedCsv($component);
+
+    expect($csvC)->toContain('CT-LINE-C');
+    expect($csvC)->not->toContain('CT-LINE-A');
+});
+
+it('production line: tanpa line terpilih tidak ada berkas yang diunduh sama sekali', function () {
+    // Line A: 2 jam x 5 lori = 10 lori dituang.
+    laporanCagesTrackComponentRecord($this->stationA, '2026-03-05', [
+        ['hour' => 6, 'cages' => 5],
+        ['hour' => 7, 'cages' => 5],
+    ], ['cages_track_number' => 'CT-LINE-A', 'cages_out' => 11]);
+
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanCagesTrack::class)
+        ->call('export', 'csv')
+        ->assertNoFileDownloaded();
+});
+
+it('production line: record yang stasiunnya sudah dipindah tetap terhitung di line asalnya', function () {
+    // Line A: 2 jam x 5 lori = 10 lori dituang.
+    laporanCagesTrackComponentRecord($this->stationA, '2026-03-05', [
+        ['hour' => 6, 'cages' => 5],
+        ['hour' => 7, 'cages' => 5],
+    ], ['cages_track_number' => 'CT-LINE-A', 'cages_out' => 11]);
+
+    // Stasiunnya dipindah ke line lain DI MILL YANG SAMA — perubahan
+    // konfigurasi yang sah, bukan perbaikan data.
+    $lineBaru = ProductionLine::factory()->create([
+        'business_unit_id' => $this->businessUnitA->id,
+        'name' => 'Line Baru',
+    ]);
+
+    $this->stationA->update(['production_line_id' => $lineBaru->id]);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanCagesTrack::class);
+
+    // DI LINE ASALNYA: masih terhitung utuh. Hanya mungkin karena filternya
+    // membaca kolom `production_line_id` DI TABEL RECORD — sebuah join ke
+    // `stations` akan memindahkan angka ini ke Line Baru dan menulis ulang
+    // sejarah periode yang sudah lewat.
+    $component->set('productionLineId', $this->lineA)
+        ->assertViewHas('summary', fn ($summary) => $summary['kpi']['total_cages_tipped'] === 10
+        && $summary['kpi']['total_cages_out'] === 11);
+
+    // DI LINE BARUNYA: tidak ada apa pun. Stasiunnya memang ada di sana
+    // sekarang, tetapi tidak satu pun record dihasilkan di sana.
+    $component->set('productionLineId', (string) $lineBaru->id)
+        ->assertViewHas('summary', fn ($summary) => $summary['kpi']['total_cages_tipped'] === 0 && $summary['kpi']['total_cages_out'] === 0);
 });

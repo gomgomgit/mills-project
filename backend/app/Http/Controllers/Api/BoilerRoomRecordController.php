@@ -29,7 +29,7 @@ class BoilerRoomRecordController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->only(['date_from', 'date_to', 'business_unit_id']);
+        $filters = $request->only(['date_from', 'date_to', 'business_unit_id', 'production_line_id']);
 
         $page = max((int) $request->query('page', Pagination::DEFAULT_PAGE), 1);
         $perPage = Pagination::resolvePerPage($request);
@@ -86,7 +86,7 @@ class BoilerRoomRecordController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
-        $filters = $request->only(['date_from', 'date_to', 'business_unit_id']);
+        $filters = $request->only(['date_from', 'date_to', 'business_unit_id', 'production_line_id']);
         $format = (string) $request->query('format', 'csv');
 
         return $this->service->export($filters, $format);

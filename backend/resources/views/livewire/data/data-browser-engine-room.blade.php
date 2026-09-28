@@ -45,12 +45,24 @@
                 class="er-filterbar__input"
             />
         </div>
+
+        <div class="er-filterbar__field">
+            <label for="production_line_id" class="er-filterbar__label">Production Line</label>
+            <x-searchable-select
+                id="production_line_id"
+                wire:model.live="production_line_id"
+                :options="collect($productionLines)->map(fn ($line) => ['value' => $line['id'], 'label' => $line['name']])->all()"
+                placeholder="Semua Line"
+                class="er-filterbar__input"
+            />
+        </div>
     </div>
 
     <div class="er-table-wrap">
         <table class="er-table">
             <thead class="er-table__head">
                 <tr>
+                    <th>Production Line</th>
                     <th>Engine Room ID</th>
                     <th>Tanggal</th>
                     <th>Jumlah Baris Terisi</th>
@@ -72,6 +84,11 @@
                             onclick="window.location.href='{{ $detailHref }}'"
                         @endif
                     >
+                        {{-- Diambil dari KOLOM RECORD (production_line_name), bukan
+                             dari station->productionLine: untuk record lama yang
+                             stasiunnya sudah dipindah, keduanya berbeda — dan yang
+                             benar adalah line tempat data itu benar-benar dihasilkan. --}}
+                        <td>{{ $record['production_line_name'] ?? '-' }}</td>
                         <td>{{ $record['engine_room_id'] }}</td>
                         <td>{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d/m/Y') : '-' }}</td>
                         <td>{{ $record['filled_slot_count'] }} / 24</td>
@@ -81,7 +98,7 @@
                     </tr>
                 @empty
                     <tr class="er-table__row er-table__row--static">
-                        <td colspan="4">
+                        <td colspan="5">
                             <div class="er-empty">
                                 <div class="er-empty__illustration" aria-hidden="true">&#128203;</div>
                                 <p class="er-empty__title">Tidak ada data</p>

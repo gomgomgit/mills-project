@@ -63,6 +63,29 @@ class LaporanStasiun extends Component
     public string $businessUnitId = '';
 
     /**
+     * PRODUCTION LINE ADALAH KONTEKS YANG DIPILIH, BUKAN IKATAN AKUN —
+     * tidak ada `users.production_line_id` dan tidak boleh ada.
+     *
+     * LAYAR INI PUN MEMERLUKANNYA, dan itu bukan tambahan hiasan.
+     * StationReportService::stationList() membangun satu tile per JENIS
+     * stasiun hanya dari `business_unit_id`, yang mengandaikan satu stasiun
+     * per jenis per mill. Andaian itu sudah salah hari ini: satu mill di dev
+     * punya 13 production line dengan jenis stasiun yang sama berulang, jadi
+     * layar ini sudah ambigu sebelum perubahan apa pun. Tile kini membawa
+     * line terpilih, sama seperti ia sudah membawa mill, sehingga laporan
+     * tujuan langsung terisi dan tidak meminta pengguna memilih untuk kedua
+     * kalinya.
+     *
+     * `as: 'production_line_id'` WAJIB — alasannya sama persis dengan
+     * business_unit_id di atas: tanpa itu Livewire memakai NAMA PROPERTI
+     * sebagai kunci query dan tautan yang dibangun StationReportService
+     * tidak akan pernah bertemu dengan layar tujuan. Itu bug yang
+     * diperbaiki commit 8658f6e; kembarannya untuk line tidak dibuat.
+     */
+    #[Url(as: 'production_line_id')]
+    public string $productionLineId = '';
+
+    /**
      * Operator is a mobile-only actor with no web access at all, so the
      * component refuses to mount for them — not merely an empty render.
      * The route middleware ('role:supervisor,mill_management,admin') stops
@@ -92,19 +115,41 @@ class LaporanStasiun extends Component
         $businessUnitId = $this->resolvedBusinessUnitId();
 
         $businessUnit = null;
+        $productionLine = null;
+        $productionLineOptions = [];
+        $productionLineId = null;
         $stations = [];
 
         if ($businessUnitId !== null) {
-            $result = $service->stations($businessUnitId);
+            // Opsi line SELALU dibatasi mill yang berlaku, dan
+            // keepProductionLineValid() membuang sisa pilihan yang tidak ada
+            // di daftar itu — yang juga cara "Admin berganti mill -> pilihan
+            // line direset" bekerja, tanpa hook updated* apa pun.
+            $productionLineOptions = $service->productionLineOptions($businessUnitId);
+
+            $this->keepProductionLineValid($productionLineOptions);
+
+            $productionLineId = $this->productionLineId !== '' ? $this->productionLineId : null;
+
+            $result = $service->stations($businessUnitId, $productionLineId);
 
             $businessUnit = $result['business_unit'];
-            $stations = $result['stations'];
+            $productionLine = $result['production_line'];
+
+            // Tanpa line, TIDAK ADA satu tile pun yang diserahkan ke blade —
+            // bukan sekadar disembunyikan lewat CSS. Sebuah tile tanpa line
+            // akan mendaratkan pengguna di laporan yang meminta memilih line
+            // lagi, dan itu persis kesalahan yang commit 8658f6e perbaiki
+            // untuk mill.
+            $stations = $productionLineId === null ? [] : $result['stations'];
         }
 
         return view('livewire.dashboard.laporan-stasiun', [
             'isAdmin' => $isAdmin,
             'businessUnitOptions' => $businessUnitOptions,
             'businessUnit' => $businessUnit,
+            'productionLine' => $productionLine,
+            'productionLineOptions' => $productionLineOptions,
             'stations' => $stations,
             // Admin who has not picked a mill yet: the page asks for one
             // instead of showing an empty grid.
@@ -113,6 +158,10 @@ class LaporanStasiun extends Component
             // any mill — a master-data fault, shown as such rather than as
             // an empty screen, and WITHOUT offering the full mill list.
             'millMissingForAccount' => ! $isAdmin && $businessUnitId === null,
+            // Mill sudah pasti, line belum: layar meminta memilih line dan
+            // tidak merender grid stasiun — mekanisme yang sama persis
+            // dengan needsMillSelection di atasnya, bukan mekanisme kedua.
+            'needsProductionLineSelection' => $businessUnitId !== null && $productionLineId === null,
         ]);
     }
 
@@ -132,6 +181,28 @@ class LaporanStasiun extends Component
         $businessUnitId = (string) (auth()->user()?->business_unit_id ?? '');
 
         return $businessUnitId !== '' ? $businessUnitId : null;
+    }
+
+    /**
+     * Membuang line yang tidak ada di dalam mill yang berlaku — line mill
+     * lain lewat query string, atau sisa pilihan setelah Admin berganti
+     * mill. Jatuh ke "belum memilih" (yang merender arahan memilih), bukan
+     * ke line pertama: memilih line adalah keputusan pengguna, dan
+     * menebaknya akan mengirimkan tile ke line yang tidak ia minta.
+     *
+     * Kembarannya keepSelectionValid() untuk mill.
+     *
+     * @param  list<array{id: string, name: string}>  $options
+     */
+    protected function keepProductionLineValid(array $options): void
+    {
+        if ($this->productionLineId === '') {
+            return;
+        }
+
+        if (! in_array($this->productionLineId, array_column($options, 'id'), true)) {
+            $this->productionLineId = '';
+        }
     }
 
     protected function isAdmin(): bool

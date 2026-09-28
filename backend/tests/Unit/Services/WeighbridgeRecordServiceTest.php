@@ -124,7 +124,7 @@ it('returns a paginated, filtered list with the shared pagination meta shape', f
     ]);
     expect($result['data'])->toHaveCount(2);
     expect(array_keys($result['data'][0]))->toBe([
-        'id', 'wb_card_number', 'weighbridge_type', 'record_datetime', 'vehicle_number', 'driver_name', 'destination', 'net_weight', 'status',
+        'id', 'wb_card_number', 'weighbridge_type', 'record_datetime', 'vehicle_number', 'driver_name', 'destination', 'net_weight', 'production_line_name', 'status',
     ]);
 
     // Page 2 has the remaining 1 matching record.

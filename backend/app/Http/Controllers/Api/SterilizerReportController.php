@@ -77,7 +77,7 @@ class SterilizerReportController extends Controller
 
         $period = $this->service->authorizePeriod($periodId);
 
-        return response()->json($this->service->summary($period));
+        return response()->json($this->service->summary($period, $this->productionLineId($request)));
     }
 
     /**
@@ -98,7 +98,34 @@ class SterilizerReportController extends Controller
 
         $format = (string) ($this->queryString($request, 'format') ?? 'csv');
 
-        return $this->service->export($period, $format, $businessUnitId);
+        return $this->service->export($period, $format, $businessUnitId, $this->productionLineId($request));
+    }
+
+    /**
+     * `production_line_id` — PARAMETER PERMINTAAN BARU (2026-09-28), OPSIONAL
+     * DAN ADITIF.
+     *
+     * Ia menyaring angka ke satu production line, lewat kolom
+     * `production_line_id` di tabel record itu sendiri (kolom nyata sejak
+     * commit ccc884d, di-snapshot dari stasiun saat record dibuat), BUKAN
+     * lewat join ke `stations` — sehingga record yang stasiunnya kemudian
+     * dipindah tetap terhitung di line asalnya.
+     *
+     * Sengaja TIDAK wajib di lapis API, meski di layar web memilihnya wajib:
+     * kelima endpoint ini dibaca sepuluh layar (5 web + 5 mobile), dan
+     * mewajibkannya sekarang akan mematahkan kelima layar mobile sebelum
+     * mereka sempat menumbuhkan pemilihnya. Tanpa parameter ini, jawabannya
+     * persis seperti sebelum perubahan. Bentuk respons pun tidak berubah —
+     * hanya bertambah satu kunci `production_line` yang bernilai null ketika
+     * parameter ini tidak dikirim.
+     *
+     * Sebuah line milik mill lain tidak pernah membocorkan apa pun: cakupan
+     * mill sudah ditegakkan lebih dulu di lapis service, jadi penyaringan ke
+     * line asing menghasilkan laporan kosong, bukan data mill itu.
+     */
+    protected function productionLineId(Request $request): ?string
+    {
+        return $this->queryString($request, 'production_line_id');
     }
 
     /**

@@ -367,10 +367,17 @@ trait ScopesToActorMill
     }
 
     /**
-     * LIST/EXPORT path: rewrite a filter array's `business_unit_id` in
-     * place. Called as the FIRST statement of every
-     * *RecordService::buildFilteredQuery(), which both listRecords() and
-     * export() funnel through — one call per service covers both.
+     * LIST/EXPORT path: rewrite a filter array's `business_unit_id` — and,
+     * when present, its `production_line_id` — in place. Called as the
+     * FIRST statement of every *RecordService::buildFilteredQuery(), which
+     * both listRecords() and export() funnel through — one call per
+     * service covers both.
+     *
+     * `production_line_id` is handled here rather than in each service for
+     * the same reason `business_unit_id` is: the 18 services are
+     * hand-written siblings, and a rule copied 18 times is a rule that will
+     * drift 18 ways. It is only touched when the key EXISTS in $filters, so
+     * a caller that does not offer a line filter at all is unaffected.
      *
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
@@ -379,11 +386,140 @@ trait ScopesToActorMill
     {
         $requested = $filters['business_unit_id'] ?? null;
 
-        $filters['business_unit_id'] = $this->resolveReadMillId(
+        $millId = $this->resolveReadMillId(
             $requested === null ? null : (string) $requested
         );
 
+        $filters['business_unit_id'] = $millId;
+
+        if (array_key_exists('production_line_id', $filters)) {
+            $requestedLine = $filters['production_line_id'];
+
+            $filters['production_line_id'] = $this->clampProductionLineIdToMill(
+                $requestedLine === null ? null : (string) $requestedLine,
+                $millId,
+            );
+        }
+
         return $filters;
+    }
+
+    /**
+     * READ path: collapse a CLIENT-SUPPLIED production line id down to one
+     * the actor is actually allowed to narrow by.
+     *
+     * A production line is a CHOSEN CONTEXT, not an account binding — there
+     * is no `users.production_line_id` — so the only rule that can be
+     * enforced is "the chosen line must sit inside the mill currently in
+     * effect for this actor". $millId is whatever resolveReadMillId()
+     * already decided: the actor's own mill for a bound role (the
+     * client-supplied mill having been discarded), the picked mill for an
+     * Admin, or null for an Admin browsing every mill.
+     *
+     * FAILURE MODE IS SILENT FALLBACK, NOT AN ERROR — deliberately the same
+     * treatment `business_unit_id` already gets: a line belonging to
+     * another mill (pushed through a Livewire property or a bookmarked
+     * query string) resolves to null, i.e. "all lines within the mill the
+     * actor may see". It never throws, and it never shows that mill's rows.
+     * Returning null rather than, say, an impossible id also keeps an
+     * unknown/deleted line from silently emptying the list — a filter the
+     * actor cannot even see in the dropdown should not be able to hide
+     * their own data.
+     *
+     * The existence check is a real query on `production_lines` on purpose.
+     * Comparing a raw uuid against the record table alone would not tell us
+     * WHICH mill it belongs to, and SQLite happily evaluates a WHERE on a
+     * column that does not exist as a string literal (0 rows, no error)
+     * where PostgreSQL raises — so a guard that never touches the lines
+     * table would look green in the suite and be wide open in production.
+     */
+    protected function clampProductionLineIdToMill(?string $requestedLineId, ?string $millId): ?string
+    {
+        if ($requestedLineId === null || $requestedLineId === '') {
+            return null; // "Semua Line" — the default.
+        }
+
+        $query = ProductionLine::query()->whereKey($requestedLineId);
+
+        if ($millId !== null && $millId !== '') {
+            $query->where('business_unit_id', $millId);
+        }
+
+        return $query->exists() ? $requestedLineId : null;
+    }
+
+    /**
+     * READ path, UI: the Production Line options a Data Browser's filter
+     * may offer, within the mill currently in effect for the actor.
+     *
+     * Mirrors businessUnitsForActor() (the mill <select>'s source) one
+     * level down the hierarchy, and fails the same way: an EMPTY list, not
+     * an exception, because this feeds a <select> rendered during
+     * render()/mount(). A mill-bound actor with no `business_unit_id` gets
+     * nothing to choose from; the actionable 422 still reaches them from
+     * actorReadMillId() inside the service.
+     *
+     * When an Admin has picked no mill, the list spans every mill, so each
+     * label is prefixed with its mill name — two mills may legitimately
+     * both call a line "Line 01", and an ambiguous option is worse than a
+     * long one.
+     *
+     * @return array<int, array{id: string, name: string}>
+     */
+    protected function productionLineOptionsForReadActor(?Authenticatable $user, string $currentMillId): array
+    {
+        $isAdmin = $user instanceof User && $this->actorRoleValue($user) === UserRole::Admin->value;
+        $millId = $isAdmin ? $currentMillId : (string) ($user->business_unit_id ?? '');
+
+        if (! $isAdmin && $millId === '') {
+            return [];
+        }
+
+        $query = ProductionLine::query()->orderBy('name');
+
+        if ($millId !== '') {
+            return $query->where('business_unit_id', $millId)
+                ->get(['id', 'name'])
+                ->map(fn (ProductionLine $line) => ['id' => $line->id, 'name' => $line->name])
+                ->all();
+        }
+
+        return $query->with('businessUnit:id,name')
+            ->get(['id', 'name', 'business_unit_id'])
+            ->map(fn (ProductionLine $line) => [
+                'id' => $line->id,
+                'name' => $line->businessUnit?->name
+                    ? $line->businessUnit->name.' — '.$line->name
+                    : $line->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * READ path, UI: what a Data Browser's production line filter property
+     * must hold — the UI twin of clampProductionLineIdToMill().
+     *
+     * Cosmetic/defence-in-depth only, exactly like forcedMillFilterValue():
+     * the binding enforcement is scopeFiltersToActorMill() inside the
+     * service. This just stops the <select> and the export link claiming a
+     * line that has already been discarded — including the ordinary case
+     * where an Admin switches mill and the line they had picked belongs to
+     * the mill they just left.
+     */
+    protected function forcedProductionLineFilterValue(?Authenticatable $user, string $currentMillId, string $currentLineId): string
+    {
+        if ($currentLineId === '') {
+            return '';
+        }
+
+        $isAdmin = $user instanceof User && $this->actorRoleValue($user) === UserRole::Admin->value;
+        $millId = $isAdmin ? $currentMillId : (string) ($user->business_unit_id ?? '');
+
+        if (! $isAdmin && $millId === '') {
+            return '';
+        }
+
+        return (string) ($this->clampProductionLineIdToMill($currentLineId, $millId === '' ? null : $millId) ?? '');
     }
 
     /**

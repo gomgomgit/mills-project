@@ -41,6 +41,17 @@ class DataBrowserEngineRoom extends Component
 
     public string $business_unit_id = '';
 
+    /**
+     * Production line adalah KONTEKS YANG DIPILIH, bukan ikatan akun —
+     * tidak ada `users.production_line_id` dan tidak boleh ada. Karena itu
+     * default-nya '' = "Semua Line", bukan line tertentu milik aktor.
+     *
+     * Daftar ini memang berguna dilihat lintas-line: ia daftar BARIS, bukan
+     * angka gabungan seperti laporan periode — asal setiap baris menunjukkan
+     * line-nya sendiri, yang dijamin kolom Production Line di tabel.
+     */
+    public string $production_line_id = '';
+
     public int $page = 1;
 
     public int $perPage = 20;
@@ -58,6 +69,16 @@ class DataBrowserEngineRoom extends Component
     }
 
     public function updatedBusinessUnitId(): void
+    {
+        // Mill berganti (hanya mungkin untuk Admin — peran terikat dipaku
+        // di render()) => pilihan line ikut direset: line mill lama tidak
+        // ada di mill baru, dan membiarkannya akan menghasilkan daftar
+        // kosong tanpa sebab yang terlihat.
+        $this->production_line_id = '';
+        $this->resetToFirstPage();
+    }
+
+    public function updatedProductionLineId(): void
     {
         $this->resetToFirstPage();
     }
@@ -85,7 +106,7 @@ class DataBrowserEngineRoom extends Component
     }
 
     /**
-     * @return array{date_from: ?string, date_to: ?string, business_unit_id: ?string}
+     * @return array{date_from: ?string, date_to: ?string, business_unit_id: ?string, production_line_id: ?string}
      */
     protected function activeFilters(): array
     {
@@ -93,6 +114,7 @@ class DataBrowserEngineRoom extends Component
             'date_from' => $this->date_from !== '' ? $this->date_from : null,
             'date_to' => $this->date_to !== '' ? $this->date_to : null,
             'business_unit_id' => $this->business_unit_id !== '' ? $this->business_unit_id : null,
+            'production_line_id' => $this->production_line_id !== '' ? $this->production_line_id : null,
         ];
     }
 
@@ -120,6 +142,17 @@ class DataBrowserEngineRoom extends Component
         // melewatkan baris ini pun tidak membocorkan apa pun.
         $actor = auth()->user();
         $this->business_unit_id = $this->forcedMillFilterValue($actor, $this->business_unit_id);
+        // Line yang tidak berada di dalam mill yang sedang berlaku dibuang
+        // DIAM-DIAM ke '' (= semua line di dalam mill aktor) — tidak ada
+        // error, dan datanya tidak pernah ditampilkan. Perlakuan yang sama
+        // persis dengan `business_unit_id` di baris sebelumnya, dan sekali
+        // lagi ini LAPISAN TAMPILAN: penegakannya ada di
+        // scopeFiltersToActorMill() di dalam service.
+        $this->production_line_id = $this->forcedProductionLineFilterValue(
+            $actor,
+            $this->business_unit_id,
+            $this->production_line_id,
+        );
 
         $service = app(EngineRoomRecordService::class);
 
@@ -149,6 +182,7 @@ class DataBrowserEngineRoom extends Component
             'records' => $result['data'],
             'meta' => $result['meta'],
             'businessUnits' => $this->businessUnitsForActor($actor),
+            'productionLines' => $this->productionLineOptionsForReadActor($actor, $this->business_unit_id),
             'exportCsvUrl' => $this->exportUrl('csv'),
             'exportExcelUrl' => $this->exportUrl('excel'),
         ]);

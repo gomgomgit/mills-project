@@ -37,6 +37,7 @@
 
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
+use App\Models\ProductionLine;
 use App\Models\StationType;
 use App\Models\User;
 use App\Services\StationReportService;
@@ -341,7 +342,7 @@ it('master berubah: jumlah dan urutan stasiun mengikuti master terbaru tanpa per
 // =====================================================================
 // Scenario: "jenis stasiun historis 'other' dikecualikan"
 // =====================================================================
-it("other dikecualikan: tidak ada item berkode other, jenis lain tetap hadir", function () {
+it('other dikecualikan: tidak ada item berkode other, jenis lain tetap hadir', function () {
     laporanStasiunApiMaster([
         ['sterilizer', 'Sterilizer', 40],
         ['threshing', 'Threshing', 50],
@@ -465,4 +466,85 @@ it('options: Supervisor dan Mill Management ditolak service dengan 403 FORBIDDEN
     $millManagement = $this->actingAs($this->millManagement, 'web')->getJson('/api/station-reports/business-units/options');
     $millManagement->assertStatus(403);
     $millManagement->assertJsonPath('code', 'FORBIDDEN');
+});
+
+// =====================================================================
+// PRODUCTION LINE — parameter permintaan `production_line_id` (2026-09-28)
+//
+// OPSIONAL DAN ADITIF. Bila dikirim dan sah, ia ikut terbawa di setiap
+// report_path, sehingga layar laporan tujuan langsung terisi line-nya.
+// Bila tidak dikirim, jawabannya persis seperti sebelum perubahan.
+// =====================================================================
+
+it('production_line_id: ikut terbawa di setiap report_path, dan menambah blok production_line', function () {
+    $line = ProductionLine::factory()->create([
+        'business_unit_id' => $this->businessUnitA->id,
+        'name' => 'Line Alpha 1',
+    ]);
+
+    $response = $this->actingAs($this->supervisor, 'web')
+        ->getJson('/api/station-reports/stations?'.http_build_query([
+            'production_line_id' => (string) $line->id,
+        ]));
+
+    $response->assertOk();
+
+    expect($response->json('data.production_line'))->toBe([
+        'id' => (string) $line->id,
+        'name' => 'Line Alpha 1',
+    ]);
+
+    $available = collect($response->json('data.stations'))->where('report_available', true);
+
+    expect($available)->not->toBeEmpty();
+
+    foreach ($available as $station) {
+        expect($station['report_path'])->toContain('business_unit_id='.$this->businessUnitA->id);
+        expect($station['report_path'])->toContain('production_line_id='.$line->id);
+    }
+});
+
+it('production_line_id: tanpa parameter, bentuk jawabannya persis seperti sebelum perubahan', function () {
+    $response = $this->actingAs($this->supervisor, 'web')->getJson('/api/station-reports/stations');
+
+    $response->assertOk();
+
+    // Satu-satunya kunci baru, dan ia null.
+    expect($response->json('data.production_line'))->toBeNull();
+
+    // Kunci lama tetap ada dan urutannya tidak berubah.
+    expect(array_values(array_diff(array_keys($response->json('data')), ['production_line'])))
+        ->toBe(['business_unit', 'stations']);
+
+    // report_path tetap hanya membawa mill — tidak ada production_line_id
+    // yang dikarang.
+    foreach (collect($response->json('data.stations'))->where('report_available', true) as $station) {
+        expect($station['report_path'])->toContain('business_unit_id='.$this->businessUnitA->id);
+        expect($station['report_path'])->not->toContain('production_line_id=');
+    }
+});
+
+it('production_line_id: line mill lain diabaikan dan tidak pernah sampai ke report_path', function () {
+    $lineB = ProductionLine::factory()->create([
+        'business_unit_id' => $this->businessUnitB->id,
+        'name' => 'Line Beta 1',
+    ]);
+
+    $response = $this->actingAs($this->supervisor, 'web')
+        ->getJson('/api/station-reports/stations?'.http_build_query([
+            'production_line_id' => (string) $lineB->id,
+        ]));
+
+    // 200 dengan mill sendiri dan TANPA line — sama seperti business_unit_id
+    // mill lain yang dibuang: tidak ada akses yang perlu ditolak, karena
+    // parameternya memang tidak pernah dipakai.
+    $response->assertOk();
+
+    expect($response->json('data.business_unit.name'))->toBe('Mill Alpha');
+    expect($response->json('data.production_line'))->toBeNull();
+
+    foreach (collect($response->json('data.stations'))->where('report_available', true) as $station) {
+        expect($station['report_path'])->not->toContain('production_line_id=');
+        expect($station['report_path'])->not->toContain((string) $lineB->id);
+    }
 });

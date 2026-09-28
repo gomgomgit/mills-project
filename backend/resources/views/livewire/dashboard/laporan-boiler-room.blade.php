@@ -185,6 +185,41 @@
             </p>
         @endif
 
+        {{-- Pemilih Production Line, TANPA opsi "semua" — dan itu berbeda
+             dari Data Browser dengan sengaja. Laporan menghasilkan ANGKA
+             GABUNGAN: "Total 1.200" yang mencampur belasan line bukan angka
+             yang bisa ditindaklanjuti siapa pun, jadi tidak ada satu pun
+             pilihan di sini yang berarti "semua line". Opsinya hanya line di
+             dalam mill yang berlaku. --}}
+        @if (! $needsMillSelection && ! $hasNoMillForAccount)
+            <div class="md-field">
+                <label class="md-field__label" for="production-line-select">Production Line</label>
+                <select id="production-line-select" class="md-field__control"
+                        wire:model.live="productionLineId" data-testid="production-line-select">
+                    <option value="">&mdash; Pilih Production Line &mdash;</option>
+                    @foreach ($productionLineOptions as $option)
+                        {{-- @selected WAJIB dirender di server. Livewire 3 tidak
+                             menulis balik nilai <select> dari state komponen pada
+                             paint pertama: DOM yang dikirim server-lah sumber
+                             kebenarannya. Tanpa ini, pengguna yang tiba lewat
+                             tautan tile akan melihat "Pilih Production Line"
+                             sementara angkanya sudah milik line itu — dua
+                             pernyataan yang saling bertentangan di satu layar. --}}
+                        <option value="{{ $option['id'] }}"
+                                @selected(($selectedProductionLine['id'] ?? null) === $option['id'])>{{ $option['name'] }}</option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
+        @if ($selectedProductionLine !== null)
+            {{-- Line yang sedang dibaca, dinamai di layar. Seluruh angka di
+                 bawah milik line ini saja. --}}
+            <div class="md-millcurrent" data-testid="production-line-current">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="10" cy="17" r="1.6"/></svg>
+                Line aktif: <strong>{{ $selectedProductionLine['name'] }}</strong>
+            </div>
+        @endif
+
         @if (! $needsMillSelection && ! $hasNoMillForAccount)
             <div class="md-field">
                 <label class="md-field__label" for="period-select">Periode Pelaporan</label>
@@ -264,6 +299,24 @@
             <p class="md-empty__text">
                 Sebagai Admin Anda tidak terikat pada satu mill. Pilih mill pada pemilih di atas
                 untuk menampilkan daftar Periode Pelaporan dan laporan Boiler Room-nya.
+            </p>
+        </div>
+    @elseif ($needsProductionLineSelection)
+        {{-- Mill sudah pasti, production line belum. Sama persis dengan
+             keadaan "Admin belum memilih mill" di atas: tidak ada satu angka
+             pun yang ditampilkan, karena angka gabungan lintas line tidak
+             bisa ditindaklanjuti. Daftar Periode Pelaporan di atas TIDAK
+             berubah — periode tetap per mill; yang tersaring adalah
+             datanya. --}}
+        <div class="md-empty" data-testid="select-production-line-hint">
+            <span class="md-empty__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="10" cy="17" r="1.6"/></svg>
+            </span>
+            <p class="md-empty__title">Pilih production line terlebih dahulu</p>
+            <p class="md-empty__text">
+                Laporan Boiler Room menghasilkan angka gabungan, dan mencampur beberapa
+                production line membuat angkanya tidak bisa ditindaklanjuti. Pilih satu
+                production line pada pemilih di atas untuk menampilkan laporannya.
             </p>
         </div>
     @elseif ($periods === [])

@@ -45,12 +45,24 @@
                 class="cl-filterbar__input"
             />
         </div>
+
+        <div class="cl-filterbar__field">
+            <label for="production_line_id" class="cl-filterbar__label">Production Line</label>
+            <x-searchable-select
+                id="production_line_id"
+                wire:model.live="production_line_id"
+                :options="collect($productionLines)->map(fn ($line) => ['value' => $line['id'], 'label' => $line['name']])->all()"
+                placeholder="Semua Line"
+                class="cl-filterbar__input"
+            />
+        </div>
     </div>
 
     <div class="cl-table-wrap">
         <table class="cl-table">
             <thead class="cl-table__head">
                 <tr>
+                    <th>Production Line</th>
                     <th>Clarification ID</th>
                     <th>Tanggal</th>
                     <th>Jumlah Baris Terisi</th>
@@ -72,6 +84,11 @@
                             onclick="window.location.href='{{ $detailHref }}'"
                         @endif
                     >
+                        {{-- Diambil dari KOLOM RECORD (production_line_name), bukan
+                             dari station->productionLine: untuk record lama yang
+                             stasiunnya sudah dipindah, keduanya berbeda — dan yang
+                             benar adalah line tempat data itu benar-benar dihasilkan. --}}
+                        <td>{{ $record['production_line_name'] ?? '-' }}</td>
                         <td>{{ $record['clarification_id'] }}</td>
                         <td>{{ $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('d/m/Y') : '-' }}</td>
                         <td>{{ $record['filled_slot_count'] }} / 24</td>
@@ -81,7 +98,7 @@
                     </tr>
                 @empty
                     <tr class="cl-table__row cl-table__row--static">
-                        <td colspan="4">
+                        <td colspan="5">
                             <div class="cl-empty">
                                 <div class="cl-empty__illustration" aria-hidden="true">&#128203;</div>
                                 <p class="cl-empty__title">Tidak ada data</p>

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\StationType as StationTypeEnum;
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
+use App\Models\ProductionLine;
 use App\Models\StationType;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -147,6 +148,67 @@ class StationReportService
     }
 
     /**
+     * Pemilih Production Line — opsi line DI DALAM mill yang berlaku.
+     *
+     * Berlaku untuk SEMUA peran, tidak seperti businessUnitOptions() yang
+     * khusus Admin: production line BUKAN ikatan akun (tidak ada
+     * `users.production_line_id`, dan tidak boleh ada) melainkan KONTEKS
+     * YANG DIPILIH. Supervisor pun memilih line, karena satu mill di
+     * lapangan punya belasan production line dengan jenis stasiun yang
+     * sama berulang di tiap line.
+     *
+     * Daftar ini SELALU dibatasi mill yang berlaku, sehingga line mill lain
+     * tidak pernah menjadi opsi — itu separuh pertama dari jaminan "line
+     * mill lain diabaikan"; separuhnya lagi ada di resolveProductionLine(),
+     * yang menutup jalur properti/query string.
+     *
+     * @return list<array{id: string, name: string}>
+     */
+    public function productionLineOptions(string $businessUnitId): array
+    {
+        return ProductionLine::query()
+            ->where('business_unit_id', $businessUnitId)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (ProductionLine $line) => [
+                'id' => (string) $line->id,
+                'name' => (string) $line->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * Line yang benar-benar berlaku untuk laporan ini, atau null bila belum
+     * ada pilihan yang sah.
+     *
+     * MEMILIH LINE WAJIB di layar ini juga — berbeda dari Data Browser, yang
+     * punya opsi "Semua Line". Alasannya menentukan: laporan menghasilkan
+     * ANGKA GABUNGAN, dan sebuah total yang mencampur belasan line bukan
+     * angka yang bisa ditindaklanjuti siapa pun. Karena itu null di sini
+     * berarti "jangan tampilkan angka apa pun", BUKAN "tampilkan semua
+     * line".
+     *
+     * Line milik mill lain DIABAIKAN, persis seperti business_unit_id
+     * kiriman klien diabaikan untuk peran terikat mill: ia dipulangkan
+     * sebagai null, sehingga hasilnya adalah layar yang meminta memilih
+     * line — bukan 403 (yang justru memastikan line itu ada), dan tidak
+     * pernah data mill lain.
+     */
+    public function resolveProductionLine(string $businessUnitId, ?string $requestedProductionLineId): ?string
+    {
+        if ($requestedProductionLineId === null || $requestedProductionLineId === '') {
+            return null;
+        }
+
+        $belongsToMill = ProductionLine::query()
+            ->whereKey($requestedProductionLineId)
+            ->where('business_unit_id', $businessUnitId)
+            ->exists();
+
+        return $belongsToMill ? $requestedProductionLineId : null;
+    }
+
+    /**
      * business_logic steps 1-11 — the station grid for the mill in effect.
      *
      * The list comes from the `station_types` MASTER TABLE ordered by
@@ -161,14 +223,23 @@ class StationReportService
      * everything, disable what is not ready", and is a decision rather
      * than an oversight.
      *
-     * @return array{business_unit: array{id: string, name: string}, stations: list<array{code: string, name: string, sort_order: int, report_available: bool, report_path: string|null}>}
+     * PRODUCTION LINE IKUT DI TAUTAN TIAP TILE sejak 2026-09-28, dengan
+     * alasan yang sama persis seperti mill ikut di sana: stationList()
+     * dahulu membangun satu tile per JENIS stasiun hanya dari
+     * `business_unit_id`, dan itu mengandaikan satu stasiun per jenis per
+     * mill — andaian yang sudah salah hari ini, karena satu mill bisa punya
+     * belasan production line dengan jenis stasiun yang sama berulang. Tile
+     * kini membawa line terpilih, sehingga laporan tujuan langsung terisi
+     * alih-alih meminta pengguna memilih untuk kedua kalinya.
+     *
+     * @return array{business_unit: array{id: string, name: string}, production_line: array{id: string, name: string}|null, stations: list<array{code: string, name: string, sort_order: int, report_available: bool, report_path: string|null}>}
      *
      * @throws AuthenticationException 401 UNAUTHENTICATED
      * @throws AuthorizationException 403 FORBIDDEN (Operator / any role without web access)
      * @throws ValidationException 422 VALIDATION_ERROR (admin without a mill, or a bound account with no mill)
      * @throws ModelNotFoundException 404 NOT_FOUND
      */
-    public function stations(?string $requestedBusinessUnitId = null): array
+    public function stations(?string $requestedBusinessUnitId = null, ?string $requestedProductionLineId = null): array
     {
         $businessUnitId = $this->resolveBusinessUnit($requestedBusinessUnitId);
 
@@ -178,12 +249,45 @@ class StationReportService
         /** @var BusinessUnit $businessUnit */
         $businessUnit = BusinessUnit::query()->findOrFail($businessUnitId, ['id', 'name']);
 
+        // Line mill lain yang dikirim lewat query string diabaikan di sini,
+        // sehingga ia tidak pernah sampai ke report_path dan karenanya tidak
+        // pernah menular ke layar laporan tujuan.
+        $productionLineId = $this->resolveProductionLine($businessUnitId, $requestedProductionLineId);
+
         return [
             'business_unit' => [
                 'id' => (string) $businessUnit->id,
                 'name' => (string) $businessUnit->name,
             ],
-            'stations' => $this->stationList($businessUnitId),
+            // TAMBAHAN, bukan perubahan bentuk: kunci baru di samping
+            // business_unit dan stations, yang keduanya tidak berubah sama
+            // sekali. null ketika tidak ada line yang berlaku.
+            'production_line' => $this->productionLineInfo($productionLineId),
+            'stations' => $this->stationList($businessUnitId, $productionLineId),
+        ];
+    }
+
+    /**
+     * Blok `production_line` pada respons stations().
+     *
+     * @return array{id: string, name: string}|null
+     */
+    protected function productionLineInfo(?string $productionLineId): ?array
+    {
+        if ($productionLineId === null || $productionLineId === '') {
+            return null;
+        }
+
+        /** @var ProductionLine|null $line */
+        $line = ProductionLine::query()->find($productionLineId, ['id', 'name']);
+
+        if ($line === null) {
+            return null;
+        }
+
+        return [
+            'id' => (string) $line->id,
+            'name' => (string) $line->name,
         ];
     }
 
@@ -256,13 +360,13 @@ class StationReportService
      *
      * @return list<array{code: string, name: string, sort_order: int, report_available: bool, report_path: string|null}>
      */
-    protected function stationList(string $businessUnitId): array
+    protected function stationList(string $businessUnitId, ?string $productionLineId = null): array
     {
         return StationType::query()
             ->where('code', '<>', self::EXCLUDED_STATION_TYPE)
             ->orderBy('sort_order')
             ->get(['code', 'name', 'sort_order'])
-            ->map(function (StationType $stationType) use ($businessUnitId) {
+            ->map(function (StationType $stationType) use ($businessUnitId, $productionLineId) {
                 $code = (string) $stationType->code;
                 $routeName = self::REPORT_ROUTES[$code] ?? null;
 
@@ -273,9 +377,19 @@ class StationReportService
                     'report_available' => $routeName !== null,
                     // The mill travels WITH the link, so the report screen
                     // never has to ask for a mill a second time in one flow.
+                    //
+                    // Dan sejak 2026-09-28 LINE-nya ikut, dengan kunci query
+                    // `production_line_id` — sama persis dengan nama properti
+                    // #[Url(as: 'production_line_id')] di keenam komponen
+                    // laporan. Pasangan nama itu yang membuat rantainya
+                    // bertemu; commit 8658f6e ada justru karena pasangan yang
+                    // sama untuk mill dulu tidak pernah dibuat.
                     'report_path' => $routeName === null
                         ? null
-                        : route($routeName, ['business_unit_id' => $businessUnitId]),
+                        : route($routeName, array_filter([
+                            'business_unit_id' => $businessUnitId,
+                            'production_line_id' => $productionLineId,
+                        ], fn ($value) => $value !== null && $value !== '')),
                 ];
             })
             ->all();

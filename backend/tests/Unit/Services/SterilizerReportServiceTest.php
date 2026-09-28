@@ -825,7 +825,7 @@ it('returns success result when all conditions pass', function () {
     $period = $this->service->authorizePeriod((string) $this->periodA->id);
     $summary = $this->service->summary($period);
 
-    expect(array_keys($summary))->toBe(['period', 'kpi', 'daily', 'by_unit', 'outliers', 'total']);
+    expect(array_keys($summary))->toBe(['period', 'production_line', 'kpi', 'daily', 'by_unit', 'outliers', 'total']);
     expect($summary['period']['status'])->toBe('open');
     expect($summary['period']['business_unit_name'])->toBe('Mill Alpha');
     expect($summary['kpi']['total_cycles'])->toBe(12);

@@ -14,6 +14,7 @@ use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\PressingDetail;
 use App\Models\PressingRecord;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\PressingRecordService;
@@ -230,4 +231,90 @@ it('cakupan mill: aktor terikat mill tanpa business_unit_id gagal-tertutup 422, 
     $this->actingAs($millless, 'web')->getJson('/api/pressing-records')
         ->assertStatus(422)
         ->assertJsonPath('code', 'VALIDATION_ERROR');
+});
+
+// ─── PRODUCTION LINE (2026-09-28) ───────────────────────────────────────────
+// Production line adalah KONTEKS YANG DIPILIH, bukan ikatan akun: tidak ada
+// `users.production_line_id` dan tidak boleh ada. Karena itu filternya
+// default ke "Semua Line" — daftar ini daftar BARIS, bukan angka gabungan
+// seperti laporan periode, jadi melihat semuanya memang berguna ASAL setiap
+// baris menunjukkan line-nya. Itulah tugas kolom Production Line.
+//
+// Setiap asersi cakupan di bawah memeriksa ISI DUA ARAH: record yang
+// seharusnya ADA memang ada, dan yang seharusnya TIDAK ADA memang tidak.
+// Sisi "ADA" bukan hiasan — SQLite (driver test) memperlakukan WHERE pada
+// kolom yang tidak ada sebagai string literal dan mengembalikan 0 baris TANPA
+// error, sementara PostgreSQL (dev/produksi) melempar. Filter yang menyaring
+// habis karena salah kolom akan tetap hijau kalau kita hanya mengasersi
+// ketiadaan.
+
+it('production line: filter ikut ke daftar DAN ke ekspor CSV, kolom line ada di file', function () {
+    $lineA = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'LINE-ALPHA']);
+    $lineB = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'LINE-BETA']);
+    $recordA = PressingRecord::factory()->forStation(Station::factory()->forProductionLine($lineA)->create())->create();
+    $recordB = PressingRecord::factory()->forStation(Station::factory()->forProductionLine($lineB)->create())->create();
+
+    // Tanpa filter line: kedua line terlihat — sisi "ADA".
+    $all = $this->actingAs($this->supervisor, 'web')->getJson('/api/pressing-records');
+    $all->assertOk();
+    $allRows = collect($all->json('data'))->keyBy('id');
+    expect($allRows->has($recordA->id))->toBeTrue();
+    expect($allRows->has($recordB->id))->toBeTrue();
+    expect($allRows[$recordA->id]['production_line_name'])->toBe('LINE-ALPHA');
+    expect($allRows[$recordB->id]['production_line_name'])->toBe('LINE-BETA');
+
+    // Dengan filter line: hanya line itu. `production_line_id` WAJIB ada di
+    // $request->only() controller — kalau tidak, ia ditelan tanpa bunyi dan
+    // test ini gagal di baris berikutnya, bukan di produksi.
+    $filtered = $this->actingAs($this->supervisor, 'web')->getJson('/api/pressing-records?'.http_build_query([
+        'production_line_id' => $lineA->id,
+    ]));
+    $filtered->assertOk();
+    $filteredIds = collect($filtered->json('data'))->pluck('id')->all();
+    expect($filteredIds)->toContain($recordA->id);
+    expect($filteredIds)->not->toContain($recordB->id);
+
+    // Ekspor: kolom line ada, dan filternya ikut — konvensi ekspor repo ini
+    // satu baris per detail dengan kolom konteks diulang, jadi Production Line
+    // adalah kolom konteks yang muncul di setiap baris.
+    $exportAll = $this->actingAs($this->supervisor, 'web')->get('/api/pressing-records/export?'.http_build_query(['format' => 'csv']));
+    $exportAll->assertOk();
+    $bodyAll = $exportAll->streamedContent();
+    expect($bodyAll)->toContain('Production Line');
+    expect($bodyAll)->toContain('LINE-ALPHA');
+    expect($bodyAll)->toContain('LINE-BETA');
+
+    $exportFiltered = $this->actingAs($this->supervisor, 'web')->get('/api/pressing-records/export?'.http_build_query([
+        'format' => 'csv',
+        'production_line_id' => $lineA->id,
+    ]));
+    $exportFiltered->assertOk();
+    $bodyFiltered = $exportFiltered->streamedContent();
+    expect($bodyFiltered)->toContain('LINE-ALPHA');
+    expect($bodyFiltered)->not->toContain('LINE-BETA');
+});
+
+it('production line: line mill lain di query string diabaikan, bukan error', function () {
+    $lineA = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'LINE-ALPHA']);
+    $recordA = PressingRecord::factory()->forStation(Station::factory()->forProductionLine($lineA)->create())->create();
+
+    $foreignLine = ProductionLine::factory()->forBusinessUnit($this->otherBusinessUnit)->create(['name' => 'LINE-ASING']);
+    $foreignRecord = PressingRecord::factory()->forStation(Station::factory()->forProductionLine($foreignLine)->create())->create();
+
+    $list = $this->actingAs($this->supervisor, 'web')->getJson('/api/pressing-records?'.http_build_query([
+        'production_line_id' => $foreignLine->id,
+    ]));
+    $list->assertOk();
+    $ids = collect($list->json('data'))->pluck('id')->all();
+    expect($ids)->toContain($recordA->id);
+    expect($ids)->not->toContain($foreignRecord->id);
+
+    $export = $this->actingAs($this->supervisor, 'web')->get('/api/pressing-records/export?'.http_build_query([
+        'format' => 'csv',
+        'production_line_id' => $foreignLine->id,
+    ]));
+    $export->assertOk();
+    $body = $export->streamedContent();
+    expect($body)->toContain('LINE-ALPHA');
+    expect($body)->not->toContain('LINE-ASING');
 });

@@ -70,8 +70,8 @@
     {{-- ============ Langkah 1 — Mill ============ --}}
     <section>
         <div class="md-step">
-            <span class="md-step__num {{ $businessUnit !== null ? 'md-step__num--done' : '' }}">1</span>
-            <span class="md-step__title">Mill</span>
+            <span class="md-step__num {{ $businessUnit !== null && ! $needsProductionLineSelection ? 'md-step__num--done' : '' }}">1</span>
+            <span class="md-step__title">Mill &amp; Production Line</span>
         </div>
 
         <div class="md-filters">
@@ -98,11 +98,42 @@
                 </div>
             @endif
 
+            {{-- Pemilih Production Line, TANPA opsi "semua". Layar ini
+                 membangun satu tile per JENIS stasiun, dan satu mill bisa
+                 punya belasan production line dengan jenis stasiun yang sama
+                 berulang — tanpa line, sebuah tile tidak menunjuk stasiun
+                 mana pun secara pasti. Opsinya hanya line di dalam mill yang
+                 berlaku. --}}
+            @if ($businessUnit !== null)
+                <div class="md-field">
+                    <label class="md-field__label" for="production-line-select">Production Line</label>
+                    <select id="production-line-select" class="md-field__control"
+                            wire:model.live="productionLineId" data-testid="production-line-select">
+                        <option value="">&mdash; Pilih Production Line &mdash;</option>
+                        @foreach ($productionLineOptions as $option)
+                            {{-- @selected WAJIB dirender di server — Livewire 3
+                                 tidak menulis balik nilai <select> dari state
+                                 komponen pada paint pertama. --}}
+                            <option value="{{ $option['id'] }}"
+                                    @selected(($productionLine['id'] ?? null) === $option['id'])>{{ $option['name'] }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+
+            @if ($productionLine !== null)
+                <div class="md-millcurrent" data-testid="production-line-current">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="10" cy="17" r="1.6"/></svg>
+                    Line aktif: <strong>{{ $productionLine['name'] }}</strong>
+                </div>
+            @endif
+
             <p class="md-filters__hint">
                 @if ($isAdmin)
-                    Mengganti mill mengganti seluruh konteks laporan berikutnya.
+                    Mengganti mill mengganti seluruh konteks laporan berikutnya, termasuk pilihan Production Line.
                 @else
                     Mill ditetapkan dari akun Anda dan tidak dapat diganti dari layar ini.
+                    Production Line dipilih di sini &mdash; ia konteks kerja, bukan bagian dari akun Anda.
                 @endif
             </p>
         </div>
@@ -116,6 +147,29 @@
                 </span>
                 <p class="md-empty__title">Akun belum terhubung ke mill</p>
                 <p class="md-empty__text">Akun Anda belum terhubung ke mill. Hubungi Admin.</p>
+            </div>
+        @endif
+
+        @if ($needsProductionLineSelection && ! $needsMillSelection && ! $millMissingForAccount)
+            {{-- Mill sudah pasti, production line belum. Grid stasiun
+                 ditahan sepenuhnya, dengan alasan yang sama seperti ia
+                 ditahan sebelum mill pasti: tile membawa konteksnya ke layar
+                 laporan, dan tile tanpa line akan mendaratkan pengguna di
+                 laporan yang meminta memilih line lagi. --}}
+            <div class="md-empty" style="margin-top: 16px" data-testid="select-production-line-hint">
+                <span class="md-empty__icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="10" cy="17" r="1.6"/></svg>
+                </span>
+                <p class="md-empty__title">Production Line belum dipilih</p>
+                <p class="md-empty__text" data-testid="production-line-required-hint">
+                    Pilih production line terlebih dahulu untuk menampilkan stasiun.
+                </p>
+                @if ($productionLineOptions === [])
+                    <p class="md-empty__text" data-testid="no-production-lines">
+                        Mill ini belum memiliki satu pun Production Line. Minta Admin membuatnya
+                        lebih dulu di layar Kelola Production Line.
+                    </p>
+                @endif
             </div>
         @endif
 
@@ -139,9 +193,11 @@
     </section>
 
     {{-- ============ Langkah 2 — Grid stasiun ============
-         Ditahan sepenuhnya selama mill belum ditetapkan: urutannya
-         mengikat, mill dulu baru stasiun. --}}
-    @if ($businessUnit !== null)
+         Ditahan sepenuhnya selama mill DAN production line belum ditetapkan:
+         urutannya mengikat, mill dan line dulu baru stasiun. Sebuah tile
+         membawa keduanya di report_path, jadi tile tanpa salah satunya akan
+         mendaratkan pengguna di layar yang memintanya memilih lagi. --}}
+    @if ($businessUnit !== null && ! $needsProductionLineSelection)
         <section>
             <div class="md-step">
                 <span class="md-step__num">2</span>
@@ -195,7 +251,8 @@
                         Belum tersedia ({{ count($stations) - $availableCount }})
                     </span>
                     <span class="md-legend__item">
-                        Mill yang dipilih ikut terbawa ke layar laporan, jadi mill tidak ditanyakan dua kali.
+                        Mill dan Production Line yang dipilih ikut terbawa ke layar laporan,
+                        jadi keduanya tidak ditanyakan dua kali.
                     </span>
                 </div>
             @endif

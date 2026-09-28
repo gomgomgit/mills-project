@@ -405,7 +405,7 @@ it('stations: mengembalikan hasil sukses lengkap ketika semua prasyarat terpenuh
 
     $result = $this->service->stations(null);
 
-    expect(array_keys($result))->toBe(['business_unit', 'stations']);
+    expect(array_keys($result))->toBe(['business_unit', 'production_line', 'stations']);
     expect($result['business_unit'])->toBe([
         'id' => (string) $this->businessUnitA->id,
         'name' => 'Mill Alpha',

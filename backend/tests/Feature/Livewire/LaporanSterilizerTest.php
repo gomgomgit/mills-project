@@ -27,11 +27,13 @@ use App\Livewire\Dashboard\LaporanSterilizer;
 use App\Models\BusinessUnit;
 use App\Models\Period;
 use App\Models\PeriodStation;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\SterilizerDetail;
 use App\Models\SterilizerRecord;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 
 /** One Sterilizer cycle, all six triple-peak times filled, 90 minutes. */
@@ -81,6 +83,13 @@ beforeEach(function () {
     $this->stationA = Station::factory()->forBusinessUnit($this->businessUnitA)->sterilizer()->create();
     $this->stationB = Station::factory()->forBusinessUnit($this->businessUnitB)->sterilizer()->create();
 
+    // Production line tempat tiap stasiun berdiri. Sejak 2026-09-28
+    // memilih line WAJIB di layar laporan, jadi hampir setiap skenario
+    // di berkas ini memilihnya lebih dulu — tanpa itu layar dengan sengaja
+    // tidak menampilkan satu angka pun.
+    $this->lineA = (string) $this->stationA->production_line_id;
+    $this->lineB = (string) $this->stationB->production_line_id;
+
     $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitA)->create();
     $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnitA)->create();
     $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnitA)->create();
@@ -113,6 +122,7 @@ it('berhasil: renders the four KPI cards, the charts, the outlier threshold, the
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         // The newest period is auto-selected, so the page is useful on
         // first paint rather than demanding a choice first.
         ->assertSet('periodId', (string) $this->periodA->id)
@@ -154,6 +164,7 @@ it('berhasil: renders the four KPI cards, the charts, the outlier threshold, the
 it('admin tanpa mill: renders an empty mill picker and asks for a mill instead of drawing a report', function () {
     Livewire::actingAs($this->admin)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSet('businessUnitId', '')
         ->assertSeeHtml('data-testid="mill-select"')
         ->assertSeeHtml('data-testid="empty-select-mill"')
@@ -177,6 +188,7 @@ it('admin memilih mill: the period list reloads for that mill and every figure c
 
     Livewire::actingAs($this->admin)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->set('businessUnitId', (string) $this->businessUnitA->id)
         // keepSelectionValid() auto-selects the newest period of the newly
         // chosen mill — no updatedBusinessUnitId() hook needed.
@@ -210,6 +222,7 @@ it('belum ada periode: renders an empty period picker plus the hint to create on
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSet('periodId', '')
         ->assertSeeHtml('data-testid="period-select"')
         ->assertSee('Belum ada periode')
@@ -227,6 +240,7 @@ it('periode tanpa data: KPI cards render as zero with an explicit message and no
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="report-kpis"')
         ->assertSeeHtml('data-testid="empty-no-data"')
@@ -245,6 +259,7 @@ it('sebagian siklus tanpa durasi: the average is undiluted and the excluded-cycl
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="kpi-total-cycles"')
         ->assertSeeHtml('data-testid="kpi-avg-duration"')
@@ -263,6 +278,7 @@ it('durasi seragam: the outlier card states there is nothing unusual and still p
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="outliers"')
         ->assertSeeHtml('data-testid="outliers-none"')
@@ -287,6 +303,7 @@ it('mill sendiri: no mill picker is rendered and only the user\'s own mill appea
     foreach ([$this->supervisor, $this->millManagement] as $user) {
         Livewire::actingAs($user)
             ->test(LaporanSterilizer::class)
+            ->set('productionLineId', $this->lineA)
             // Offering a picker they cannot use would be a lie, so there
             // is none at all.
             ->assertDontSeeHtml('data-testid="mill-select"')
@@ -329,6 +346,7 @@ it('periode tertutup: the report renders as usual, the status shows as a caption
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $closed->id)
         ->assertSeeHtml('data-testid="hero-status"')
         ->assertSee('Tertutup')
@@ -354,6 +372,7 @@ it('pemilih periode: offers only periods with a sterilizer period_stations row, 
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSee('Periode Oktober Semua Stasiun')
         ->assertSee('Periode September Alpha')
         ->assertDontSee('Periode Agustus Boiler');
@@ -386,6 +405,7 @@ it('pemilih periode: periode tanpa baris sterilizer tidak ditawarkan', function 
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSee('Periode September Alpha')
         ->assertDontSee('Periode Oktober Tanpa Sterilizer')
         ->assertDontSee('Periode November Tanpa Stasiun');
@@ -408,7 +428,8 @@ it('chip status: menampilkan status sterilizer, bukan status stasiun lain di per
     PeriodStation::factory()->forPeriod($mixed)->stationType('boiler-room')->closed()->create();
 
     // Newest first, jadi periode campuran inilah yang terpilih otomatis.
-    $component = Livewire::actingAs($this->supervisor)->test(LaporanSterilizer::class);
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA);
 
     expect($component->viewData('selectedPeriod')['id'])->toBe((string) $mixed->id);
     expect($component->viewData('selectedPeriod')['status'])->toBe('open');
@@ -434,6 +455,7 @@ it('rentang inklusif: both bounds are included and a late-synced cycle still bel
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->call('toggleRekapHarian')
         ->assertSeeHtml('data-testid="recap-row-2026-09-01"')
@@ -457,6 +479,7 @@ it('triple-peak: the card shows 75%, not 100%, when one cycle misses one of the 
 
     Livewire::actingAs($this->supervisor)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="kpi-triple-peak"')
         ->assertSee('3 dari 4 siklus lengkap')
@@ -474,6 +497,7 @@ it('ambang pencilan: the bounds are printed and only cycles outside them are lis
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->assertSeeHtml('data-testid="outlier-threshold"')
         // 84,5 - 102,5 menit, rendered with the Indonesian decimal comma.
@@ -499,6 +523,7 @@ it('baca saja: the component exposes no create/update/delete action and changes 
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $this->periodA->id)
         ->call('toggleRekapHarian')
         ->assertSeeHtml('data-testid="recap-table"');
@@ -559,6 +584,7 @@ it('admin ekspor: an Admin who picked a mill actually downloads the CSV, and it 
 
     $component = Livewire::actingAs($this->admin)
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->set('businessUnitId', (string) $this->businessUnitA->id)
         ->assertSet('periodId', (string) $this->periodA->id);
 
@@ -624,6 +650,7 @@ it('hidrasi query string: Admin yang tiba dari tautan tile langsung melihat lapo
     Livewire::actingAs($this->admin)
         ->withQueryParams(['business_unit_id' => (string) $this->businessUnitA->id])
         ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSet('businessUnitId', (string) $this->businessUnitA->id)
         ->assertSet('periodId', (string) $this->periodA->id)
         ->assertViewHas('needsMillSelection', false)
@@ -668,6 +695,7 @@ it('peran terikat mill: memaksa mill lain lewat query string tidak mengubah apa 
         Livewire::actingAs($user)
             ->withQueryParams(['business_unit_id' => (string) $this->businessUnitB->id])
             ->test(LaporanSterilizer::class)
+            ->set('productionLineId', $this->lineA)
             // Terhidrasi — dan tetap diabaikan.
             ->assertSet('businessUnitId', (string) $this->businessUnitB->id)
             ->assertSet('periodId', (string) $this->periodA->id)
@@ -675,4 +703,223 @@ it('peran terikat mill: memaksa mill lain lewat query string tidak mengubah apa 
                 && $summary['period']['business_unit_name'] === 'Mill Alpha'
                 && $summary['kpi']['total_cycles'] === 2);
     }
+});
+
+// =====================================================================
+// PRODUCTION LINE — konsumen pertama kolom `production_line_id` (ccc884d)
+//
+// Lima jaminan, satu per skenario di bawah:
+//   1. belum memilih line  -> tidak ada satu angka pun, hanya arahan memilih
+//   2. memilih line        -> angkanya MILIK LINE ITU, bukan jumlah dua line
+//   3. line mill lain      -> diabaikan, lewat properti maupun query string
+//   4. ekspor CSV          -> ikut tersaring ke line terpilih
+//   5. stasiun dipindah    -> recordnya TETAP terhitung di line asalnya
+//
+// SETIAP skenario penyaringan dibuat DUA ARAH — data line terpilih ADA, data
+// line lain TIDAK ADA. Alasannya bukan gaya: test berjalan di SQLite,
+// produksi di PostgreSQL, dan SQLite memperlakukan `where "kolom_tak_ada" = ?`
+// sebagai perbandingan string literal — 0 baris, tanpa error. Tanpa sisi
+// "ADA", sebuah filter yang menyaring HABIS akan hijau di sini dan meledak di
+// PostgreSQL.
+// =====================================================================
+
+/**
+ * Line KEDUA di MILL YANG SAMA, lengkap dengan stasiun Sterilizer-nya
+ * sendiri. Sengaja satu mill: jaminan yang diuji di sini bukan cakupan mill
+ * (itu sudah ditutup ec32cd9) melainkan cakupan LINE DI DALAM satu mill.
+ */
+function laporanSterilizerSecondLine(BusinessUnit $businessUnit, string $name = 'Line Kedua'): Station
+{
+    $line = ProductionLine::factory()->create([
+        'business_unit_id' => $businessUnit->id,
+        'name' => $name,
+    ]);
+
+    return Station::factory()->forProductionLine($line)->sterilizer()->create();
+}
+
+/** Isi berkas CSV yang benar-benar diunduh dari layar. */
+function laporanSterilizerDownloadedCsv(Testable $component): string
+{
+    return base64_decode((string) data_get($component->effects, 'download.content'));
+}
+
+it('production line: tanpa line terpilih tidak ada satu angka pun, hanya arahan memilih', function () {
+    // Line A: 2 siklus / 20 lori.
+    laporanSterilizerComponentRecord($this->stationA, '2026-09-05', [
+        ['duration_minutes' => 90, 'number_of_cages' => 10],
+        ['duration_minutes' => 90, 'number_of_cages' => 10, 'sterilizer_no' => '2'],
+    ], ['sterilizer_id' => 'STR-LINE-A']);
+
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanSterilizer::class)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('needsProductionLineSelection', true)
+        // Tidak ada angka sama sekali — bukan laporan kosong, bukan nol.
+        ->assertViewHas('summary', null)
+        ->assertSeeHtml('data-testid="production-line-select"')
+        ->assertSeeHtml('data-testid="select-production-line-hint"')
+        ->assertSee('Pilih production line terlebih dahulu')
+        // TANPA opsi "semua" — itu perbedaan disengaja dari Data Browser.
+        ->assertDontSee('Semua Line')
+        ->assertDontSee('Semua Production Line')
+        ->assertDontSeeHtml('data-testid="report-kpis"')
+        ->assertDontSeeHtml('data-testid="daily-trend"');
+});
+
+it('production line: angka yang tampil milik line terpilih, bukan jumlah dua line', function () {
+    // Line A: 2 siklus / 20 lori.
+    laporanSterilizerComponentRecord($this->stationA, '2026-09-05', [
+        ['duration_minutes' => 90, 'number_of_cages' => 10],
+        ['duration_minutes' => 90, 'number_of_cages' => 10, 'sterilizer_no' => '2'],
+    ], ['sterilizer_id' => 'STR-LINE-A']);
+
+    $stationC = laporanSterilizerSecondLine($this->businessUnitA);
+    $lineC = (string) $stationC->production_line_id;
+    // Line C: 3 siklus / 300 lori — angka yang sama sekali berbeda, sehingga
+    // "jumlah kedua line" (5 siklus / 320 lori) tidak bisa lolos sebagai
+    // salah satu dari keduanya.
+    laporanSterilizerComponentRecord($stationC, '2026-09-06', [
+        ['duration_minutes' => 50, 'number_of_cages' => 100],
+        ['duration_minutes' => 50, 'number_of_cages' => 100, 'sterilizer_no' => '2'],
+        ['duration_minutes' => 50, 'number_of_cages' => 100, 'sterilizer_no' => '3'],
+    ], ['sterilizer_id' => 'STR-LINE-C']);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA);
+
+    // ARAH PERTAMA — line A: angkanya milik A, dan BUKAN A+C.
+    $component->assertViewHas('summary', fn ($summary) => $summary['kpi']['total_cycles'] === 2
+        && $summary['kpi']['total_cages'] === 20
+        && $summary['kpi']['avg_duration_minutes'] === 90.0);
+
+    // ARAH KEDUA — line C: angkanya berpindah seluruhnya ke C. Tanpa arah ini
+    // sebuah filter yang menyaring habis juga akan hijau.
+    $component->set('productionLineId', $lineC)
+        ->assertViewHas('summary', fn ($summary) => $summary['kpi']['total_cycles'] === 3
+            && $summary['kpi']['total_cages'] === 300
+            && $summary['kpi']['avg_duration_minutes'] === 50.0);
+});
+
+it('production line: line mill lain diabaikan, lewat properti maupun lewat query string', function () {
+    // Line A: 2 siklus / 20 lori.
+    laporanSterilizerComponentRecord($this->stationA, '2026-09-05', [
+        ['duration_minutes' => 90, 'number_of_cages' => 10],
+        ['duration_minutes' => 90, 'number_of_cages' => 10, 'sterilizer_no' => '2'],
+    ], ['sterilizer_id' => 'STR-LINE-A']);
+
+    // (a) Lewat properti — dibuang saat render, jatuh ke "belum memilih".
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineB)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('needsProductionLineSelection', true)
+        ->assertViewHas('summary', null);
+
+    // (b) Lewat query string — sama saja.
+    Livewire::actingAs($this->supervisor)
+        ->withQueryParams(['production_line_id' => $this->lineB])
+        ->test(LaporanSterilizer::class)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('summary', null);
+
+    // (c) SISI POSITIFNYA, dan inilah yang menjaga `as: 'production_line_id'`:
+    // line yang sah dari query string BENAR-BENAR terhidrasi dan langsung
+    // memuat laporannya. Tanpa `as:`, Livewire memakai nama properti
+    // ('productionLineId') sebagai kunci query, keduanya tidak bertemu, dan
+    // asersi (a)/(b) di atas tetap hijau tanpa menandai apa pun.
+    Livewire::actingAs($this->supervisor)
+        ->withQueryParams(['production_line_id' => $this->lineA])
+        ->test(LaporanSterilizer::class)
+        ->assertSet('productionLineId', $this->lineA)
+        ->assertViewHas('needsProductionLineSelection', false)
+        ->assertViewHas('summary', fn ($summary) => $summary !== null && $summary['kpi']['total_cycles'] === 2
+        && $summary['kpi']['total_cages'] === 20
+        && $summary['kpi']['avg_duration_minutes'] === 90.0);
+});
+
+it('production line: ekspor CSV hanya memuat baris line terpilih', function () {
+    // Line A: 2 siklus / 20 lori.
+    laporanSterilizerComponentRecord($this->stationA, '2026-09-05', [
+        ['duration_minutes' => 90, 'number_of_cages' => 10],
+        ['duration_minutes' => 90, 'number_of_cages' => 10, 'sterilizer_no' => '2'],
+    ], ['sterilizer_id' => 'STR-LINE-A']);
+
+    $stationC = laporanSterilizerSecondLine($this->businessUnitA);
+    $lineC = (string) $stationC->production_line_id;
+    // Line C: 3 siklus / 300 lori — angka yang sama sekali berbeda, sehingga
+    // "jumlah kedua line" (5 siklus / 320 lori) tidak bisa lolos sebagai
+    // salah satu dari keduanya.
+    laporanSterilizerComponentRecord($stationC, '2026-09-06', [
+        ['duration_minutes' => 50, 'number_of_cages' => 100],
+        ['duration_minutes' => 50, 'number_of_cages' => 100, 'sterilizer_no' => '2'],
+        ['duration_minutes' => 50, 'number_of_cages' => 100, 'sterilizer_no' => '3'],
+    ], ['sterilizer_id' => 'STR-LINE-C']);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanSterilizer::class)
+        ->set('productionLineId', $this->lineA);
+
+    $component->call('export', 'csv')->assertFileDownloaded(null, null, 'text/csv');
+
+    $csv = laporanSterilizerDownloadedCsv($component);
+
+    expect($csv)->toContain('STR-LINE-A');
+    expect($csv)->not->toContain('STR-LINE-C');
+
+    // Arah sebaliknya, berkas yang sama sekali berbeda isinya.
+    $component->set('productionLineId', $lineC)->call('export', 'csv');
+
+    $csvC = laporanSterilizerDownloadedCsv($component);
+
+    expect($csvC)->toContain('STR-LINE-C');
+    expect($csvC)->not->toContain('STR-LINE-A');
+});
+
+it('production line: tanpa line terpilih tidak ada berkas yang diunduh sama sekali', function () {
+    // Line A: 2 siklus / 20 lori.
+    laporanSterilizerComponentRecord($this->stationA, '2026-09-05', [
+        ['duration_minutes' => 90, 'number_of_cages' => 10],
+        ['duration_minutes' => 90, 'number_of_cages' => 10, 'sterilizer_no' => '2'],
+    ], ['sterilizer_id' => 'STR-LINE-A']);
+
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanSterilizer::class)
+        ->call('export', 'csv')
+        ->assertNoFileDownloaded();
+});
+
+it('production line: record yang stasiunnya sudah dipindah tetap terhitung di line asalnya', function () {
+    // Line A: 2 siklus / 20 lori.
+    laporanSterilizerComponentRecord($this->stationA, '2026-09-05', [
+        ['duration_minutes' => 90, 'number_of_cages' => 10],
+        ['duration_minutes' => 90, 'number_of_cages' => 10, 'sterilizer_no' => '2'],
+    ], ['sterilizer_id' => 'STR-LINE-A']);
+
+    // Stasiunnya dipindah ke line lain DI MILL YANG SAMA — perubahan
+    // konfigurasi yang sah, bukan perbaikan data.
+    $lineBaru = ProductionLine::factory()->create([
+        'business_unit_id' => $this->businessUnitA->id,
+        'name' => 'Line Baru',
+    ]);
+
+    $this->stationA->update(['production_line_id' => $lineBaru->id]);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanSterilizer::class);
+
+    // DI LINE ASALNYA: masih terhitung utuh. Hanya mungkin karena filternya
+    // membaca kolom `production_line_id` DI TABEL RECORD — sebuah join ke
+    // `stations` akan memindahkan angka ini ke Line Baru dan menulis ulang
+    // sejarah periode yang sudah lewat.
+    $component->set('productionLineId', $this->lineA)
+        ->assertViewHas('summary', fn ($summary) => $summary['kpi']['total_cycles'] === 2
+        && $summary['kpi']['total_cages'] === 20
+        && $summary['kpi']['avg_duration_minutes'] === 90.0);
+
+    // DI LINE BARUNYA: tidak ada apa pun. Stasiunnya memang ada di sana
+    // sekarang, tetapi tidak satu pun record dihasilkan di sana.
+    $component->set('productionLineId', (string) $lineBaru->id)
+        ->assertViewHas('summary', fn ($summary) => $summary['kpi']['total_cycles'] === 0 && $summary['kpi']['total_cages'] === 0);
 });

@@ -79,11 +79,13 @@ use App\Livewire\Dashboard\LaporanStorageTank;
 use App\Models\BusinessUnit;
 use App\Models\Period;
 use App\Models\PeriodStation;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\StorageTankDetail;
 use App\Models\StorageTankRecord;
 use App\Models\User;
 use App\Services\StorageTankRecordService;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 
 /**
@@ -229,6 +231,13 @@ beforeEach(function () {
     $this->stationA = Station::factory()->forBusinessUnit($this->businessUnitA)->storageTank()->create();
     $this->stationB = Station::factory()->forBusinessUnit($this->businessUnitB)->storageTank()->create();
 
+    // Production line tempat tiap stasiun berdiri. Sejak 2026-09-28
+    // memilih line WAJIB di layar laporan, jadi hampir setiap skenario
+    // di berkas ini memilihnya lebih dulu — tanpa itu layar dengan sengaja
+    // tidak menampilkan satu angka pun.
+    $this->lineA = (string) $this->stationA->production_line_id;
+    $this->lineB = (string) $this->stationB->production_line_id;
+
     $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitA)->create();
     $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnitA)->create();
     $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnitA)->create();
@@ -259,6 +268,7 @@ it('berhasil: tanpa pemilih mill, seluruh blok angka tampil, dan tiap kartu metr
     foreach ([$this->supervisor, $this->millManagement] as $user) {
         $component = Livewire::actingAs($user)
             ->test(LaporanStorageTank::class)
+            ->set('productionLineId', $this->lineA)
             // The newest period is auto-selected, so the page is useful on
             // first paint rather than demanding a choice first.
             ->assertSet('periodId', (string) $this->periodA->id)
@@ -339,6 +349,7 @@ it('admin: pemilih Mill dirender, daftar periode mengikuti mill terpilih, dan is
 
     $component = Livewire::actingAs($this->admin)
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         // Admin is the one role not bound to a mill, so it gets the picker.
         ->assertSeeHtml('data-testid="mill-select"')
         ->assertSeeHtml('data-testid="mill-select-hint"')
@@ -381,6 +392,7 @@ it('admin tanpa mill: pemilih dan arahan terlihat, dan tidak satu pun angka lapo
 
     $component = Livewire::actingAs($this->admin)
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSeeHtml('data-testid="mill-select"')
         ->assertSeeHtml('data-testid="mill-select-hint"')
         // The page ASKS for a mill instead of drawing an empty report that
@@ -407,6 +419,7 @@ it('mill tanpa periode: pemilih periode tanpa satu pun opsi, arahan menghubungi 
 
     $component = Livewire::actingAs($supervisorB)
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', (string) $this->stationB->production_line_id)
         ->assertSeeHtml('data-testid="period-select"')
         ->assertSeeHtml('data-testid="no-period-hint"')
         ->assertSee('Hubungi Admin')
@@ -439,6 +452,7 @@ it('mill tanpa periode: pemilih periode tanpa satu pun opsi, arahan menghubungi 
 it('periode tanpa data: empty-state terlihat, kartu berbunyi tidak tersedia (bukan 0), dan grafik tidak digambar', function () {
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSeeHtml('data-testid="empty-state"')
         ->assertSee('Belum ada data pada periode ini')
         // An empty chart would read as a measured flat line, so it is not
@@ -493,7 +507,7 @@ it('tangki berpembacaan tunggal: sel pergerakan berbunyi tidak dapat dihitung, b
         ['time_slot' => '12:00', 'calculated_weight_mt' => 500.0],
     ]);
 
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->set('productionLineId', $this->lineA)->html();
 
     $row = laporanStorageTankRow($html, 'by-tank-row-TK-03');
 
@@ -528,7 +542,7 @@ it('pembacaan paling awal tanpa stok: baris TK-04 menampilkan 150,0 dari 03 Sep 
         ['time_slot' => '18:00', 'calculated_weight_mt' => 140.0],
     ]);
 
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->set('productionLineId', $this->lineA)->html();
 
     $row = laporanStorageTankRow($html, 'by-tank-row-TK-04');
 
@@ -555,7 +569,7 @@ it('tangki tanpa pembacaan stok: baris TK-06 tetap dirender dengan tidak tersedi
         ['ffa_percent' => 4.4, 'calculated_weight_mt' => null],
     ]);
 
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->set('productionLineId', $this->lineA)->html();
 
     $row = laporanStorageTankRow($html, 'by-tank-row-TK-06');
 
@@ -597,6 +611,7 @@ it('jumlah tangki berbeda di kedua ujung: kartu pergerakan +10,0 dan bukan 410,0
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $period->id);
 
     $html = $component->html();
@@ -629,7 +644,7 @@ it('pergerakan negatif: -180,0 apa adanya, tanpa kelas peringatan dan tanpa dibu
         ['time_slot' => '18:00', 'calculated_weight_mt' => 320.0],
     ]);
 
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->set('productionLineId', $this->lineA)->html();
 
     $movement = laporanStorageTankRendered($html, 'stock-movement-mt');
 
@@ -659,7 +674,7 @@ it('metrik yang tidak pernah diisi: kartu kotoran berbunyi tidak tersedia dengan
         ['ffa_percent' => 5.0, 'impurities_dirt_percent' => null],
     ]);
 
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->set('productionLineId', $this->lineA)->html();
 
     expect(laporanStorageTankRendered($html, 'metric-impurities-avg'))->toBe('tidak tersedia');
     expect(laporanStorageTankRendered($html, 'metric-impurities-avg'))->not->toBe('0,00');
@@ -688,7 +703,7 @@ it('kolom suhu rata-rata kosong: kartu suhu berbunyi tidak tersedia dengan 0 pem
         ],
     ]);
 
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->set('productionLineId', $this->lineA)->html();
 
     expect(laporanStorageTankRendered($html, 'metric-temperature-avg'))->toBe('tidak tersedia');
     expect(laporanStorageTankRendered($html, 'metric-temperature-min'))->toBe('tidak tersedia');
@@ -729,6 +744,7 @@ it('pencatatan sangat tidak lengkap: kartu kelengkapan menampilkan 3 dari 240 pa
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $period->id)
         ->assertSeeHtml('data-testid="coverage-card"')
         ->assertSeeHtml('data-testid="low-coverage-emphasis"');
@@ -763,6 +779,7 @@ it('akun tanpa mill: pesan menghubungi Admin, pemilih Mill TIDAK dirender, dan t
 
     $component = Livewire::actingAs($noMillSupervisor)
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSeeHtml('data-testid="no-mill-hint"')
         ->assertSee('Hubungi Admin')
         // FAIL CLOSED: offering the all-mills list to a role that is
@@ -799,6 +816,7 @@ it('mill lain: memaksa businessUnitId tidak mengubah satu angka pun, tetapi peri
     // bound role: still 200, still the caller's own mill.
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         ->set('businessUnitId', (string) $this->businessUnitB->id);
 
     $component->assertSee('Mill Alpha');
@@ -865,6 +883,7 @@ it('periode tertutup: penanda status Tertutup, seluruh blok tetap dirender, dan 
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $closed->id);
 
     $html = $component->html();
@@ -900,7 +919,8 @@ it('rekap harian panjang: terbuka secara bawaan, dapat ditutup, dan angka utama 
         ]);
     }
 
-    $component = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class);
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA);
 
     // OPEN BY DEFAULT — a decision, not a default left alone.
     $component->assertSet('dailyRecapOpen', true)
@@ -949,7 +969,7 @@ it('stok awal/akhir menurut waktu: 100,0 @01 Sep 06:00 dan 80,0 @10 Sep 18:00, w
         ['time_slot' => '06:00', 'calculated_weight_mt' => 90.0],
     ]);
 
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->set('productionLineId', $this->lineA)->html();
 
     // The period card sums the tanks' own openings/closings, and the
     // timestamps span the earliest opening to the latest closing.
@@ -993,6 +1013,7 @@ it('pergerakan bersih sama dengan jumlah kolom pergerakan by-tank-table, dan 410
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $period->id);
 
     $html = $component->html();
@@ -1025,7 +1046,7 @@ it('suhu rata-rata: kartu menampilkan 55,0 dari kolom Operator, dan tidak 60,0 h
         ],
     ]);
 
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->set('productionLineId', $this->lineA)->html();
 
     expect(laporanStorageTankRendered($html, 'metric-temperature-avg'))->toBe('55,0');
     expect(laporanStorageTankRendered($html, 'metric-temperature-reading-count'))->toBe('1');
@@ -1062,7 +1083,7 @@ it('penyebut terpisah: FFA 2 pembacaan rata-rata 4,0, kadar air 1 rata-rata 0,2 
         ['ffa_percent' => null, 'moisture_content_percent' => null, 'dobi_index' => 2.4],
     ]);
 
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->set('productionLineId', $this->lineA)->html();
 
     expect(laporanStorageTankRendered($html, 'metric-ffa-reading-count'))->toBe('2');
     expect(laporanStorageTankRendered($html, 'metric-ffa-avg'))->toBe('4,0');
@@ -1105,6 +1126,7 @@ it('rentang inklusif: rekap harian memuat kedua tanggal ujung, dan tanggal di lu
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $period->id);
 
     $html = $component->html();
@@ -1142,7 +1164,8 @@ it('satu grafik untuk tiga metrik: SATU quality-trend-chart, dan legendanya meny
         ]);
     }
 
-    $component = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class);
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA);
     $html = $component->html();
 
     // ONE drawing area for the three series — not three separate charts.
@@ -1192,7 +1215,7 @@ it('nilai ekstrem: kartu ekstrem membawa atribut class yang IDENTIK dengan kartu
             'moisture_content_percent' => 0.19],
     ]);
 
-    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->html();
+    $html = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)->set('productionLineId', $this->lineA)->html();
 
     foreach ([
         'threshold', 'outlier', 'iqr', 'fence', 'is_out_of_range', 'is-out-of-range',
@@ -1239,6 +1262,7 @@ it('baca saja: tidak ada method publik yang menulis, tidak ada testid aksi tulis
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         ->set('periodId', (string) $otherPeriod->id)
         ->set('periodId', (string) $this->periodA->id)
         ->call('toggleDailyRecap')
@@ -1279,7 +1303,8 @@ it('daftar periode: opsi memuat hanya periode yang punya baris period_stations s
     $periodAllTypes = Period::factory()->forBusinessUnit($this->businessUnitA)->stationType(null)
         ->range('2026-12-01', '2026-12-31')->named('Periode C Semua Stasiun')->open()->create();
 
-    $component = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class);
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA);
 
     $ids = array_column($component->viewData('periods'), 'id');
 
@@ -1321,6 +1346,7 @@ it('daftar periode: periode tanpa baris storage-tank tidak ditawarkan', function
         ->noStations()->range('2026-09-01', '2026-09-30')->named('Periode Tanpa Stasiun')->create();
 
     $component = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         ->assertDontSee('Periode Tanpa Storage Tank')
         ->assertDontSee('Periode Tanpa Stasiun');
 
@@ -1339,7 +1365,8 @@ it('daftar periode: status opsi memakai status storage-tank, bukan status stasiu
     PeriodStation::factory()->forPeriod($mixed)->stationType('storage-tank')->open()->create();
     PeriodStation::factory()->forPeriod($mixed)->stationType('sterilizer')->closed()->create();
 
-    $component = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class);
+    $component = Livewire::actingAs($this->supervisor)->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA);
 
     $option = collect($component->viewData('periods'))->firstWhere('id', (string) $mixed->id);
 
@@ -1388,6 +1415,7 @@ it('hidrasi query string: Admin yang tiba dari tautan tile langsung melihat lapo
     Livewire::actingAs($this->admin)
         ->withQueryParams(['business_unit_id' => (string) $this->businessUnitA->id])
         ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA)
         ->assertSet('businessUnitId', (string) $this->businessUnitA->id)
         ->assertSet('periodId', (string) $this->periodA->id)
         ->assertViewHas('needsMillSelection', false)
@@ -1431,6 +1459,7 @@ it('peran terikat mill: memaksa mill lain lewat query string tidak mengubah apa 
         Livewire::actingAs($user)
             ->withQueryParams(['business_unit_id' => (string) $this->businessUnitB->id])
             ->test(LaporanStorageTank::class)
+            ->set('productionLineId', $this->lineA)
             // Terhidrasi — dan tetap diabaikan.
             ->assertSet('businessUnitId', (string) $this->businessUnitB->id)
             ->assertSet('periodId', (string) $this->periodA->id)
@@ -1438,4 +1467,225 @@ it('peran terikat mill: memaksa mill lain lewat query string tidak mengubah apa 
                 && $summary['period']['business_unit_name'] === 'Mill Alpha'
                 && $summary['period']['name'] === 'Periode September Alpha');
     }
+});
+
+// =====================================================================
+// PRODUCTION LINE — konsumen pertama kolom `production_line_id` (ccc884d)
+//
+// Lima jaminan, satu per skenario di bawah:
+//   1. belum memilih line  -> tidak ada satu angka pun, hanya arahan memilih
+//   2. memilih line        -> angkanya MILIK LINE ITU, bukan jumlah dua line
+//   3. line mill lain      -> diabaikan, lewat properti maupun query string
+//   4. ekspor CSV          -> ikut tersaring ke line terpilih
+//   5. stasiun dipindah    -> recordnya TETAP terhitung di line asalnya
+//
+// SETIAP skenario penyaringan dibuat DUA ARAH — data line terpilih ADA, data
+// line lain TIDAK ADA. Alasannya bukan gaya: test berjalan di SQLite,
+// produksi di PostgreSQL, dan SQLite memperlakukan `where "kolom_tak_ada" = ?`
+// sebagai perbandingan string literal — 0 baris, tanpa error. Tanpa sisi
+// "ADA", sebuah filter yang menyaring HABIS akan hijau di sini dan meledak di
+// PostgreSQL.
+// =====================================================================
+
+/**
+ * Line KEDUA di MILL YANG SAMA, lengkap dengan stasiun Storage Tank-nya
+ * sendiri. Sengaja satu mill: jaminan yang diuji di sini bukan cakupan mill
+ * (itu sudah ditutup ec32cd9) melainkan cakupan LINE DI DALAM satu mill.
+ */
+function laporanStorageTankSecondLine(BusinessUnit $businessUnit, string $name = 'Line Kedua'): Station
+{
+    $line = ProductionLine::factory()->create([
+        'business_unit_id' => $businessUnit->id,
+        'name' => $name,
+    ]);
+
+    return Station::factory()->forProductionLine($line)->storageTank()->create();
+}
+
+/** Isi berkas CSV yang benar-benar diunduh dari layar. */
+function laporanStorageTankDownloadedCsv(Testable $component): string
+{
+    return base64_decode((string) data_get($component->effects, 'download.content'));
+}
+
+it('production line: tanpa line terpilih tidak ada satu angka pun, hanya arahan memilih', function () {
+    // Line A: 2 slot terisi, berat 100,0 MT.
+    laporanStorageTankComponentRecord($this->stationA, '2026-09-05', 'TK-LINE-A', [
+        ['calculated_weight_mt' => 100.0],
+        ['calculated_weight_mt' => 100.0],
+    ]);
+
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanStorageTank::class)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('needsProductionLineSelection', true)
+        // Tidak ada angka sama sekali — bukan laporan kosong, bukan nol.
+        ->assertViewHas('summary', null)
+        ->assertSeeHtml('data-testid="production-line-select"')
+        ->assertSeeHtml('data-testid="select-production-line-hint"')
+        ->assertSee('Pilih production line terlebih dahulu')
+        // TANPA opsi "semua" — itu perbedaan disengaja dari Data Browser.
+        ->assertDontSee('Semua Line')
+        ->assertDontSee('Semua Production Line')
+        ->assertDontSeeHtml('data-testid="recording-coverage"')
+        ->assertDontSeeHtml('data-testid="by-tank-table"');
+});
+
+it('production line: angka yang tampil milik line terpilih, bukan jumlah dua line', function () {
+    // Line A: 2 slot terisi, berat 100,0 MT.
+    laporanStorageTankComponentRecord($this->stationA, '2026-09-05', 'TK-LINE-A', [
+        ['calculated_weight_mt' => 100.0],
+        ['calculated_weight_mt' => 100.0],
+    ]);
+
+    $stationC = laporanStorageTankSecondLine($this->businessUnitA);
+    $lineC = (string) $stationC->production_line_id;
+    // Line C: 5 slot terisi, 500,0 MT. Rata-rata gabungan 385,7 — bukan salah
+    // satu dari keduanya, sehingga pencampuran ketahuan.
+    laporanStorageTankComponentRecord($stationC, '2026-09-06', 'TK-LINE-C', [
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+    ]);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA);
+
+    // ARAH PERTAMA — line A: angkanya milik A, dan BUKAN A+C.
+    $component->assertViewHas('summary', fn ($summary) => $summary['coverage']['filled_slots'] === 2
+        && $summary['metrics']['calculated_weight_mt']['avg'] === 100.0
+        && $summary['metrics']['calculated_weight_mt']['reading_count'] === 2);
+
+    // ARAH KEDUA — line C: angkanya berpindah seluruhnya ke C. Tanpa arah ini
+    // sebuah filter yang menyaring habis juga akan hijau.
+    $component->set('productionLineId', $lineC)
+        ->assertViewHas('summary', fn ($summary) => $summary['coverage']['filled_slots'] === 5
+            && $summary['metrics']['calculated_weight_mt']['avg'] === 500.0
+            && $summary['metrics']['calculated_weight_mt']['reading_count'] === 5);
+});
+
+it('production line: line mill lain diabaikan, lewat properti maupun lewat query string', function () {
+    // Line A: 2 slot terisi, berat 100,0 MT.
+    laporanStorageTankComponentRecord($this->stationA, '2026-09-05', 'TK-LINE-A', [
+        ['calculated_weight_mt' => 100.0],
+        ['calculated_weight_mt' => 100.0],
+    ]);
+
+    // (a) Lewat properti — dibuang saat render, jatuh ke "belum memilih".
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineB)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('needsProductionLineSelection', true)
+        ->assertViewHas('summary', null);
+
+    // (b) Lewat query string — sama saja.
+    Livewire::actingAs($this->supervisor)
+        ->withQueryParams(['production_line_id' => $this->lineB])
+        ->test(LaporanStorageTank::class)
+        ->assertSet('productionLineId', '')
+        ->assertViewHas('summary', null);
+
+    // (c) SISI POSITIFNYA, dan inilah yang menjaga `as: 'production_line_id'`:
+    // line yang sah dari query string BENAR-BENAR terhidrasi dan langsung
+    // memuat laporannya. Tanpa `as:`, Livewire memakai nama properti
+    // ('productionLineId') sebagai kunci query, keduanya tidak bertemu, dan
+    // asersi (a)/(b) di atas tetap hijau tanpa menandai apa pun.
+    Livewire::actingAs($this->supervisor)
+        ->withQueryParams(['production_line_id' => $this->lineA])
+        ->test(LaporanStorageTank::class)
+        ->assertSet('productionLineId', $this->lineA)
+        ->assertViewHas('needsProductionLineSelection', false)
+        ->assertViewHas('summary', fn ($summary) => $summary !== null && $summary['coverage']['filled_slots'] === 2
+        && $summary['metrics']['calculated_weight_mt']['avg'] === 100.0
+        && $summary['metrics']['calculated_weight_mt']['reading_count'] === 2);
+});
+
+it('production line: ekspor CSV hanya memuat baris line terpilih', function () {
+    // Line A: 2 slot terisi, berat 100,0 MT.
+    laporanStorageTankComponentRecord($this->stationA, '2026-09-05', 'TK-LINE-A', [
+        ['calculated_weight_mt' => 100.0],
+        ['calculated_weight_mt' => 100.0],
+    ]);
+
+    $stationC = laporanStorageTankSecondLine($this->businessUnitA);
+    $lineC = (string) $stationC->production_line_id;
+    // Line C: 5 slot terisi, 500,0 MT. Rata-rata gabungan 385,7 — bukan salah
+    // satu dari keduanya, sehingga pencampuran ketahuan.
+    laporanStorageTankComponentRecord($stationC, '2026-09-06', 'TK-LINE-C', [
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+        ['calculated_weight_mt' => 500.0],
+    ]);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanStorageTank::class)
+        ->set('productionLineId', $this->lineA);
+
+    $component->call('exportCsv', 'csv')->assertFileDownloaded(null, null, 'text/csv');
+
+    $csv = laporanStorageTankDownloadedCsv($component);
+
+    expect($csv)->toContain('TK-LINE-A');
+    expect($csv)->not->toContain('TK-LINE-C');
+
+    // Arah sebaliknya, berkas yang sama sekali berbeda isinya.
+    $component->set('productionLineId', $lineC)->call('exportCsv', 'csv');
+
+    $csvC = laporanStorageTankDownloadedCsv($component);
+
+    expect($csvC)->toContain('TK-LINE-C');
+    expect($csvC)->not->toContain('TK-LINE-A');
+});
+
+it('production line: tanpa line terpilih tidak ada berkas yang diunduh sama sekali', function () {
+    // Line A: 2 slot terisi, berat 100,0 MT.
+    laporanStorageTankComponentRecord($this->stationA, '2026-09-05', 'TK-LINE-A', [
+        ['calculated_weight_mt' => 100.0],
+        ['calculated_weight_mt' => 100.0],
+    ]);
+
+    Livewire::actingAs($this->supervisor)
+        ->test(LaporanStorageTank::class)
+        ->call('exportCsv', 'csv')
+        ->assertNoFileDownloaded();
+});
+
+it('production line: record yang stasiunnya sudah dipindah tetap terhitung di line asalnya', function () {
+    // Line A: 2 slot terisi, berat 100,0 MT.
+    laporanStorageTankComponentRecord($this->stationA, '2026-09-05', 'TK-LINE-A', [
+        ['calculated_weight_mt' => 100.0],
+        ['calculated_weight_mt' => 100.0],
+    ]);
+
+    // Stasiunnya dipindah ke line lain DI MILL YANG SAMA — perubahan
+    // konfigurasi yang sah, bukan perbaikan data.
+    $lineBaru = ProductionLine::factory()->create([
+        'business_unit_id' => $this->businessUnitA->id,
+        'name' => 'Line Baru',
+    ]);
+
+    $this->stationA->update(['production_line_id' => $lineBaru->id]);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(LaporanStorageTank::class);
+
+    // DI LINE ASALNYA: masih terhitung utuh. Hanya mungkin karena filternya
+    // membaca kolom `production_line_id` DI TABEL RECORD — sebuah join ke
+    // `stations` akan memindahkan angka ini ke Line Baru dan menulis ulang
+    // sejarah periode yang sudah lewat.
+    $component->set('productionLineId', $this->lineA)
+        ->assertViewHas('summary', fn ($summary) => $summary['coverage']['filled_slots'] === 2
+        && $summary['metrics']['calculated_weight_mt']['avg'] === 100.0
+        && $summary['metrics']['calculated_weight_mt']['reading_count'] === 2);
+
+    // DI LINE BARUNYA: tidak ada apa pun. Stasiunnya memang ada di sana
+    // sekarang, tetapi tidak satu pun record dihasilkan di sana.
+    $component->set('productionLineId', (string) $lineBaru->id)
+        ->assertViewHas('summary', fn ($summary) => $summary['coverage']['filled_slots'] === 0 && $summary['has_data'] === false);
 });

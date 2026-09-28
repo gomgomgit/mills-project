@@ -164,7 +164,7 @@ it('returns a paginated, filtered list with the shared pagination meta shape', f
     ]);
     expect($result['data'])->toHaveCount(2);
     expect(array_keys($result['data'][0]))->toBe([
-        'id', 'cages_track_number', 'date', 'tipped_time_count', 'status',
+        'id', 'cages_track_number', 'date', 'tipped_time_count', 'production_line_name', 'status',
     ]);
 
     // Page 2 has the remaining 1 matching record.

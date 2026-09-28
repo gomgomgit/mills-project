@@ -6,6 +6,7 @@ use App\Livewire\Data\Concerns\HandlesRecordVerification;
 use App\Models\EngineRoomRecord;
 use App\Services\EngineRoomRecordService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -47,7 +48,16 @@ class DetailEngineRoom extends Component
 
         try {
             $this->reloadRecord();
-        } catch (ModelNotFoundException) {
+        } catch (ModelNotFoundException|ValidationException) {
+            // ValidationException ikut ditangkap sejak 2026-09-28: aktor
+            // terikat mill yang `users.business_unit_id`-nya kosong membuat
+            // getDetail() gagal-tertutup 422 lewat
+            // ScopesToActorMill::actorReadMillId(). Bagi aktor seperti itu
+            // TIDAK ADA record yang terlihat sama sekali, jadi $notFound
+            // memang keadaan yang benar — dan itu lebih baik daripada
+            // halaman error 422 penuh. Pesan yang bisa ditindaklanjuti
+            // ("Hubungi Admin") tetap sampai lewat Data Browser dan lewat
+            // save di layar Form.
             $this->notFound = true;
         }
     }

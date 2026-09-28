@@ -18,10 +18,20 @@ use App\Models\User;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
+    // FIXTURE DIPERBAIKI 2026-09-28. Tanpa forBusinessUnit() ketiga aktor
+    // terikat mill ini lahir di MILL LAIN (default UserFactory membuat
+    // BusinessUnit baru), dan test tetap hijau justru karena jalur baca ini
+    // belum punya cakupan mill. Fixture-nya yang salah, bukan asersinya.
+    // Admin sengaja dibiarkan apa adanya: Admin dinilai dari PERAN, kolom
+    // `business_unit_id`-nya memang diabaikan.
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
     $this->admin = User::factory()->role(UserRole::Admin)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
-    $this->operator = User::factory()->role(UserRole::Operator)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
+    $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnit)->create();
+
+    // Mill kedua + stasiunnya: pembanding untuk test cakupan mill di bawah.
+    $this->otherBusinessUnit = BusinessUnit::factory()->create();
+    $this->otherStation = Station::factory()->forBusinessUnit($this->otherBusinessUnit)->create();
 });
 
 it('berhasil: returns the full record with resolved names and its details grid', function () {
@@ -96,4 +106,38 @@ it('rejects unauthenticated requests', function () {
     $record = ClarificationRecord::factory()->forStation($this->station)->create();
 
     $this->getJson("/api/clarification-records/{$record->id}")->assertStatus(401);
+});
+
+// ─── CAKUPAN MILL (2026-09-28) ──────────────────────────────────────────────
+// Sampai hari ini getDetail() hanya findOrFail() tanpa cakupan mill apa pun:
+// UUID record mill lain mengembalikan RECORD LENGKAP, bukan 404. Sekarang
+// cakupannya ada di QUERY, jadi record itu tidak ada sama sekali bagi aktor
+// mill lain — 404, dan tidak ada konfirmasi bahwa record itu memang ada.
+it('cakupan mill: UUID record Mill B mengembalikan 404 bagi Supervisor Mill A, bukan datanya', function () {
+    $theirs = ClarificationRecord::factory()->forStation($this->otherStation)->create();
+
+    $response = $this->actingAs($this->supervisor, 'web')->getJson("/api/clarification-records/{$theirs->id}");
+
+    $response->assertStatus(404);
+    $response->assertJsonPath('code', 'NOT_FOUND');
+    // ISI, bukan sekadar status: tidak satu pun field record itu ikut keluar.
+    $response->assertJsonMissing(['id' => $theirs->id]);
+});
+
+it('cakupan mill: Admin tetap bisa membaca record mill mana pun', function () {
+    $theirs = ClarificationRecord::factory()->forStation($this->otherStation)->create();
+
+    $this->actingAs($this->admin, 'web')->getJson("/api/clarification-records/{$theirs->id}")
+        ->assertOk()
+        ->assertJsonFragment(['id' => $theirs->id]);
+});
+
+it('cakupan mill: aktor terikat mill tanpa business_unit_id gagal-tertutup 422', function () {
+    $record = ClarificationRecord::factory()->forStation($this->station)->create();
+    $millless = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+
+    $this->actingAs($millless, 'web')->getJson("/api/clarification-records/{$record->id}")
+        ->assertStatus(422)
+        ->assertJsonPath('code', 'VALIDATION_ERROR')
+        ->assertJsonMissing(['id' => $record->id]);
 });

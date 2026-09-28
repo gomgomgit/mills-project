@@ -22,10 +22,10 @@ use App\Models\User;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->solidWasteStation = Station::factory()->forBusinessUnit($this->businessUnit)->solidWasteDisposal()->create();
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
     $this->admin = User::factory()->role(UserRole::Admin)->create();
-    $this->operator = User::factory()->role(UserRole::Operator)->create();
+    $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnit)->create();
 });
 
 function solidWasteApiPayload(array $overrides = []): array
@@ -93,7 +93,7 @@ it('returns 422 VALIDATION_ERROR when no detail row has an event_date', function
 
 // Scenario: "Production Line Tanpa Station Solid Waste Disposal Aktif"
 it('returns 422 when production_line_id has no active solid-waste-disposal station', function () {
-    $otherProductionLine = ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
 
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/solid-waste-disposal-records', solidWasteApiPayload([
         'production_line_id' => $otherProductionLine->id,
@@ -182,4 +182,41 @@ it('rejects unauthenticated requests on create and update', function () {
 
     $record = SolidWasteDisposalRecord::factory()->forStation($this->solidWasteStation)->create();
     $this->patchJson("/api/solid-waste-disposal-records/{$record->id}", solidWasteApiPayload())->assertStatus(401);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Cross-mill write guard — HTTP contract (2026-09-28)
+|--------------------------------------------------------------------------
+| 403 FORBIDDEN (not 422): payload well-formed, target row real, actor simply
+| has no access to that mill. See App\Exceptions\CrossMillWriteDeniedException.
+*/
+
+it('menolak 403 FORBIDDEN saat POST memakai production_line_id mill lain, tanpa menulis satu baris pun', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->solidWasteDisposal()->create();
+    $recordsBefore = SolidWasteDisposalRecord::count();
+
+    $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/solid-waste-disposal-records', solidWasteApiPayload([
+        'production_line_id' => $otherStation->production_line_id, 'details' => [['event_date' => '2026-08-31', 'gross_weight_mt' => 10, 'tare_weight_mt' => 2]],
+    ]));
+
+    $response->assertStatus(403);
+    $response->assertJsonPath('code', 'FORBIDDEN');
+    expect(SolidWasteDisposalRecord::count())->toBe($recordsBefore);
+});
+
+it('menolak 403 FORBIDDEN saat PATCH record milik mill lain, dan tidak mengubah satu kolom pun', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->solidWasteDisposal()->create();
+    $record = SolidWasteDisposalRecord::factory()->forStation($otherStation)->create(['solid_waste_disposal_id' => 'SCOPE-MILIK-MILL-B']);
+    $before = $record->fresh()->getAttributes();
+
+    $response = $this->actingAs($this->supervisor, 'web')->patchJson("/api/solid-waste-disposal-records/{$record->id}", solidWasteApiPayload([
+        'solid_waste_disposal_id' => 'SCOPE-HIJACKED', 'details' => [['event_date' => '2026-08-31', 'gross_weight_mt' => 10, 'tare_weight_mt' => 2]],
+    ]));
+
+    $response->assertStatus(403);
+    $response->assertJsonPath('code', 'FORBIDDEN');
+    expect($record->fresh()->getAttributes())->toBe($before);
 });

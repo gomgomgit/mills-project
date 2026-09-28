@@ -26,8 +26,8 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->pressingStation = Station::factory()->forBusinessUnit($this->businessUnit)->pressing()->create();
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
     // FormPressing's render() queries PressingOperationalTarget live —
     // RefreshDatabase migrates but does not run seeders, so the 7
     // reference rows must be seeded explicitly here for tests asserting
@@ -148,7 +148,7 @@ it('shows detail-specific error when there are zero valid detail rows on save', 
 });
 
 it('shows an error when the selected Production Line has no active pressing station', function () {
-    $otherProductionLine = ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
     $component = Livewire::actingAs($this->supervisor)->test(FormPressing::class);
 
     $component->set('form.production_line_id', $otherProductionLine->id);
@@ -233,4 +233,45 @@ it('renders the Target Operasional reference table with 7 rows', function () {
         ->assertSeeHtml('data-testid="operational-target-table"')
         ->assertSee('Cone Hydraulic Pressure')
         ->assertSee('45 - 55 Bar');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Dropdown Production Line hanya boleh menawarkan mill aktor (2026-09-28)
+|--------------------------------------------------------------------------
+| Sisi UI dari penjaga yang sama: dropdown tidak boleh menawarkan apa yang
+| akan ditolak oleh FormPressing. Lihat
+| App\Support\Concerns\ScopesToActorMill::productionLineOptionsForActor().
+*/
+
+it('hanya memuat production line milik mill aktor pada dropdown', function () {
+    $ownLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherLine = ProductionLine::factory()->forBusinessUnit(BusinessUnit::factory()->create())->create();
+
+    $options = Livewire::actingAs($this->supervisor)->test(FormPressing::class)->get('productionLineOptions');
+    $ids = collect($options)->pluck('id');
+
+    expect($ids)->toContain($ownLine->id);
+    expect($ids)->not->toContain($otherLine->id);
+});
+
+it('memberi Admin seluruh production line lintas mill', function () {
+    $ownLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherLine = ProductionLine::factory()->forBusinessUnit(BusinessUnit::factory()->create())->create();
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    $options = Livewire::actingAs($admin)->test(FormPressing::class)->get('productionLineOptions');
+    $ids = collect($options)->pluck('id');
+
+    expect($ids)->toContain($ownLine->id);
+    expect($ids)->toContain($otherLine->id);
+});
+
+it('memberi daftar kosong ketika akun aktor belum terhubung ke mill', function () {
+    ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $actor = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+
+    $options = Livewire::actingAs($actor)->test(FormPressing::class)->get('productionLineOptions');
+
+    expect($options)->toBe([]);
 });

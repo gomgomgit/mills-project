@@ -22,10 +22,10 @@ use App\Models\User;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->sterilizerStation = Station::factory()->forBusinessUnit($this->businessUnit)->sterilizer()->create();
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
     $this->admin = User::factory()->role(UserRole::Admin)->create();
-    $this->operator = User::factory()->role(UserRole::Operator)->create();
+    $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnit)->create();
 });
 
 function sterilizerApiPayload(array $overrides = []): array
@@ -97,7 +97,7 @@ it('returns 422 VALIDATION_ERROR when no detail row has a close_door_time', func
 
 // Scenario: "Production Line Tanpa Station Sterilizer Aktif"
 it('returns 422 when production_line_id has no active sterilizer station', function () {
-    $otherProductionLine = ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
 
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/sterilizer-records', sterilizerApiPayload([
         'production_line_id' => $otherProductionLine->id,
@@ -186,4 +186,41 @@ it('rejects unauthenticated requests on create and update', function () {
 
     $record = SterilizerRecord::factory()->forStation($this->sterilizerStation)->create();
     $this->patchJson("/api/sterilizer-records/{$record->id}", sterilizerApiPayload())->assertStatus(401);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Cross-mill write guard — HTTP contract (2026-09-28)
+|--------------------------------------------------------------------------
+| 403 FORBIDDEN (not 422): payload well-formed, target row real, actor simply
+| has no access to that mill. See App\Exceptions\CrossMillWriteDeniedException.
+*/
+
+it('menolak 403 FORBIDDEN saat POST memakai production_line_id mill lain, tanpa menulis satu baris pun', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->sterilizer()->create();
+    $recordsBefore = SterilizerRecord::count();
+
+    $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/sterilizer-records', sterilizerApiPayload([
+        'production_line_id' => $otherStation->production_line_id, 'details' => [['close_door_time' => '07:00', 'open_door_time' => '08:10']],
+    ]));
+
+    $response->assertStatus(403);
+    $response->assertJsonPath('code', 'FORBIDDEN');
+    expect(SterilizerRecord::count())->toBe($recordsBefore);
+});
+
+it('menolak 403 FORBIDDEN saat PATCH record milik mill lain, dan tidak mengubah satu kolom pun', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->sterilizer()->create();
+    $record = SterilizerRecord::factory()->forStation($otherStation)->create(['sterilizer_id' => 'SCOPE-MILIK-MILL-B']);
+    $before = $record->fresh()->getAttributes();
+
+    $response = $this->actingAs($this->supervisor, 'web')->patchJson("/api/sterilizer-records/{$record->id}", sterilizerApiPayload([
+        'sterilizer_id' => 'SCOPE-HIJACKED', 'details' => [['close_door_time' => '07:00', 'open_door_time' => '08:10']],
+    ]));
+
+    $response->assertStatus(403);
+    $response->assertJsonPath('code', 'FORBIDDEN');
+    expect($record->fresh()->getAttributes())->toBe($before);
 });

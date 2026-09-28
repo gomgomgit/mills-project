@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\UnauthorizedException;
 
@@ -32,6 +33,8 @@ use Illuminate\Validation\UnauthorizedException;
  */
 class RecordVerificationService
 {
+    use ScopesToActorMill;
+
     public const LEVEL_CHECKED = 'checked';
 
     public const LEVEL_ACKNOWLEDGED = 'acknowledged';
@@ -81,6 +84,8 @@ class RecordVerificationService
      * @param  class-string<Model>  $modelClass
      *
      * @throws UnauthorizedException when the actor's role may not write this level
+     * @throws \App\Exceptions\CrossMillWriteDeniedException 403 — record belongs to another mill
+     * @throws \Illuminate\Validation\ValidationException 422 — mill-bound actor with no mill
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException when the record is gone
      */
     public function setVerification(string $modelClass, string $recordId, User $actor, string $level, bool $value): void
@@ -90,6 +95,24 @@ class RecordVerificationService
         }
 
         $record = $modelClass::query()->findOrFail($recordId);
+
+        // JALUR TULIS KEEMPAT. canVerify() di atas hanya memeriksa PERAN;
+        // sampai 2026-09-28 tidak ada satu pun pemeriksaan mill di sini,
+        // sehingga Supervisor Mill A yang tahu UUID sebuah record Mill B
+        // bisa menyetujuinya — atau MEMBATALKAN persetujuan orang lain,
+        // yang sama merusaknya karena arah `false` menghapus atestasi yang
+        // sah.
+        //
+        // Penjaganya persis sama dengan create()/update() di 18
+        // *RecordService (ScopesToActorMill, tahap 1a): Admin dinilai dari
+        // PERAN dan bebas; Operator/Supervisor/Mill Management dibatasi
+        // `users.business_unit_id`; aktor non-Admin tanpa mill
+        // gagal-tertutup 422. Bukan mekanisme kedua — trait yang sama.
+        //
+        // Letaknya TEPAT SETELAH findOrFail() dan SEBELUM forceFill(), jadi
+        // penolakan terjadi sebelum satu kolom pun berubah: tidak ada efek
+        // separuh untuk di-rollback.
+        $this->assertRecordWritableByActor($record, $actor);
 
         $record->forceFill([
             $this->column($level) => $value ? $actor->id : null,

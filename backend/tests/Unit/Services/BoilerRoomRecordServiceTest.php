@@ -16,6 +16,7 @@
 
 use App\Enums\RecordStatus;
 use App\Enums\UserRole;
+use App\Exceptions\CrossMillWriteDeniedException;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
 use App\Exceptions\NoActiveBoilerRoomStationException;
@@ -51,7 +52,16 @@ beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->boilerRoomStation = Station::factory()->forBusinessUnit($this->businessUnit)->boilerRoom()->create();
-    $this->creator = User::factory()->create();
+    $this->creator = User::factory()->forBusinessUnit($this->businessUnit)->create();
+
+    // Jalur BACA (listRecords/export/getDetail) sejak 2026-09-28 memakai
+    // AKTOR TERAUTENTIKASI, bukan parameter — lihat bagian READ SIDE di
+    // App\Support\Concerns\ScopesToActorMill. Test unit di berkas ini
+    // ditulis untuk semantik baca TANPA cakupan mill, jadi aktornya Admin:
+    // Admin memang tidak terikat mill, sehingga setiap asersi lama tetap
+    // menguji hal yang persis sama. Cakupan mill untuk peran terikat diuji
+    // di tests/Feature/Livewire/DataBrowser*Test.php dan Detail*Test.php.
+    $this->actingAs(User::factory()->role(UserRole::Admin)->create());
 });
 
 it('returns 24 canonical time slots starting at 07:00 and wrapping through 06:00', function () {
@@ -220,8 +230,8 @@ it('returns null checked_by_name and acknowledged_by_name when not set', functio
 });
 
 it('resolves created_by_name, checked_by_name, acknowledged_by_name to user names when present', function () {
-    $checker = User::factory()->create(['name' => 'Budi Checker']);
-    $acknowledger = User::factory()->create(['name' => 'Siti Manager']);
+    $checker = User::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Budi Checker']);
+    $acknowledger = User::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Siti Manager']);
     $record = BoilerRoomRecord::factory()->forStation($this->station)->create([
         'created_by' => $this->creator->id,
         'checked_by' => $checker->id,
@@ -386,7 +396,7 @@ it('coerces empty-string enum values to null instead of failing the SQLite CHECK
 });
 
 it('throws NoActiveBoilerRoomStationException when production_line_id has no active boiler-room station', function () {
-    $otherProductionLine = ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
 
     expect(fn () => $this->service->create(
         boilerRoomFormPayload(['production_line_id' => $otherProductionLine->id]),
@@ -395,7 +405,7 @@ it('throws NoActiveBoilerRoomStationException when production_line_id has no act
 });
 
 it('sets checked_by to requester id when checked=true and requester role=supervisor', function () {
-    $supervisor = User::factory()->role(UserRole::Supervisor)->create();
+    $supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         boilerRoomFormPayload(['production_line_id' => $this->boilerRoomStation->production_line_id, 'checked' => true]),
@@ -406,7 +416,7 @@ it('sets checked_by to requester id when checked=true and requester role=supervi
 });
 
 it('ignores checked=true when requester role is not supervisor', function () {
-    $millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         boilerRoomFormPayload(['production_line_id' => $this->boilerRoomStation->production_line_id, 'checked' => true]),
@@ -417,7 +427,7 @@ it('ignores checked=true when requester role is not supervisor', function () {
 });
 
 it('sets acknowledged_by to requester id when acknowledged=true and requester role=mill_management', function () {
-    $millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         boilerRoomFormPayload(['production_line_id' => $this->boilerRoomStation->production_line_id, 'acknowledged' => true]),
@@ -516,4 +526,107 @@ it('throws ModelNotFoundException when updating a non-existent id', function () 
         boilerRoomFormPayload(),
         $this->creator
     ))->toThrow(ModelNotFoundException::class);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Cross-mill write guard (BoilerRoom) — 2026-09-28
+|--------------------------------------------------------------------------
+| A Production Line is a CHOSEN CONTEXT, not an account binding: the rule
+| under test is "the chosen line must sit inside the ACTOR'S mill"
+| (users.business_unit_id), with Admin recognised BY ROLE and therefore not
+| mill-bound at all. See App\Support\Concerns\ScopesToActorMill.
+|
+| Before 2026-09-28 create() took `production_line_id` from the client and
+| never looked at the actor's mill, and update() never checked ownership at
+| all — an Operator of Mill A could write, and PATCH, Mill B's log sheet.
+*/
+
+it('menolak create() ke production line mill lain, tanpa menulis satu baris pun', function (UserRole $role) {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->boilerRoom()->create();
+    $actor = User::factory()->role($role)->forBusinessUnit($this->businessUnit)->create();
+
+    $recordsBefore = BoilerRoomRecord::count();
+    $detailsBefore = BoilerRoomDetail::count();
+
+    expect(fn () => $this->service->create(boilerRoomFormPayload(['production_line_id' => $otherStation->production_line_id]), $actor))
+        ->toThrow(CrossMillWriteDeniedException::class);
+
+    expect(BoilerRoomRecord::count())->toBe($recordsBefore);
+    expect(BoilerRoomDetail::count())->toBe($detailsBefore);
+})->with([
+    'operator' => UserRole::Operator,
+    'supervisor' => UserRole::Supervisor,
+    'mill management' => UserRole::MillManagement,
+]);
+
+it('menolak update() record milik mill lain, dan tidak mengubah satu kolom pun', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->boilerRoom()->create();
+    $record = BoilerRoomRecord::factory()->forStation($otherStation)->create(['boiler_room_id' => 'SCOPE-MILIK-MILL-B']);
+    $before = $record->fresh()->getAttributes();
+
+    expect(fn () => $this->service->update($record->id, boilerRoomFormPayload(['boiler_room_id' => 'SCOPE-HIJACKED']), $this->creator))
+        ->toThrow(CrossMillWriteDeniedException::class);
+
+    expect($record->fresh()->getAttributes())->toBe($before);
+});
+
+it('mengizinkan Admin menulis ke line mill mana pun (dibuktikan dengan dua mill berbeda)', function () {
+    $millB = BusinessUnit::factory()->create();
+    $stationB = Station::factory()->forBusinessUnit($millB)->boilerRoom()->create();
+    // Admin dinilai dari PERAN: business_unit_id-nya sengaja diisi (19 dari 21
+    // Admin di dev punya kolom ini terisi) dan harus diabaikan.
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    $inOwnMill = $this->service->create(boilerRoomFormPayload(['production_line_id' => $this->boilerRoomStation->production_line_id, 'boiler_room_id' => 'SCOPE-MILL-A']), $admin);
+    $inOtherMill = $this->service->create(boilerRoomFormPayload(['production_line_id' => $stationB->production_line_id, 'boiler_room_id' => 'SCOPE-MILL-B']), $admin);
+
+    expect(BoilerRoomRecord::find($inOwnMill['id'])->station_id)->toBe($this->boilerRoomStation->id);
+    expect(BoilerRoomRecord::find($inOtherMill['id'])->station_id)->toBe($stationB->id);
+});
+
+it('gagal tertutup dengan pesan actionable ketika akun aktor belum terhubung ke mill', function () {
+    $actor = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+    $recordsBefore = BoilerRoomRecord::count();
+
+    try {
+        $this->service->create(boilerRoomFormPayload(['production_line_id' => $this->boilerRoomStation->production_line_id]), $actor);
+        $this->fail('create() seharusnya ditolak untuk aktor tanpa business_unit_id.');
+    } catch (ValidationException $e) {
+        expect($e->errors()['production_line_id'][0])->toBe('Akun Anda belum terhubung ke mill. Hubungi Admin.');
+    }
+
+    expect(BoilerRoomRecord::count())->toBe($recordsBefore);
+});
+
+it('tetap mengizinkan create() dan update() pada line mill sendiri', function () {
+    $created = $this->service->create(boilerRoomFormPayload(['production_line_id' => $this->boilerRoomStation->production_line_id, 'boiler_room_id' => 'SCOPE-OWN-1']), $this->creator);
+
+    expect(BoilerRoomRecord::find($created['id'])->station_id)->toBe($this->boilerRoomStation->id);
+
+    $this->service->update($created['id'], boilerRoomFormPayload(['boiler_room_id' => 'SCOPE-OWN-2']), $this->creator);
+
+    expect(BoilerRoomRecord::find($created['id'])->boiler_room_id)->toBe('SCOPE-OWN-2');
+});
+
+it('memilih stasiun aktif secara deterministik saat satu line punya dua stasiun bertipe sama', function () {
+    // `stations` TIDAK punya UNIQUE(production_line_id, type) — satu-satunya
+    // unique di tabel itu adalah `code` — jadi dua stasiun aktif bertipe sama
+    // pada satu line adalah data yang LEGAL, dan ->first() tanpa orderBy
+    // memilih di antaranya secara nondeterministik (bisa berbeda antara
+    // PostgreSQL dan SQLite). resolveActiveStationForActor() mengurutkan
+    // created_at lalu id: yang paling tua menang, selalu.
+    $older = Station::factory()
+        ->forProductionLine($this->boilerRoomStation->production_line_id)
+        ->boilerRoom()
+        ->create(['created_at' => now()->subDay()]);
+
+    $created = $this->service->create(boilerRoomFormPayload([
+        'production_line_id' => $this->boilerRoomStation->production_line_id,
+        'boiler_room_id' => 'SCOPE-DETERMINISTIK',
+    ]), $this->creator);
+
+    expect(BoilerRoomRecord::find($created['id'])->station_id)->toBe($older->id);
 });

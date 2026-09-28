@@ -3,12 +3,13 @@
 namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
-use App\Models\BusinessUnit;
 use App\Models\GradingParameter;
 use App\Models\Station;
 use App\Models\WeighbridgeRecord;
 use App\Services\GradingRecordService;
 use App\Services\StationService;
+use App\Support\Concerns\ScopesToActorMill;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -45,6 +46,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 #[Layout('data.grading-form')]
 class FormGrading extends Component
 {
+    use ScopesToActorMill;
+
     protected const FIELDS = [
         'production_line_id',
         'grading_number',
@@ -109,7 +112,7 @@ class FormGrading extends Component
 
     public function mount(?string $id = null): void
     {
-        $this->businessUnitOptions = BusinessUnit::query()->orderBy('name')->get(['id', 'name'])->toArray();
+        $this->businessUnitOptions = $this->businessUnitOptionsForActor(auth()->user());
         $this->gradingParameterOptions = GradingParameter::query()
             ->orderBy('sort_order')
             ->get(['id', 'name', 'uom'])
@@ -128,7 +131,16 @@ class FormGrading extends Component
 
         try {
             $record = app(GradingRecordService::class)->getDetail($id);
-        } catch (ModelNotFoundException) {
+        } catch (ModelNotFoundException|ValidationException) {
+            // ValidationException ikut ditangkap sejak 2026-09-28: aktor
+            // terikat mill yang `users.business_unit_id`-nya kosong membuat
+            // getDetail() gagal-tertutup 422 lewat
+            // ScopesToActorMill::actorReadMillId(). Bagi aktor seperti itu
+            // TIDAK ADA record yang terlihat sama sekali, jadi $notFound
+            // memang keadaan yang benar — dan itu lebih baik daripada
+            // halaman error 422 penuh. Pesan yang bisa ditindaklanjuti
+            // ("Hubungi Admin") tetap sampai lewat Data Browser dan lewat
+            // save di layar Form.
             $this->notFound = true;
 
             return;
@@ -172,15 +184,37 @@ class FormGrading extends Component
         $this->loadWeighbridgeOptions($this->form['business_unit_id']);
     }
 
+    /**
+     * Mengunci `$form['business_unit_id']` ke mill aktor sebelum cascade
+     * apa pun dibaca (2026-09-28). Dropdown mill-nya sudah disempitkan oleh
+     * businessUnitOptionsForActor(), tapi properti Livewire-nya publik dan
+     * bisa di-set ke mill mana pun lewat request yang dibuat-buat — tanpa
+     * langkah ini, cascade-nya memuat production line (dan di Form Grading,
+     * WB Card No) milik mill lain. Nilainya ditulis balik ke $form supaya
+     * layarnya tidak menampilkan mill yang sudah dibuang.
+     */
+    protected function pinFormMillToActor(): ?string
+    {
+        $current = (string) ($this->form['business_unit_id'] ?? '');
+
+        $pinned = $this->clampMillIdForActor(auth()->user(), $current !== '' ? $current : null);
+
+        $this->form['business_unit_id'] = (string) ($pinned ?? '');
+
+        return $pinned;
+    }
+
     protected function loadProductionLineOptions(): void
     {
-        $businessUnitId = $this->form['business_unit_id'];
+        $businessUnitId = $this->pinFormMillToActor();
         $this->productionLineOptions = app(StationService::class)
-            ->productionLineOptions($businessUnitId !== '' ? $businessUnitId : null);
+            ->productionLineOptions($businessUnitId);
     }
 
     protected function loadWeighbridgeOptions(?string $businessUnitId): void
     {
+        $businessUnitId = $this->clampMillIdForActor(auth()->user(), $businessUnitId);
+
         if (blank($businessUnitId)) {
             $this->weighbridgeOptions = [];
 
@@ -309,7 +343,11 @@ class FormGrading extends Component
             $this->errors_ = collect($errors)->map(fn ($messages) => $messages[0])->all();
 
             return;
-        } catch (HttpException $e) {
+        } catch (HttpException|AuthorizationException $e) {
+            // Sejak 2026-09-28 blok ini juga menangkap
+            // CrossMillWriteDeniedException (403 — production line atau
+            // record milik mill lain), supaya penolakan itu muncul sebagai
+            // alert di layar, bukan halaman 403.
             // e.g. NoActiveGradingStationException (422) — a single,
             // non-field-keyed condition, shown as a page-level alert
             // rather than an inline per-field error.

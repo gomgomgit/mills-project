@@ -21,7 +21,16 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
-    $this->user = User::factory()->role(UserRole::Supervisor)->create();
+    // FIXTURE DIPERBAIKI 2026-09-28. Sebelumnya tanpa forBusinessUnit():
+    // default UserFactory adalah `'business_unit_id' => BusinessUnit::factory()`,
+    // jadi Supervisor ini lahir di MILL LAIN — dan test tetap hijau justru
+    // karena getDetail() belum punya cakupan mill. Fixture-nya yang salah,
+    // bukan asersinya.
+    $this->user = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+
+    // Mill kedua + stasiunnya: pembanding untuk test cakupan mill di bawah.
+    $this->otherBusinessUnit = BusinessUnit::factory()->create();
+    $this->otherStation = Station::factory()->forBusinessUnit($this->otherBusinessUnit)->create();
 });
 
 it('berhasil: renders all header fields and the Process Quality Control Detail grid, read-only', function () {
@@ -71,4 +80,31 @@ it('shows an empty-state row when the record has zero detail rows', function () 
     Livewire::actingAs($this->user)
         ->test(DetailProcessQualityControl::class, ['id' => $record->id])
         ->assertSeeHtml('data-testid="process-quality-control-detail-rows-empty"');
+});
+
+// ─── CAKUPAN MILL (2026-09-28) ──────────────────────────────────────────────
+// Sampai hari ini getDetail() hanya findOrFail() tanpa cakupan mill apa pun,
+// jadi layar ini memuat record mill lain SECARA UTUH bila UUID-nya diketahui
+// (mis. dari tautan yang dibagikan) — 403 baru muncul jauh kemudian, saat
+// save. Sekarang cakupannya ada di QUERY, sehingga record itu tidak ada sama
+// sekali bagi aktor Mill A dan layar jatuh ke state $notFound yang sudah
+// ditangani, bukan halaman 403 dan bukan konfirmasi bahwa record itu ada.
+it('cakupan mill: UUID record Mill B tidak bisa dibuka Supervisor Mill A', function () {
+    $theirs = ProcessQualityControlRecord::factory()->forStation($this->otherStation)->create();
+
+    Livewire::actingAs($this->user)
+        ->test(DetailProcessQualityControl::class, ['id' => $theirs->id])
+        ->assertSet('notFound', true)
+        ->assertSet('record', null)
+        ->assertSee('Record tidak ditemukan');
+});
+
+it('cakupan mill: Admin tetap bisa membuka record mill mana pun', function () {
+    $theirs = ProcessQualityControlRecord::factory()->forStation($this->otherStation)->create();
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    Livewire::actingAs($admin)
+        ->test(DetailProcessQualityControl::class, ['id' => $theirs->id])
+        ->assertSet('notFound', false)
+        ->assertSet('record', fn ($record) => is_array($record) && $record['id'] === $theirs->id);
 });

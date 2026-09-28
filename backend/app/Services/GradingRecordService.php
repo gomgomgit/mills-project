@@ -10,8 +10,8 @@ use App\Exceptions\NoActiveGradingStationException;
 use App\Models\GradingDetail;
 use App\Models\GradingParameter;
 use App\Models\GradingRecord;
-use App\Models\Station;
 use App\Models\User;
+use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -38,6 +38,8 @@ use Throwable;
  */
 class GradingRecordService
 {
+    use ScopesToActorMill;
+
     /**
      * Row limit enforced on export() (business_logic step 5) — same
      * pragmatic MVP ceiling as WeighbridgeRecordService::EXPORT_ROW_LIMIT
@@ -72,11 +74,11 @@ class GradingRecordService
         $this->validateForm($attributes);
         $this->validateDetails($details);
 
-        $station = Station::query()
-            ->where('production_line_id', $data['production_line_id'] ?? null)
-            ->where('type', 'grading')
-            ->where('is_active', true)
-            ->first();
+        $station = $this->resolveActiveStationForActor(
+            $data['production_line_id'] ?? null,
+            'grading',
+            $actor,
+        );
 
         if ($station === null) {
             throw new NoActiveGradingStationException();
@@ -119,6 +121,8 @@ class GradingRecordService
     public function update(string $id, array $data, User $actor): array
     {
         $record = GradingRecord::findOrFail($id);
+
+        $this->assertRecordWritableByActor($record, $actor);
 
         $attributes = $this->normalizeFormFields($data);
         $details = $this->normalizeDetails($data['details'] ?? []);
@@ -466,6 +470,21 @@ class GradingRecordService
      */
     protected function buildFilteredQuery(array $filters): Builder
     {
+        // CAKUPAN MILL DULU, sebelum filter apa pun dibaca. Sampai
+        // 2026-09-28 `business_unit_id` di sini datang mentah dari properti
+        // Livewire Data Browser (default '') atau dari query string API,
+        // dan nilai kosong berarti TANPA cakupan sama sekali — sehingga
+        // Supervisor mana pun bisa melihat dan mengekspor record mill lain.
+        // scopeFiltersToActorMill() MEMBUANG nilai kiriman klien untuk
+        // aktor yang terikat mill dan menggantinya dengan mill aktor
+        // sendiri, jadi mengirim mill lain lewat properti atau query string
+        // tidak mengubah apa pun. Hanya Admin yang nilainya dipakai apa
+        // adanya (kosong = semua mill, perilaku lama dipertahankan).
+        //
+        // Dipasang di buildFilteredQuery() karena listRecords() DAN
+        // export() sama-sama lewat sini — satu titik untuk dua jalur baca.
+        $filters = $this->scopeFiltersToActorMill($filters);
+
         $dateFrom = $filters['date_from'] ?? null;
         $dateTo = $filters['date_to'] ?? null;
         $businessUnitId = $filters['business_unit_id'] ?? null;
@@ -522,12 +541,21 @@ class GradingRecordService
      */
     public function getDetail(string $id): array
     {
-        $record = GradingRecord::with([
-            'station',
-            'weighbridgeRecord',
-            'acknowledgedBy',
-            'gradingDetails.gradingParameter',
-        ])->findOrFail($id);
+        // Cakupan mill diterapkan sebagai SCOPE QUERY, bukan cek 403
+        // setelah row diambil: UUID milik mill lain jadi tidak ada sama
+        // sekali, sehingga findOrFail() melempar ModelNotFoundException
+        // yang semua pemanggil sudah tangani (API -> 404 NOT_FOUND, layar
+        // Detail/Form Livewire -> state $notFound). Sampai 2026-09-28
+        // jalur ini memuat record mill lain secara utuh bila UUID-nya
+        // diketahui, dan 403 baru muncul saat save.
+        $record = $this->scopeQueryToActorMill(
+            GradingRecord::with([
+                'station',
+                'weighbridgeRecord',
+                'acknowledgedBy',
+                'gradingDetails.gradingParameter',
+            ])
+        )->findOrFail($id);
 
         return $this->toDetailRow($record);
     }

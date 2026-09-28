@@ -8,8 +8,8 @@ use App\Exceptions\InvalidDateRangeException;
 use App\Exceptions\NoActiveEngineRoomStationException;
 use App\Models\EngineRoomDetail;
 use App\Models\EngineRoomRecord;
-use App\Models\Station;
 use App\Models\User;
+use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -57,6 +57,8 @@ use Throwable;
  */
 class EngineRoomRecordService
 {
+    use ScopesToActorMill;
+
     public const EXPORT_ROW_LIMIT = 50000;
 
     protected const FORM_FIELDS = ['engine_room_id', 'date', 'note'];
@@ -107,11 +109,11 @@ class EngineRoomRecordService
         $this->validateForm($attributes);
         $this->validateDetails($details);
 
-        $station = Station::query()
-            ->where('production_line_id', $data['production_line_id'] ?? null)
-            ->where('type', 'engine-room')
-            ->where('is_active', true)
-            ->first();
+        $station = $this->resolveActiveStationForActor(
+            $data['production_line_id'] ?? null,
+            'engine-room',
+            $actor,
+        );
 
         if ($station === null) {
             throw new NoActiveEngineRoomStationException();
@@ -152,6 +154,8 @@ class EngineRoomRecordService
     public function update(string $id, array $data, User $actor): array
     {
         $record = EngineRoomRecord::findOrFail($id);
+
+        $this->assertRecordWritableByActor($record, $actor);
 
         $attributes = $this->normalizeFormFields($data);
         $details = $this->normalizeDetails($data['details'] ?? []);
@@ -562,6 +566,21 @@ class EngineRoomRecordService
      */
     protected function buildFilteredQuery(array $filters): Builder
     {
+        // CAKUPAN MILL DULU, sebelum filter apa pun dibaca. Sampai
+        // 2026-09-28 `business_unit_id` di sini datang mentah dari properti
+        // Livewire Data Browser (default '') atau dari query string API,
+        // dan nilai kosong berarti TANPA cakupan sama sekali — sehingga
+        // Supervisor mana pun bisa melihat dan mengekspor record mill lain.
+        // scopeFiltersToActorMill() MEMBUANG nilai kiriman klien untuk
+        // aktor yang terikat mill dan menggantinya dengan mill aktor
+        // sendiri, jadi mengirim mill lain lewat properti atau query string
+        // tidak mengubah apa pun. Hanya Admin yang nilainya dipakai apa
+        // adanya (kosong = semua mill, perilaku lama dipertahankan).
+        //
+        // Dipasang di buildFilteredQuery() karena listRecords() DAN
+        // export() sama-sama lewat sini — satu titik untuk dua jalur baca.
+        $filters = $this->scopeFiltersToActorMill($filters);
+
         $dateFrom = $filters['date_from'] ?? null;
         $dateTo = $filters['date_to'] ?? null;
         $businessUnitId = $filters['business_unit_id'] ?? null;
@@ -613,13 +632,22 @@ class EngineRoomRecordService
      */
     public function getDetail(string $id): array
     {
-        $record = EngineRoomRecord::with([
-            'station',
-            'createdBy',
-            'checkedBy',
-            'acknowledgedBy',
-            'engineRoomDetails',
-        ])->findOrFail($id);
+        // Cakupan mill diterapkan sebagai SCOPE QUERY, bukan cek 403
+        // setelah row diambil: UUID milik mill lain jadi tidak ada sama
+        // sekali, sehingga findOrFail() melempar ModelNotFoundException
+        // yang semua pemanggil sudah tangani (API -> 404 NOT_FOUND, layar
+        // Detail/Form Livewire -> state $notFound). Sampai 2026-09-28
+        // jalur ini memuat record mill lain secara utuh bila UUID-nya
+        // diketahui, dan 403 baru muncul saat save.
+        $record = $this->scopeQueryToActorMill(
+            EngineRoomRecord::with([
+                'station',
+                'createdBy',
+                'checkedBy',
+                'acknowledgedBy',
+                'engineRoomDetails',
+            ])
+        )->findOrFail($id);
 
         return $this->toDetailRow($record);
     }

@@ -33,8 +33,21 @@ beforeEach(function () {
         'acknowledged_by' => null,
     ]);
 
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    // FIXTURE DIPERBAIKI 2026-09-28. Tanpa forBusinessUnit() aktor-aktor ini
+    // lahir di MILL LAIN (default UserFactory membuat BusinessUnit baru), dan
+    // test tetap hijau justru karena setVerification() belum memeriksa mill
+    // sama sekali. Fixture-nya yang salah, bukan asersinya. Admin sengaja
+    // dibiarkan apa adanya: Admin dinilai dari PERAN, kolom mill-nya diabaikan.
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
+
+    // Mill kedua + record-nya: pembanding untuk test cakupan mill di bawah.
+    $this->otherBusinessUnit = BusinessUnit::factory()->create();
+    $this->otherStation = Station::factory()->forBusinessUnit($this->otherBusinessUnit)->create();
+    $this->otherRecord = CagesTrackRecord::factory()->forStation($this->otherStation)->create([
+        'checked_by' => null,
+        'acknowledged_by' => null,
+    ]);
     $this->admin = User::factory()->role(UserRole::Admin)->create();
 });
 
@@ -130,4 +143,56 @@ it('approving touches ONLY the verification column, leaving record data untouche
         ->call('toggleChecked');
 
     expect($this->record->fresh()->only(array_keys($before)))->toBe($before);
+});
+
+// ─── CAKUPAN MILL PADA VERIFIKASI (2026-09-28) ─────────────────────────────
+// Di sisi Livewire ada DUA lapisan, dan keduanya diuji di sini:
+//
+//  1. getDetail() sudah tercakup mill, jadi record Mill B tidak pernah
+//     termuat di layar Detail Mill A — tombol verifikasinya tidak ada untuk
+//     ditekan. Ini lapisan pertama, bukan penjaganya.
+//  2. Penjaga sesungguhnya ada di RecordVerificationService::setVerification().
+//     Kalau toggle tetap dipanggil langsung (Livewire memanggilnya per aksi,
+//     bukan per render), penolakannya harus muncul sebagai ALERT DI LAYAR —
+//     pola yang sama dipakai ke-18 Form*::save() sejak tahap 1a — bukan
+//     halaman 403.
+//
+// Vektor lengkap end-to-end-nya ada di tests/Feature/Api/RecordVerificationTest.php.
+
+it('cakupan mill: layar Detail Mill A tidak memuat record Mill B sama sekali', function () {
+    Livewire::actingAs($this->supervisor)
+        ->test(DetailCagesTrack::class, ['id' => $this->otherRecord->id])
+        ->assertSet('notFound', true)
+        ->assertDontSee('Tandai sudah diperiksa (Checked)');
+
+    expect($this->otherRecord->fresh()->checked_by)->toBeNull();
+});
+
+it('cakupan mill: memanggil toggleChecked() langsung pada record Mill B ditolak sebagai alert layar, dan kolomnya tidak berubah', function () {
+    $rightfulChecker = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->otherBusinessUnit)->create();
+    $this->otherRecord->update(['checked_by' => $rightfulChecker->id]);
+
+    // Layar dibuka oleh Admin (yang boleh melihat lintas mill) supaya $record
+    // terisi, lalu aksinya dijalankan sebagai Supervisor Mill A — meniru
+    // request Livewire yang dibuat-buat, tanpa melewati mount() lagi.
+    $component = Livewire::actingAs($this->admin)
+        ->test(DetailCagesTrack::class, ['id' => $this->otherRecord->id])
+        ->assertSet('notFound', false);
+
+    $this->actingAs($this->supervisor);
+
+    $component->call('toggleChecked')
+        ->assertSet('verificationMessage', 'Record ini milik mill lain, Anda tidak dapat mengubahnya.');
+
+    // Tanda sah milik Mill B utuh — penolakan tidak menulis apa pun.
+    expect($this->otherRecord->fresh()->checked_by)->toBe($rightfulChecker->id);
+});
+
+it('cakupan mill: verifikasi record mill sendiri lewat layar Detail tetap berhasil', function () {
+    Livewire::actingAs($this->supervisor)
+        ->test(DetailCagesTrack::class, ['id' => $this->record->id])
+        ->call('toggleChecked')
+        ->assertSet('verificationMessage', 'Data ditandai sudah diperiksa.');
+
+    expect($this->record->fresh()->checked_by)->toBe($this->supervisor->id);
 });

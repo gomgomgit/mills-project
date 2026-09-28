@@ -3,8 +3,9 @@
 namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
-use App\Models\ProductionLine;
 use App\Services\SterilizerRecordService;
+use App\Support\Concerns\ScopesToActorMill;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -29,6 +30,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 #[Layout('data.sterilizer-form')]
 class FormSterilizer extends Component
 {
+    use ScopesToActorMill;
+
     protected const FIELDS = ['production_line_id', 'sterilizer_id', 'date', 'note'];
 
     protected const DETAIL_FIELDS = [
@@ -86,7 +89,16 @@ class FormSterilizer extends Component
 
         try {
             $record = app(SterilizerRecordService::class)->getDetail($id);
-        } catch (ModelNotFoundException) {
+        } catch (ModelNotFoundException|ValidationException) {
+            // ValidationException ikut ditangkap sejak 2026-09-28: aktor
+            // terikat mill yang `users.business_unit_id`-nya kosong membuat
+            // getDetail() gagal-tertutup 422 lewat
+            // ScopesToActorMill::actorReadMillId(). Bagi aktor seperti itu
+            // TIDAK ADA record yang terlihat sama sekali, jadi $notFound
+            // memang keadaan yang benar — dan itu lebih baik daripada
+            // halaman error 422 penuh. Pesan yang bisa ditindaklanjuti
+            // ("Hubungi Admin") tetap sampai lewat Data Browser dan lewat
+            // save di layar Form.
             $this->notFound = true;
 
             return;
@@ -109,42 +121,31 @@ class FormSterilizer extends Component
      * loadProductionLineOptions() — feeds the Production Line-select on
      * create mode, SCOPED TO THE MILL OF THE AUTHENTICATED USER.
      *
-     * Cross-mill data-integrity guard: a Supervisor / Mill Management /
-     * Operator is bound to exactly one mill (users.business_unit_id), and
-     * a station record they log must belong to that mill — the Production
-     * Line is what resolves the Station here (see
+     * 2026-09-28: the mill-scoping logic that used to be inlined here — the
+     * only one of the 18 Form components that had it — now lives in
+     * App\Support\Concerns\ScopesToActorMill::productionLineOptionsForActor(),
+     * shared with the other 17 Form components AND with the 18
+     * *RecordService write guards, so the dropdown can never again offer
+     * what create()/update() will refuse. Behaviour is unchanged: Admin is
+     * the only role not bound to one mill and deliberately keeps the full
+     * cross-mill list; a non-Admin without a business_unit_id gets an empty
+     * list rather than the whole table (and an actionable 422 the moment
+     * they try to save).
+     *
+     * Cross-mill data-integrity guard, for the record: a Supervisor / Mill
+     * Management / Operator is bound to exactly one mill
+     * (users.business_unit_id) and a station record they log must belong to
+     * that mill — the Production Line is what resolves the Station (see
      * SterilizerRecordService::create()), so an unscoped option list let
      * them silently write this mill's log sheet against ANOTHER mill's
-     * Production Line. Every mill-scoped read afterwards
-     * (SterilizerReportService, Data Browser) then correctly refuses to
-     * show that record, because it is not their mill's data.
-     *
-     * Admin is the only role not bound to one mill (users.business_unit_id
-     * is nullable for Admin — same reasoning as
-     * SterilizerReportService::resolveBusinessUnit() and
-     * MillSettingService::checkAccess()), so Admin deliberately keeps the
-     * full cross-mill list. A non-Admin without a business_unit_id gets an
-     * empty list rather than the whole table.
+     * Production Line, after which every mill-scoped read
+     * (SterilizerReportService, Data Browser) correctly refuses to show it.
      *
      * @return array<int, array{id: string, name: string}>
      */
     protected function loadProductionLineOptions(): array
     {
-        $user = auth()->user();
-
-        $query = ProductionLine::query()->orderBy('name');
-
-        if ($user?->role !== UserRole::Admin) {
-            $businessUnitId = $user?->business_unit_id;
-
-            if ($businessUnitId === null || $businessUnitId === '') {
-                return [];
-            }
-
-            $query->where('business_unit_id', $businessUnitId);
-        }
-
-        return $query->get(['id', 'name'])->toArray();
+        return $this->productionLineOptionsForActor(auth()->user());
     }
 
     public function addDetailRow(): void
@@ -226,7 +227,11 @@ class FormSterilizer extends Component
             $this->errors_ = collect($errors)->map(fn ($messages) => $messages[0])->all();
 
             return;
-        } catch (HttpException $e) {
+        } catch (HttpException|AuthorizationException $e) {
+            // Sejak 2026-09-28 blok ini juga menangkap
+            // CrossMillWriteDeniedException (403 — production line atau
+            // record milik mill lain), supaya penolakan itu muncul sebagai
+            // alert di layar, bukan halaman 403.
             $this->generalError = $e->getMessage();
 
             return;

@@ -4,8 +4,9 @@ namespace App\Livewire\Data;
 
 use App\Enums\UserRole;
 use App\Models\PressingOperationalTarget;
-use App\Models\ProductionLine;
 use App\Services\PressingRecordService;
+use App\Support\Concerns\ScopesToActorMill;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
@@ -51,6 +52,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 #[Layout('data.pressing-form')]
 class FormPressing extends Component
 {
+    use ScopesToActorMill;
+
     protected const FIELDS = ['production_line_id', 'presser_id', 'date', 'note'];
 
     public ?string $id = null;
@@ -97,7 +100,7 @@ class FormPressing extends Component
 
     public function mount(?string $id = null): void
     {
-        $this->productionLineOptions = ProductionLine::query()->orderBy('name')->get(['id', 'name'])->toArray();
+        $this->productionLineOptions = $this->productionLineOptionsForActor(auth()->user());
 
         if ($id === null) {
             $this->isEdit = false;
@@ -111,7 +114,16 @@ class FormPressing extends Component
 
         try {
             $record = app(PressingRecordService::class)->getDetail($id);
-        } catch (ModelNotFoundException) {
+        } catch (ModelNotFoundException|ValidationException) {
+            // ValidationException ikut ditangkap sejak 2026-09-28: aktor
+            // terikat mill yang `users.business_unit_id`-nya kosong membuat
+            // getDetail() gagal-tertutup 422 lewat
+            // ScopesToActorMill::actorReadMillId(). Bagi aktor seperti itu
+            // TIDAK ADA record yang terlihat sama sekali, jadi $notFound
+            // memang keadaan yang benar — dan itu lebih baik daripada
+            // halaman error 422 penuh. Pesan yang bisa ditindaklanjuti
+            // ("Hubungi Admin") tetap sampai lewat Data Browser dan lewat
+            // save di layar Form.
             $this->notFound = true;
 
             return;
@@ -238,7 +250,11 @@ class FormPressing extends Component
             $this->errors_ = collect($errors)->map(fn ($messages) => $messages[0])->all();
 
             return;
-        } catch (HttpException $e) {
+        } catch (HttpException|AuthorizationException $e) {
+            // Sejak 2026-09-28 blok ini juga menangkap
+            // CrossMillWriteDeniedException (403 — production line atau
+            // record milik mill lain), supaya penolakan itu muncul sebagai
+            // alert di layar, bukan halaman 403.
             // e.g. NoActivePressingStationException (422) — a single,
             // non-field-keyed condition, shown as a page-level alert
             // rather than an inline per-field error.

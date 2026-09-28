@@ -19,6 +19,7 @@ use App\Livewire\Data\FormCagesTrack;
 use App\Models\BusinessUnit;
 use App\Models\CagesTrackRecord;
 use App\Models\Machinery;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use Livewire\Livewire;
@@ -27,8 +28,8 @@ beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->cagesTrackStation = Station::factory()->forBusinessUnit($this->businessUnit)->cagesTrack()->create();
     Machinery::factory()->count(10)->create(['station_id' => $this->cagesTrackStation->id]);
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 });
 
 function fillFormCagesTrack($component, array $overrides = []): void
@@ -152,7 +153,7 @@ it('shows detail-specific error when no valid Cages Tipped Time row exists on sa
 
 // Scenario: "Business Unit Tanpa Station Cages Track Aktif"
 it('shows an error when the selected Production Line has no active cages-track station', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    $otherProductionLine = \App\Models\ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
     $component = Livewire::actingAs($this->supervisor)->test(FormCagesTrack::class);
 
     fillFormCagesTrack($component, ['form.production_line_id' => $otherProductionLine->id]);
@@ -217,4 +218,45 @@ it('Acknowledged checkbox only renders for Mill Management', function () {
     Livewire::actingAs($this->millManagement)
         ->test(FormCagesTrack::class)
         ->assertSeeHtml('data-testid="acknowledged-checkbox"');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Dropdown Production Line hanya boleh menawarkan mill aktor (2026-09-28)
+|--------------------------------------------------------------------------
+| Sisi UI dari penjaga yang sama: dropdown tidak boleh menawarkan apa yang
+| akan ditolak oleh FormCagesTrack. Lihat
+| App\Support\Concerns\ScopesToActorMill::productionLineOptionsForActor().
+*/
+
+it('hanya memuat production line milik mill aktor pada dropdown', function () {
+    $ownLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherLine = ProductionLine::factory()->forBusinessUnit(BusinessUnit::factory()->create())->create();
+
+    $options = Livewire::actingAs($this->supervisor)->test(FormCagesTrack::class)->get('productionLineOptions');
+    $ids = collect($options)->pluck('id');
+
+    expect($ids)->toContain($ownLine->id);
+    expect($ids)->not->toContain($otherLine->id);
+});
+
+it('memberi Admin seluruh production line lintas mill', function () {
+    $ownLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherLine = ProductionLine::factory()->forBusinessUnit(BusinessUnit::factory()->create())->create();
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    $options = Livewire::actingAs($admin)->test(FormCagesTrack::class)->get('productionLineOptions');
+    $ids = collect($options)->pluck('id');
+
+    expect($ids)->toContain($ownLine->id);
+    expect($ids)->toContain($otherLine->id);
+});
+
+it('memberi daftar kosong ketika akun aktor belum terhubung ke mill', function () {
+    ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $actor = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+
+    $options = Livewire::actingAs($actor)->test(FormCagesTrack::class)->get('productionLineOptions');
+
+    expect($options)->toBe([]);
 });

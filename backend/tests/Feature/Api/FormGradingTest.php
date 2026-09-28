@@ -26,9 +26,9 @@ beforeEach(function () {
     $this->gradingStation = Station::factory()->forBusinessUnit($this->businessUnit)->grading()->create();
     $this->weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->weighbridgeStation)->create();
     $this->gradingParameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
     $this->admin = User::factory()->role(UserRole::Admin)->create();
-    $this->operator = User::factory()->role(UserRole::Operator)->create();
+    $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnit)->create();
 });
 
 function gradingApiPayload(array $overrides = []): array
@@ -98,7 +98,7 @@ it('returns 422 VALIDATION_ERROR when two detail rows share the same grading_par
 
 // Scenario: "Business Unit Tanpa Station Grading Aktif"
 it('returns 422 when production_line_id has no active grading station', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    $otherProductionLine = \App\Models\ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
 
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/grading-records', gradingApiPayload([
         'production_line_id' => $otherProductionLine->id,
@@ -174,4 +174,41 @@ it('rejects unauthenticated requests on create and update', function () {
 
     $record = GradingRecord::factory()->forStation($this->gradingStation)->create();
     $this->patchJson("/api/grading-records/{$record->id}", gradingApiPayload())->assertStatus(401);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Cross-mill write guard — HTTP contract (2026-09-28)
+|--------------------------------------------------------------------------
+| 403 FORBIDDEN (not 422): payload well-formed, target row real, actor simply
+| has no access to that mill. See App\Exceptions\CrossMillWriteDeniedException.
+*/
+
+it('menolak 403 FORBIDDEN saat POST memakai production_line_id mill lain, tanpa menulis satu baris pun', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->grading()->create();
+    $recordsBefore = GradingRecord::count();
+
+    $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/grading-records', gradingApiPayload([
+        'production_line_id' => $otherStation->production_line_id, 'weighbridge_record_id' => $this->weighbridgeRecord->id, 'details' => [['grading_parameter_id' => $this->gradingParameter->id, 'quantity' => 250]],
+    ]));
+
+    $response->assertStatus(403);
+    $response->assertJsonPath('code', 'FORBIDDEN');
+    expect(GradingRecord::count())->toBe($recordsBefore);
+});
+
+it('menolak 403 FORBIDDEN saat PATCH record milik mill lain, dan tidak mengubah satu kolom pun', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->grading()->create();
+    $record = GradingRecord::factory()->forStation($otherStation)->create(['grading_number' => 'SCOPE-MILIK-MILL-B']);
+    $before = $record->fresh()->getAttributes();
+
+    $response = $this->actingAs($this->supervisor, 'web')->patchJson("/api/grading-records/{$record->id}", gradingApiPayload([
+        'grading_number' => 'SCOPE-HIJACKED', 'weighbridge_record_id' => $this->weighbridgeRecord->id, 'details' => [['grading_parameter_id' => $this->gradingParameter->id, 'quantity' => 250]],
+    ]));
+
+    $response->assertStatus(403);
+    $response->assertJsonPath('code', 'FORBIDDEN');
+    expect($record->fresh()->getAttributes())->toBe($before);
 });

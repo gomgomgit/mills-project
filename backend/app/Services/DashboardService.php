@@ -7,6 +7,7 @@ use App\Models\CagesTrackRecord;
 use App\Models\CagesTippedTime;
 use App\Models\GradingRecord;
 use App\Models\WeighbridgeRecord;
+use App\Support\Concerns\ScopesToActorMill;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -26,6 +27,8 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class DashboardService
 {
+    use ScopesToActorMill;
+
     /**
      * getSummary() — business_logic steps 1-6: validate date range → default
      * to today if not provided → aggregate weighbridge-record, grading-record,
@@ -37,7 +40,20 @@ class DashboardService
     public function getSummary(array $filters): array
     {
         [$dateFrom, $dateTo] = $this->resolveDateRange($filters['date_from'] ?? null, $filters['date_to'] ?? null);
-        $businessUnitId = $filters['business_unit_id'] ?? null;
+
+        // Sampai 2026-09-28 `business_unit_id` diambil mentah dari
+        // DashboardController::summary() ($request->only([...])), sehingga
+        // Supervisor mana pun bisa meminta KPI mill lain — atau menghilangkan
+        // parameternya dan mendapat agregat SELURUH mill. resolveReadMillId()
+        // membuang nilai kiriman klien untuk aktor terikat mill dan
+        // menggantinya dengan mill aktor; hanya Admin yang nilainya dipakai
+        // apa adanya (kosong = semua mill, perilaku lama dipertahankan).
+        //
+        // Aturan, pesan, dan mode gagal-tertutupnya sama persis dengan jalur
+        // baca 18 *RecordService — satu trait, bukan mekanisme kedua.
+        $businessUnitId = $this->resolveReadMillId(
+            ($filters['business_unit_id'] ?? null) === null ? null : (string) $filters['business_unit_id']
+        );
 
         return [
             'weighbridge' => $this->weighbridgeSummary($dateFrom, $dateTo, $businessUnitId),

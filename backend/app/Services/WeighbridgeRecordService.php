@@ -6,9 +6,9 @@ use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
 use App\Exceptions\NoActiveWeighbridgeStationException;
-use App\Models\Station;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
+use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -35,6 +35,8 @@ use Throwable;
  */
 class WeighbridgeRecordService
 {
+    use ScopesToActorMill;
+
     /**
      * Row limit enforced on export() (business_logic step 5) — protects
      * against unbounded memory/time usage when streaming a CSV/XLSX for a
@@ -185,6 +187,21 @@ class WeighbridgeRecordService
      */
     protected function buildFilteredQuery(array $filters): Builder
     {
+        // CAKUPAN MILL DULU, sebelum filter apa pun dibaca. Sampai
+        // 2026-09-28 `business_unit_id` di sini datang mentah dari properti
+        // Livewire Data Browser (default '') atau dari query string API,
+        // dan nilai kosong berarti TANPA cakupan sama sekali — sehingga
+        // Supervisor mana pun bisa melihat dan mengekspor record mill lain.
+        // scopeFiltersToActorMill() MEMBUANG nilai kiriman klien untuk
+        // aktor yang terikat mill dan menggantinya dengan mill aktor
+        // sendiri, jadi mengirim mill lain lewat properti atau query string
+        // tidak mengubah apa pun. Hanya Admin yang nilainya dipakai apa
+        // adanya (kosong = semua mill, perilaku lama dipertahankan).
+        //
+        // Dipasang di buildFilteredQuery() karena listRecords() DAN
+        // export() sama-sama lewat sini — satu titik untuk dua jalur baca.
+        $filters = $this->scopeFiltersToActorMill($filters);
+
         $dateFrom = $filters['date_from'] ?? null;
         $dateTo = $filters['date_to'] ?? null;
         $weighbridgeType = $filters['weighbridge_type'] ?? null;
@@ -269,11 +286,11 @@ class WeighbridgeRecordService
 
         $this->validateForm($attributes);
 
-        $station = Station::query()
-            ->where('production_line_id', $data['production_line_id'] ?? null)
-            ->where('type', 'weighbridge')
-            ->where('is_active', true)
-            ->first();
+        $station = $this->resolveActiveStationForActor(
+            $data['production_line_id'] ?? null,
+            'weighbridge',
+            $actor,
+        );
 
         if ($station === null) {
             throw new NoActiveWeighbridgeStationException();
@@ -304,6 +321,8 @@ class WeighbridgeRecordService
     public function update(string $id, array $data, User $actor): array
     {
         $record = WeighbridgeRecord::findOrFail($id);
+
+        $this->assertRecordWritableByActor($record, $actor);
 
         $attributes = $this->normalizeFormFields($data);
 
@@ -402,7 +421,16 @@ class WeighbridgeRecordService
      */
     public function getDetail(string $id): array
     {
-        $record = WeighbridgeRecord::with(['station', 'checkedBy', 'acknowledgedBy'])->findOrFail($id);
+        // Cakupan mill diterapkan sebagai SCOPE QUERY, bukan cek 403
+        // setelah row diambil: UUID milik mill lain jadi tidak ada sama
+        // sekali, sehingga findOrFail() melempar ModelNotFoundException
+        // yang semua pemanggil sudah tangani (API -> 404 NOT_FOUND, layar
+        // Detail/Form Livewire -> state $notFound). Sampai 2026-09-28
+        // jalur ini memuat record mill lain secara utuh bila UUID-nya
+        // diketahui, dan 403 baru muncul saat save.
+        $record = $this->scopeQueryToActorMill(
+            WeighbridgeRecord::with(['station', 'checkedBy', 'acknowledgedBy'])
+        )->findOrFail($id);
 
         return $this->toDetailRow($record);
     }

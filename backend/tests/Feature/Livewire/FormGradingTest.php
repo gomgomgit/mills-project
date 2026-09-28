@@ -26,8 +26,8 @@ beforeEach(function () {
     $this->gradingStation = Station::factory()->forBusinessUnit($this->businessUnit)->grading()->create();
     $this->weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->weighbridgeStation)->create(['wb_card_number' => 'WB-GR-001']);
     $this->gradingParameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 });
 
 function fillFormGrading($component, array $overrides = []): void
@@ -216,4 +216,89 @@ it('Checked By is never rendered on this screen, for any role', function () {
     Livewire::actingAs($this->supervisor)
         ->test(FormGrading::class)
         ->assertDontSeeHtml('data-testid="checked-checkbox"');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Dropdown Business Unit hanya boleh menawarkan mill aktor (2026-09-28)
+|--------------------------------------------------------------------------
+| Layar ini memilih mill DULU, baru Production Line dicascade dari mill itu
+| (StationService::productionLineOptions()). Selama daftar mill-nya sendiri
+| tidak tersaring, penyaringan line di bawahnya tidak menahan apa pun: pilih
+| mill lain, dapat line mill lain. Lihat
+| App\Support\Concerns\ScopesToActorMill::businessUnitOptionsForActor().
+*/
+
+it('hanya memuat mill aktor pada dropdown Business Unit', function () {
+    $otherMill = BusinessUnit::factory()->create();
+
+    $options = Livewire::actingAs($this->supervisor)->test(FormGrading::class)->get('businessUnitOptions');
+    $ids = collect($options)->pluck('id');
+
+    expect($ids)->toContain($this->businessUnit->id);
+    expect($ids)->not->toContain($otherMill->id);
+});
+
+it('memberi Admin seluruh mill pada dropdown Business Unit', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    $options = Livewire::actingAs($admin)->test(FormGrading::class)->get('businessUnitOptions');
+    $ids = collect($options)->pluck('id');
+
+    expect($ids)->toContain($this->businessUnit->id);
+    expect($ids)->toContain($otherMill->id);
+});
+
+it('memberi daftar mill kosong ketika akun aktor belum terhubung ke mill', function () {
+    BusinessUnit::factory()->create();
+    $actor = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+
+    $options = Livewire::actingAs($actor)->test(FormGrading::class)->get('businessUnitOptions');
+
+    expect($options)->toBe([]);
+});
+
+// ─── CAKUPAN MILL PADA CASCADE PICKER (2026-09-28) ──────────────────────────
+// Tahap 1a sudah menyempitkan dropdown mill lewat businessUnitOptionsForActor()
+// dan sudah menolak WRITE lintas mill (403). Yang masih terbuka: properti
+// Livewire `form.business_unit_id` itu publik, jadi request yang dibuat-buat
+// bisa men-set-nya ke mill lain — dan cascade-nya lalu memuat production line
+// SERTA WB Card No milik mill itu (wb_card_number / vehicle_number /
+// estate_supplier: data operasional, bukan cuma master data). Itu jalur BACA,
+// jadi masuk tahap 1b.
+it('cakupan mill: memaksa form.business_unit_id ke Mill B tidak memuat WB Card No Mill B', function () {
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+    $otherWeighbridgeStation = Station::factory()->forBusinessUnit($otherBusinessUnit)->create();
+    WeighbridgeRecord::factory()->forStation($otherWeighbridgeStation)->create(['wb_card_number' => 'WB-MILL-B-999']);
+
+    Livewire::actingAs($this->supervisor)
+        ->test(FormGrading::class)
+        ->set('form.business_unit_id', $otherBusinessUnit->id)
+        // Properti dipaku kembali ke mill aktor.
+        ->assertSet('form.business_unit_id', $this->businessUnit->id)
+        // ISI: WB Card No mill aktor ada, milik Mill B tidak.
+        ->assertSet('weighbridgeOptions', function ($options) {
+            $cards = collect($options)->pluck('wb_card_number')->all();
+
+            return in_array('WB-GR-001', $cards, true) && ! in_array('WB-MILL-B-999', $cards, true);
+        });
+});
+
+it('cakupan mill: Admin tetap bisa memilih mill lain dan melihat WB Card No-nya', function () {
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+    $otherWeighbridgeStation = Station::factory()->forBusinessUnit($otherBusinessUnit)->create();
+    WeighbridgeRecord::factory()->forStation($otherWeighbridgeStation)->create(['wb_card_number' => 'WB-MILL-B-999']);
+
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    Livewire::actingAs($admin)
+        ->test(FormGrading::class)
+        ->set('form.business_unit_id', $otherBusinessUnit->id)
+        ->assertSet('form.business_unit_id', $otherBusinessUnit->id)
+        ->assertSet('weighbridgeOptions', function ($options) {
+            $cards = collect($options)->pluck('wb_card_number')->all();
+
+            return in_array('WB-MILL-B-999', $cards, true) && ! in_array('WB-GR-001', $cards, true);
+        });
 });

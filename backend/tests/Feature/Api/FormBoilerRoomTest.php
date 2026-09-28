@@ -20,10 +20,10 @@ use App\Models\User;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->boilerRoomStation = Station::factory()->forBusinessUnit($this->businessUnit)->boilerRoom()->create();
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
     $this->admin = User::factory()->role(UserRole::Admin)->create();
-    $this->operator = User::factory()->role(UserRole::Operator)->create();
+    $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnit)->create();
 });
 
 function boilerRoomApiPayload(array $overrides = []): array
@@ -100,7 +100,7 @@ it('returns 422 VALIDATION_ERROR when zero rows have any reading filled', functi
 });
 
 it('returns 422 when production_line_id has no active boiler-room station', function () {
-    $otherProductionLine = ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
 
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/boiler-room-records', boilerRoomApiPayload([
         'production_line_id' => $otherProductionLine->id,
@@ -193,4 +193,41 @@ it('rejects unauthenticated requests on create and update', function () {
 
     $record = BoilerRoomRecord::factory()->forStation($this->boilerRoomStation)->create();
     $this->patchJson("/api/boiler-room-records/{$record->id}", boilerRoomApiPayload())->assertStatus(401);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Cross-mill write guard — HTTP contract (2026-09-28)
+|--------------------------------------------------------------------------
+| 403 FORBIDDEN (not 422): payload well-formed, target row real, actor simply
+| has no access to that mill. See App\Exceptions\CrossMillWriteDeniedException.
+*/
+
+it('menolak 403 FORBIDDEN saat POST memakai production_line_id mill lain, tanpa menulis satu baris pun', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->boilerRoom()->create();
+    $recordsBefore = BoilerRoomRecord::count();
+
+    $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/boiler-room-records', boilerRoomApiPayload([
+        'production_line_id' => $otherStation->production_line_id,
+    ]));
+
+    $response->assertStatus(403);
+    $response->assertJsonPath('code', 'FORBIDDEN');
+    expect(BoilerRoomRecord::count())->toBe($recordsBefore);
+});
+
+it('menolak 403 FORBIDDEN saat PATCH record milik mill lain, dan tidak mengubah satu kolom pun', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->boilerRoom()->create();
+    $record = BoilerRoomRecord::factory()->forStation($otherStation)->create(['boiler_room_id' => 'SCOPE-MILIK-MILL-B']);
+    $before = $record->fresh()->getAttributes();
+
+    $response = $this->actingAs($this->supervisor, 'web')->patchJson("/api/boiler-room-records/{$record->id}", boilerRoomApiPayload([
+        'boiler_room_id' => 'SCOPE-HIJACKED',
+    ]));
+
+    $response->assertStatus(403);
+    $response->assertJsonPath('code', 'FORBIDDEN');
+    expect($record->fresh()->getAttributes())->toBe($before);
 });

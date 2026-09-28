@@ -22,8 +22,8 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->cpoDispatchStation = Station::factory()->forBusinessUnit($this->businessUnit)->cpoDispatch()->create();
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 });
 
 function fillFormCpoDispatch($component, array $overrides = []): void
@@ -96,7 +96,7 @@ it('shows detail-specific error when no valid detail row exists on save', functi
 
 // Scenario: "Production Line Tanpa Station CPO Dispatch Aktif"
 it('shows an error when the selected Production Line has no active cpo-dispatch station', function () {
-    $otherProductionLine = ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
     $component = Livewire::actingAs($this->supervisor)->test(FormCpoDispatch::class);
 
     fillFormCpoDispatch($component, ['form.production_line_id' => $otherProductionLine->id]);
@@ -158,4 +158,45 @@ it('Acknowledged checkbox only renders for Mill Management', function () {
     Livewire::actingAs($this->millManagement)
         ->test(FormCpoDispatch::class)
         ->assertSeeHtml('data-testid="acknowledged-checkbox"');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Dropdown Production Line hanya boleh menawarkan mill aktor (2026-09-28)
+|--------------------------------------------------------------------------
+| Sisi UI dari penjaga yang sama: dropdown tidak boleh menawarkan apa yang
+| akan ditolak oleh FormCpoDispatch. Lihat
+| App\Support\Concerns\ScopesToActorMill::productionLineOptionsForActor().
+*/
+
+it('hanya memuat production line milik mill aktor pada dropdown', function () {
+    $ownLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherLine = ProductionLine::factory()->forBusinessUnit(BusinessUnit::factory()->create())->create();
+
+    $options = Livewire::actingAs($this->supervisor)->test(FormCpoDispatch::class)->get('productionLineOptions');
+    $ids = collect($options)->pluck('id');
+
+    expect($ids)->toContain($ownLine->id);
+    expect($ids)->not->toContain($otherLine->id);
+});
+
+it('memberi Admin seluruh production line lintas mill', function () {
+    $ownLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherLine = ProductionLine::factory()->forBusinessUnit(BusinessUnit::factory()->create())->create();
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    $options = Livewire::actingAs($admin)->test(FormCpoDispatch::class)->get('productionLineOptions');
+    $ids = collect($options)->pluck('id');
+
+    expect($ids)->toContain($ownLine->id);
+    expect($ids)->toContain($otherLine->id);
+});
+
+it('memberi daftar kosong ketika akun aktor belum terhubung ke mill', function () {
+    ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $actor = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+
+    $options = Livewire::actingAs($actor)->test(FormCpoDispatch::class)->get('productionLineOptions');
+
+    expect($options)->toBe([]);
 });

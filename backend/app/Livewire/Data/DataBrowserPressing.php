@@ -3,8 +3,9 @@
 namespace App\Livewire\Data;
 
 use App\Exceptions\InvalidDateRangeException;
-use App\Models\BusinessUnit;
 use App\Services\PressingRecordService;
+use App\Support\Concerns\ScopesToActorMill;
+use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -32,6 +33,8 @@ use Livewire\Component;
 #[Layout('data.pressing')]
 class DataBrowserPressing extends Component
 {
+    use ScopesToActorMill;
+
     public string $date_from = '';
 
     public string $date_to = '';
@@ -103,6 +106,21 @@ class DataBrowserPressing extends Component
 
     public function render()
     {
+        // Peran terikat mill (Operator / Supervisor / Mill Management)
+        // dipaku ke mill-nya sendiri SEBELUM filter dibaca: nilai apa pun
+        // yang disuntikkan lewat properti Livewire — atau lewat query
+        // string yang sudah di-bookmark — ditimpa di sini, sehingga
+        // <select> mill dan tautan ekspor menampilkan kenyataan, bukan
+        // pilihan yang sudah dibuang diam-diam. Admin tetap memakai apa
+        // yang ia pilih (kosong = semua mill).
+        //
+        // Ini LAPISAN TAMPILAN, bukan penjaganya. Penegakan sesungguhnya
+        // ada di service: buildFilteredQuery() memanggil
+        // scopeFiltersToActorMill() dan membuang nilai kiriman klien, jadi
+        // melewatkan baris ini pun tidak membocorkan apa pun.
+        $actor = auth()->user();
+        $this->business_unit_id = $this->forcedMillFilterValue($actor, $this->business_unit_id);
+
         $service = app(PressingRecordService::class);
 
         try {
@@ -114,12 +132,23 @@ class DataBrowserPressing extends Component
                 'data' => [],
                 'meta' => ['page' => 1, 'per_page' => $this->perPage, 'total' => 0, 'total_pages' => 1],
             ];
+        } catch (ValidationException $e) {
+            // Aktor terikat mill yang `users.business_unit_id`-nya kosong.
+            // ScopesToActorMill::actorReadMillId() gagal-tertutup dengan 422
+            // ketimbang melebar ke semua mill; di layar ini itu muncul
+            // sebagai pesan yang bisa ditindaklanjuti + daftar kosong,
+            // bukan halaman error dan bukan daftar kosong tanpa sebab.
+            $this->errorMessage = $e->validator->errors()->first() ?: $e->getMessage();
+            $result = [
+                'data' => [],
+                'meta' => ['page' => 1, 'per_page' => $this->perPage, 'total' => 0, 'total_pages' => 1],
+            ];
         }
 
         return view('livewire.data.data-browser-pressing', [
             'records' => $result['data'],
             'meta' => $result['meta'],
-            'businessUnits' => BusinessUnit::orderBy('name')->get(['id', 'name']),
+            'businessUnits' => $this->businessUnitsForActor($actor),
             'exportCsvUrl' => $this->exportUrl('csv'),
             'exportExcelUrl' => $this->exportUrl('excel'),
         ]);

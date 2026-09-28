@@ -27,6 +27,8 @@
  */
 
 use App\Enums\RecordStatus;
+use App\Enums\UserRole;
+use App\Exceptions\CrossMillWriteDeniedException;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
 use App\Models\BusinessUnit;
@@ -37,6 +39,7 @@ use App\Services\WeighbridgeRecordService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Tests\TestCase;
 
@@ -46,7 +49,16 @@ beforeEach(function () {
     $this->service = new WeighbridgeRecordService();
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
-    $this->creator = User::factory()->create();
+    $this->creator = User::factory()->forBusinessUnit($this->businessUnit)->create();
+
+    // Jalur BACA (listRecords/export/getDetail) sejak 2026-09-28 memakai
+    // AKTOR TERAUTENTIKASI, bukan parameter — lihat bagian READ SIDE di
+    // App\Support\Concerns\ScopesToActorMill. Test unit di berkas ini
+    // ditulis untuk semantik baca TANPA cakupan mill, jadi aktornya Admin:
+    // Admin memang tidak terikat mill, sehingga setiap asersi lama tetap
+    // menguji hal yang persis sama. Cakupan mill untuk peran terikat diuji
+    // di tests/Feature/Livewire/DataBrowser*Test.php dan Detail*Test.php.
+    $this->actingAs(User::factory()->role(UserRole::Admin)->create());
 });
 
 // unit_test_case 1: returns 422 INVALID_DATE_RANGE when date_from > date_to
@@ -269,8 +281,8 @@ it('returns null checked_by_name/acknowledged_by_name when not set', function ()
 });
 
 it('resolves checked_by_name/acknowledged_by_name to user names when present', function () {
-    $checker = User::factory()->create(['name' => 'Budi Supervisor']);
-    $acknowledger = User::factory()->create(['name' => 'Siti Manager']);
+    $checker = User::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Budi Supervisor']);
+    $acknowledger = User::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Siti Manager']);
     $record = WeighbridgeRecord::factory()->forStation($this->station)->create([
         'checked_by' => $checker->id,
         'acknowledged_by' => $acknowledger->id,
@@ -334,7 +346,7 @@ it('throws ValidationException when a required field is empty', function () {
 });
 
 it('throws NoActiveWeighbridgeStationException when production_line_id has no active weighbridge station', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    $otherProductionLine = \App\Models\ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
 
     expect(fn () => $this->service->create(
         weighbridgeFormPayload(['production_line_id' => $otherProductionLine->id]),
@@ -343,7 +355,7 @@ it('throws NoActiveWeighbridgeStationException when production_line_id has no ac
 });
 
 it('sets checked_by to requester id when checked=true and requester role=supervisor', function () {
-    $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->create();
+    $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'checked' => true]),
@@ -354,7 +366,7 @@ it('sets checked_by to requester id when checked=true and requester role=supervi
 });
 
 it('ignores checked=true when requester role is not supervisor', function () {
-    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->create();
+    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'checked' => true]),
@@ -365,7 +377,7 @@ it('ignores checked=true when requester role is not supervisor', function () {
 });
 
 it('sets acknowledged_by to requester id when acknowledged=true and requester role=mill_management', function () {
-    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->create();
+    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'acknowledged' => true]),
@@ -407,4 +419,85 @@ it('recomputes net_weight via model event on update regardless of gross/tare cha
     );
 
     expect($result['net_weight'])->toBe(8000.0);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Cross-mill write guard (Weighbridge) — 2026-09-28
+|--------------------------------------------------------------------------
+| A Production Line is a CHOSEN CONTEXT, not an account binding: the rule
+| under test is "the chosen line must sit inside the ACTOR'S mill"
+| (users.business_unit_id), with Admin recognised BY ROLE and therefore not
+| mill-bound at all. See App\Support\Concerns\ScopesToActorMill.
+|
+| Before 2026-09-28 create() took `production_line_id` from the client and
+| never looked at the actor's mill, and update() never checked ownership at
+| all — an Operator of Mill A could write, and PATCH, Mill B's log sheet.
+*/
+
+it('menolak create() ke production line mill lain, tanpa menulis satu baris pun', function (UserRole $role) {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->weighbridge()->create();
+    $actor = User::factory()->role($role)->forBusinessUnit($this->businessUnit)->create();
+
+    $recordsBefore = WeighbridgeRecord::count();
+
+    expect(fn () => $this->service->create(weighbridgeFormPayload(['production_line_id' => $otherStation->production_line_id]), $actor))
+        ->toThrow(CrossMillWriteDeniedException::class);
+
+    expect(WeighbridgeRecord::count())->toBe($recordsBefore);
+})->with([
+    'operator' => UserRole::Operator,
+    'supervisor' => UserRole::Supervisor,
+    'mill management' => UserRole::MillManagement,
+]);
+
+it('menolak update() record milik mill lain, dan tidak mengubah satu kolom pun', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->weighbridge()->create();
+    $record = WeighbridgeRecord::factory()->forStation($otherStation)->create(['wb_card_number' => 'SCOPE-MILIK-MILL-B']);
+    $before = $record->fresh()->getAttributes();
+
+    expect(fn () => $this->service->update($record->id, weighbridgeFormPayload(['wb_card_number' => 'SCOPE-HIJACKED']), $this->creator))
+        ->toThrow(CrossMillWriteDeniedException::class);
+
+    expect($record->fresh()->getAttributes())->toBe($before);
+});
+
+it('mengizinkan Admin menulis ke line mill mana pun (dibuktikan dengan dua mill berbeda)', function () {
+    $millB = BusinessUnit::factory()->create();
+    $stationB = Station::factory()->forBusinessUnit($millB)->weighbridge()->create();
+    // Admin dinilai dari PERAN: business_unit_id-nya sengaja diisi (19 dari 21
+    // Admin di dev punya kolom ini terisi) dan harus diabaikan.
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    $inOwnMill = $this->service->create(weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'wb_card_number' => 'SCOPE-MILL-A']), $admin);
+    $inOtherMill = $this->service->create(weighbridgeFormPayload(['production_line_id' => $stationB->production_line_id, 'wb_card_number' => 'SCOPE-MILL-B']), $admin);
+
+    expect(WeighbridgeRecord::find($inOwnMill['id'])->station_id)->toBe($this->station->id);
+    expect(WeighbridgeRecord::find($inOtherMill['id'])->station_id)->toBe($stationB->id);
+});
+
+it('gagal tertutup dengan pesan actionable ketika akun aktor belum terhubung ke mill', function () {
+    $actor = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+    $recordsBefore = WeighbridgeRecord::count();
+
+    try {
+        $this->service->create(weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id]), $actor);
+        $this->fail('create() seharusnya ditolak untuk aktor tanpa business_unit_id.');
+    } catch (ValidationException $e) {
+        expect($e->errors()['production_line_id'][0])->toBe('Akun Anda belum terhubung ke mill. Hubungi Admin.');
+    }
+
+    expect(WeighbridgeRecord::count())->toBe($recordsBefore);
+});
+
+it('tetap mengizinkan create() dan update() pada line mill sendiri', function () {
+    $created = $this->service->create(weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'wb_card_number' => 'SCOPE-OWN-1']), $this->creator);
+
+    expect(WeighbridgeRecord::find($created['id'])->station_id)->toBe($this->station->id);
+
+    $this->service->update($created['id'], weighbridgeFormPayload(['wb_card_number' => 'SCOPE-OWN-2']), $this->creator);
+
+    expect(WeighbridgeRecord::find($created['id'])->wb_card_number)->toBe('SCOPE-OWN-2');
 });

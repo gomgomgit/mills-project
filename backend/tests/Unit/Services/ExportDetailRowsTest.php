@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\UserRole;
 use App\Models\BoilerRoomDetail;
 use App\Models\BoilerRoomRecord;
 use App\Models\CagesTippedTime;
@@ -34,6 +35,7 @@ use App\Models\StorageTankDetail;
 use App\Models\StorageTankRecord;
 use App\Models\ThreshingDetail;
 use App\Models\ThreshingRecord;
+use App\Models\User;
 use App\Services\BoilerRoomRecordService;
 use App\Services\CagesTrackRecordService;
 use App\Services\ClarificationRecordService;
@@ -55,6 +57,15 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
+
+// Jalur BACA (export/listRecords/getDetail) sejak 2026-09-28 memakai AKTOR
+// TERAUTENTIKASI — lihat bagian READ SIDE di
+// App\Support\Concerns\ScopesToActorMill. Test di berkas ini menguji BENTUK
+// baris ekspor, bukan cakupan mill, jadi aktornya Admin: Admin tidak terikat
+// mill, sehingga setiap asersi tetap menguji hal yang persis sama.
+beforeEach(function () {
+    $this->actingAs(User::factory()->role(UserRole::Admin)->create());
+});
 
 /**
  * Cross-station guard for the detail-level CSV export (the "Urutan 0" work in

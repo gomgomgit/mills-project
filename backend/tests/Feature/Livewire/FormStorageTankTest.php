@@ -22,8 +22,8 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->storageTankStation = Station::factory()->forBusinessUnit($this->businessUnit)->storageTank()->create();
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 });
 
 it('mounts with zero detail rows for a brand-new draft (no pre-population)', function () {
@@ -139,7 +139,7 @@ it('shows detail-specific error when there are zero valid detail rows on save', 
 });
 
 it('shows an error when the selected Production Line has no active storage-tank station', function () {
-    $otherProductionLine = ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
     $component = Livewire::actingAs($this->supervisor)->test(FormStorageTank::class);
 
     $component->set('form.production_line_id', $otherProductionLine->id);
@@ -216,4 +216,45 @@ it('Checked checkbox only renders for Supervisor', function () {
 it('Acknowledged checkbox only renders for Mill Management', function () {
     Livewire::actingAs($this->supervisor)->test(FormStorageTank::class)->assertDontSeeHtml('data-testid="acknowledged-checkbox"');
     Livewire::actingAs($this->millManagement)->test(FormStorageTank::class)->assertSeeHtml('data-testid="acknowledged-checkbox"');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Dropdown Production Line hanya boleh menawarkan mill aktor (2026-09-28)
+|--------------------------------------------------------------------------
+| Sisi UI dari penjaga yang sama: dropdown tidak boleh menawarkan apa yang
+| akan ditolak oleh FormStorageTank. Lihat
+| App\Support\Concerns\ScopesToActorMill::productionLineOptionsForActor().
+*/
+
+it('hanya memuat production line milik mill aktor pada dropdown', function () {
+    $ownLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherLine = ProductionLine::factory()->forBusinessUnit(BusinessUnit::factory()->create())->create();
+
+    $options = Livewire::actingAs($this->supervisor)->test(FormStorageTank::class)->get('productionLineOptions');
+    $ids = collect($options)->pluck('id');
+
+    expect($ids)->toContain($ownLine->id);
+    expect($ids)->not->toContain($otherLine->id);
+});
+
+it('memberi Admin seluruh production line lintas mill', function () {
+    $ownLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherLine = ProductionLine::factory()->forBusinessUnit(BusinessUnit::factory()->create())->create();
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    $options = Livewire::actingAs($admin)->test(FormStorageTank::class)->get('productionLineOptions');
+    $ids = collect($options)->pluck('id');
+
+    expect($ids)->toContain($ownLine->id);
+    expect($ids)->toContain($otherLine->id);
+});
+
+it('memberi daftar kosong ketika akun aktor belum terhubung ke mill', function () {
+    ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $actor = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+
+    $options = Livewire::actingAs($actor)->test(FormStorageTank::class)->get('productionLineOptions');
+
+    expect($options)->toBe([]);
 });

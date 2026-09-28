@@ -23,10 +23,10 @@ use App\Models\User;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->kernelPlantStation = Station::factory()->forBusinessUnit($this->businessUnit)->kernelPlant()->create();
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
     $this->admin = User::factory()->role(UserRole::Admin)->create();
-    $this->operator = User::factory()->role(UserRole::Operator)->create();
+    $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnit)->create();
 });
 
 function kernelPlantApiPayload(array $overrides = []): array
@@ -121,7 +121,7 @@ it('treats a row with only findings filled as satisfying the minimum-one-row rul
 });
 
 it('returns 422 when production_line_id has no active kernel-plant station', function () {
-    $otherProductionLine = ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
 
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/kernel-plant-records', kernelPlantApiPayload([
         'production_line_id' => $otherProductionLine->id,
@@ -214,4 +214,41 @@ it('rejects unauthenticated requests on create and update', function () {
 
     $record = KernelPlantRecord::factory()->forStation($this->kernelPlantStation)->create();
     $this->patchJson("/api/kernel-plant-records/{$record->id}", kernelPlantApiPayload())->assertStatus(401);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Cross-mill write guard — HTTP contract (2026-09-28)
+|--------------------------------------------------------------------------
+| 403 FORBIDDEN (not 422): payload well-formed, target row real, actor simply
+| has no access to that mill. See App\Exceptions\CrossMillWriteDeniedException.
+*/
+
+it('menolak 403 FORBIDDEN saat POST memakai production_line_id mill lain, tanpa menulis satu baris pun', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->kernelPlant()->create();
+    $recordsBefore = KernelPlantRecord::count();
+
+    $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/kernel-plant-records', kernelPlantApiPayload([
+        'production_line_id' => $otherStation->production_line_id,
+    ]));
+
+    $response->assertStatus(403);
+    $response->assertJsonPath('code', 'FORBIDDEN');
+    expect(KernelPlantRecord::count())->toBe($recordsBefore);
+});
+
+it('menolak 403 FORBIDDEN saat PATCH record milik mill lain, dan tidak mengubah satu kolom pun', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->kernelPlant()->create();
+    $record = KernelPlantRecord::factory()->forStation($otherStation)->create(['kernel_plant_id' => 'SCOPE-MILIK-MILL-B']);
+    $before = $record->fresh()->getAttributes();
+
+    $response = $this->actingAs($this->supervisor, 'web')->patchJson("/api/kernel-plant-records/{$record->id}", kernelPlantApiPayload([
+        'kernel_plant_id' => 'SCOPE-HIJACKED',
+    ]));
+
+    $response->assertStatus(403);
+    $response->assertJsonPath('code', 'FORBIDDEN');
+    expect($record->fresh()->getAttributes())->toBe($before);
 });

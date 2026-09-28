@@ -49,10 +49,20 @@ use App\Services\GradingRecordService;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
+    // FIXTURE DIPERBAIKI 2026-09-28. Tanpa forBusinessUnit() ketiga aktor
+    // terikat mill ini lahir di MILL LAIN (default UserFactory membuat
+    // BusinessUnit baru), dan test tetap hijau justru karena jalur baca ini
+    // belum punya cakupan mill. Fixture-nya yang salah, bukan asersinya.
+    // Admin sengaja dibiarkan apa adanya: Admin dinilai dari PERAN, kolom
+    // `business_unit_id`-nya memang diabaikan.
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
     $this->admin = User::factory()->role(UserRole::Admin)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
-    $this->operator = User::factory()->role(UserRole::Operator)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
+    $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnit)->create();
+
+    // Mill kedua + stasiunnya: pembanding untuk test cakupan mill di bawah.
+    $this->otherBusinessUnit = BusinessUnit::factory()->create();
+    $this->otherStation = Station::factory()->forBusinessUnit($this->otherBusinessUnit)->create();
 });
 
 // Scenario: "Telusuri & Ekspor Data Grading — berhasil"
@@ -234,4 +244,80 @@ it('returns 403 for both endpoints when the authenticated user is an operator', 
 
     $exportResponse = $this->actingAs($this->operator, 'web')->getJson('/api/grading-records/export?format=csv');
     $exportResponse->assertStatus(403);
+});
+
+// ─── CAKUPAN MILL (2026-09-28) ──────────────────────────────────────────────
+// Sampai hari ini `business_unit_id` dipakai mentah dari query string, dan
+// nilai KOSONG berarti TANPA cakupan — jadi Supervisor mill mana pun bisa
+// melihat dan mengekspor record seluruh mill lewat endpoint ini.
+//
+// Asersinya memeriksa ISI (id record mana yang keluar), bukan jumlah baris:
+// kebocoran yang mengembalikan data mill lain juga menghasilkan "ada baris".
+
+it('cakupan mill: business_unit_id Mill B di query string diabaikan, Supervisor Mill A tetap melihat mill sendiri', function () {
+    $mine = GradingRecord::factory()->forStation($this->station)->create();
+    $theirs = GradingRecord::factory()->forStation($this->otherStation)->create();
+
+    $response = $this->actingAs($this->supervisor, 'web')
+        ->getJson('/api/grading-records?'.http_build_query(['business_unit_id' => $this->otherBusinessUnit->id]));
+
+    $response->assertOk();
+    $ids = collect($response->json('data'))->pluck('id')->all();
+
+    expect($ids)->toContain($mine->id);
+    expect($ids)->not->toContain($theirs->id);
+});
+
+it('cakupan mill: tanpa business_unit_id sama sekali, Supervisor tetap hanya melihat mill sendiri', function () {
+    $mine = GradingRecord::factory()->forStation($this->station)->create();
+    $theirs = GradingRecord::factory()->forStation($this->otherStation)->create();
+
+    $response = $this->actingAs($this->supervisor, 'web')->getJson('/api/grading-records');
+
+    $response->assertOk();
+    $ids = collect($response->json('data'))->pluck('id')->all();
+
+    expect($ids)->toContain($mine->id);
+    expect($ids)->not->toContain($theirs->id);
+});
+
+it('cakupan mill: ekspor ikut tercakup — mill lain tidak ikut ke dalam CSV', function () {
+    GradingRecord::factory()->forStation($this->station)->create();
+    GradingRecord::factory()->forStation($this->otherStation)->create();
+
+    $response = $this->actingAs($this->supervisor, 'web')
+        ->get('/api/grading-records/export?'.http_build_query(['business_unit_id' => $this->otherBusinessUnit->id, 'format' => 'csv']));
+
+    $response->assertOk();
+
+    ob_start();
+    $response->sendContent();
+    $body = ob_get_clean();
+
+    // Record tanpa detail tetap menghasilkan tepat satu baris, jadi: 1 header
+    // + 1 baris = hanya record mill aktor yang ikut terekspor.
+    $lines = array_values(array_filter(explode("\n", trim($body)), fn ($line) => $line !== ''));
+    expect($lines)->toHaveCount(2);
+});
+
+it('cakupan mill: Admin tanpa business_unit_id tetap melihat semua mill', function () {
+    $a = GradingRecord::factory()->forStation($this->station)->create();
+    $b = GradingRecord::factory()->forStation($this->otherStation)->create();
+
+    $response = $this->actingAs($this->admin, 'web')->getJson('/api/grading-records');
+
+    $response->assertOk();
+    $ids = collect($response->json('data'))->pluck('id')->all();
+
+    expect($ids)->toContain($a->id);
+    expect($ids)->toContain($b->id);
+});
+
+it('cakupan mill: aktor terikat mill tanpa business_unit_id gagal-tertutup 422, bukan daftar kosong', function () {
+    GradingRecord::factory()->forStation($this->station)->create();
+    $millless = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+
+    $this->actingAs($millless, 'web')->getJson('/api/grading-records')
+        ->assertStatus(422)
+        ->assertJsonPath('code', 'VALIDATION_ERROR');
 });

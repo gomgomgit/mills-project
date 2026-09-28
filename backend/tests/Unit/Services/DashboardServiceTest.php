@@ -10,12 +10,14 @@
  * approach.
  */
 
+use App\Enums\UserRole;
 use App\Exceptions\InvalidDateRangeException;
 use App\Models\BusinessUnit;
 use App\Models\CagesTippedTime;
 use App\Models\CagesTrackRecord;
 use App\Models\GradingRecord;
 use App\Models\Station;
+use App\Models\User;
 use App\Models\WeighbridgeRecord;
 use App\Services\DashboardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,6 +30,14 @@ beforeEach(function () {
     $this->service = new DashboardService();
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
+
+    // getSummary() sejak 2026-09-28 me-resolve `business_unit_id` dari AKTOR
+    // (ScopesToActorMill::resolveReadMillId), bukan langsung dari filter
+    // kiriman klien. Test di berkas ini menguji agregasi dan rentang tanggal,
+    // jadi aktornya Admin — tidak terikat mill, sehingga filter yang dikirim
+    // dipakai apa adanya persis seperti sebelumnya. Pemaksaan cakupan untuk
+    // peran terikat diuji di tests/Feature/Api/DashboardTest.php.
+    $this->actingAs(User::factory()->role(UserRole::Admin)->create());
 });
 
 it('returns 422 INVALID_DATE_RANGE when date_from > date_to', function () {

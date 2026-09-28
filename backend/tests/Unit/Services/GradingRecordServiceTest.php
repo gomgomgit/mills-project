@@ -31,6 +31,8 @@
  */
 
 use App\Enums\RecordStatus;
+use App\Enums\UserRole;
+use App\Exceptions\CrossMillWriteDeniedException;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
 use App\Models\BusinessUnit;
@@ -44,6 +46,7 @@ use App\Services\GradingRecordService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Tests\TestCase;
 
@@ -58,7 +61,16 @@ beforeEach(function () {
     // $this->station above defaults to 'weighbridge' and is unrelated to
     // create()/update(), which resolve station via type=grading).
     $this->gradingStation = Station::factory()->forBusinessUnit($this->businessUnit)->grading()->create();
-    $this->creator = User::factory()->create();
+    $this->creator = User::factory()->forBusinessUnit($this->businessUnit)->create();
+
+    // Jalur BACA (listRecords/export/getDetail) sejak 2026-09-28 memakai
+    // AKTOR TERAUTENTIKASI, bukan parameter — lihat bagian READ SIDE di
+    // App\Support\Concerns\ScopesToActorMill. Test unit di berkas ini
+    // ditulis untuk semantik baca TANPA cakupan mill, jadi aktornya Admin:
+    // Admin memang tidak terikat mill, sehingga setiap asersi lama tetap
+    // menguji hal yang persis sama. Cakupan mill untuk peran terikat diuji
+    // di tests/Feature/Livewire/DataBrowser*Test.php dan Detail*Test.php.
+    $this->actingAs(User::factory()->role(UserRole::Admin)->create());
 });
 
 // unit_test_case 1: returns 422 INVALID_DATE_RANGE when date_from > date_to
@@ -267,7 +279,7 @@ it('returns null acknowledged_by_name when not set', function () {
 });
 
 it('resolves acknowledged_by_name to user name when present', function () {
-    $acknowledger = User::factory()->create(['name' => 'Siti Manager']);
+    $acknowledger = User::factory()->forBusinessUnit($this->businessUnit)->create(['name' => 'Siti Manager']);
     $record = GradingRecord::factory()->forStation($this->station)->create(['acknowledged_by' => $acknowledger->id]);
 
     $result = $this->service->getDetail($record->id);
@@ -390,7 +402,7 @@ it('throws ValidationException when two detail rows share the same grading_param
 });
 
 it('throws NoActiveGradingStationException when production_line_id has no active grading station', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    $otherProductionLine = \App\Models\ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
     $parameter = GradingParameter::factory()->create();
 
@@ -405,7 +417,7 @@ it('throws NoActiveGradingStationException when production_line_id has no active
 });
 
 it('sets acknowledged_by to requester id when acknowledged=true and requester role=mill_management', function () {
-    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->create();
+    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
     $parameter = GradingParameter::factory()->create();
 
@@ -423,7 +435,7 @@ it('sets acknowledged_by to requester id when acknowledged=true and requester ro
 });
 
 it('ignores acknowledged=true when requester role is not mill_management', function () {
-    $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->create();
+    $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
     $parameter = GradingParameter::factory()->create();
 
@@ -503,4 +515,97 @@ it('throws ModelNotFoundException when updating a non-existent id', function () 
         ]),
         $this->creator
     ))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Cross-mill write guard (Grading) — 2026-09-28
+|--------------------------------------------------------------------------
+| A Production Line is a CHOSEN CONTEXT, not an account binding: the rule
+| under test is "the chosen line must sit inside the ACTOR'S mill"
+| (users.business_unit_id), with Admin recognised BY ROLE and therefore not
+| mill-bound at all. See App\Support\Concerns\ScopesToActorMill.
+|
+| Before 2026-09-28 create() took `production_line_id` from the client and
+| never looked at the actor's mill, and update() never checked ownership at
+| all — an Operator of Mill A could write, and PATCH, Mill B's log sheet.
+*/
+
+it('menolak create() ke production line mill lain, tanpa menulis satu baris pun', function (UserRole $role) {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->grading()->create();
+    $actor = User::factory()->role($role)->forBusinessUnit($this->businessUnit)->create();
+
+    $recordsBefore = GradingRecord::count();
+    $detailsBefore = GradingDetail::count();
+
+    expect(fn () => $this->service->create(gradingFormPayload(['production_line_id' => $otherStation->production_line_id, 'weighbridge_record_id' => $weighbridgeRecord->id, 'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 250]]]), $actor))
+        ->toThrow(CrossMillWriteDeniedException::class);
+
+    expect(GradingRecord::count())->toBe($recordsBefore);
+    expect(GradingDetail::count())->toBe($detailsBefore);
+})->with([
+    'operator' => UserRole::Operator,
+    'supervisor' => UserRole::Supervisor,
+    'mill management' => UserRole::MillManagement,
+]);
+
+it('menolak update() record milik mill lain, dan tidak mengubah satu kolom pun', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $otherMill = BusinessUnit::factory()->create();
+    $otherStation = Station::factory()->forBusinessUnit($otherMill)->grading()->create();
+    $record = GradingRecord::factory()->forStation($otherStation)->create(['grading_number' => 'SCOPE-MILIK-MILL-B']);
+    $before = $record->fresh()->getAttributes();
+
+    expect(fn () => $this->service->update($record->id, gradingFormPayload(['weighbridge_record_id' => $weighbridgeRecord->id, 'grading_number' => 'SCOPE-HIJACKED', 'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 250]]]), $this->creator))
+        ->toThrow(CrossMillWriteDeniedException::class);
+
+    expect($record->fresh()->getAttributes())->toBe($before);
+});
+
+it('mengizinkan Admin menulis ke line mill mana pun (dibuktikan dengan dua mill berbeda)', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $millB = BusinessUnit::factory()->create();
+    $stationB = Station::factory()->forBusinessUnit($millB)->grading()->create();
+    // Admin dinilai dari PERAN: business_unit_id-nya sengaja diisi (19 dari 21
+    // Admin di dev punya kolom ini terisi) dan harus diabaikan.
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    $inOwnMill = $this->service->create(gradingFormPayload(['production_line_id' => $this->gradingStation->production_line_id, 'weighbridge_record_id' => $weighbridgeRecord->id, 'grading_number' => 'SCOPE-MILL-A', 'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 250]]]), $admin);
+    $inOtherMill = $this->service->create(gradingFormPayload(['production_line_id' => $stationB->production_line_id, 'weighbridge_record_id' => $weighbridgeRecord->id, 'grading_number' => 'SCOPE-MILL-B', 'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 250]]]), $admin);
+
+    expect(GradingRecord::find($inOwnMill['id'])->station_id)->toBe($this->gradingStation->id);
+    expect(GradingRecord::find($inOtherMill['id'])->station_id)->toBe($stationB->id);
+});
+
+it('gagal tertutup dengan pesan actionable ketika akun aktor belum terhubung ke mill', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $actor = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+    $recordsBefore = GradingRecord::count();
+
+    try {
+        $this->service->create(gradingFormPayload(['production_line_id' => $this->gradingStation->production_line_id, 'weighbridge_record_id' => $weighbridgeRecord->id, 'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 250]]]), $actor);
+        $this->fail('create() seharusnya ditolak untuk aktor tanpa business_unit_id.');
+    } catch (ValidationException $e) {
+        expect($e->errors()['production_line_id'][0])->toBe('Akun Anda belum terhubung ke mill. Hubungi Admin.');
+    }
+
+    expect(GradingRecord::count())->toBe($recordsBefore);
+});
+
+it('tetap mengizinkan create() dan update() pada line mill sendiri', function () {
+    $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
+    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $created = $this->service->create(gradingFormPayload(['production_line_id' => $this->gradingStation->production_line_id, 'weighbridge_record_id' => $weighbridgeRecord->id, 'grading_number' => 'SCOPE-OWN-1', 'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 250]]]), $this->creator);
+
+    expect(GradingRecord::find($created['id'])->station_id)->toBe($this->gradingStation->id);
+
+    $this->service->update($created['id'], gradingFormPayload(['weighbridge_record_id' => $weighbridgeRecord->id, 'grading_number' => 'SCOPE-OWN-2', 'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 250]]]), $this->creator);
+
+    expect(GradingRecord::find($created['id'])->grading_number)->toBe('SCOPE-OWN-2');
 });

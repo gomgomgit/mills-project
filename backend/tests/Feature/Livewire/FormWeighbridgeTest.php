@@ -12,6 +12,7 @@
 use App\Enums\UserRole;
 use App\Livewire\Data\FormWeighbridge;
 use App\Models\BusinessUnit;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
@@ -20,8 +21,8 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
-    $this->supervisor = User::factory()->role(UserRole::Supervisor)->create();
-    $this->millManagement = User::factory()->role(UserRole::MillManagement)->create();
+    $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 });
 
 function fillFormWeighbridge($component, array $overrides = []): void
@@ -179,4 +180,88 @@ it('Checked checkbox only renders for Supervisor, Acknowledged only for Mill Man
         ->test(FormWeighbridge::class)
         ->assertDontSeeHtml('data-testid="checked-checkbox"')
         ->assertSeeHtml('data-testid="acknowledged-checkbox"');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Dropdown Business Unit hanya boleh menawarkan mill aktor (2026-09-28)
+|--------------------------------------------------------------------------
+| Layar ini memilih mill DULU, baru Production Line dicascade dari mill itu
+| (StationService::productionLineOptions()). Selama daftar mill-nya sendiri
+| tidak tersaring, penyaringan line di bawahnya tidak menahan apa pun: pilih
+| mill lain, dapat line mill lain. Lihat
+| App\Support\Concerns\ScopesToActorMill::businessUnitOptionsForActor().
+*/
+
+it('hanya memuat mill aktor pada dropdown Business Unit', function () {
+    $otherMill = BusinessUnit::factory()->create();
+
+    $options = Livewire::actingAs($this->supervisor)->test(FormWeighbridge::class)->get('businessUnitOptions');
+    $ids = collect($options)->pluck('id');
+
+    expect($ids)->toContain($this->businessUnit->id);
+    expect($ids)->not->toContain($otherMill->id);
+});
+
+it('memberi Admin seluruh mill pada dropdown Business Unit', function () {
+    $otherMill = BusinessUnit::factory()->create();
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    $options = Livewire::actingAs($admin)->test(FormWeighbridge::class)->get('businessUnitOptions');
+    $ids = collect($options)->pluck('id');
+
+    expect($ids)->toContain($this->businessUnit->id);
+    expect($ids)->toContain($otherMill->id);
+});
+
+it('memberi daftar mill kosong ketika akun aktor belum terhubung ke mill', function () {
+    BusinessUnit::factory()->create();
+    $actor = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
+
+    $options = Livewire::actingAs($actor)->test(FormWeighbridge::class)->get('businessUnitOptions');
+
+    expect($options)->toBe([]);
+});
+
+// ─── CAKUPAN MILL PADA CASCADE PICKER (2026-09-28) ──────────────────────────
+// Sama seperti Form Grading: dropdown mill sudah disempitkan tahap 1a, tapi
+// `form.business_unit_id` adalah properti Livewire publik yang bisa disuntik,
+// dan cascade production line membacanya apa adanya. Ini jalur BACA, jadi
+// masuk tahap 1b.
+it('cakupan mill: memaksa form.business_unit_id ke Mill B tidak memuat production line Mill B', function () {
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+    $otherLine = ProductionLine::factory()->create([
+        'business_unit_id' => $otherBusinessUnit->id,
+        'name' => 'LINE-MILL-B-999',
+    ]);
+
+    Livewire::actingAs($this->supervisor)
+        ->test(FormWeighbridge::class)
+        ->set('form.business_unit_id', $otherBusinessUnit->id)
+        ->assertSet('form.business_unit_id', $this->businessUnit->id)
+        ->assertSet('productionLineOptions', function ($options) use ($otherLine) {
+            $ids = collect($options)->pluck('id')->all();
+
+            return ! in_array($otherLine->id, $ids, true);
+        });
+});
+
+it('cakupan mill: Admin tetap bisa memilih mill lain dan melihat production line-nya', function () {
+    $otherBusinessUnit = BusinessUnit::factory()->create();
+    $otherLine = ProductionLine::factory()->create([
+        'business_unit_id' => $otherBusinessUnit->id,
+        'name' => 'LINE-MILL-B-999',
+    ]);
+
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    Livewire::actingAs($admin)
+        ->test(FormWeighbridge::class)
+        ->set('form.business_unit_id', $otherBusinessUnit->id)
+        ->assertSet('form.business_unit_id', $otherBusinessUnit->id)
+        ->assertSet('productionLineOptions', function ($options) use ($otherLine) {
+            $ids = collect($options)->pluck('id')->all();
+
+            return in_array($otherLine->id, $ids, true);
+        });
 });

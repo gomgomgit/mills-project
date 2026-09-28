@@ -8,8 +8,8 @@ use App\Exceptions\InvalidDateRangeException;
 use App\Exceptions\NoActiveProcessQualityControlStationException;
 use App\Models\ProcessQualityControlDetail;
 use App\Models\ProcessQualityControlRecord;
-use App\Models\Station;
 use App\Models\User;
+use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -52,6 +52,8 @@ use Throwable;
  */
 class ProcessQualityControlRecordService
 {
+    use ScopesToActorMill;
+
     public const EXPORT_ROW_LIMIT = 50000;
 
     protected const FORM_FIELDS = ['process_qc_id', 'date', 'note'];
@@ -98,11 +100,11 @@ class ProcessQualityControlRecordService
         $this->validateForm($attributes);
         $this->validateDetails($details);
 
-        $station = Station::query()
-            ->where('production_line_id', $data['production_line_id'] ?? null)
-            ->where('type', 'process-quality-control')
-            ->where('is_active', true)
-            ->first();
+        $station = $this->resolveActiveStationForActor(
+            $data['production_line_id'] ?? null,
+            'process-quality-control',
+            $actor,
+        );
 
         if ($station === null) {
             throw new NoActiveProcessQualityControlStationException();
@@ -137,6 +139,8 @@ class ProcessQualityControlRecordService
     public function update(string $id, array $data, User $actor): array
     {
         $record = ProcessQualityControlRecord::findOrFail($id);
+
+        $this->assertRecordWritableByActor($record, $actor);
 
         $attributes = $this->normalizeFormFields($data);
         $details = $this->normalizeDetails($data['details'] ?? []);
@@ -279,7 +283,35 @@ class ProcessQualityControlRecordService
             fn ($row) => $row['time_slot'] !== null && $row['time_slot'] !== '' && $this->isRowFilled($row)
         );
 
-        $keptIds = [];
+        // URUTAN MENENTUKAN — baris basi DIHAPUS SEBELUM baris baru
+        // disisipkan. Sampai 2026-09-28 urutannya terbalik di stasiun ini,
+        // dan dengan UNIQUE(process_quality_control_record_id, time_slot)
+        // (`pqc_details_record_time_slot_unique`) pada tabel detail itu
+        // berarti memindahkan sebuah pembacaan ke slot yang SEDANG DIPAKAI
+        // baris lain yang akan dihapus melanggar constraint dan melempar
+        // UniqueConstraintViolationException. Itu operasi harian: Operator
+        // salah pilih slot lalu membetulkannya.
+        //
+        // Pola ini sudah diperbaiki di 11 service lain pada 2026-09-25;
+        // Process Quality Control terlewat karena nama index-nya menyimpang
+        // dari pola penamaan default (dipendekkan jadi `pqc_details_...`
+        // di 2026_08_31_000021), sehingga pencarian berbasis nama tidak
+        // menemukannya.
+        //
+        // Keep-set dihitung dari ID yang SUDAH ADA di payload saja. Baris
+        // baru belum punya ID pada titik ini dan memang tidak perlu
+        // dipertahankan — tidak ada baris lama yang mewakilinya. Memasukkan
+        // ID hasil create() ke sini (bentuk lama) itulah yang memaksa
+        // delete berjalan belakangan.
+        $keptIds = $validRows
+            ->pluck('id')
+            ->filter()
+            ->values()
+            ->all();
+
+        ProcessQualityControlDetail::where('process_quality_control_record_id', $record->id)
+            ->whereNotIn('id', $keptIds)
+            ->delete();
 
         foreach ($validRows as $row) {
             $detailAttributes = ['process_quality_control_record_id' => $record->id, 'time_slot' => $row['time_slot']];
@@ -290,16 +322,10 @@ class ProcessQualityControlRecordService
 
             if (! empty($row['id']) && ProcessQualityControlDetail::where('id', $row['id'])->where('process_quality_control_record_id', $record->id)->exists()) {
                 ProcessQualityControlDetail::where('id', $row['id'])->update($detailAttributes);
-                $keptIds[] = $row['id'];
             } else {
-                $detail = ProcessQualityControlDetail::create($detailAttributes);
-                $keptIds[] = $detail->id;
+                ProcessQualityControlDetail::create($detailAttributes);
             }
         }
-
-        ProcessQualityControlDetail::where('process_quality_control_record_id', $record->id)
-            ->whereNotIn('id', $keptIds)
-            ->delete();
     }
 
     /**
@@ -497,6 +523,21 @@ class ProcessQualityControlRecordService
      */
     protected function buildFilteredQuery(array $filters): Builder
     {
+        // CAKUPAN MILL DULU, sebelum filter apa pun dibaca. Sampai
+        // 2026-09-28 `business_unit_id` di sini datang mentah dari properti
+        // Livewire Data Browser (default '') atau dari query string API,
+        // dan nilai kosong berarti TANPA cakupan sama sekali — sehingga
+        // Supervisor mana pun bisa melihat dan mengekspor record mill lain.
+        // scopeFiltersToActorMill() MEMBUANG nilai kiriman klien untuk
+        // aktor yang terikat mill dan menggantinya dengan mill aktor
+        // sendiri, jadi mengirim mill lain lewat properti atau query string
+        // tidak mengubah apa pun. Hanya Admin yang nilainya dipakai apa
+        // adanya (kosong = semua mill, perilaku lama dipertahankan).
+        //
+        // Dipasang di buildFilteredQuery() karena listRecords() DAN
+        // export() sama-sama lewat sini — satu titik untuk dua jalur baca.
+        $filters = $this->scopeFiltersToActorMill($filters);
+
         $dateFrom = $filters['date_from'] ?? null;
         $dateTo = $filters['date_to'] ?? null;
         $businessUnitId = $filters['business_unit_id'] ?? null;
@@ -548,13 +589,22 @@ class ProcessQualityControlRecordService
      */
     public function getDetail(string $id): array
     {
-        $record = ProcessQualityControlRecord::with([
-            'station',
-            'createdBy',
-            'checkedBy',
-            'acknowledgedBy',
-            'processQualityControlDetails',
-        ])->findOrFail($id);
+        // Cakupan mill diterapkan sebagai SCOPE QUERY, bukan cek 403
+        // setelah row diambil: UUID milik mill lain jadi tidak ada sama
+        // sekali, sehingga findOrFail() melempar ModelNotFoundException
+        // yang semua pemanggil sudah tangani (API -> 404 NOT_FOUND, layar
+        // Detail/Form Livewire -> state $notFound). Sampai 2026-09-28
+        // jalur ini memuat record mill lain secara utuh bila UUID-nya
+        // diketahui, dan 403 baru muncul saat save.
+        $record = $this->scopeQueryToActorMill(
+            ProcessQualityControlRecord::with([
+                'station',
+                'createdBy',
+                'checkedBy',
+                'acknowledgedBy',
+                'processQualityControlDetails',
+            ])
+        )->findOrFail($id);
 
         return $this->toDetailRow($record);
     }

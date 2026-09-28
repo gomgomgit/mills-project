@@ -21,7 +21,16 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
-    $this->user = User::factory()->role(UserRole::Supervisor)->create();
+    // FIXTURE DIPERBAIKI 2026-09-28. Sebelumnya tanpa forBusinessUnit():
+    // default UserFactory adalah `'business_unit_id' => BusinessUnit::factory()`,
+    // jadi Supervisor ini lahir di MILL LAIN — dan test tetap hijau justru
+    // karena getDetail() belum punya cakupan mill. Fixture-nya yang salah,
+    // bukan asersinya.
+    $this->user = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+
+    // Mill kedua + stasiunnya: pembanding untuk test cakupan mill di bawah.
+    $this->otherBusinessUnit = BusinessUnit::factory()->create();
+    $this->otherStation = Station::factory()->forBusinessUnit($this->otherBusinessUnit)->create();
     // DetailThreshing's render() queries ThreshingOperationalTarget live —
     // RefreshDatabase migrates but does not run seeders, so the 6 reference
     // rows must be seeded explicitly here for tests asserting their content.
@@ -69,4 +78,31 @@ it('Back button links to the Data Browser Threshing route', function () {
     Livewire::actingAs($this->user)
         ->test(DetailThreshing::class, ['id' => $record->id])
         ->assertSeeHtml(route('data.threshing'));
+});
+
+// ─── CAKUPAN MILL (2026-09-28) ──────────────────────────────────────────────
+// Sampai hari ini getDetail() hanya findOrFail() tanpa cakupan mill apa pun,
+// jadi layar ini memuat record mill lain SECARA UTUH bila UUID-nya diketahui
+// (mis. dari tautan yang dibagikan) — 403 baru muncul jauh kemudian, saat
+// save. Sekarang cakupannya ada di QUERY, sehingga record itu tidak ada sama
+// sekali bagi aktor Mill A dan layar jatuh ke state $notFound yang sudah
+// ditangani, bukan halaman 403 dan bukan konfirmasi bahwa record itu ada.
+it('cakupan mill: UUID record Mill B tidak bisa dibuka Supervisor Mill A', function () {
+    $theirs = ThreshingRecord::factory()->forStation($this->otherStation)->create();
+
+    Livewire::actingAs($this->user)
+        ->test(DetailThreshing::class, ['id' => $theirs->id])
+        ->assertSet('notFound', true)
+        ->assertSet('record', null)
+        ->assertSee('Record tidak ditemukan');
+});
+
+it('cakupan mill: Admin tetap bisa membuka record mill mana pun', function () {
+    $theirs = ThreshingRecord::factory()->forStation($this->otherStation)->create();
+    $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
+
+    Livewire::actingAs($admin)
+        ->test(DetailThreshing::class, ['id' => $theirs->id])
+        ->assertSet('notFound', false)
+        ->assertSet('record', fn ($record) => is_array($record) && $record['id'] === $theirs->id);
 });

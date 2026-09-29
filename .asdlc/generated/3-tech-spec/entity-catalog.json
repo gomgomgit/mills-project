@@ -1,8 +1,8 @@
 {
-  "ver": 18,
+  "ver": 19,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-25"
+    "updated_at": "2026-09-28"
   },
   "entities": [
     {
@@ -681,6 +681,96 @@
           "entity_id": "station",
           "type": "one-to-many",
           "description": "Satu Production Line memiliki banyak Station (termasuk set 15 station kanonis, 3 aktif + 12 placeholder, auto-dibuat saat Production Line dibuat)."
+        },
+        {
+          "entity_id": "weighbridge-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Weighbridge Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "grading-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Grading Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "cages-track-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Cages Track Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "threshing-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Threshing Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "pressing-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Pressing Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "depricarping-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Depricarping Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "kernel-plant-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Kernel Plant Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "solid-waste-disposal-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Solid Waste Disposal Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "process-water-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Process Water Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "kernel-dispatch-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Kernel Dispatch Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "cpo-dispatch-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak CPO Dispatch Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "effluent-plant-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Effluent Plant Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "storage-tank-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Storage Tank Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "engine-room-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Engine Room Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "boiler-room-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Boiler Room Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "clarification-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Clarification Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "process-quality-control-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Process Quality Control Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
+        },
+        {
+          "entity_id": "sterilizer-record",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak Sterilizer Record; nilainya disnapshot saat record dibuat dan permanen, sehingga memindahkan stasiun tidak memindahkan riwayatnya."
         }
       ],
       "constraints": [
@@ -1472,6 +1562,12 @@
           "description": "FK ke Station (tipe weighbridge)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "wb_card_number",
           "type": "string",
           "required": true,
@@ -1591,17 +1687,25 @@
           "entity_id": "grading-record",
           "type": "one-to-many",
           "description": "Satu Weighbridge Record dapat direferensikan banyak Grading Record via WB Card No."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "net_weight = gross_weight - tare_weight jika keduanya terisi",
-        "destination wajib diisi jika weighbridge_type = dispatch"
+        "destination wajib diisi jika weighbridge_type = dispatch",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "wbr-001",
         "station_id": "stn-001",
+        "production_line_id": "pl-001",
         "wb_card_number": "WB-2024-0001",
         "weighbridge_type": "dispatch",
         "record_datetime": "2024-01-15T09:00:00Z",
@@ -1701,6 +1805,12 @@
           "type": "uuid",
           "required": true,
           "description": "FK ke Station (tipe grading)."
+        },
+        {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
         },
         {
           "name": "grading_number",
@@ -1809,16 +1919,24 @@
           "entity_id": "weighbridge-record",
           "type": "many-to-one",
           "description": "Setiap Grading Record merujuk satu Weighbridge Record via weighbridge_record_id."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
-        "minimal satu Grading Detail harus ada sebelum status=saved"
+        "minimal satu Grading Detail harus ada sebelum status=saved",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "grd-001",
         "station_id": "stn-001",
+        "production_line_id": "pl-001",
         "grading_number": "GR-2024-0001",
         "date": "2024-01-15T08:00:00Z",
         "weighbridge_record_id": "wbr-001",
@@ -1930,6 +2048,12 @@
           "description": "FK ke Station (tipe cages-track)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "cages_track_number",
           "type": "string",
           "required": true,
@@ -2013,6 +2137,11 @@
           "entity_id": "cages-tipped-time",
           "type": "one-to-many",
           "description": "Satu Cages Track Record memiliki banyak Cages Tipped Time (baris slot waktu tipping)."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
@@ -2021,11 +2150,14 @@
         "minimal satu Cages Tipped Time harus ada sebelum status=saved",
         "tippler_start_time diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
         "tippler_stop_time diisi otomatis sekali tepat saat Simpan ditekan, tidak dapat diedit manual",
-        "Jumlah kolom checklist cage (1..N) di setiap baris Cages Tipped Time mengacu ke COUNT(machinery WHERE station_id = station_id record ini) — BUKAN ke cages_tipped maupun mill-setting (2026-08-20: mill-setting.jumlah_cages dihapus). Field cages_tipped tetap input manual terpisah, tidak lagi menentukan jumlah kolom."
+        "Jumlah kolom checklist cage (1..N) di setiap baris Cages Tipped Time mengacu ke COUNT(machinery WHERE station_id = station_id record ini) — BUKAN ke cages_tipped maupun mill-setting (2026-08-20: mill-setting.jumlah_cages dihapus). Field cages_tipped tetap input manual terpisah, tidak lagi menentukan jumlah kolom.",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "ctr-001",
         "station_id": "stn-001",
+        "production_line_id": "pl-001",
         "cages_track_number": "CT-2024-0001",
         "date": "2024-01-15",
         "tippler_start_time": "2024-01-15T11:00:00Z",
@@ -2212,6 +2344,12 @@
           "description": "FK ke Station (tipe threshing)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "thresher_id",
           "type": "string",
           "required": true,
@@ -2271,17 +2409,25 @@
           "entity_id": "threshing-detail",
           "type": "one-to-many",
           "description": "Satu Threshing Record memiliki banyak Threshing Detail (baris time-slot per jam)."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail time-slot harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "thr-001",
         "station_id": "stn-001",
+        "production_line_id": "pl-001",
         "thresher_id": "TH-01",
         "date": "2024-01-15",
         "note": "",
@@ -2465,6 +2611,12 @@
           "description": "FK ke Station (tipe pressing)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "presser_id",
           "type": "string",
           "required": true,
@@ -2524,17 +2676,25 @@
           "entity_id": "pressing-detail",
           "type": "one-to-many",
           "description": "Satu Pressing Record memiliki banyak Pressing Detail (baris time-slot per jam)."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail time-slot harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "prs-001",
         "station_id": "stn-001",
+        "production_line_id": "pl-001",
         "presser_id": "PR-01",
         "date": "2024-01-15",
         "note": "",
@@ -2718,6 +2878,12 @@
           "description": "FK ke Station (tipe depricarping)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "presser_id",
           "type": "string",
           "required": true,
@@ -2777,17 +2943,25 @@
           "entity_id": "depricarping-detail",
           "type": "one-to-many",
           "description": "Satu Depricarping Record memiliki banyak Depricarping Detail (baris time-slot per jam)."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail time-slot harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "dpc-001",
         "station_id": "stn-001",
+        "production_line_id": "pl-001",
         "presser_id": "DP-01",
         "date": "2024-01-15",
         "note": "",
@@ -2999,6 +3173,12 @@
           "description": "FK ke Station (tipe kernel-plant)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "kernel_plant_id",
           "type": "string",
           "required": true,
@@ -3058,17 +3238,25 @@
           "entity_id": "kernel-plant-detail",
           "type": "one-to-many",
           "description": "Satu Kernel Plant Record memiliki banyak Kernel Plant Detail (baris time-slot per jam)."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail time-slot harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "kpl-001",
         "station_id": "stn-001",
+        "production_line_id": "pl-001",
         "kernel_plant_id": "KP-01",
         "date": "2024-01-15",
         "note": "",
@@ -3273,6 +3461,12 @@
           "description": "FK ke Station (tipe solid_waste_disposal)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "solid_waste_disposal_id",
           "type": "string",
           "required": true,
@@ -3332,17 +3526,25 @@
           "entity_id": "solid-waste-disposal-detail",
           "type": "one-to-many",
           "description": "Satu Solid Waste Disposal Record memiliki banyak Solid Waste Disposal Detail."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "sol-001",
         "station_id": "ref-001",
+        "production_line_id": "pl-001",
         "solid_waste_disposal_id": "ref-001",
         "date": "2024-01-15",
         "note": "",
@@ -3532,6 +3734,12 @@
           "description": "FK ke Station (tipe process_water)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "process_water_id",
           "type": "string",
           "required": true,
@@ -3591,17 +3799,25 @@
           "entity_id": "process-water-detail",
           "type": "one-to-many",
           "description": "Satu Process Water Record memiliki banyak Process Water Detail."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "pro-003",
         "station_id": "ref-001",
+        "production_line_id": "pl-001",
         "process_water_id": "ref-001",
         "date": "2024-01-15",
         "note": "",
@@ -3772,6 +3988,12 @@
           "description": "FK ke Station (tipe kernel_dispatch)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "kernel_dispatch_id",
           "type": "string",
           "required": true,
@@ -3831,17 +4053,25 @@
           "entity_id": "kernel-dispatch-detail",
           "type": "one-to-many",
           "description": "Satu Kernel Dispatch Record memiliki banyak Kernel Dispatch Detail."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "ker-005",
         "station_id": "ref-001",
+        "production_line_id": "pl-001",
         "kernel_dispatch_id": "ref-001",
         "date": "2024-01-15",
         "note": "",
@@ -4059,6 +4289,12 @@
           "description": "FK ke Station (tipe cpo_dispatch)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "cpo_dispatch_id",
           "type": "string",
           "required": true,
@@ -4118,17 +4354,25 @@
           "entity_id": "cpo-dispatch-detail",
           "type": "one-to-many",
           "description": "Satu CPO Dispatch Record memiliki banyak CPO Dispatch Detail."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "cpo-007",
         "station_id": "ref-001",
+        "production_line_id": "pl-001",
         "cpo_dispatch_id": "ref-001",
         "date": "2024-01-15",
         "note": "",
@@ -4346,6 +4590,12 @@
           "description": "FK ke Station (tipe effluent_plant)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "effluent_plant_id",
           "type": "string",
           "required": true,
@@ -4405,17 +4655,25 @@
           "entity_id": "effluent-plant-detail",
           "type": "one-to-many",
           "description": "Satu Effluent Plant Record memiliki banyak Effluent Plant Detail."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "eff-009",
         "station_id": "ref-001",
+        "production_line_id": "pl-001",
         "effluent_plant_id": "ref-001",
         "date": "2024-01-15",
         "note": "",
@@ -4628,6 +4886,12 @@
           "description": "FK ke Station (tipe storage_tank)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "storage_tank_id",
           "type": "string",
           "required": true,
@@ -4687,17 +4951,25 @@
           "entity_id": "storage-tank-detail",
           "type": "one-to-many",
           "description": "Satu Storage Tank Record memiliki banyak Storage Tank Detail."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "sto-011",
         "station_id": "ref-001",
+        "production_line_id": "pl-001",
         "storage_tank_id": "ref-001",
         "date": "2024-01-15",
         "note": "",
@@ -4896,6 +5168,12 @@
           "description": "FK ke Station (tipe engine_room)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "engine_room_id",
           "type": "string",
           "required": true,
@@ -4955,17 +5233,25 @@
           "entity_id": "engine-room-detail",
           "type": "one-to-many",
           "description": "Satu Engine Room Record memiliki banyak Engine Room Detail."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "eng-013",
         "station_id": "ref-001",
+        "production_line_id": "pl-001",
         "engine_room_id": "ref-001",
         "date": "2024-01-15",
         "note": "",
@@ -5234,6 +5520,12 @@
           "description": "FK ke Station (tipe boiler_room)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "boiler_room_id",
           "type": "string",
           "required": true,
@@ -5293,17 +5585,25 @@
           "entity_id": "boiler-room-detail",
           "type": "one-to-many",
           "description": "Satu Boiler Room Record memiliki banyak Boiler Room Detail."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "boi-015",
         "station_id": "ref-001",
+        "production_line_id": "pl-001",
         "boiler_room_id": "ref-001",
         "date": "2024-01-15",
         "note": "",
@@ -5488,6 +5788,12 @@
           "description": "FK ke Station (tipe clarification)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "clarification_id",
           "type": "string",
           "required": true,
@@ -5547,17 +5853,25 @@
           "entity_id": "clarification-detail",
           "type": "one-to-many",
           "description": "Satu Clarification Record memiliki banyak Clarification Detail."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "cla-017",
         "station_id": "ref-001",
+        "production_line_id": "pl-001",
         "clarification_id": "ref-001",
         "date": "2024-01-15",
         "note": "",
@@ -5686,6 +6000,12 @@
           "description": "FK ke Station (tipe process_qc)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "process_qc_id",
           "type": "string",
           "required": true,
@@ -5745,17 +6065,25 @@
           "entity_id": "process-quality-control-detail",
           "type": "one-to-many",
           "description": "Satu Process Quality Control Record memiliki banyak Process Quality Control Detail."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "pro-019",
         "station_id": "ref-001",
+        "production_line_id": "pl-001",
         "process_qc_id": "ref-001",
         "date": "2024-01-15",
         "note": "",
@@ -5947,6 +6275,12 @@
           "description": "FK ke Station (tipe sterilizer)."
         },
         {
+          "name": "production_line_id",
+          "type": "uuid",
+          "required": true,
+          "description": "FK ke Production Line. DI-SNAPSHOT dari stasiun yang sudah di-resolve saat record DIBUAT, dan PERMANEN sesudahnya — bukan turunan yang dibaca ulang dari stasiun. Sebelum 2026-09-28 production line sebuah record hanya bisa diturunkan lewat station.production_line_id, sehingga memindahkan satu stasiun ke line lain MENULIS ULANG SELURUH RIWAYAT RECORD LAMANYA secara retroaktif tanpa jejak. Karena itu divergensi antara record.production_line_id dan station.production_line_id ADALAH FITURNYA, bukan inkonsistensi yang perlu didamaikan: yang pertama menunjuk line tempat data itu benar-benar dihasilkan, yang kedua menunjuk konfigurasi stasiun hari ini. Nilainya TIDAK PERNAH diterima dari klien — klien mengirim production_line_id hanya untuk MEMILIH stasiun, dan yang tersimpan diturunkan server dari stasiun itu."
+        },
+        {
           "name": "sterilizer_id",
           "type": "string",
           "required": true,
@@ -6006,17 +6340,25 @@
           "entity_id": "sterilizer-detail",
           "type": "one-to-many",
           "description": "Satu Sterilizer Record memiliki banyak Sterilizer Detail (baris siklus sterilisasi)."
+        },
+        {
+          "entity_id": "production-line",
+          "type": "one-to-many",
+          "description": "Satu Production Line memiliki banyak record; setiap record menunjuk tepat satu line, disnapshot saat dibuat dan tidak pernah berubah sesudahnya."
         }
       ],
       "constraints": [
         "checked_by hanya dapat diisi oleh user dengan role supervisor",
         "acknowledged_by hanya dapat diisi oleh user dengan role mill_management",
         "minimal satu baris detail harus terisi sebelum status=saved",
-        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual"
+        "date diisi otomatis sekali saat draft baru dibuat, tidak dapat diedit manual",
+        "production_line_id wajib ada di production_lines (foreign key, RESTRICT on delete). RESTRICT, sengaja BUKAN CASCADE seperti preseden machinery: machinery adalah konfigurasi yang dimiliki line, sedangkan record operasional adalah riwayat, dan DELETE production line yang diam-diam menghapus riwayat produksi adalah hal yang sama sekali berbeda. Konsisten pula dengan station_id yang memang sudah RESTRICT di ke-18 tabel record.",
+        "Penyaringan per production line WAJIB memakai kolom production_line_id pada tabel record, BUKAN join ke stations. Join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot di atas."
       ],
       "test_fixture": {
         "id": "ste-001",
         "station_id": "ref-001",
+        "production_line_id": "pl-001",
         "sterilizer_id": "ref-001",
         "date": "2024-01-15",
         "note": "",

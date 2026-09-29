@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-23"
+    "updated_at": "2026-09-29"
   },
   "id": "screen-140--laporan-stasiun-web",
   "name": "Laporan Stasiun (Web)",
@@ -87,6 +87,13 @@
                 "required": false,
                 "default": null,
                 "description": "WAJIB bagi Admin. DIABAIKAN SEPENUHNYA bagi Supervisor & Mill Management — mill mereka diambil dari akun, parameter tidak pernah divalidasi maupun dipakai."
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "OPSIONAL, ditambahkan 2026-09-28. Production Line yang berlaku; ikut disisipkan pada setiap report_path sehingga layar laporan tujuan tidak bertanya ulang. Line milik mill lain DIABAIKAN — resolveProductionLine() memulangkan null, `production_line` menjadi null, dan tidak satu pun report_path membawanya. Bukan 403."
               }
             ],
             "body_schema": {}
@@ -98,13 +105,14 @@
                   "id": "<uuid>",
                   "name": "<string>"
                 },
+                "production_line": "{ id: <uuid>, name: <string> } | null — blok BARU (2026-09-28), ADITIF. null ketika permintaan tidak membawa production_line_id atau line itu bukan milik mill yang berlaku.",
                 "stations": [
                   {
                     "code": "<string>",
                     "name": "<string>",
                     "sort_order": "<int>",
                     "report_available": "<bool>",
-                    "report_path": "<string|null>"
+                    "report_path": "<string|null> — rute laporan beserta `business_unit_id` DAN `production_line_id` (keduanya lewat array_filter, jadi yang kosong tidak ikut). Nama kunci `production_line_id` WAJIB sama persis dengan #[Url(as: 'production_line_id')] pada keenam komponen laporan — pasangan nama itulah yang membuat rantai tile → laporan bertemu."
                   }
                 ]
               }
@@ -153,7 +161,10 @@
         "→ jika peran admin: pakai business_unit_id kiriman klien",
         "SELECT business_unit berdasarkan mill yang berlaku → jika tidak ada: 404 NOT_FOUND",
         "SELECT station_types WHERE code <> 'other' ORDER BY sort_order ASC",
-        "Tiap jenis stasiun diberi report_available = true HANYA bila kodenya ada di peta REPORT_ROUTES (saat ini hanya 'sterilizer'), dan report_path = rute laporan itu dengan business_unit_id ikut terbawa; selain itu report_available = false dan report_path = null — jenisnya tetap dikembalikan, tidak dibuang",
+        "Tiap jenis stasiun diberi report_available = true HANYA bila kodenya ada di peta REPORT_ROUTES — per 2026-09-28 berisi lima jenis: cages-track, sterilizer, clarification, boiler-room, storage-tank (urutannya mengikuti station_types.sort_order dan itu load-bearing bagi uji yang mengasersi array_keys secara berurutan) — dan report_path = rute laporan itu dengan business_unit_id DAN production_line_id ikut terbawa; selain itu report_available = false dan report_path = null — jenisnya tetap dikembalikan, tidak dibuang",
+        "productionLineOptions(businessUnitId): SELECT production_lines WHERE business_unit_id = <mill yang berlaku> ORDER BY name. Berlaku untuk SEMUA peran — Production Line BUKAN ikatan akun (tidak ada `users.production_line_id`) melainkan KONTEKS YANG DIPILIH.",
+        "resolveProductionLine(businessUnitId, requested): null bila kosong, dan null pula bila line itu bukan milik mill yang berlaku — DIABAIKAN, bukan 403. null berarti grid stasiun DITAHAN: komponen memulangkan daftar stasiun kosong dan menampilkan arahan 'Pilih production line terlebih dahulu'.",
+        "Blok `production_line` ({id,name} atau null) DITAMBAHKAN pada respons di samping `business_unit` — aditif, nol kunci lama berubah.",
         "Kembalikan 200 dengan business_unit dan daftar stasiun"
       ],
       "data_operations": [
@@ -176,6 +187,11 @@
           "entity_id": "station-type",
           "operation": "SELECT",
           "description": "SELECT seluruh jenis stasiun kecuali 'other', urut sort_order ASC"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Opsi pemilih Production Line di dalam mill yang berlaku, urut nama — dan nama line terpilih untuk blok `production_line` pada respons."
         }
       ],
       "edge_case_handling": [
@@ -206,6 +222,22 @@
         {
           "condition": "Pengguna menekan tile stasiun yang report_available = false",
           "handling": "Ditangani di lapisan tampilan: tile dirender tanpa atribut href, dengan aria-disabled=\"true\" dan tanpa wire:click. Tidak ada permintaan yang dikirim, tidak ada perpindahan halaman, tidak ada pesan error."
+        },
+        {
+          "condition": "Production Line belum dipilih",
+          "handling": "Grid stasiun DITAHAN — daftar stasiun dikosongkan di komponen dan layar menampilkan 'Pilih production line terlebih dahulu'. Tanpa line, tile tidak punya konteks untuk dibawa ke layar laporan tujuan, dan laporan tujuan akan menanyakannya lagi."
+        },
+        {
+          "condition": "Mill yang berlaku belum punya satu pun Production Line",
+          "handling": "Arahan tambahan [data-testid=\"no-production-lines\"] meminta Admin membuatnya lebih dulu di layar Kelola Production Line — bukan error."
+        },
+        {
+          "condition": "Production Line milik mill lain dikirim lewat properti Livewire atau query string",
+          "handling": "Diabaikan: resolveProductionLine() memulangkan null, `production_line` menjadi null, dan id itu TIDAK PERNAH sampai ke satu pun report_path."
+        },
+        {
+          "condition": "Admin mengganti mill saat sebuah Production Line sudah dipilih",
+          "handling": "keepProductionLineValid() membuang pilihan yang tidak ada pada daftar opsi mill baru, sehingga tile tidak pernah membawa line milik mill lama."
         }
       ],
       "business_rules_applied": [
@@ -215,7 +247,10 @@
         "Jenis stasiun historis 'other' dikecualikan",
         "Stasiun yang laporannya belum dibangun ditampilkan nonaktif, tidak disembunyikan",
         "Mill yang ditetapkan ikut terbawa ke layar laporan lewat report_path",
-        "Operator tidak punya akses ke layar ini"
+        "Operator tidak punya akses ke layar ini",
+        "Production Line adalah KONTEKS YANG DIPILIH, bukan ikatan akun — tidak ada `users.production_line_id`",
+        "Memilih Production Line WAJIB sebelum grid stasiun ditampilkan",
+        "Tile membawa Production Line terpilih sejajar dengan business_unit_id, sehingga layar laporan tujuan tidak menanyakan ulang keputusan yang sudah dijawab"
       ],
       "unit_test_cases": [
         {
@@ -307,6 +342,31 @@
           "description": "stations: mengembalikan hasil sukses lengkap ketika semua prasyarat terpenuhi",
           "given": "user role 'supervisor' dengan users.business_unit_id = 'bu-a' yang ada di DB; master Jenis Stasiun terisi; REPORT_ROUTES memuat 'sterilizer'",
           "expect": "mengembalikan { business_unit: {id, name}, stations: [ {code, name, sort_order, report_available, report_path} ... ] } urut sort_order, tanpa 'other', dengan sterilizer report_available=true"
+        },
+        {
+          "description": "production_line_id ikut terbawa pada setiap report_path, dan menambah blok production_line",
+          "given": "stations() dipanggil dengan business_unit_id dan production_line_id yang sah",
+          "expect": "setiap report_path yang tidak null membawa business_unit_id DAN production_line_id, dan respons memuat production_line = { id, name }"
+        },
+        {
+          "description": "tanpa production_line_id bentuk jawabannya persis seperti sebelum perubahan",
+          "given": "stations() dipanggil tanpa production_line_id",
+          "expect": "production_line = null, report_path hanya membawa business_unit_id, dan tidak satu pun kunci lama berubah"
+        },
+        {
+          "description": "production_line_id milik mill lain diabaikan dan tidak pernah sampai ke report_path",
+          "given": "stations() dipanggil dengan id Production Line milik mill lain",
+          "expect": "production_line = null dan tidak satu pun report_path memuat production_line_id — tanpa 403"
+        },
+        {
+          "description": "grid stasiun ditahan sampai Production Line dipilih, lalu tile membawa mill DAN line",
+          "given": "komponen LaporanStasiun dirender dengan mill terpilih tetapi productionLineId = '', lalu sebuah line dipilih",
+          "expect": "sebelum memilih: daftar stasiun kosong dan arahan memilih line tampil; sesudahnya: tile muncul dengan tautan yang membawa business_unit_id dan production_line_id"
+        },
+        {
+          "description": "rantai tautan tile: report_path membawa line, dan layar tujuan terisi line itu tanpa bertanya lagi",
+          "given": "tile sebuah stasiun ditekan dari layar ini",
+          "expect": "layar laporan tujuan terbuka dengan production_line_id terbaca dari query string lewat #[Url(as: 'production_line_id')] dan langsung menampilkan angkanya"
         }
       ]
     }
@@ -340,7 +400,11 @@
     "Daftar stasiun TIDAK disaring per mill — master Jenis Stasiun bersifat global. Konsekuensinya mill yang tidak punya stasiun tertentu tetap melihat tile-nya. Ini keputusan sadar mengikuti aturan 'tampilkan semua, nonaktifkan yang belum siap', bukan kelalaian.",
     "Mill terbawa ke laporan lewat query param business_unit_id di dalam report_path. screen-129 BELUM membaca parameter itu, sehingga untuk sementara Admin masih akan memilih mill sekali lagi di layar laporan. Penyesuaian screen-129 adalah pekerjaan terpisah — catat sebagai deferred_item, jangan dikerjakan di run ini.",
     "Cabang 404 NOT_FOUND (business_unit_id Admin tidak ditemukan) tidak punya pasangan skenario BDD — hanya tercakup unit test. Itu disengaja, bukan celah.",
-    "Skenario 'pengguna terikat mill tidak dapat mengganti mill' HARUS menghasilkan 200 berisi mill sendiri, BUKAN 403. Jangan mengimplementasikannya sebagai otorisasi keras — parameter itu memang tidak pernah dipakai untuk peran tersebut."
+    "Skenario 'pengguna terikat mill tidak dapat mengganti mill' HARUS menghasilkan 200 berisi mill sendiri, BUKAN 403. Jangan mengimplementasikannya sebagai otorisasi keras — parameter itu memang tidak pernah dipakai untuk peran tersebut.",
+    "Kunci query pada report_path WAJIB `production_line_id` — sama persis dengan #[Url(as: 'production_line_id')] pada keenam komponen laporan. Tanpa `as:`, Livewire memakai NAMA PROPERTI (`productionLineId`) dan rantainya putus tanpa suara; commit 8658f6e ada justru karena pasangan yang sama untuk mill dulu tidak pernah dibuat.",
+    "report_path dibangun lewat array_filter(...), sehingga business_unit_id atau production_line_id yang kosong tidak ikut ke URL — bukan ikut sebagai parameter kosong.",
+    "PEMBETULAN artefak-vs-kode (2026-09-29): business_logic sebelumnya menyebut REPORT_ROUTES 'saat ini hanya sterilizer'. Kode memuat lima jenis (cages-track, sterilizer, clarification, boiler-room, storage-tank) dan urutannya load-bearing.",
+    "Cakupan uji Production Line yang nyata untuk layar ini: 3 uji API (tests/Feature/Api/LaporanStasiunTest.php) dan 3 uji Livewire (tests/Feature/Livewire/LaporanStasiunTest.php). CELAH: e2e-web/tests/laporan-stasiun.spec.ts belum menyentuh Production Line sama sekali, jadi browser_test pada skenario Production Line di bawah sengaja dikosongkan."
   ],
   "test_scenarios": [
     {
@@ -802,6 +866,107 @@
         "route": "/reports",
         "action": "login sebagai Admin, buka /reports, pilih Mill A pada [data-testid=\"mill-select\"], ganti ke Mill B, lalu klik [data-testid=\"station-tile-sterilizer\"]",
         "assert": "layar Laporan Sterilizer terbuka memakai Mill B (mill terakhir yang ditetapkan)"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — Production Line wajib dipilih sebelum grid tampil",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "business_unit_id": "{{mill_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStasiun",
+        "action": "render dengan mill terpilih tetapi productionLineId = '', lalu pilih sebuah Production Line",
+        "assert": "sebelum memilih: grid kosong dan arahan memilih line tampil; sesudahnya: tile muncul dan setiap tautannya membawa business_unit_id DAN production_line_id"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — Tanpa production_line_id, jawaban identik seperti sebelumnya",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "business_unit_id": "{{mill_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStasiun",
+        "action": "panggil stations() tanpa production_line_id",
+        "assert": "production_line = null, report_path hanya membawa business_unit_id, dan nol kunci lama berubah"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — Line mill lain diabaikan dan tidak sampai ke report_path",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/station-reports/stations"
+          },
+          "request_example": {
+            "business_unit_id": "{{mill_uuid}}",
+            "production_line_id": "{{line_milik_mill_lain_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStasiun",
+        "action": "set productionLineId ke id line milik mill lain",
+        "assert": "tanpa 403: production_line = null dan tidak satu pun report_path memuat production_line_id"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Web) — Rantai tile membawa line ke layar laporan tujuan",
+      "usecase_id": "usecase-142--laporan-stasiun-web",
+      "api_test": [],
+      "component_test": {
+        "component": "LaporanStasiun",
+        "action": "tekan tile sebuah stasiun yang laporannya tersedia",
+        "assert": "layar laporan tujuan terbuka dengan production_line_id terbaca dan angkanya langsung tampil — pengguna tidak ditanya dua kali"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
       }
     }
   ]

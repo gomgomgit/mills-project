@@ -58,3 +58,10 @@
 - `period` constraint "PENJAGA IMPLEMENTASI" (status dibaca dari induk harus melempar exception) ← bukan aturan domain dan tidak diminta user; dimasukkan sebagai constraint karena delapan tempat di kode menolak aksi lewat perbandingan status dan semuanya akan diam-diam berubah jadi "izinkan" tanpa satu test pun gagal. Ditulis di artefak agar tidak hilang saat implementasi.
 - `period-station` constraint kunci periode, bentuk kueri JOIN eksplisit ← user meminta skema dirancang agar JOIN-nya wajar tetapi tidak meminta kuerinya dituliskan. Dituliskan karena kunci periode belum diimplementasikan di mana pun (diverifikasi: nol referensi `Period` di seluruh `*RecordService` dan `RecordVerificationService`), sehingga bentuk ini adalah satu-satunya spesifikasi yang akan dipakai saat usecase-141 dikerjakan.
 - Penempatan `period-station` tepat setelah `period` dalam daftar entitas ← urutan tidak disebut; dipilih berdampingan agar pasangan induk-anak terbaca bersama.
+
+## v19 — 2026-09-28
+
+- `*-record.production_line_id` disisipkan tepat setelah `station_id` di ke-18 entitas ← posisinya tidak dinyatakan; dipilih bersebelahan karena keduanya menjawab pertanyaan yang sama ("record ini milik apa") dan migrasinya memang memakai `->after('station_id')`.
+- Constraint "penyaringan WAJIB memakai kolom record, BUKAN join ke stations" ← bukan aturan domain, melainkan penjaga implementasi. Dimasukkan sebagai constraint karena join akan memindahkan record lama ke line baru begitu stasiunnya dipindah, yang persis membatalkan jaminan snapshot — dan itu kesalahan yang tidak terlihat sampai ada yang memeriksa angka historis.
+- `test_fixture.production_line_id = "pl-001"` di ke-18 entitas ← nilai placeholder; tidak ada preseden id line di fixture lain, jadi mengikuti pola `bu-001`/`usr-001` yang sudah dipakai katalog ini.
+- Relasi `production-line` → 18 entitas record ← tidak diminta. Ditambahkan karena tanpa itu katalog menyatakan production line hanya berelasi ke `station`, padahal kini ia induk langsung dari seluruh riwayat produksi.

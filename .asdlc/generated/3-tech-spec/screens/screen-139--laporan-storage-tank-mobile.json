@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-27"
+    "updated_at": "2026-09-29"
   },
   "id": "screen-139--laporan-storage-tank-mobile",
   "name": "Laporan Storage Tank (Mobile)",
@@ -149,6 +149,13 @@
                 "required": false,
                 "default": null,
                 "description": "Sama seperti /periods"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "OPSIONAL, ditambahkan 2026-09-28. Menyaring seluruh angka ke satu Production Line lewat kolom record `production_line_id`. Tanpa parameter ini jawabannya IDENTIK dengan sebelum perubahan dan `production_line` bernilai null. TIDAK PERNAH dikirim ke /periods — periode milik mill."
               }
             ],
             "body_schema": {}
@@ -163,6 +170,7 @@
                 "status": "string (draft|open|closed) — status BARIS period_stations Storage Tank di periode itu",
                 "business_unit_name": "string"
               },
+              "production_line": "{ id: uuid, name: string } | null — blok BARU (2026-09-28), ADITIF: seluruh kunci yang sudah ada tetap di tempatnya. null ketika permintaan tidak membawa production_line_id.",
               "coverage": {
                 "filled_slots": "integer",
                 "expected_slots": "integer",
@@ -330,6 +338,13 @@
                 "required": false,
                 "default": null,
                 "description": "Sama seperti /summary"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "OPSIONAL, ditambahkan 2026-09-28. Menyaring seluruh angka ke satu Production Line lewat kolom record `production_line_id`. Tanpa parameter ini jawabannya IDENTIK dengan sebelum perubahan dan `production_line` bernilai null. TIDAK PERNAH dikirim ke /periods — periode milik mill."
               }
             ],
             "body_schema": {}
@@ -365,6 +380,53 @@
             "cache": "",
             "rate_limit": ""
           }
+        },
+        {
+          "method": "GET",
+          "path": "/api/production-lines/options-for-report",
+          "description": "Daftar Production Line di dalam mill yang berlaku, untuk pemilih line kelima layar laporan mobile. BUKAN /api/production-lines/current — endpoint itu SWA-CAKUP (mill diambil dari akun pemanggil), sehingga bagi Admin yang tidak terikat mill ia memulangkan line mill yang SALAH sementara layar menampilkan periode mill yang dipilih.",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "Dipakai Admin untuk memilih mill. DIBUANG untuk peran terikat mill (Operator/Supervisor/Mill Management) oleh ScopesToActorMill::resolveReadMillId() — mengirim mill lain tidak mengubah apa pun."
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "code": "string|null"
+                }
+              ],
+              "_note": "Bentuk {id, name, code} SAMA PERSIS dengan /production-lines/current, agar mobile cukup punya SATU pemeta untuk kedua endpoint. Admin tanpa business_unit_id menerima line seluruh mill dengan label diawali nama mill (\"Mill Utara — Line 1\"); layar laporan tidak pernah sampai ke cabang itu karena ia menuntut mill dipilih lebih dulu."
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "Tidak ada aktor terautentikasi (sanctum/web)"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Aktor terikat mill yang users.business_unit_id-nya kosong — gagal tertutup, bukan melebar ke semua mill"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": "No limit"
+          }
         }
       ],
       "business_logic": [
@@ -384,7 +446,15 @@
         "Tuntutan UI ponsel: satu kolom, sasaran sentuh minimal 44px, TANPA gulir horizontal halaman. Grafik dan tabel menggulir di dalam kartunya sendiri. Rekap harian dapat ditutup dan dibuka tanpa memicu permintaan jaringan baru.",
         "Angka identik dengan Laporan Storage Tank web: stok awal/akhir = pembacaan pertama/terakhir per tangki (bukan min/max), pergerakan dijumlahkan per tangki, tangki dengan satu pembacaan tidak punya pergerakan yang dapat dihitung, pergerakan negatif itu sah, dan suhu rata-rata diambil dari kolom yang dicatat Operator.",
         "DIPUTUSKAN 2026-09-25: stok memakai BERAT (MT), bukan volume. Volume dan kedalaman sounding tetap dikirim sebagai metrik tersendiri.",
-        "FFA, kadar air, dan DOBI digambar pada satu grafik walau skalanya tidak sebanding (DOBI 2-4, FFA 3-5 persen, air 0,1-0,3 persen). Layar WAJIB menormalkan atau memakai sumbu kedua DAN menyatakan cara penskalaannya — asersi legenda bersifat mengikat."
+        "FFA, kadar air, dan DOBI digambar pada satu grafik walau skalanya tidak sebanding (DOBI 2-4, FFA 3-5 persen, air 0,1-0,3 persen). Layar WAJIB menormalkan atau memakai sumbu kedua DAN menyatakan cara penskalaannya — asersi legenda bersifat mengikat.",
+        "Daftar Production Line dimuat SEBELUM angka, lewat productionLineRepo.fetchProductionLinesForReport(businessUnitId) → GET /api/production-lines/options-for-report?business_unit_id=. BUKAN /api/production-lines/current: endpoint itu swa-cakup (mill diambil dari akun pemanggil), sehingga bagi Admin ia memulangkan line mill LAIN sementara layar menampilkan periode mill yang dipilih — angka yang terlihat sah untuk line yang salah.",
+        "Urutan penentuan line yang berlaku (resolveProductionLine): (1) `?production_line_id=` pada rute — dibawa screen-141 saat menekan tile; (2) ingatan perangkat `msl_production_line_{userId}` — KUNCI YANG SAMA yang ditulis StationListView.vue, sehingga line adalah satu konteks kerja yang dibagi antar layar; (3) tepat satu line di mill ini → berlaku otomatis tanpa pemilih; (4) selain itu, tampilkan pemilih. Nilai dari rute maupun ingatan hanya dipakai bila masih ada di daftar line yang baru diambil.",
+        "Memilih line WAJIB sebelum ada satu angka pun: loadSummary() berhenti lebih dulu bila selectedProductionLineId kosong — penjagaan ada di FUNGSINYA, bukan hanya di template, supaya tidak ada jalur (coba lagi, ganti periode, ganti mill) yang bisa melewatinya.",
+        "Memilih line menuliskan ingatannya ke `msl_production_line_{userId}` (dibungkus try/catch: pada mode privat penyimpanan bisa melempar dan itu tidak boleh mematahkan layar).",
+        "summary dan export membawa `production_line_id`; /periods dan /business-units/options TIDAK PERNAH membawanya — Periode Pelaporan milik MILL (periods.business_unit_id, tanpa kolom production_line_id).",
+        "Nama line yang menyertai angka diambil dari `summary.production_line.name` (jawaban SERVER) lebih dahulu, baru nama pada daftar opsi — yang ditampilkan adalah line yang benar-benar dipakai server, bukan yang dikira klien.",
+        "Mengganti mill (Admin) membatalkan pilihan line DAN mengosongkan daftar opsinya: sebuah Production Line milik satu mill, jadi membiarkannya akan menampilkan angka mill baru dengan label line mill lama.",
+        "Tombol Ekspor hanya dirender ketika ada periode DAN line yang berlaku; onExport() pun berhenti lebih dulu tanpa keduanya — berkas yang mencampur line adalah bentuk kesalahan yang paling sulit dibantah setelah terkirim."
       ],
       "data_operations": [
         {
@@ -454,6 +524,30 @@
         {
           "condition": "Metrik yang tidak dapat dihitung server",
           "handling": "null bertahan sebagai null melewati repo dan tampil sebagai keterangan, bukan angka 0"
+        },
+        {
+          "condition": "Mill punya lebih dari satu Production Line dan belum ada yang berlaku",
+          "handling": "Pemilih [data-testid=\"production-line-select\"] dirender, NOL angka ditampilkan, dan fetchSummary TIDAK PERNAH dipanggil. Arahan [data-testid=\"production-line-required-hint\"] menjelaskan sebabnya."
+        },
+        {
+          "condition": "Mill hanya punya satu Production Line",
+          "handling": "Line itu berlaku otomatis, pemilih TIDAK dirender (tidak ada keputusan untuk diambil), tetapi id-nya tetap dikirim ke summary dan export."
+        },
+        {
+          "condition": "Ingatan `msl_production_line_{userId}` atau `?production_line_id=` menunjuk line yang tidak ada di daftar",
+          "handling": "Nilainya TIDAK dipercaya: pemilih muncul kembali dan tidak ada angka sampai sebuah line dipilih — termasuk saat ingatan itu milik pengguna lain di perangkat yang sama."
+        },
+        {
+          "condition": "Pengambilan daftar Production Line gagal (jaringan/server)",
+          "handling": "Ditampilkan sebagai [data-testid=\"production-line-unavailable\"] dengan tombol [data-testid=\"production-line-retry\"], BUKAN sebagai galat laporan — dan tetap nol angka. Berbeda dari 'mill tanpa line', yang hanya berarahan menghubungi Admin tanpa tombol coba lagi."
+        },
+        {
+          "condition": "Akun terikat mill tanpa business_unit_id",
+          "handling": "NOL permintaan jaringan sama sekali — termasuk ke /production-lines/options-for-report. Layar langsung menampilkan pesan menghubungi Admin."
+        },
+        {
+          "condition": "Stasiun sebuah record sudah dipindah ke Production Line lain",
+          "handling": "Record tetap terhitung di line ASALNYA: server menyaring pada kolom record `storage_tank_records.production_line_id` (snapshot saat create), bukan pada `stations`."
         }
       ],
       "business_rules_applied": [
@@ -465,7 +559,13 @@
         "Status tutup/buka adalah milik BARIS period_stations jenis stasiun ini, bukan milik periode, dan tidak membatasi pembacaan maupun ekspor — Storage Tank dapat tertutup sementara jenis stasiun lain di periode yang sama masih terbuka",
         "Layar hanya membaca; tidak ada aksi tulis",
         "Kegagalan jaringan dinyatakan beserta cara mencoba lagi, tanpa kehilangan periode terpilih",
-        "Satu kolom, sasaran sentuh 44px, tanpa gulir horizontal halaman"
+        "Satu kolom, sasaran sentuh 44px, tanpa gulir horizontal halaman",
+        "Production Line adalah KONTEKS YANG DIPILIH, bukan ikatan akun — tidak ada `users.production_line_id` dan tidak boleh ada",
+        "Memilih Production Line WAJIB, tanpa opsi 'semua line': sebelum ada line yang berlaku tidak ada satu angka pun, ada arahan, dan tombol Ekspor tidak dirender",
+        "Line yang sudah dipilih di layar Daftar Stasiun dipakai ulang lewat ingatan perangkat `msl_production_line_{userId}` — pengguna tidak diminta menjawab dua kali",
+        "Periode Pelaporan tetap per MILL — /periods tidak pernah membawa production_line_id",
+        "Ekspor mengikuti cakupan angka di layar: tanpa line, tidak ada berkas",
+        "Daftar line untuk laporan diambil dari /api/production-lines/options-for-report, bukan dari /api/production-lines/current yang swa-cakup"
       ],
       "unit_test_cases": [
         {
@@ -617,6 +717,81 @@
           "description": "mengembalikan hasil lengkap ketika seluruh kondisi terpenuhi",
           "given": "payload summary terisi penuh dan scope peran terikat mill",
           "expect": "seluruh blok payload hadir pada objek hasil dengan nilai identik, apiClient.get dipanggil tepat satu kali, dan tidak ada permintaan tambahan yang dikirim repo"
+        },
+        {
+          "description": "dua line dan belum ada yang berlaku — pemilih tampil, nol angka, fetchSummary tidak pernah dipanggil",
+          "given": "LaporanStorageTankView dipasang pada mill yang punya dua Production Line, tanpa ingatan dan tanpa query rute",
+          "expect": "pemilih line dirender, tidak satu angka pun tampil, dan fetchSummary tidak pernah terpanggil"
+        },
+        {
+          "description": "angka yang tampil milik SATU line — bukan jumlah kedua line",
+          "given": "dua line dengan isi berbeda pada periode yang sama; pengguna memilih salah satunya",
+          "expect": "angka di layar sama dengan angka line yang dipilih, bukan gabungan keduanya; repo memulangkan milik line yang diminta dan tidak pernah menggabungkannya"
+        },
+        {
+          "description": "nama line yang berlaku terbaca di layar, diambil dari jawaban server",
+          "given": "summary memulangkan blok production_line = { id, name }",
+          "expect": "[data-testid=\"production-line-current\"] menuliskan nama dari respons server, bukan dari daftar opsi klien"
+        },
+        {
+          "description": "ekspor membawa production_line_id, dan tanpa line tidak ada berkas",
+          "given": "onExport() dipanggil dengan dan tanpa selectedProductionLineId",
+          "expect": "dengan line: GET export membawa production_line_id; tanpa line: tombolnya tidak dirender dan onExport() berhenti sebelum memanggil repo"
+        },
+        {
+          "description": "ingatan line dari layar Daftar Stasiun dipakai ulang — pengguna tidak diminta memilih dua kali",
+          "given": "localStorage memuat `msl_production_line_{userId}` berisi id line yang ada di daftar",
+          "expect": "line itu langsung berlaku, pemilih tidak menuntut jawaban lagi, dan angka termuat"
+        },
+        {
+          "description": "production_line_id dari rute berlaku dan menang atas ingatan",
+          "given": "rute dibuka dengan ?production_line_id=<LINE-BETA> sementara ingatan berisi LINE-ALPHA",
+          "expect": "LINE-BETA yang berlaku — urutan rute > ingatan > satu-line-otomatis > pemilih"
+        },
+        {
+          "description": "ingatan maupun query yang tidak ada di daftar line tidak dipercaya",
+          "given": "ingatan/query berisi id yang tidak ada pada hasil fetchProductionLinesForReport (termasuk milik pengguna lain)",
+          "expect": "pemilih muncul kembali dan tidak ada angka sampai sebuah line dipilih"
+        },
+        {
+          "description": "satu line di mill — berlaku otomatis, tanpa pemilih, dan id-nya tetap terkirim",
+          "given": "daftar line berisi tepat satu entri",
+          "expect": "pemilih tidak dirender, angka langsung termuat, dan fetchSummary tetap membawa production_line_id"
+        },
+        {
+          "description": "memilih line menuliskan ingatannya — konteksnya dibagi dengan layar Daftar Stasiun",
+          "given": "pengguna memilih sebuah line pada pemilih",
+          "expect": "`msl_production_line_{userId}` berisi id line itu, kunci yang sama yang ditulis StationListView"
+        },
+        {
+          "description": "daftar periode TIDAK PERNAH tersaring per Production Line",
+          "given": "fetchPeriods dipanggil dengan scope yang memuat productionLineId",
+          "expect": "permintaan ke /periods tidak membawa production_line_id sama sekali — periode milik mill"
+        },
+        {
+          "description": "daftar line gagal dimuat — tanpa angka, dengan tombol coba lagi, dan bukan sebagai galat laporan",
+          "given": "fetchProductionLinesForReport menolak karena jaringan",
+          "expect": "production-line-unavailable + production-line-retry dirender, nol angka, dan pesan galat laporan TIDAK ditampilkan"
+        },
+        {
+          "description": "mill tanpa satu pun Production Line — arahan menghubungi Admin, tanpa tombol coba lagi",
+          "given": "fetchProductionLinesForReport memulangkan daftar kosong",
+          "expect": "arahan menghubungi Admin ditampilkan dan tombol coba lagi TIDAK dirender — dua keadaan yang sengaja dibedakan"
+        },
+        {
+          "description": "akun tanpa mill tetap NOL permintaan — termasuk ke endpoint daftar Production Line",
+          "given": "peran terikat mill dengan users.business_unit_id kosong",
+          "expect": "tidak ada satu pun permintaan jaringan, termasuk ke /api/production-lines/options-for-report"
+        },
+        {
+          "description": "production_line_id tidak bercabang menurut peran — ia konteks angka, bukan kewenangan",
+          "given": "repo storageTankReportRepo.ts dipanggil sebagai Operator, Supervisor, Mill Management, dan Admin",
+          "expect": "parameter yang dikirim sama untuk semua peran; penjepitan cakupan adalah urusan server"
+        },
+        {
+          "description": "blok production_line pada respons dipetakan apa adanya, dan null ketika server tidak mengirimnya",
+          "given": "respons summary dengan dan tanpa kunci production_line",
+          "expect": "repo memulangkan objeknya apa adanya atau null — tanpa menebak, tanpa menghitung ulang"
         }
       ]
     }
@@ -674,7 +849,13 @@
     "Rekap harian tutup/buka WAJIB nol permintaan jaringan baru: component test menghitung pemanggilan fetchSummary tetap 1, browser test merekam permintaan jaringan dan menuntut nol yang baru.",
     "Browser test memakai Playwright terhadap Vite dev server. Layar Capacitor ini BISA diuji di peramban — nol skenario ditunda sebagai 'mobile-only'. Viewport disetel eksplisit ke ukuran ponsel, karena project Playwright repo ini Desktop Chrome 1280px di mana tuntutan satu-kolom menjadi hampa.",
     "Pintu masuk: satu entri REPORT_ROUTES di mobile/src/views/ReportingPilihStasiunView.vue dan satu rute '/reports/storage-tank' bernama 'report-storage-tank' di mobile/src/router/index.ts. Tanpa entri REPORT_ROUTES itu layar tidak terjangkau walau seluruh testnya hijau. JANGAN menambahkan 'station.isActive &&' pada isReportAvailable().",
-    "Mock visual acuan: .asdlc/generated/2-business-spec/screens/html/screen-139--laporan-storage-tank-mobile.html, dengan angka yang sengaja DISAMAKAN dengan mock web pasangannya — kalau keduanya berbeda, itu sendiri sudah kebohongan tentang produknya."
+    "Mock visual acuan: .asdlc/generated/2-business-spec/screens/html/screen-139--laporan-storage-tank-mobile.html, dengan angka yang sengaja DISAMAKAN dengan mock web pasangannya — kalau keduanya berbeda, itu sendiri sudah kebohongan tentang produknya.",
+    "SATU endpoint baru (2026-09-28): GET /api/production-lines/options-for-report?business_unit_id= — ber-sanctum dan terbuka untuk operator/supervisor/mill_management/admin. Ia didaftarkan SEBELUM blok CRUD admin /production-lines, karena 'options-for-report' adalah segmen literal yang akan ditelan rute berbentuk /production-lines/{id}. Cakupannya diputuskan ScopesToActorMill::resolveReadMillId(), jadi melebarkan audiensnya tidak melebarkan datanya.",
+    "/api/production-lines/current SENGAJA TIDAK dipakai untuk layar laporan: ia swa-cakup (mill dari akun pemanggil) dan karenanya benar untuk Daftar Stasiun tetapi salah untuk laporan, tempat Admin memilih mill lebih dulu.",
+    "Kunci ingatan `msl_production_line_{userId}` adalah KUNCI YANG SAMA yang ditulis StationListView.vue dan dibaca ReportingPilihStasiunView.vue (screen-141). Line adalah satu konteks kerja yang dibagi antar layar, bukan tiga pilihan terpisah. Setiap pembacaannya dibungkus try/catch (mode privat bisa melempar).",
+    "Bentuk respons options-for-report sengaja {id, name, code} — identik dengan /production-lines/current — supaya mobile cukup punya satu pemeta dan sebuah layar bisa berpindah sumber tanpa mengubah cara membaca barisnya.",
+    "Uji yang menyentuh production line WAJIB window.localStorage.clear() di beforeEach: ingatan line bocor antar-uji jauh lebih halus daripada ingatan sesi.",
+    "Cakupan uji Production Line yang nyata untuk layar ini: 13 uji komponen (mobile/tests/LaporanStorageTankView.spec.ts), 7 uji repo (mobile/tests/storageTankReportRepo.spec.ts), dan 7 uji browser (mobile/tests/e2e/laporan-*.spec.ts, dijalankan terhadap Vite dev server)."
   ],
   "test_scenarios": [
     {
@@ -1769,6 +1950,204 @@
         "route": "/reports/storage-tank",
         "action": "buka sebuah periode Storage Tank lalu jalankan unduh CSV",
         "assert": "berkas CSV terunduh, isinya satu baris per slot waktu sepanjang periode dengan kolom konteks record diulang pada setiap baris dan label kolom mengikuti label layar Detail, isinya sama persis dengan ekspor laporan versi web, dan tidak ada data stasiun yang berubah setelah ekspor"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — Production Line wajib dipilih",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "business_unit_id": "{{mill_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "pasang layar pada mill dengan dua Production Line tanpa ingatan dan tanpa query rute, lalu pilih sebuah line",
+        "assert": "sebelum memilih: pemilih tampil, nol angka, fetchSummary tidak pernah dipanggil, dan tombol Ekspor tidak dirender; setelah memilih: angka termuat dan nama line aktif tertulis"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "buka /reports/storage-tank pada mill dengan dua line, amati keadaan sebelum memilih, lalu pilih sebuah Production Line",
+        "assert": "nol angka sebelum memilih; sesudahnya angka MILIK LINE ITU yang tampil, bukan gabungan kedua line"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — Ingatan line dari Daftar Stasiun dipakai ulang",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_dari_ingatan_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "isi localStorage `msl_production_line_{userId}` dengan id line yang ada di daftar, lalu pasang layar; ulangi dengan ingatan milik pengguna lain dan dengan id yang tidak ada di daftar",
+        "assert": "ingatan yang sah langsung berlaku tanpa pemilih; ingatan milik pengguna lain atau id yang tidak ada di daftar TIDAK dipercaya dan pemilih muncul kembali"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "tulis ingatan line lewat layar Daftar Stasiun, lalu buka /reports/storage-tank",
+        "assert": "layar tidak menanyakan Production Line lagi dan angka langsung tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — production_line_id dari rute (screen-141) berlaku",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_beta_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "buka rute dengan ?production_line_id=<LINE-BETA> sementara ingatan perangkat berisi LINE-ALPHA",
+        "assert": "LINE-BETA yang berlaku — rute menang atas ingatan, sesuai urutan rute > ingatan > satu-line-otomatis > pemilih"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "buka /reports/storage-tank?production_line_id=<uuid line>",
+        "assert": "line itu langsung berlaku dan angkanya tampil tanpa pemilihan tambahan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — Periode tetap per mill, ekspor mengikuti line",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{mill_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "panggil fetchPeriods dengan scope yang memuat productionLineId, lalu picu ekspor dengan dan tanpa line terpilih",
+        "assert": "permintaan /periods tidak membawa production_line_id sama sekali; ekspor dengan line membawanya, dan tanpa line tidak ada berkas"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "ganti Production Line lalu amati permintaan /periods dan /export",
+        "assert": "/periods tidak pernah membawa production_line_id; /export membawanya sesuai line yang sedang tampil"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — Daftar line gagal dimuat vs mill tanpa line",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "business_unit_id": "{{mill_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "buat fetchProductionLinesForReport menolak karena jaringan; lalu ulangi dengan daftar kosong",
+        "assert": "kegagalan jaringan: arahan + tombol coba lagi, nol angka, dan BUKAN galat laporan; daftar kosong: arahan menghubungi Admin TANPA tombol coba lagi"
+      },
+      "browser_test": {
+        "route": "/reports/storage-tank",
+        "action": "gagalkan permintaan /api/production-lines/options-for-report",
+        "assert": "arahan dan tombol coba lagi tampil, tanpa satu angka pun"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Storage Tank (Mobile) — Stasiun dipindah, angka tetap di line asalnya",
+      "usecase_id": "usecase-139--laporan-storage-tank-mobile",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanStorageTankView",
+        "action": "baca laporan LINE-ALPHA untuk record yang dibuat di LINE-ALPHA lalu stasiunnya dipindahkan ke LINE-BETA",
+        "assert": "record lama tetap terhitung di LINE-ALPHA dan tidak muncul di LINE-BETA — server menyaring pada kolom record, bukan pada `stations`"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
       }
     }
   ]

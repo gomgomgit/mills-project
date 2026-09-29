@@ -22,3 +22,9 @@
 - `other_decisions[3]` ditulis ulang ke bentuk per-stasiun, termasuk kueri JOIN ← user tidak menyebut artefak ini sama sekali; ditemukan lewat pemeriksaan bahwa 21 kemunculan kata "period" ada di dalamnya. Tanpa pembaruan ini, `shared-decisions` akan tetap menyatakan kunci berlaku per periode sementara `entity-catalog` menyatakan per stasiun — dua sumber kebenaran yang bertentangan.
 - `other_decisions[6]`: peringatan record belum terverifikasi dihitung UNTUK JENIS STASIUN YANG AKAN DITUTUP ← user tidak menyatakan cakupan hitungannya. Dipilih per-stasiun karena aksi tutup kini bertarget satu stasiun; hitungan se-periode akan memasukkan stasiun yang tidak terdampak aksi itu dan membuat peringatannya menyesatkan.
 - `other_decisions[8]` (baru) "PERIODE ADALAH INDUK TANPA STATUS" ← tidak diminta; ditambahkan agar bahaya atribut-hilang-jadi-null terdokumentasi di tingkat proyek, bukan hanya di constraint satu entitas, karena yang terdampak tersebar di service, Livewire, dan lima ReportService.
+
+## v7 — 2026-09-28
+
+- Lima butir `other_decisions` baru ← user menetapkan empat keputusan isolasi line, tetapi tidak meminta pencatatannya di artefak. Dicatat karena tanpa itu rumah tunggal `ScopesToActorMill` akan terbaca sebagai pilihan gaya, bukan sebagai jawaban atas enam salinan `resolveBusinessUnit()` yang menyebabkan FormSterilizer benar sementara 15 saudaranya tidak.
+- Butir "empat kebocoran yang ditutup" memuat cara pembuktiannya ← tidak diminta. Dimasukkan karena ketiganya terbukti lewat probe atau pembacaan kode, dan artefak yang hanya menyatakan "sudah ditutup" tidak memberi pembaca berikutnya cara memeriksanya lagi.
+- Butir "kunci periode tidak bertambah dimensi line" memuat konsekuensi yang tidak diminta user ← yakni bahwa Line 1 tidak dapat ditutup selama Line 2 menyisakan record belum terverifikasi. Itu akibat nyata dari keputusannya dan layak tercatat sebelum ada yang menganggapnya bug.

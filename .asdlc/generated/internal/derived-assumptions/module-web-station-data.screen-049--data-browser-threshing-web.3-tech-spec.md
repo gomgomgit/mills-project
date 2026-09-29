@@ -1,13 +1,6 @@
-# Derived Assumptions Log — module-web-station-data.screen-017--data-browser-grading-web.3-tech-spec
+# Derived Assumptions — module-web-station-data.screen-049--data-browser-threshing-web.3-tech-spec
 
-## v1 — 2026-08-17
-
-- Endpoint `GET /api/grading-records` (list) dan `GET /api/grading-records/export` (ekspor) beserta skema request/response ← desain teknis agent, konsisten dengan pola screen-016
-- Export dimodelkan sebagai response file stream/binary, bukan JSON ← keputusan desain agent
-- Daftar error code: 422 INVALID_DATE_RANGE, 422 EXPORT_FAILED ← diturunkan dari edge_cases business spec
-- screen_dependencies ke screen-020 (detail) dan screen-023 (form web) ← disimpulkan dari available_actions business spec
-
-## v2 — 2026-09-29
+## v3 — 2026-09-29
 
 - `business_logic` = tiga langkah baru (cakupan aktor, filter di kolom record, kolom `production_line_name`) DISISIPKAN setelah langkah 1, satu langkah ekspor disisipkan tepat setelah langkah ekspor yang sudah ada, lalu SELURUH daftar dinomori ulang ← briefing tidak menentukan posisinya. Menempelkannya di akhir akan meletakkan "terapkan cakupan" sesudah "kembalikan file stream", padahal di kode ia pernyataan PERTAMA `buildFilteredQuery()`. Penomoran ulang aman karena nomor di sini hanya urutan baca, bukan tautan ke apa pun.
 - `success_schema.data[0].production_line_name` diletakkan TEPAT SEBELUM `status` ← mengikuti urutan kunci `toListRow()` di service (18 dari 18 menaruhnya di sana), bukan di kolom pertama seperti tampilan tabel. Bentuk respons dan urutan kolom layar memang dua hal berbeda, dan yang mengikat pembaca API adalah yang pertama.

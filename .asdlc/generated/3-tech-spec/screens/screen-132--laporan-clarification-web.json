@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-27"
+    "updated_at": "2026-09-29"
   },
   "id": "screen-132--laporan-clarification-web",
   "name": "Laporan Clarification (Web)",
@@ -154,6 +154,13 @@
                 "required": false,
                 "default": null,
                 "description": "Sama seperti /periods"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "OPSIONAL, ditambahkan 2026-09-28. Menyaring seluruh angka ke satu Production Line lewat kolom record `production_line_id`. Tanpa parameter ini jawabannya IDENTIK dengan sebelum perubahan, dan `production_line` pada respons bernilai null. Line milik mill lain diabaikan (resolveProductionLine() memulangkan null), bukan 403."
               }
             ],
             "body_schema": {}
@@ -168,6 +175,7 @@
                 "status": "string (draft|open|closed) — status BARIS period_stations Clarification di periode itu",
                 "business_unit_name": "string"
               },
+              "production_line": "{ id: uuid, name: string } | null — blok BARU (2026-09-28), ADITIF: seluruh kunci yang sudah ada tetap di tempatnya dan tetap datar. null ketika permintaan tidak membawa production_line_id.",
               "coverage": {
                 "filled_slots": "integer",
                 "expected_slots": "integer",
@@ -314,6 +322,13 @@
                 "required": false,
                 "default": null,
                 "description": "Sama seperti /summary"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "OPSIONAL, ditambahkan 2026-09-28. Menyaring seluruh angka ke satu Production Line lewat kolom record `production_line_id`. Tanpa parameter ini jawabannya IDENTIK dengan sebelum perubahan, dan `production_line` pada respons bernilai null. Line milik mill lain diabaikan (resolveProductionLine() memulangkan null), bukan 403."
               }
             ],
             "body_schema": {}
@@ -370,7 +385,13 @@
         "TIDAK ADA penandaan nilai di luar batas di mana pun — tanpa kartu ambang, warna aman/bahaya, outlier, maupun IQR. Clarification tidak punya master target operasional (tidak ada ClarificationOperationalTarget; hanya Threshing/Pressing/Depricarping/Kernel Plant yang punya). Ketiadaannya WAJIB diasersi menurut nama, bukan sekadar tidak diimplementasikan — aturan 'jangan menandai' hanya bertahan kalau ada test yang menjaganya.",
         "time_slot bertipe TIME. Pengurutan dan pengelompokan memakai nilai TIME apa adanya; jangan mengonversinya menjadi integer dan jangan mengasumsikan slot jatuh tepat di awal jam.",
         "Seluruh agregasi dijalankan di PHP atas baris mentah, BUKAN SUM/AVG/GROUP BY di SQL. Test berjalan di SQLite dan produksi di PostgreSQL, dan justru aturan penyebut-terpisah serta null-bukan-nol yang paling mudah hilang di perbedaan itu.",
-        "export: authorizePeriod -> hitung baris clarification_details dalam rentang -> bila > 50.000 -> 422 EXPORT_FAILED -> stream lewat chunk, satu baris per slot waktu, kolom konteks record diulang tiap baris. Penjagaan izin dilakukan EAGER sebelum generator mulai menghasilkan, agar 403/422 tidak tampak seperti respons kosong yang berhasil."
+        "export: authorizePeriod -> hitung baris clarification_details dalam rentang -> bila > 50.000 -> 422 EXPORT_FAILED -> stream lewat chunk, satu baris per slot waktu, kolom konteks record diulang tiap baris. Penjagaan izin dilakukan EAGER sebelum generator mulai menghasilkan, agar 403/422 tidak tampak seperti respons kosong yang berhasil.",
+        "productionLineOptions(businessUnitId): SELECT production_lines WHERE business_unit_id = <mill yang berlaku> ORDER BY name. Berlaku untuk SEMUA peran — tidak seperti businessUnitOptions() yang khusus Admin — karena Production Line BUKAN ikatan akun (tidak ada `users.production_line_id`) melainkan KONTEKS YANG DIPILIH; satu mill di lapangan punya belasan line dengan jenis stasiun yang sama berulang.",
+        "resolveProductionLine(businessUnitId, requested): null bila kosong, dan null pula bila line itu bukan milik mill yang berlaku — DIABAIKAN, bukan 403 (403 justru memastikan line itu ada). MEMILIH LINE WAJIB di layar laporan: null berarti 'jangan tampilkan angka apa pun', BUKAN 'tampilkan semua line', karena laporan menghasilkan ANGKA GABUNGAN dan total yang mencampur belasan line tidak dapat ditindaklanjuti siapa pun.",
+        "summary(period, productionLineId): scopeToProductionLine() menambahkan WHERE clarification_records.production_line_id = ? pada kueri siklus/record — DI KOLOM TABEL RECORD, bukan join ke `stations`. Kolom itu di-snapshot dari stasiun saat record dibuat dan tidak pernah berubah, sehingga record yang stasiunnya kemudian dipindah tetap terhitung di line ASALNYA; menyaring lewat `stations` akan menulis ulang sejarah setiap kali sebuah stasiun dipindahkan.",
+        "summary respons: kunci `production_line` ({id,name} dari productionLineInfo(), atau null) DITAMBAHKAN di samping kunci yang sudah ada. Nol kunci lama berubah bentuk, sehingga blade dan layar mobile yang membacanya apa adanya tidak terpengaruh.",
+        "listPeriods TIDAK PERNAH menerima production_line_id — Periode Pelaporan milik MILL (periods.business_unit_id, tanpa kolom production_line_id). Daftar periode karena itu tidak berubah saat line berganti; yang tersaring adalah datanya.",
+        "export(period, format, businessUnitId, productionLineId): memakai recordQueryFor() yang sama dengan summary sehingga berkas mengikuti persis cakupan angka di layar. Tanpa line yang berlaku tombol Ekspor TIDAK DIRENDER sama sekali (bukan disabled), dan export() pada komponen pun berhenti lebih dulu."
       ],
       "data_operations": [
         {
@@ -407,6 +428,16 @@
           "entity_id": "business-unit",
           "operation": "SELECT",
           "description": "Pemilih Mill untuk Admin dan resolusi nama mill"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Opsi pemilih Production Line — line DI DALAM mill yang berlaku, urut nama. Ini separuh pertama jaminan 'line mill lain diabaikan'; separuhnya lagi ada di resolveProductionLine()."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Keberadaan + nama line terpilih, untuk menjepitnya ke mill yang berlaku dan untuk mengisi blok `production_line` pada respons ringkasan."
         }
       ],
       "edge_case_handling": [
@@ -469,6 +500,26 @@
         {
           "condition": "Rekap harian puluhan baris",
           "handling": "Dapat ditutup; tabel dan grafik menggulir di dalam kartunya, halaman tidak pernah menggulir horizontal"
+        },
+        {
+          "condition": "Production Line belum dipilih",
+          "handling": "NOL angka: tidak satu pun blok ringkasan dirender, layar menampilkan arahan 'Pilih production line terlebih dahulu' beserta alasannya (angka gabungan lintas line tidak dapat ditindaklanjuti), dan tombol Ekspor TIDAK DIRENDER — bukan disabled. Daftar Periode Pelaporan di atasnya TIDAK berubah: periode tetap per mill."
+        },
+        {
+          "condition": "Production Line milik mill lain dikirim lewat properti Livewire atau query string ?production_line_id=",
+          "handling": "resolveProductionLine() memulangkan null → layar kembali meminta memilih line. Bukan 403 (yang justru memastikan line itu ada), dan tidak pernah data mill lain. Opsi pemilihnya sendiri sudah dibatasi mill yang berlaku, jadi line itu tidak pernah menjadi pilihan."
+        },
+        {
+          "condition": "Admin mengganti mill saat sebuah Production Line sudah dipilih",
+          "handling": "keepProductionLineValid() membuang pilihan yang tidak ada pada daftar opsi mill baru → productionLineId kembali ke '' dan angka menghilang sampai sebuah line dipilih lagi."
+        },
+        {
+          "condition": "Mill yang berlaku belum punya satu pun Production Line",
+          "handling": "Pemilih kosong, tidak ada angka, dan arahan menghubungi Admin untuk membuatnya lebih dahulu di layar Kelola Production Line — bukan error."
+        },
+        {
+          "condition": "Stasiun sebuah record sudah dipindah ke Production Line lain",
+          "handling": "Record tetap terhitung di line ASALNYA, karena penyaringan memakai kolom record `clarification_records.production_line_id` (snapshot saat create), bukan `stations.production_line_id` yang menunjuk line stasiun itu SEKARANG."
         }
       ],
       "business_rules_applied": [
@@ -486,7 +537,13 @@
         "Ketiga suhu dikirim per tanggal pada satu baris agar dapat digambar pada satu sumbu",
         "Tidak ada penandaan nilai di luar batas",
         "Kelengkapan pencatatan adalah isi laporan, bukan metadata",
-        "Layar hanya membaca"
+        "Layar hanya membaca",
+        "Production Line adalah KONTEKS YANG DIPILIH, bukan ikatan akun — tidak ada `users.production_line_id` dan tidak boleh ada",
+        "Memilih Production Line WAJIB pada layar laporan, tanpa opsi 'semua line' — berbeda dari Data Browser dengan sengaja, karena laporan menghasilkan angka gabungan",
+        "Sebelum ada line yang berlaku: nol angka, ada arahan di layar, dan tombol Ekspor tidak dirender",
+        "Periode Pelaporan tetap per MILL — daftar periode tidak pernah tersaring per Production Line",
+        "Penyaringan per line memakai kolom record, bukan join ke `stations`: memindahkan stasiun tidak menulis ulang sejarah",
+        "`production_line_id` adalah parameter OPSIONAL pada summary dan export; field respons `production_line` murni ditambahkan dan nol kunci lama berubah"
       ],
       "unit_test_cases": [
         {
@@ -723,6 +780,41 @@
           "description": "returns success result when all conditions pass",
           "given": "actor supervisor terikat mill A; period_id valid milik mill A; data lengkap: 2 unit, 3 hari, pembacaan pada keenam metrik",
           "expect": "mengembalikan array summary berisi period (id, nama, rentang tanggal, status), business_unit, production (production.total_ton, avg_production_per_day_ton, min/avg/max rate, production.reading_count), downtime (downtime.total_mins, avg_downtime_per_day_mins, hours_with_downtime, downtime.reading_count), metrics untuk clarification_tank_temp_c / oil_tank_temperature_c / sludge_tank_temp_c / buffer_tank_level_percent (min, avg, max, reading_count), coverage (filled_slots, expected_slots, coverage_percent), daily[], dan by_unit[]; tanpa kunci ambang/outlier apa pun"
+        },
+        {
+          "description": "summary menyaring seluruh angka ke satu Production Line, dua arah",
+          "given": "satu periode dengan record pada LINE-ALPHA dan LINE-BETA; summary() dipanggil dengan production_line_id = LINE-ALPHA, lalu dengan LINE-BETA",
+          "expect": "tiap panggilan hanya memuat angka milik line yang diminta, dan jumlah keduanya sama dengan angka tanpa parameter — bukan salah satu line yang bocor ke yang lain"
+        },
+        {
+          "description": "summary menambahkan blok production_line tanpa mengubah satu pun kunci yang sudah ada",
+          "given": "summary() dipanggil dengan dan tanpa production_line_id pada periode yang sama",
+          "expect": "tanpa parameter: seluruh kunci lama identik dengan sebelum perubahan dan production_line = null; dengan parameter: kunci lama tetap pada tempat dan bentuknya, hanya production_line yang terisi {id, name}"
+        },
+        {
+          "description": "production_line_id milik mill lain tidak pernah memulangkan data mill itu",
+          "given": "resolveProductionLine() menerima id sebuah Production Line milik mill lain",
+          "expect": "memulangkan null sehingga layar meminta memilih line; tidak ada 403 dan tidak satu pun angka mill lain yang ikut terhitung"
+        },
+        {
+          "description": "export ikut tersaring ke Production Line terpilih",
+          "given": "export() dipanggil dengan production_line_id = LINE-ALPHA pada periode yang memuat kedua line",
+          "expect": "berkas hanya memuat baris milik LINE-ALPHA — cakupan berkas sama persis dengan cakupan angka di layar"
+        },
+        {
+          "description": "record yang stasiunnya sudah dipindah tetap terhitung di line asalnya",
+          "given": "record dibuat saat stasiunnya berada di LINE-ALPHA (production_line_id di-snapshot), lalu stasiun itu dipindahkan ke LINE-BETA",
+          "expect": "record tetap masuk hitungan saat disaring ke LINE-ALPHA dan TIDAK muncul pada LINE-BETA — inilah satu-satunya perbedaan yang membuktikan kolom record dipakai, bukan join ke `stations`"
+        },
+        {
+          "description": "tanpa Production Line terpilih tidak ada satu angka pun, hanya arahan memilih",
+          "given": "komponen LaporanClarification dirender dengan mill dan periode terpilih tetapi productionLineId = ''",
+          "expect": "needsProductionLineSelection = true, seluruh blok ringkasan tidak dirender, arahan memilih line tampil, dan tombol Ekspor tidak ada di DOM"
+        },
+        {
+          "description": "tanpa Production Line terpilih tidak ada berkas yang diunduh sama sekali",
+          "given": "export('csv') dipanggil pada komponen LaporanClarification saat productionLineId = ''",
+          "expect": "tidak ada StreamedResponse yang dihasilkan — jalur ekspor berhenti sebelum menyentuh service"
         }
       ]
     }
@@ -790,7 +882,11 @@
     "Entri REPORT_ROUTES harus ditaruh sesuai sort_order stasiun, karena LaporanStasiunTest melakukan toBe() terurut ketat terhadap array_keys(REPORT_ROUTES). Asersi e2e laporan-stasiun sudah berbentuk invarian sejak 2026-09-24 sehingga menambah tile tidak memerahkannya.",
     "Nama medan respons diselaraskan ke skema endpoint: production.total_ton, production.reading_count, downtime.total_mins, downtime.reading_count. Turunan test semula memakai total_production_ton/production_reading_count/total_downtime_mins/downtime_reading_count; 45 kemunculan diganti agar artefak tidak memuat dua nama untuk satu hal.",
     "Mock visual acuan: .asdlc/generated/2-business-spec/screens/html/screen-132--laporan-clarification-web.html, dengan blok JEJAK ANGKA di kaki berkas. Angkanya sudah diverifikasi independen: Sigma slot 241 (35,9% dari 672), Sigma produksi 1.847,5 ton, Sigma downtime 1.284 menit, dan ikatan 1.847,5 / 198 = 9,33 ton/jam yang mengunci produksi, laju, dan jumlah pembacaan menjadi satu.",
-    "PERTANYAAN TERBUKA DITUTUP 2026-09-25: pemilik proses memutuskan downtime TIDAK mengurangi produksi. Dasarnya: laju yang diinput Operator adalah laju rata-rata sepanjang jam itu, bukan laju sesaat, sehingga downtime sudah tercermin di dalam lajunya. Mengalikan dengan (60 - downtime)/60 akan menghitung penurunan itu dua kali. Rumus Sigma laju x 1 jam final."
+    "PERTANYAAN TERBUKA DITUTUP 2026-09-25: pemilik proses memutuskan downtime TIDAK mengurangi produksi. Dasarnya: laju yang diinput Operator adalah laju rata-rata sepanjang jam itu, bukan laju sesaat, sehingga downtime sudah tercermin di dalam lajunya. Mengalikan dengan (60 - downtime)/60 akan menghitung penurunan itu dua kali. Rumus Sigma laju x 1 jam final.",
+    "Properti Livewire `public string $productionLineId` memakai #[Url(as: 'production_line_id')] — alias itu WAJIB: tanpa `as:` Livewire memakai NAMA PROPERTI (`productionLineId`) pada query string, sedangkan screen-140 menyisipkan `production_line_id` pada setiap report_path. Pasangan nama itulah yang membuat rantai tile → laporan bertemu.",
+    "@selected pada <option> Production Line WAJIB dirender di server: Livewire 3 tidak menulis balik nilai <select> dari state komponen pada paint pertama, sehingga pengguna yang tiba lewat tautan tile akan melihat 'Pilih Production Line' padahal angkanya sudah milik line itu.",
+    "Tombol Ekspor dirender hanya ketika $summary !== null, dan $summary hanya terisi ketika ada line yang berlaku — jadi 'tidak ada line' otomatis berarti 'tidak ada tombol Ekspor', tanpa kondisi kedua yang bisa ikut kedaluwarsa.",
+    "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan."
   ],
   "test_scenarios": [
     {
@@ -1687,6 +1783,165 @@
         "route": "/reports/clarification",
         "action": "Login sebagai Supervisor pada mill dengan campuran jenis periode, buka /reports/clarification, buka [data-testid=period-selector]",
         "assert": "Daftar opsi berisi tepat 2 periode, keduanya PUNYA baris period_stations Clarification — dibuktikan langsung di Kelola Periode Pelaporan dengan membuka baris stasiunnya, bukan disimpulkan. Periode milik mill tanpa satu pun stasiun aktif (karenanya tanpa baris period_stations sama sekali) tidak muncul sebagai opsi. Bentuk lama 'periode khusus stasiun lain' tidak lagi dapat diproduksi lewat UI di dalam satu mill terprovisi."
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — Production Line wajib dipilih",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "render komponen dengan mill dan periode terpilih tetapi productionLineId masih '', lalu pilih sebuah Production Line",
+        "assert": "sebelum memilih: nol angka, arahan 'Pilih production line terlebih dahulu', dan tombol Ekspor tidak ada di DOM — daftar periode tetap terisi; setelah memilih: seluruh angka tampil dan nama line aktif tertulis di layar"
+      },
+      "browser_test": {
+        "route": "/reports/clarification",
+        "action": "buka /reports/clarification, pilih mill bila Admin, pilih sebuah Production Line pada pemilih [data-testid=\"production-line-select\"], lalu pilih periode",
+        "assert": "kartu angka utama dan rekapnya tampil setelah Production Line dipilih, beserta label line aktif"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — Angka milik SATU line, bukan gabungan",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_beta_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "pada periode yang memuat record LINE-ALPHA dan LINE-BETA, pilih LINE-ALPHA lalu LINE-BETA",
+        "assert": "angka tiap pilihan hanya milik line itu, bukan jumlah keduanya, dan blok production_line pada respons menamai line yang sedang dibaca"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — Line mill lain diabaikan",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_milik_mill_lain_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "set productionLineId ke id line milik mill lain, baik lewat properti Livewire maupun lewat query string ?production_line_id=",
+        "assert": "tidak ada 403 dan tidak ada angka mill lain: pilihan dipulangkan ke '' dan layar kembali meminta memilih Production Line"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — Ekspor mengikuti cakupan line",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "pilih LINE-ALPHA lalu picu export('csv'); ulangi dengan productionLineId = ''",
+        "assert": "berkas hanya memuat baris LINE-ALPHA; tanpa line terpilih tidak ada berkas yang dihasilkan sama sekali"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Clarification (Web) — Stasiun dipindah, angka tetap di line asalnya",
+      "usecase_id": "usecase-132--laporan-clarification-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/clarification-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanClarification",
+        "action": "buat record saat stasiunnya berada di LINE-ALPHA, pindahkan stasiun itu ke LINE-BETA, lalu baca laporan dengan LINE-ALPHA dan dengan LINE-BETA",
+        "assert": "record lama tetap terhitung di LINE-ALPHA dan tidak muncul di LINE-BETA — membuktikan kolom record dipakai, bukan konfigurasi stasiun hari ini"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
       }
     }
   ]

@@ -11,3 +11,11 @@
 - **Run ini mengubah screen-134** (mengisi `routeName` kartu Reporting), sehingga dua berkas test screen-134 yang mengasersi **kedua** kartu nonaktif akan perlu penyesuaian. Ditulis eksplisit di implementation_notes agar tidak jadi kejutan, dengan batas jelas: hanya bagian kartu Reporting yang berubah, asersi kartu Dashboard tidak boleh dilemahkan.
 - `data-testid` (6 penanda) ← ditetapkan agar test punya pegangan stabil; sengaja tidak menambah penanda baru di luar daftar itu.
 - Satu entri `test_scenarios` dari agent sempat salah `usecase_id` (typo `usecase-141-...`); agent menandainya sendiri dan memberi koreksi — saya pakai versi yang benar.
+
+## v2 — 2026-09-29
+
+- `business_logic` REPORT_ROUTES ditulis ulang dari `{ 'sterilizer': 'report-sterilizer' }` menjadi lima jenis ← alasan sama dengan screen-140: langkah itu bersebelahan langsung dengan langkah `reportQuery()` yang saya tambahkan, dan konstanta yang tertulis satu entri membuat "membawa line ke SETIAP laporan" kehilangan artinya.
+- Langkah "baca production line aktif" ditulis ulang untuk MENYEBUT nama kuncinya (`msl_production_line_{userId}`) beserta alasan localStorage-bukan-jaringan ← briefing menyebut kuncinya sebagai fakta; artefak sebelumnya hanya berbunyi "dari auth store / penyimpanan lokal", yang tidak cukup untuk menjaga ketiga layar tetap memakai kunci yang sama.
+- `api_contracts[0].endpoints` dibiarkan `[]` ← layar ini wajib nol pemanggilan jaringan, termasuk untuk memperoleh line. Menambahkan endpoint daftar line di sini akan meruntuhkan aturan yang paling menentukan bagi layar ini.
+- `test_scenarios` = hanya DUA skenario baru ← enam uji komponen dan dua uji browser yang ada semuanya membuktikan dua perilaku saja (line terbawa; tanpa ingatan query dibiarkan kosong). Memecahnya menjadi enam skenario akan membuat artefak tampak punya cakupan lebih luas daripada yang diuji.
+- Kedua `browser_test` DIISI ← `mobile/tests/e2e/reporting-pilih-stasiun.spec.ts` benar-benar memuat keduanya ("menekan tile stasiun mendaratkan laporan yang SUDAH terisi Production Line-nya" dan "tanpa ingatan line, tile tetap berpindah").

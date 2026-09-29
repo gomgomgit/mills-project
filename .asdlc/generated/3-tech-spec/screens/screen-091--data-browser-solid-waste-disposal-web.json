@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-09-29"
   },
   "id": "screen-091--data-browser-solid-waste-disposal-web",
   "name": "Data Browser Solid Waste Disposal (Web)",
@@ -61,6 +61,13 @@
                 "description": "Filter business unit"
               },
               {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter Production Line. Kosong = \"Semua Line\" di dalam mill yang berlaku (default layar). Line milik mill lain DIABAIKAN diam-diam — dijepit menjadi null oleh ScopesToActorMill::clampProductionLineIdToMill(), bukan 403 dan bukan 422."
+              },
+              {
                 "name": "page",
                 "type": "integer",
                 "required": false,
@@ -85,6 +92,7 @@
                   "solid_waste_disposal_id": "string",
                   "date": "date",
                   "event_count": "integer",
+                  "production_line_name": "string",
                   "status": "string"
                 }
               ],
@@ -138,6 +146,13 @@
                 "description": "Filter business unit"
               },
               {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter Production Line. Kosong = \"Semua Line\" di dalam mill yang berlaku (default layar). Line milik mill lain DIABAIKAN diam-diam — dijepit menjadi null oleh ScopesToActorMill::clampProductionLineIdToMill(), bukan 403 dan bukan 422."
+              },
+              {
                 "name": "format",
                 "type": "enum(csv, excel)",
                 "required": true,
@@ -173,11 +188,15 @@
       ],
       "business_logic": [
         "1. Validate query params (date_from/date_to) → if date_from > date_to: return 422 INVALID_DATE_RANGE, filter tidak diterapkan",
-        "2. Build query: solid-waste-disposal-record WHERE business_unit_id matches (if provided, via station->business_unit_id) AND date BETWEEN date_from/date_to (if provided)",
-        "3. Paginate hasil sesuai shared-decisions.pagination (page/per_page)",
-        "4. Return list + pagination metadata, dengan event_count dihitung via withCount(solidWasteDisposalDetails)",
-        "5. On export: re-run query filter yang sama tanpa pagination, generate file CSV/Excel → if dataset terlalu besar/error: return 422 EXPORT_FAILED",
-        "6. Return file stream untuk didownload user"
+        "2. Terapkan cakupan aktor SEBELUM filter apa pun dibaca — ScopesToActorMill::scopeFiltersToActorMill() dipanggil sebagai pernyataan pertama buildFilteredQuery(), yang dilewati listRecords() DAN export(): `business_unit_id` kiriman klien DIBUANG untuk peran terikat mill, lalu `production_line_id` dijepit oleh clampProductionLineIdToMill() — line di luar mill yang berlaku menjadi null, yaitu \"Semua Line\" di dalam mill aktor, tanpa error",
+        "3. Terapkan filter Production Line LANGSUNG pada kolom record `production_line_id` (WHERE production_line_id = ?), BUKAN lewat whereHas('station'): kolom itu di-snapshot dari stasiun saat record dibuat dan tidak pernah berubah, sehingga record yang stasiunnya kemudian dipindah ke line lain tetap tersaring dan tampil di line ASALNYA; menyaring lewat `stations` akan menyaring menurut konfigurasi hari ini",
+        "4. Setiap baris daftar membawa `production_line_name` dari relasi `productionLine` MILIK RECORD (with('productionLine:id,name')), dirender sebagai kolom PERTAMA tabel — tanpa kolom itu, opsi \"Semua Line\" menghasilkan daftar yang tidak dapat ditafsirkan",
+        "5. Build query: solid-waste-disposal-record WHERE business_unit_id matches (if provided, via station->business_unit_id) AND date BETWEEN date_from/date_to (if provided)",
+        "6. Paginate hasil sesuai shared-decisions.pagination (page/per_page)",
+        "7. Return list + pagination metadata, dengan event_count dihitung via withCount(solidWasteDisposalDetails)",
+        "8. On export: re-run query filter yang sama tanpa pagination, generate file CSV/Excel → if dataset terlalu besar/error: return 422 EXPORT_FAILED",
+        "9. Ekspor memakai buildFilteredQuery() yang sama sehingga filter Production Line ikut ke berkas; `Production Line` adalah kolom PERTAMA header CSV dan nilainya diulang pada setiap baris detail (satu baris per detail, konteks record diulang)",
+        "10. Return file stream untuk didownload user"
       ],
       "data_operations": [
         {
@@ -194,6 +213,16 @@
           "entity_id": "solid-waste-disposal-detail",
           "operation": "SELECT",
           "description": "COUNT baris solid-waste-disposal-detail per record untuk kolom jumlah kejadian tercatat"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "SELECT opsi filter Production Line — dibatasi mill yang berlaku (productionLineOptionsForReadActor()). Saat Admin belum memilih mill, seluruh line dari semua mill dengan label diawali nama mill (\"Mill — Line 01\"), karena dua mill sah-sah saja memakai nama line yang sama"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "SELECT keberadaan line yang diminta untuk menjepitnya ke mill yang berlaku (clampProductionLineIdToMill()) — kueri nyata ke `production_lines`, karena membandingkan uuid pada tabel record saja tidak memberi tahu line itu milik mill mana"
         }
       ],
       "edge_case_handling": [
@@ -212,12 +241,33 @@
         {
           "condition": "Ekspor gagal (dataset besar/error)",
           "handling": "Return 422 EXPORT_FAILED"
+        },
+        {
+          "condition": "Production line milik mill lain dikirim lewat properti Livewire atau query string",
+          "handling": "DIABAIKAN DIAM-DIAM, bukan error: clampProductionLineIdToMill() memulangkan null, sehingga filternya jatuh ke \"Semua Line\" DI DALAM mill aktor. Tidak ada 403 (yang justru memastikan line itu ada) dan tidak ada 422; data mill lain tidak pernah tampil"
+        },
+        {
+          "condition": "Admin mengganti mill saat sebuah production line sudah dipilih",
+          "handling": "Pilihan line direset ke \"\" (Semua Line) oleh updatedBusinessUnitId(), dan daftar opsinya ikut berganti ke mill baru — membiarkan line mill lama akan menghasilkan daftar kosong tanpa sebab yang terlihat"
+        },
+        {
+          "condition": "Stasiun sebuah record sudah dipindah ke production line lain",
+          "handling": "Record tetap tersaring dan tampil di line ASALNYA: filter dan kolom sama-sama dibaca dari kolom record `production_line_id` (snapshot saat create), bukan dari station.productionLine"
+        },
+        {
+          "condition": "Admin belum memilih mill sama sekali",
+          "handling": "Opsi Production Line mencakup seluruh mill dan setiap label diawali nama mill (\"Mill — Line 01\"); daftar recordnya pun lintas mill, dan kolom Production Line yang membuatnya tetap dapat ditafsirkan"
         }
       ],
       "business_rules_applied": [
         "Data mencakup hasil sync mobile & input web",
         "Ekspor mengikuti filter aktif",
-        "Daftar termuat <=2 detik untuk dataset normal"
+        "Daftar termuat <=2 detik untuk dataset normal",
+        "Production Line adalah KONTEKS YANG DIPILIH, bukan ikatan akun — tidak ada `users.production_line_id` dan tidak boleh ada",
+        "Filter Production Line berdefault \"Semua Line\": Data Browser adalah daftar BARIS, bukan angka gabungan seperti layar laporan, jadi lintas-line tetap dapat ditafsirkan selama setiap baris menunjukkan line-nya sendiri",
+        "Kolom Production Line adalah kolom PERTAMA tabel dan kolom PERTAMA berkas CSV",
+        "Nilai kolom Production Line diambil dari kolom record `production_line_id`, bukan dari station.productionLine",
+        "Filter Production Line yang aktif ikut ke ekspor CSV/Excel"
       ],
       "unit_test_cases": [
         {
@@ -234,6 +284,31 @@
           "description": "returns success result when all conditions pass",
           "given": "valid date_from <= date_to, valid business_unit_id, page/per_page provided; solidWasteDisposalRecordRepo returns paginated records with event_count computed",
           "expect": "return { data: [...], meta: { page, per_page, total, total_pages } } with HTTP 200"
+        },
+        {
+          "description": "filters the list and the export by the record's own production_line_id column, not through a station join",
+          "given": "two records in the same mill, one on LINE-ALPHA and one on LINE-BETA; buildFilteredQuery() is called with filters['production_line_id'] = LINE-ALPHA",
+          "expect": "only the LINE-ALPHA record is returned by listRecords() and only that record reaches export(); the query carries WHERE production_line_id = ? on the record table itself, with no whereHas('station') for the line"
+        },
+        {
+          "description": "keeps a record on its original line after its station has been moved to another line",
+          "given": "a record was created while its station sat on LINE-ALPHA (production_line_id snapshotted at create), and the station is afterwards reassigned to LINE-BETA",
+          "expect": "the record still matches the LINE-ALPHA filter and its production_line_name still reads LINE-ALPHA — the station's current line never rewrites the record's history"
+        },
+        {
+          "description": "silently drops a production_line_id that belongs to another mill instead of raising",
+          "given": "a Supervisor of Mill A passes a production_line_id owned by Mill B through the Livewire property or the export query string",
+          "expect": "clampProductionLineIdToMill() returns null, so the filter degrades to \"all lines within Mill A\"; no exception, no 403, and no Mill B row is ever returned"
+        },
+        {
+          "description": "returns every line within the actor's mill when production_line_id is empty",
+          "given": "filters['production_line_id'] is null/'' for a Supervisor whose mill has two lines each holding records",
+          "expect": "records from both lines are returned, each row carrying its own production_line_name"
+        },
+        {
+          "description": "includes production_line_name on every list row, resolved from the record's own productionLine relation",
+          "given": "listRecords() is called on a record whose production_line_id points at LINE-ALPHA",
+          "expect": "the row contains production_line_name = 'LINE-ALPHA', loaded via with('productionLine:id,name') on the record query"
         }
       ]
     }
@@ -253,7 +328,10 @@
     "Ekspor sebaiknya dijalankan sebagai proses async/background job untuk dataset besar; NFR <=2 detik hanya berlaku untuk list, tidak eksplisit untuk export",
     "Data source gabungan: record hasil sync manual dari mobile + record input langsung dari web (screen-111)",
     "Kolom 'jumlah kejadian tercatat' (event_count) dihitung sebagai COUNT baris solid-waste-disposal-detail terkait, bukan field langsung di solid-waste-disposal-record",
-    "Mengikuti struktur CagesTrackRecordService/CagesTrackRecordController persis (Controller → Service → Eloquent), sudah diimplementasikan di app/Services/SolidWasteDisposalRecordService.php dan app/Http/Controllers/Api/SolidWasteDisposalRecordController.php"
+    "Mengikuti struktur CagesTrackRecordService/CagesTrackRecordController persis (Controller → Service → Eloquent), sudah diimplementasikan di app/Services/SolidWasteDisposalRecordService.php dan app/Http/Controllers/Api/SolidWasteDisposalRecordController.php",
+    "Filter + kolom Production Line (2026-09-28/29): properti Livewire `production_line_id` (default '' = Semua Line), direset oleh updatedBusinessUnitId(), dipaksa sehat di render() lewat forcedProductionLineFilterValue(), dan opsinya dari productionLineOptionsForReadActor(). Ketiganya LAPISAN TAMPILAN — penegakan sesungguhnya ada di ScopesToActorMill::scopeFiltersToActorMill() di dalam service, jadi melewatkan lapisan tampilan pun tidak membocorkan apa pun.",
+    "`production_line_id` masuk ke `$request->only([...])` pada index() DAN export() controller API, sehingga filter yang aktif di layar benar-benar ikut ke berkas.",
+    "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan."
   ],
   "test_scenarios": [
     {
@@ -404,6 +482,111 @@
         "route": "/data/solid-waste-disposal",
         "action": "trigger export on a dataset that causes export failure",
         "assert": "page shows an export error message"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Solid Waste Disposal — Filter Production Line (default Semua Line)",
+      "usecase_id": "usecase-064--data-browser-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{mill_a_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}",
+            "page": 1,
+            "per_page": 20
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-records/export"
+          },
+          "request_example": {
+            "business_unit_id": "{{mill_a_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserSolidWasteDisposal",
+        "action": "sebagai Supervisor pada mill dengan dua production line, buka Data Browser dengan filter Production Line pada default \"Semua Line\", lalu pilih satu line",
+        "assert": "\"Semua Line\" menampilkan record dari kedua line dan kolom Production Line (kolom pertama tabel) menuliskan line masing-masing; memilih satu line menyempitkan daftar ke line itu saja, dan tautan ekspor ikut membawa production_line_id"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Solid Waste Disposal — Line Mill Lain Diabaikan",
+      "usecase_id": "usecase-064--data-browser-solid-waste-disposal-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/solid-waste-disposal-records"
+          },
+          "request_example": {
+            "production_line_id": "{{line_milik_mill_b_uuid}}",
+            "page": 1,
+            "per_page": 20
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserSolidWasteDisposal",
+        "action": "set properti Livewire production_line_id ke id sebuah production line milik mill lain",
+        "assert": "tidak ada error dan tidak ada 403: propertinya dipulangkan ke \"\" (Semua Line di dalam mill aktor) dan tidak satu pun record mill lain tampil"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Solid Waste Disposal — Stasiun Dipindah, Record Tetap di Line Asalnya",
+      "usecase_id": "usecase-064--data-browser-solid-waste-disposal-web",
+      "api_test": [],
+      "component_test": {
+        "component": "DataBrowserSolidWasteDisposal",
+        "action": "buat record saat stasiunnya berada di LINE-ALPHA, lalu pindahkan stasiun itu ke LINE-BETA dan saring dengan filter Production Line = LINE-ALPHA",
+        "assert": "record lama tetap muncul di LINE-ALPHA dan kolom Production Line-nya tetap menulis LINE-ALPHA — inilah satu-satunya perbedaan yang membuktikan kolom record dipakai, bukan join ke `stations`"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Solid Waste Disposal — Admin Ganti Mill Mereset Pilihan Line",
+      "usecase_id": "usecase-064--data-browser-solid-waste-disposal-web",
+      "api_test": [],
+      "component_test": {
+        "component": "DataBrowserSolidWasteDisposal",
+        "action": "sebagai Admin, pilih sebuah production line pada mill A lalu ganti filter Business Unit ke mill B",
+        "assert": "production_line_id kembali ke \"\" dan daftar opsi line berganti ke line milik mill B; tidak ada daftar kosong tanpa sebab"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
       }
     }
   ]

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-23"
+    "updated_at": "2026-09-29"
   },
   "id": "screen-141--reporting-pilih-stasiun-mobile",
   "name": "Reporting — Pilih Stasiun (Mobile)",
@@ -38,16 +38,20 @@
       "endpoints": [],
       "business_logic": [
         "Rute '/reports' didaftarkan dengan meta.public = false → penjagaan sesi global mengalihkan ke rute 'login' bila tidak ada sesi",
-        "Saat dipasang, baca production line aktif atau business_unit_id dari auth store / penyimpanan lokal",
+        "Saat dipasang, baca production line aktif dari penyimpanan lokal dengan kunci `msl_production_line_{userId}` — KUNCI YANG SAMA yang ditulis StationListView.vue — atau business_unit_id dari auth store bila tidak ada. localStorage, bukan productionLineRepo: layar ini wajib NOL pemanggilan jaringan, dan setiap pembacaannya dibungkus try/catch karena pada mode privat penyimpanan bisa melempar.",
         "Panggil stationRepo untuk memperoleh StationSlot[] — NOL pemanggilan apiClient. Bila ada production line aktif pakai getActiveAndPlaceholderStationsForProductionLine, bila tidak pakai getActiveAndPlaceholderStations",
         "→ bila daftar kosong: tampilkan arahan membuka layar Daftar Stasiun lebih dulu, dan JANGAN menampilkan grid berisi tile",
         "Tiap stasiun dipetakan ke tile dengan nama, ikon, dan urutan APA ADANYA dari StationSlot[] — tanpa penyusunan ulang maupun penamaan ulang",
-        "Ketersediaan laporan ditentukan SATU konstanta lokal REPORT_ROUTES = { 'sterilizer': 'report-sterilizer' }",
+        "Ketersediaan laporan ditentukan SATU konstanta lokal REPORT_ROUTES — per 2026-09-28 berisi lima jenis: sterilizer, cages-track, boiler-room, clarification, storage-tank. Menambah laporan stasiun kelak = menambah SATU baris di sini, bukan menyebar pengecekan ke template.",
         "KETERSEDIAAN LAPORAN TIDAK ADA HUBUNGANNYA DENGAN StationSlot.isActive. isActive berarti stasiunnya beroperasi di mill; ketersediaan berarti layar laporan mobile-nya sudah dibangun. Stasiun ber-isActive=true tetap nonaktif bila kodenya tidak ada di REPORT_ROUTES",
         "Tile tanpa laporan diberi aria-disabled=\"true\" dan label kecil 'Belum tersedia'",
         "→ tile bertautan ditekan: router.push({ name: REPORT_ROUTES[code] })",
         "→ tile tanpa laporan ditekan: isi pesan 'Laporan [nama stasiun] belum tersedia.' pada SATU variabel reaktif tunggal, JANGAN berpindah rute. Menekan berkali-kali hanya menimpa nilainya sehingga pesan tidak pernah menumpuk",
-        "Segmen breadcrumb memanggil router.push ke 'home' atau 'dashboard-reporting'"
+        "Segmen breadcrumb memanggil router.push ke 'home' atau 'dashboard-reporting'",
+        "reportQuery(): Production Line yang berlaku IKUT DIBAWA ke layar laporan tujuan sebagai `?production_line_id=<uuid>` — sejajar dengan report_path milik screen-140 web, dan dibaca dari SUMBER YANG SAMA PERSIS yang dipakai loadStations(), sehingga tile yang ditekan dan angka yang muncul pasti berasal dari line yang sama.",
+        "→ bila tidak ada line tersimpan: query dibiarkan KOSONG, bukan diisi tebakan — kelima layar laporan mobile punya pemilihnya sendiri, dan itulah tempat yang benar untuk bertanya.",
+        "→ ingatan milik pengguna LAIN tidak pernah terbawa: kuncinya di-scope per userId dari auth store.",
+        "Tetap NOL pemanggilan jaringan — line dibaca dari perangkat, tidak diminta ke server, termasuk untuk membangun query rute."
       ],
       "data_operations": [],
       "edge_case_handling": [
@@ -74,6 +78,18 @@
         {
           "condition": "Tidak ada sesi aktif",
           "handling": "Penjagaan sesi global mengalihkan ke 'login'; komponen tidak pernah dipasang."
+        },
+        {
+          "condition": "Belum ada Production Line tersimpan di perangkat",
+          "handling": "Tile tetap berpindah rute, hanya tanpa `production_line_id` — layar laporan tujuan yang bertanya. Layar ini tidak pernah menebak."
+        },
+        {
+          "condition": "Ingatan Production Line milik pengguna lain di perangkat yang sama",
+          "handling": "Tidak pernah terbawa: kunci `msl_production_line_{userId}` di-scope per pengguna, dan pembacaan mengembalikan null bila userId tidak cocok."
+        },
+        {
+          "condition": "localStorage melempar (mode privat / penyimpanan diblokir)",
+          "handling": "Dibungkus try/catch → jatuh ke jalur business unit; layar tidak pernah patah karenanya."
         }
       ],
       "business_rules_applied": [
@@ -83,7 +99,10 @@
         "Stasiun tanpa laporan tetap ditampilkan nonaktif, tidak disembunyikan",
         "Menekan stasiun tanpa laporan memberi pesan, bukan diam",
         "Layar ini tidak meminta pengguna memilih mill",
-        "Layar memerlukan sesi aktif"
+        "Layar memerlukan sesi aktif",
+        "Production Line yang sudah dipilih di layar Daftar Stasiun dibawa ke layar laporan tujuan — pengguna tidak diminta menjawab dua kali keputusan yang sama",
+        "Line dibaca dari perangkat, bukan dari jaringan: layar ini tetap nol pemanggilan jaringan",
+        "Tanpa ingatan line, query dibiarkan kosong — layar laporan tujuan yang bertanya, bukan layar ini yang menebak"
       ],
       "unit_test_cases": [
         {
@@ -150,6 +169,36 @@
           "description": "layar tampil utuh dari data lokal ketika seluruh syarat terpenuhi",
           "given": "sesi aktif, stationRepo mengembalikan StationSlot[] berisi sterilizer (tersedia) dan beberapa stasiun lain (belum tersedia)",
           "expect": "grid menampilkan seluruh stasiun, sterilizer dapat ditekan, sisanya aria-disabled berlabel 'Belum tersedia', pesan kosong, dan nol pemanggilan jaringan"
+        },
+        {
+          "description": "menyertakan production_line_id pada rute laporan ketika pengguna sudah punya line aktif",
+          "given": "localStorage memuat `msl_production_line_{userId}` dan sebuah tile berlaporan ditekan",
+          "expect": "router.push dipanggil dengan query { production_line_id: <uuid> }"
+        },
+        {
+          "description": "membawa line yang sama ke SETIAP laporan, bukan hanya satu stasiun",
+          "given": "tile Sterilizer, Cages & Tracks, Boiler Room, Clarification, dan Storage Tank ditekan bergantian",
+          "expect": "kelimanya menerima production_line_id yang sama"
+        },
+        {
+          "description": "tanpa ingatan line, query dibiarkan kosong",
+          "given": "localStorage kosong dan sebuah tile berlaporan ditekan",
+          "expect": "router.push dipanggil dengan query kosong — tidak ada tebakan line"
+        },
+        {
+          "description": "ingatan line milik pengguna lain tidak pernah terbawa",
+          "given": "localStorage memuat kunci milik userId yang berbeda dari pengguna yang sedang masuk",
+          "expect": "query dibiarkan kosong"
+        },
+        {
+          "description": "tetap NOL pemanggilan jaringan — line dibaca dari perangkat",
+          "given": "layar dipasang dan sebuah tile ditekan",
+          "expect": "tidak ada satu pun pemanggilan apiClient, termasuk untuk memperoleh daftar Production Line"
+        },
+        {
+          "description": "tile tanpa laporan tetap tidak berpindah rute, walau ada line aktif",
+          "given": "tile stasiun yang kodenya tidak ada di REPORT_ROUTES ditekan saat ada line tersimpan",
+          "expect": "pesan 'Laporan [nama stasiun] belum tersedia.' diisi dan router.push TIDAK dipanggil"
         }
       ]
     }
@@ -186,7 +235,11 @@
     "Pesan info pada SATU ref tunggal, bukan daftar — itu yang membuat aturan 'pesan tidak menumpuk' benar secara konstruksi.",
     "data-testid: station-grid, station-tile-<code>, info-message, breadcrumb-home, breadcrumb-dashboard-reporting, no-stations. Tidak ada testid baru di luar daftar ini.",
     "Seluruh teks UI Bahasa Indonesia. Sasaran sentuh minimal 44px, tanpa gulir horizontal halaman.",
-    "Test yang menyentuh localStorage wajib window.localStorage.clear() di beforeEach."
+    "Test yang menyentuh localStorage wajib window.localStorage.clear() di beforeEach.",
+    "Kunci ingatan `msl_production_line_{userId}` dibagi bertiga: ditulis StationListView.vue, dibaca layar ini, dan dibaca kelima layar laporan mobile. Line adalah satu konteks kerja, bukan tiga pilihan terpisah.",
+    "Nama kunci query `production_line_id` sengaja sama persis dengan yang disisipkan screen-140 pada report_path dan dengan #[Url(as: 'production_line_id')] di sisi web — satu kosakata untuk satu konteks.",
+    "PEMBETULAN artefak-vs-kode (2026-09-29): business_logic sebelumnya menyebut REPORT_ROUTES hanya berisi 'sterilizer'. Kode memuat lima jenis (sterilizer, cages-track, boiler-room, clarification, storage-tank).",
+    "Cakupan uji Production Line yang nyata untuk layar ini: 6 uji komponen (mobile/tests/ReportingPilihStasiunView.spec.ts) dan 2 uji browser (mobile/tests/e2e/reporting-pilih-stasiun.spec.ts)."
   ],
   "test_scenarios": [
     {
@@ -352,6 +405,36 @@
         "route": "/reports",
         "action": "login lewat helper, buka /reports, dan langsung tekan station-tile-sterilizer tanpa interaksi lain",
         "assert": "station-grid terlihat segera setelah layar terbuka, tidak ada dialog atau pemilih mill yang muncul, dan tile langsung dapat ditekan membawa ke layar laporan Sterilizer"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — Tile membawa Production Line yang berlaku",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "isi `msl_production_line_{userId}` lalu tekan tile Sterilizer, Cages & Tracks, Boiler Room, Clarification, dan Storage Tank bergantian",
+        "assert": "kelimanya berpindah rute dengan query { production_line_id: <uuid> } yang sama, tanpa satu pun pemanggilan jaringan"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "pilih Production Line di layar Daftar Stasiun, buka /reports, lalu tekan sebuah tile stasiun",
+        "assert": "layar laporan tujuan mendarat SUDAH terisi Production Line-nya — tidak ada pemilih line yang muncul lagi"
+      }
+    },
+    {
+      "scenario_ref": "Pilih Stasiun untuk Laporan (Mobile) — Tanpa ingatan line, tile tetap berpindah",
+      "usecase_id": "usecase-143--reporting-pilih-stasiun-mobile",
+      "api_test": [],
+      "component_test": {
+        "component": "ReportingPilihStasiunView",
+        "action": "kosongkan localStorage, lalu tekan sebuah tile; ulangi dengan ingatan milik pengguna lain",
+        "assert": "query dibiarkan kosong pada kedua keadaan — layar ini tidak menebak, dan ingatan pengguna lain tidak pernah terbawa"
+      },
+      "browser_test": {
+        "route": "/reports",
+        "action": "buka /reports tanpa pernah memilih line, lalu tekan sebuah tile",
+        "assert": "perpindahan tetap terjadi dan layar laporan tujuan yang menanyakan Production Line"
       }
     }
   ]

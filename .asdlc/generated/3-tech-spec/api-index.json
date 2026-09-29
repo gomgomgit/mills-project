@@ -1,8 +1,8 @@
 {
-  "ver": 57,
+  "ver": 58,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-09-27"
+    "updated_at": "2026-09-28"
   },
   "endpoints": [
     {
@@ -1771,7 +1771,7 @@
     {
       "method": "GET",
       "path": "/api/sterilizer-reports/summary",
-      "description": "Seluruh angka Laporan Sterilizer untuk satu periode: KPI, tren harian, perbandingan unit, siklus menyimpang",
+      "description": "Seluruh angka Laporan Sterilizer untuk satu periode: KPI, tren harian, perbandingan unit, siklus menyimpang Sejak 2026-09-28 angkanya tersaring ke satu Production Line yang WAJIB dipilih — laporan menghasilkan angka gabungan, dan mencampur beberapa line membuatnya tidak dapat ditindaklanjuti. Penyaringan memakai kolom production_line_id pada tabel record, bukan join ke stations, sehingga record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan.",
       "screen_id": "screen-129--laporan-sterilizer-web",
       "usecase_id": "usecase-129--laporan-sterilizer-web",
       "auth_required": true,
@@ -1785,7 +1785,7 @@
     {
       "method": "GET",
       "path": "/api/sterilizer-reports/export",
-      "description": "Ekspor siklus Sterilizer sepanjang periode ke CSV/Excel, satu baris per siklus",
+      "description": "Ekspor siklus Sterilizer sepanjang periode ke CSV/Excel, satu baris per siklus Sejak 2026-09-28 barisnya tersaring ke Production Line terpilih; kolom CSV dan nama berkas tidak berubah.",
       "screen_id": "screen-129--laporan-sterilizer-web",
       "usecase_id": "usecase-129--laporan-sterilizer-web",
       "auth_required": true,
@@ -1809,8 +1809,22 @@
     },
     {
       "method": "GET",
+      "path": "/api/production-lines/options-for-report",
+      "description": "Daftar Production Line untuk sebuah mill, dipakai pemilih line di laporan. Ada TERPISAH dari /production-lines/options yang admin-only dan ber-guard session: yang ini ber-sanctum sehingga token mobile dapat memakainya, dan berbeda dari /production-lines/current yang SWA-CAKUP ke mill akun pemanggil — swa-cakup membuat Admin mendapat line dari mill yang BUKAN mill terpilihnya, yaitu angka yang terlihat sah untuk line yang salah. Cakupan lewat ScopesToActorMill: mill kiriman klien dibuang untuk peran terikat, Admin bebas memilih.",
+      "screen_id": "screen-135--laporan-sterilizer-mobile",
+      "usecase_id": "usecase-135--laporan-sterilizer-mobile",
+      "auth_required": true,
+      "actor_ids": [
+        "actor-station-operator",
+        "actor-supervisor",
+        "actor-mill-management",
+        "actor-admin"
+      ]
+    },
+    {
+      "method": "GET",
       "path": "/api/station-reports/stations",
-      "description": "Daftar jenis stasiun untuk grid pemilihan laporan, beserta penanda apakah laporan periodenya sudah tersedia",
+      "description": "Daftar jenis stasiun untuk grid pemilihan laporan, beserta penanda apakah laporan periodenya sudah tersedia Sejak 2026-09-28 grid ditahan sampai Production Line dipilih, dan report_path tiap tile membawa line itu agar layar tujuan langsung terisi alih-alih meminta memilih lagi.",
       "screen_id": "screen-140--laporan-stasiun-web",
       "usecase_id": "usecase-142--laporan-stasiun-web",
       "auth_required": true,
@@ -1847,7 +1861,7 @@
     {
       "method": "GET",
       "path": "/api/cages-track-reports/summary",
-      "description": "Seluruh angka Laporan Cages & Tracks untuk satu periode: KPI, sebaran per jam, tren harian, antrean tersisa, rekap harian",
+      "description": "Seluruh angka Laporan Cages & Tracks untuk satu periode: KPI, sebaran per jam, tren harian, antrean tersisa, rekap harian Sejak 2026-09-28 angkanya tersaring ke satu Production Line yang WAJIB dipilih — laporan menghasilkan angka gabungan, dan mencampur beberapa line membuatnya tidak dapat ditindaklanjuti. Penyaringan memakai kolom production_line_id pada tabel record, bukan join ke stations, sehingga record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan.",
       "screen_id": "screen-130--laporan-cages-track-web",
       "usecase_id": "usecase-130--laporan-cages-track-web",
       "auth_required": true,
@@ -1860,7 +1874,7 @@
     {
       "method": "GET",
       "path": "/api/cages-track-reports/export",
-      "description": "Ekspor rincian penumpahan per jam sepanjang periode ke CSV, satu baris per jam penumpahan",
+      "description": "Ekspor rincian penumpahan per jam sepanjang periode ke CSV, satu baris per jam penumpahan Sejak 2026-09-28 barisnya tersaring ke Production Line terpilih; kolom CSV dan nama berkas tidak berubah.",
       "screen_id": "screen-130--laporan-cages-track-web",
       "usecase_id": "usecase-130--laporan-cages-track-web",
       "auth_required": true,
@@ -1897,7 +1911,7 @@
     {
       "method": "GET",
       "path": "/api/boiler-room-reports/summary",
-      "description": "Seluruh angka Laporan Boiler Room untuk satu periode: kelengkapan pencatatan, metrik beserta jumlah pembacaannya, perawatan, tren harian, rekap per unit",
+      "description": "Seluruh angka Laporan Boiler Room untuk satu periode: kelengkapan pencatatan, metrik beserta jumlah pembacaannya, perawatan, tren harian, rekap per unit Sejak 2026-09-28 angkanya tersaring ke satu Production Line yang WAJIB dipilih — laporan menghasilkan angka gabungan, dan mencampur beberapa line membuatnya tidak dapat ditindaklanjuti. Penyaringan memakai kolom production_line_id pada tabel record, bukan join ke stations, sehingga record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan.",
       "screen_id": "screen-131--laporan-boiler-room-web",
       "usecase_id": "usecase-131--laporan-boiler-room-web",
       "auth_required": true,
@@ -1910,7 +1924,7 @@
     {
       "method": "GET",
       "path": "/api/boiler-room-reports/export",
-      "description": "Ekspor pembacaan per slot waktu sepanjang periode ke CSV, satu baris per slot",
+      "description": "Ekspor pembacaan per slot waktu sepanjang periode ke CSV, satu baris per slot Sejak 2026-09-28 barisnya tersaring ke Production Line terpilih; kolom CSV dan nama berkas tidak berubah.",
       "screen_id": "screen-131--laporan-boiler-room-web",
       "usecase_id": "usecase-131--laporan-boiler-room-web",
       "auth_required": true,
@@ -1947,7 +1961,7 @@
     {
       "method": "GET",
       "path": "/api/clarification-reports/summary",
-      "description": "Seluruh angka Laporan Clarification untuk satu periode: produksi turunan, downtime, metrik beserta jumlah pembacaannya, kelengkapan, tren harian, rekap per unit",
+      "description": "Seluruh angka Laporan Clarification untuk satu periode: produksi turunan, downtime, metrik beserta jumlah pembacaannya, kelengkapan, tren harian, rekap per unit Sejak 2026-09-28 angkanya tersaring ke satu Production Line yang WAJIB dipilih — laporan menghasilkan angka gabungan, dan mencampur beberapa line membuatnya tidak dapat ditindaklanjuti. Penyaringan memakai kolom production_line_id pada tabel record, bukan join ke stations, sehingga record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan.",
       "screen_id": "screen-132--laporan-clarification-web",
       "usecase_id": "usecase-132--laporan-clarification-web",
       "auth_required": true,
@@ -1960,7 +1974,7 @@
     {
       "method": "GET",
       "path": "/api/clarification-reports/export",
-      "description": "Ekspor pembacaan per slot waktu sepanjang periode ke CSV, satu baris per slot",
+      "description": "Ekspor pembacaan per slot waktu sepanjang periode ke CSV, satu baris per slot Sejak 2026-09-28 barisnya tersaring ke Production Line terpilih; kolom CSV dan nama berkas tidak berubah.",
       "screen_id": "screen-132--laporan-clarification-web",
       "usecase_id": "usecase-132--laporan-clarification-web",
       "auth_required": true,
@@ -1997,7 +2011,7 @@
     {
       "method": "GET",
       "path": "/api/storage-tank-reports/summary",
-      "description": "Seluruh angka Laporan Storage Tank: stok awal/akhir/pergerakan per tangki, mutu minyak, suhu, kelengkapan, tren harian",
+      "description": "Seluruh angka Laporan Storage Tank: stok awal/akhir/pergerakan per tangki, mutu minyak, suhu, kelengkapan, tren harian Sejak 2026-09-28 angkanya tersaring ke satu Production Line yang WAJIB dipilih — laporan menghasilkan angka gabungan, dan mencampur beberapa line membuatnya tidak dapat ditindaklanjuti. Penyaringan memakai kolom production_line_id pada tabel record, bukan join ke stations, sehingga record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan.",
       "screen_id": "screen-133--laporan-storage-tank-web",
       "usecase_id": "usecase-133--laporan-storage-tank-web",
       "auth_required": true,
@@ -2010,7 +2024,7 @@
     {
       "method": "GET",
       "path": "/api/storage-tank-reports/export",
-      "description": "Ekspor pembacaan per slot waktu sepanjang periode ke CSV",
+      "description": "Ekspor pembacaan per slot waktu sepanjang periode ke CSV Sejak 2026-09-28 barisnya tersaring ke Production Line terpilih; kolom CSV dan nama berkas tidak berubah.",
       "screen_id": "screen-133--laporan-storage-tank-web",
       "usecase_id": "usecase-133--laporan-storage-tank-web",
       "auth_required": true,

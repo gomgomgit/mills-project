@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-09-29"
   },
   "id": "screen-096--data-browser-storage-tank-web",
   "name": "Data Browser Storage Tank (Web)",
@@ -61,6 +61,13 @@
                 "description": "Filter business unit"
               },
               {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter Production Line. Kosong = \"Semua Line\" di dalam mill yang berlaku (default layar). Line milik mill lain DIABAIKAN diam-diam — dijepit menjadi null oleh ScopesToActorMill::clampProductionLineIdToMill(), bukan 403 dan bukan 422."
+              },
+              {
                 "name": "page",
                 "type": "integer",
                 "required": false,
@@ -85,6 +92,7 @@
                   "storage_tank_id": "string",
                   "date": "date",
                   "filled_slot_count": "integer",
+                  "production_line_name": "string",
                   "status": "string"
                 }
               ],
@@ -138,6 +146,13 @@
                 "description": "Filter business unit"
               },
               {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "Filter Production Line. Kosong = \"Semua Line\" di dalam mill yang berlaku (default layar). Line milik mill lain DIABAIKAN diam-diam — dijepit menjadi null oleh ScopesToActorMill::clampProductionLineIdToMill(), bukan 403 dan bukan 422."
+              },
+              {
                 "name": "format",
                 "type": "enum(csv, excel)",
                 "required": true,
@@ -173,12 +188,16 @@
       ],
       "business_logic": [
         "1. Validate query params (date_from/date_to) -> if date_from > date_to: throw InvalidDateRangeException -> 422 INVALID_DATE_RANGE, filter tidak diterapkan",
-        "2. Build query (buildFilteredQuery()): storage-tank-record WHERE business_unit_id matches (via station->business_unit_id, if provided) AND date BETWEEN date_from/date_to (if provided)",
-        "3. Paginate hasil sesuai shared-decisions.pagination (page/per_page, Pagination::resolvePerPage())",
-        "4. filled_slot_count per record dihitung via withCount('storageTankDetails as filled_slot_count', ...) dengan constraint OR across seluruh 17 kolom bacaan (cpo_sounding_depth_mm, water_dip_bottom_depth_mm, net_oil_depth_mm, oil_temperature_top_c, oil_temperature_middle_c, oil_temperature_bottom_c, average_temperature_c, calculated_volume_m3, calculated_weight_mt, ffa_percent, moisture_content_percent, impurities_dirt_percent, dobi_index, steam_heating_valve_status, tank_structural_condition, inspector_name, findings) NOT NULL -- bisa jadi SAMA DENGAN total baris pada record (jika semua baris yang ditambahkan sudah terisi) atau lebih kecil (jika ada baris ditambahkan tapi belum diisi bacaan apapun)",
-        "5. Return list (toListRow() map: id, storage_tank_id, date, filled_slot_count, status) + pagination metadata",
-        "6. On export: re-run query filter yang sama tanpa pagination (buildFilteredQuery()->with(['checkedBy:id,name','acknowledgedBy:id,name'])), enforce EXPORT_ROW_LIMIT=50000 -> if total > limit: throw ExportFailedException -> 422 EXPORT_FAILED",
-        "7. Generate CSV via streamDownload() (header: Storage Tank ID, Date, Checked By, Acknowledged By, Status), return file stream untuk didownload user"
+        "2. Terapkan cakupan aktor SEBELUM filter apa pun dibaca — ScopesToActorMill::scopeFiltersToActorMill() dipanggil sebagai pernyataan pertama buildFilteredQuery(), yang dilewati listRecords() DAN export(): `business_unit_id` kiriman klien DIBUANG untuk peran terikat mill, lalu `production_line_id` dijepit oleh clampProductionLineIdToMill() — line di luar mill yang berlaku menjadi null, yaitu \"Semua Line\" di dalam mill aktor, tanpa error",
+        "3. Terapkan filter Production Line LANGSUNG pada kolom record `production_line_id` (WHERE production_line_id = ?), BUKAN lewat whereHas('station'): kolom itu di-snapshot dari stasiun saat record dibuat dan tidak pernah berubah, sehingga record yang stasiunnya kemudian dipindah ke line lain tetap tersaring dan tampil di line ASALNYA; menyaring lewat `stations` akan menyaring menurut konfigurasi hari ini",
+        "4. Setiap baris daftar membawa `production_line_name` dari relasi `productionLine` MILIK RECORD (with('productionLine:id,name')), dirender sebagai kolom PERTAMA tabel — tanpa kolom itu, opsi \"Semua Line\" menghasilkan daftar yang tidak dapat ditafsirkan",
+        "5. Build query (buildFilteredQuery()): storage-tank-record WHERE business_unit_id matches (via station->business_unit_id, if provided) AND date BETWEEN date_from/date_to (if provided)",
+        "6. Paginate hasil sesuai shared-decisions.pagination (page/per_page, Pagination::resolvePerPage())",
+        "7. filled_slot_count per record dihitung via withCount('storageTankDetails as filled_slot_count', ...) dengan constraint OR across seluruh 17 kolom bacaan (cpo_sounding_depth_mm, water_dip_bottom_depth_mm, net_oil_depth_mm, oil_temperature_top_c, oil_temperature_middle_c, oil_temperature_bottom_c, average_temperature_c, calculated_volume_m3, calculated_weight_mt, ffa_percent, moisture_content_percent, impurities_dirt_percent, dobi_index, steam_heating_valve_status, tank_structural_condition, inspector_name, findings) NOT NULL -- bisa jadi SAMA DENGAN total baris pada record (jika semua baris yang ditambahkan sudah terisi) atau lebih kecil (jika ada baris ditambahkan tapi belum diisi bacaan apapun)",
+        "8. Return list (toListRow() map: id, storage_tank_id, date, filled_slot_count, status) + pagination metadata",
+        "9. On export: re-run query filter yang sama tanpa pagination (buildFilteredQuery()->with(['checkedBy:id,name','acknowledgedBy:id,name'])), enforce EXPORT_ROW_LIMIT=50000 -> if total > limit: throw ExportFailedException -> 422 EXPORT_FAILED",
+        "10. Ekspor memakai buildFilteredQuery() yang sama sehingga filter Production Line ikut ke berkas; `Production Line` adalah kolom PERTAMA header CSV dan nilainya diulang pada setiap baris detail (satu baris per detail, konteks record diulang)",
+        "11. Generate CSV via streamDownload() (header: Storage Tank ID, Date, Checked By, Acknowledged By, Status), return file stream untuk didownload user"
       ],
       "data_operations": [
         {
@@ -195,6 +214,16 @@
           "entity_id": "storage-tank-detail",
           "operation": "SELECT",
           "description": "COUNT baris storage-tank-detail (dengan minimal 1 dari 17 kolom bacaan non-null) per record untuk kolom filled_slot_count"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "SELECT opsi filter Production Line — dibatasi mill yang berlaku (productionLineOptionsForReadActor()). Saat Admin belum memilih mill, seluruh line dari semua mill dengan label diawali nama mill (\"Mill — Line 01\"), karena dua mill sah-sah saja memakai nama line yang sama"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "SELECT keberadaan line yang diminta untuk menjepitnya ke mill yang berlaku (clampProductionLineIdToMill()) — kueri nyata ke `production_lines`, karena membandingkan uuid pada tabel record saja tidak memberi tahu line itu milik mill mana"
         }
       ],
       "edge_case_handling": [
@@ -213,13 +242,34 @@
         {
           "condition": "Ekspor gagal (dataset besar/error)",
           "handling": "Return 422 EXPORT_FAILED"
+        },
+        {
+          "condition": "Production line milik mill lain dikirim lewat properti Livewire atau query string",
+          "handling": "DIABAIKAN DIAM-DIAM, bukan error: clampProductionLineIdToMill() memulangkan null, sehingga filternya jatuh ke \"Semua Line\" DI DALAM mill aktor. Tidak ada 403 (yang justru memastikan line itu ada) dan tidak ada 422; data mill lain tidak pernah tampil"
+        },
+        {
+          "condition": "Admin mengganti mill saat sebuah production line sudah dipilih",
+          "handling": "Pilihan line direset ke \"\" (Semua Line) oleh updatedBusinessUnitId(), dan daftar opsinya ikut berganti ke mill baru — membiarkan line mill lama akan menghasilkan daftar kosong tanpa sebab yang terlihat"
+        },
+        {
+          "condition": "Stasiun sebuah record sudah dipindah ke production line lain",
+          "handling": "Record tetap tersaring dan tampil di line ASALNYA: filter dan kolom sama-sama dibaca dari kolom record `production_line_id` (snapshot saat create), bukan dari station.productionLine"
+        },
+        {
+          "condition": "Admin belum memilih mill sama sekali",
+          "handling": "Opsi Production Line mencakup seluruh mill dan setiap label diawali nama mill (\"Mill — Line 01\"); daftar recordnya pun lintas mill, dan kolom Production Line yang membuatnya tetap dapat ditafsirkan"
         }
       ],
       "business_rules_applied": [
         "Data mencakup hasil sync mobile & input web",
         "Ekspor mengikuti filter aktif",
         "Daftar termuat <=2 detik untuk dataset normal",
-        "filled_slot_count dihitung dari baris yang punya minimal satu dari 17 kolom bacaan terisi (bisa sama dengan atau lebih kecil dari total baris pada record)"
+        "filled_slot_count dihitung dari baris yang punya minimal satu dari 17 kolom bacaan terisi (bisa sama dengan atau lebih kecil dari total baris pada record)",
+        "Production Line adalah KONTEKS YANG DIPILIH, bukan ikatan akun — tidak ada `users.production_line_id` dan tidak boleh ada",
+        "Filter Production Line berdefault \"Semua Line\": Data Browser adalah daftar BARIS, bukan angka gabungan seperti layar laporan, jadi lintas-line tetap dapat ditafsirkan selama setiap baris menunjukkan line-nya sendiri",
+        "Kolom Production Line adalah kolom PERTAMA tabel dan kolom PERTAMA berkas CSV",
+        "Nilai kolom Production Line diambil dari kolom record `production_line_id`, bukan dari station.productionLine",
+        "Filter Production Line yang aktif ikut ke ekspor CSV/Excel"
       ],
       "unit_test_cases": [
         {
@@ -241,6 +291,31 @@
           "description": "computes filled_slot_count as count of detail rows with at least one non-null reading/status column, not simply the total row count on the record",
           "given": "a record has 3 storage_tank_detail rows (added by the user via Tambah Baris), 2 of which have at least one non-null value among the 17 reading/status columns and 1 fully null (added but not yet filled)",
           "expect": "filled_slot_count = 2, not 3"
+        },
+        {
+          "description": "filters the list and the export by the record's own production_line_id column, not through a station join",
+          "given": "two records in the same mill, one on LINE-ALPHA and one on LINE-BETA; buildFilteredQuery() is called with filters['production_line_id'] = LINE-ALPHA",
+          "expect": "only the LINE-ALPHA record is returned by listRecords() and only that record reaches export(); the query carries WHERE production_line_id = ? on the record table itself, with no whereHas('station') for the line"
+        },
+        {
+          "description": "keeps a record on its original line after its station has been moved to another line",
+          "given": "a record was created while its station sat on LINE-ALPHA (production_line_id snapshotted at create), and the station is afterwards reassigned to LINE-BETA",
+          "expect": "the record still matches the LINE-ALPHA filter and its production_line_name still reads LINE-ALPHA — the station's current line never rewrites the record's history"
+        },
+        {
+          "description": "silently drops a production_line_id that belongs to another mill instead of raising",
+          "given": "a Supervisor of Mill A passes a production_line_id owned by Mill B through the Livewire property or the export query string",
+          "expect": "clampProductionLineIdToMill() returns null, so the filter degrades to \"all lines within Mill A\"; no exception, no 403, and no Mill B row is ever returned"
+        },
+        {
+          "description": "returns every line within the actor's mill when production_line_id is empty",
+          "given": "filters['production_line_id'] is null/'' for a Supervisor whose mill has two lines each holding records",
+          "expect": "records from both lines are returned, each row carrying its own production_line_name"
+        },
+        {
+          "description": "includes production_line_name on every list row, resolved from the record's own productionLine relation",
+          "given": "listRecords() is called on a record whose production_line_id points at LINE-ALPHA",
+          "expect": "the row contains production_line_name = 'LINE-ALPHA', loaded via with('productionLine:id,name') on the record query"
         }
       ]
     }
@@ -262,7 +337,10 @@
     "filled_slot_count dihitung via withCount('storageTankDetails as filled_slot_count', fn(q) => q->where(fn(q2) => q2->orWhereNotNull(...))) -- mirrors EffluentPlantRecordService's filled_slot_count pattern with an inner OR-NOT-NULL constraint across all 17 non-time_slot columns (including the 1 enum status column)",
     "Stasiun ini TIDAK memiliki tabel referensi Target Operasional -- tidak ada seeder/model StorageTankOperationalTarget",
     "1 kolom enum pada storage_tank_detail (steam_heating_valve_status, nilai closed/open_1_4/open_1_2) memakai CHECK constraint SQLite (via Laravel enum()) -- string kosong ('') TIDAK valid untuk kolom ini dan akan gagal constraint; StorageTankRecordService::normalizeDetails() mengonversi '' menjadi null sebelum INSERT/UPDATE (lihat screen-116's business_logic), mitigasi yang sama dipakai Kernel Dispatch dan Effluent Plant",
-    "Web Livewire component DataBrowserStorageTank menggunakan StorageTankRecordService langsung (bukan HTTP call ke API controller), route name 'data.storage-tank'; export dispatched sebagai link browser-navigable (bukan AJAX/blob)"
+    "Web Livewire component DataBrowserStorageTank menggunakan StorageTankRecordService langsung (bukan HTTP call ke API controller), route name 'data.storage-tank'; export dispatched sebagai link browser-navigable (bukan AJAX/blob)",
+    "Filter + kolom Production Line (2026-09-28/29): properti Livewire `production_line_id` (default '' = Semua Line), direset oleh updatedBusinessUnitId(), dipaksa sehat di render() lewat forcedProductionLineFilterValue(), dan opsinya dari productionLineOptionsForReadActor(). Ketiganya LAPISAN TAMPILAN — penegakan sesungguhnya ada di ScopesToActorMill::scopeFiltersToActorMill() di dalam service, jadi melewatkan lapisan tampilan pun tidak membocorkan apa pun.",
+    "`production_line_id` masuk ke `$request->only([...])` pada index() DAN export() controller API, sehingga filter yang aktif di layar benar-benar ikut ke berkas.",
+    "CELAH CAKUPAN UJI — belum ada uji browser (Playwright) untuk filter Production Line pada Data Browser: e2e-web/tests/data-browser-*.spec.ts tidak menyentuh [data-testid=\"production_line_id\"] sama sekali. Yang sudah ada dan hijau: 5 uji Livewire per layar (tests/Feature/Livewire/DataBrowser*Test.php) dan 2 uji API per layar (tests/Feature/Api/DataBrowser*Test.php). Karena itu browser_test pada keempat skenario Production Line sengaja dikosongkan, bukan diisi uji yang tidak pernah dijalankan."
   ],
   "test_scenarios": [
     {
@@ -417,6 +495,111 @@
         "route": "/data/storage-tank",
         "action": "trigger export on a dataset that causes export failure",
         "assert": "page shows an export error message"
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Storage Tank — Filter Production Line (default Semua Line)",
+      "usecase_id": "usecase-094--data-browser-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-records"
+          },
+          "request_example": {
+            "business_unit_id": "{{mill_a_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}",
+            "page": 1,
+            "per_page": 20
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-records/export"
+          },
+          "request_example": {
+            "business_unit_id": "{{mill_a_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserStorageTank",
+        "action": "sebagai Supervisor pada mill dengan dua production line, buka Data Browser dengan filter Production Line pada default \"Semua Line\", lalu pilih satu line",
+        "assert": "\"Semua Line\" menampilkan record dari kedua line dan kolom Production Line (kolom pertama tabel) menuliskan line masing-masing; memilih satu line menyempitkan daftar ke line itu saja, dan tautan ekspor ikut membawa production_line_id"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Storage Tank — Line Mill Lain Diabaikan",
+      "usecase_id": "usecase-094--data-browser-storage-tank-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/storage-tank-records"
+          },
+          "request_example": {
+            "production_line_id": "{{line_milik_mill_b_uuid}}",
+            "page": 1,
+            "per_page": 20
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "DataBrowserStorageTank",
+        "action": "set properti Livewire production_line_id ke id sebuah production line milik mill lain",
+        "assert": "tidak ada error dan tidak ada 403: propertinya dipulangkan ke \"\" (Semua Line di dalam mill aktor) dan tidak satu pun record mill lain tampil"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Storage Tank — Stasiun Dipindah, Record Tetap di Line Asalnya",
+      "usecase_id": "usecase-094--data-browser-storage-tank-web",
+      "api_test": [],
+      "component_test": {
+        "component": "DataBrowserStorageTank",
+        "action": "buat record saat stasiunnya berada di LINE-ALPHA, lalu pindahkan stasiun itu ke LINE-BETA dan saring dengan filter Production Line = LINE-ALPHA",
+        "assert": "record lama tetap muncul di LINE-ALPHA dan kolom Production Line-nya tetap menulis LINE-ALPHA — inilah satu-satunya perbedaan yang membuktikan kolom record dipakai, bukan join ke `stations`"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Telusuri & Ekspor Data Storage Tank — Admin Ganti Mill Mereset Pilihan Line",
+      "usecase_id": "usecase-094--data-browser-storage-tank-web",
+      "api_test": [],
+      "component_test": {
+        "component": "DataBrowserStorageTank",
+        "action": "sebagai Admin, pilih sebuah production line pada mill A lalu ganti filter Business Unit ke mill B",
+        "assert": "production_line_id kembali ke \"\" dan daftar opsi line berganti ke line milik mill B; tidak ada daftar kosong tanpa sebab"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
       }
     }
   ]

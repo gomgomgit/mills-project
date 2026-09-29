@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-27"
+    "updated_at": "2026-09-29"
   },
   "id": "screen-129--laporan-sterilizer-web",
   "name": "Laporan Sterilizer (Web)",
@@ -137,6 +137,13 @@
                 "required": true,
                 "default": null,
                 "description": "Periode Pelaporan yang dilaporkan"
+              },
+              {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "OPSIONAL, ditambahkan 2026-09-28. Menyaring seluruh angka ke satu Production Line lewat kolom record `production_line_id`. Tanpa parameter ini jawabannya IDENTIK dengan sebelum perubahan, dan `production_line` pada respons bernilai null. Line milik mill lain diabaikan (resolveProductionLine() memulangkan null), bukan 403."
               }
             ],
             "body_schema": {}
@@ -151,6 +158,7 @@
                 "status": "string (draft|open|closed) — status BARIS period_stations Sterilizer di periode itu",
                 "business_unit_name": "string"
               },
+              "production_line": "{ id: uuid, name: string } | null — blok BARU (2026-09-28), ADITIF: seluruh kunci yang sudah ada tetap di tempatnya dan tetap datar. null ketika permintaan tidak membawa production_line_id.",
               "kpi": {
                 "total_cycles": "integer",
                 "total_cages": "integer",
@@ -240,6 +248,13 @@
                 "description": "Periode Pelaporan yang diekspor"
               },
               {
+                "name": "production_line_id",
+                "type": "string (uuid)",
+                "required": false,
+                "default": null,
+                "description": "OPSIONAL, ditambahkan 2026-09-28. Menyaring seluruh angka ke satu Production Line lewat kolom record `production_line_id`. Tanpa parameter ini jawabannya IDENTIK dengan sebelum perubahan, dan `production_line` pada respons bernilai null. Line milik mill lain diabaikan (resolveProductionLine() memulangkan null), bukan 403."
+              },
+              {
                 "name": "format",
                 "type": "string",
                 "required": false,
@@ -290,7 +305,13 @@
         "summary outliers (metode Tukey/IQR): kumpulkan durasi non-null, urutkan → if count < 8 (min_sample_size): insufficient_data = true, bounds null, items kosong → else Q1 = persentil 25, Q3 = persentil 75, IQR = Q3 - Q1, lower = Q1 - 1.5*IQR, upper = Q3 + 1.5*IQR → items = siklus dengan duration_minutes < lower OR > upper",
         "summary daily: GROUP BY record.date, hanya tanggal yang punya siklus (tanggal kosong tidak dibuatkan baris nol)",
         "summary by_unit: GROUP BY detail.sterilizer_no; avg_duration per unit hanya dari siklus berdurasi",
-        "export: authorizePeriod → hitung jumlah baris siklus dalam rentang → if > 50.000: return 422 EXPORT_FAILED → stream satu baris per siklus dengan kolom konteks record diulang tiap baris"
+        "export: authorizePeriod → hitung jumlah baris siklus dalam rentang → if > 50.000: return 422 EXPORT_FAILED → stream satu baris per siklus dengan kolom konteks record diulang tiap baris",
+        "productionLineOptions(businessUnitId): SELECT production_lines WHERE business_unit_id = <mill yang berlaku> ORDER BY name. Berlaku untuk SEMUA peran — tidak seperti businessUnitOptions() yang khusus Admin — karena Production Line BUKAN ikatan akun (tidak ada `users.production_line_id`) melainkan KONTEKS YANG DIPILIH; satu mill di lapangan punya belasan line dengan jenis stasiun yang sama berulang.",
+        "resolveProductionLine(businessUnitId, requested): null bila kosong, dan null pula bila line itu bukan milik mill yang berlaku — DIABAIKAN, bukan 403 (403 justru memastikan line itu ada). MEMILIH LINE WAJIB di layar laporan: null berarti 'jangan tampilkan angka apa pun', BUKAN 'tampilkan semua line', karena laporan menghasilkan ANGKA GABUNGAN dan total yang mencampur belasan line tidak dapat ditindaklanjuti siapa pun.",
+        "summary(period, productionLineId): scopeToProductionLine() menambahkan WHERE sterilizer_records.production_line_id = ? pada kueri siklus/record — DI KOLOM TABEL RECORD, bukan join ke `stations`. Kolom itu di-snapshot dari stasiun saat record dibuat dan tidak pernah berubah, sehingga record yang stasiunnya kemudian dipindah tetap terhitung di line ASALNYA; menyaring lewat `stations` akan menulis ulang sejarah setiap kali sebuah stasiun dipindahkan.",
+        "summary respons: kunci `production_line` ({id,name} dari productionLineInfo(), atau null) DITAMBAHKAN di samping kunci yang sudah ada. Nol kunci lama berubah bentuk, sehingga blade dan layar mobile yang membacanya apa adanya tidak terpengaruh.",
+        "listPeriods TIDAK PERNAH menerima production_line_id — Periode Pelaporan milik MILL (periods.business_unit_id, tanpa kolom production_line_id). Daftar periode karena itu tidak berubah saat line berganti; yang tersaring adalah datanya.",
+        "export(period, format, businessUnitId, productionLineId): memakai recordQueryFor() yang sama dengan summary sehingga berkas mengikuti persis cakupan angka di layar. Tanpa line yang berlaku tombol Ekspor TIDAK DIRENDER sama sekali (bukan disabled), dan export() pada komponen pun berhenti lebih dulu."
       ],
       "data_operations": [
         {
@@ -327,6 +348,16 @@
           "entity_id": "business-unit",
           "operation": "SELECT",
           "description": "Pemilih Mill untuk Admin, dan resolusi business_unit_name pada header laporan"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Opsi pemilih Production Line — line DI DALAM mill yang berlaku, urut nama. Ini separuh pertama jaminan 'line mill lain diabaikan'; separuhnya lagi ada di resolveProductionLine()."
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "Keberadaan + nama line terpilih, untuk menjepitnya ke mill yang berlaku dan untuk mengisi blok `production_line` pada respons ringkasan."
         }
       ],
       "edge_case_handling": [
@@ -373,6 +404,26 @@
         {
           "condition": "Baris period_stations Sterilizer berstatus Draft atau Tertutup",
           "handling": "Tidak membatasi apa pun — laporan tetap tampil dan tetap bisa diekspor; status hanya ditampilkan sebagai badge keterangan. Statusnya milik jenis stasiun ini saja: Sterilizer dapat tertutup sementara jenis stasiun lain di periode yang sama masih terbuka, dan layar ini wajib menampilkan status Sterilizer-nya, bukan status stasiun lain."
+        },
+        {
+          "condition": "Production Line belum dipilih",
+          "handling": "NOL angka: tidak satu pun blok ringkasan dirender, layar menampilkan arahan 'Pilih production line terlebih dahulu' beserta alasannya (angka gabungan lintas line tidak dapat ditindaklanjuti), dan tombol Ekspor TIDAK DIRENDER — bukan disabled. Daftar Periode Pelaporan di atasnya TIDAK berubah: periode tetap per mill."
+        },
+        {
+          "condition": "Production Line milik mill lain dikirim lewat properti Livewire atau query string ?production_line_id=",
+          "handling": "resolveProductionLine() memulangkan null → layar kembali meminta memilih line. Bukan 403 (yang justru memastikan line itu ada), dan tidak pernah data mill lain. Opsi pemilihnya sendiri sudah dibatasi mill yang berlaku, jadi line itu tidak pernah menjadi pilihan."
+        },
+        {
+          "condition": "Admin mengganti mill saat sebuah Production Line sudah dipilih",
+          "handling": "keepProductionLineValid() membuang pilihan yang tidak ada pada daftar opsi mill baru → productionLineId kembali ke '' dan angka menghilang sampai sebuah line dipilih lagi."
+        },
+        {
+          "condition": "Mill yang berlaku belum punya satu pun Production Line",
+          "handling": "Pemilih kosong, tidak ada angka, dan arahan menghubungi Admin untuk membuatnya lebih dahulu di layar Kelola Production Line — bukan error."
+        },
+        {
+          "condition": "Stasiun sebuah record sudah dipindah ke Production Line lain",
+          "handling": "Record tetap terhitung di line ASALNYA, karena penyaringan memakai kolom record `sterilizer_records.production_line_id` (snapshot saat create), bukan `stations.production_line_id` yang menunjuk line stasiun itu SEKARANG."
         }
       ],
       "business_rules_applied": [
@@ -385,7 +436,13 @@
         "Kepatuhan triple-peak menuntut keenam waktu (3 peak + 3 exhaust) terisi lengkap",
         "Ambang siklus menyimpang memakai metode kuartil (Tukey) yang diturunkan dari sebaran periode itu sendiri, dan bounds selalu dikembalikan agar dapat ditampilkan di layar",
         "Seluruh endpoint hanya GET — laporan bersifat baca saja, tidak ada jalur yang mengubah data Sterilizer",
-        "Status tutup/buka adalah milik BARIS period_stations jenis stasiun ini, bukan milik periode, dan tidak membatasi tampilan maupun ekspor — ia hanya keterangan."
+        "Status tutup/buka adalah milik BARIS period_stations jenis stasiun ini, bukan milik periode, dan tidak membatasi tampilan maupun ekspor — ia hanya keterangan.",
+        "Production Line adalah KONTEKS YANG DIPILIH, bukan ikatan akun — tidak ada `users.production_line_id` dan tidak boleh ada",
+        "Memilih Production Line WAJIB pada layar laporan, tanpa opsi 'semua line' — berbeda dari Data Browser dengan sengaja, karena laporan menghasilkan angka gabungan",
+        "Sebelum ada line yang berlaku: nol angka, ada arahan di layar, dan tombol Ekspor tidak dirender",
+        "Periode Pelaporan tetap per MILL — daftar periode tidak pernah tersaring per Production Line",
+        "Penyaringan per line memakai kolom record, bukan join ke `stations`: memindahkan stasiun tidak menulis ulang sejarah",
+        "`production_line_id` adalah parameter OPSIONAL pada summary dan export; field respons `production_line` murni ditambahkan dan nol kunci lama berubah"
       ],
       "unit_test_cases": [
         {
@@ -582,6 +639,41 @@
           "description": "returns success result when all conditions pass",
           "given": "Supervisor BU-A; periode P1 milik BU-A 2026-09-01..2026-09-30 dengan baris period_stations 'sterilizer' berstatus 'open'; terdapat 12 detail sterilizer bertanggal dalam rentang dari stasiun bertipe sterilizer milik BU-A, 10 di antaranya berdurasi",
           "expect": "mengembalikan struktur summary lengkap: period, kpi terisi (total_cycles=12, cycles_without_duration=2), daily non-kosong, by_unit non-kosong, outliers {method:'iqr', bounds terisi, insufficient_data:false, sample_size:10}, total"
+        },
+        {
+          "description": "summary menyaring seluruh angka ke satu Production Line, dua arah",
+          "given": "satu periode dengan record pada LINE-ALPHA dan LINE-BETA; summary() dipanggil dengan production_line_id = LINE-ALPHA, lalu dengan LINE-BETA",
+          "expect": "tiap panggilan hanya memuat angka milik line yang diminta, dan jumlah keduanya sama dengan angka tanpa parameter — bukan salah satu line yang bocor ke yang lain"
+        },
+        {
+          "description": "summary menambahkan blok production_line tanpa mengubah satu pun kunci yang sudah ada",
+          "given": "summary() dipanggil dengan dan tanpa production_line_id pada periode yang sama",
+          "expect": "tanpa parameter: seluruh kunci lama identik dengan sebelum perubahan dan production_line = null; dengan parameter: kunci lama tetap pada tempat dan bentuknya, hanya production_line yang terisi {id, name}"
+        },
+        {
+          "description": "production_line_id milik mill lain tidak pernah memulangkan data mill itu",
+          "given": "resolveProductionLine() menerima id sebuah Production Line milik mill lain",
+          "expect": "memulangkan null sehingga layar meminta memilih line; tidak ada 403 dan tidak satu pun angka mill lain yang ikut terhitung"
+        },
+        {
+          "description": "export ikut tersaring ke Production Line terpilih",
+          "given": "export() dipanggil dengan production_line_id = LINE-ALPHA pada periode yang memuat kedua line",
+          "expect": "berkas hanya memuat baris milik LINE-ALPHA — cakupan berkas sama persis dengan cakupan angka di layar"
+        },
+        {
+          "description": "record yang stasiunnya sudah dipindah tetap terhitung di line asalnya",
+          "given": "record dibuat saat stasiunnya berada di LINE-ALPHA (production_line_id di-snapshot), lalu stasiun itu dipindahkan ke LINE-BETA",
+          "expect": "record tetap masuk hitungan saat disaring ke LINE-ALPHA dan TIDAK muncul pada LINE-BETA — inilah satu-satunya perbedaan yang membuktikan kolom record dipakai, bukan join ke `stations`"
+        },
+        {
+          "description": "tanpa Production Line terpilih tidak ada satu angka pun, hanya arahan memilih",
+          "given": "komponen LaporanSterilizer dirender dengan mill dan periode terpilih tetapi productionLineId = ''",
+          "expect": "needsProductionLineSelection = true, seluruh blok ringkasan tidak dirender, arahan memilih line tampil, dan tombol Ekspor tidak ada di DOM"
+        },
+        {
+          "description": "tanpa Production Line terpilih tidak ada berkas yang diunduh sama sekali",
+          "given": "export('csv') dipanggil pada komponen LaporanSterilizer saat productionLineId = ''",
+          "expect": "tidak ada StreamedResponse yang dihasilkan — jalur ekspor berhenti sebelum menyentuh service"
         }
       ]
     }
@@ -644,7 +736,11 @@
     "Batas ekspor 50.000 dihitung dari jumlah SIKLUS, bukan jumlah record header — satu record harian dapat memuat belasan siklus. Ini jebakan yang sama persis dengan yang diperbaiki pada commit 8611974 untuk ekspor 17 stasiun.",
     "CELAH CAKUPAN yang dilaporkan test-spec-writer-agent dan diterima apa adanya: (1) batas 50.000 baris ekspor hanya ter-cover unit test, tidak ada bdd_scenario yang memicunya; (2) 403 pada business-units/options untuk non-Admin juga hanya unit test. Keduanya bukan lubang implementasi — hanya berarti integration test tidak menyentuhnya. Tidak ditambal dengan BDD dadakan.",
     "Seluruh endpoint hanya GET. Tidak boleh ada POST/PUT/PATCH/DELETE pada prefix /api/sterilizer-reports — laporan bersifat baca saja dan test scenario terakhir memverifikasi jumlah baris sterilizer_records/sterilizer_details identik sebelum dan sesudah render.",
-    "Sidebar: entri 'Laporan Stasiun' yang mengarah langsung ke /reports/sterilizer bersifat SEMENTARA sampai screen-140 dibangun. Ditempatkan setelah 'Laporan Manajemen'. Sidebar repo ini tidak menyaring menu per role — ikuti pola yang ada, catat sebagai known_issue seperti screen-128. Catatan: sidebar baru saja diubah (grup 'Struktur Organisasi' memakai <details>/<summary>), jadi baca file terkini sebelum menyisipkan."
+    "Sidebar: entri 'Laporan Stasiun' yang mengarah langsung ke /reports/sterilizer bersifat SEMENTARA sampai screen-140 dibangun. Ditempatkan setelah 'Laporan Manajemen'. Sidebar repo ini tidak menyaring menu per role — ikuti pola yang ada, catat sebagai known_issue seperti screen-128. Catatan: sidebar baru saja diubah (grup 'Struktur Organisasi' memakai <details>/<summary>), jadi baca file terkini sebelum menyisipkan.",
+    "Properti Livewire `public string $productionLineId` memakai #[Url(as: 'production_line_id')] — alias itu WAJIB: tanpa `as:` Livewire memakai NAMA PROPERTI (`productionLineId`) pada query string, sedangkan screen-140 menyisipkan `production_line_id` pada setiap report_path. Pasangan nama itulah yang membuat rantai tile → laporan bertemu.",
+    "@selected pada <option> Production Line WAJIB dirender di server: Livewire 3 tidak menulis balik nilai <select> dari state komponen pada paint pertama, sehingga pengguna yang tiba lewat tautan tile akan melihat 'Pilih Production Line' padahal angkanya sudah milik line itu.",
+    "Tombol Ekspor dirender hanya ketika $summary !== null, dan $summary hanya terisi ketika ada line yang berlaku — jadi 'tidak ada line' otomatis berarti 'tidak ada tombol Ekspor', tanpa kondisi kedua yang bisa ikut kedaluwarsa.",
+    "CELAH CAKUPAN UJI — uji browser (e2e-web/tests/laporan-*.spec.ts) MEMILIH sebuah Production Line sebagai langkah persiapan sebelum membaca angka, tetapi belum ada satu pun uji browser yang MENEGASKAN isolasi line (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah). Yang sudah ada dan hijau: 5 uji API (tests/Feature/Api/Laporan*Test.php) dan 6 uji Livewire (tests/Feature/Livewire/Laporan*Test.php) per layar. Karena itu browser_test pada empat skenario Production Line di bawah sengaja dikosongkan."
   ],
   "test_scenarios": [
     {
@@ -1161,6 +1257,165 @@
         "route": "/reports/sterilizer",
         "action": "Login sebagai Supervisor, buka /reports/sterilizer pada periode berisi data, telusuri seluruh kartu dan tabel rekap harian",
         "assert": "Tidak ada tombol Tambah, Ubah, Hapus, maupun field yang dapat diedit; tidak ada sel tabel yang menerima input; dan data Sterilizer di database tidak berubah setelah kunjungan"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Production Line wajib dipilih",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "render komponen dengan mill dan periode terpilih tetapi productionLineId masih '', lalu pilih sebuah Production Line",
+        "assert": "sebelum memilih: nol angka, arahan 'Pilih production line terlebih dahulu', dan tombol Ekspor tidak ada di DOM — daftar periode tetap terisi; setelah memilih: seluruh angka tampil dan nama line aktif tertulis di layar"
+      },
+      "browser_test": {
+        "route": "/reports/sterilizer",
+        "action": "buka /reports/sterilizer, pilih mill bila Admin, pilih sebuah Production Line pada pemilih [data-testid=\"production-line-select\"], lalu pilih periode",
+        "assert": "kartu angka utama dan rekapnya tampil setelah Production Line dipilih, beserta label line aktif"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Angka milik SATU line, bukan gabungan",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_beta_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "pada periode yang memuat record LINE-ALPHA dan LINE-BETA, pilih LINE-ALPHA lalu LINE-BETA",
+        "assert": "angka tiap pilihan hanya milik line itu, bukan jumlah keduanya, dan blok production_line pada respons menamai line yang sedang dibaca"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Line mill lain diabaikan",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_milik_mill_lain_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "set productionLineId ke id line milik mill lain, baik lewat properti Livewire maupun lewat query string ?production_line_id=",
+        "assert": "tidak ada 403 dan tidak ada angka mill lain: pilihan dipulangkan ke '' dan layar kembali meminta memilih Production Line"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Ekspor mengikuti cakupan line",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "pilih LINE-ALPHA lalu picu export('csv'); ulangi dengan productionLineId = ''",
+        "assert": "berkas hanya memuat baris LINE-ALPHA; tanpa line terpilih tidak ada berkas yang dihasilkan sama sekali"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Sterilizer (Web) — Stasiun dipindah, angka tetap di line asalnya",
+      "usecase_id": "usecase-129--laporan-sterilizer-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/sterilizer-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{period_uuid}}",
+            "production_line_id": "{{line_alpha_uuid}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanSterilizer",
+        "action": "buat record saat stasiunnya berada di LINE-ALPHA, pindahkan stasiun itu ke LINE-BETA, lalu baca laporan dengan LINE-ALPHA dan dengan LINE-BETA",
+        "assert": "record lama tetap terhitung di LINE-ALPHA dan tidak muncul di LINE-BETA — membuktikan kolom record dipakai, bukan konfigurasi stasiun hari ini"
+      },
+      "browser_test": {
+        "route": "",
+        "action": "",
+        "assert": ""
       }
     }
   ]

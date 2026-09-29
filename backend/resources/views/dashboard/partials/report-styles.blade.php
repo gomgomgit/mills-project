@@ -50,6 +50,8 @@
         .md-kpi__value span { font-size: 13px; font-weight: 600; color: var(--md-muted); }
         .md-kpi__meta { margin: 0 0 10px; font-size: 12px; color: var(--md-muted); }
         .md-kpi__foot { margin: 6px 0 0; font-size: 12px; color: var(--md-muted); }
+        /* Baris deviasi menempel di bawah baris progres — satu blok barometer, bukan dua. */
+        .md-kpi__foot--trend { margin-top: 4px; }
 
         .md-trend { display: inline-flex; align-items: center; gap: 2px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; }
         .md-trend--up { background: #dcfce7; color: #15803d; }

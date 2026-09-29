@@ -201,13 +201,42 @@
 @endphp
 @php
     // Ringkasan visual — diturunkan dari angka dummy yang sama dengan tabel di bawah.
+    /*
+       Setiap kartu memakai barometer yang sama: satu bar progres terhadap acuan
+       tetap (budget / kapasitas / nilai teoritis) DAN satu badge deviasi terhadap
+       pembanding waktu. Keduanya wajib ada di setiap kartu — lihat
+       DashboardHomeTest 'every KPI card carries both a progress bar and a deviation'.
+
+       Angka tetap dummy, tetapi diturunkan dari panel tabel di bawah agar konsisten:
+         FFB Diterima  MTD 8,990.35 / budget 18,000                       = 49.9%
+         FFB Diolah    600.00 / (21.50 jam × 30 MT/jam = 645.00)           = 93.0%
+         CPO           OER 21.40 / OER teoritis 22.10                     = 96.8%
+         Kernel        KER 5.20 / KER teoritis 5.50                       = 94.5%
+         Stok CPO      2,418.35 / kapasitas 4 tangki 3,000                = 80.6%
+         Jam Olah      21.50 / tersedia 2 line × 24.00 = 48.00            = 44.8%
+       Rata-rata harian MTD memakai 15 hari (panel 'Today Reliability').
+       EE tidak lagi ditaruh di kartu Jam Olah — sudah tampil per line di blok
+       'Distribusi Jam per Line'.
+    */
     $kpis = [
-        ['label' => 'FFB Diterima', 'value' => '600.00', 'unit' => 'MT', 'meta' => 'MTD 8,990.35 MT', 'progress' => 49.9, 'progressLabel' => '49.9% dari budget bulan ini', 'icon' => 'truck'],
-        ['label' => 'FFB Diolah', 'value' => '600.00', 'unit' => 'MT', 'meta' => 'Rata-rata 27.90 MT/jam', 'trend' => ['+2.1%', 'up'], 'trendLabel' => 'vs kemarin', 'icon' => 'factory'],
-        ['label' => 'CPO Diproduksi', 'value' => '128.40', 'unit' => 'MT', 'meta' => 'OER 21.40%', 'trend' => ['-0.70', 'down'], 'trendLabel' => 'vs OER teoritis', 'icon' => 'drop'],
-        ['label' => 'Kernel Diproduksi', 'value' => '31.20', 'unit' => 'MT', 'meta' => 'KER 5.20%', 'trend' => ['+0.01', 'up'], 'trendLabel' => 'vs MTD', 'icon' => 'seed'],
-        ['label' => 'Stok CPO', 'value' => '2,418.35', 'unit' => 'MT', 'meta' => 'Kemarin 2,410.40 MT', 'trend' => ['+7.95', 'up'], 'trendLabel' => 'MT', 'icon' => 'tank'],
-        ['label' => 'Jam Olah', 'value' => '21.50', 'unit' => 'jam', 'meta' => 'Line 1 11.00 · Line 2 10.50', 'trend' => ['EE 78.2%', 'flat'], 'trendLabel' => 'MTD', 'icon' => 'clock'],
+        ['label' => 'FFB Diterima', 'value' => '600.00', 'unit' => 'MT', 'meta' => 'MTD 8,990.35 MT', 'icon' => 'truck',
+            'progress' => 49.9, 'progressLabel' => '49.9% dari budget bulan ini (18,000 MT)',
+            'trend' => ['+0.1%', 'up'], 'trendLabel' => 'vs rata-rata harian MTD (599.36 MT)'],
+        ['label' => 'FFB Diolah', 'value' => '600.00', 'unit' => 'MT', 'meta' => 'Rata-rata 27.90 MT/jam', 'icon' => 'factory',
+            'progress' => 93.0, 'progressLabel' => '93.0% dari kapasitas 645.00 MT saat jam olah',
+            'trend' => ['+2.1%', 'up'], 'trendLabel' => 'vs kemarin (587.66 MT)'],
+        ['label' => 'CPO Diproduksi', 'value' => '128.40', 'unit' => 'MT', 'meta' => 'OER 21.40%', 'icon' => 'drop',
+            'progress' => 96.8, 'progressLabel' => '96.8% dari OER teoritis 22.10%',
+            'trend' => ['-0.11', 'down'], 'trendLabel' => 'poin OER vs MTD (21.51%)'],
+        ['label' => 'Kernel Diproduksi', 'value' => '31.20', 'unit' => 'MT', 'meta' => 'KER 5.20%', 'icon' => 'seed',
+            'progress' => 94.5, 'progressLabel' => '94.5% dari KER teoritis 5.50%',
+            'trend' => ['+0.01', 'up'], 'trendLabel' => 'poin KER vs MTD (5.19%)'],
+        ['label' => 'Stok CPO', 'value' => '2,418.35', 'unit' => 'MT', 'meta' => 'Kemarin 2,410.40 MT', 'icon' => 'tank',
+            'progress' => 80.6, 'progressLabel' => '80.6% dari kapasitas 4 tangki (3,000 MT)',
+            'trend' => ['+7.95 MT', 'up'], 'trendLabel' => 'vs kemarin'],
+        ['label' => 'Jam Olah', 'value' => '21.50', 'unit' => 'jam', 'meta' => 'Line 1 11.00 · Line 2 10.50', 'icon' => 'clock',
+            'progress' => 44.8, 'progressLabel' => '44.8% dari 48.00 jam tersedia (2 line)',
+            'trend' => ['-0.4%', 'down'], 'trendLabel' => 'vs rata-rata harian MTD (21.58 jam)'],
     ];
 
     $arrivalBudget = [
@@ -296,12 +325,10 @@
                 </div>
                 <p class="md-kpi__value">{{ $kpi['value'] }} <span>{{ $kpi['unit'] }}</span></p>
                 <p class="md-kpi__meta">{{ $kpi['meta'] }}</p>
-                @isset($kpi['progress'])
-                    <div class="md-bar"><span style="width: {{ $kpi['progress'] }}%"></span></div>
-                    <p class="md-kpi__foot">{{ $kpi['progressLabel'] }}</p>
-                @else
-                    <p class="md-kpi__foot"><span class="md-trend md-trend--{{ $kpi['trend'][1] }}">{{ $kpi['trend'][0] }}</span> {{ $kpi['trendLabel'] }}</p>
-                @endisset
+                {{-- Barometer seragam: bar progres + badge deviasi, keduanya di setiap kartu. --}}
+                <div class="md-bar"><span style="width: {{ number_format($kpi['progress'], 1) }}%"></span></div>
+                <p class="md-kpi__foot">{{ $kpi['progressLabel'] }}</p>
+                <p class="md-kpi__foot md-kpi__foot--trend"><span class="md-trend md-trend--{{ $kpi['trend'][1] }}">{{ $kpi['trend'][0] }}</span> {{ $kpi['trendLabel'] }}</p>
             </article>
         @endforeach
     </div>

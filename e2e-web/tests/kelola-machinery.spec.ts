@@ -46,8 +46,17 @@ const MACHINERY_PATH = '/master-data/machinery';
 const BUSINESS_UNIT_NAME = 'Mill A';
 
 
+/*
+ * Sejak penggabungan layar (2026-09-30) layar ini punya dua mode. Mode Grup
+ * adalah bawaan; daftar RATA seluruh Machinery — yang diasersi hampir semua
+ * test di berkas ini — hidup di mode Rata. Helper ini mengalihkannya sekali
+ * di awal, sehingga asersi tiap test tidak berubah sama sekali: yang pindah
+ * hanyalah tempat daftar itu berada.
+ */
 async function gotoMachinery(page) {
   await page.goto(MACHINERY_PATH);
+  await page.getByTestId('mode-rata').click();
+  await expect(page.locator('#filterMachineryGroupId')).toBeVisible();
 }
 
 // Interacts with the x-searchable-select combobox (see
@@ -70,7 +79,7 @@ test.describe('Kelola Machinery', () => {
     await login(page, 'mtest-admin01', PASSWORD);
     await gotoMachinery(page);
 
-    await page.locator('button', { hasText: 'Tambah Machinery' }).click();
+    await page.locator('button', { hasText: 'Tambah Mesin' }).click();
     await selectSearchable(page, 'machinery_group_id', 'MG-BROWSER-BASE');
 
     // Station/Production Line fields are read-only and auto-populated
@@ -95,7 +104,7 @@ test.describe('Kelola Machinery', () => {
     await login(page, 'mtest-admin01', PASSWORD);
     await gotoMachinery(page);
 
-    await page.locator('button', { hasText: 'Tambah Machinery' }).click();
+    await page.locator('button', { hasText: 'Tambah Mesin' }).click();
     await selectSearchable(page, 'machinery_group_id', 'MG-BROWSER-BASE');
 
     const uniqueSuffix = Date.now();
@@ -156,7 +165,7 @@ test.describe('Kelola Machinery', () => {
     await login(page, 'mtest-admin01', PASSWORD);
     await gotoMachinery(page);
 
-    await page.locator('button', { hasText: 'Tambah Machinery' }).click();
+    await page.locator('button', { hasText: 'Tambah Mesin' }).click();
     await selectSearchableFirst(page, 'machinery_group_id');
     await page.locator('#equipment_code').fill('EQ-DUP-01');
     await page.locator('#name').fill('Mesin Duplikat');
@@ -171,7 +180,7 @@ test.describe('Kelola Machinery', () => {
     await login(page, 'mtest-admin01', PASSWORD);
     await gotoMachinery(page);
 
-    await page.locator('button', { hasText: 'Tambah Machinery' }).click();
+    await page.locator('button', { hasText: 'Tambah Mesin' }).click();
     const uniqueSuffix = Date.now();
     await page.locator('#equipment_code').fill(`EQ-NOGROUP-${uniqueSuffix}`);
     await page.locator('#name').fill('Mesin Tanpa Group');

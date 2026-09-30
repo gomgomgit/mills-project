@@ -54,17 +54,21 @@
 import { test, expect } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
 
-const MACHINERY_GROUPS_PATH = '/master-data/machinery-groups';
+// screen-033 diserap ke screen-031 pada 2026-09-30: pengelolaan Machinery
+// Group kini terjadi di layar Kelola Mesin. Rute lama dipertahankan sebagai
+// 301 redirect dan diuji tersendiri di bawah.
+const KELOLA_MESIN_PATH = '/master-data/machinery';
+const LEGACY_GROUPS_PATH = '/master-data/machinery-groups';
 const BUSINESS_UNIT_NAME = 'Mill A';
 
 
 async function gotoMachineryGroups(page) {
-  await page.goto(MACHINERY_GROUPS_PATH);
+  await page.goto(KELOLA_MESIN_PATH);
 }
 
 // Interacts with the x-searchable-select combobox (see
 // resources/views/components/searchable-select.blade.php) that replaced
-// this screen's #station_id / #filterStationId <select>s.
+// this screen's #group_station_id / #filterStationId <select>s.
 async function selectSearchable(page, id, label) {
   await page.locator(`#${id}`).click();
   await page.locator(`#${id}`).fill(label);
@@ -82,18 +86,18 @@ test.describe('Kelola Machinery Group', () => {
     await login(page, 'mgtest-admin01', PASSWORD);
     await gotoMachineryGroups(page);
 
-    await page.locator('button', { hasText: 'Tambah Machinery Group' }).click();
-    await selectSearchable(page, 'station_id', 'Mill Machinery Group Station Baru');
+    await page.locator('button', { hasText: 'Tambah Grup' }).click();
+    await selectSearchable(page, 'group_station_id', 'Mill Machinery Group Station Baru');
 
     // The Production Line field is read-only and auto-populated from the
     // selected Station — never independently typed by the admin.
-    await expect(page.locator('#production_line_display')).toHaveValue('Mill Machinery Group PL Baru');
-    await expect(page.locator('#production_line_display')).toBeDisabled();
+    await expect(page.locator('#group_production_line_display')).toHaveValue('Mill Machinery Group PL Baru');
+    await expect(page.locator('#group_production_line_display')).toBeDisabled();
 
     const uniqueSuffix = Date.now();
     const uniqueCode = `MG-BROWSER-${uniqueSuffix}`;
     await page.locator('#group_code').fill(uniqueCode);
-    await page.locator('#unit').fill('unit');
+    await page.locator('#group_unit').fill('unit');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
     const row = page.locator('.kc-table__row', { hasText: uniqueCode });
@@ -111,7 +115,7 @@ test.describe('Kelola Machinery Group', () => {
     const row = page.locator('.kc-table__row', { hasText: 'MG-BROWSER-SEBELUM-EDIT' });
     await row.locator('button', { hasText: 'Edit' }).click();
 
-    await selectSearchable(page, 'station_id', 'Mill Machinery Group Station Tujuan Edit');
+    await selectSearchable(page, 'group_station_id', 'Mill Machinery Group Station Tujuan Edit');
     const uniqueSuffix = Date.now();
     const newCode = `MG-BROWSER-SESUDAH-EDIT-${uniqueSuffix}`;
     await page.locator('#group_code').fill(newCode);
@@ -153,8 +157,8 @@ test.describe('Kelola Machinery Group', () => {
     await login(page, 'mgtest-admin01', PASSWORD);
     await gotoMachineryGroups(page);
 
-    await page.locator('button', { hasText: 'Tambah Machinery Group' }).click();
-    await selectSearchableFirst(page, 'station_id');
+    await page.locator('button', { hasText: 'Tambah Grup' }).click();
+    await selectSearchableFirst(page, 'group_station_id');
     await page.locator('#group_code').fill('MG-DUP-01');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
@@ -168,7 +172,7 @@ test.describe('Kelola Machinery Group', () => {
     await login(page, 'mgtest-admin01', PASSWORD);
     await gotoMachineryGroups(page);
 
-    await page.locator('button', { hasText: 'Tambah Machinery Group' }).click();
+    await page.locator('button', { hasText: 'Tambah Grup' }).click();
     const uniqueSuffix = Date.now();
     await page.locator('#group_code').fill(`MG-NOSTATION-${uniqueSuffix}`);
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
@@ -180,7 +184,7 @@ test.describe('Kelola Machinery Group', () => {
   // Scenario: "Kelola Machinery Group — Akses ditolak untuk non-Admin"
   test('menampilkan halaman akses ditolak untuk pengguna non-admin', async ({ page }) => {
     await login(page, 'mgtest-nonadmin01', PASSWORD);
-    await page.goto(MACHINERY_GROUPS_PATH);
+    await page.goto(KELOLA_MESIN_PATH);
 
     // EnsureRole::forbidden() -> abort(403), Laravel's default HTML error
     // page — no machinery group table/controls are rendered.
@@ -199,5 +203,52 @@ test.describe('Kelola Machinery Group', () => {
     // asserted structurally rather than against a specific row count,
     // since the target environment's seeded data volume may vary.
     await expect(page.locator('.kc-table')).toBeVisible();
+  });
+  /*
+   * Penggabungan layar (2026-09-30). Rute lama sengaja TIDAK dihapus:
+   * bookmark dan tautan lama akan patah kalau dibiarkan 404. Guard
+   * role:admin tetap berjalan LEBIH DULU, supaya keberadaan halaman admin
+   * tidak bocor ke sesi non-admin lewat pengalihan.
+   */
+  test('rute lama /master-data/machinery-groups dialihkan ke Kelola Mesin, bukan 404', async ({ page }) => {
+    await login(page, 'mgtest-admin01', PASSWORD);
+
+    const response = await page.goto(LEGACY_GROUPS_PATH);
+
+    expect(response?.status()).toBe(200);
+    expect(new URL(page.url()).pathname).toBe(KELOLA_MESIN_PATH);
+    await expect(page.locator('body')).not.toContainText('404');
+    await expect(page.getByTestId('group-table')).toBeVisible();
+  });
+
+  // Mode Grup: membuka sebuah grup menampilkan mesin di dalamnya tanpa
+  // berpindah layar, beserta panel atribut yang pindah dari kolom tabel.
+  test('membuka baris grup menampilkan mesin di dalamnya dan panel atributnya', async ({ page }) => {
+    await login(page, 'mgtest-admin01', PASSWORD);
+    await gotoMachineryGroups(page);
+
+    const firstToggle = page.getByTestId('toggle-group').first();
+    await expect(firstToggle).toHaveAttribute('aria-expanded', 'false');
+
+    await firstToggle.click();
+
+    await expect(firstToggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByTestId('group-panel').first()).toBeVisible();
+  });
+
+  // Mode Rata mengembalikan daftar rata seluruh Machinery — kemampuan yang
+  // akan hilang kalau layar ini hanya punya mode Grup.
+  test('mengalihkan ke mode Rata menampilkan daftar rata seluruh mesin', async ({ page }) => {
+    await login(page, 'mgtest-admin01', PASSWORD);
+    await gotoMachineryGroups(page);
+
+    await expect(page.getByTestId('group-table')).toBeVisible();
+
+    await page.getByTestId('mode-rata').click();
+
+    await expect(page.getByTestId('group-table')).toHaveCount(0);
+    await expect(page.locator('.kc-table')).toBeVisible();
+    // Filter berganti ikut mode: per Machinery Group, bukan per Station.
+    await expect(page.locator('#filterMachineryGroupId')).toBeVisible();
   });
 });

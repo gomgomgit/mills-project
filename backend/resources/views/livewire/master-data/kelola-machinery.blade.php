@@ -323,6 +323,144 @@
         </div>
     @endif
 
+    {{--
+        Form Machinery Group. Diserap dari kelola-machinery-group.blade.php.
+        Seluruh id diberi awalan `group_` karena `description` dan
+        `production_line_display` bentrok dengan form Machinery — hanya satu
+        modal terbuka sekaligus sehingga tidak pecah saat jalan, tetapi
+        selector browser jadi ambigu tanpa awalan itu.
+    --}}
+    @if ($showGroupForm)
+        <x-modal
+            :title="$editingGroupId !== null ? 'Edit Machinery Group' : 'Tambah Machinery Group'"
+            wide
+            submit="saveGroup"
+            backdrop-key="machinery-group-form-backdrop"
+        >
+            <x-slot:error>
+                @if ($groupFormErrorMessage)
+                    <div class="kc-alert" role="alert">
+                        {{ $groupFormErrorMessage }}
+                    </div>
+                @endif
+            </x-slot:error>
+
+            <div class="kc-form-section">
+                <h4 class="kc-form-section__title">Identitas</h4>
+                <div class="kc-form-grid">
+                    <div class="kc-form-field">
+                        <label for="group_station_id" class="kc-form-field__label">
+                            Station <span class="kc-form-field__required">*</span>
+                        </label>
+                        <x-searchable-select
+                            id="group_station_id"
+                            wire:model.live="station_id"
+                            :options="collect($stationOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
+                            placeholder="-- Pilih Station --"
+                            empty-message="Belum ada Station. Buat Station terlebih dahulu."
+                            :class="'kc-form-field__input'.($errors->has('station_id') ? ' kc-form-field__input--error' : '')"
+                        />
+                        @error('station_id')
+                            <p class="kc-form-field__error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="kc-form-field">
+                        <label for="group_production_line_display" class="kc-form-field__label">Production Line</label>
+                        <input
+                            type="text"
+                            id="group_production_line_display"
+                            value="{{ $selectedGroupProductionLineName ?? '-' }}"
+                            class="kc-form-field__input"
+                            disabled
+                        >
+                        <p class="kc-form-field__hint">Otomatis mengikuti Production Line dari Station yang dipilih.</p>
+                    </div>
+
+                    <div class="kc-form-field">
+                        <label for="group_code" class="kc-form-field__label">
+                            Kode <span class="kc-form-field__required">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            id="group_code"
+                            wire:model="groupForm.group_code"
+                            class="kc-form-field__input @error('groupForm.group_code') kc-form-field__input--error @enderror"
+                            autofocus
+                        >
+                        @error('groupForm.group_code')
+                            <p class="kc-form-field__error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="kc-form-field">
+                        <label for="group_unit" class="kc-form-field__label">Unit</label>
+                        <input
+                            type="text"
+                            id="group_unit"
+                            wire:model="groupForm.unit"
+                            class="kc-form-field__input @error('groupForm.unit') kc-form-field__input--error @enderror"
+                        >
+                        @error('groupForm.unit')
+                            <p class="kc-form-field__error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="kc-form-field">
+                        <label for="group_workshop_factor" class="kc-form-field__label">Workshop Factor</label>
+                        <input
+                            type="text"
+                            inputmode="decimal"
+                            id="group_workshop_factor"
+                            wire:model="groupForm.workshop_factor"
+                            class="kc-form-field__input @error('groupForm.workshop_factor') kc-form-field__input--error @enderror"
+                        >
+                        @error('groupForm.workshop_factor')
+                            <p class="kc-form-field__error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="kc-form-field">
+                        <label for="group_cost_per_equipment" class="kc-form-field__label">Cost per Equipment</label>
+                        <input
+                            type="text"
+                            inputmode="decimal"
+                            id="group_cost_per_equipment"
+                            wire:model="groupForm.cost_per_equipment"
+                            class="kc-form-field__input @error('groupForm.cost_per_equipment') kc-form-field__input--error @enderror"
+                        >
+                        @error('groupForm.cost_per_equipment')
+                            <p class="kc-form-field__error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="kc-form-field kc-form-field--span2">
+                        <label for="group_description" class="kc-form-field__label">Deskripsi</label>
+                        <textarea
+                            id="group_description"
+                            wire:model="groupForm.description"
+                            rows="3"
+                            class="kc-form-field__input @error('groupForm.description') kc-form-field__input--error @enderror"
+                        ></textarea>
+                        @error('groupForm.description')
+                            <p class="kc-form-field__error">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+            </div>
+
+            <x-slot:actions>
+                <button type="button" wire:click="closeGroupForm" class="kc-button kc-button--ghost">
+                    Batal
+                </button>
+                <button type="submit" class="kc-button kc-button--primary" wire:loading.attr="disabled" wire:target="saveGroup">
+                    <span wire:loading.remove wire:target="saveGroup">Simpan</span>
+                    <span wire:loading wire:target="saveGroup">Menyimpan&hellip;</span>
+                </button>
+            </x-slot:actions>
+        </x-modal>
+    @endif
+
     @if ($showForm)
         <x-modal
             :title="$editingId !== null ? 'Edit Machinery' : 'Tambah Machinery'"

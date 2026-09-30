@@ -5,6 +5,72 @@
     hard-coded; pemetaan ke tabel stasiun ada di docs/analisis-laporan-harian-mill.pdf.
 --}}
 @php
+    /*
+       SUMBER TUNGGAL jam per line. Sebelum 2026-09-30 angka-angka ini ditulis
+       tangan di TIGA tempat — panel 'Hours per Line', panel 'Today Reliability',
+       dan array $lines untuk grafik — sehingga ketiganya bisa berselisih tanpa
+       ada yang menangkapnya. Kini ketiganya diturunkan dari sini.
+
+         Total Downtime                = CDT + SDT + EDT
+         Available Milling Hours       = Available − Total Downtime
+
+       Singkatan MDH dan AMH sengaja TIDAK dipakai — keduanya tidak lazim di mill,
+       tidak seperti CDT/SDT/EDT yang memang istilah baku. Ditulis penuh.
+
+       Angkanya tetap dummy; yang hilang adalah kemungkinan angka dummy itu
+       saling bertentangan.
+    */
+    $hoursByLine = [
+        'Line 1' => [
+            'available' => ['Tdy' => 24.00, 'MTD' => 360.00, 'YTD' => 3096.00],
+            'CDT'       => ['Tdy' =>  8.50, 'MTD' => 140.20, 'YTD' => 1212.40],
+            'SDT'       => ['Tdy' =>  1.50, 'MTD' =>  22.00, 'YTD' =>  190.50],
+            'EDT'       => ['Tdy' =>  3.00, 'MTD' =>  32.00, 'YTD' =>  262.00],
+        ],
+        'Line 2' => [
+            'available' => ['Tdy' => 24.00, 'MTD' => 360.00, 'YTD' => 3096.00],
+            'CDT'       => ['Tdy' =>  9.00, 'MTD' => 146.00, 'YTD' => 1250.00],
+            'SDT'       => ['Tdy' =>  1.50, 'MTD' =>  22.00, 'YTD' =>  190.50],
+            'EDT'       => ['Tdy' =>  3.00, 'MTD' =>  34.10, 'YTD' =>  292.30],
+        ],
+    ];
+    $periods = ['Tdy', 'MTD', 'YTD'];
+
+    $mdhFor = fn (array $l, string $p) => $l['CDT'][$p] + $l['SDT'][$p] + $l['EDT'][$p];
+    $amhFor = fn (array $l, string $p) => $l['available'][$p] - $mdhFor($l, $p);
+    $num2   = fn (float $v) => number_format($v, 2);
+    $pct    = fn (float $v, float $of) => number_format($of > 0 ? $v / $of * 100 : 0, 2);
+
+    // Panel 'Hours per Line': jam + persentase terhadap Available, keduanya diturunkan.
+    $hoursGroups = [];
+    foreach ($hoursByLine as $lineName => $l) {
+        $rows = [];
+        foreach ([
+            ['Available',                   fn ($p) => $l['available'][$p]],
+            ['CDT (Commercial Down Time)',  fn ($p) => $l['CDT'][$p]],
+            ['SDT (Scheduled Down Time)',   fn ($p) => $l['SDT'][$p]],
+            ['EDT (Emergency Down Time)',   fn ($p) => $l['EDT'][$p]],
+            ['Total Downtime', fn ($p) => $mdhFor($l, $p)],
+            ['Available Milling Hours', fn ($p) => $amhFor($l, $p)],
+        ] as [$label, $valueFor]) {
+            $hours = array_map(fn ($p) => $num2($valueFor($p)), $periods);
+            $pcts  = array_map(fn ($p) => $pct($valueFor($p), $l['available'][$p]), $periods);
+            $rows[] = array_merge([$label], $hours, $pcts);
+        }
+        $hoursGroups[$lineName] = $rows;
+    }
+
+    // Panel 'Reliability': Available Milling Hours dan Total Downtime per periode.
+    $reliabilityRows = [];
+    foreach ($hoursByLine as $lineName => $l) {
+        $reliabilityRows[] = array_merge(
+            [$lineName],
+            array_map(fn ($p) => $num2($amhFor($l, $p)), $periods),
+            array_map(fn ($p) => $num2($mdhFor($l, $p)), $periods),
+            ['15', '15'],
+        );
+    }
+
     $panels = [
         [
             'title' => 'Product Arrival',
@@ -58,8 +124,8 @@
             'rows' => [
                 ['Loading Ramp #1', '85.20', '92.40'],
                 ['Loading Ramp #2', '64.80', '71.10'],
-                ['Sterilized Cages', '42.00', '38.50'],
-                ['Unsterilized Cages', '28.00', '31.50'],
+                ['Sterilized', '42.00', '38.50'],
+                ['Unsterilized', '28.00', '31.50'],
                 ['Total Unprocessed FFB', '220.00', '233.50'],
                 ['FFB in Parking Area', '35.60', '48.20'],
                 ['Total Available FFB', '255.60', '281.70'],
@@ -111,22 +177,7 @@
                 [['Item', 1, 2], ['Hours', 3, 1], ['Percentage (%)', 3, 1]],
                 [['Tdy', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1], ['Tdy', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1]],
             ],
-            'groups' => [
-                'Line 1' => [
-                    ['Available', '24.00', '360.00', '3,096.00', '100.00', '100.00', '100.00'],
-                    ['CDT (Crop Down Time)', '8.50', '140.20', '1,212.40', '35.42', '38.94', '39.16'],
-                    ['SDT (Scheduled Down Time)', '1.50', '22.00', '190.50', '6.25', '6.11', '6.15'],
-                    ['EDT (Equipment Down Time)', '3.00', '32.00', '262.00', '12.50', '8.89', '8.46'],
-                    ['Milling', '11.00', '165.80', '1,431.10', '45.83', '46.06', '46.22'],
-                ],
-                'Line 2' => [
-                    ['Available', '24.00', '360.00', '3,096.00', '100.00', '100.00', '100.00'],
-                    ['CDT (Crop Down Time)', '9.00', '146.00', '1,250.00', '37.50', '40.56', '40.37'],
-                    ['SDT (Scheduled Down Time)', '1.50', '22.00', '190.50', '6.25', '6.11', '6.15'],
-                    ['EDT (Equipment Down Time)', '3.00', '34.10', '292.30', '12.50', '9.47', '9.44'],
-                    ['Milling', '10.50', '157.90', '1,363.20', '43.75', '43.86', '44.03'],
-                ],
-            ],
+            'groups' => $hoursGroups,
         ],
         [
             'title' => 'Product Quality',
@@ -168,16 +219,26 @@
             ],
             'total' => [2],
         ],
+        /*
+           Dulu 'Today Reliability' dengan kolom EE (%) dan BE (%). Dua cacat sekaligus:
+           judulnya berbunyi 'Today' padahal kolomnya MTD/YTD, dan ketiga angkanya
+           ternyata metrik yang SAMA pada tiga periode berbeda (hari ini / MTD / YTD)
+           — bukan dua metrik EE dan BE. Terbukti: semuanya sama dengan
+           Milling ÷ (Available − CDT − SDT), cocok pada kedua line.
+
+           Diganti Available Milling Hours dan Total Downtime per periode (user 2026-09-30), diturunkan
+           dari $hoursByLine sehingga tidak dapat berselisih dengan panel 'Hours per
+           Line' maupun grafik Distribusi Jam.
+        */
         [
-            'title' => 'Today Reliability',
+            'title' => 'Reliability per Line',
             'head' => [
-                [['Line', 1, 2], ['EE (%)', 1, 2], ['BE (%)', 2, 1], ['Days', 2, 1]],
-                [['MTD', 1, 1], ['YTD', 1, 1], ['MTD', 1, 1], ['Total', 1, 1]],
+                [['Line', 1, 2], ['Available Milling Hours (jam)', 3, 1], ['Total Downtime (jam)', 3, 1], ['Days', 2, 1]],
+                [['Tdy', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1],
+                 ['Tdy', 1, 1], ['MTD', 1, 1], ['YTD', 1, 1],
+                 ['MTD', 1, 1], ['Total', 1, 1]],
             ],
-            'rows' => [
-                ['Line 1', '78.57', '83.82', '84.52', '15', '15'],
-                ['Line 2', '77.78', '82.24', '82.35', '15', '15'],
-            ],
+            'rows' => $reliabilityRows,
         ],
         [
             'title' => 'OER (%)',
@@ -214,27 +275,27 @@
          Kernel        KER 5.20 / KER teoritis 5.50                       = 94.5%
          Stok CPO      2,418.35 / kapasitas 4 tangki 3,000                = 80.6%
          Jam Olah      21.50 / tersedia 2 line × 24.00 = 48.00            = 44.8%
-       Rata-rata harian MTD memakai 15 hari (panel 'Today Reliability').
+       Rata-rata harian MTD memakai 15 hari (panel 'Reliability per Line').
        EE tidak lagi ditaruh di kartu Jam Olah — sudah tampil per line di blok
        'Distribusi Jam per Line'.
     */
     $kpis = [
-        ['label' => 'FFB Diterima', 'value' => '600.00', 'unit' => 'MT', 'meta' => 'MTD 8,990.35 MT', 'icon' => 'truck',
+        ['label' => 'FFB Diterima', 'value' => '600.00', 'unit' => 'MT', 'meta' => 'MTD 8,990.35 MT', 'icon' => 'truck', 'period' => 'Tdy',
             'progress' => 49.9, 'progressLabel' => '49.9% dari budget bulan ini (18,000 MT)',
             'trend' => ['+0.1%', 'up'], 'trendLabel' => 'vs rata-rata harian MTD (599.36 MT)'],
-        ['label' => 'FFB Diolah', 'value' => '600.00', 'unit' => 'MT', 'meta' => 'Rata-rata 27.90 MT/jam', 'icon' => 'factory',
+        ['label' => 'FFB Diolah', 'value' => '600.00', 'unit' => 'MT', 'meta' => 'Rata-rata 27.90 MT/jam', 'icon' => 'factory', 'period' => 'Tdy',
             'progress' => 93.0, 'progressLabel' => '93.0% dari kapasitas 645.00 MT saat jam olah',
             'trend' => ['+2.1%', 'up'], 'trendLabel' => 'vs kemarin (587.66 MT)'],
-        ['label' => 'CPO Diproduksi', 'value' => '128.40', 'unit' => 'MT', 'meta' => 'OER 21.40%', 'icon' => 'drop',
+        ['label' => 'CPO Diproduksi', 'value' => '128.40', 'unit' => 'MT', 'meta' => 'OER 21.40%', 'icon' => 'drop', 'period' => 'Tdy',
             'progress' => 96.8, 'progressLabel' => '96.8% dari OER teoritis 22.10%',
             'trend' => ['-0.11', 'down'], 'trendLabel' => 'poin OER vs MTD (21.51%)'],
-        ['label' => 'Kernel Diproduksi', 'value' => '31.20', 'unit' => 'MT', 'meta' => 'KER 5.20%', 'icon' => 'seed',
+        ['label' => 'Kernel Diproduksi', 'value' => '31.20', 'unit' => 'MT', 'meta' => 'KER 5.20%', 'icon' => 'seed', 'period' => 'Tdy',
             'progress' => 94.5, 'progressLabel' => '94.5% dari KER teoritis 5.50%',
             'trend' => ['+0.01', 'up'], 'trendLabel' => 'poin KER vs MTD (5.19%)'],
-        ['label' => 'Stok CPO', 'value' => '2,418.35', 'unit' => 'MT', 'meta' => 'Kemarin 2,410.40 MT', 'icon' => 'tank',
+        ['label' => 'Stok CPO', 'value' => '2,418.35', 'unit' => 'MT', 'meta' => 'Kemarin 2,410.40 MT', 'icon' => 'tank', 'period' => 'Tdy',
             'progress' => 80.6, 'progressLabel' => '80.6% dari kapasitas 4 tangki (3,000 MT)',
             'trend' => ['+7.95 MT', 'up'], 'trendLabel' => 'vs kemarin'],
-        ['label' => 'Jam Olah', 'value' => '21.50', 'unit' => 'jam', 'meta' => 'Line 1 11.00 · Line 2 10.50', 'icon' => 'clock',
+        ['label' => 'Jam Olah', 'value' => '21.50', 'unit' => 'jam', 'meta' => 'Line 1 11.00 jam · Line 2 10.50 jam', 'icon' => 'clock', 'period' => 'Tdy',
             'progress' => 44.8, 'progressLabel' => '44.8% dari 48.00 jam tersedia (2 line)',
             'trend' => ['-0.4%', 'down'], 'trendLabel' => 'vs rata-rata harian MTD (21.58 jam)'],
     ];
@@ -245,12 +306,14 @@
         ['label' => 'Total FFB', 'actual' => 8990.35, 'budget' => 18000],
     ];
 
+    // Satuan ikut per baris, bukan ditulis di template: kalau kelak ada pos stok
+    // dengan satuan lain (lori, bukan MT), ia tidak akan diberi label 'MT' begitu saja.
     $ffbStock = [
-        ['label' => 'Loading Ramp #1', 'value' => 85.20, 'color' => '#249360'],
-        ['label' => 'Loading Ramp #2', 'value' => 64.80, 'color' => '#5bb88a'],
-        ['label' => 'Sterilized Cages', 'value' => 42.00, 'color' => '#f59e0b'],
-        ['label' => 'Unsterilized Cages', 'value' => 28.00, 'color' => '#fbbf24'],
-        ['label' => 'Parking Area', 'value' => 35.60, 'color' => '#64748b'],
+        ['label' => 'Loading Ramp #1', 'value' => 85.20, 'unit' => 'MT', 'color' => '#249360'],
+        ['label' => 'Loading Ramp #2', 'value' => 64.80, 'unit' => 'MT', 'color' => '#5bb88a'],
+        ['label' => 'Sterilized', 'value' => 42.00, 'unit' => 'MT', 'color' => '#f59e0b'],
+        ['label' => 'Unsterilized', 'value' => 28.00, 'unit' => 'MT', 'color' => '#fbbf24'],
+        ['label' => 'Parking Area', 'value' => 35.60, 'unit' => 'MT', 'color' => '#64748b'],
     ];
     $ffbStockTotal = array_sum(array_column($ffbStock, 'value'));
     $stops = []; $acc = 0;
@@ -260,13 +323,45 @@
     }
     $donut = 'conic-gradient('.implode(', ', $stops).')';
 
-    $hourSegments = ['Milling' => '#249360', 'CDT' => '#f59e0b', 'SDT' => '#60a5fa', 'EDT' => '#ef4444'];
-    $lines = [
-        ['name' => 'Line 1', 'cages' => 64, 'crushed' => 316.80, 'avgCage' => 4.95, 'throughput' => 28.80, 'ee' => 78.57,
-            'hours' => ['Milling' => 11.00, 'CDT' => 8.50, 'SDT' => 1.50, 'EDT' => 3.00]],
-        ['name' => 'Line 2', 'cages' => 58, 'crushed' => 283.20, 'avgCage' => 4.88, 'throughput' => 27.00, 'ee' => 77.78,
-            'hours' => ['Milling' => 10.50, 'CDT' => 9.00, 'SDT' => 1.50, 'EDT' => 3.00]],
+    $hourSegments = ['Available Milling Hours' => '#249360', 'CDT' => '#f59e0b', 'SDT' => '#60a5fa', 'EDT' => '#ef4444'];
+    /*
+       Available Milling Hours dan Total Downtime untuk grafik memakai $amhFor/$mdhFor — closure yang SAMA dengan
+       kedua panel tabel, bukan salinannya. Sempat ada sepasang closure kembar di
+       sini; akibatnya label grafik tetap benar saat rumus di sumbernya dirusak,
+       sehingga kesalahan rumus tidak terdeteksi dari layar. Jangan definisikan
+       ulang di sini.
+
+       Available Milling Hours TIDAK ditulis lagi di label baris: nilainya sudah
+       tergambar sebagai segmen hijau pada batang tepat di bawahnya, jadi menulisnya di
+       label berarti angka yang sama muncul dua kali berdekatan. Label kini hanya
+       membawa Total Downtime — satu-satunya dari dua angka itu yang tidak punya segmen
+       sendiri, karena ia jumlah dari tiga segmen downtime.
+    */
+    $lineStats = [
+        'Line 1' => ['cages' => 64, 'crushed' => 316.80, 'avgCage' => 4.95, 'throughput' => 28.80],
+        'Line 2' => ['cages' => 58, 'crushed' => 283.20, 'avgCage' => 4.88, 'throughput' => 27.00],
     ];
+
+    // Jam grafik ditarik dari $hoursByLine periode 'Tdy' — satu sumber dengan kedua
+    // panel tabel. Segmen hijau = Available Milling Hours menurut definisinya, jadi batangnya selalu
+    // berjumlah persis Available.
+    $lines = [];
+    foreach ($lineStats as $lineName => $stat) {
+        $l = $hoursByLine[$lineName];
+        $lines[] = $stat + [
+            'name'      => $lineName,
+            // Penyebut lebar batang — dulu angka 24 yang ditulis langsung di template,
+            // sehingga batang berhenti penuh begitu Available bukan 24.
+            'available' => $l['available']['Tdy'],
+            'mdh'       => $mdhFor($l, 'Tdy'),
+            'hours' => [
+                'Available Milling Hours' => $amhFor($l, 'Tdy'),
+                'CDT'     => $l['CDT']['Tdy'],
+                'SDT'     => $l['SDT']['Tdy'],
+                'EDT'     => $l['EDT']['Tdy'],
+            ],
+        ];
+    }
 
     $tanks = [
         ['name' => 'CPO Tank 1', 'stock' => 612.40, 'cap' => 1000, 'a' => ['FFA', 3.42, 5.00], 'b' => ['Moist', 0.18, 0.20]],
@@ -321,6 +416,7 @@
             <article class="md-kpi">
                 <div class="md-kpi__top">
                     <span class="md-kpi__label">{{ $kpi['label'] }}</span>
+                    <span class="md-kpi__period">{{ $kpi['period'] }}</span>
                     <span class="md-kpi__icon"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">{!! $icons[$kpi['icon']] !!}</svg></span>
                 </div>
                 <p class="md-kpi__value">{{ $kpi['value'] }} <span>{{ $kpi['unit'] }}</span></p>
@@ -338,18 +434,18 @@
         <article class="md-card">
             <header class="md-card__head">
                 <h3>Penerimaan FFB vs Budget</h3>
-                <span class="md-card__hint">MTD terhadap budget bulan berjalan</span>
+                <span class="md-card__hint">MTD · terhadap budget bulan berjalan</span>
             </header>
             <div class="md-budget">
                 @foreach ($arrivalBudget as $row)
-                    @php $pct = round($row['actual'] / $row['budget'] * 100, 1); @endphp
+                    @php $budgetPct = $row['actual'] / $row['budget'] * 100; @endphp
                     <div class="md-budget__row{{ $loop->last ? ' md-budget__row--total' : '' }}">
                         <div class="md-budget__label">
                             <span>{{ $row['label'] }}</span>
                             <span class="md-budget__nums"><strong>{{ number_format($row['actual'], 2) }}</strong> / {{ number_format($row['budget'], 0) }} MT</span>
                         </div>
-                        <div class="md-bar md-bar--lg"><span style="width: {{ min($pct, 100) }}%"></span><em style="left: 50%" title="Pro-rata hari ke-15"></em></div>
-                        <span class="md-budget__pct">{{ $pct }}%</span>
+                        <div class="md-bar md-bar--lg"><span style="width: {{ min($budgetPct, 100) }}%"></span><em style="left: 50%" title="Pro-rata hari ke-15"></em></div>
+                        <span class="md-budget__pct">{{ number_format($budgetPct, 1) }}%</span>
                     </div>
                 @endforeach
                 <p class="md-note"><span class="md-note__tick"></span> Garis tegak = target pro-rata (hari ke-15 dari 30)</p>
@@ -360,7 +456,7 @@
         <article class="md-card">
             <header class="md-card__head">
                 <h3>Stok FFB</h3>
-                <span class="md-card__hint">Posisi hari ini</span>
+                <span class="md-card__hint">Tdy · posisi stok</span>
             </header>
             <div class="md-donut-wrap">
                 <div class="md-donut" style="background: {{ $donut }}">
@@ -371,7 +467,7 @@
                 </div>
                 <ul class="md-legend">
                     @foreach ($ffbStock as $s)
-                        <li><i style="background: {{ $s['color'] }}"></i><span>{{ $s['label'] }}</span><b>{{ number_format($s['value'], 1) }}</b></li>
+                        <li><i style="background: {{ $s['color'] }}"></i><span>{{ $s['label'] }}</span><b>{{ number_format($s['value'], 1) }} <small>{{ $s['unit'] }}</small></b></li>
                     @endforeach
                 </ul>
             </div>
@@ -383,7 +479,7 @@
         <article class="md-card">
             <header class="md-card__head">
                 <h3>Milling per Line</h3>
-                <span class="md-card__hint">Hari ini</span>
+                <span class="md-card__hint">Tdy</span>
             </header>
             <div class="md-lines">
                 @foreach ($lines as $line)
@@ -393,7 +489,7 @@
                             <span class="md-pill">{{ number_format($line['throughput'], 2) }} MT/jam</span>
                         </div>
                         <dl class="md-line__stats">
-                            <div><dt>Cages Tipped</dt><dd>{{ $line['cages'] }}</dd></div>
+                            <div><dt>Cages Tipped</dt><dd>{{ $line['cages'] }} <small>lori</small></dd></div>
                             <div><dt>FFB Crushed</dt><dd>{{ number_format($line['crushed'], 2) }} <small>MT</small></dd></div>
                             <div><dt>Avg Cage</dt><dd>{{ number_format($line['avgCage'], 2) }} <small>MT</small></dd></div>
                         </dl>
@@ -408,24 +504,29 @@
         <article class="md-card">
             <header class="md-card__head">
                 <h3>Distribusi Jam per Line</h3>
-                <span class="md-card__hint">24 jam tersedia</span>
+                <span class="md-card__hint">Tdy · 24 jam tersedia</span>
             </header>
             <div class="md-hours">
                 @foreach ($lines as $line)
                     <div class="md-hours__row">
-                        <div class="md-hours__label"><strong>{{ $line['name'] }}</strong><span>EE {{ $line['ee'] }}%</span></div>
+                        <div class="md-hours__label"><strong>{{ $line['name'] }}</strong><span title="Total downtime = CDT + SDT + EDT">Total downtime {{ number_format($line['mdh'], 2) }} jam</span></div>
                         <div class="md-stack">
                             @foreach ($line['hours'] as $key => $h)
-                                <span style="width: {{ $h / 24 * 100 }}%; background: {{ $hourSegments[$key] }}" title="{{ $key }}: {{ number_format($h, 2) }} jam">{{ $h >= 2 ? number_format($h, 1) : '' }}</span>
+                                {{-- Ambang 1 jam, bukan 2: segmen 1 jam ≈ 4% bar, cukup untuk "1.0" pada
+                                     12px. Dulu 2, yang membuat SDT (1.50 jam) selalu kosong di layar
+                                     padahal muat. Yang lebih sempit dari itu tetap dikosongkan dan
+                                     angkanya hanya di tooltip — .md-stack span ber-overflow:hidden
+                                     supaya tidak pernah tumpah ke segmen sebelahnya. --}}
+                                <span style="width: {{ $h / $line['available'] * 100 }}%; background: {{ $hourSegments[$key] }}" title="{{ $key }}: {{ number_format($h, 2) }} jam">{{ $h >= 1 ? number_format($h, 1) : '' }}</span>
                             @endforeach
                         </div>
                     </div>
                 @endforeach
                 <ul class="md-legend md-legend--inline">
-                    <li><i style="background: #249360"></i><span>Milling</span></li>
-                    <li><i style="background: #f59e0b"></i><span>CDT (Crop Down Time)</span></li>
+                    <li><i style="background: #249360"></i><span>Available Milling Hours</span></li>
+                    <li><i style="background: #f59e0b"></i><span>CDT (Commercial)</span></li>
                     <li><i style="background: #60a5fa"></i><span>SDT (Scheduled)</span></li>
-                    <li><i style="background: #ef4444"></i><span>EDT (Equipment)</span></li>
+                    <li><i style="background: #ef4444"></i><span>EDT (Emergency)</span></li>
                 </ul>
             </div>
         </article>
@@ -435,7 +536,7 @@
     <article class="md-card">
         <header class="md-card__head">
             <h3>Kualitas &amp; Stok Tangki</h3>
-            <span class="md-card__hint">Nilai hari ini terhadap batas mutu</span>
+            <span class="md-card__hint">Tdy · terhadap batas mutu</span>
         </header>
         <div class="md-tanks">
             @foreach ($tanks as $tank)
@@ -453,7 +554,7 @@
                         <p class="md-tank__stock">{{ number_format($tank['stock'], 2) }} <small>/ {{ number_format($tank['cap']) }} MT</small></p>
                         <div class="md-tank__params">
                             @foreach ([$tank['a'], $tank['b']] as [$param, $val, $limit])
-                                <span @class(['md-param', 'md-param--warn' => $val > $limit])>{{ $param }} <b>{{ number_format($val, 2) }}%</b> <small>≤ {{ number_format($limit, 2) }}</small></span>
+                                <span @class(['md-param', 'md-param--warn' => $val > $limit])>{{ $param }} <b>{{ number_format($val, 2) }}%</b> <small>≤ {{ number_format($limit, 2) }}%</small></span>
                             @endforeach
                         </div>
                     </div>
@@ -467,7 +568,7 @@
         <article class="md-card">
             <header class="md-card__head">
                 <h3>Energi &amp; Air</h3>
-                <span class="md-card__hint">Hari ini</span>
+                <span class="md-card__hint">Tdy</span>
             </header>
             <div class="md-utils">
                 @foreach ($utilities as $u)
@@ -487,13 +588,13 @@
         <article class="md-card">
             <header class="md-card__head">
                 <h3>Oil Extraction Rate</h3>
-                <span class="md-card__hint">DCR vs teoritis</span>
+                <span class="md-card__hint">Tdy · DCR vs teoritis</span>
             </header>
             <div class="md-oer">
                 <p class="md-oer__big">{{ number_format($oer['actual'], 2) }}<span>%</span></p>
-                <p class="md-oer__delta"><span class="md-trend md-trend--down">{{ number_format($oer['actual'] - $oer['theoretical'], 2) }}</span> dari teoritis {{ number_format($oer['theoretical'], 2) }}%</p>
+                <p class="md-oer__delta"><span class="md-trend md-trend--down">{{ number_format($oer['actual'] - $oer['theoretical'], 2) }} poin</span> dari teoritis {{ number_format($oer['theoretical'], 2) }}%</p>
                 <div class="md-oer__compare">
-                    @foreach (['Today' => $oer['actual'], 'MTD' => $oer['mtd'], 'YTD' => $oer['ytd']] as $label => $val)
+                    @foreach (['Tdy' => $oer['actual'], 'MTD' => $oer['mtd'], 'YTD' => $oer['ytd']] as $label => $val)
                         <div class="md-oer__item">
                             <span>{{ $label }}</span>
                             <div class="md-bar"><span style="width: {{ $val / 25 * 100 }}%"></span><em style="left: {{ $oer['theoretical'] / 25 * 100 }}%"></em></div>

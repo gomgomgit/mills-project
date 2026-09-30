@@ -43,7 +43,10 @@
         .md-kpi { background: var(--md-card); border: 1px solid var(--md-line); border-radius: 14px; padding: 16px; box-shadow: 0 1px 2px rgba(15,23,42,.04); transition: box-shadow .15s, transform .15s; min-width: 0; }
         .md-kpi:hover { box-shadow: 0 8px 20px rgba(15,23,42,.08); transform: translateY(-1px); }
         .md-kpi__top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-        .md-kpi__label { font-size: 13px; font-weight: 600; color: var(--md-muted); }
+        .md-kpi__label { flex: 1; font-size: 13px; font-weight: 600; color: var(--md-muted); }
+        /* Penanda periode: setiap angka kartu menyebut sendiri ia Tdy / MTD / YTD. */
+        .md-kpi__period { flex-shrink: 0; padding: 2px 6px; border-radius: 999px; background: #f1f5f9;
+            font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--md-muted); }
         .md-kpi__icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--md-brand-soft); color: var(--md-brand); flex-shrink: 0; }
         .md-kpi__icon svg { width: 18px; height: 18px; }
         .md-kpi__value { margin: 10px 0 2px; font-size: 24px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -94,7 +97,9 @@
         .md-legend li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
         .md-legend i { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
         .md-legend span { flex: 1; color: #334155; }
-        .md-legend b { font-variant-numeric: tabular-nums; }
+        .md-legend b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+        /* Satuan menempel pada angkanya tapi tidak ikut tebal — angka tetap yang dibaca duluan. */
+        .md-legend b small { font-size: 11px; font-weight: 600; color: var(--md-muted); }
         .md-legend--inline { flex-direction: row; flex-wrap: wrap; gap: 8px 16px; margin-top: 4px; }
         .md-legend--inline span { flex: none; font-size: 12px; color: var(--md-muted); }
 
@@ -111,7 +116,7 @@
         .md-hours__label { display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 14px; }
         .md-hours__label span { font-size: 12px; color: var(--md-muted); font-weight: 600; }
         .md-stack { display: flex; height: 30px; border-radius: 8px; overflow: hidden; background: #edf2f0; }
-        .md-stack span { display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .md-stack span { display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; overflow: hidden; }
 
         .md-tanks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
         .md-tank { display: flex; gap: 14px; padding: 14px; border: 1px solid var(--md-line); border-radius: 12px; min-width: 0; }

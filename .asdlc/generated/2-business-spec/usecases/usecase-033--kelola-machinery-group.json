@@ -1,12 +1,12 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-09-30"
   },
   "id": "usecase-033--kelola-machinery-group",
   "name": "Kelola Machinery Group",
-  "description": "Admin mengelola data master Machinery Group (pengelompokan mesin per Station) melalui web — melihat daftar, menambah dengan memilih Station induk, mengedit, dan menghapus Machinery Group.",
+  "description": "Admin mengelola data master Machinery Group (pengelompokan mesin per Station) melalui layar Kelola Mesin — melihat daftar grup sebagai baris induk yang dapat dibuka untuk menampilkan Machinery di dalamnya, menambah dengan memilih Station induk, mengedit, dan menghapus Machinery Group. Sejak 2026-09-30 usecase ini tidak lagi punya layar sendiri: layar Kelola Machinery Group diserap ke layar Kelola Mesin (screen-031).",
   "actors": [
     "actor-admin"
   ],
@@ -18,17 +18,17 @@
     {
       "step": 1,
       "actor": "actor-admin",
-      "description": "Admin membuka menu Master Data > Kelola Machinery Group"
+      "description": "Admin membuka menu 'Kelola Mesin'"
     },
     {
       "step": 2,
       "actor": "System",
-      "description": "Sistem menampilkan daftar Machinery Group beserta kode, Station induk, dan jumlah Machinery terkait masing-masing"
+      "description": "Sistem menampilkan daftar Machinery Group pada mode Grup (bawaan) beserta kode, Station induk, Production Line, dan jumlah Machinery di dalamnya"
     },
     {
       "step": 3,
       "actor": "actor-admin",
-      "description": "Admin klik Tambah Machinery Group, memilih Station induk dari dropdown, mengisi kode grup, serta field lain jika diperlukan"
+      "description": "Admin klik Tambah Grup pada toolbar, memilih Station induk dari dropdown, mengisi kode grup serta field lain jika diperlukan"
     },
     {
       "step": 4,
@@ -72,34 +72,61 @@
     },
     {
       "name": "Belum ada Station",
-      "trigger": "Step 3 — Admin membuka form Tambah Machinery Group saat belum ada Station sama sekali",
+      "trigger": "Step 3 — Admin menekan Tambah Grup saat belum ada Station sama sekali",
       "steps": [
         "Sistem menampilkan form tanpa opsi Station yang dapat dipilih",
         "Sistem mengarahkan Admin untuk membuat Station terlebih dahulu"
+      ]
+    },
+    {
+      "name": "Buka grup untuk melihat isinya",
+      "trigger": "Step 2 — Admin klik baris sebuah Machinery Group",
+      "steps": [
+        "Sistem menampilkan Machinery milik grup itu sebagai baris menjorok di bawahnya",
+        "Sistem menampilkan panel ringkas atribut grup: deskripsi, satuan, workshop factor, biaya per peralatan, tanggal dibuat",
+        "Bila grup belum berisi mesin, Sistem menampilkan pesan bahwa grup ini belum berisi mesin, bukan area kosong"
+      ]
+    },
+    {
+      "name": "Berpindah halaman daftar grup",
+      "trigger": "Step 2 — Admin berpindah ke halaman berikutnya",
+      "steps": [
+        "Sistem menghitung paginasi per Machinery Group (20 grup per halaman), terlepas dari berapa banyak grup yang sedang terbuka",
+        "Keadaan terbuka TIDAK ikut berpindah halaman; halaman baru dimulai dalam keadaan tertutup, kecuali sedang dalam mode pencarian"
+      ]
+    },
+    {
+      "name": "Hapus grup — jumlah mesin sudah terlihat lebih dulu",
+      "trigger": "Step 2 — Admin hendak menghapus sebuah Machinery Group",
+      "steps": [
+        "Baris grup sudah menampilkan jumlah Machinery di dalamnya sebelum Admin menekan Hapus",
+        "Bila jumlahnya lebih dari nol, Sistem menolak penghapusan dengan pesan penjelasan — penolakan itu tidak mengejutkan karena jumlahnya sudah terbaca"
       ]
     }
   ],
   "postconditions": [
     "Machinery Group baru/ubahan tersimpan dan terlihat di daftar dengan Station induk yang benar",
-    "Atau Machinery Group terhapus dari daftar jika tidak ada Machinery terkait"
+    "Atau Machinery Group terhapus dari daftar jika tidak ada Machinery terkait",
+    "Isi sebuah grup dapat dilihat tanpa berpindah layar"
   ],
   "business_rules": [
     "Kode grup (group_code) harus unik di seluruh sistem",
     "Machinery Group tidak dapat dihapus jika masih memiliki satu atau lebih Machinery terkait",
     "Hanya Admin yang dapat mengakses dan mengelola data Machinery Group",
     "Machinery Group harus terkait ke tepat satu Station yang sudah ada",
-    "Station yang dipilih harus berada di bawah Business Unit yang sama dengan Machinery Group"
+    "Station yang dipilih harus berada di bawah Business Unit yang sama dengan Machinery Group",
+    "Pada mode Grup, paginasi dihitung per Machinery Group (20 grup per halaman)"
   ],
   "bdd_scenarios": [
     {
       "scenario": "Kelola Machinery Group — success",
       "given": "Admin sudah login ke web app dan minimal satu Station sudah ada",
-      "when": "Admin membuka menu Kelola Machinery Group, menambah Machinery Group baru dengan memilih Station induk dan mengisi kode grup",
-      "then": "Machinery Group baru tersimpan dan terlihat di daftar dengan Station induk yang benar"
+      "when": "Admin membuka menu Kelola Mesin, menekan Tambah Grup pada toolbar, memilih Station induk dan mengisi kode grup",
+      "then": "Machinery Group baru tersimpan dan terlihat di daftar mode Grup dengan Station induk yang benar, Production Line, dan jumlah Machinery di dalamnya"
     },
     {
       "scenario": "Kelola Machinery Group — Edit Machinery Group",
-      "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery Group",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery Group di layar Kelola Mesin",
       "when": "Admin klik Edit pada salah satu baris Machinery Group dan mengubah kode/deskripsi/field lain",
       "then": "Sistem memvalidasi kode unik secara global, menyimpan perubahan, dan memperbarui daftar"
     },
@@ -124,17 +151,48 @@
     {
       "scenario": "Kelola Machinery Group — Belum ada Station",
       "given": "Admin sudah login ke web app dan belum ada Station sama sekali",
-      "when": "Admin membuka form Tambah Machinery Group",
+      "when": "Admin menekan Tambah Grup di layar Kelola Mesin",
       "then": "Sistem menampilkan form tanpa opsi Station yang dapat dipilih dan mengarahkan Admin untuk membuat Station terlebih dahulu"
     },
     {
       "scenario": "Kelola Machinery Group — akses ditolak untuk non-Admin",
       "given": "Pengguna sudah login ke web app namun bukan berperan sebagai Admin",
-      "when": "Pengguna mencoba mengakses menu Master Data > Kelola Machinery Group",
-      "then": "Sistem menolak akses karena hanya Admin yang dapat mengakses dan mengelola data Machinery Group"
+      "when": "Pengguna mencoba menambah, mengubah, atau menghapus Machinery Group di layar Kelola Mesin",
+      "then": "Sistem menolak aksi tersebut dan tidak ada perubahan pada data Machinery Group, karena hanya Admin yang dapat mengelola data Machinery Group"
+    },
+    {
+      "scenario": "Kelola Machinery Group — Buka grup untuk melihat isinya",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery Group pada mode Grup",
+      "when": "Admin klik baris sebuah Machinery Group",
+      "then": "Sistem menampilkan Machinery milik grup itu sebagai baris menjorok di bawahnya beserta panel ringkas atribut grup (deskripsi, satuan, workshop factor, biaya per peralatan, tanggal dibuat); bila grup belum berisi mesin, Sistem menampilkan pesan bahwa grup ini belum berisi mesin, bukan area kosong"
+    },
+    {
+      "scenario": "Kelola Machinery Group — Berpindah halaman daftar grup",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery Group pada mode Grup dengan beberapa grup dalam keadaan terbuka",
+      "when": "Admin berpindah ke halaman berikutnya",
+      "then": "Sistem menghitung paginasi per Machinery Group (20 grup per halaman) terlepas dari berapa banyak grup yang sedang terbuka, dan halaman baru dimulai dalam keadaan tertutup kecuali sedang dalam mode pencarian"
+    },
+    {
+      "scenario": "Kelola Machinery Group — Hapus grup, jumlah mesin sudah terlihat lebih dulu",
+      "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery Group pada mode Grup",
+      "when": "Admin membaca baris sebuah grup sebelum menekan Hapus",
+      "then": "Baris grup sudah menampilkan jumlah Machinery di dalamnya sebelum tombol Hapus ditekan; bila jumlahnya lebih dari nol, Sistem menolak penghapusan dengan pesan penjelasan"
+    },
+    {
+      "scenario": "Kelola Machinery Group — Station induk tidak dipilih",
+      "given": "Admin sudah login ke web app dan minimal satu Station sudah ada",
+      "when": "Admin menyimpan Machinery Group tanpa memilih Station induk dari dropdown",
+      "then": "Sistem menolak penyimpanan dengan pesan bahwa setiap grup harus terkait tepat satu Station yang sudah ada"
+    },
+    {
+      "scenario": "Kelola Machinery Group — Station di luar Business Unit grup",
+      "given": "Admin sudah login ke web app dan terdapat Station di bawah Business Unit yang berbeda",
+      "when": "Admin memilih Station yang berada di bawah Business Unit berbeda dari Business Unit grup",
+      "then": "Sistem menolak penyimpanan dengan pesan bahwa Station harus berada di bawah Business Unit yang sama dengan grup"
     }
   ],
   "related_screen_ids": [
-    "screen-033--kelola-machinery-group"
+    "screen-033--kelola-machinery-group",
+    "screen-031--kelola-machinery"
   ]
 }

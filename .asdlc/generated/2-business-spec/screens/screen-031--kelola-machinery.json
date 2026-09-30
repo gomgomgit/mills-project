@@ -1,37 +1,100 @@
 {
-  "ver": 1,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-09-30"
   },
   "id": "screen-031--kelola-machinery",
-  "name": "Kelola Machinery",
+  "name": "Kelola Mesin",
   "module_id": "module-master-data",
-  "description": "Layar bagi Admin untuk mengelola data master Machinery — mesin/peralatan individual di bawah Machinery Group. Admin dapat melihat daftar Machinery (dapat difilter per Machinery Group), menambah Machinery baru dengan memilih Machinery Group induk dan mengisi spesifikasi teknis lengkap, mengedit data yang sudah ada, serta mengelola riwayat asuransi dan pajak/pembelian mesin langsung di dalam form Machinery (bukan layar terpisah).",
+  "description": "Satu layar bagi Admin untuk seluruh pengelolaan mesin, menggantikan dua layar terpisah (Kelola Machinery dan Kelola Machinery Group). Layar punya dua mode tampilan yang dapat dialihkan dari toolbar. Mode Grup (bawaan) menampilkan daftar Machinery Group sebagai baris induk yang dapat dibuka untuk memperlihatkan Machinery di dalamnya — mencerminkan hubungan induk-anak yang sebenarnya. Mode Rata menampilkan seluruh Machinery sebagai satu daftar yang dapat difilter per grup, mempertahankan kemampuan membandingkan mesin lintas grup yang akan hilang bila hanya ada mode Grup. Dari layar yang sama Admin dapat menambah, mengedit, dan menghapus Machinery Group maupun Machinery, termasuk mengelola riwayat asuransi dan pajak/pembelian per unit mesin di dalam form Machinery. Pada mode Grup paginasi dihitung per Machinery Group sehingga membuka banyak grup tidak membuat satu halaman melar; pada mode Rata paginasi dihitung per Machinery seperti layar lama. Pencarian bekerja di kedua mode dan mencari pada grup maupun mesin. Mesin yang belum punya grup mendapat wadah tersendiri di akhir daftar mode Grup agar tidak lenyap dari layar.",
   "actors": [
     "actor-admin"
   ],
   "entry_points": [
-    "Menu sidebar 'Master Data' > 'Kelola Machinery'"
+    "Menu sidebar 'Kelola Mesin'"
   ],
   "information_displayed": [
-    "Daftar Machinery: kode peralatan, nama, tipe peralatan, merek, nama Machinery Group induk, tanggal dibuat",
-    "Form tambah/edit — Identitas: dropdown pilih Machinery Group induk, kode peralatan, nama, deskripsi, gambar mesin",
-    "Form tambah/edit — Spesifikasi Teknis: nomor registrasi, pembuat, model, tipe peralatan, nomor part, nomor seri, gearbox, motor, mounting, RPM, chain, kapasitas, merek, tahun pembuatan, aset tetap, aktivitas kontrol, kepemilikan/ITE",
-    "Form tambah/edit — Riwayat Asuransi (grid baris berulang): kepemilikan, nomor polis, perusahaan asuransi, tanggal kedaluwarsa, premi, nilai pertanggungan",
-    "Form tambah/edit — Riwayat Pajak/Pembelian (grid baris berulang): tanggal pembelian, biaya pembelian, jenis kebijakan, nama/telepon/fax/email kontak vendor"
+    "Tombol alih mode tampilan pada toolbar: Grup (bawaan) atau Rata",
+    "Mode Grup — baris grup (daftar utama): kode grup, nama/deskripsi singkat, nama Station induk, nama Production Line, jumlah Machinery di dalamnya, aksi",
+    "Mode Grup — panel ringkas yang muncul saat sebuah grup dibuka: deskripsi, satuan, workshop factor, biaya per peralatan, tanggal dibuat — kolom yang jarang dibaca, dipindah ke sini agar baris grup tetap terbaca",
+    "Mode Grup — baris mesin (menjorok di bawah grup induknya): kode peralatan, nama, tipe peralatan, merek, aksi",
+    "Mode Grup — wadah 'Tanpa grup' di akhir daftar berisi Machinery yang belum punya Machinery Group, tampil hanya bila berisi",
+    "Mode Grup — penghitung jumlah mesin tanpa grup pada toolbar, agar keberadaannya terlihat walau wadahnya ada di halaman terakhir",
+    "Mode Rata — daftar seluruh Machinery: kode peralatan, nama, nama Machinery Group induk, tipe peralatan, merek, tanggal dibuat, aksi; dapat difilter per Machinery Group. Mesin tanpa grup tampil dengan kolom grup kosong",
+    "Form tambah/edit Machinery Group: dropdown pilih Station induk (satu-satunya pilihan hierarki — Production Line diturunkan dari Station, tidak dipilih terpisah), kode grup, deskripsi, satuan, workshop factor, biaya per peralatan",
+    "Form tambah/edit Machinery — Identitas: Machinery Group induk (terisi otomatis bila ditambah dari baris grup), kode peralatan, nama, deskripsi, gambar mesin",
+    "Form tambah/edit Machinery — Spesifikasi Teknis: nomor registrasi, pembuat, model, tipe peralatan, nomor part, nomor seri, gearbox, motor, mounting, RPM, chain, kapasitas, merek, tahun pembuatan, aset tetap, aktivitas kontrol, kepemilikan/ITE",
+    "Form tambah/edit Machinery — Riwayat Asuransi (grid baris berulang): kepemilikan, nomor polis, perusahaan asuransi, tanggal kedaluwarsa, premi, nilai pertanggungan",
+    "Form tambah/edit Machinery — Riwayat Pajak/Pembelian (grid baris berulang): tanggal pembelian, biaya pembelian, jenis kebijakan, nama/telepon/fax/email kontak vendor"
   ],
   "available_actions": [
     {
+      "action": "Alih mode tampilan Grup / Rata",
+      "description": "Mengalihkan daftar antara mode Grup (hierarkis, grup sebagai baris induk) dan mode Rata (seluruh Machinery sebagai satu daftar). Mode Grup adalah bawaan; mode Rata mempertahankan kemampuan membandingkan mesin lintas grup",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Lihat daftar Machinery Group",
+      "description": "Menampilkan seluruh Machinery Group sebagai baris induk beserta Station, Production Line, dan jumlah Machinery di dalamnya; dapat difilter per Station. Hanya pada mode Grup",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka/tutup sebuah grup",
+      "description": "Membuka baris grup untuk menampilkan Machinery di dalamnya beserta panel ringkas atribut grup, atau menutupnya kembali. Hanya pada mode Grup",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Cari grup atau mesin",
+      "description": "Mencari pada kode/nama grup maupun kode/nama mesin sekaligus. Pada mode Grup, grup yang memuat mesin cocok terbuka otomatis dan mesin yang cocok ditandai; pada mode Rata, daftar langsung disaring",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Berpindah halaman daftar",
+      "description": "Berpindah antar halaman. Pada mode Grup dihitung 20 Machinery Group per halaman terlepas dari berapa banyak grup yang terbuka; pada mode Rata dihitung 20 Machinery per halaman",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Tambah Machinery Group",
+      "description": "Membuat Machinery Group baru dengan memilih Station induk dan mengisi kode grup, dari tombol pada toolbar",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Edit Machinery Group",
+      "description": "Mengubah data Machinery Group yang sudah ada, termasuk kode, deskripsi, satuan, workshop factor, biaya per peralatan, dan Station induk",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Hapus Machinery Group",
+      "description": "Menghapus Machinery Group, hanya diizinkan jika tidak ada Machinery yang masih terkait",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
       "action": "Lihat daftar Machinery",
-      "description": "Menampilkan seluruh Machinery dengan Machinery Group induk, dapat difilter per Machinery Group",
+      "description": "Menampilkan Machinery beserta Machinery Group induknya — pada mode Grup sebagai baris menjorok di dalam grup yang dibuka ditambah wadah 'Tanpa grup', pada mode Rata sebagai satu daftar seluruh Machinery yang dapat difilter per Machinery Group seperti layar lama",
       "actor_ids": [
         "actor-admin"
       ]
     },
     {
       "action": "Tambah Machinery",
-      "description": "Membuat Machinery baru dengan memilih Machinery Group induk, mengisi kode peralatan dan nama, serta field spesifikasi teknis lain jika diperlukan",
+      "description": "Membuat Machinery baru; bila ditambah dari baris grup pada mode Grup, Machinery Group induk terisi otomatis sehingga tidak perlu dipilih ulang. Pada mode Rata, grup induk dipilih dari dropdown seperti layar lama",
       "actor_ids": [
         "actor-admin"
       ]
@@ -66,23 +129,40 @@
     }
   ],
   "business_rules": [
+    "Kode grup (group_code) harus unik di seluruh sistem",
+    "Machinery Group tidak dapat dihapus jika masih memiliki satu atau lebih Machinery terkait",
+    "Machinery Group harus terkait ke tepat satu Station yang sudah ada",
+    "Production Line Machinery Group selalu mengikuti Station yang dipilih — disalin otomatis dari Station, bukan diisi terpisah, sehingga hierarkinya mustahil tidak sinkron. Machinery Group TIDAK menyimpan business_unit_id; kolom itu dibuang dari tabelnya pada 2026-08-20 dan digantikan production_line_id",
     "Kode peralatan (equipment_code) harus unik di seluruh sistem",
-    "Machinery harus terkait ke tepat satu Machinery Group yang sudah ada (dipilih via dropdown, bukan input bebas)",
-    "Station dan Business Unit Machinery selalu mengikuti Machinery Group yang dipilih (diturunkan otomatis, bukan input terpisah, demi konsistensi hierarki)",
-    "Hanya Admin yang dapat mengakses dan mengelola data Machinery beserta riwayat asuransi dan pajak/pembeliannya",
+    "Machinery harus terkait ke tepat satu Machinery Group yang sudah ada (dipilih via dropdown atau terisi otomatis dari baris grup, bukan input bebas)",
+    "Station dan Production Line Machinery selalu mengikuti Machinery Group yang dipilih (diturunkan otomatis, bukan input terpisah, demi konsistensi hierarki). Machinery juga TIDAK menyimpan business_unit_id",
+    "Hanya Admin yang dapat mengakses dan mengelola data Machinery Group, Machinery, beserta riwayat asuransi dan pajak/pembeliannya",
     "Menghapus Machinery akan turut menghapus seluruh baris riwayat asuransi dan pajak/pembelian yang menyertainya (bukan diblokir seperti level master data lain) — riwayat ini murni anak dari satu Machinery, tidak direferensikan entity lain",
-    "Field selain kode peralatan, nama, dan Machinery Group bersifat opsional, termasuk seluruh baris riwayat asuransi dan pajak/pembelian"
+    "Field selain kode peralatan, nama, dan Machinery Group bersifat opsional, termasuk seluruh baris riwayat asuransi dan pajak/pembelian",
+    "Layar wajib menyediakan dua mode tampilan: Grup (bawaan) dan Rata. Mode Rata wajib mempertahankan kemampuan layar lama melihat SELURUH Machinery dalam satu daftar yang dapat difilter per grup — tanpa mode ini, membandingkan mesin lintas grup hanya mungkin lewat pencarian",
+    "Pada mode Grup paginasi dihitung per Machinery Group (20 grup per halaman); Machinery yang tampil karena grupnya dibuka tidak ikut dihitung sebagai baris halaman. Pada mode Rata paginasi dihitung per Machinery (20 mesin per halaman)",
+    "Pencarian harus mencocokkan Machinery Group DAN Machinery di kedua mode; pada mode Grup, grup yang memuat mesin cocok wajib terbuka otomatis, sebab hasil pencarian yang tersembunyi di balik grup tertutup sama saja dengan tidak ditemukan",
+    "Machinery tanpa Machinery Group wajib tetap terlihat di kedua mode — pada mode Grup melalui wadah 'Tanpa grup' di akhir daftar, pada mode Rata sebagai baris biasa dengan kolom grup kosong. Tidak boleh ada Machinery yang hilang dari layar hanya karena belum punya induk"
   ],
   "usecase_ids": [
-    "usecase-031--kelola-machinery"
+    "usecase-031--kelola-machinery",
+    "usecase-033--kelola-machinery-group"
   ],
   "edge_cases": [
+    "Percobaan menghapus Machinery Group yang masih memiliki Machinery terkait — ditolak dengan pesan penjelasan; jumlah Machinery sudah terlihat pada baris grup sehingga penolakan tidak mengejutkan",
+    "Percobaan menyimpan kode grup yang sudah dipakai Machinery Group lain — validasi gagal",
     "Percobaan menyimpan kode peralatan yang sudah dipakai Machinery lain — validasi gagal",
-    "Belum ada Machinery Group sama sekali — form Tambah Machinery tidak dapat diisi, arahkan Admin untuk membuat Machinery Group dahulu",
-    "Belum ada Machinery sama sekali — tampilkan empty state dengan ajakan tambah data pertama",
+    "Belum ada Station sama sekali — form Tambah Machinery Group tidak dapat diisi, arahkan Admin untuk membuat Station dahulu",
+    "Belum ada Machinery Group sama sekali — tampilkan empty state dengan ajakan menambah grup pertama; tombol Tambah Mesin pada baris grup otomatis tidak tersedia karena tidak ada baris grup",
+    "Belum ada Machinery sama sekali — pada mode Grup, grup tetap tampil dengan jumlah 0 dan membukanya menampilkan pesan bahwa grup ini belum berisi mesin; pada mode Rata tampilkan empty state",
     "Upload gambar mesin dengan format/ukuran tidak didukung — validasi gagal",
-    "Machinery dihapus sementara masih memiliki baris riwayat asuransi/pajak — seluruh baris riwayat turut terhapus tanpa peringatan blokir (berbeda dari delete-guard di level master data lain)"
+    "Machinery dihapus sementara masih memiliki baris riwayat asuransi/pajak — seluruh baris riwayat turut terhapus tanpa peringatan blokir (berbeda dari delete-guard di level master data lain)",
+    "Terdapat Machinery yang machinery_group_id-nya kosong — pada mode Grup muncul di wadah 'Tanpa grup' di akhir daftar beserta penghitung di toolbar (bila tidak ada satu pun, wadah itu tidak ditampilkan); pada mode Rata muncul sebagai baris biasa dengan kolom grup kosong",
+    "Pencarian cocok pada nama mesin tetapi tidak pada grupnya — pada mode Grup, grup induk tetap ditampilkan dalam keadaan terbuka agar mesin yang cocok terlihat",
+    "Pencarian tidak cocok pada apa pun — tampilkan empty state pencarian, bukan daftar kosong tanpa penjelasan",
+    "Grup dibuka lalu Admin berpindah halaman — keadaan terbuka tidak ikut berpindah halaman; halaman baru dimulai dalam keadaan tertutup kecuali sedang dalam mode pencarian",
+    "Admin mengalihkan mode saat sedang di halaman ke-N atau sedang mencari — paginasi dihitung ulang karena satuannya berbeda (grup vs mesin), jadi tampilan kembali ke halaman pertama; kata kunci pencarian dipertahankan agar tidak perlu diketik ulang"
   ],
-  "test_priority": "medium",
+  "test_priority": "high",
   "open_questions": []
 }

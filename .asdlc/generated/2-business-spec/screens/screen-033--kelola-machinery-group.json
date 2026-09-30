@@ -1,48 +1,49 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-09-30"
   },
   "id": "screen-033--kelola-machinery-group",
   "name": "Kelola Machinery Group",
   "module_id": "module-master-data",
-  "description": "Layar bagi Admin untuk mengelola data master Machinery Group — pengelompokan mesin per Station (mis. kelompok mesin press, kelompok mesin boiler). Admin dapat melihat daftar Machinery Group (dapat difilter per Station), menambah Machinery Group baru dengan memilih Business Unit dan Station induk, mengedit data yang sudah ada, dan menghapus Machinery Group yang tidak lagi memiliki Machinery terkait.",
+  "description": "DISERAP ke screen-031 (Kelola Mesin) pada 2026-09-30 — layar ini tidak lagi punya rute, entri sidebar, maupun tampilan tersendiri. Seluruh pengelolaan Machinery Group kini terjadi di dalam layar hierarkis Kelola Mesin: grup tampil sebagai baris induk yang dapat dibuka untuk menampilkan Machinery di dalamnya, dan tambah/ubah/hapus grup dilakukan dari layar yang sama. Rute lama /master-data/machinery-groups diarahkan (redirect) ke /master-data/machinery. Entri ini dipertahankan karena screen-index bersifat append-only dan karena usecase-033 masih hidup — hanya pindah rumah; isinya di bawah ini adalah catatan cakupan usecase itu, bukan deskripsi layar yang masih berdiri.",
   "actors": [
     "actor-admin"
   ],
   "entry_points": [
-    "Menu sidebar 'Master Data' > 'Kelola Machinery Group'"
+    "TIDAK ADA — layar ini diserap ke screen-031. Pengelolaan Machinery Group dicapai lewat menu sidebar 'Kelola Mesin'."
   ],
   "information_displayed": [
-    "Daftar Machinery Group: kode grup, deskripsi, satuan, nama Station induk, jumlah Machinery terkait, tanggal dibuat",
+    "Seluruh butir di bawah ini kini ditampilkan oleh screen-031 (Kelola Mesin), bukan oleh layar tersendiri.",
+    "Daftar Machinery Group: kode grup, deskripsi, satuan, nama Station induk, nama Production Line, jumlah Machinery terkait, tanggal dibuat — pada screen-031 sebagian pindah ke panel ringkas yang muncul saat grup dibuka",
     "Form tambah/edit: dropdown pilih Business Unit lalu Station induk, kode grup, deskripsi, satuan, workshop factor, biaya per peralatan"
   ],
   "available_actions": [
     {
       "action": "Lihat daftar Machinery Group",
-      "description": "Menampilkan seluruh Machinery Group dengan Station induk dan jumlah Machinery terkait masing-masing, dapat difilter per Station",
+      "description": "Menampilkan seluruh Machinery Group dengan Station induk dan jumlah Machinery terkait masing-masing, dapat difilter per Station. Kini dijalankan oleh screen-031",
       "actor_ids": [
         "actor-admin"
       ]
     },
     {
       "action": "Tambah Machinery Group",
-      "description": "Membuat Machinery Group baru dengan memilih Station induk dan mengisi kode grup",
+      "description": "Membuat Machinery Group baru dengan memilih Station induk dan mengisi kode grup. Kini dijalankan oleh screen-031 lewat tombol pada toolbar",
       "actor_ids": [
         "actor-admin"
       ]
     },
     {
       "action": "Edit Machinery Group",
-      "description": "Mengubah data Machinery Group yang sudah ada, termasuk kode, deskripsi, satuan, workshop factor, biaya per peralatan, dan Station induk",
+      "description": "Mengubah data Machinery Group yang sudah ada, termasuk kode, deskripsi, satuan, workshop factor, biaya per peralatan, dan Station induk. Kini dijalankan oleh screen-031",
       "actor_ids": [
         "actor-admin"
       ]
     },
     {
       "action": "Hapus Machinery Group",
-      "description": "Menghapus Machinery Group, hanya diizinkan jika tidak ada Machinery yang masih terkait",
+      "description": "Menghapus Machinery Group, hanya diizinkan jika tidak ada Machinery yang masih terkait. Kini dijalankan oleh screen-031, di mana jumlah Machinery sudah terlihat pada baris grup sebelum Hapus ditekan",
       "actor_ids": [
         "actor-admin"
       ]
@@ -53,7 +54,8 @@
     "Machinery Group tidak dapat dihapus jika masih memiliki satu atau lebih Machinery terkait",
     "Hanya Admin yang dapat mengakses dan mengelola data Machinery Group",
     "Machinery Group harus terkait ke tepat satu Station yang sudah ada",
-    "Station yang dipilih harus berada di bawah Business Unit yang sama dengan Machinery Group (konsistensi hierarki)"
+    "Station yang dipilih harus berada di bawah Business Unit yang sama dengan Machinery Group (konsistensi hierarki)",
+    "Seluruh aturan di atas tetap berlaku dan kini ditegakkan oleh screen-031; tidak ada satu pun yang dilonggarkan oleh penggabungan"
   ],
   "usecase_ids": [
     "usecase-033--kelola-machinery-group"
@@ -62,7 +64,8 @@
     "Percobaan menghapus Machinery Group yang masih memiliki Machinery terkait — ditolak dengan pesan penjelasan",
     "Percobaan menyimpan kode grup yang sudah dipakai Machinery Group lain — validasi gagal",
     "Belum ada Station sama sekali — form Tambah Machinery Group tidak dapat diisi, arahkan Admin untuk membuat Station dahulu",
-    "Belum ada Machinery Group sama sekali — tampilkan empty state dengan ajakan tambah data pertama"
+    "Belum ada Machinery Group sama sekali — tampilkan empty state dengan ajakan tambah data pertama",
+    "Pengguna membuka rute lama /master-data/machinery-groups (bookmark atau tautan lama) — diarahkan ke /master-data/machinery, bukan 404"
   ],
   "test_priority": "medium",
   "open_questions": []

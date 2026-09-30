@@ -1,8 +1,8 @@
 {
-  "ver": 12,
+  "ver": 13,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-27"
+    "updated_at": "2026-09-30"
   },
   "screens": [
     {
@@ -331,9 +331,9 @@
     },
     {
       "id": "screen-031--kelola-machinery",
-      "name": "Kelola Machinery",
+      "name": "Kelola Mesin",
       "module_id": "module-master-data",
-      "description": "CRUD data master Machinery, termasuk pengelolaan data asuransi dan pajak/pembelian per unit mesin."
+      "description": "Satu layar hierarkis untuk seluruh pengelolaan mesin: daftar Machinery Group yang dapat dibuka untuk menampilkan Machinery di dalamnya, menggantikan dua layar terpisah (layar ini dan screen-033). CRUD grup maupun mesin dilakukan dari layar yang sama, termasuk pengelolaan data asuransi dan pajak/pembelian per unit mesin. Paginasi dihitung per GRUP (20 grup per halaman); mesin dimuat di dalam grupnya dan tidak ikut dihitung, karena 223 grup dengan rata-rata 3 mesin akan membuat satu halaman melar jadi ~80 baris. Pencarian mencocokkan grup DAN mesin — grup yang memuat mesin cocok terbuka otomatis, tanpa itu mencari nama mesin tidak menghasilkan apa pun yang terlihat. Mesin tanpa grup (machinery_group_id nullable) mendapat wadah tetap di akhir urutan beserta penghitung di toolbar, agar tidak lenyap dari layar. Kolom grup yang jarang dibaca (Deskripsi, Unit, Workshop Factor, Cost per Equipment, Dibuat Pada) pindah ke panel ringkas saat grup dibuka — tidak dihapus. Satu-satunya entri sidebar untuk pengelolaan mesin."
     },
     {
       "id": "screen-032--kelola-user-role",
@@ -345,7 +345,7 @@
       "id": "screen-033--kelola-machinery-group",
       "name": "Kelola Machinery Group",
       "module_id": "module-master-data",
-      "description": "CRUD data master Machinery Group — pengelompokan mesin per stasiun (workshop factor, cost per equipment, jumlah equipment)."
+      "description": "DISERAP ke screen-031 pada 2026-09-30. Tidak lagi punya rute, entri sidebar, maupun layar tersendiri — seluruh pengelolaan Machinery Group kini terjadi di dalam layar hierarkis screen-031. Rute lama /master-data/machinery-groups diarahkan (redirect) ke /master-data/machinery. Entri ini dipertahankan di index karena screen-index bersifat append-only (lihat aturan bus-1-scope: jangan pernah menghapus item), dan karena usecase-nya masih hidup — hanya pindah rumah."
     },
     {
       "id": "screen-034--mills-setting",

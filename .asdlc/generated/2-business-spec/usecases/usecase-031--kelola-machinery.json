@@ -1,12 +1,12 @@
 {
-  "ver": 1,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-09-30"
   },
   "id": "usecase-031--kelola-machinery",
   "name": "Kelola Machinery",
-  "description": "Admin mengelola data master Machinery (mesin/peralatan individual di bawah Machinery Group) melalui web — melihat daftar, menambah dengan memilih Machinery Group induk dan mengisi spesifikasi teknis, mengedit, menghapus Machinery, serta mengelola riwayat asuransi dan pajak/pembelian sebagai baris grid di dalam form Machinery yang sama.",
+  "description": "Admin mengelola data master Machinery (mesin/peralatan individual di bawah Machinery Group) melalui layar Kelola Mesin — melihat daftar dalam mode Grup (mesin menjorok di dalam grup induknya) atau mode Rata (seluruh Machinery dalam satu daftar yang dapat difilter per grup), menambah dengan grup induk terisi otomatis bila ditambah dari baris grup, mengedit, menghapus Machinery, serta mengelola riwayat asuransi dan pajak/pembelian sebagai baris grid di dalam form Machinery yang sama.",
   "actors": [
     "actor-admin"
   ],
@@ -18,28 +18,33 @@
     {
       "step": 1,
       "actor": "actor-admin",
-      "description": "Admin membuka menu Master Data > Kelola Machinery"
+      "description": "Admin membuka menu 'Kelola Mesin'"
     },
     {
       "step": 2,
       "actor": "System",
-      "description": "Sistem menampilkan daftar Machinery beserta kode peralatan, nama, dan Machinery Group induk"
+      "description": "Sistem menampilkan daftar Machinery Group pada mode Grup (bawaan), masing-masing dengan jumlah Machinery di dalamnya"
     },
     {
       "step": 3,
       "actor": "actor-admin",
-      "description": "Admin klik Tambah Machinery, memilih Machinery Group induk dari dropdown, mengisi kode peralatan dan nama, serta field spesifikasi teknis lain jika diperlukan"
+      "description": "Admin membuka salah satu grup untuk melihat Machinery di dalamnya, lalu klik Tambah Mesin pada baris grup itu"
     },
     {
       "step": 4,
+      "actor": "actor-admin",
+      "description": "Admin mengisi kode peralatan dan nama serta field spesifikasi teknis lain jika diperlukan; Machinery Group induk sudah terisi otomatis dari baris grup"
+    },
+    {
+      "step": 5,
       "actor": "System",
-      "description": "Sistem memvalidasi kode peralatan unik secara global, menyimpan Machinery baru (Station/Business Unit diturunkan otomatis dari Machinery Group), dan menampilkannya di daftar"
+      "description": "Sistem memvalidasi kode peralatan unik secara global, menyimpan Machinery baru (Station dan Production Line diturunkan otomatis dari Machinery Group — Machinery tidak menyimpan business_unit_id), dan menampilkannya di dalam grup tersebut"
     }
   ],
   "alternative_flows": [
     {
       "name": "Edit Machinery",
-      "trigger": "Step 2 — Admin klik Edit pada salah satu baris Machinery",
+      "trigger": "Step 2 — Admin klik Edit pada salah satu baris Machinery, baik pada mode Grup maupun mode Rata",
       "steps": [
         "Admin mengubah kode peralatan, nama, field spesifikasi lain, dan/atau Machinery Group induk",
         "Sistem memvalidasi kode peralatan unik secara global",
@@ -51,12 +56,12 @@
       "trigger": "Step 2 — Admin klik Hapus pada salah satu baris Machinery",
       "steps": [
         "Sistem menghapus Machinery beserta seluruh baris riwayat asuransi dan pajak/pembelian yang menyertainya",
-        "Sistem memperbarui daftar"
+        "Sistem memperbarui daftar pada kedua mode tampilan"
       ]
     },
     {
       "name": "Kode peralatan duplikat",
-      "trigger": "Step 4 (atau langkah simpan pada Edit) — Admin menyimpan kode peralatan yang sudah dipakai Machinery lain",
+      "trigger": "Step 5 (atau langkah simpan pada Edit) — Admin menyimpan kode peralatan yang sudah dipakai Machinery lain",
       "steps": [
         "Sistem menolak penyimpanan",
         "Sistem menampilkan pesan validasi kode peralatan sudah dipakai"
@@ -80,72 +85,144 @@
     },
     {
       "name": "Belum ada Machinery Group",
-      "trigger": "Step 3 — Admin membuka form Tambah Machinery saat belum ada Machinery Group sama sekali",
+      "trigger": "Step 3 — Admin mencoba menambah Machinery saat belum ada Machinery Group sama sekali",
       "steps": [
-        "Sistem menampilkan form tanpa opsi Machinery Group yang dapat dipilih",
+        "Tidak ada baris grup sehingga tombol Tambah Mesin pada baris grup tidak tersedia",
+        "Bila Admin menambah dari toolbar, Sistem menampilkan form tanpa opsi Machinery Group yang dapat dipilih",
         "Sistem mengarahkan Admin untuk membuat Machinery Group terlebih dahulu"
+      ]
+    },
+    {
+      "name": "Lihat seluruh Machinery lewat mode Rata",
+      "trigger": "Step 2 — Admin mengalihkan mode tampilan dari Grup ke Rata pada toolbar",
+      "steps": [
+        "Sistem menampilkan seluruh Machinery sebagai satu daftar dengan kolom Machinery Group induk, dapat difilter per grup",
+        "Paginasi dihitung per Machinery (20 mesin per halaman), berbeda dari mode Grup yang dihitung per grup",
+        "Tampilan kembali ke halaman pertama karena satuan paginasinya berbeda; kata kunci pencarian dipertahankan"
+      ]
+    },
+    {
+      "name": "Tambah Machinery dari mode Rata",
+      "trigger": "Step 3 — Admin sedang pada mode Rata, bukan membuka sebuah grup",
+      "steps": [
+        "Admin klik Tambah Mesin dari toolbar",
+        "Admin memilih Machinery Group induk dari dropdown seperti layar lama, karena tidak ada baris grup yang memberi konteks",
+        "Sisa alurnya sama dengan Step 4-5"
+      ]
+    },
+    {
+      "name": "Machinery tanpa Machinery Group",
+      "trigger": "Step 2 — terdapat Machinery yang machinery_group_id-nya kosong",
+      "steps": [
+        "Pada mode Grup, Sistem menampilkannya di wadah 'Tanpa grup' di akhir daftar beserta penghitung pada toolbar",
+        "Pada mode Rata, Sistem menampilkannya sebagai baris biasa dengan kolom grup kosong",
+        "Bila tidak ada satu pun Machinery tanpa grup, wadah 'Tanpa grup' tidak ditampilkan"
+      ]
+    },
+    {
+      "name": "Cari mesin lintas grup",
+      "trigger": "Step 2 — Admin mengetik kata kunci yang cocok pada nama/kode mesin tetapi tidak pada grupnya",
+      "steps": [
+        "Pada mode Grup, Sistem tetap menampilkan grup induknya dalam keadaan TERBUKA dan menandai mesin yang cocok",
+        "Pada mode Rata, Sistem langsung menyaring daftar",
+        "Bila tidak ada yang cocok sama sekali, Sistem menampilkan empty state pencarian, bukan daftar kosong tanpa penjelasan"
       ]
     }
   ],
   "postconditions": [
     "Machinery baru/ubahan tersimpan dan terlihat di daftar dengan Machinery Group induk yang benar, beserta baris riwayat asuransi/pajak yang tersimpan",
-    "Atau Machinery terhapus dari daftar beserta seluruh riwayat asuransi/pajak yang menyertainya"
+    "Atau Machinery terhapus dari daftar beserta seluruh riwayat asuransi/pajak yang menyertainya",
+    "Machinery tetap terlihat pada kedua mode tampilan, termasuk yang belum punya Machinery Group"
   ],
   "business_rules": [
     "Kode peralatan (equipment_code) harus unik di seluruh sistem",
     "Machinery harus terkait ke tepat satu Machinery Group yang sudah ada",
-    "Station dan Business Unit Machinery selalu mengikuti Machinery Group yang dipilih",
+    "Station dan Production Line Machinery selalu mengikuti Machinery Group yang dipilih; Machinery tidak menyimpan business_unit_id — kolom itu dibuang dari tabelnya pada 2026-08-20",
     "Hanya Admin yang dapat mengakses dan mengelola data Machinery beserta riwayat asuransi dan pajak/pembeliannya",
-    "Menghapus Machinery turut menghapus seluruh baris riwayat asuransi dan pajak/pembelian, tidak diblokir"
+    "Menghapus Machinery turut menghapus seluruh baris riwayat asuransi dan pajak/pembelian, tidak diblokir",
+    "Layar wajib menyediakan dua mode tampilan, Grup dan Rata; mode Rata mempertahankan kemampuan melihat seluruh Machinery dalam satu daftar",
+    "Paginasi dihitung per grup pada mode Grup dan per mesin pada mode Rata",
+    "Pencarian mencocokkan grup dan mesin di kedua mode",
+    "Machinery tanpa Machinery Group wajib tetap terlihat di kedua mode"
   ],
   "bdd_scenarios": [
     {
       "scenario": "Kelola Machinery — success",
       "given": "Admin sudah login ke web app dan minimal satu Machinery Group sudah ada",
-      "when": "Admin membuka menu Kelola Machinery, menambah Machinery baru dengan memilih Machinery Group induk, mengisi kode peralatan dan nama",
-      "then": "Machinery baru tersimpan dan terlihat di daftar dengan Machinery Group induk yang benar"
+      "when": "Admin membuka menu 'Kelola Mesin' pada mode Grup, membuka sebuah Machinery Group, klik Tambah Mesin pada baris grup itu, lalu mengisi kode peralatan dan nama mesin — Machinery Group induk sudah terisi otomatis dari baris grup",
+      "then": "Sistem menerima kode peralatan yang unik secara global, menyimpan Machinery baru dengan Station dan Production Line diturunkan otomatis dari Machinery Group induk, dan menampilkan mesin itu di dalam grup tersebut"
     },
     {
       "scenario": "Kelola Machinery — Edit Machinery",
-      "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery",
-      "when": "Admin klik Edit pada salah satu baris Machinery dan mengubah kode peralatan/nama/field spesifikasi lain",
-      "then": "Sistem memvalidasi kode peralatan unik secara global, menyimpan perubahan, dan memperbarui daftar"
+      "given": "Admin sudah login ke web app dan sudah ada Machinery pada daftar layar Kelola Mesin",
+      "when": "Admin memilih sebuah Machinery dari daftar (mode Grup maupun mode Rata), mengubah nama atau field spesifikasi teknisnya, lalu menyimpan",
+      "then": "Sistem memvalidasi kode peralatan unik secara global, menyimpan perubahan, dan daftar menampilkan data Machinery terbaru di bawah Machinery Group induk yang sama"
     },
     {
       "scenario": "Kelola Machinery — Hapus Machinery",
       "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery yang memiliki baris riwayat asuransi/pajak",
-      "when": "Admin klik Hapus pada Machinery tersebut",
-      "then": "Sistem menghapus Machinery beserta seluruh baris riwayat asuransi dan pajak/pembelian yang menyertainya, tanpa penolakan"
+      "when": "Admin memilih sebuah Machinery dari daftar, menghapusnya, lalu mengonfirmasi penghapusan",
+      "then": "Sistem menghapus Machinery beserta seluruh baris riwayat asuransi dan riwayat pajak/pembelian miliknya tanpa penolakan, dan Machinery itu hilang dari daftar pada kedua mode tampilan"
     },
     {
       "scenario": "Kelola Machinery — Kode peralatan duplikat",
-      "given": "Admin sudah login ke web app dan minimal satu Machinery Group sudah ada",
-      "when": "Admin menyimpan kode peralatan yang sudah dipakai Machinery lain",
-      "then": "Sistem menolak penyimpanan dan menampilkan pesan validasi kode peralatan sudah dipakai"
+      "given": "Admin sudah login ke web app dan sudah ada Machinery dengan kode peralatan tertentu",
+      "when": "Admin menyimpan Machinery baru atau hasil edit memakai kode peralatan yang sudah dipakai Machinery lain, walaupun berada di Machinery Group yang berbeda",
+      "then": "Sistem menolak penyimpanan dan menampilkan pesan bahwa kode peralatan harus unik secara global; tidak ada data yang tersimpan"
     },
     {
       "scenario": "Kelola Machinery — Kelola baris Riwayat Asuransi",
-      "given": "Admin sudah login ke web app dan sedang membuka form Tambah/Edit Machinery",
+      "given": "Admin sudah login ke web app dan form Machinery sedang terbuka pada layar Kelola Mesin",
       "when": "Admin menambah satu baris Riwayat Asuransi dengan mengisi nomor polis dan tanggal kedaluwarsa, lalu menyimpan Machinery",
-      "then": "Baris Riwayat Asuransi tersimpan bersamaan dengan data Machinery"
+      "then": "Sistem menyimpan seluruh baris riwayat asuransi bersama Machinery-nya dalam satu aksi simpan, dan grid menampilkan riwayat terbaru ketika form dibuka kembali"
     },
     {
       "scenario": "Kelola Machinery — Kelola baris Riwayat Pajak/Pembelian",
-      "given": "Admin sudah login ke web app dan sedang membuka form Tambah/Edit Machinery",
+      "given": "Admin sudah login ke web app dan form Machinery sedang terbuka pada layar Kelola Mesin",
       "when": "Admin menambah satu baris Riwayat Pajak/Pembelian dengan mengisi tanggal dan biaya pembelian, lalu menyimpan Machinery",
-      "then": "Baris Riwayat Pajak/Pembelian tersimpan bersamaan dengan data Machinery"
+      "then": "Sistem menyimpan seluruh baris riwayat pajak/pembelian bersama Machinery-nya dalam satu aksi simpan, dan grid menampilkan riwayat terbaru ketika form dibuka kembali"
     },
     {
       "scenario": "Kelola Machinery — Belum ada Machinery Group",
-      "given": "Admin sudah login ke web app dan belum ada Machinery Group sama sekali",
-      "when": "Admin membuka form Tambah Machinery",
-      "then": "Sistem menampilkan form tanpa opsi Machinery Group yang dapat dipilih dan mengarahkan Admin untuk membuat Machinery Group terlebih dahulu"
+      "given": "Admin sudah login ke web app dan belum ada satu pun Machinery Group",
+      "when": "Admin membuka menu 'Kelola Mesin' lalu mencoba menambah Machinery",
+      "then": "Sistem tidak mengizinkan penambahan Machinery dan mengarahkan Admin untuk membuat Machinery Group terlebih dahulu"
     },
     {
       "scenario": "Kelola Machinery — akses ditolak untuk non-Admin",
-      "given": "Pengguna sudah login ke web app namun bukan berperan sebagai Admin",
-      "when": "Pengguna mencoba mengakses menu Master Data > Kelola Machinery",
-      "then": "Sistem menolak akses karena hanya Admin yang dapat mengakses dan mengelola data Machinery"
+      "given": "Pengguna dengan peran selain Admin sudah login ke web app",
+      "when": "Pengguna tersebut mencoba membuka layar Kelola Mesin atau memanggil aksi tambah/ubah/hapus Machinery",
+      "then": "Sistem menolak akses dan tidak melakukan perubahan data apa pun pada Machinery, karena hanya Admin yang dapat mengelola data Machinery"
+    },
+    {
+      "scenario": "Kelola Machinery — Lihat seluruh Machinery lewat mode Rata",
+      "given": "Admin sudah login ke web app dan daftar Kelola Mesin sedang tampil pada mode Grup",
+      "when": "Admin mengalihkan mode tampilan dari Grup ke Rata pada toolbar",
+      "then": "Sistem menampilkan seluruh Machinery sebagai satu daftar dengan kolom Machinery Group induk yang dapat difilter per grup, menghitung paginasi per Machinery (20 mesin per halaman) alih-alih per grup, mengembalikan tampilan ke halaman pertama karena satuan paginasinya berbeda, dan tetap mempertahankan kata kunci pencarian"
+    },
+    {
+      "scenario": "Kelola Machinery — Tambah Machinery dari mode Rata",
+      "given": "Admin sudah login ke web app, minimal satu Machinery Group sudah ada, dan daftar Kelola Mesin sedang tampil pada mode Rata",
+      "when": "Admin klik Tambah Mesin dari toolbar tanpa konteks baris grup",
+      "then": "Sistem menampilkan form dengan dropdown Machinery Group yang wajib dipilih Admin, dan setelah grup dipilih sisa alur penyimpanan sama persis dengan penambahan dari mode Grup"
+    },
+    {
+      "scenario": "Kelola Machinery — Machinery tanpa Machinery Group",
+      "given": "Admin sudah login ke web app dan terdapat Machinery yang machinery_group_id-nya kosong",
+      "when": "Admin melihat daftar Kelola Mesin pada mode Grup lalu beralih ke mode Rata",
+      "then": "Pada mode Grup Sistem menampilkan mesin itu di wadah 'Tanpa grup' di akhir daftar beserta penghitungnya pada toolbar, pada mode Rata menampilkannya sebagai baris biasa dengan kolom grup kosong, dan wadah 'Tanpa grup' tidak ditampilkan sama sekali bila tidak ada Machinery tanpa grup"
+    },
+    {
+      "scenario": "Kelola Machinery — Cari mesin lintas grup",
+      "given": "Admin sudah login ke web app dan daftar Kelola Mesin sedang tampil",
+      "when": "Admin mengetik kata kunci yang cocok pada nama atau kode mesin tetapi tidak cocok pada nama grup induknya",
+      "then": "Pada mode Grup Sistem tetap menampilkan grup induknya dalam keadaan terbuka dan menandai mesin yang cocok, pada mode Rata Sistem langsung menyaring daftar, dan bila tidak ada yang cocok sama sekali Sistem menampilkan empty state pencarian alih-alih daftar kosong tanpa penjelasan"
+    },
+    {
+      "scenario": "Kelola Machinery — Machinery wajib terkait tepat satu Machinery Group",
+      "given": "Admin sudah login ke web app dan minimal satu Machinery Group sudah ada",
+      "when": "Admin menyimpan Machinery dari mode Rata tanpa memilih Machinery Group induk pada dropdown",
+      "then": "Sistem menolak penyimpanan dan meminta Admin memilih tepat satu Machinery Group, karena Station dan Production Line hanya dapat diturunkan dari grup induk"
     }
   ],
   "related_screen_ids": [

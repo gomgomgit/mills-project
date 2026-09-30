@@ -14,7 +14,7 @@
  * mount-a-component-directly harness: per this component's own docblock,
  * access control for this screen is enforced entirely at the routing layer
  * ('auth' + 'role:admin' in routes/web.php, EnsureRole::forbidden() ->
- * abort(403)) — Livewire::test(KelolaMachineryGroup::class) instantiates
+ * abort(403)) — Livewire::test(KelolaMachinery::class) instantiates
  * the component directly and does not run route middleware, so it cannot
  * observe that guard. This scenario instead exercises the real HTTP route
  * ($this->actingAs($user, 'web')->get('/master-data/machinery-groups')) to
@@ -34,7 +34,7 @@
  */
 
 use App\Enums\UserRole;
-use App\Livewire\MasterData\KelolaMachineryGroup;
+use App\Livewire\MasterData\KelolaMachinery;
 use App\Models\BusinessUnit;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
@@ -52,17 +52,17 @@ beforeEach(function () {
 // Scenario "Kelola Machinery Group — success"
 it('berhasil: picks a Station, fills the form and creates a machinery group that appears in the list', function () {
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('openCreateForm')
-        ->assertSet('showForm', true)
+        ->test(KelolaMachinery::class)
+        ->call('openCreateGroupForm')
+        ->assertSet('showGroupForm', true)
         ->set('station_id', $this->station->id)
-        ->assertSet('selectedProductionLineName', $this->productionLine->name)
-        ->set('form.group_code', 'MG-LW-001')
-        ->set('form.unit', 'unit')
-        ->call('save')
+        ->assertSet('selectedGroupProductionLineName', $this->productionLine->name)
+        ->set('groupForm.group_code', 'MG-LW-001')
+        ->set('groupForm.unit', 'unit')
+        ->call('saveGroup')
         ->assertHasNoErrors()
-        ->assertSet('showForm', false)
-        ->assertViewHas('machineryGroups', fn ($rows) => collect($rows)->contains(
+        ->assertSet('showGroupForm', false)
+        ->assertViewHas('groupRows', fn ($rows) => collect($rows)->contains(
             fn ($r) => $r['group_code'] === 'MG-LW-001'
                 && $r['station_name'] === 'Weighbridge Awal'
                 && $r['production_line_id'] === $this->station->production_line_id
@@ -81,19 +81,19 @@ it('selectedProductionLineName is purely cosmetic and never affects the persiste
     $otherProductionLine = \App\Models\ProductionLine::factory()->create(['name' => 'Line Lain']);
 
     $component = Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('openCreateForm')
+        ->test(KelolaMachinery::class)
+        ->call('openCreateGroupForm')
         ->set('station_id', $this->station->id)
-        ->assertSet('selectedProductionLineName', $this->productionLine->name);
+        ->assertSet('selectedGroupProductionLineName', $this->productionLine->name);
 
     // Force the display-only property out of sync with reality — this
     // must have zero effect on what gets persisted, since save() never
     // reads it.
-    $component->set('selectedProductionLineName', $otherProductionLine->name);
+    $component->set('selectedGroupProductionLineName', $otherProductionLine->name);
 
     $component
-        ->set('form.group_code', 'MG-LW-COSMETIC')
-        ->call('save')
+        ->set('groupForm.group_code', 'MG-LW-COSMETIC')
+        ->call('saveGroup')
         ->assertHasNoErrors();
 
     $fresh = MachineryGroup::where('group_code', 'MG-LW-COSMETIC')->firstOrFail();
@@ -105,12 +105,12 @@ it('selectedProductionLineName is purely cosmetic and never affects the persiste
 // display-only production line name back to null.
 it('clears selectedProductionLineName when the station selection is cleared', function () {
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('openCreateForm')
+        ->test(KelolaMachinery::class)
+        ->call('openCreateGroupForm')
         ->set('station_id', $this->station->id)
-        ->assertSet('selectedProductionLineName', $this->productionLine->name)
+        ->assertSet('selectedGroupProductionLineName', $this->productionLine->name)
         ->set('station_id', '')
-        ->assertSet('selectedProductionLineName', null);
+        ->assertSet('selectedGroupProductionLineName', null);
 });
 
 // Scenario "Kelola Machinery Group — Edit Machinery Group"
@@ -119,17 +119,17 @@ it('Edit Machinery Group: loads the existing values (including the derived Produ
     $machineryGroup = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-LW-002')->create();
 
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('openEditForm', $machineryGroup->id)
-        ->assertSet('editingId', $machineryGroup->id)
+        ->test(KelolaMachinery::class)
+        ->call('openEditGroupForm', $machineryGroup->id)
+        ->assertSet('editingGroupId', $machineryGroup->id)
         ->assertSet('station_id', $this->station->id)
-        ->assertSet('selectedProductionLineName', $this->productionLine->name)
-        ->assertSet('form.group_code', 'MG-LW-002')
+        ->assertSet('selectedGroupProductionLineName', $this->productionLine->name)
+        ->assertSet('groupForm.group_code', 'MG-LW-002')
         ->set('station_id', $stationB->id)
-        ->set('form.group_code', 'MG-LW-003')
-        ->call('save')
+        ->set('groupForm.group_code', 'MG-LW-003')
+        ->call('saveGroup')
         ->assertHasNoErrors()
-        ->assertViewHas('machineryGroups', fn ($rows) => collect($rows)->contains(
+        ->assertViewHas('groupRows', fn ($rows) => collect($rows)->contains(
             fn ($r) => $r['id'] === $machineryGroup->id
                 && $r['group_code'] === 'MG-LW-003'
                 && $r['station_name'] === 'Weighbridge Tujuan'
@@ -144,13 +144,13 @@ it('Hapus berhasil: removes the row from the list after confirmation', function 
     $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create();
 
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('askDelete', $machineryGroup->id)
-        ->assertSet('confirmingDeleteId', $machineryGroup->id)
-        ->call('confirmDelete')
-        ->assertSet('confirmingDeleteId', null)
-        ->assertSet('deleteErrorMessage', null)
-        ->assertViewHas('machineryGroups', fn ($rows) => ! collect($rows)->contains(
+        ->test(KelolaMachinery::class)
+        ->call('askDeleteGroup', $machineryGroup->id)
+        ->assertSet('confirmingDeleteGroupId', $machineryGroup->id)
+        ->call('confirmDeleteGroup')
+        ->assertSet('confirmingDeleteGroupId', null)
+        ->assertSet('deleteGroupErrorMessage', null)
+        ->assertViewHas('groupRows', fn ($rows) => ! collect($rows)->contains(
             fn ($r) => $r['id'] === $machineryGroup->id
         ));
 
@@ -163,12 +163,12 @@ it('Hapus ditolak: shows an inline error and keeps the row when it has related M
     Machinery::factory()->forMachineryGroup($machineryGroup)->create(['station_id' => $this->station->id]);
 
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('askDelete', $machineryGroup->id)
-        ->call('confirmDelete')
-        ->assertSet('confirmingDeleteId', null)
-        ->assertSet('deleteErrorMessage', fn ($message) => ! empty($message))
-        ->assertViewHas('machineryGroups', fn ($rows) => collect($rows)->contains(
+        ->test(KelolaMachinery::class)
+        ->call('askDeleteGroup', $machineryGroup->id)
+        ->call('confirmDeleteGroup')
+        ->assertSet('confirmingDeleteGroupId', null)
+        ->assertSet('deleteGroupErrorMessage', fn ($message) => ! empty($message))
+        ->assertViewHas('groupRows', fn ($rows) => collect($rows)->contains(
             fn ($r) => $r['id'] === $machineryGroup->id
         ));
 
@@ -181,10 +181,10 @@ it('cancelDelete: cancels the inline confirmation without deleting the row', fun
     $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create();
 
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('askDelete', $machineryGroup->id)
-        ->call('cancelDelete')
-        ->assertSet('confirmingDeleteId', null);
+        ->test(KelolaMachinery::class)
+        ->call('askDeleteGroup', $machineryGroup->id)
+        ->call('cancelDeleteGroup')
+        ->assertSet('confirmingDeleteGroupId', null);
 
     expect(MachineryGroup::find($machineryGroup->id))->not->toBeNull();
 });
@@ -194,13 +194,13 @@ it('Kode duplikat (create): shows a validation error under form.group_code and d
     MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-LW-004')->create();
 
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('openCreateForm')
+        ->test(KelolaMachinery::class)
+        ->call('openCreateGroupForm')
         ->set('station_id', $this->station->id)
-        ->set('form.group_code', 'MG-LW-004')
-        ->call('save')
-        ->assertHasErrors(['form.group_code'])
-        ->assertSet('showForm', true);
+        ->set('groupForm.group_code', 'MG-LW-004')
+        ->call('saveGroup')
+        ->assertHasErrors(['groupForm.group_code'])
+        ->assertSet('showGroupForm', true);
 
     expect(MachineryGroup::where('group_code', 'MG-LW-004')->count())->toBe(1);
 });
@@ -211,12 +211,12 @@ it('Kode duplikat (edit): shows a validation error under form.group_code and doe
     $target = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-LW-TARGET')->create();
 
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('openEditForm', $target->id)
-        ->set('form.group_code', 'MG-LW-OTHER')
-        ->call('save')
-        ->assertHasErrors(['form.group_code'])
-        ->assertSet('showForm', true);
+        ->test(KelolaMachinery::class)
+        ->call('openEditGroupForm', $target->id)
+        ->set('groupForm.group_code', 'MG-LW-OTHER')
+        ->call('saveGroup')
+        ->assertHasErrors(['groupForm.group_code'])
+        ->assertSet('showGroupForm', true);
 
     expect($target->fresh()->group_code)->toBe('MG-LW-TARGET');
 });
@@ -227,10 +227,10 @@ it('updates a machinery group keeping its own group_code unchanged without error
     $machineryGroup = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-LW-SELF')->create(['description' => 'Lama']);
 
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('openEditForm', $machineryGroup->id)
-        ->set('form.description', 'Baru')
-        ->call('save')
+        ->test(KelolaMachinery::class)
+        ->call('openEditGroupForm', $machineryGroup->id)
+        ->set('groupForm.description', 'Baru')
+        ->call('saveGroup')
         ->assertHasNoErrors();
 
     expect($machineryGroup->fresh()->description)->toBe('Baru');
@@ -240,12 +240,12 @@ it('updates a machinery group keeping its own group_code unchanged without error
 // Station wajib dipilih.
 it('Station wajib dipilih: shows a validation error under station_id and does not create a row', function () {
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('openCreateForm')
-        ->set('form.group_code', 'MG-LW-NOSTATION')
-        ->call('save')
+        ->test(KelolaMachinery::class)
+        ->call('openCreateGroupForm')
+        ->set('groupForm.group_code', 'MG-LW-NOSTATION')
+        ->call('saveGroup')
         ->assertHasErrors(['station_id'])
-        ->assertSet('showForm', true);
+        ->assertSet('showGroupForm', true);
 
     expect(MachineryGroup::where('group_code', 'MG-LW-NOSTATION')->exists())->toBeFalse();
 });
@@ -253,12 +253,12 @@ it('Station wajib dipilih: shows a validation error under station_id and does no
 // Kode kosong.
 it('Kode kosong (create): shows a validation error under form.group_code and does not create a row', function () {
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('openCreateForm')
+        ->test(KelolaMachinery::class)
+        ->call('openCreateGroupForm')
         ->set('station_id', $this->station->id)
-        ->call('save')
-        ->assertHasErrors(['form.group_code'])
-        ->assertSet('showForm', true);
+        ->call('saveGroup')
+        ->assertHasErrors(['groupForm.group_code'])
+        ->assertSet('showGroupForm', true);
 
     expect(MachineryGroup::count())->toBe(0);
 });
@@ -266,14 +266,14 @@ it('Kode kosong (create): shows a validation error under form.group_code and doe
 // workshop_factor non-numeric.
 it('Workshop Factor bukan angka: shows a validation error under form.workshop_factor', function () {
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('openCreateForm')
+        ->test(KelolaMachinery::class)
+        ->call('openCreateGroupForm')
         ->set('station_id', $this->station->id)
-        ->set('form.group_code', 'MG-LW-BADWF')
-        ->set('form.workshop_factor', 'bukan-angka')
-        ->call('save')
-        ->assertHasErrors(['form.workshop_factor'])
-        ->assertSet('showForm', true);
+        ->set('groupForm.group_code', 'MG-LW-BADWF')
+        ->set('groupForm.workshop_factor', 'bukan-angka')
+        ->call('saveGroup')
+        ->assertHasErrors(['groupForm.workshop_factor'])
+        ->assertSet('showGroupForm', true);
 
     expect(MachineryGroup::where('group_code', 'MG-LW-BADWF')->exists())->toBeFalse();
 });
@@ -282,15 +282,15 @@ it('Workshop Factor bukan angka: shows a validation error under form.workshop_fa
 // starts clean.
 it('closeForm: resets the form and hides it', function () {
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('openCreateForm')
+        ->test(KelolaMachinery::class)
+        ->call('openCreateGroupForm')
         ->set('station_id', $this->station->id)
-        ->set('form.group_code', 'MG-LW-DRAFT')
-        ->call('closeForm')
-        ->assertSet('showForm', false)
-        ->assertSet('form.group_code', '')
+        ->set('groupForm.group_code', 'MG-LW-DRAFT')
+        ->call('closeGroupForm')
+        ->assertSet('showGroupForm', false)
+        ->assertSet('groupForm.group_code', '')
         ->assertSet('station_id', '')
-        ->assertSet('selectedProductionLineName', null);
+        ->assertSet('selectedGroupProductionLineName', null);
 
     expect(MachineryGroup::where('group_code', 'MG-LW-DRAFT')->exists())->toBeFalse();
 });
@@ -302,15 +302,15 @@ it('save (edit): shows a friendly error message when the machinery group was del
     $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create();
 
     $component = Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
-        ->call('openEditForm', $machineryGroup->id);
+        ->test(KelolaMachinery::class)
+        ->call('openEditGroupForm', $machineryGroup->id);
 
     $machineryGroup->delete();
 
     $component
-        ->set('form.group_code', 'MG-LW-DIHAPUS')
-        ->call('save')
-        ->assertSet('formErrorMessage', fn ($message) => ! empty($message));
+        ->set('groupForm.group_code', 'MG-LW-DIHAPUS')
+        ->call('saveGroup')
+        ->assertSet('groupFormErrorMessage', fn ($message) => ! empty($message));
 });
 
 // Scenario "Kelola Machinery Group — Akses ditolak untuk non-Admin" (see
@@ -336,7 +336,7 @@ it('nextPage/previousPage: paginates the list and clamps at page 1', function ()
     MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-LW-PB')->create();
 
     $component = Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
+        ->test(KelolaMachinery::class)
         ->set('perPage', 1)
         ->assertSet('page', 1)
         ->call('nextPage')
@@ -357,9 +357,9 @@ it('filters the list when filterStationId is set, resetting to page 1', function
     MachineryGroup::factory()->forStation($stationB)->withGroupCode('MG-LW-B1')->create();
 
     Livewire::actingAs($this->admin)
-        ->test(KelolaMachineryGroup::class)
+        ->test(KelolaMachinery::class)
         ->set('page', 2)
         ->set('filterStationId', $this->station->id)
         ->assertSet('page', 1)
-        ->assertViewHas('machineryGroups', fn ($rows) => collect($rows)->pluck('group_code')->all() === ['MG-LW-A1']);
+        ->assertViewHas('groupRows', fn ($rows) => collect($rows)->pluck('group_code')->all() === ['MG-LW-A1']);
 });

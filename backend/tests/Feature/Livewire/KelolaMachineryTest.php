@@ -61,6 +61,11 @@ beforeEach(function () {
 it('berhasil: picks a Machinery Group, fills the form and creates a machinery that appears in the list', function () {
     Livewire::actingAs($this->admin)
         ->test(KelolaMachinery::class)
+        // machineryRows adalah daftar RATA; sejak penggabungan layar
+        // (2026-09-30) daftar itu hidup di mode Rata, sementara mode Grup
+        // menampilkan mesin menjorok di dalam grupnya. Asersinya tidak
+        // berubah — hanya mode tempat daftar itu berada yang disebutkan.
+        ->set('viewMode', 'rata')
         ->call('openCreateForm')
         ->assertSet('showForm', true)
         ->set('machinery_group_id', $this->group->id)
@@ -122,6 +127,11 @@ it('Edit Machinery: loads the existing values then updates the equipment_code/na
 
     Livewire::actingAs($this->admin)
         ->test(KelolaMachinery::class)
+        // machineryRows adalah daftar RATA; sejak penggabungan layar
+        // (2026-09-30) daftar itu hidup di mode Rata, sementara mode Grup
+        // menampilkan mesin menjorok di dalam grupnya. Asersinya tidak
+        // berubah — hanya mode tempat daftar itu berada yang disebutkan.
+        ->set('viewMode', 'rata')
         ->call('openEditForm', $machinery->id)
         ->assertSet('editingId', $machinery->id)
         ->assertSet('machinery_group_id', $this->group->id)
@@ -437,6 +447,11 @@ it('filters the list when filterMachineryGroupId is set, resetting to page 1', f
 
     Livewire::actingAs($this->admin)
         ->test(KelolaMachinery::class)
+        // machineryRows adalah daftar RATA; sejak penggabungan layar
+        // (2026-09-30) daftar itu hidup di mode Rata, sementara mode Grup
+        // menampilkan mesin menjorok di dalam grupnya. Asersinya tidak
+        // berubah — hanya mode tempat daftar itu berada yang disebutkan.
+        ->set('viewMode', 'rata')
         ->set('page', 2)
         ->set('filterMachineryGroupId', $this->group->id)
         ->assertSet('page', 1)

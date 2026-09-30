@@ -37,7 +37,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->service = new MachineryGroupService();
+    $this->service = new MachineryGroupService;
 });
 
 // --- create(): validation -------------------------------------------------
@@ -384,11 +384,15 @@ it('lists machinery groups paginated with station_name, production_line_id, and 
 
     $result = $this->service->listMachineryGroups(1, 20);
 
+    // ungrouped_machinery_count rides along on meta so machines with no
+    // group stay visible on the merged screen. Both factory groups own their
+    // machines here, so it is 0 — asserted as a number, not omitted.
     expect($result['meta'])->toBe([
         'page' => 1,
         'per_page' => 20,
         'total' => 2,
         'total_pages' => 1,
+        'ungrouped_machinery_count' => 0,
     ]);
     expect($result['data'])->toHaveCount(2);
 
@@ -411,6 +415,7 @@ it('paginates the machinery group list by page and per_page', function () {
         'per_page' => 1,
         'total' => 2,
         'total_pages' => 2,
+        'ungrouped_machinery_count' => 0,
     ]);
     expect($result['data'])->toHaveCount(1);
 });
@@ -448,4 +453,117 @@ it('returns an empty station options list when no stations exist', function () {
     $result = $this->service->stationOptions();
 
     expect($result)->toBe([]);
+});
+
+/*
+ * ────────────────────────────────────────────────────────────────────────
+ * Penggabungan layar Kelola Mesin (2026-09-30) — listMachineryGroups()
+ * jadi tulang punggung mode Grup: paginasi PER GRUP, pencarian yang juga
+ * menjangkau mesin di dalamnya, dan penghitung mesin tanpa grup di meta.
+ * ────────────────────────────────────────────────────────────────────────
+ */
+
+it('paginates by group, not by the rows that end up on screen', function () {
+    // 3 grup, masing-masing 5 mesin = 15 baris kalau mesin ikut terhitung.
+    // Dengan per_page 2 yang benar adalah: 2 grup di halaman 1, total 3.
+    // Skalanya sengaja kecil — StationFactory/ProductionLineFactory memakai
+    // faker unique() numerify('##') yang kolamnya sudah terpakai test lain
+    // di berkas ini, jadi 25 grup menguras dan meledak di fixture, bukan
+    // di perilaku yang sedang diuji.
+    MachineryGroup::factory()->count(3)->create()->each(function ($group, $g) {
+        foreach (range(1, 5) as $m) {
+            Machinery::factory()->forFullMachineryGroup($group)->create([
+                'equipment_code' => sprintf('EQ-PG-%d-%d', $g, $m),
+                'name' => sprintf('Mesin Paginasi %d-%d', $g, $m),
+            ]);
+        }
+    });
+
+    $result = $this->service->listMachineryGroups(1, 2);
+
+    expect($result['data'])->toHaveCount(2);
+    expect($result['meta']['total'])->toBe(3);
+    expect($result['meta']['total_pages'])->toBe(2);
+    // Mesin yang tampil karena grupnya dibuka datang dari permintaan lain
+    // (MachineryService::listMachinery), jadi mustahil ikut terhitung di sini.
+    expect($result['data'][0]['machinery_count'])->toBe(5);
+});
+
+it('finds a group by its own group_code or description', function () {
+    $hit = MachineryGroup::factory()->create(['group_code' => 'STR-FIND', 'description' => 'Kelompok sterilizer']);
+    MachineryGroup::factory()->create(['group_code' => 'PRS-OTHER', 'description' => 'Kelompok pressing']);
+
+    $byCode = $this->service->listMachineryGroups(1, 20, null, 'str-find');
+    expect($byCode['data'])->toHaveCount(1);
+    expect($byCode['data'][0]['id'])->toBe($hit->id);
+
+    $byDescription = $this->service->listMachineryGroups(1, 20, null, 'sterilizer');
+    expect($byDescription['data'])->toHaveCount(1);
+    expect($byDescription['data'][0]['id'])->toBe($hit->id);
+});
+
+/*
+ * Inti dari pencarian lintas grup. Tanpa penanda ini FE tidak tahu grup
+ * mana yang harus dibuka otomatis, dan mesin yang cocok tetap tersembunyi
+ * di balik baris grup yang tertutup — hasilnya sama saja dengan tidak
+ * ditemukan sama sekali.
+ */
+it('brings back a group whose MACHINE matched, flagged so the UI can auto-expand it', function () {
+    $group = MachineryGroup::factory()->create(['group_code' => 'PRS-01', 'description' => 'Kelompok press']);
+    Machinery::factory()->forFullMachineryGroup($group)->create(['name' => 'Screw Conveyor Utama']);
+
+    // 'screw' tidak cocok pada grupnya — hanya pada mesin di dalamnya.
+    $result = $this->service->listMachineryGroups(1, 20, null, 'screw');
+
+    expect($result['data'])->toHaveCount(1);
+    expect($result['data'][0]['id'])->toBe($group->id);
+    expect($result['data'][0]['has_search_match_in_machinery'])->toBeTrue();
+});
+
+it('leaves the flag false when only the group itself matched', function () {
+    $group = MachineryGroup::factory()->create(['group_code' => 'STR-01', 'description' => null]);
+    Machinery::factory()->forFullMachineryGroup($group)->create(['name' => 'Tidak Berkaitan', 'equipment_code' => 'EQ-XY-1']);
+
+    $result = $this->service->listMachineryGroups(1, 20, null, 'str-01');
+
+    expect($result['data'])->toHaveCount(1);
+    expect($result['data'][0]['has_search_match_in_machinery'])->toBeFalse();
+});
+
+it('always projects the flag, even with no search term at all', function () {
+    MachineryGroup::factory()->create();
+
+    $result = $this->service->listMachineryGroups(1, 20);
+
+    // Hadir sebagai false, bukan kunci yang hilang — bentuk respons tidak
+    // boleh berubah hanya karena ada atau tidaknya kata kunci.
+    expect($result['data'][0])->toHaveKey('has_search_match_in_machinery');
+    expect($result['data'][0]['has_search_match_in_machinery'])->toBeFalse();
+});
+
+it('counts machinery with no group on meta', function () {
+    $group = MachineryGroup::factory()->create();
+    Machinery::factory()->count(2)->forFullMachineryGroup($group)->create();
+    Machinery::factory()->count(3)->create(['machinery_group_id' => null]);
+
+    expect($this->service->listMachineryGroups(1, 20)['meta']['ungrouped_machinery_count'])->toBe(3);
+});
+
+it('reports zero ungrouped machinery as a number, not a missing key', function () {
+    $group = MachineryGroup::factory()->create();
+    Machinery::factory()->count(2)->forFullMachineryGroup($group)->create();
+
+    $meta = $this->service->listMachineryGroups(1, 20)['meta'];
+
+    expect($meta)->toHaveKey('ungrouped_machinery_count');
+    expect($meta['ungrouped_machinery_count'])->toBe(0);
+});
+
+it('returns an empty group list when nothing matches the search', function () {
+    MachineryGroup::factory()->create(['group_code' => 'STR-01']);
+
+    $result = $this->service->listMachineryGroups(1, 20, null, 'tidak-ada-yang-cocok');
+
+    expect($result['data'])->toBe([]);
+    expect($result['meta']['total'])->toBe(0);
 });

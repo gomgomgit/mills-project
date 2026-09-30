@@ -49,9 +49,28 @@ class MachineryGroupService
      * machinery_count) — a single query regardless of page size, same
      * approach as StationService::listStations()'s
      * with('businessUnit')/withCount('machineryGroups').
+     *
+     * Backbone of the merged Kelola Mesin screen's Grup mode. Pagination is
+     * counted PER GROUP: machines shown because a group was expanded come
+     * from MachineryService::listMachinery(), a different request, so they
+     * can never inflate this page's count. With 223 groups averaging 3
+     * machines, counting rows instead would blow one page out to ~80 rows.
+     *
+     * $search matches the group's own group_code/description OR any machine
+     * inside it. When only a machine matched, has_search_match_in_machinery
+     * comes back true — that flag is the only thing that lets the FE know
+     * which groups to auto-expand. Without it a hit sitting inside a closed
+     * group is indistinguishable from no hit at all.
      */
-    public function listMachineryGroups(int $page, int $perPage, ?string $stationId = null): array
-    {
+    public function listMachineryGroups(
+        int $page,
+        int $perPage,
+        ?string $stationId = null,
+        ?string $search = null,
+    ): array {
+        $hasSearch = $search !== null && $search !== '';
+        $needle = $hasSearch ? '%'.mb_strtolower($search).'%' : null;
+
         $query = MachineryGroup::query()
             ->with(['station', 'productionLine'])
             ->withCount('machinery')
@@ -61,12 +80,44 @@ class MachineryGroupService
             $query->where('station_id', $stationId);
         }
 
+        // lower()+LIKE rather than ILIKE or a bare LIKE — see the same note
+        // in MachineryService::listMachinery(). SQLite rejects ILIKE with a
+        // syntax error; a bare LIKE passes every test and then silently
+        // misses case on PostgreSQL.
+        $machineryMatches = fn ($m) => $m->where(
+            fn ($q) => $q->whereRaw('lower(equipment_code) LIKE ?', [$needle])
+                ->orWhereRaw('lower(name) LIKE ?', [$needle])
+        );
+
+        if ($hasSearch) {
+            $query->where(function ($q) use ($needle, $machineryMatches) {
+                $q->whereRaw('lower(group_code) LIKE ?', [$needle])
+                    ->orWhereRaw('lower(coalesce(description, \'\')) LIKE ?', [$needle])
+                    ->orWhereHas('machinery', $machineryMatches);
+            });
+        }
+
+        // Always project the flag so the response shape never changes with
+        // the presence of a search term. Without a search it is a constant
+        // false rather than a missing key.
+        $query->withExists(['machinery as has_search_match_in_machinery' => $hasSearch
+            ? $machineryMatches
+            : fn ($m) => $m->whereRaw('1 = 0'),
+        ]);
+
         $paginator = $query->paginate(perPage: $perPage, page: $page);
 
         $formatted = Pagination::format($paginator);
         $formatted['data'] = collect($formatted['data'])
             ->map(fn (MachineryGroup $machineryGroup) => $this->toRow($machineryGroup))
             ->all();
+
+        // Machines with no group would otherwise be invisible on this screen.
+        // Carried on meta of an endpoint that already exists rather than a
+        // dedicated counter route — one aggregate query per request.
+        $formatted['meta']['ungrouped_machinery_count'] = Machinery::query()
+            ->whereNull('machinery_group_id')
+            ->count();
 
         return $formatted;
     }
@@ -292,6 +343,9 @@ class MachineryGroupService
             'workshop_factor' => $machineryGroup->workshop_factor !== null ? (float) $machineryGroup->workshop_factor : null,
             'cost_per_equipment' => $machineryGroup->cost_per_equipment !== null ? (float) $machineryGroup->cost_per_equipment : null,
             'machinery_count' => (int) ($machineryGroup->machinery_count ?? 0),
+            // Set by listMachineryGroups()'s withExists(); absent on the rows
+            // returned by create()/update(), where no search is in play.
+            'has_search_match_in_machinery' => (bool) ($machineryGroup->has_search_match_in_machinery ?? false),
             'created_at' => optional($machineryGroup->created_at)->toIso8601String(),
         ];
     }

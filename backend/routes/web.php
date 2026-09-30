@@ -201,19 +201,24 @@ Route::middleware(['auth', 'role:admin'])
     ->get('/master-data/stations', \App\Livewire\MasterData\KelolaStation::class)
     ->name('master-data.stations');
 
-// screen-033--kelola-machinery-group
-// Session-guarded ('auth') + role-guarded (admin only, per
-// screen_tech_spec.actor_permissions — supervisor/mill_management/
-// operator all have can_access=false for this screen). Mirrors
-// screen-027/028/029/030's registration pattern exactly —
-// EnsureRole::forbidden() aborts(403) with Laravel's default HTML error
-// page for any non-admin session before
-// App\Livewire\MasterData\KelolaMachineryGroup ever mounts.
-Route::middleware(['auth', 'role:admin'])
-    ->get('/master-data/machinery-groups', \App\Livewire\MasterData\KelolaMachineryGroup::class)
-    ->name('master-data.machinery-groups');
+// screen-033--kelola-machinery-group — DISERAP ke screen-031 (2026-09-30).
+// Rute ini TIDAK dihapus, hanya dialihkan: bookmark dan tautan lama akan
+// patah kalau dibiarkan 404, dan nama rute 'master-data.machinery-groups'
+// masih dipakai route() di beberapa tempat. Pengalihan permanen (301)
+// supaya peramban dan crawler ikut memperbarui.
+//
+// Guard 'auth'+'role:admin' dipertahankan: mengalihkan lebih dulu akan
+// membocorkan keberadaan halaman admin ke sesi non-admin, yang sebelumnya
+// dijawab 403.
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    // Route::redirect() tidak tersedia di RouteRegistrar, jadi harus di
+    // dalam group() — bukan dirantai setelah middleware().
+    Route::redirect('/master-data/machinery-groups', '/master-data/machinery', 301)
+        ->name('master-data.machinery-groups');
+});
 
-// screen-031--kelola-machinery
+// screen-031--kelola-machinery — Kelola Mesin (hasil penggabungan dengan
+// screen-033 pada 2026-09-30: satu layar untuk Machinery Group dan Machinery).
 // Session-guarded ('auth') + role-guarded (admin only, per
 // screen_tech_spec.actor_permissions — supervisor/mill_management/
 // operator all have can_access=false for this screen). Mirrors

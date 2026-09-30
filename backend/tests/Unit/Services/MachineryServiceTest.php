@@ -39,14 +39,16 @@ use App\Services\MachineryService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->service = new MachineryService();
+    $this->service = new MachineryService;
 });
 
 if (! function_exists('makeMachineryGroupFixture')) {
@@ -72,7 +74,7 @@ it('throws a ValidationException when creating without a machinery_group_id', fu
 it('throws a ValidationException when creating with a machinery_group_id that does not exist', function () {
     try {
         $this->service->create([
-            'machinery_group_id' => (string) \Illuminate\Support\Str::uuid(),
+            'machinery_group_id' => (string) Str::uuid(),
             'equipment_code' => 'EQ-002',
             'name' => 'Mesin Group Tak Ada',
         ]);
@@ -290,7 +292,7 @@ it('throws a ValidationException when updating to an equipment_code already used
 it('throws a ModelNotFoundException when updating a machinery id that does not exist', function () {
     $group = makeMachineryGroupFixture();
 
-    expect(fn () => $this->service->update((string) \Illuminate\Support\Str::uuid(), [
+    expect(fn () => $this->service->update((string) Str::uuid(), [
         'machinery_group_id' => $group->id,
         'equipment_code' => 'EQ-404',
         'name' => 'Tidak Ada',
@@ -376,7 +378,7 @@ it('deletes a machinery and its child rows successfully, even when child rows ex
 });
 
 it('throws a ModelNotFoundException when deleting a machinery id that does not exist', function () {
-    expect(fn () => $this->service->delete((string) \Illuminate\Support\Str::uuid()))
+    expect(fn () => $this->service->delete((string) Str::uuid()))
         ->toThrow(ModelNotFoundException::class);
 });
 
@@ -485,6 +487,144 @@ it('returns detail() with insurances/tax_purchases arrays populated', function (
 });
 
 it('throws a ModelNotFoundException when fetching detail() for a machinery id that does not exist', function () {
-    expect(fn () => $this->service->detail((string) \Illuminate\Support\Str::uuid()))
+    expect(fn () => $this->service->detail((string) Str::uuid()))
         ->toThrow(ModelNotFoundException::class);
+});
+
+/*
+ * ────────────────────────────────────────────────────────────────────────
+ * Penggabungan layar Kelola Mesin (2026-09-30) — listMachinery() kini
+ * melayani TIGA peran lewat argumen yang saling eksklusif: isi satu grup
+ * yang dibuka, wadah "Tanpa grup", dan daftar rata mode Rata.
+ * ────────────────────────────────────────────────────────────────────────
+ */
+
+it('returns only ungrouped machinery when ungrouped is true', function () {
+    $group = MachineryGroup::factory()->create();
+    Machinery::factory()->count(3)->forFullMachineryGroup($group)->create();
+    Machinery::factory()->count(2)->create(['machinery_group_id' => null]);
+
+    $result = $this->service->listMachinery(1, 20, null, true);
+
+    expect($result['data'])->toHaveCount(2);
+    foreach ($result['data'] as $row) {
+        expect($row['machinery_group_id'])->toBeNull();
+        expect($row['machinery_group_code'])->toBeNull();
+    }
+});
+
+it('rejects machinery_group_id and ungrouped sent together', function () {
+    $group = MachineryGroup::factory()->create();
+
+    expect(fn () => $this->service->listMachinery(1, 20, $group->id, true))
+        ->toThrow(ValidationException::class);
+});
+
+it('keeps the ungrouped bucket separate from a group filter', function () {
+    $group = MachineryGroup::factory()->create();
+    Machinery::factory()->count(4)->forFullMachineryGroup($group)->create();
+    Machinery::factory()->create(['machinery_group_id' => null]);
+
+    expect($this->service->listMachinery(1, 20, $group->id)['data'])->toHaveCount(4);
+    expect($this->service->listMachinery(1, 20, null, true)['data'])->toHaveCount(1);
+    // No filter at all = mode Rata: every machine, grouped or not.
+    expect($this->service->listMachinery(1, 20)['data'])->toHaveCount(5);
+});
+
+it('searches machinery on equipment_code and on name', function () {
+    $group = MachineryGroup::factory()->create();
+    Machinery::factory()->forFullMachineryGroup($group)
+        ->create(['equipment_code' => 'EQ-SEARCH-1', 'name' => 'Screw Press Utama']);
+    Machinery::factory()->forFullMachineryGroup($group)
+        ->create(['equipment_code' => 'EQ-OTHER-2', 'name' => 'Boiler Feed']);
+
+    $byName = $this->service->listMachinery(1, 20, null, false, 'press');
+    expect($byName['data'])->toHaveCount(1);
+    expect($byName['data'][0]['equipment_code'])->toBe('EQ-SEARCH-1');
+
+    $byCode = $this->service->listMachinery(1, 20, null, false, 'EQ-OTHER-2');
+    expect($byCode['data'])->toHaveCount(1);
+    expect($byCode['data'][0]['name'])->toBe('Boiler Feed');
+});
+
+/*
+ * Jebakan lintas driver, dibuktikan langsung sebelum kode ditulis:
+ * SQLite MENOLAK ILIKE (syntax error), sementara LIKE polos case-INSENSITIVE
+ * di SQLite tapi case-SENSITIVE di PostgreSQL. Artinya LIKE polos akan lolos
+ * seluruh suite ini lalu gagal di produksi. Test ini memakai kapitalisasi
+ * yang BERBEDA dari data supaya perbedaan itu tertangkap, bukan tersamar.
+ */
+it('matches the search term regardless of letter case', function () {
+    $group = MachineryGroup::factory()->create();
+    Machinery::factory()->forFullMachineryGroup($group)
+        ->create(['equipment_code' => 'EQ-CASE-1', 'name' => 'Screw Press Utama']);
+
+    foreach (['press', 'PRESS', 'PrEsS'] as $term) {
+        expect($this->service->listMachinery(1, 20, null, false, $term)['data'])
+            ->toHaveCount(1, "kata kunci '{$term}' harus cocok");
+    }
+    expect($this->service->listMachinery(1, 20, null, false, 'eq-case-1')['data'])
+        ->toHaveCount(1, 'kode peralatan juga harus cocok tanpa peduli kapitalisasi');
+});
+
+it('ANDs the search with the group filter instead of ORing it', function () {
+    $groupA = MachineryGroup::factory()->create();
+    $groupB = MachineryGroup::factory()->create();
+    Machinery::factory()->forFullMachineryGroup($groupA)->create(['name' => 'Press Satu']);
+    Machinery::factory()->forFullMachineryGroup($groupB)->create(['name' => 'Press Dua']);
+
+    $result = $this->service->listMachinery(1, 20, $groupA->id, false, 'press');
+
+    // OR would leak 'Press Dua' in from group B.
+    expect($result['data'])->toHaveCount(1);
+    expect($result['data'][0]['name'])->toBe('Press Satu');
+});
+
+it('returns an empty list rather than an error when the search matches nothing', function () {
+    Machinery::factory()->forFullMachineryGroup()->create(['name' => 'Screw Press']);
+
+    $result = $this->service->listMachinery(1, 20, null, false, 'tidak-ada-yang-cocok');
+
+    expect($result['data'])->toBe([]);
+    expect($result['meta']['total'])->toBe(0);
+});
+
+/*
+ * Test perilaku di atas TIDAK bisa menangkap regresi ini, dan itu perlu
+ * dinyatakan terang-terangan: di SQLite, LIKE polos sudah case-insensitive,
+ * jadi mengembalikan kode ke bentuk yang rusak di PostgreSQL tetap membuat
+ * seluruh suite hijau. Satu-satunya cara mengunci tanpa menjalankan test di
+ * PostgreSQL adalah memeriksa BENTUK SQL-nya.
+ *
+ * Dibuktikan langsung di kedua driver sebelum kode ditulis:
+ *   SQLite      ILIKE -> syntax error | LIKE -> cocok | lower()+LIKE -> cocok
+ *   PostgreSQL  ILIKE -> cocok        | LIKE -> 0 BARIS | lower()+LIKE -> cocok
+ */
+it('lowercases both sides of the search comparison in the generated SQL', function () {
+    Machinery::factory()->forFullMachineryGroup()->create();
+
+    DB::enableQueryLog();
+    $this->service->listMachinery(1, 20, null, false, 'PrEsS');
+    $log = DB::getQueryLog();
+    DB::disableQueryLog();
+
+    // Dicocokkan pada versi huruf kecil: SQL mentah mempertahankan
+    // kapitalisasi yang ditulis di service, jadi pencocokan literal rapuh.
+    $select = collect($log)->pluck('query')
+        ->map(fn ($q) => strtolower($q))
+        ->first(fn ($q) => str_contains($q, ' like '));
+    expect($select)->not->toBeNull('query pencarian tidak ditemukan di query log');
+
+    // Kolom dibungkus lower() — inilah yang membuatnya sama di kedua driver.
+    expect($select)->toContain('lower(equipment_code) like');
+    expect($select)->toContain('lower(name) like');
+
+    // ILIKE tidak boleh muncul: SQLite menolaknya mentah-mentah.
+    expect($select)->not->toContain('ilike');
+
+    // Sisi nilai juga harus sudah huruf kecil sebelum dikirim.
+    $binding = collect($log)->pluck('bindings')->flatten()->first(
+        fn ($b) => is_string($b) && str_contains($b, 'press')
+    );
+    expect($binding)->toBe('%press%', 'kata kunci harus di-lowercase sebelum jadi binding');
 });

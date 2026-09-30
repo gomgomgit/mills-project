@@ -2,8 +2,11 @@
 
 namespace App\Livewire\MasterData;
 
+use App\Exceptions\MachineryGroupHasMachineryException;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Models\Station;
+use App\Services\MachineryGroupService;
 use App\Services\MachineryService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Storage;
@@ -12,6 +15,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 
 /**
@@ -117,9 +121,58 @@ class KelolaMachinery extends Component
 
     public ?string $deleteErrorMessage = null;
 
+    /*
+     |--------------------------------------------------------------------
+     | Penggabungan screen-031 + screen-033 (2026-09-30)
+     |--------------------------------------------------------------------
+     | Layar ini menyerap Kelola Machinery Group. Anggota milik grup diberi
+     | akhiran/awalan `Group` alih-alih memakai satu set properti bersama
+     | dengan diskriminator: kedua alur CRUD memang independen, dan
+     | pemisahan nama membuat 23 test Machinery yang sudah ada tidak perlu
+     | disentuh sama sekali.
+     */
+
+    /** 'grup' (hierarkis, bawaan) atau 'rata' (seluruh mesin satu daftar). */
+    public string $viewMode = 'grup';
+
+    /** Dipakai kedua mode; mencocokkan grup DAN mesin. */
+    public string $search = '';
+
+    /**
+     * ID grup yang sedang terbuka. Sengaja TIDAK ikut berpindah halaman —
+     * lihat gotoPage()/nextPage(): halaman baru selalu mulai tertutup,
+     * kecuali sedang mencari, di mana grup yang cocok dibuka otomatis.
+     *
+     * @var array<int, string>
+     */
+    public array $expandedGroupIds = [];
+
+    // ── state CRUD Machinery Group (diserap dari KelolaMachineryGroup) ──
+
+    public string $filterStationId = '';
+
+    public bool $showGroupForm = false;
+
+    public ?string $editingGroupId = null;
+
+    public string $station_id = '';
+
+    /** Tampilan saja; production_line_id selalu diturunkan server dari Station. */
+    public ?string $selectedGroupProductionLineName = null;
+
+    /** @var array<string, string> */
+    public array $groupForm = [];
+
+    public ?string $groupFormErrorMessage = null;
+
+    public ?string $confirmingDeleteGroupId = null;
+
+    public ?string $deleteGroupErrorMessage = null;
+
     public function mount(): void
     {
         $this->form = $this->emptyForm();
+        $this->groupForm = $this->emptyGroupForm();
     }
 
     public function updatedFilterMachineryGroupId(): void
@@ -380,7 +433,7 @@ class KelolaMachinery extends Component
             'tax_purchases' => $this->rowIsBlank($taxPurchaseRow) ? [] : [$taxPurchaseRow],
         ]);
 
-        /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null $picture */
+        /** @var TemporaryUploadedFile|null $picture */
         $picture = $this->picture;
 
         try {
@@ -462,20 +515,323 @@ class KelolaMachinery extends Component
         }
     }
 
+    // ──────────────────────────────────────────────────────────────────
+    // Mode tampilan, pencarian, buka/tutup grup
+    // ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Alih Grup <-> Rata. Selalu kembali ke halaman 1: satuan paginasinya
+     * berbeda (grup vs mesin), jadi "halaman 5" di satu mode tidak punya
+     * arti yang sama di mode lain. Kata kunci pencarian DIPERTAHANKAN agar
+     * tidak perlu diketik ulang.
+     */
+    public function setViewMode(string $mode): void
+    {
+        if (! in_array($mode, ['grup', 'rata'], true)) {
+            return;
+        }
+
+        $this->viewMode = $mode;
+        $this->page = 1;
+        $this->expandedGroupIds = [];
+    }
+
+    public function updatedSearch(): void
+    {
+        $this->page = 1;
+        $this->expandedGroupIds = [];
+    }
+
+    public function updatedFilterStationId(): void
+    {
+        $this->page = 1;
+        $this->expandedGroupIds = [];
+    }
+
+    public function toggleGroup(string $groupId): void
+    {
+        $this->expandedGroupIds = in_array($groupId, $this->expandedGroupIds, true)
+            ? array_values(array_diff($this->expandedGroupIds, [$groupId]))
+            : [...$this->expandedGroupIds, $groupId];
+    }
+
+    public function isGroupExpanded(string $groupId): bool
+    {
+        return in_array($groupId, $this->expandedGroupIds, true);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // CRUD Machinery Group (diserap dari KelolaMachineryGroup)
+    // ──────────────────────────────────────────────────────────────────
+
+    /**
+     * @return array<string, string>
+     */
+    protected function emptyGroupForm(): array
+    {
+        return [
+            'group_code' => '',
+            'description' => '',
+            'unit' => '',
+            'workshop_factor' => '',
+            'cost_per_equipment' => '',
+        ];
+    }
+
+    /**
+     * Fires when the group form's Station picker changes — re-derives the
+     * display-only production line name. Cosmetic only: the server derives
+     * production_line_id from station_id regardless.
+     */
+    public function updatedStationId(string $value): void
+    {
+        if ($value === '') {
+            $this->selectedGroupProductionLineName = null;
+
+            return;
+        }
+
+        $station = Station::with('productionLine')->find($value);
+        $this->selectedGroupProductionLineName = optional(optional($station)->productionLine)->name;
+    }
+
+    protected function buildGroupValidator(): \Illuminate\Validation\Validator
+    {
+        $groupCodeUniqueRule = Rule::unique('machinery_groups', 'group_code');
+
+        if ($this->editingGroupId !== null) {
+            $groupCodeUniqueRule = $groupCodeUniqueRule->ignore($this->editingGroupId);
+        }
+
+        $payload = [
+            'station_id' => $this->station_id,
+            'groupForm' => [
+                'group_code' => $this->groupForm['group_code'] !== '' ? $this->groupForm['group_code'] : null,
+                'description' => $this->groupForm['description'] !== '' ? $this->groupForm['description'] : null,
+                'unit' => $this->groupForm['unit'] !== '' ? $this->groupForm['unit'] : null,
+                'workshop_factor' => $this->groupForm['workshop_factor'] !== '' ? $this->groupForm['workshop_factor'] : null,
+                'cost_per_equipment' => $this->groupForm['cost_per_equipment'] !== '' ? $this->groupForm['cost_per_equipment'] : null,
+            ],
+        ];
+
+        $rules = [
+            'station_id' => ['required', 'string', Rule::exists('stations', 'id')],
+            'groupForm.group_code' => ['required', 'string', 'max:255', $groupCodeUniqueRule],
+            'groupForm.description' => ['nullable', 'string', 'max:255'],
+            'groupForm.unit' => ['nullable', 'string', 'max:255'],
+            'groupForm.workshop_factor' => ['nullable', 'numeric'],
+            'groupForm.cost_per_equipment' => ['nullable', 'numeric'],
+        ];
+
+        $messages = [
+            'station_id.required' => 'Station wajib dipilih.',
+            'station_id.exists' => 'Station yang dipilih tidak ditemukan.',
+            'groupForm.group_code.required' => 'Kode Machinery Group wajib diisi.',
+            'groupForm.group_code.max' => 'Kode Machinery Group maksimal 255 karakter.',
+            'groupForm.group_code.unique' => 'Kode Machinery Group sudah digunakan.',
+            'groupForm.description.max' => 'Deskripsi maksimal 255 karakter.',
+            'groupForm.unit.max' => 'Unit maksimal 255 karakter.',
+            'groupForm.workshop_factor.numeric' => 'Workshop Factor harus berupa angka.',
+            'groupForm.cost_per_equipment.numeric' => 'Cost per Equipment harus berupa angka.',
+        ];
+
+        return Validator::make($payload, $rules, $messages);
+    }
+
+    public function openCreateGroupForm(): void
+    {
+        $this->resetValidation();
+        $this->editingGroupId = null;
+        $this->station_id = '';
+        $this->selectedGroupProductionLineName = null;
+        $this->groupForm = $this->emptyGroupForm();
+        $this->groupFormErrorMessage = null;
+        $this->showGroupForm = true;
+    }
+
+    public function openEditGroupForm(string $id): void
+    {
+        $machineryGroup = MachineryGroup::with('productionLine')->findOrFail($id);
+
+        $this->resetValidation();
+        $this->groupFormErrorMessage = null;
+        $this->editingGroupId = $machineryGroup->id;
+        $this->station_id = $machineryGroup->station_id;
+        $this->selectedGroupProductionLineName = optional($machineryGroup->productionLine)->name;
+
+        $this->groupForm = [
+            'group_code' => (string) ($machineryGroup->group_code ?? ''),
+            'description' => (string) ($machineryGroup->description ?? ''),
+            'unit' => (string) ($machineryGroup->unit ?? ''),
+            'workshop_factor' => $machineryGroup->workshop_factor !== null ? (string) $machineryGroup->workshop_factor : '',
+            'cost_per_equipment' => $machineryGroup->cost_per_equipment !== null ? (string) $machineryGroup->cost_per_equipment : '',
+        ];
+
+        $this->showGroupForm = true;
+    }
+
+    public function closeGroupForm(): void
+    {
+        $this->showGroupForm = false;
+        $this->editingGroupId = null;
+        $this->station_id = '';
+        $this->selectedGroupProductionLineName = null;
+        $this->groupForm = $this->emptyGroupForm();
+        $this->groupFormErrorMessage = null;
+        $this->resetValidation();
+    }
+
+    public function saveGroup(): void
+    {
+        $this->groupFormErrorMessage = null;
+
+        $this->buildGroupValidator()->validate();
+
+        $service = app(MachineryGroupService::class);
+
+        // production_line_id deliberately absent: the service derives it
+        // from station_id server-side, never from client input.
+        $payload = [
+            'station_id' => $this->station_id,
+            'group_code' => $this->groupForm['group_code'],
+            'description' => $this->groupForm['description'],
+            'unit' => $this->groupForm['unit'],
+            'workshop_factor' => $this->groupForm['workshop_factor'],
+            'cost_per_equipment' => $this->groupForm['cost_per_equipment'],
+        ];
+
+        try {
+            if ($this->editingGroupId !== null) {
+                $service->update($this->editingGroupId, $payload);
+            } else {
+                $service->create($payload);
+            }
+        } catch (ModelNotFoundException) {
+            $this->groupFormErrorMessage = 'Machinery Group tidak ditemukan, mungkin sudah dihapus.';
+
+            return;
+        } catch (ValidationException $e) {
+            foreach ($e->errors() as $field => $messages) {
+                $key = $field === 'station_id' ? $field : "groupForm.$field";
+                $this->addError($key, $messages[0] ?? 'Validasi gagal.');
+            }
+
+            return;
+        }
+
+        $this->showGroupForm = false;
+        $this->editingGroupId = null;
+        $this->station_id = '';
+        $this->selectedGroupProductionLineName = null;
+        $this->groupForm = $this->emptyGroupForm();
+        $this->resetValidation();
+    }
+
+    public function askDeleteGroup(string $id): void
+    {
+        $this->confirmingDeleteGroupId = $id;
+        $this->deleteGroupErrorMessage = null;
+    }
+
+    public function cancelDeleteGroup(): void
+    {
+        $this->confirmingDeleteGroupId = null;
+    }
+
+    public function confirmDeleteGroup(): void
+    {
+        if ($this->confirmingDeleteGroupId === null) {
+            return;
+        }
+
+        $service = app(MachineryGroupService::class);
+
+        try {
+            $service->delete($this->confirmingDeleteGroupId);
+            $this->confirmingDeleteGroupId = null;
+            $this->deleteGroupErrorMessage = null;
+        } catch (MachineryGroupHasMachineryException $e) {
+            $this->confirmingDeleteGroupId = null;
+            $this->deleteGroupErrorMessage = $e->getMessage();
+        } catch (ModelNotFoundException) {
+            $this->confirmingDeleteGroupId = null;
+            $this->deleteGroupErrorMessage = 'Machinery Group tidak ditemukan, mungkin sudah dihapus.';
+        }
+    }
+
+    /**
+     * Mode Grup memaginasi daftar GRUP; mode Rata memaginasi daftar MESIN.
+     * Dua endpoint service yang berbeda, jadi mesin yang tampil karena
+     * grupnya dibuka mustahil ikut terhitung sebagai baris halaman.
+     */
     public function render()
     {
-        $service = app(MachineryService::class);
+        $machineryService = app(MachineryService::class);
+        $search = $this->search !== '' ? $this->search : null;
 
-        $result = $service->listMachinery(
+        if ($this->viewMode === 'rata') {
+            $result = $machineryService->listMachinery(
+                $this->page,
+                $this->perPage,
+                $this->filterMachineryGroupId !== '' ? $this->filterMachineryGroupId : null,
+                false,
+                $search,
+            );
+
+            return view('livewire.master-data.kelola-machinery', [
+                'viewMode' => 'rata',
+                'machineryRows' => $result['data'],
+                'meta' => $result['meta'],
+                'groupRows' => [],
+                'machineryByGroup' => [],
+                'ungroupedRows' => [],
+                'ungroupedCount' => 0,
+                'machineryGroupOptions' => $machineryService->machineryGroupOptions(),
+                'stationOptions' => app(MachineryGroupService::class)->stationOptions(),
+            ]);
+        }
+
+        $groupService = app(MachineryGroupService::class);
+
+        $result = $groupService->listMachineryGroups(
             $this->page,
             $this->perPage,
-            $this->filterMachineryGroupId !== '' ? $this->filterMachineryGroupId : null
+            $this->filterStationId !== '' ? $this->filterStationId : null,
+            $search,
         );
 
+        // A group whose MACHINE matched is expanded automatically — a hit
+        // hidden behind a collapsed row is indistinguishable from no hit.
+        $autoExpanded = collect($result['data'])
+            ->filter(fn (array $row) => $row['has_search_match_in_machinery'] ?? false)
+            ->pluck('id')
+            ->all();
+
+        $expanded = array_values(array_unique([...$this->expandedGroupIds, ...$autoExpanded]));
+
+        $machineryByGroup = [];
+        foreach ($expanded as $groupId) {
+            $machineryByGroup[$groupId] = $machineryService
+                ->listMachinery(1, 100, $groupId, false, $search)['data'];
+        }
+
+        // Machines with no group would otherwise vanish from this screen.
+        $ungroupedCount = (int) ($result['meta']['ungrouped_machinery_count'] ?? 0);
+        $ungroupedRows = $ungroupedCount > 0
+            ? $machineryService->listMachinery(1, 100, null, true, $search)['data']
+            : [];
+
         return view('livewire.master-data.kelola-machinery', [
-            'machineryRows' => $result['data'],
+            'viewMode' => 'grup',
+            'machineryRows' => [],
             'meta' => $result['meta'],
-            'machineryGroupOptions' => $service->machineryGroupOptions(),
+            'groupRows' => $result['data'],
+            'expandedGroupIds' => $expanded,
+            'machineryByGroup' => $machineryByGroup,
+            'ungroupedRows' => $ungroupedRows,
+            'ungroupedCount' => $ungroupedCount,
+            'machineryGroupOptions' => $machineryService->machineryGroupOptions(),
+            'stationOptions' => $groupService->stationOptions(),
         ]);
     }
 }

@@ -97,19 +97,67 @@ class MachineryService
     ];
 
     /**
-     * listMachinery() — business_logic step "list": paginate, optional
-     * machinery_group_id filter, eager-load machineryGroup (for
-     * machinery_group_code) — NO child arrays, keeps the list endpoint
-     * lightweight per this screen's api_contracts.
+     * listMachinery() — business_logic step "list": paginate, eager-load
+     * machineryGroup (for machinery_group_code) — NO child arrays, keeps
+     * the list endpoint lightweight per this screen's api_contracts.
+     *
+     * Serves THREE roles on the merged Kelola Mesin screen, selected by
+     * MUTUALLY EXCLUSIVE arguments:
+     *   - $machineryGroupId set : the machines inside one expanded group
+     *   - $ungrouped = true     : the "Tanpa grup" bucket (machinery_group_id IS NULL)
+     *   - neither               : the whole flat list (mode Rata)
+     *
+     * Passing BOTH is rejected with a 422 rather than silently honouring
+     * one of them. A caller that sends both has a bug, and a list that
+     * looks right while answering a different question is the worst
+     * possible outcome — see screen_tech_spec edge_case_handling.
+     *
+     * $search matches equipment_code OR name, ANDed with whichever branch
+     * above applies, so searching inside one group stays scoped to it.
      */
-    public function listMachinery(int $page, int $perPage, ?string $machineryGroupId = null): array
-    {
+    public function listMachinery(
+        int $page,
+        int $perPage,
+        ?string $machineryGroupId = null,
+        bool $ungrouped = false,
+        ?string $search = null,
+    ): array {
+        $hasGroupFilter = $machineryGroupId !== null && $machineryGroupId !== '';
+
+        if ($hasGroupFilter && $ungrouped) {
+            throw ValidationException::withMessages([
+                'ungrouped' => 'Parameter machinery_group_id dan ungrouped tidak dapat dikirim bersamaan.',
+            ]);
+        }
+
         $query = Machinery::query()
             ->with('machineryGroup')
             ->orderBy('equipment_code');
 
-        if ($machineryGroupId !== null && $machineryGroupId !== '') {
+        if ($hasGroupFilter) {
             $query->where('machinery_group_id', $machineryGroupId);
+        } elseif ($ungrouped) {
+            $query->whereNull('machinery_group_id');
+        }
+
+        if ($search !== null && $search !== '') {
+            // Grouped so the OR pair cannot leak past the group/ungrouped
+            // filter above — without the closure this becomes
+            // "(group filter AND code match) OR name match", which would
+            // return machines from other groups.
+            //
+            // lower() on BOTH sides rather than ILIKE or a bare LIKE.
+            // Verified on both drivers: SQLite rejects ILIKE outright
+            // (syntax error, so every test would fail loudly), while a
+            // bare LIKE is case-insensitive on SQLite but case-SENSITIVE
+            // on PostgreSQL — it would pass the whole suite and then fail
+            // users in production, searching "press" and not finding
+            // "Screw Press". lower()+LIKE behaves identically on both.
+            $needle = '%'.mb_strtolower($search).'%';
+            $query->where(function ($q) use ($needle) {
+                $q->whereRaw('lower(equipment_code) LIKE ?', [$needle])
+                    ->orWhereRaw('lower(name) LIKE ?', [$needle]);
+            });
         }
 
         $paginator = $query->paginate(perPage: $perPage, page: $page);

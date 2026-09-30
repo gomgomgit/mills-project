@@ -1,13 +1,59 @@
 <div class="kc-page" wire:loading.class="kc-page--busy" wire:target="nextPage,previousPage,save,confirmDelete">
     <div class="kc-page__header">
         <div>
-            <h2 class="kc-page__title">Kelola Machinery</h2>
-            <p class="kc-page__subtitle">Kelola daftar Machinery (di bawah Machinery Group), termasuk data Asuransi dan Pajak/Pembelian</p>
+            <h2 class="kc-page__title">Kelola Mesin</h2>
+            <p class="kc-page__subtitle">Machinery Group beserta Machinery di dalamnya, termasuk data Asuransi dan Pajak/Pembelian</p>
         </div>
 
-        <button type="button" wire:click="openCreateForm" class="kc-button kc-button--primary">
-            + Tambah Machinery
-        </button>
+        <div class="kc-page__actions">
+            <button type="button" wire:click="openCreateGroupForm" class="kc-button kc-button--ghost" data-testid="add-group">
+                + Tambah Grup
+            </button>
+            <button type="button" wire:click="openCreateForm" class="kc-button kc-button--primary" data-testid="add-machinery">
+                + Tambah Mesin
+            </button>
+        </div>
+    </div>
+
+    {{--
+        Alih mode + pencarian. Mode Grup (bawaan) hierarkis; mode Rata
+        mengembalikan daftar rata seluruh Machinery seperti layar lama —
+        tanpa mode itu, membandingkan mesin lintas grup hanya mungkin lewat
+        pencarian.
+    --}}
+    <div class="kc-toolbar" data-testid="view-toolbar">
+        <div class="kc-toolbar__modes" role="group" aria-label="Mode tampilan">
+            <button
+                type="button"
+                wire:click="setViewMode('grup')"
+                class="kc-button kc-button--sm {{ $viewMode === 'grup' ? 'kc-button--primary' : 'kc-button--ghost' }}"
+                data-testid="mode-grup"
+                @if ($viewMode === 'grup') aria-current="true" @endif
+            >Grup</button>
+            <button
+                type="button"
+                wire:click="setViewMode('rata')"
+                class="kc-button kc-button--sm {{ $viewMode === 'rata' ? 'kc-button--primary' : 'kc-button--ghost' }}"
+                data-testid="mode-rata"
+                @if ($viewMode === 'rata') aria-current="true" @endif
+            >Rata</button>
+        </div>
+
+        <label for="search" class="kc-filter__label">Cari</label>
+        <input
+            id="search"
+            type="search"
+            wire:model.live.debounce.300ms="search"
+            placeholder="Kode atau nama grup / mesin"
+            class="kc-form-field__input"
+            data-testid="search-input"
+        />
+
+        @if ($viewMode === 'grup' && $ungroupedCount > 0)
+            <span class="kc-badge" data-testid="ungrouped-count">
+                {{ $ungroupedCount }} mesin tanpa grup
+            </span>
+        @endif
     </div>
 
     @if ($deleteErrorMessage)
@@ -16,74 +62,239 @@
         </div>
     @endif
 
+    @if ($deleteGroupErrorMessage)
+        <div class="kc-alert" role="alert" data-testid="delete-group-error">
+            {{ $deleteGroupErrorMessage }}
+        </div>
+    @endif
+
     <div class="kc-filter">
-        <label for="filterMachineryGroupId" class="kc-filter__label">Filter Machinery Group</label>
-        <x-searchable-select
-            id="filterMachineryGroupId"
-            wire:model.live="filterMachineryGroupId"
-            :options="collect($machineryGroupOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['group_code']])->all()"
-            placeholder="Semua Machinery Group"
-            class="kc-form-field__input kc-filter__select"
-        />
+        @if ($viewMode === 'rata')
+            <label for="filterMachineryGroupId" class="kc-filter__label">Filter Machinery Group</label>
+            <x-searchable-select
+                id="filterMachineryGroupId"
+                wire:model.live="filterMachineryGroupId"
+                :options="collect($machineryGroupOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['group_code']])->all()"
+                placeholder="Semua Machinery Group"
+                class="kc-form-field__input kc-filter__select"
+            />
+        @else
+            <label for="filterStationId" class="kc-filter__label">Filter Station</label>
+            <x-searchable-select
+                id="filterStationId"
+                wire:model.live="filterStationId"
+                :options="collect($stationOptions)->map(fn ($option) => ['value' => $option['id'], 'label' => $option['name']])->all()"
+                placeholder="Semua Station"
+                class="kc-form-field__input kc-filter__select"
+            />
+        @endif
     </div>
 
-    <div class="kc-table-wrap">
-        <table class="kc-table">
-            <thead class="kc-table__head">
-                <tr>
-                    <th>Kode Equipment</th>
-                    <th>Nama</th>
-                    <th>Machinery Group</th>
-                    <th>Tipe</th>
-                    <th>Merk</th>
-                    <th>Dibuat Pada</th>
-                    <th class="kc-table__actions-head">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($machineryRows as $machinery)
-                    <tr class="kc-table__row" wire:key="machinery-{{ $machinery['id'] }}">
-                        <td>{{ $machinery['equipment_code'] }}</td>
-                        <td>{{ $machinery['name'] }}</td>
-                        <td>{{ $machinery['machinery_group_code'] ?? '-' }}</td>
-                        <td>{{ $machinery['equipment_type'] ?? '-' }}</td>
-                        <td>{{ $machinery['brand'] ?? '-' }}</td>
-                        <td>{{ $machinery['created_at'] ? \Illuminate\Support\Carbon::parse($machinery['created_at'])->format('d/m/Y H:i') : '-' }}</td>
-                        <td class="kc-table__actions">
-                            @if ($confirmingDeleteId === $machinery['id'])
-                                <span class="kc-confirm">
-                                    <span class="kc-confirm__label">Yakin hapus?</span>
-                                    <button type="button" wire:click="confirmDelete" class="kc-button kc-button--danger kc-button--sm">
-                                        Ya, Hapus
-                                    </button>
-                                    <button type="button" wire:click="cancelDelete" class="kc-button kc-button--ghost kc-button--sm">
-                                        Batal
-                                    </button>
-                                </span>
-                            @else
-                                <button type="button" wire:click="openEditForm('{{ $machinery['id'] }}')" class="kc-button kc-button--ghost kc-button--sm">
-                                    Edit
-                                </button>
-                                <button type="button" wire:click="askDelete('{{ $machinery['id'] }}')" class="kc-button kc-button--ghost kc-button--sm kc-button--danger-text">
-                                    Hapus
-                                </button>
-                            @endif
-                        </td>
+    @if ($viewMode === 'grup')
+        {{--
+            Mode Grup. Paginasi dihitung PER GRUP: mesin yang tampil karena
+            grupnya dibuka datang dari permintaan lain (listMachinery), jadi
+            tidak pernah ikut menambah baris halaman. Dengan 223 grup
+            berisi rata-rata 3 mesin, menghitung baris akan membuat satu
+            halaman melar jadi ~80 baris.
+        --}}
+        <div class="kc-table-wrap">
+            <table class="kc-table" data-testid="group-table">
+                <thead class="kc-table__head">
+                    <tr>
+                        <th class="kc-table__toggle-head"><span class="kc-sr-only">Buka</span></th>
+                        <th>Kode Grup</th>
+                        <th>Station</th>
+                        <th>Production Line</th>
+                        <th>Jumlah Mesin</th>
+                        <th class="kc-table__actions-head">Aksi</th>
                     </tr>
-                @empty
-                    <tr class="kc-table__row kc-table__row--static">
-                        <td colspan="7">
-                            <div class="kc-empty">
-                                <div class="kc-empty__illustration" aria-hidden="true">&#9881;&#65039;</div>
-                                <p class="kc-empty__title">Belum ada Machinery</p>
-                                <p class="kc-empty__subtitle">Klik "Tambah Machinery" untuk menambahkan data baru.</p>
-                            </div>
-                        </td>
+                </thead>
+                <tbody>
+                    @forelse ($groupRows as $group)
+                        @php $isOpen = in_array($group['id'], $expandedGroupIds, true); @endphp
+                        <tr class="kc-table__row kc-table__row--group" wire:key="group-{{ $group['id'] }}" data-testid="group-row">
+                            <td>
+                                <button
+                                    type="button"
+                                    wire:click="toggleGroup('{{ $group['id'] }}')"
+                                    class="kc-button kc-button--ghost kc-button--sm"
+                                    aria-expanded="{{ $isOpen ? 'true' : 'false' }}"
+                                    data-testid="toggle-group"
+                                >{{ $isOpen ? '&#9662;' : '&#9656;' }}</button>
+                            </td>
+                            <td>{{ $group['group_code'] }}</td>
+                            <td>{{ $group['station_name'] ?? '-' }}</td>
+                            <td>{{ $group['production_line_name'] ?? '-' }}</td>
+                            <td>{{ $group['machinery_count'] }}</td>
+                            <td class="kc-table__actions">
+                                @if ($confirmingDeleteGroupId === $group['id'])
+                                    <span class="kc-confirm">
+                                        <span class="kc-confirm__label">Yakin hapus grup?</span>
+                                        <button type="button" wire:click="confirmDeleteGroup" class="kc-button kc-button--danger kc-button--sm">
+                                            Ya, Hapus
+                                        </button>
+                                        <button type="button" wire:click="cancelDeleteGroup" class="kc-button kc-button--ghost kc-button--sm">
+                                            Batal
+                                        </button>
+                                    </span>
+                                @else
+                                    <button type="button" wire:click="openCreateForm" class="kc-button kc-button--ghost kc-button--sm" data-testid="add-machinery-in-group">
+                                        + Mesin
+                                    </button>
+                                    <button type="button" wire:click="openEditGroupForm('{{ $group['id'] }}')" class="kc-button kc-button--ghost kc-button--sm">
+                                        Edit
+                                    </button>
+                                    <button type="button" wire:click="askDeleteGroup('{{ $group['id'] }}')" class="kc-button kc-button--ghost kc-button--sm kc-button--danger-text">
+                                        Hapus
+                                    </button>
+                                @endif
+                            </td>
+                        </tr>
+
+                        @if ($isOpen)
+                            {{-- Kolom grup yang jarang dibaca pindah ke sini, bukan dihapus. --}}
+                            <tr class="kc-table__row kc-table__row--static" wire:key="group-panel-{{ $group['id'] }}">
+                                <td colspan="6">
+                                    <dl class="kc-detail-panel" data-testid="group-panel">
+                                        <div><dt>Deskripsi</dt><dd>{{ $group['description'] ?? '-' }}</dd></div>
+                                        <div><dt>Unit</dt><dd>{{ $group['unit'] ?? '-' }}</dd></div>
+                                        <div><dt>Workshop Factor</dt><dd>{{ $group['workshop_factor'] ?? '-' }}</dd></div>
+                                        <div><dt>Cost per Equipment</dt><dd>{{ $group['cost_per_equipment'] ?? '-' }}</dd></div>
+                                        <div><dt>Dibuat Pada</dt><dd>{{ $group['created_at'] ? \Illuminate\Support\Carbon::parse($group['created_at'])->format('d/m/Y H:i') : '-' }}</dd></div>
+                                    </dl>
+                                </td>
+                            </tr>
+
+                            @forelse ($machineryByGroup[$group['id']] ?? [] as $machinery)
+                                <tr class="kc-table__row kc-table__row--child" wire:key="child-{{ $machinery['id'] }}" data-testid="machinery-row">
+                                    <td></td>
+                                    <td>{{ $machinery['equipment_code'] }}</td>
+                                    <td colspan="2">{{ $machinery['name'] }}</td>
+                                    <td>{{ $machinery['equipment_type'] ?? '-' }} &middot; {{ $machinery['brand'] ?? '-' }}</td>
+                                    <td class="kc-table__actions">
+                                        @if ($confirmingDeleteId === $machinery['id'])
+                                            <span class="kc-confirm">
+                                                <span class="kc-confirm__label">Yakin hapus?</span>
+                                                <button type="button" wire:click="confirmDelete" class="kc-button kc-button--danger kc-button--sm">Ya, Hapus</button>
+                                                <button type="button" wire:click="cancelDelete" class="kc-button kc-button--ghost kc-button--sm">Batal</button>
+                                            </span>
+                                        @else
+                                            <button type="button" wire:click="openEditForm('{{ $machinery['id'] }}')" class="kc-button kc-button--ghost kc-button--sm">Edit</button>
+                                            <button type="button" wire:click="askDelete('{{ $machinery['id'] }}')" class="kc-button kc-button--ghost kc-button--sm kc-button--danger-text">Hapus</button>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr class="kc-table__row kc-table__row--static" wire:key="child-empty-{{ $group['id'] }}">
+                                    <td colspan="6">
+                                        <p class="kc-empty__subtitle" data-testid="group-empty">Grup ini belum berisi mesin.</p>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        @endif
+                    @empty
+                        <tr class="kc-table__row kc-table__row--static">
+                            <td colspan="6">
+                                <div class="kc-empty">
+                                    <div class="kc-empty__illustration" aria-hidden="true">&#9881;&#65039;</div>
+                                    <p class="kc-empty__title">
+                                        {{ $search !== '' ? 'Tidak ada yang cocok dengan pencarian' : 'Belum ada Machinery Group' }}
+                                    </p>
+                                    <p class="kc-empty__subtitle">
+                                        {{ $search !== '' ? 'Coba kata kunci lain.' : 'Klik "Tambah Grup" untuk menambahkan data baru.' }}
+                                    </p>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforelse
+
+                    {{--
+                        Mesin tanpa grup. machinery_group_id nullable, jadi tanpa
+                        wadah ini baris seperti itu lenyap dari layar tanpa pesan.
+                        Hanya tampil bila memang ada isinya.
+                    --}}
+                    @if ($ungroupedCount > 0)
+                        <tr class="kc-table__row kc-table__row--group" wire:key="ungrouped-header" data-testid="ungrouped-bucket">
+                            <td></td>
+                            <td colspan="4"><strong>Tanpa grup</strong></td>
+                            <td>{{ $ungroupedCount }}</td>
+                        </tr>
+                        @foreach ($ungroupedRows as $machinery)
+                            <tr class="kc-table__row kc-table__row--child" wire:key="ungrouped-{{ $machinery['id'] }}" data-testid="machinery-row">
+                                <td></td>
+                                <td>{{ $machinery['equipment_code'] }}</td>
+                                <td colspan="2">{{ $machinery['name'] }}</td>
+                                <td>{{ $machinery['equipment_type'] ?? '-' }} &middot; {{ $machinery['brand'] ?? '-' }}</td>
+                                <td class="kc-table__actions">
+                                    <button type="button" wire:click="openEditForm('{{ $machinery['id'] }}')" class="kc-button kc-button--ghost kc-button--sm">Edit</button>
+                                    <button type="button" wire:click="askDelete('{{ $machinery['id'] }}')" class="kc-button kc-button--ghost kc-button--sm kc-button--danger-text">Hapus</button>
+                                </td>
+                            </tr>
+                        @endforeach
+                    @endif
+                </tbody>
+            </table>
+        </div>
+    @else
+        <div class="kc-table-wrap">
+            <table class="kc-table">
+                <thead class="kc-table__head">
+                    <tr>
+                        <th>Kode Equipment</th>
+                        <th>Nama</th>
+                        <th>Machinery Group</th>
+                        <th>Tipe</th>
+                        <th>Merk</th>
+                        <th>Dibuat Pada</th>
+                        <th class="kc-table__actions-head">Aksi</th>
                     </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody>
+                    @forelse ($machineryRows as $machinery)
+                        <tr class="kc-table__row" wire:key="machinery-{{ $machinery['id'] }}">
+                            <td>{{ $machinery['equipment_code'] }}</td>
+                            <td>{{ $machinery['name'] }}</td>
+                            <td>{{ $machinery['machinery_group_code'] ?? '-' }}</td>
+                            <td>{{ $machinery['equipment_type'] ?? '-' }}</td>
+                            <td>{{ $machinery['brand'] ?? '-' }}</td>
+                            <td>{{ $machinery['created_at'] ? \Illuminate\Support\Carbon::parse($machinery['created_at'])->format('d/m/Y H:i') : '-' }}</td>
+                            <td class="kc-table__actions">
+                                @if ($confirmingDeleteId === $machinery['id'])
+                                    <span class="kc-confirm">
+                                        <span class="kc-confirm__label">Yakin hapus?</span>
+                                        <button type="button" wire:click="confirmDelete" class="kc-button kc-button--danger kc-button--sm">
+                                            Ya, Hapus
+                                        </button>
+                                        <button type="button" wire:click="cancelDelete" class="kc-button kc-button--ghost kc-button--sm">
+                                            Batal
+                                        </button>
+                                    </span>
+                                @else
+                                    <button type="button" wire:click="openEditForm('{{ $machinery['id'] }}')" class="kc-button kc-button--ghost kc-button--sm">
+                                        Edit
+                                    </button>
+                                    <button type="button" wire:click="askDelete('{{ $machinery['id'] }}')" class="kc-button kc-button--ghost kc-button--sm kc-button--danger-text">
+                                        Hapus
+                                    </button>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr class="kc-table__row kc-table__row--static">
+                            <td colspan="7">
+                                <div class="kc-empty">
+                                    <div class="kc-empty__illustration" aria-hidden="true">&#9881;&#65039;</div>
+                                    <p class="kc-empty__title">Belum ada Machinery</p>
+                                    <p class="kc-empty__subtitle">Klik "Tambah Machinery" untuk menambahkan data baru.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    @endif
 
     @if ($meta['total'] > 0)
         <div class="kc-pagination">

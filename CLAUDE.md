@@ -52,7 +52,7 @@ Server: `.asdlc/mcp/server.py`
 | `artifact__read`                | `artifact_key`                                            | Read artifact content. Returns `{"data": dict}` or `{"data": null}` if not yet written.           |
 | `artifact__read_scheme`         | `artifact_key`                                            | Read artifact field descriptions. Returns `{"data": dict}` or `{"data": null}`.                   |
 | `artifact__write`               | `artifact_key`, `data`                                    | Write artifact. Returns `{"ok": true, "key", "path", "changed_fields"}`.                          |
-| `dep_graph__track_node`         | `artifact_key`, `changed_fields`, `depends_on`, `files?` | Bump node version in dep-graph and snapshot depends_on. Called by `dep-graph-sync-agent`.         |
+| `dep_graph__track_node`         | `artifact_key`, `changed_fields`, `depends_on`, `files?`, `allow_dropping_deps?` | Bump node version in dep-graph and snapshot depends_on. Called by `dep-graph-sync-agent`. **`depends_on` REPLACES what the node has — it does not merge**, so a list omitting an existing key is refused; pass `allow_dropping_deps=True` only for a deliberate removal. |
 | `dep_graph__sync_stale_status`  | —                                                         | Compute and persist stale status across the entire dep-graph. Returns stale/clean/not_started summary. |
 | `dep_graph__get_stale_nodes`    | —                                                         | Read nodes currently marked as stale. Read-only — use for pre-flight checks.                      |
 
@@ -120,6 +120,9 @@ Command files are in `.claude/commands/`. Read the command file before executing
 The dep-graph tracks the version of every artifact and the dependencies between them.
 Every time an artifact is written, its node is bumped via `dep_graph__track_node`.
 If an upstream artifact changes version, downstream nodes are automatically marked stale.
+Always pass the **complete** `depends_on` for the node's type from the tables below — the
+call replaces the stored list rather than merging it, and a node left with no upstream keys
+can never be marked stale again. Incomplete lists are now refused (see §3).
 
 Dep-graph files:
 

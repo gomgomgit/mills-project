@@ -266,7 +266,37 @@ def _validate_node_key(key: str) -> dict | None:
 
 # ── write helpers ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
-def _write_project_node(key: str, changed_fields: list, depends_on: list) -> dict:
+def _dropped_deps(existing_node, depends_on: list) -> list:
+    """Dep keys the node ALREADY has that the incoming depends_on omits.
+
+    track_node replaces depends_on wholesale rather than merging, so a caller
+    that passes an incomplete list silently erases dependencies — and a node
+    with no upstream keys can never be marked stale again. That is exactly how
+    12 nodes lost every project-level dependency on 2026-09-27 without a single
+    error being raised.
+
+    Returns [] for a node that does not exist yet or has no stored deps.
+    """
+    if not isinstance(existing_node, dict):
+        return []
+    return sorted(set((existing_node.get("depends_on") or {}).keys()) - set(depends_on))
+
+
+def _dropped_deps_error(key: str, dropped: list) -> dict:
+    plural = "dependency" if len(dropped) == 1 else "dependencies"
+    return {
+        "error": (
+            f"depends_on for '{key}' would DROP {len(dropped)} existing {plural}: "
+            f"{', '.join(dropped)}. track_node REPLACES depends_on wholesale, so an "
+            f"incomplete list erases them silently and downstream staleness becomes "
+            f"undetectable. Pass the complete list (see CLAUDE.md section 7), or set "
+            f"allow_dropping_deps=True if the removal is deliberate."
+        )
+    }
+
+
+def _write_project_node(key: str, changed_fields: list, depends_on: list,
+                        allow_dropping_deps: bool = False) -> dict:
     """Bump ver and snapshot depends_on for a project.json node.
 
     changed_fields == [] : single-node -- bump the node at key directly.
@@ -284,6 +314,21 @@ def _write_project_node(key: str, changed_fields: list, depends_on: list) -> dic
             return {"error": f"Path not found in project.json: '{key}'"}
 
     bumped = []
+
+    # Guard BEFORE any mutation: refuse a depends_on that would drop existing keys.
+    if not allow_dropping_deps:
+        existing_leaf = parent.get(leaf_key)
+        if isinstance(existing_leaf, dict):
+            if "ver" in existing_leaf:
+                targets = [(key, existing_leaf)]
+            elif changed_fields:
+                targets = [(f"{key}.{f}", existing_leaf.get(f)) for f in changed_fields]
+            else:
+                targets = [(f"{key}.{f}", c) for f, c in existing_leaf.items()]
+            for label, target in targets:
+                dropped = _dropped_deps(target, depends_on)
+                if dropped:
+                    return _dropped_deps_error(label, dropped)
 
     if not changed_fields:
         # Single-node: validate deps first (sentinel), then init and mutate
@@ -337,7 +382,8 @@ def _write_project_node(key: str, changed_fields: list, depends_on: list) -> dic
     return {"ok": True, "bumped": bumped}
 
 
-def _write_module_node(key: str, depends_on: list, files: dict = None) -> dict:
+def _write_module_node(key: str, depends_on: list, files: dict = None,
+                       allow_dropping_deps: bool = False) -> dict:
     """Bump ver and snapshot depends_on for a module screen phase node.
 
     key format: "{module_id}.{screen_id}.{phase}"
@@ -365,6 +411,13 @@ def _write_module_node(key: str, depends_on: list, files: dict = None) -> dict:
             continue
         phases   = screens[screen_id]
         existing = phases.get(phase) or {}
+
+        # Guard BEFORE any mutation — see _dropped_deps.
+        if not allow_dropping_deps:
+            dropped = _dropped_deps(existing, depends_on)
+            if dropped:
+                return _dropped_deps_error(key, dropped)
+
         now      = _now()
         new_ver  = (existing.get("ver") or 0) + 1
 
@@ -395,7 +448,8 @@ def _write_module_node(key: str, depends_on: list, files: dict = None) -> dict:
 
 # ── MCP tool functions ────────────────────────────────────────────────────────────────────────────────────────────────
 
-def _write_node(key: str, changed_fields: list, depends_on: list, files: dict = None) -> dict:
+def _write_node(key: str, changed_fields: list, depends_on: list, files: dict = None,
+                allow_dropping_deps: bool = False) -> dict:
     """Write a dep-graph node and snapshot its depends_on.
 
     Routes to project.json or module-{id}.json based on key prefix.
@@ -418,10 +472,10 @@ def _write_node(key: str, changed_fields: list, depends_on: list, files: dict = 
         {"error": str} on failure.
     """
     if key.startswith("project."):
-        return _write_project_node(key, changed_fields, depends_on)
+        return _write_project_node(key, changed_fields, depends_on, allow_dropping_deps)
 
     if key.split(".")[0].startswith("module-"):
-        return _write_module_node(key, depends_on, files)
+        return _write_module_node(key, depends_on, files, allow_dropping_deps)
 
     return {
         "error": (
@@ -545,7 +599,8 @@ def _get_stale_nodes() -> list:
 def register(mcp) -> None:
 
     @mcp.tool()
-    def dep_graph__track_node(artifact_key: str, changed_fields: list, depends_on: list, files: dict = None):
+    def dep_graph__track_node(artifact_key: str, changed_fields: list, depends_on: list,
+                              files: dict = None, allow_dropping_deps: bool = False):
         """Track a dep-graph node: bump version and snapshot depends_on.
 
         Performs two tightly-coupled operations as one atomic transaction:
@@ -555,11 +610,18 @@ def register(mcp) -> None:
         These are always performed together; there is no use case for one without
         the other. Splitting them would risk an inconsistent intermediate state
         (node with new ver but stale depends_on snapshot).
+
+        depends_on REPLACES what the node already has — it does not merge. A list
+        that omits a key the node already depends on is therefore refused, since
+        that silently erases the dependency and makes downstream staleness
+        undetectable. Set allow_dropping_deps=True only when the removal is
+        deliberate.
         """
         err = _validate_node_key(artifact_key)
         if err:
             return err
-        return _write_node(artifact_key, changed_fields, depends_on, files)
+        return _write_node(artifact_key, changed_fields, depends_on, files,
+                           allow_dropping_deps)
 
     @mcp.tool()
     def dep_graph__sync_stale_status():

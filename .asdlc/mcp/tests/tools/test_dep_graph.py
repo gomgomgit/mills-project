@@ -1011,3 +1011,146 @@ class TestValidateNodeKey:
 
     def test_vnk4_valid_project_key_returns_none(self):
         assert _validate_node_key("project.1-foundation.prd") is None
+
+# ── DD — dropped-dependency guard ─────────────────────────────────────────────
+#
+# track_node REPLACES depends_on; it does not merge. On 2026-09-27 two sync
+# agents passed an incomplete list and 12 nodes silently lost every
+# project-level dependency — a node with no upstream keys can never be marked
+# stale again, so the loss was invisible until the graph was audited by hand.
+# The guard refuses such a write; allow_dropping_deps=True is the deliberate
+# escape hatch.
+
+class TestDroppedDepsGuard:
+
+    def _seed_project(self, fs):
+        _write_project_node("project.1-foundation.prd", [], [])
+        _write_project_node("project.1-foundation.arch-spec", [], [])
+        _write_project_node("project.1-foundation.uiux-spec", [], [])
+
+    # DD-1 — module node: omitting one existing dep is refused
+    def test_module_node_refuses_dropping_one_dep(self, fs):
+        self._seed_project(fs)
+        full = ["project.1-foundation.prd", "project.1-foundation.arch-spec"]
+        _write_module_node("module-001--name.screen-001--name.3-tech-spec", full)
+
+        res = _write_module_node(
+            "module-001--name.screen-001--name.3-tech-spec",
+            ["project.1-foundation.prd"],
+        )
+        assert "error" in res
+        assert "project.1-foundation.arch-spec" in res["error"]
+
+    # DD-2 — the refused write leaves the node untouched (no ver bump, deps intact)
+    def test_refused_write_does_not_mutate_the_node(self, fs):
+        self._seed_project(fs)
+        full = ["project.1-foundation.prd", "project.1-foundation.arch-spec"]
+        _write_module_node("module-001--name.screen-001--name.3-tech-spec", full)
+        before = read_file(fs / "module-001--name.json")
+
+        _write_module_node(
+            "module-001--name.screen-001--name.3-tech-spec",
+            ["project.1-foundation.prd"],
+        )
+        assert read_file(fs / "module-001--name.json") == before
+
+    # DD-3 — passing the complete list still works
+    def test_complete_list_is_accepted(self, fs):
+        self._seed_project(fs)
+        full = ["project.1-foundation.prd", "project.1-foundation.arch-spec"]
+        _write_module_node("module-001--name.screen-001--name.3-tech-spec", full)
+
+        res = _write_module_node("module-001--name.screen-001--name.3-tech-spec", full)
+        assert res["ok"] is True
+        assert res["bumped"][0]["ver"] == 2
+
+    # DD-4 — ADDING a dep is never a drop
+    def test_adding_a_dep_is_allowed(self, fs):
+        self._seed_project(fs)
+        _write_module_node(
+            "module-001--name.screen-001--name.3-tech-spec",
+            ["project.1-foundation.prd"],
+        )
+        res = _write_module_node(
+            "module-001--name.screen-001--name.3-tech-spec",
+            ["project.1-foundation.prd", "project.1-foundation.uiux-spec"],
+        )
+        assert res["ok"] is True
+
+    # DD-5 — a brand-new node has nothing to drop
+    def test_first_write_is_never_refused(self, fs):
+        self._seed_project(fs)
+        res = _write_module_node("module-001--name.screen-001--name.2-business-spec", [])
+        assert res["ok"] is True
+
+    # DD-6 — the escape hatch lets a deliberate removal through
+    def test_allow_dropping_deps_permits_the_removal(self, fs):
+        self._seed_project(fs)
+        full = ["project.1-foundation.prd", "project.1-foundation.arch-spec"]
+        _write_module_node("module-001--name.screen-001--name.3-tech-spec", full)
+
+        res = _write_module_node(
+            "module-001--name.screen-001--name.3-tech-spec",
+            ["project.1-foundation.prd"],
+            allow_dropping_deps=True,
+        )
+        assert res["ok"] is True
+        node = read_file(fs / "module-001--name.json")["module-001--name"]["screen-001--name"]["3-tech-spec"]
+        assert list(node["depends_on"]) == ["project.1-foundation.prd"]
+
+    # DD-7 — project single-node is guarded too
+    def test_project_single_node_refuses_dropping_a_dep(self, fs):
+        self._seed_project(fs)
+        full = ["project.1-foundation.prd", "project.1-foundation.arch-spec"]
+        _write_project_node("project.3-tech-spec.erd", [], full)
+
+        res = _write_project_node("project.3-tech-spec.erd", [], ["project.1-foundation.prd"])
+        assert "error" in res
+        assert "project.1-foundation.arch-spec" in res["error"]
+
+    # DD-8 — project field-group is guarded per field
+    def test_project_field_group_refuses_dropping_a_dep(self, fs):
+        self._seed_project(fs)
+        full = ["project.1-foundation.prd", "project.1-foundation.arch-spec"]
+        _write_project_node("project.2-business-spec.usecase-index", ["usecases"], full)
+
+        res = _write_project_node(
+            "project.2-business-spec.usecase-index", ["usecases"],
+            ["project.1-foundation.prd"],
+        )
+        assert "error" in res
+        assert "usecases" in res["error"]
+
+    # DD-9 — the exact 2026-09-27 shape: all project deps dropped, self.* kept
+    def test_the_recorded_regression_shape_is_refused(self, fs):
+        self._seed_project(fs)
+        _write_module_node("module-001--name.screen-001--name.2-business-spec", [])
+        full = [
+            "self.2-business-spec",
+            "project.1-foundation.arch-spec",
+            "project.1-foundation.prd",
+        ]
+        _write_module_node("module-001--name.screen-001--name.3-tech-spec", full)
+
+        res = _write_module_node(
+            "module-001--name.screen-001--name.3-tech-spec",
+            ["self.2-business-spec"],
+        )
+        assert "error" in res
+        for lost in ("project.1-foundation.arch-spec", "project.1-foundation.prd"):
+            assert lost in res["error"]
+
+    # DD-10 — the flag reaches the guard through _write_node's routing
+    def test_flag_is_threaded_through_write_node(self, fs):
+        self._seed_project(fs)
+        full = ["project.1-foundation.prd", "project.1-foundation.arch-spec"]
+        _write_node("module-001--name.screen-001--name.3-tech-spec", [], full)
+
+        assert "error" in _write_node(
+            "module-001--name.screen-001--name.3-tech-spec", [],
+            ["project.1-foundation.prd"],
+        )
+        assert _write_node(
+            "module-001--name.screen-001--name.3-tech-spec", [],
+            ["project.1-foundation.prd"], None, True,
+        )["ok"] is True

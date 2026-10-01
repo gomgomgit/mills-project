@@ -495,6 +495,36 @@ async function downloadCsv(page: Page): Promise<string> {
   return readFile(path as string, 'utf8')
 }
 
+/**
+ * Memilih Production Line pada layar laporan.
+ *
+ * WAJIB SEJAK 2026-09-28. Commit a5ccfba membuat laporan stasiun menolak
+ * menampilkan angka apa pun sebelum satu Production Line dipilih secara sadar
+ * — laporan menghasilkan angka gabungan per line, dan mencampur beberapa line
+ * membuat angkanya menyesatkan. Spec ini terakhir disentuh sebelum tanggal itu,
+ * sehingga seluruh test laporannya berhenti di empty state
+ * `select-production-line-hint` dan tidak pernah sampai ke badan laporan.
+ *
+ * URUTANNYA MILL -> LINE -> PERIODE, dan itu bukan selera: komponen memanggil
+ * keepProductionLineValid(), yang mengosongkan productionLineId begitu ia tidak
+ * ada di daftar line mill yang sedang dipilih. Memilih line lebih dulu lalu
+ * berganti mill akan membuang pilihan line itu tanpa suara.
+ *
+ * Pemilih periode TIDAK digated oleh line (keduanya duduk di gate mill yang
+ * sama), jadi urutan line-lalu-periode di sini aman dan sekaligus mencerminkan
+ * urutan yang dilihat pengguna.
+ */
+async function selectProductionLine(page: Page, lineId: string = PRODUCTION_LINE_ID): Promise<void> {
+  await page.locator('[data-testid="production-line-select"]').selectOption(lineId)
+
+  // Titik sinkronisasi positif: `production-line-current` hanya dirender saat
+  // komponen benar-benar sudah me-resolve line-nya ($selectedProductionLine !==
+  // null), jadi menunggunya membuktikan round trip Livewire-nya mendarat —
+  // bukan sekadar bahwa <select> sudah berubah nilainya di DOM.
+  await expect(page.locator('[data-testid="production-line-current"]')).toBeVisible()
+  await expect(page.locator('[data-testid="select-production-line-hint"]')).toHaveCount(0)
+}
+
 test.describe('Laporan Clarification', () => {
   // Pembersihan — lihat tests/support/periods.ts untuk alasan lengkapnya.
   // Tanpa ini, periode menumpuk sampai memenuhi halaman 1 daftar yang
@@ -699,6 +729,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('berhasil: tanpa pemilih mill, produksi berdampingan dengan jumlah pembacaannya, dan unduhan CSV diterima', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // A bound role gets a caption, never a picker.
@@ -735,6 +766,7 @@ test.describe('Laporan Clarification', () => {
     // The figures do not move after a reload: this is a read, and reading it
     // twice must give the same answer.
     await page.reload()
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await expect(page.locator('[data-testid="summary-production-total"]')).toHaveText('40,0')
     await expect(page.locator('[data-testid="summary-production-reading-count"]')).toHaveText('4')
@@ -742,6 +774,7 @@ test.describe('Laporan Clarification', () => {
 
   test('berhasil sebagai Mill Management: laporan yang sama, tetap tanpa pemilih Mill', async ({ page }) => {
     await openReport(page, MILL_MANAGEMENT)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="mill-selector"]')).toHaveCount(0)
@@ -764,6 +797,7 @@ test.describe('Laporan Clarification', () => {
     await expect(page.locator('[data-testid="mill-required-hint"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="period-selector"]')).toBeVisible()
 
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // Identical blocks to every other role.
@@ -824,6 +858,24 @@ test.describe('Laporan Clarification', () => {
       // "no period yet" hint appears.
       await page.waitForTimeout(500)
 
+      // SATU LINE HARUS DIPILIH SEBELUM no-period-hint BISA MUNCUL. Empty state
+      // layar ini adalah rantai if/elseif dan cabang `needsProductionLineSelection`
+      // berada DI DEPAN cabang `periods === []`, jadi mill yang dipilih tanpa line
+      // selalu menampilkan `select-production-line-hint` dan perburuan ini akan
+      // gagal pada SETIAP mill tanpa memandang periodenya. Mill tanpa line sama
+      // sekali dilewati: ia juga tidak bisa mencapai cabang periode.
+      const lineOptions = await page
+        .locator('[data-testid="production-line-select"] option')
+        .evaluateAll((nodes) =>
+          nodes.map((node) => (node as HTMLOptionElement).value).filter((v) => v !== ''),
+        )
+
+      if (lineOptions.length === 0) {
+        continue
+      }
+
+      await selectProductionLine(page, lineOptions[0])
+
       if (await page.locator('[data-testid="no-period-hint"]').isVisible()) {
         found = true
         break
@@ -845,6 +897,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('periode tanpa data: keterangan belum ada data, angka bertanda pisah bukan nol, tanpa grafik kosong', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_EMPTY)
 
     await expect(page.locator('[data-testid="no-data-notice"]')).toContainText('Belum ada data pada periode ini')
@@ -883,6 +936,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('laju tidak tercatat: produksi tidak tersedia dengan 0 pembacaan, sementara suhu sludge tetap berangka', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_NORATE)
 
     const production = (await page.locator('[data-testid="summary-production-total"]').innerText()).trim()
@@ -904,6 +958,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('jam tanpa laju: 4 pembacaan menghasilkan 40,0 ton dan rata-rata 10,00 — bukan 3,64 — di samping 11 slot terisi', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="summary-production-total"]')).toHaveText('40,0')
@@ -926,6 +981,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('laju dan downtime: satu jam berlaju 10,0 dengan downtime 20 tetap menyumbang 10,0 ton', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_RATEDOWN)
 
     // >> OPEN QUESTION, STILL PENDING THE PROCESS OWNER — not decided here.
@@ -949,11 +1005,13 @@ test.describe('Laporan Clarification', () => {
     await openReport(page, SUPERVISOR)
 
     // Never recorded — words, deliberately not a 0.
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_NORATE)
     await expect(page.locator('[data-testid="summary-downtime-total"]')).toHaveText('tidak tercatat')
     await expect(page.locator('[data-testid="summary-downtime-reading-count"]')).toHaveText('0')
 
     // Recorded, and genuinely zero.
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_ZERODOWN)
     await expect(page.locator('[data-testid="summary-downtime-total"]')).toHaveText('0')
     await expect(page.locator('[data-testid="summary-downtime-reading-count"]')).toHaveText('3')
@@ -968,6 +1026,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('kelengkapan rendah: kartu kelengkapan menonjol di atas seluruh angka, yang tetap tampil dengan pembacaan kecil', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_SPARSE)
 
     await expect(page.locator('[data-testid="recording-coverage"]')).toBeVisible()
@@ -1012,6 +1071,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('beberapa unit: rekap per unit memuat setiap unit sementara angka periode menggabungkan semuanya', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MULTI)
 
     await expect(page.locator('[data-testid="by-unit-table"]')).toBeVisible()
@@ -1094,6 +1154,7 @@ test.describe('Laporan Clarification', () => {
     await expect(page.locator('[data-testid="mill-selector"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="laporan-clarification"]')).not.toContainText(otherMillName)
 
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await expect(page.locator('[data-testid="summary-production-total"]')).toHaveText('40,0')
 
@@ -1130,6 +1191,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('periode tertutup: status Tertutup, laporan penuh, dan unduhan CSV tetap berhasil', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_CLOSED)
 
     await expect(page.locator('[data-testid="period-status"]')).toHaveText(/Tertutup/)
@@ -1149,6 +1211,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('rekap harian: tombol menutup tabelnya lalu membukanya kembali, angka utama dan tren tetap terlihat', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // OPEN on first paint — the first click CLOSES it.
@@ -1181,6 +1244,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('produksi turunan: total dan jumlah pembacaannya berada di dalam kartu yang sama, berdampingan', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="summary-production-total"]')).toHaveText('40,0')
@@ -1211,6 +1275,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('penyebut terpisah: tiap kartu menampilkan jumlah pembacaannya sendiri — 4, 9, 6 dan 3', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="summary-production-reading-count"]')).toHaveText('4')
@@ -1239,6 +1304,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('rentang inklusif: baris tanggal awal dan akhir ada pada rekap dan CSV, tanggal di luar rentang tidak', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator(`[data-testid="daily-recap-row-${MAIN.start}"]`)).toBeVisible()
@@ -1270,6 +1336,7 @@ test.describe('Laporan Clarification', () => {
     // PERIOD_TEMPS, not PERIOD_MAIN: three dated readings per tank, so each
     // series is drawn as a LINE whose colour and dash pattern can be
     // measured — a single-point series renders only a dot.
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_TEMPS)
 
     // EXACTLY ONE. Three separate charts would satisfy "tren suhu antar
@@ -1317,6 +1384,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('tanpa ambang: nilai ekstrem tampil netral tanpa warna peringatan, ikon, maupun label pelanggaran', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_EXTREME)
 
     // The 250,0 / 0,5 pair IS rendered — it is simply never judged.
@@ -1365,6 +1433,7 @@ test.describe('Laporan Clarification', () => {
   // =====================================================================
   test('baca saja: tidak ada tombol simpan, ubah, atau hapus, dan angka tidak berubah setelah dibaca ulang', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // Walk the whole page, including both recap tables.
@@ -1373,7 +1442,9 @@ test.describe('Laporan Clarification', () => {
 
     // Change the period twice, then export — the three interactions the
     // screen actually offers.
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_NORATE)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await downloadCsv(page)
 
@@ -1388,6 +1459,7 @@ test.describe('Laporan Clarification', () => {
     // And the figures are identical after a full reload — nothing about
     // opening the page changed the data it reports on.
     await page.reload()
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await expect(page.locator('[data-testid="summary-production-total"]')).toHaveText('40,0')
     await expect(page.locator('[data-testid="summary-production-reading-count"]')).toHaveText('4')

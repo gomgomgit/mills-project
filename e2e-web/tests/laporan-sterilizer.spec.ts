@@ -81,6 +81,21 @@ const STATION_TYPE = 'Sterilizer'
  */
 const OTHER_MILL = 'Mill Kode Duplikat'
 
+/**
+ * Production Line tempat SELURUH fixture spec ini ditanam, DIREKAM dari form
+ * saat record pertama dibuat — bukan dipilih ulang secara mandiri oleh laporan.
+ *
+ * Mengapa direkam dan bukan `selectOption({ index: 1 })` lagi di layar laporan:
+ * BUSINESS_UNIT punya BELASAN production line, masing-masing dengan satu stasiun
+ * Sterilizer. Memilih "index 1" di dua picker yang berbeda hanya kebetulan
+ * menghasilkan line yang sama selama kedua picker mengurutkan isinya identik —
+ * dan kalau suatu saat tidak, laporannya akan menampilkan nol angka pada line
+ * yang tidak punya record, dengan kegagalan yang terbaca seperti bug produk.
+ * Merekam nilainya membuat laporan membaca line yang SAMA dengan yang ditulis,
+ * apa pun urutannya.
+ */
+let PRODUCTION_LINE_ID = ''
+
 /** A per-run day offset, so two runs never create overlapping windows. */
 /**
  * LAJUR TANGGAL SPEC INI. Offset mentah di bawah tetap seperti semula —
@@ -157,6 +172,14 @@ async function createSterilizerRecord(
   await page.goto(STERILIZER_FORM_PATH)
 
   await page.locator('[data-testid="production-line-select"]').selectOption({ index: 1 })
+
+  // Rekam line yang benar-benar terpilih, sekali saja, supaya layar laporan
+  // nanti membaca line yang sama dengan yang ditulis di sini.
+  if (PRODUCTION_LINE_ID === '') {
+    PRODUCTION_LINE_ID = await page.locator('[data-testid="production-line-select"]').inputValue()
+    expect(PRODUCTION_LINE_ID, 'form Sterilizer tidak memilih production line apa pun').not.toBe('')
+  }
+
   await page.locator('[data-testid="sterilizer-id-input"]').fill(options.sterilizerId)
   await page.locator('[data-testid="date-input"]').fill(options.date)
 
@@ -214,6 +237,29 @@ async function selectPeriod(page: Page, name: string): Promise<void> {
   await page.locator('[data-testid="period-select"]').selectOption(value as string)
 
   await expect(page.locator('[data-testid="report-hero"]')).toContainText(name)
+}
+
+/**
+ * Memilih Production Line pada layar laporan.
+ *
+ * WAJIB SEJAK 2026-09-28 (commit a5ccfba): laporan stasiun menolak menampilkan
+ * angka apa pun sebelum satu Production Line dipilih secara sadar, karena ia
+ * menghasilkan angka gabungan per line. Spec ini terakhir disentuh 2026-09-27,
+ * sehari sebelum aturan itu mendarat, sehingga setiap test laporannya berhenti
+ * di empty state `select-production-line-hint`.
+ *
+ * Urutannya MILL -> LINE -> PERIODE: komponen memanggil keepProductionLineValid(),
+ * yang mengosongkan pilihan line begitu ia tidak ada di daftar line mill yang
+ * sedang dipilih.
+ */
+async function selectProductionLine(page: Page, lineId: string = PRODUCTION_LINE_ID): Promise<void> {
+  await page.locator('[data-testid="production-line-select"]').selectOption(lineId)
+
+  // Titik sinkronisasi positif: `production-line-current` hanya dirender setelah
+  // komponen me-resolve line-nya, jadi menunggunya membuktikan round trip
+  // Livewire-nya mendarat — bukan sekadar bahwa <select> berubah di DOM.
+  await expect(page.locator('[data-testid="production-line-current"]')).toBeVisible()
+  await expect(page.locator('[data-testid="select-production-line-hint"]')).toHaveCount(0)
 }
 
 test.describe('Laporan Sterilizer', () => {
@@ -312,6 +358,7 @@ test.describe('Laporan Sterilizer', () => {
   // Scenario: "success"
   test('berhasil: kartu angka utama, grafik, ambang pencilan, rekap harian, dan unduhan CSV', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // Four KPI cards with real numbers.
@@ -357,6 +404,7 @@ test.describe('Laporan Sterilizer', () => {
     await expect(page.locator('[data-testid="empty-select-mill"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="period-select"]')).toBeVisible()
 
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="report-kpis"]')).toBeVisible()
@@ -390,6 +438,21 @@ test.describe('Laporan Sterilizer', () => {
       // "no period yet" hint appears.
       await page.waitForTimeout(500)
 
+      // SATU LINE HARUS DIPILIH SEBELUM empty-no-periods BISA MUNCUL: empty state
+      // layar ini adalah rantai if/elseif dan cabang line berada DI DEPAN cabang
+      // periode kosong. Mill tanpa line sama sekali dilewati.
+      const lineOptions = await page
+        .locator('[data-testid="production-line-select"] option')
+        .evaluateAll((nodes) =>
+          nodes.map((node) => (node as HTMLOptionElement).value).filter((v) => v !== ''),
+        )
+
+      if (lineOptions.length === 0) {
+        continue
+      }
+
+      await selectProductionLine(page, lineOptions[0])
+
       if (await page.locator('[data-testid="empty-no-periods"]').isVisible()) {
         found = true
         break
@@ -408,6 +471,7 @@ test.describe('Laporan Sterilizer', () => {
   // Scenario: "Periode tanpa data Sterilizer"
   test('periode tanpa data: angka utama nol, pesan belum ada data, dan tidak ada batang kosong', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_EMPTY)
 
     await expect(page.locator('[data-testid="kpi-total-cycles"]')).toContainText('0')
@@ -419,6 +483,7 @@ test.describe('Laporan Sterilizer', () => {
   // Scenario: "Sebagian siklus belum punya durasi"
   test('sebagian siklus tanpa durasi: total siklus utuh, rata-rata tidak terdilusi, jumlah yang dikeluarkan tertulis', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // All 12 cycles counted...
@@ -432,6 +497,7 @@ test.describe('Laporan Sterilizer', () => {
   // Scenario: "Seluruh durasi seragam"
   test('durasi seragam: kartu menyatakan tidak ada siklus di luar kebiasaan dan tetap menulis ambangnya', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_UNIFORM)
 
     await expect(page.locator('[data-testid="outliers-none"]')).toContainText('Tidak ada siklus di luar kebiasaan')
@@ -447,6 +513,7 @@ test.describe('Laporan Sterilizer', () => {
     // Offering a picker they cannot use would be a lie, so there is none.
     await expect(page.locator('[data-testid="mill-select"]')).toHaveCount(0)
 
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="report-hero"]')).toContainText(BUSINESS_UNIT)
@@ -479,6 +546,7 @@ test.describe('Laporan Sterilizer', () => {
   // Scenario: "Periode berstatus Tertutup"
   test('periode tertutup: laporan tetap tampil dengan label Tertutup dan ekspor tetap terpicu', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_CLOSED)
 
     await expect(page.locator('[data-testid="hero-status"]')).toHaveText(/Tertutup/)
@@ -537,6 +605,7 @@ test.describe('Laporan Sterilizer', () => {
   // Scenario: "rentang inklusif memakai tanggal kejadian"
   test('rentang inklusif: baris tanggal awal dan akhir muncul, siklus di luar rentang tidak', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await page.locator('[data-testid="recap-toggle"]').click()
@@ -554,6 +623,7 @@ test.describe('Laporan Sterilizer', () => {
   // pembuangan tidak lengkap"
   test('triple-peak: kepatuhan di bawah 100 persen sebanding dengan siklus yang tidak lengkap', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     const card = page.locator('[data-testid="kpi-triple-peak"]')
@@ -567,6 +637,7 @@ test.describe('Laporan Sterilizer', () => {
   // Scenario: "ambang siklus menyimpang wajib ditampilkan di layar"
   test('ambang pencilan: nilai ambang tertulis dan hanya siklus di luar ambang yang terdaftar', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     const threshold = page.locator('[data-testid="outlier-threshold"]')
@@ -584,6 +655,7 @@ test.describe('Laporan Sterilizer', () => {
   // Scenario: "laporan bersifat baca saja"
   test('baca saja: tidak ada aksi tambah, ubah, hapus, maupun sel yang dapat diedit', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await page.locator('[data-testid="recap-toggle"]').click()
     await expect(page.locator('[data-testid="recap-table"]')).toBeVisible()

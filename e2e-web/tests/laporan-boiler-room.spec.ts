@@ -426,6 +426,38 @@ async function selectPeriod(page: Page, name: string): Promise<void> {
   await expect(page.locator('[data-testid="report-hero"]')).toContainText(name)
 }
 
+/**
+ * Memilih Production Line pada layar laporan.
+ *
+ * WAJIB SEJAK 2026-09-28. Commit a5ccfba membuat laporan stasiun menolak
+ * menampilkan angka apa pun sebelum satu Production Line dipilih secara sadar
+ * — laporan menghasilkan angka gabungan per line, dan mencampur beberapa line
+ * membuat angkanya menyesatkan. Spec ini terakhir disentuh 2026-09-27, sehari
+ * SEBELUM aturan itu mendarat, sehingga seluruh test laporannya berhenti di
+ * empty state `select-production-line-hint` dan tidak pernah sampai ke badan
+ * laporan. Itu sebabnya 18 dari 22 test di berkas ini merah selama tiga hari
+ * dengan sebab yang sama.
+ *
+ * URUTANNYA MILL -> LINE -> PERIODE, dan itu bukan selera: komponen memanggil
+ * keepProductionLineValid(), yang mengosongkan productionLineId begitu ia tidak
+ * ada di daftar line mill yang sedang dipilih. Memilih line lebih dulu lalu
+ * berganti mill akan membuang pilihan line itu tanpa suara.
+ *
+ * Pemilih periode TIDAK digated oleh line (keduanya duduk di gate mill yang
+ * sama), jadi urutan line-lalu-periode di sini aman dan sekaligus mencerminkan
+ * urutan yang dilihat pengguna.
+ */
+async function selectProductionLine(page: Page, lineId: string = PRODUCTION_LINE_ID): Promise<void> {
+  await page.locator('[data-testid="production-line-select"]').selectOption(lineId)
+
+  // Titik sinkronisasi positif: `production-line-current` hanya dirender saat
+  // komponen benar-benar sudah me-resolve line-nya ($selectedProductionLine !==
+  // null), jadi menunggunya membuktikan round trip Livewire-nya mendarat —
+  // bukan sekadar bahwa <select> sudah berubah nilainya di DOM.
+  await expect(page.locator('[data-testid="production-line-current"]')).toBeVisible()
+  await expect(page.locator('[data-testid="select-production-line-hint"]')).toHaveCount(0)
+}
+
 /** Closes the daily recap if it is open, opening it again is the same click. */
 async function toggleRecap(page: Page): Promise<void> {
   await page.locator('[data-testid="daily-recap-toggle"]').click()
@@ -584,6 +616,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('berhasil: tanpa pemilih mill, seluruh bagian laporan terlihat, dan unduhan CSV diterima', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // A bound role gets a caption, never a picker.
@@ -614,6 +647,7 @@ test.describe('Laporan Boiler Room', () => {
     // The figures do not move after a reload: this is a read, and reading it
     // twice must give the same answer.
     await page.reload()
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await expect(page.locator('[data-testid="metric-steam-pressure-avg"]')).toHaveText('20,0')
     await expect(page.locator('[data-testid="metric-steam-pressure-reading-count"]')).toHaveText('12')
@@ -621,6 +655,7 @@ test.describe('Laporan Boiler Room', () => {
 
   test('berhasil sebagai Mill Management: laporan yang sama, tetap tanpa pemilih Mill', async ({ page }) => {
     await openReport(page, MILL_MANAGEMENT)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="mill-selector"]')).toHaveCount(0)
@@ -642,6 +677,7 @@ test.describe('Laporan Boiler Room', () => {
     await expect(page.locator('[data-testid="select-mill-first-hint"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="period-selector"]')).toBeVisible()
 
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="recording-coverage"]')).toBeVisible()
@@ -690,9 +726,27 @@ test.describe('Laporan Boiler Room', () => {
 
     for (const value of millValues) {
       await page.locator('[data-testid="mill-selector"]').selectOption(value)
-      // One Livewire round trip: either the period picker fills, or the
-      // "no period yet" hint appears.
+      // One Livewire round trip: the production-line picker reloads for the
+      // mill just chosen.
       await page.waitForTimeout(500)
+
+      // SATU LINE HARUS DIPILIH SEBELUM no-period-hint BISA MUNCUL. Empty state
+      // layar ini adalah rantai if/elseif dan cabang `needsProductionLineSelection`
+      // berada DI DEPAN cabang `periods === []`, jadi mill yang dipilih tanpa line
+      // selalu menampilkan `select-production-line-hint` dan perburuan di bawah
+      // akan gagal pada SETIAP mill tanpa memandang periodenya. Mill tanpa line
+      // sama sekali dilewati: ia juga tidak bisa mencapai cabang periode.
+      const lineOptions = await page
+        .locator('[data-testid="production-line-select"] option')
+        .evaluateAll((nodes) =>
+          nodes.map((node) => (node as HTMLOptionElement).value).filter((v) => v !== ''),
+        )
+
+      if (lineOptions.length === 0) {
+        continue
+      }
+
+      await selectProductionLine(page, lineOptions[0])
 
       if (await page.locator('[data-testid="no-period-hint"]').isVisible()) {
         found = true
@@ -715,6 +769,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('periode tanpa data: keterangan belum ada data, metrik bertanda pisah bukan nol, tanpa grafik kosong', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_EMPTY)
 
     await expect(page.locator('[data-testid="empty-period-notice"]')).toContainText('Belum ada data pada periode ini')
@@ -737,6 +792,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('metrik kosong: kartu TDS terbaca tidak tersedia dengan 0 pembacaan, kartu tekanan tetap berangka', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // TDS Air and Suhu Gas Buang are never filled in PERIOD_MAIN.
@@ -756,6 +812,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('perawatan: tiga keadaan terlihat sebagai angka terpisah dan tidak tercatat jelas beda dari tidak dilakukan', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // 3 + 2 + 7 = 12 reading rows. NULL never joins "tidak dilakukan" — a 9
@@ -779,6 +836,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('kelengkapan rendah: kartu kelengkapan menonjol di atas seluruh angka, yang tetap tampil dengan jumlah pembacaan kecil', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_SPARSE)
 
     const coverage = page.locator('[data-testid="recording-coverage"]')
@@ -819,6 +877,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('beberapa unit: rekap per unit memuat setiap unit sementara angka periode menggabungkan keduanya', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="per-unit-recap"]')).toBeVisible()
@@ -895,6 +954,7 @@ test.describe('Laporan Boiler Room', () => {
     await expect(page.locator('[data-testid="mill-selector"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="laporan-boiler-room"]')).not.toContainText(otherMillName)
 
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await expect(page.locator('[data-testid="metric-steam-pressure-avg"]')).toHaveText('20,0')
 
@@ -930,6 +990,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('periode tertutup: status Tertutup, laporan penuh, dan unduhan CSV tetap berhasil', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_CLOSED)
 
     await expect(page.locator('[data-testid="period-status"]')).toHaveText(/Tertutup/)
@@ -948,6 +1009,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('rekap harian: tombol menutup tabelnya lalu membukanya kembali, angka utama dan tren tetap terlihat', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // OPEN on first paint — the first click CLOSES it.
@@ -977,6 +1039,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('baca saja: tidak ada tombol simpan, ubah, atau hapus di mana pun pada layar', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // Walk the whole page, including both recap tables.
@@ -994,6 +1057,7 @@ test.describe('Laporan Boiler Room', () => {
     // And the figures are identical after a full reload — nothing about
     // opening the page changed the data it reports on.
     await page.reload()
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await expect(page.locator('[data-testid="metric-steam-pressure-reading-count"]')).toHaveText('12')
     await expect(page.locator('[data-testid="coverage-filled-slots"]')).toHaveText('12')
@@ -1045,6 +1109,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('rentang inklusif: baris tanggal awal dan akhir ada pada rekap dan CSV, tanggal di luar rentang tidak', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator(`[data-testid="daily-recap-row-${MAIN.start}"]`)).toBeVisible()
@@ -1073,6 +1138,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('penyebut terpisah: pH wajar dengan 4 pembacaan, dan terendah periode adalah pembacaan mentah sementara rekap tetap rata-rata harian', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // (6+7+7+8)/4 = 7,0, beside its OWN count of 4. A shared denominator
@@ -1101,6 +1167,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('jumlah pembacaan: terlihat berdampingan dengan tiap angka pada seluruh kartu, tanpa klik maupun hover', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     const expected: Record<string, string> = {
@@ -1132,6 +1199,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('teks bebas: tidak muncul sebagai rata-rata, min, max maupun tren di halaman, tetapi hadir apa adanya pada CSV', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // Their units are mixed on the paper form (Hz / % / tons), so averaging
@@ -1164,6 +1232,7 @@ test.describe('Laporan Boiler Room', () => {
   // =====================================================================
   test('tanpa ambang: nilai ekstrem tampil netral tanpa warna peringatan, ikon, maupun label pelanggaran', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // The 12 / 28 spread IS rendered — it is simply never judged. Boiler

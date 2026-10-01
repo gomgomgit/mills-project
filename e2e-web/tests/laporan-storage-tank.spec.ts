@@ -522,6 +522,36 @@ async function classOf(page: Page, testid: string): Promise<string | null> {
   return page.locator(`[data-testid="${testid}"]`).getAttribute('class')
 }
 
+/**
+ * Memilih Production Line pada layar laporan.
+ *
+ * WAJIB SEJAK 2026-09-28. Commit a5ccfba membuat laporan stasiun menolak
+ * menampilkan angka apa pun sebelum satu Production Line dipilih secara sadar
+ * — laporan menghasilkan angka gabungan per line, dan mencampur beberapa line
+ * membuat angkanya menyesatkan. Spec ini terakhir disentuh sebelum tanggal itu,
+ * sehingga seluruh test laporannya berhenti di empty state
+ * `select-production-line-hint` dan tidak pernah sampai ke badan laporan.
+ *
+ * URUTANNYA MILL -> LINE -> PERIODE, dan itu bukan selera: komponen memanggil
+ * keepProductionLineValid(), yang mengosongkan productionLineId begitu ia tidak
+ * ada di daftar line mill yang sedang dipilih. Memilih line lebih dulu lalu
+ * berganti mill akan membuang pilihan line itu tanpa suara.
+ *
+ * Pemilih periode TIDAK digated oleh line (keduanya duduk di gate mill yang
+ * sama), jadi urutan line-lalu-periode di sini aman dan sekaligus mencerminkan
+ * urutan yang dilihat pengguna.
+ */
+async function selectProductionLine(page: Page, lineId: string = PRODUCTION_LINE_ID): Promise<void> {
+  await page.locator('[data-testid="production-line-select"]').selectOption(lineId)
+
+  // Titik sinkronisasi positif: `production-line-current` hanya dirender saat
+  // komponen benar-benar sudah me-resolve line-nya ($selectedProductionLine !==
+  // null), jadi menunggunya membuktikan round trip Livewire-nya mendarat —
+  // bukan sekadar bahwa <select> sudah berubah nilainya di DOM.
+  await expect(page.locator('[data-testid="production-line-current"]')).toBeVisible()
+  await expect(page.locator('[data-testid="select-production-line-hint"]')).toHaveCount(0)
+}
+
 test.describe('Laporan Storage Tank', () => {
   // Pembersihan — lihat tests/support/periods.ts untuk alasan lengkapnya.
   // Tanpa ini, periode menumpuk sampai memenuhi halaman 1 daftar yang
@@ -845,6 +875,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('berhasil: kartu stok beserta waktu pembacaannya, tabel per tangki, lima kartu metrik, kedua grafik, dan unduhan CSV', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // A bound role gets a caption, never a picker.
@@ -895,6 +926,7 @@ test.describe('Laporan Storage Tank', () => {
 
   test('berhasil sebagai Mill Management: laporan yang sama, tetap tanpa pemilih Mill', async ({ page }) => {
     await openReport(page, MILL_MANAGEMENT)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="mill-select"]')).toHaveCount(0)
@@ -915,6 +947,7 @@ test.describe('Laporan Storage Tank', () => {
     await expect(page.locator('[data-testid="mill-select-hint"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="period-select"]')).toBeVisible()
 
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // Identical blocks to every other role.
@@ -978,9 +1011,27 @@ test.describe('Laporan Storage Tank', () => {
 
     for (const value of millValues) {
       await page.locator('[data-testid="mill-select"]').selectOption(value)
-      // One Livewire round trip: either the period picker fills, or the
-      // "no period yet" hint appears.
+      // One Livewire round trip: the production-line picker reloads for the
+      // mill just chosen.
       await page.waitForTimeout(500)
+
+      // SATU LINE HARUS DIPILIH SEBELUM no-period-hint BISA MUNCUL. Empty state
+      // layar ini adalah rantai if/elseif dan cabang `needsProductionLineSelection`
+      // berada DI DEPAN cabang `periods === []`, jadi mill yang dipilih tanpa line
+      // selalu menampilkan `select-production-line-hint` dan perburuan ini akan
+      // gagal pada SETIAP mill tanpa memandang periodenya. Mill tanpa line sama
+      // sekali dilewati: ia juga tidak bisa mencapai cabang periode.
+      const lineOptions = await page
+        .locator('[data-testid="production-line-select"] option')
+        .evaluateAll((nodes) =>
+          nodes.map((node) => (node as HTMLOptionElement).value).filter((v) => v !== ''),
+        )
+
+      if (lineOptions.length === 0) {
+        continue
+      }
+
+      await selectProductionLine(page, lineOptions[0])
 
       if (await page.locator('[data-testid="no-period-hint"]').isVisible()) {
         found = true
@@ -1003,6 +1054,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('periode tanpa data: keterangan belum ada data, kartu berbunyi tidak tersedia bukan nol, tanpa grafik kosong', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_EMPTY)
 
     await expect(page.locator('[data-testid="empty-state"]')).toContainText('Belum ada data pada periode ini')
@@ -1033,6 +1085,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('pembacaan tunggal: sel pergerakan berbunyi tidak dapat dihitung dan bukan nol, stok awal dan akhirnya satu waktu', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_SINGLE)
 
     const row = page.locator(`[data-testid="by-tank-row-${TANK_ONE}"]`)
@@ -1067,6 +1120,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('awal kosong: stok awal 150,0 disertai tanggal pembacaan yang sebenarnya, bukan tanggal awal periode', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_LATEOPEN)
 
     const realOpening = instantLabel(isoDate(LATEOPEN.startDay + 2), '12:00')
@@ -1091,6 +1145,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('tanpa pembacaan stok: baris tangki tetap ada di rekap dengan stok dan pergerakan tidak tersedia', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_NOSTOCK)
 
     const row = page.locator(`[data-testid="by-tank-row-${TANK_NOSTOCK}"]`)
@@ -1120,6 +1175,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('jumlah tangki berbeda di kedua ujung: kartu pergerakan sama dengan jumlah kolom per tangki, bukan selisih stok gabungan', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MOVEMENT)
 
     await expect(page.locator('[data-testid="stock-movement-mt"]')).toHaveText('+10,0')
@@ -1144,6 +1200,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('pergerakan negatif: -180,0 bertanda minus ASCII tanpa ikon maupun warna peringatan, dan tidak dibulatkan ke nol', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_NEGATIVE)
 
     const movement = page.locator('[data-testid="stock-movement-mt"]')
@@ -1169,6 +1226,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('metrik tidak pernah diisi: kartu Kotoran berbunyi tidak tersedia dengan 0 pembacaan, kartu FFA tetap normal', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_NOIMP)
 
     await expect(page.locator('[data-testid="metric-impurities-avg"]')).toHaveText('tidak tersedia')
@@ -1188,6 +1246,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('suhu rata-rata kosong: kartu berbunyi tidak tersedia dan tidak menampilkan nilai hasil hitung ulang', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_NOAVGTEMP)
 
     await expect(page.locator('[data-testid="metric-temperature-avg"]')).toHaveText('tidak tersedia')
@@ -1217,6 +1276,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('kelengkapan rendah: kartu kelengkapan terlihat tanpa menggulir dan angka utama tetap tampil', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_SPARSE)
 
     await expect(page.locator('[data-testid="coverage-card"]')).toBeVisible()
@@ -1261,6 +1321,7 @@ test.describe('Laporan Storage Tank', () => {
     await expect(page.locator('[data-testid="mill-select"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="mill-name"]')).toContainText(BUSINESS_UNIT)
 
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await expect(page.locator('[data-testid="mill-select"]')).toHaveCount(0)
 
@@ -1312,6 +1373,7 @@ test.describe('Laporan Storage Tank', () => {
     await expect(page.locator('[data-testid="mill-select"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="laporan-storage-tank"]')).not.toContainText(otherMillName)
 
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await expect(page.locator('[data-testid="stock-opening-mt"]')).toHaveText('500,0')
 
@@ -1349,6 +1411,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('periode tertutup: penanda Tertutup, laporan penuh, dan unduhan CSV tetap berhasil', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_CLOSED)
 
     await expect(page.locator('[data-testid="period-status-badge"]')).toHaveText('Tertutup')
@@ -1369,6 +1432,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('rekap harian: terbuka secara bawaan, tombol menutupnya lalu membukanya kembali, angka utama dan grafik tetap terlihat', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_LONG)
 
     // OPEN BY DEFAULT — a decision, not a default left alone.
@@ -1401,6 +1465,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('stok awal/akhir menurut waktu: 100,0 dan 80,0 dengan waktunya, sementara 250,0 tidak pernah menjadi salah satunya', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     const row = page.locator(`[data-testid="by-tank-row-${TANK_SCRAMBLED}"]`)
@@ -1426,6 +1491,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('pergerakan bersih identik dengan jumlah kolom pergerakan pada tabel per tangki, dan bukan angka cara stok gabungan', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MOVEMENT)
 
     const card = (await page.locator('[data-testid="stock-movement-mt"]').innerText()).trim()
@@ -1454,6 +1520,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('suhu rata-rata: kartu menampilkan 55,0 dari kolom Operator, dan bukan 60,0 hasil hitung ulang', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_AVGTEMP)
 
     await expect(page.locator('[data-testid="metric-temperature-avg"]')).toHaveText('55,0')
@@ -1478,6 +1545,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('penyebut terpisah: jumlah pembacaan berbeda-beda antar kartu sesuai pengisiannya masing-masing', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_DENOM)
 
     await expect(page.locator('[data-testid="metric-ffa-reading-count"]')).toHaveText('2')
@@ -1506,6 +1574,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('rentang inklusif: rekap harian dan CSV memuat kedua tanggal ujung, dan tanggal di luar rentang tidak muncul', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_INCLUSIVE)
 
     const before = isoDate(INCLUSIVE.startDay - 1)
@@ -1541,6 +1610,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('satu grafik: FFA, kadar air, dan DOBI bersama pada satu bidang gambar, dengan legenda yang menyatakan normalisasinya', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // ONE drawing area for the three series — not three separate charts.
@@ -1577,6 +1647,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('nilai ekstrem: kartu ekstrem dan kartu biasa membawa atribut class yang sama, tanpa satu pun elemen penandaan', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_EXTREME)
 
     // The extremes are rendered as-is: judging them is the reader's job, and
@@ -1610,6 +1681,7 @@ test.describe('Laporan Storage Tank', () => {
   // =====================================================================
   test('baca saja: tidak ada tombol tambah, ubah, hapus atau simpan, dan angka tidak berubah setelah seluruh interaksi', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     const openingBefore = (await page.locator('[data-testid="stock-opening-mt"]').innerText()).trim()
@@ -1624,7 +1696,9 @@ test.describe('Laporan Storage Tank', () => {
 
     // Walk the whole page: change period, close and reopen the recap, run
     // the export.
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_SPARSE)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await toggleRecap(page)
     await toggleRecap(page)
@@ -1633,6 +1707,7 @@ test.describe('Laporan Storage Tank', () => {
     // Reading it twice gives the same answer — this is a read, and nothing
     // it does may alter the data it reports on.
     await page.reload()
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="stock-opening-mt"]')).toHaveText(openingBefore)

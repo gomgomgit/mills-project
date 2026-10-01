@@ -2,7 +2,7 @@
   "ver": 1,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-23"
+    "updated_at": "2026-10-02"
   },
   "id": "screen-140--laporan-stasiun-web",
   "name": "Laporan Stasiun (Web)",
@@ -26,7 +26,7 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-09-23T06:52:00Z",
+      "run_at": "2026-10-02T05:20:00Z",
       "passed": 14,
       "failed": 0
     }
@@ -67,7 +67,8 @@
     "Grid 3 kolom tetap di setiap lebar; pada <=767px tanpa gulir horizontal halaman. Seluruh teks UI Bahasa Indonesia.",
     "data-testid lengkap dan diverifikasi per keadaan: Supervisor bermill → mill-current + station-grid + station-tile-* tanpa mill-select; Admin belum memilih → mill-select + mill-required-hint tanpa grid; master mill kosong → tambah no-business-units; Supervisor tanpa mill → hanya no-mill-for-account; master stasiun kosong → grid nol tile + no-station-types. Tile nonaktif adalah <span class=\"station-tile disabled\" aria-disabled=\"true\"> berteks 'Belum tersedia', tanpa href, dan nol wire:click di seluruh halaman.",
     "mount() memanggil abort_unless($this->canAccess(), 403); keepSelectionValid() membuang businessUnitId basi agar service tidak pernah menjawab 404 untuk pilihan yang tidak pernah dibuat pengguna.",
-    "PENEMPATAN CSS — pelajaran yang mahal pada run ini. Partial report-styles memancarkan <style>. Livewire 3 memasang wire:id pada elemen ter-render PERTAMA, jadi meletakkan @include di atas root div membuat atribut itu menempel pada <style> dan seluruh wire:model berhenti bekerja (pemilih Mill Admin mati total di peramban; ditangkap browser test, TIDAK tertangkap component test karena Livewire::test() tidak melewati semantik root-element peramban). Penempatan akhir yang dipakai kedua layar laporan: di view halaman lewat <x-slot:styles> milik x-layouts.app — konvensi repo yang sama dengan production-process-activity.blade.php. Di sana CSS berada di luar komponen sepenuhnya, sehingga tidak ada masalah single-root dan HTML yang diperiksa Livewire::test() berisi markup saja."
+    "PENEMPATAN CSS — pelajaran yang mahal pada run ini. Partial report-styles memancarkan <style>. Livewire 3 memasang wire:id pada elemen ter-render PERTAMA, jadi meletakkan @include di atas root div membuat atribut itu menempel pada <style> dan seluruh wire:model berhenti bekerja (pemilih Mill Admin mati total di peramban; ditangkap browser test, TIDAK tertangkap component test karena Livewire::test() tidak melewati semantik root-element peramban). Penempatan akhir yang dipakai kedua layar laporan: di view halaman lewat <x-slot:styles> milik x-layouts.app — konvensi repo yang sama dengan production-process-activity.blade.php. Di sana CSS berada di luar komponen sepenuhnya, sehingga tidak ada masalah single-root dan HTML yang diperiksa Livewire::test() berisi markup saja.",
+    "SPEC BROWSER DIPERBAIKI 2026-10-02, dan layar INI yang paling banyak berubah dari keenamnya. e2e-web/tests/laporan-stasiun.spec.ts terakhir disentuh 2026-09-24, empat hari sebelum kewajiban Production Line mendarat (a5ccfba). Grid stasiun dirender hanya saat `$businessUnit !== null && ! $needsProductionLineSelection`, jadi mill saja tidak cukup dan `station-grid` tidak pernah ada: 11 dari 14 test gagal. Tiga hal yang khas di sini dan tidak ada di lima spec laporan lain: (1) HELPER-NYA MENCARI, BUKAN MEMILIH OPSI PERTAMA — line milik BUSINESS_UNIT sengaja dibuat tidak lengkap satu-satu ('PL Tanpa Threshing', 'PL Tanpa Pressing', ...) ditambah dua line bersatu stasiun, jadi memilih opsi pertama menggantungkan test pada urutan abjad dan bisa menghilangkan tile sterilizer atau threshing yang justru diasersi; helper mencoba tiap line sampai menemukan satu yang memuat seluruh kode yang diminta dan melempar galat menyebut apa yang dicari bila tidak ada. (2) OPSI LINE HARUS DITUNGGU, BUKAN LANGSUNG DIBACA — ia dimuat lewat round trip Livewire sesudah mill dipilih; evaluateAll() tidak auto-retry sementara expect() ya, dan tanpa penantian itu kegagalannya berbunyi 'mill tidak punya line' padahal yang terjadi hanya balapan. (3) ASERSI URL DILONGGARKAN dari `${REPORT_PATH}$` menjadi `${REPORT_PATH}(\\?|$)` — pilihan mill dan line terikat #[Url] secara sengaja (supaya pilihan Admin bertahan saat ia menekan tile lalu kembali), jadi layar ini MEMANG membawa query string; yang diuji adalah bahwa menekan tile nonaktif tidak memindahkan halaman, bukan bahwa URL-nya bersih. Satu test lain ('mill terbawa') memilih mill terakhir secara abjad, yaitu 'Mill Kode Duplikat' yang punya NOL production line — diganti pencarian dari ujung untuk mill yang benar-benar punya line. Hasil: 14 lolos, 0 gagal."
   ],
   "deferred_items": [
     {

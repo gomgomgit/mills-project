@@ -425,6 +425,36 @@ async function openRecap(page: Page): Promise<void> {
   await expect(page.locator('[data-testid="recap-table"]')).toBeVisible()
 }
 
+/**
+ * Memilih Production Line pada layar laporan.
+ *
+ * WAJIB SEJAK 2026-09-28. Commit a5ccfba membuat laporan stasiun menolak
+ * menampilkan angka apa pun sebelum satu Production Line dipilih secara sadar
+ * — laporan menghasilkan angka gabungan per line, dan mencampur beberapa line
+ * membuat angkanya menyesatkan. Spec ini terakhir disentuh sebelum tanggal itu,
+ * sehingga seluruh test laporannya berhenti di empty state
+ * `select-production-line-hint` dan tidak pernah sampai ke badan laporan.
+ *
+ * URUTANNYA MILL -> LINE -> PERIODE, dan itu bukan selera: komponen memanggil
+ * keepProductionLineValid(), yang mengosongkan productionLineId begitu ia tidak
+ * ada di daftar line mill yang sedang dipilih. Memilih line lebih dulu lalu
+ * berganti mill akan membuang pilihan line itu tanpa suara.
+ *
+ * Pemilih periode TIDAK digated oleh line (keduanya duduk di gate mill yang
+ * sama), jadi urutan line-lalu-periode di sini aman dan sekaligus mencerminkan
+ * urutan yang dilihat pengguna.
+ */
+async function selectProductionLine(page: Page, lineId: string = PRODUCTION_LINE_ID): Promise<void> {
+  await page.locator('[data-testid="production-line-select"]').selectOption(lineId)
+
+  // Titik sinkronisasi positif: `production-line-current` hanya dirender saat
+  // komponen benar-benar sudah me-resolve line-nya ($selectedProductionLine !==
+  // null), jadi menunggunya membuktikan round trip Livewire-nya mendarat —
+  // bukan sekadar bahwa <select> sudah berubah nilainya di DOM.
+  await expect(page.locator('[data-testid="production-line-current"]')).toBeVisible()
+  await expect(page.locator('[data-testid="select-production-line-hint"]')).toHaveCount(0)
+}
+
 test.describe('Laporan Cages & Tracks', () => {
   // Pembersihan — lihat tests/support/periods.ts untuk alasan lengkapnya.
   // Tanpa ini, 9 periode per run menumpuk sampai memenuhi halaman 1 daftar
@@ -624,6 +654,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('berhasil: keterangan mill, seluruh kartu angka, grafik, antrean, dan rekap harian yang dapat ditutup', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // A bound role gets a caption, never a picker.
@@ -655,6 +686,7 @@ test.describe('Laporan Cages & Tracks', () => {
 
   test('berhasil sebagai Mill Management: laporan yang sama, tetap tanpa pemilih Mill', async ({ page }) => {
     await openReport(page, MILL_MANAGEMENT)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="mill-select"]')).toHaveCount(0)
@@ -676,6 +708,7 @@ test.describe('Laporan Cages & Tracks', () => {
     await expect(page.locator('[data-testid="mill-required-hint"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="period-select"]')).toBeVisible()
 
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     await expect(page.locator('[data-testid="report-kpis"]')).toBeVisible()
@@ -691,6 +724,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('ekspor CSV: unduhan terpicu, berkas berekstensi .csv, dan rekap tetap tampil', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     const downloadPromise = page.waitForEvent('download')
@@ -710,6 +744,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('periode tanpa data: angka utama nol, keterangan belum ada data, dan tidak ada grafik kosong', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_EMPTY)
 
     await expect(page.locator('[data-testid="empty-period"]')).toContainText('Belum ada data pada periode ini')
@@ -753,6 +788,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('tanpa jendela operasi: durasi tippler berteks tidak tersedia dan jumlah hari yang dikecualikan terlihat', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_NO_WINDOW)
 
     const durationCard = page.locator('[data-testid="kpi-tippler-duration"]')
@@ -772,6 +808,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('satu jam saja: kartu jeda menyatakan tidak dapat dihitung dan tidak menulis 0 jam', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_ONE_HOUR)
 
     const gapCard = page.locator('[data-testid="kpi-longest-gap"]')
@@ -785,6 +822,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('lintas tengah malam: jam operasi 6 jam tanpa tanda minus, dan jam menganggur mengikuti himpunan melingkar', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_NIGHT)
 
     // 6 jam, never -18 (which is what subtracting hour components gives).
@@ -870,9 +908,27 @@ test.describe('Laporan Cages & Tracks', () => {
 
     for (const value of millValues) {
       await page.locator('[data-testid="mill-select"]').selectOption(value)
-      // One Livewire round trip: either the period picker fills, or the
-      // "no period yet" hint appears.
+      // One Livewire round trip: the production-line picker reloads for the
+      // mill just chosen.
       await page.waitForTimeout(500)
+
+      // SATU LINE HARUS DIPILIH SEBELUM no-periods BISA MUNCUL. Empty state layar
+      // ini adalah rantai if/elseif dan cabang `needsProductionLineSelection`
+      // berada DI DEPAN cabang periode kosong, jadi mill yang dipilih tanpa line
+      // selalu menampilkan `select-production-line-hint` dan perburuan ini akan
+      // gagal pada SETIAP mill tanpa memandang periodenya. Mill tanpa line sama
+      // sekali dilewati: ia juga tidak bisa mencapai cabang periode.
+      const lineOptions = await page
+        .locator('[data-testid="production-line-select"] option')
+        .evaluateAll((nodes) =>
+          nodes.map((node) => (node as HTMLOptionElement).value).filter((v) => v !== ''),
+        )
+
+      if (lineOptions.length === 0) {
+        continue
+      }
+
+      await selectProductionLine(page, lineOptions[0])
 
       if (await page.locator('[data-testid="no-periods"]').isVisible()) {
         found = true
@@ -925,6 +981,7 @@ test.describe('Laporan Cages & Tracks', () => {
     await expect(page.locator('[data-testid="mill-select"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="laporan-cages-track"]')).not.toContainText(otherMillName)
 
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await expect(page.locator('[data-testid="kpi-total-tipped"]')).toContainText('12')
   })
@@ -949,6 +1006,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('periode tertutup: status Tertutup, kartu tetap penuh, tombol ekspor tidak dinonaktifkan', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_CLOSED)
 
     await expect(page.locator('[data-testid="hero-status"]')).toHaveText(/Tertutup/)
@@ -1010,6 +1068,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('rentang inklusif: baris tanggal awal dan akhir terlihat, record di luar rentang tidak', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await openRecap(page)
 
@@ -1028,6 +1087,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('angka ringkasan: total ditumpahkan berasal dari rincian per jam, bukan dari ringkasan record', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
     await openRecap(page)
 
@@ -1046,6 +1106,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('lori keluar: record ber-cages_out 50 dengan delapan baris rincian menampilkan 50, bukan 400', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_GRAIN)
 
     const outCard = page.locator('[data-testid="kpi-total-out"]')
@@ -1066,6 +1127,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('jam menganggur: jauh lebih kecil dari 24 dan grafik membedakan jam di dalam dan di luar jendela', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // 9 idle hours on each of the two days, inside a 12-hour window.
@@ -1095,6 +1157,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('jeda terpanjang: jeda di dalam satu tanggal beserta tanggalnya, bukan selisih lintas hari', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     const gapCard = page.locator('[data-testid="kpi-longest-gap"]')
@@ -1118,6 +1181,7 @@ test.describe('Laporan Cages & Tracks', () => {
   // =====================================================================
   test('antrean tersisa: terendah dan rata-rata dalam rentang per jam yang wajar, bukan total akumulatif', async ({ page }) => {
     await openReport(page, SUPERVISOR)
+    await selectProductionLine(page)
     await selectPeriod(page, PERIOD_MAIN)
 
     // cages_remain = CAGE_COLUMNS - lori tipped in that hour, so across the

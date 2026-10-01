@@ -107,6 +107,65 @@ async function millOptions(page: Page): Promise<Array<{ value: string; label: st
   return options
 }
 
+/**
+ * Memilih Production Line pada layar ini, lalu MEMBUKTIKAN grid-nya memuat
+ * stasiun yang test butuhkan.
+ *
+ * WAJIB SEJAK 2026-09-28 (commit a5ccfba): grid stasiun dirender hanya saat
+ * `$businessUnit !== null && ! $needsProductionLineSelection`, jadi mill saja
+ * tidak cukup. Spec ini terakhir disentuh 2026-09-24, empat hari sebelum aturan
+ * itu mendarat, sehingga `station-grid` tidak pernah ada dan 11 dari 14 test
+ * gagal dengan sebab yang sama.
+ *
+ * MENGAPA IA MENCARI, BUKAN MEMILIH OPSI PERTAMA. Line milik BUSINESS_UNIT
+ * sengaja dibuat tidak lengkap satu-satu — namanya memang "PL Tanpa Threshing",
+ * "PL Tanpa Pressing", dan seterusnya — ditambah dua line yang hanya punya satu
+ * stasiun. Memilih "opsi pertama" berarti menggantungkan test pada urutan
+ * abjad: pada line yang salah, tile sterilizer atau threshing tidak ada dan
+ * kegagalannya akan terbaca seperti bug produk. Jadi helper ini mencoba tiap
+ * line sampai menemukan satu yang benar-benar memuat seluruh kode yang diminta,
+ * dan melempar galat yang menyebutkan apa yang dicari bila tidak ada.
+ */
+const REQUIRED_TILES = [AVAILABLE_STATION, UNAVAILABLE_STATION] as const
+
+async function selectProductionLine(
+  page: Page,
+  required: readonly string[] = REQUIRED_TILES,
+): Promise<void> {
+  const lineSelect = page.locator('[data-testid="production-line-select"]')
+
+  // MENUNGGU DULU, BUKAN LANGSUNG MEMBACA. Opsi line dimuat lewat round trip
+  // Livewire yang dipicu pemilihan mill, jadi membaca <option> seketika setelah
+  // selectOption() mill akan mengembalikan daftar kosong dan menggagalkan test
+  // dengan pesan yang menuduh fixture ("mill tidak punya line") padahal yang
+  // terjadi hanyalah balapan. expect() di bawah auto-retry; evaluateAll tidak.
+  await expect(lineSelect).toBeVisible()
+  await expect(lineSelect.locator('option:not([value=""])').first()).toBeAttached()
+
+  const options = await lineSelect
+    .locator('option')
+    .evaluateAll((nodes) =>
+      nodes.map((node) => (node as HTMLOptionElement).value).filter((v) => v !== ''),
+    )
+
+  expect(options.length, 'mill yang dipilih tidak punya satu pun production line').toBeGreaterThan(0)
+
+  for (const value of options) {
+    await page.locator('[data-testid="production-line-select"]').selectOption(value)
+    await expect(page.locator('[data-testid="production-line-current"]')).toBeVisible()
+
+    const codes = await tileCodes(page)
+
+    if (required.every((code) => codes.includes(code))) {
+      return
+    }
+  }
+
+  throw new Error(
+    `tidak ada production line pada mill ini yang memuat seluruh stasiun: ${required.join(', ')}`,
+  )
+}
+
 test.describe('Laporan Stasiun (web)', () => {
   // Scenario: "success as Supervisor / Mill Management"
   test('supervisor: mill sendiri ditetapkan tanpa memilih, dan tile sterilizer membuka laporannya', async ({ page }) => {
@@ -120,6 +179,7 @@ test.describe('Laporan Stasiun (web)', () => {
     // Offering a picker they cannot use would be a lie, so there is none.
     await expect(page.locator('[data-testid="mill-select"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="mill-current"]')).toContainText(BUSINESS_UNIT)
+    await selectProductionLine(page)
     await expect(page.locator('[data-testid="station-grid"]')).toBeVisible()
 
     const tile = page.locator(`[data-testid="station-tile-${AVAILABLE_STATION}"]`)
@@ -139,6 +199,7 @@ test.describe('Laporan Stasiun (web)', () => {
 
     await expect(page.locator('[data-testid="mill-select"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="mill-current"]')).toContainText(BUSINESS_UNIT)
+    await selectProductionLine(page)
     await expect(page.locator('[data-testid="station-grid"]')).toBeVisible()
   })
 
@@ -152,6 +213,7 @@ test.describe('Laporan Stasiun (web)', () => {
 
     await page.locator('[data-testid="mill-select"]').selectOption({ label: BUSINESS_UNIT })
 
+    await selectProductionLine(page)
     await expect(page.locator('[data-testid="station-grid"]')).toBeVisible()
     await expect(page.locator('[data-testid="mill-current"]')).toContainText(BUSINESS_UNIT)
 
@@ -216,12 +278,17 @@ test.describe('Laporan Stasiun (web)', () => {
     await expect(page.locator('[data-testid="no-mill-for-account"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="mill-select"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="mill-current"]')).toContainText(BUSINESS_UNIT)
+    await selectProductionLine(page)
     await expect(page.locator('[data-testid="station-grid"]')).toBeVisible()
   })
 
   // Scenario: "menekan stasiun yang belum tersedia"
   test('tile belum tersedia: menekannya tidak memindahkan halaman dan tidak memunculkan error', async ({ page }) => {
     await openReports(page, SUPERVISOR)
+
+    // Grid stasiun digated Production Line sejak 2026-09-28; tanpa ini tidak
+    // ada satu pun tile yang dirender.
+    await selectProductionLine(page)
 
     const tile = page.locator(`[data-testid="station-tile-${UNAVAILABLE_STATION}"]`)
 
@@ -234,7 +301,13 @@ test.describe('Laporan Stasiun (web)', () => {
 
     // It is not a link and carries no wire:click, so there is nothing to
     // follow and nothing to fail.
-    await expect(page).toHaveURL(new RegExp(`${REPORT_PATH}$`))
+    //
+    // `(\?|$)` dan bukan `$` saja: sejak pilihan mill dan Production Line
+    // terikat #[Url] (lihat docblock LaporanStasiun), layar ini MEMANG membawa
+    // query string — desain yang disengaja supaya pilihan Admin bertahan saat ia
+    // menekan sebuah tile lalu kembali. Yang diuji di sini adalah bahwa menekan
+    // tile NONAKTIF tidak memindahkan halaman, bukan bahwa URL-nya bersih.
+    await expect(page).toHaveURL(new RegExp(`${REPORT_PATH}(\\?|$)`))
     await expect(tile).toContainText('Belum tersedia')
     await expect(page.locator('body')).not.toContainText(/terjadi kesalahan|500|error/i)
   })
@@ -248,6 +321,7 @@ test.describe('Laporan Stasiun (web)', () => {
   test('master jenis stasiun: grid dan keterangan kosong saling meniadakan, tanpa error', async ({ page }) => {
     await openReports(page, SUPERVISOR)
 
+    await selectProductionLine(page)
     await expect(page.locator('[data-testid="station-grid"]')).toBeVisible()
 
     const codes = await tileCodes(page)
@@ -303,6 +377,7 @@ test.describe('Laporan Stasiun (web)', () => {
     await expect(page.locator('[data-testid="laporan-stasiun"]')).toBeVisible()
     await expect(page.locator('[data-testid="mill-select"]')).toHaveCount(0)
     await expect(page.locator('[data-testid="mill-current"]')).toContainText(BUSINESS_UNIT)
+    await selectProductionLine(page)
     await expect(page.locator('[data-testid="station-grid"]')).toBeVisible()
 
     if (otherMill) {
@@ -326,6 +401,10 @@ test.describe('Laporan Stasiun (web)', () => {
   // sorting could never produce.
   test('urutan stasiun: mengikuti urutan proses produksi, bukan alfabet', async ({ page }) => {
     await openReports(page, SUPERVISOR)
+
+    // Grid stasiun digated Production Line sejak 2026-09-28; tanpa ini tidak
+    // ada satu pun tile yang dirender.
+    await selectProductionLine(page)
 
     const codes = await tileCodes(page)
 
@@ -351,6 +430,10 @@ test.describe('Laporan Stasiun (web)', () => {
   // Scenario: "jenis stasiun historis 'other' dikecualikan"
   test("jenis 'other' dikecualikan: tidak ada tile Other, tile lain tetap tampil", async ({ page }) => {
     await openReports(page, SUPERVISOR)
+
+    // Grid stasiun digated Production Line sejak 2026-09-28; tanpa ini tidak
+    // ada satu pun tile yang dirender.
+    await selectProductionLine(page)
 
     await expect(page.locator('[data-testid="station-tile-other"]')).toHaveCount(0)
 
@@ -379,6 +462,10 @@ test.describe('Laporan Stasiun (web)', () => {
   // however many entries REPORT_ROUTES grows to.
   test('stasiun tanpa laporan tampil nonaktif; yang punya laporan dapat diklik', async ({ page }) => {
     await openReports(page, SUPERVISOR)
+
+    // Grid stasiun digated Production Line sejak 2026-09-28; tanpa ini tidak
+    // ada satu pun tile yang dirender.
+    await selectProductionLine(page)
 
     const codes = await tileCodes(page)
 
@@ -435,10 +522,46 @@ test.describe('Laporan Stasiun (web)', () => {
 
     expect(options.length).toBeGreaterThan(0)
 
-    const first = options[0]
-    const last = options.length > 1 ? options[options.length - 1] : options[0]
+    /**
+     * Mill yang dipakai harus PUNYA production line, kalau tidak grid-nya
+     * mustahil muncul dan kegagalannya akan terbaca seperti bug produk.
+     * 'Mill Kode Duplikat' — yang kebetulan terakhir secara abjad — punya NOL
+     * line, jadi options[options.length - 1] adalah pilihan yang salah. Dicari
+     * dari ujung supaya tetap "mill terakhir" sejauh mungkin.
+     */
+    const hasProductionLine = async (value: string): Promise<boolean> => {
+      await page.locator('[data-testid="mill-select"]').selectOption(value)
+      // Satu round trip Livewire memuat ulang daftar line-nya.
+      await page.waitForTimeout(500)
+
+      return (
+        (await page
+          .locator('[data-testid="production-line-select"] option:not([value=""])')
+          .count()) > 0
+      )
+    }
+
+    let first = options[0]
+    let last = options[options.length - 1]
+
+    for (const option of options) {
+      if (await hasProductionLine(option.value)) {
+        first = option
+        break
+      }
+    }
+
+    for (const option of [...options].reverse()) {
+      if (option.value !== first.value && (await hasProductionLine(option.value))) {
+        last = option
+        break
+      }
+    }
+
+    expect(last.value, 'butuh dua mill berbeda yang punya production line').not.toBe(first.value)
 
     await page.locator('[data-testid="mill-select"]').selectOption(first.value)
+    await selectProductionLine(page)
     await expect(page.locator('[data-testid="station-grid"]')).toBeVisible()
     await expect(page.locator(`[data-testid="station-tile-${AVAILABLE_STATION}"]`))
       .toHaveAttribute('href', new RegExp(`business_unit_id=${first.value}`))
@@ -447,6 +570,11 @@ test.describe('Laporan Stasiun (web)', () => {
     // pointing at the one chosen a moment ago.
     await page.locator('[data-testid="mill-select"]').selectOption(last.value)
     await expect(page.locator('[data-testid="mill-current"]')).toContainText(last.label)
+
+    // Line HARUS dipilih ulang: keepProductionLineValid() mengosongkan pilihan
+    // begitu line lama tidak ada di daftar mill yang baru, jadi grid-nya hilang
+    // lagi bersama seluruh tile-nya sampai satu line mill ini dipilih.
+    await selectProductionLine(page)
 
     const tile = page.locator(`[data-testid="station-tile-${AVAILABLE_STATION}"]`)
 

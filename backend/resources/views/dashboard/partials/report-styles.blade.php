@@ -34,6 +34,16 @@
         .md-hero__title { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.01em; }
         .md-hero__subtitle { margin: 6px 0 0; font-size: 14px; opacity: .85; }
         .md-hero__meta { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; }
+        /* Pembungkus kolom kiri hero (eyebrow + title + subtitle). Ia dipakai
+           empat blade laporan (weighbridge, clarification, boiler-room,
+           storage-tank) namun sampai 2026-10-01 TIDAK punya satu pun aturan —
+           kelas yang dipakai markup tanpa definisi. Bekerja hanya karena
+           .md-hero sudah flex + space-between, tetapi sebagai flex item tanpa
+           min-width:0 ia menolak menyusut di bawah lebar isinya, sehingga nama
+           mill atau periode yang panjang mendorong .md-hero__meta keluar alih-alih
+           membungkus. Satu aturan ini memperbaiki keempat layar sekaligus dan
+           menutup kelasnya. */
+        .md-hero__main { position: relative; z-index: 1; min-width: 0; }
         .md-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; }
         .md-chip svg { width: 15px; height: 15px; }
         .md-chip--date { background: rgba(255,255,255,.16); border: 1px solid rgba(255,255,255,.28); }

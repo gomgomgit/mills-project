@@ -1,4 +1,5 @@
 import json
+import re
 from ..commons.paths import (
     project_json, modules_json, module_json,
     artifact_path, artifact_template, artifact_schema,
@@ -295,6 +296,191 @@ def _write_artifact(key: str, data: dict) -> dict:
     }
 
 
+# ── surgical patch ────────────────────────────────────────────────────────────────────────────────────────────────────
+
+_INDEX_RE = re.compile(r"\[(\d+)\]")
+
+
+def _parse_edit_path(raw: str):
+    """Parse a dotted/indexed edit path into a list of segments.
+
+        "endpoints[34].screen_id"  -> ["endpoints", 34, "screen_id"]
+        "ver"                      -> ["ver"]
+        "a[0][1]"                  -> ["a", 0, 1]
+
+    Returns {"error": str} if the path is malformed.
+    """
+    if not isinstance(raw, str) or not raw.strip():
+        return {"error": "path must be a non-empty string"}
+
+    segs = []
+    for part in raw.split("."):
+        if not part:
+            return {"error": f"malformed path '{raw}': empty segment"}
+
+        # "endpoints[34]" -> ["endpoints", "34", ""];  "ver" -> ["ver"]
+        pieces = _INDEX_RE.split(part)
+        name = pieces[0]
+        if name:
+            segs.append(name)
+        elif len(pieces) == 1:
+            return {"error": f"malformed path '{raw}': empty key"}
+
+        for idx in pieces[1::2]:
+            segs.append(int(idx))
+        for trailing in pieces[2::2]:
+            if trailing:
+                return {"error": f"malformed path '{raw}': unexpected '{trailing}' after index"}
+
+    if not segs:
+        return {"error": f"malformed path '{raw}'"}
+    return segs
+
+
+def _apply_edit(doc, segs: list, value, raw: str):
+    """Set value at segs inside doc, in place. The target must already exist.
+
+    Requiring prior existence is deliberate: a typo'd path must fail loudly rather
+    than silently grow a field no template or schema knows about. Use
+    artifact__write to add a field.
+
+    Returns {"error": str} on failure, else None.
+    """
+    cursor = doc
+
+    for i, seg in enumerate(segs[:-1]):
+        here = _render_path(segs[: i + 1])
+        if isinstance(seg, int):
+            if not isinstance(cursor, list):
+                return {"error": f"path '{raw}': '{here}' indexes a {type(cursor).__name__}, not a list"}
+            if seg >= len(cursor):
+                return {"error": f"path '{raw}': index {seg} out of range at '{here}' (length {len(cursor)})"}
+        else:
+            if not isinstance(cursor, dict):
+                return {"error": f"path '{raw}': '{here}' is not an object"}
+            if seg not in cursor:
+                return {"error": f"path '{raw}': '{here}' does not exist"}
+        cursor = cursor[seg]
+
+    last = segs[-1]
+    if isinstance(last, int):
+        if not isinstance(cursor, list):
+            return {"error": f"path '{raw}': final index {last} applied to a {type(cursor).__name__}, not a list"}
+        if last >= len(cursor):
+            return {"error": f"path '{raw}': index {last} out of range (length {len(cursor)})"}
+    else:
+        if not isinstance(cursor, dict):
+            return {"error": f"path '{raw}': final key '{last}' applied to a {type(cursor).__name__}, not an object"}
+        if last not in cursor:
+            return {
+                "error": (
+                    f"path '{raw}': key '{last}' does not exist — "
+                    "patch only changes existing values; use artifact__write to add a field"
+                )
+            }
+
+    cursor[last] = value
+    return None
+
+
+def _render_path(segs: list) -> str:
+    """Render a parsed segment list back to display form: ["a", 3, "b"] -> "a[3].b"."""
+    out = ""
+    for seg in segs:
+        if isinstance(seg, int):
+            out += f"[{seg}]"
+        else:
+            out += seg if not out else f".{seg}"
+    return out
+
+
+def _patch_artifact(key: str, edits: list) -> dict:
+    """Change specific values inside an already-written artifact.
+
+    Exists because _write_artifact replaces the whole document: correcting a few
+    fields in a large artifact otherwise means re-emitting every untouched entry,
+    which is how content gets silently dropped. A patch runs the same template
+    validation, the same _diff_fields, and the same write as a full write — it only
+    narrows what the caller has to restate.
+
+    All-or-nothing: edits are applied to a deep copy, and nothing is written if any
+    edit or the resulting structure is invalid.
+
+    Args:
+        key:   Dot-notation artifact key. The artifact must already exist.
+        edits: [{"path": "endpoints[34].screen_id", "value": "screen-031--x"}, ...]
+
+    Returns:
+        {"ok": True, "key", "path", "changed_fields", "edits_applied"}
+        {"error": str} on failure.
+    """
+    err = _validate_artifact_key(key)
+    if err:
+        return err
+
+    if not isinstance(edits, list) or not edits:
+        return {"error": "edits must be a non-empty list of {'path': str, 'value': ...}"}
+
+    path = _content_path(key)
+    if not path.exists():
+        return {
+            "error": (
+                f"Cannot patch '{key}': artifact has not been written yet — use artifact__write"
+            )
+        }
+
+    old_data = read_file(path)
+    if not isinstance(old_data, dict):
+        return {"error": f"Cannot patch '{key}': content root is not an object"}
+
+    # Deep copy so old_data stays pristine: _diff_fields below compares the two, and
+    # aliasing them would make changed_fields come back empty on every patch. What makes
+    # the call all-or-nothing on disk is the write ordering — write_file runs only after
+    # every edit and the template check have passed.
+    new_data = json.loads(json.dumps(old_data))
+
+    for i, edit in enumerate(edits):
+        if not isinstance(edit, dict):
+            return {"error": f"edits[{i}] must be an object with 'path' and 'value'"}
+        if "path" not in edit or "value" not in edit:
+            return {"error": f"edits[{i}] must have both 'path' and 'value'"}
+
+        segs = _parse_edit_path(edit["path"])
+        if isinstance(segs, dict):
+            return {"error": f"edits[{i}]: " + segs["error"]}
+
+        failure = _apply_edit(new_data, segs, edit["value"], edit["path"])
+        if failure:
+            return {"error": f"edits[{i}]: " + failure["error"]}
+
+    # Same template validation as a full write — a patch cannot bypass it.
+    tmpl_path = _template_path(key)
+    if tmpl_path.exists():
+        errors = _validate_structure(new_data, read_file(tmpl_path))
+        if errors:
+            return {"error": f"Validation failed for '{key}': " + "; ".join(errors)}
+
+    # Same changed_fields contract as a full write, so dep-graph tracking is identical.
+    schema_file = _schema_path(key)
+    if schema_file.exists():
+        changed_fields = _diff_fields(old_data, new_data, read_file(schema_file))
+    else:
+        changed_fields = []
+
+    try:
+        write_file(path, new_data)
+    except Exception as e:
+        return {"error": str(e)}
+
+    return {
+        "ok":             True,
+        "key":            key,
+        "path":           str(path),
+        "changed_fields": changed_fields,
+        "edits_applied":  len(edits),
+    }
+
+
 def _read_artifact_scheme(key: str):
     """Read the schema (field descriptions) for an artifact.
 
@@ -332,6 +518,24 @@ def register(mcp) -> None:
     def artifact__write(artifact_key: str, data: dict):
         """Write artifact content. Returns changed_fields for dep-graph tracking."""
         return _write_artifact(artifact_key, data)
+
+    @mcp.tool()
+    def artifact__patch(artifact_key: str, edits: list):
+        """Change specific values inside an already-written artifact.
+
+        Prefer this over artifact__write when only a few fields change in a large
+        artifact: write replaces the whole document, so restating every untouched
+        entry is both wasteful and how content gets silently dropped. Same template
+        validation and same changed_fields as a full write.
+
+        edits: [{"path": "endpoints[34].screen_id", "value": "screen-031--x"}, ...]
+
+        Paths use dots for keys and [n] for list indices ("a.b[2].c"). Every path
+        must already exist — a typo fails loudly instead of adding a stray field;
+        use artifact__write to add or remove fields. All-or-nothing: if any edit
+        fails, nothing is written.
+        """
+        return _patch_artifact(artifact_key, edits)
 
     @mcp.tool()
     def artifact__read_scheme(artifact_key: str):

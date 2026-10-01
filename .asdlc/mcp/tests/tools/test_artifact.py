@@ -12,6 +12,9 @@ Coverage: 119 acceptance criteria across 10 groups
   GC  — Guard Conditions (_validate_artifact_key)
   VS  — _validate_structure (direct unit tests)
   VW  — _write_artifact with template validation
+  EP  — _parse_edit_path / _render_path
+  AE  — _apply_edit
+  PA  — _patch_artifact
 
 Run:
     cd Agentic-SDLC-v101/.asdlc
@@ -36,6 +39,10 @@ from mcp.lib.tools.artifact import (
     _write_artifact,
     _read_artifact_scheme,
     _validate_artifact_key,
+    _parse_edit_path,
+    _render_path,
+    _apply_edit,
+    _patch_artifact,
 )
 from mcp.lib.commons.json_ops import read_file, write_file
 
@@ -1015,3 +1022,300 @@ class TestWriteArtifactValidation:
         _write_template(fs, "project.1-foundation.prd", PRD_TEMPLATE)
         result = _write_artifact("project.1-foundation.prd", {"bad": True})
         assert "ok" not in result
+
+
+# ── EP — _parse_edit_path / _render_path ──────────────────────────────────────
+
+class TestParseEditPath:
+    def test_ep1_single_key(self):
+        assert _parse_edit_path("ver") == ["ver"]
+
+    def test_ep2_dotted_keys(self):
+        assert _parse_edit_path("meta.updated_at") == ["meta", "updated_at"]
+
+    def test_ep3_index_then_key(self):
+        assert _parse_edit_path("endpoints[34].screen_id") == ["endpoints", 34, "screen_id"]
+
+    def test_ep4_leading_list_index(self):
+        assert _parse_edit_path("items[0]") == ["items", 0]
+
+    def test_ep5_consecutive_indices(self):
+        assert _parse_edit_path("grid[1][2]") == ["grid", 1, 2]
+
+    def test_ep6_deep_mixed(self):
+        assert _parse_edit_path("a.b[3].c[0].d") == ["a", "b", 3, "c", 0, "d"]
+
+    def test_ep7_index_zero_is_not_falsy_dropped(self):
+        # 0 is falsy — a naive truthiness check would drop it.
+        assert _parse_edit_path("a[0].b") == ["a", 0, "b"]
+
+    def test_ep8_large_index_parsed_as_int(self):
+        segs = _parse_edit_path("endpoints[163]")
+        assert segs == ["endpoints", 163]
+        assert isinstance(segs[1], int)
+
+    def test_ep9_empty_string_rejected(self):
+        assert "error" in _parse_edit_path("")
+
+    def test_ep10_whitespace_only_rejected(self):
+        assert "error" in _parse_edit_path("   ")
+
+    def test_ep11_non_string_rejected(self):
+        assert "error" in _parse_edit_path(42)
+
+    def test_ep12_empty_segment_rejected(self):
+        assert "error" in _parse_edit_path("a..b")
+
+    def test_ep13_trailing_dot_rejected(self):
+        assert "error" in _parse_edit_path("a.")
+
+    def test_ep14_garbage_after_index_rejected(self):
+        assert "error" in _parse_edit_path("a[0]x")
+
+    def test_ep15_render_round_trips(self):
+        for raw in ("ver", "meta.updated_at", "endpoints[34].screen_id", "grid[1][2]", "a.b[3].c[0].d"):
+            assert _render_path(_parse_edit_path(raw)) == raw
+
+
+# ── AE — _apply_edit ──────────────────────────────────────────────────────────
+
+class TestApplyEdit:
+    def test_ae1_sets_top_level_key(self):
+        doc = {"ver": 1}
+        assert _apply_edit(doc, ["ver"], 2, "ver") is None
+        assert doc["ver"] == 2
+
+    def test_ae2_sets_nested_key(self):
+        doc = {"meta": {"updated_at": "old"}}
+        _apply_edit(doc, ["meta", "updated_at"], "new", "meta.updated_at")
+        assert doc["meta"]["updated_at"] == "new"
+
+    def test_ae3_sets_value_inside_list_item(self):
+        doc = {"endpoints": [{"screen_id": "a"}, {"screen_id": "b"}]}
+        _apply_edit(doc, ["endpoints", 1, "screen_id"], "z", "endpoints[1].screen_id")
+        assert doc["endpoints"][1]["screen_id"] == "z"
+        assert doc["endpoints"][0]["screen_id"] == "a"
+
+    def test_ae4_replaces_whole_list_element(self):
+        doc = {"items": ["a", "b"]}
+        _apply_edit(doc, ["items", 0], "z", "items[0]")
+        assert doc["items"] == ["z", "b"]
+
+    def test_ae5_missing_final_key_rejected(self):
+        doc = {"ver": 1}
+        err = _apply_edit(doc, ["nope"], 1, "nope")
+        assert err and "does not exist" in err["error"]
+
+    def test_ae6_missing_intermediate_key_rejected(self):
+        doc = {"meta": {}}
+        err = _apply_edit(doc, ["meta", "a", "b"], 1, "meta.a.b")
+        assert err and "does not exist" in err["error"]
+
+    def test_ae7_index_out_of_range_rejected(self):
+        doc = {"items": ["a"]}
+        err = _apply_edit(doc, ["items", 5], "z", "items[5]")
+        assert err and "out of range" in err["error"]
+
+    def test_ae8_intermediate_index_out_of_range_rejected(self):
+        doc = {"items": [{"a": 1}]}
+        err = _apply_edit(doc, ["items", 5, "a"], 2, "items[5].a")
+        assert err and "out of range" in err["error"]
+
+    def test_ae9_index_into_dict_rejected(self):
+        doc = {"meta": {"a": 1}}
+        err = _apply_edit(doc, ["meta", 0], 1, "meta[0]")
+        assert err and "not a list" in err["error"]
+
+    def test_ae10_key_into_list_rejected(self):
+        doc = {"items": ["a"]}
+        err = _apply_edit(doc, ["items", "a"], 1, "items.a")
+        assert err and "not an object" in err["error"]
+
+    def test_ae11_traversing_into_scalar_rejected(self):
+        doc = {"ver": 1}
+        err = _apply_edit(doc, ["ver", "x"], 1, "ver.x")
+        assert err and "not an object" in err["error"]
+
+    def test_ae12_error_names_the_failing_path(self):
+        doc = {"a": {"b": {}}}
+        err = _apply_edit(doc, ["a", "b", "c"], 1, "a.b.c")
+        assert "a.b.c" in err["error"] and "a.b.c" != err["error"]
+
+    def test_ae13_failed_edit_leaves_doc_untouched(self):
+        doc = {"a": {"b": 1}}
+        _apply_edit(doc, ["a", "nope"], 2, "a.nope")
+        assert doc == {"a": {"b": 1}}
+
+    def test_ae14_can_set_value_to_none(self):
+        doc = {"a": 1}
+        assert _apply_edit(doc, ["a"], None, "a") is None
+        assert doc["a"] is None
+
+    def test_ae15_can_set_nested_structure_as_value(self):
+        doc = {"a": 1}
+        _apply_edit(doc, ["a"], {"b": [1, 2]}, "a")
+        assert doc["a"] == {"b": [1, 2]}
+
+
+# ── PA — _patch_artifact ──────────────────────────────────────────────────────
+
+class TestPatchArtifact:
+    def test_pa1_patches_single_field(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1, "goals": "old"})
+        result = _patch_artifact("project.1-foundation.prd", [{"path": "goals", "value": "new"}])
+        assert result["ok"] is True
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["goals"] == "new"
+
+    def test_pa2_leaves_every_other_field_byte_identical(self, fs):
+        original = {
+            "ver": 1,
+            "meta": {"title": "T", "updated_at": "2026-01-01"},
+            "endpoints": [{"path": "/a", "screen_id": "s1"}, {"path": "/b", "screen_id": "s2"}],
+            "notes": ["one", "two", "three"],
+        }
+        _write_artifact("project.1-foundation.prd", original)
+        _patch_artifact("project.1-foundation.prd", [
+            {"path": "endpoints[1].screen_id", "value": "CHANGED"},
+        ])
+        after = read_file(_ap(fs, "project.1-foundation.prd"))
+        assert after["endpoints"][1]["screen_id"] == "CHANGED"
+        # This is the whole reason the tool exists: nothing else moved.
+        assert after["ver"] == original["ver"]
+        assert after["meta"] == original["meta"]
+        assert after["notes"] == original["notes"]
+        assert after["endpoints"][0] == {"path": "/a", "screen_id": "s1"}
+
+    def test_pa3_applies_several_edits_in_one_call(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1, "meta": {"updated_at": "old"}, "goals": "g"})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "ver", "value": 2},
+            {"path": "meta.updated_at", "value": "2026-10-01"},
+            {"path": "goals", "value": "g2"},
+        ])
+        assert result["edits_applied"] == 3
+        data = read_file(_ap(fs, "project.1-foundation.prd"))
+        assert (data["ver"], data["meta"]["updated_at"], data["goals"]) == (2, "2026-10-01", "g2")
+
+    def test_pa4_reports_changed_fields_from_schema(self, fs):
+        _write_schema(fs, "project.1-foundation.prd", SAMPLE_SCHEMA)
+        _write_artifact("project.1-foundation.prd", {"goals": "old", "problem_statement": "same"})
+        result = _patch_artifact("project.1-foundation.prd", [{"path": "goals", "value": "new"}])
+        assert result["changed_fields"] == ["goals"]
+
+    def test_pa5_untracked_field_absent_from_changed_fields(self, fs):
+        _write_schema(fs, "project.1-foundation.prd", SAMPLE_SCHEMA)
+        _write_artifact("project.1-foundation.prd", {"ver": 1, "goals": "g"})
+        result = _patch_artifact("project.1-foundation.prd", [{"path": "ver", "value": 2}])
+        assert result["changed_fields"] == []
+
+    def test_pa6_no_schema_yields_empty_changed_fields(self, fs):
+        _write_artifact("project.1-foundation.prd", {"goals": "old"})
+        result = _patch_artifact("project.1-foundation.prd", [{"path": "goals", "value": "new"}])
+        assert result["changed_fields"] == []
+
+    def test_pa7_patching_unwritten_artifact_rejected(self, fs):
+        result = _patch_artifact("project.1-foundation.prd", [{"path": "ver", "value": 1}])
+        assert "error" in result
+        assert "artifact__write" in result["error"]
+
+    def test_pa8_invalid_artifact_key_rejected(self, fs):
+        assert "error" in _patch_artifact("project.prd", [{"path": "ver", "value": 1}])
+
+    def test_pa9_empty_edits_rejected(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1})
+        assert "error" in _patch_artifact("project.1-foundation.prd", [])
+
+    def test_pa10_non_list_edits_rejected(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1})
+        assert "error" in _patch_artifact("project.1-foundation.prd", {"path": "ver", "value": 2})
+
+    def test_pa11_edit_missing_value_key_rejected(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1})
+        result = _patch_artifact("project.1-foundation.prd", [{"path": "ver"}])
+        assert "error" in result and "value" in result["error"]
+
+    def test_pa12_edit_missing_path_key_rejected(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1})
+        result = _patch_artifact("project.1-foundation.prd", [{"value": 2}])
+        assert "error" in result and "path" in result["error"]
+
+    def test_pa13_nonexistent_path_rejected_and_nothing_written(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1, "goals": "g"})
+        result = _patch_artifact("project.1-foundation.prd", [{"path": "typo", "value": 1}])
+        assert "error" in result
+        assert read_file(_ap(fs, "project.1-foundation.prd")) == {"ver": 1, "goals": "g"}
+
+    def test_pa14_later_bad_edit_rolls_back_earlier_good_ones(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1, "goals": "g"})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "goals", "value": "CHANGED"},   # valid
+            {"path": "nope",  "value": 1},           # invalid -> whole call must abort
+        ])
+        assert "error" in result and "edits[1]" in result["error"]
+        # All-or-nothing: the first edit must NOT have landed on disk.
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["goals"] == "g"
+
+    def test_pa15_error_identifies_which_edit_failed(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "ver", "value": 2},
+            {"path": "ver", "value": 3},
+            {"path": "bad", "value": 4},
+        ])
+        assert "edits[2]" in result["error"]
+
+    def test_pa16_template_validation_still_enforced(self, fs):
+        # Template allows only ver/goals; patching a value to a wrong type must be caught.
+        _write_template(fs, "project.1-foundation.prd", {"ver": 1, "goals": "text"})
+        _write_artifact("project.1-foundation.prd", {"ver": 1, "goals": "text"})
+        result = _patch_artifact("project.1-foundation.prd", [{"path": "goals", "value": 123}])
+        assert "error" in result and "Validation failed" in result["error"]
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["goals"] == "text"
+
+    def test_pa17_template_valid_patch_accepted(self, fs):
+        _write_template(fs, "project.1-foundation.prd", {"ver": 1, "goals": "text"})
+        _write_artifact("project.1-foundation.prd", {"ver": 1, "goals": "text"})
+        result = _patch_artifact("project.1-foundation.prd", [{"path": "goals", "value": "other"}])
+        assert result["ok"] is True
+
+    def test_pa18_patches_module_artifact(self, fs):
+        _write_artifact("module-001.screen-001--login.2-business-spec", {"ver": 1, "name": "Login"})
+        result = _patch_artifact("module-001.screen-001--login.2-business-spec",
+                                 [{"path": "name", "value": "Masuk"}])
+        assert result["ok"] is True
+        assert read_file(_map(fs, "module-001.screen-001--login.2-business-spec"))["name"] == "Masuk"
+
+    def test_pa19_result_path_matches_write_path(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1})
+        result = _patch_artifact("project.1-foundation.prd", [{"path": "ver", "value": 2}])
+        assert result["path"] == str(_ap(fs, "project.1-foundation.prd"))
+
+    def test_pa20_deep_list_edit_preserves_sibling_entries(self, fs):
+        endpoints = [{"i": n, "screen_id": f"s{n}"} for n in range(164)]
+        _write_artifact("project.1-foundation.prd", {"ver": 1, "endpoints": endpoints})
+        _patch_artifact("project.1-foundation.prd", [
+            {"path": "endpoints[33].screen_id", "value": "MOVED"},
+            {"path": "endpoints[37].screen_id", "value": "MOVED"},
+        ])
+        after = read_file(_ap(fs, "project.1-foundation.prd"))["endpoints"]
+        assert len(after) == 164
+        assert after[33]["screen_id"] == "MOVED" and after[37]["screen_id"] == "MOVED"
+        untouched = [e for n, e in enumerate(after) if n not in (33, 37)]
+        assert untouched == [e for n, e in enumerate(endpoints) if n not in (33, 37)]
+
+    def test_pa21_patch_then_read_round_trips(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1, "meta": {"updated_at": "old"}})
+        _patch_artifact("project.1-foundation.prd", [{"path": "meta.updated_at", "value": "2026-10-01"}])
+        assert _read_artifact("project.1-foundation.prd")["data"]["meta"]["updated_at"] == "2026-10-01"
+
+    def test_pa22_setting_value_to_none_is_allowed(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1, "goals": "g"})
+        result = _patch_artifact("project.1-foundation.prd", [{"path": "goals", "value": None}])
+        assert result["ok"] is True
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["goals"] is None
+
+    def test_pa23_identical_value_patch_reports_no_changed_fields(self, fs):
+        _write_schema(fs, "project.1-foundation.prd", SAMPLE_SCHEMA)
+        _write_artifact("project.1-foundation.prd", {"goals": "same"})
+        result = _patch_artifact("project.1-foundation.prd", [{"path": "goals", "value": "same"}])
+        assert result["ok"] is True and result["changed_fields"] == []

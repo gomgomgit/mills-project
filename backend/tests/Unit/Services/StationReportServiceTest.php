@@ -422,6 +422,24 @@ it('stations: mengembalikan hasil sukses lengkap ketika semua prasyarat terpenuh
     expect($byCode['sterilizer']['report_available'])->toBeTrue();
     expect($byCode['sterilizer']['report_path'])
         ->toContain('business_unit_id='.$this->businessUnitA->id);
-    expect($byCode['weighbridge']['report_available'])->toBeFalse();
-    expect($byCode['weighbridge']['report_path'])->toBeNull();
+
+    // UPDATED 2026-10-01 (screen-143--laporan-weighbridge-web). This case used
+    // to assert weighbridge report_available = false / report_path null, from
+    // the days when no Weighbridge report existed. REPORT_ROUTES now maps
+    // 'weighbridge' => 'reports.weighbridge' — FIRST in the map, because
+    // station_types.sort_order puts weighbridge (10) ahead of every other
+    // mapped code. The old assertion is the one that became wrong; the new
+    // entry is correct, and the tile is now live.
+    expect(StationReportService::REPORT_ROUTES)->toHaveKey('weighbridge');
+    expect($byCode['weighbridge']['report_available'])->toBeTrue();
+    expect($byCode['weighbridge']['report_path'])->toContain('/reports/weighbridge');
+    expect($byCode['weighbridge']['report_path'])
+        ->toContain('business_unit_id='.$this->businessUnitA->id);
+
+    // The unbuilt-report half of this case is now carried by threshing, which
+    // has no REPORT_ROUTES entry — so "greyed out rather than hidden" is still
+    // asserted here and not merely in case 16.
+    expect(StationReportService::REPORT_ROUTES)->not->toHaveKey('threshing');
+    expect($byCode['threshing']['report_available'])->toBeFalse();
+    expect($byCode['threshing']['report_path'])->toBeNull();
 });

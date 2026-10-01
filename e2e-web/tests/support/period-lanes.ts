@@ -79,6 +79,11 @@ export const PERIOD_LANES = {
   clarification: 2,
   'storage-tank': 3,
   sterilizer: 4,
+  // screen-143--laporan-weighbridge-web (2026-10-01). Lajur baru, bukan
+  // memakai ulang lajur yang sudah ada — spec itu menanam periodenya di
+  // "Business Unit A" juga, mill yang sama dengan empat lajur pertama, dan
+  // aturan tumpang tindih periode kini PER MILL.
+  weighbridge: 5,
 } as const
 
 export type PeriodLane = keyof typeof PERIOD_LANES

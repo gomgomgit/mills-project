@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\StorageTankReportController;
 use App\Http\Controllers\Api\ThreshingRecordController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WeighbridgeRecordController;
+use App\Http\Controllers\Api\WeighbridgeReportController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -1192,6 +1193,60 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin,op
     Route::get('/storage-tank-reports/periods', [StorageTankReportController::class, 'periods']);
     Route::get('/storage-tank-reports/summary', [StorageTankReportController::class, 'summary']);
     Route::get('/storage-tank-reports/export', [StorageTankReportController::class, 'export']);
+});
+
+// screen-143--laporan-weighbridge-web (Laporan Periode Weighbridge) — four
+// GET endpoints.
+//
+// OPERATOR IS DELIBERATELY ABSENT, and this is the one place in this file
+// where that absence needs stating. The five sibling report prefixes
+// (sterilizer / cages-track / boiler-room / clarification / storage-tank) all
+// carry `operator` because their MOBILE twin (screen-135..139) reuses those
+// very endpoints rather than getting its own. The mobile Weighbridge report is
+// screen-144 and IS NOT BUILT YET, so there is no mobile caller to serve and
+// the role list stays at the three web roles.
+//
+// Widening to Operator happens WHEN screen-144 is built, as an explicit
+// reviewable step — and it is always THREE changes that land together: this
+// middleware, WeighbridgeReportService::guardAccess(), and — the one that is
+// easy to miss — the MILL-BOUND branch of
+// WeighbridgeReportService::resolveBusinessUnit(). Widening the first two
+// alone would drop Operator into the Admin branch, where the client's
+// business_unit_id IS HONOURED, and an Operator could then read any mill's
+// report by naming it. That is a cross-mill leak, not a display defect.
+//
+// GET-ONLY, deliberately: a report must not expose any path that mutates the
+// Weighbridge data it reports on, so there is no POST/PUT/PATCH/DELETE on
+// this prefix.
+//
+// IMPORTANT — route ordering: none of these are parameterised, so no
+// literal-vs-{id} collision is possible here.
+//
+// BOTH period_id AND production_line_id ARE REQUIRED on /summary and
+// /export — 422 VALIDATION_ERROR when either is missing, and ZERO
+// weighbridge_records queries run. This is the one way this prefix differs
+// from the five siblings, where production_line_id stayed optional so their
+// already-shipped mobile screens would not break. Weighbridge has no shipped
+// mobile screen, so there is no old reader to protect, and a report that
+// silently widened to every line of the mill would answer 200 with a figure
+// nobody asked for.
+//
+// business_unit_id is accepted on /periods, /summary and /export but is
+// IGNORED for Supervisor / Mill Management
+// (WeighbridgeReportService::resolveBusinessUnit) — probing another mill still
+// returns 200 with the caller's own data, on purpose: a 403 would confirm the
+// other mill exists. The real cross-mill guards are on production_line_id
+// (resolveProductionLine) and period_id (authorizePeriod), and both DO answer
+// 403.
+//
+// The production-line OPTION LIST is NOT duplicated here: GET
+// /api/production-lines/options-for-report (built for screen-135) is reused
+// verbatim.
+Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])->group(function () {
+    Route::get('/weighbridge-reports/business-units/options', [WeighbridgeReportController::class, 'businessUnitOptions']);
+    Route::get('/weighbridge-reports/periods', [WeighbridgeReportController::class, 'periods']);
+    Route::get('/weighbridge-reports/summary', [WeighbridgeReportController::class, 'summary']);
+    Route::get('/weighbridge-reports/export', [WeighbridgeReportController::class, 'export']);
 });
 
 // === ASDLC_ROUTES_END ===

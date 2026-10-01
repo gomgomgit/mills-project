@@ -1,0 +1,2058 @@
+{
+  "ver": 2,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-01"
+  },
+  "id": "screen-143--laporan-weighbridge-web",
+  "name": "Laporan Weighbridge (Web)",
+  "module_id": "module-dashboard",
+  "route": "/reports/weighbridge",
+  "auth_requirement": "role: supervisor, mill_management, admin",
+  "actor_permissions": [
+    {
+      "actor_id": "actor-supervisor",
+      "can_access": true,
+      "conditions": "Hanya mill pada akunnya"
+    },
+    {
+      "actor_id": "actor-mill-management",
+      "can_access": true,
+      "conditions": "Hanya mill pada akunnya"
+    },
+    {
+      "actor_id": "actor-admin",
+      "can_access": true,
+      "conditions": "Memilih mill; tidak terikat"
+    },
+    {
+      "actor_id": "actor-station-operator",
+      "can_access": false,
+      "conditions": "Operator tidak punya akses ke layar web"
+    }
+  ],
+  "api_contracts": [
+    {
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "usecase_name": "Lihat Laporan Periode Weighbridge (Web)",
+      "endpoints": [
+        {
+          "method": "GET",
+          "path": "/api/weighbridge-reports/business-units/options",
+          "description": "Daftar mill untuk pemilih Mill pada Laporan Weighbridge — khusus Admin",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Pemanggil bukan Admin — ditegakkan di service, bukan di middleware, karena peran terikat mill tidak punya pemilih dan memberinya daftar seluruh mill justru kebocoran yang hendak dihindari"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/weighbridge-reports/periods",
+          "description": "Daftar Periode Pelaporan yang mencakup jenis stasiun Weighbridge pada mill yang dilihat",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "DIABAIKAN untuk peran terikat mill; hanya berlaku bagi Admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "id": "uuid",
+                  "name": "string",
+                  "start_date": "date",
+                  "end_date": "date",
+                  "status": "string"
+                }
+              ]
+            },
+            "error_codes": [
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Peran tidak diizinkan mengakses laporan ini (mis. Operator)"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "Akun terikat mill tetapi mill-nya kosong — data akun belum lengkap, bukan akses ditolak; ATAU Admin belum memilih mill"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/weighbridge-reports/summary",
+          "description": "Seluruh angka laporan untuk satu periode pada satu Production Line, DIPISAH per jenis arus. Tidak menghasilkan satu pun angka gabungan kedua arus, dan tidak memuat angka lama kendaraan di pabrik — tiap trip hanya punya satu penanda waktu",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "default": "",
+                "description": "Periode yang dibaca"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "default": "",
+                "description": "WAJIB. Tanpa ini 422 — bukan diam-diam seluruh line pada mill"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "DIABAIKAN untuk peran terikat mill; hanya berlaku bagi Admin"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "business_unit": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "production_line": {
+                "id": "uuid",
+                "name": "string"
+              },
+              "period": {
+                "id": "uuid",
+                "name": "string",
+                "start_date": "date",
+                "end_date": "date",
+                "status": "string"
+              },
+              "receive": {
+                "trip_count": "integer",
+                "net_weight_total": "float | null",
+                "net_weight_avg": "float | null",
+                "net_weight_trip_count": "integer",
+                "missing_net_weight_trip_count": "integer",
+                "hourly": [
+                  {
+                    "hour": "integer 0-23",
+                    "trip_count": "integer"
+                  }
+                ],
+                "busiest_hour": "integer | null",
+                "busiest_hour_trip_count": "integer",
+                "empty_hour_count": "integer",
+                "by_origin": [
+                  {
+                    "estate_supplier": "string",
+                    "trip_count": "integer",
+                    "net_weight_total": "float"
+                  }
+                ]
+              },
+              "dispatch": {
+                "trip_count": "integer",
+                "net_weight_total": "float | null",
+                "net_weight_avg": "float | null",
+                "net_weight_trip_count": "integer",
+                "missing_net_weight_trip_count": "integer",
+                "hourly": [
+                  {
+                    "hour": "integer 0-23",
+                    "trip_count": "integer"
+                  }
+                ],
+                "busiest_hour": "integer | null",
+                "busiest_hour_trip_count": "integer",
+                "empty_hour_count": "integer",
+                "by_destination": [
+                  {
+                    "destination": "string | null",
+                    "trip_count": "integer",
+                    "net_weight_total": "float"
+                  }
+                ]
+              },
+              "draft_trip_count": "integer",
+              "undated_trip_count": "integer",
+              "daily": [
+                {
+                  "date": "date",
+                  "receive_trip_count": "integer",
+                  "receive_net_weight_total": "float",
+                  "dispatch_trip_count": "integer",
+                  "dispatch_net_weight_total": "float"
+                }
+              ],
+              "daily_total": {
+                "receive_trip_count": "integer",
+                "receive_net_weight_total": "float",
+                "dispatch_trip_count": "integer",
+                "dispatch_net_weight_total": "float"
+              },
+              "completeness": {
+                "days_in_period": "integer",
+                "days_with_trip": "integer"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id tidak dikirim"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Periode milik mill lain dan pemanggil terikat mill, ATAU production_line_id bukan milik mill yang berlaku"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/weighbridge-reports/export",
+          "description": "Ekspor seluruh trip sepanjang periode ke CSV, satu baris per trip, kolom konteks diulang tiap baris. Header TIDAK memuat kolom durasi",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "period_id",
+                "type": "uuid",
+                "required": true,
+                "default": "",
+                "description": "Periode yang diekspor"
+              },
+              {
+                "name": "production_line_id",
+                "type": "uuid",
+                "required": true,
+                "default": "",
+                "description": "WAJIB, sama seperti summary"
+              },
+              {
+                "name": "format",
+                "type": "string",
+                "required": false,
+                "default": "csv",
+                "description": "Hanya csv"
+              },
+              {
+                "name": "business_unit_id",
+                "type": "uuid",
+                "required": false,
+                "default": "",
+                "description": "DIABAIKAN untuk peran terikat mill"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "content_type": "text/csv",
+              "body": "StreamedResponse — satu baris per trip; kolom konteks periode, mill, Production Line, dan jenis arus diulang tiap baris; trip tanpa berat bersih tetap jadi baris dengan sel kosong"
+            },
+            "error_codes": [
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "period_id atau production_line_id tidak dikirim"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "Sama seperti summary"
+              },
+              {
+                "http_code": 404,
+                "error_code": "NOT_FOUND",
+                "condition": "period_id tidak ada"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
+        }
+      ],
+      "business_logic": [
+        "1. resolveBusinessUnit: peran terikat mill → business_unit_id kiriman klien DIBUANG, dipakai mill akun; Admin → dipakai yang dikirim; akun terikat tanpa mill → 422 VALIDATION_ERROR pada field business_unit_id dengan pesan 'Akun Anda belum terhubung ke mill. Hubungi Admin.', dan daftar seluruh mill TIDAK pernah ditawarkan sebagai jalan keluar. 422 BUKAN 403: pengguna tidak sedang ditolak aksesnya, data akunnya yang belum lengkap — sama seperti kelima laporan stasiun lainnya, yang komentarnya menyebut 'Incomplete input, not refused access — 422, never 403'. Admin yang belum memilih mill juga 422, dengan pesan 'Pilih mill terlebih dahulu untuk menampilkan laporan.'",
+        "2. businessUnitOptions: HANYA Admin. Peran lain 403 walau middleware sudah meloloskan permintaannya — penegakan ada di service, karena peran terikat mill tidak punya pemilih mill sama sekali",
+        "3. resolveProductionLine: production_line_id wajib milik business_unit yang berlaku; bila milik mill lain → 403; bila tidak dikirim → 422 VALIDATION_ERROR. TIDAK ADA fallback seluruh line — angka tanpa line adalah angka yang tidak dapat ditindaklanjuti",
+        "4. listPeriods: hanya periode yang MENDAFTARKAN station_type 'weighbridge' sebagai salah satu stasiunnya — yaitu periode yang punya baris period_stations untuk weighbridge. Status tiap pilihan diambil dari period_stations.status weighbridge (draft/open/closed), BUKAN dari periode itu sendiri: kolom periods.station_type dan periods.status dibuang oleh migrasi 2026_09_26_000040, dan mengakses Period::$status kini MELEMPAR LogicException. Tidak ada lagi 'periode yang tidak menyebut jenis stasiun' — cakupan selalu dinyatakan per jenis stasiun. Status tidak pernah menyaring daftar ini",
+        "5. authorizePeriod: 404 bila id tidak ada; 403 bila milik mill lain dan pemanggil terikat mill. Guard peran berjalan SEBELUM lookup, sehingga keberadaan sebuah id tidak bocor ke peran yang tidak diizinkan",
+        "6. summary: saring weighbridge_records pada KOLOM production_line_id MILIK RECORD, tidak pernah lewat join ke stations — memindahkan stasiun ke line lain tidak boleh menulis ulang riwayat trip yang sudah terjadi",
+        "7. summary: keanggotaan periode ditentukan record_datetime (waktu kejadian penimbangan), inklusif di kedua ujung, TIDAK PERNAH created_at maupun waktu sinkronisasi mobile. Baris yang tersinkron terlambat tetap milik periode tempat ia terjadi",
+        "8. summary: baris dengan record_datetime NULL tidak dapat ditempatkan pada periode mana pun, jadi dikecualikan dari SELURUH angka; undated_trip_count menghitungnya untuk Production Line itu",
+        "9. summary: PISAH menurut weighbridge_type menjadi dua kelompok 'receive' dan 'dispatch'; NOL angka gabungan kedua arus dihasilkan",
+        "10. summary: net_weight_total = SUM atas baris yang net_weight NOT NULL; net_weight_trip_count = COUNT baris itu; net_weight_avg = total dibagi count, NULL bila count 0; trip_count = COUNT SELURUH baris arus itu termasuk yang net_weight NULL",
+        "11. summary: missing_net_weight_trip_count = COUNT baris arus itu yang net_weight NULL, per arus, tidak pernah digabung jadi satu angka",
+        "12. summary: hourly = 24 ember berdasarkan jam dari record_datetime; seluruh 24 jam hadir walau bernilai nol",
+        "13. summary: busiest_hour = jam dengan trip terbanyak (NULL bila arus itu nol trip bertanggal); empty_hour_count = berapa dari 24 jam yang nol trip",
+        "14. summary: by_origin dikelompokkan per estate_supplier (arus masuk), urut net_weight_total menurun, TIDAK PERNAH dipangkas dan tidak pernah ada ember 'lain-lain'",
+        "15. summary: by_destination dikelompokkan per destination (arus keluar), urut menurun; destination NULL membentuk SATU kelompok tersendiri dan TIDAK dibuang, sehingga jumlah trip seluruh kelompok tetap menjumlah ke trip_count arus keluar",
+        "16. summary: draft_trip_count = COUNT baris berstatus draft_ongoing atau draft_paused; baris draft TETAP ikut di seluruh angka lain — nol filter status diterapkan pada query metrik",
+        "17. summary: daily dikelompokkan per bagian tanggal record_datetime dengan keempat angka per tanggal; daily_total menjumlah seluruh baris daily, dan kedua arus tetap terpisah di daily_total",
+        "18. summary: completeness.days_in_period = jumlah hari kalender periode inklusif; days_with_trip = COUNT DISTINCT tanggal yang punya minimal satu trip",
+        "19. export: query sama dengan summary, satu baris per trip, konteks diulang; baris dengan net_weight NULL tetap muncul dengan sel kosong, bukan dibuang maupun ditulis 0; berkas TIDAK memuat kolom durasi"
+      ],
+      "data_operations": [
+        {
+          "entity_id": "weighbridge-record",
+          "operation": "SELECT",
+          "description": "SELECT trip pada production_line_id record DAN record_datetime di dalam rentang periode inklusif; dikelompokkan per weighbridge_type, per estate_supplier, per destination, per jam, dan per tanggal; COUNT terpisah untuk net_weight NULL, status draft, dan record_datetime NULL"
+        },
+        {
+          "entity_id": "period",
+          "operation": "SELECT",
+          "description": "SELECT periode yang mencakup station_type weighbridge atau tanpa jenis stasiun, untuk daftar dan untuk otorisasi satu periode"
+        },
+        {
+          "entity_id": "production-line",
+          "operation": "SELECT",
+          "description": "SELECT untuk memastikan production_line_id milik business_unit yang berlaku"
+        },
+        {
+          "entity_id": "business-unit",
+          "operation": "SELECT",
+          "description": "SELECT daftar mill untuk pemilih Admin, dan untuk menetapkan mill akun bagi peran terikat"
+        }
+      ],
+      "edge_case_handling": [
+        {
+          "condition": "production_line_id tidak dikirim",
+          "handling": "422 VALIDATION_ERROR pada field production_line_id; nol query weighbridge_records dijalankan — tidak ada fallback seluruh line"
+        },
+        {
+          "condition": "production_line_id milik mill lain",
+          "handling": "403 FORBIDDEN; nol query summary dijalankan"
+        },
+        {
+          "condition": "period_id tidak ada",
+          "handling": "404 NOT_FOUND"
+        },
+        {
+          "condition": "period_id milik mill lain dan pemanggil terikat mill",
+          "handling": "403 FORBIDDEN"
+        },
+        {
+          "condition": "Nol trip pada periode+line",
+          "handling": "trip_count 0, total dan rata-rata NULL, by_origin/by_destination/daily kosong, days_with_trip 0 — nol angka dikarang"
+        },
+        {
+          "condition": "Satu arus nol trip",
+          "handling": "Kelompok arus itu TETAP hadir utuh dengan nilai NULL, 24 ember jam bernilai 0, busiest_hour NULL, empty_hour_count 24 — tidak pernah dihilangkan dari payload"
+        },
+        {
+          "condition": "Seluruh net_weight NULL",
+          "handling": "total NULL, avg NULL, net_weight_trip_count 0, trip_count apa adanya, missing_net_weight_trip_count sama dengan trip_count"
+        },
+        {
+          "condition": "Seluruh trip pada satu jam yang sama",
+          "handling": "Satu ember berisi semuanya, 23 ember nol, empty_hour_count 23; sebaran tetap dihasilkan"
+        },
+        {
+          "condition": "Terdapat baris dengan record_datetime NULL",
+          "handling": "Dikecualikan dari SELURUH angka; dihitung di undated_trip_count supaya selisihnya dapat dijelaskan pembaca"
+        },
+        {
+          "condition": "Seluruh destination NULL",
+          "handling": "by_destination berisi satu kelompok null yang trip_count-nya sama dengan trip_count arus keluar"
+        },
+        {
+          "condition": "Seluruh trip berstatus draft",
+          "handling": "draft_trip_count sama dengan jumlah seluruh trip; seluruh angka tetap dihasilkan"
+        },
+        {
+          "condition": "business_unit_id kiriman klien pada peran terikat mill",
+          "handling": "Dibuang; mill akun yang dipakai; nol query menerima nilai kiriman itu"
+        }
+      ],
+      "business_rules_applied": [
+        "Layar hanya membaca; tidak ada aksi tulis",
+        "Supervisor dan Mill Management terkunci pada mill akunnya; Admin memilih",
+        "Operator tidak punya akses ke layar web ini",
+        "Daftar periode hanya yang mendaftarkan Weighbridge sebagai salah satu stasiunnya; konsep 'berlaku semua jenis stasiun' tidak ada lagi sejak migrasi 2026_09_26_000040",
+        "Status periode tidak membatasi pembacaan maupun ekspor",
+        "Rentang periode inklusif di kedua ujung",
+        "Production Line WAJIB dipilih; sebelum itu nol angka, bukan angka seluruh mill",
+        "Penyaringan line memakai kolom line pada record, bukan join ke stations",
+        "Keanggotaan periode dari record_datetime, bukan created_at maupun waktu sinkronisasi",
+        "Trip tanpa record_datetime dikecualikan dari semua angka dan jumlahnya ditampilkan",
+        "Arus masuk dan arus keluar TIDAK PERNAH dijumlahkan",
+        "Setiap metrik punya penyebutnya sendiri",
+        "Rata-rata berat hanya atas trip yang beratnya terisi, penyebutnya ditampilkan",
+        "Jumlah penimbangan belum selesai ditampilkan per arus",
+        "Trip arus keluar tanpa tujuan dikelompokkan tersendiri, tidak dibuang",
+        "Trip draft ikut terhitung dan jumlahnya ditampilkan",
+        "Tidak ada penandaan nilai di luar batas",
+        "Kelengkapan pencatatan adalah bagian dari laporan",
+        "TIDAK ADA angka lama kendaraan di pabrik di mana pun — datanya tidak ada"
+      ],
+      "unit_test_cases": [
+        {
+          "description": "resolveBusinessUnit discards the client-sent business_unit_id for a mill-bound role and uses the account mill",
+          "given": "auth user has role supervisor with business_unit_id = BU-A; request query carries business_unit_id = BU-B",
+          "expect": "returns BU-A; the value BU-B is never passed to any query builder"
+        },
+        {
+          "description": "resolveBusinessUnit uses the client-sent business_unit_id for Admin",
+          "given": "auth user has role admin with business_unit_id = null; request query carries business_unit_id = BU-B",
+          "expect": "returns BU-B"
+        },
+        {
+          "description": "resolveBusinessUnit refuses a mill-bound account that has no mill attached",
+          "given": "auth user has role mill_management and business_unit_id = null",
+          "expect": "throw ValidationException with code VALIDATION_ERROR on field business_unit_id, message 'Akun Anda belum terhubung ke mill. Hubungi Admin.'; NOT a ForbiddenException — the account is unconfigured, not denied; and no list of all business units is ever read on that path (assert with a spy that allBusinessUnits() is never called)"
+        },
+        {
+          "description": "businessUnitOptions returns the option list for Admin",
+          "given": "auth user has role admin; businessUnitRepo.allActive() returns two units",
+          "expect": "returns data array of two {id, name} entries"
+        },
+        {
+          "description": "businessUnitOptions rejects a mill-bound role even though the route middleware admits it",
+          "given": "auth user has role supervisor (middleware already allowed the request through)",
+          "expect": "throw ForbiddenException with code FORBIDDEN; businessUnitRepo is never queried"
+        },
+        {
+          "description": "resolveProductionLine accepts a line that belongs to the effective business unit",
+          "given": "effective business_unit_id = BU-A; productionLineRepo.find(PL-1) returns a line whose business_unit_id = BU-A",
+          "expect": "returns the PL-1 line model"
+        },
+        {
+          "description": "resolveProductionLine refuses a line that belongs to another mill",
+          "given": "effective business_unit_id = BU-A; productionLineRepo.find(PL-9) returns a line whose business_unit_id = BU-B",
+          "expect": "throw ForbiddenException with code FORBIDDEN; no summary query is executed"
+        },
+        {
+          "description": "resolveProductionLine returns 422 when production_line_id is absent instead of reporting all lines of the mill",
+          "given": "request query has period_id but no production_line_id",
+          "expect": "throw ValidationException with code VALIDATION_ERROR on field production_line_id; no weighbridge_records query runs — no all-lines fallback"
+        },
+        {
+          "description": "listPeriods returns only periods that register weighbridge as one of their stations",
+          "given": "BU-A holds P1 with a period_stations row for 'weighbridge', and P3 with a period_stations row for 'boiler-room' only",
+          "expect": "returns P1 only; P3 is absent. There is no third case: periods.station_type was dropped by migration 2026_09_26_000040, so a period either registers weighbridge or it does not"
+        },
+        {
+          "description": "listPeriods returns an empty list when no period registers weighbridge",
+          "given": "BU-A holds only P3, whose single period_stations row is for 'boiler-room'",
+          "expect": "returns an empty data array — not an error, and not every period of the mill"
+        },
+        {
+          "description": "listPeriods reports the weighbridge station status per option and never filters on it",
+          "given": "BU-A has P1 whose weighbridge period_stations row is 'open' and P2 whose weighbridge row is 'closed'",
+          "expect": "both P1 and P2 are returned; each option's status is its own weighbridge period_stations.status, never Period::$status (which throws LogicException) and never the status of another station type in the same period"
+        },
+        {
+          "description": "authorizePeriod returns 404 when the period id does not exist",
+          "given": "caller role is supervisor and admitted; reportingPeriodRepo.find(P-missing) returns null",
+          "expect": "throw NotFoundException with code NOT_FOUND"
+        },
+        {
+          "description": "authorizePeriod returns 403 when the period belongs to another mill and the caller is mill-bound",
+          "given": "caller business_unit_id = BU-A; reportingPeriodRepo.find(P5) returns a period whose business_unit_id = BU-B",
+          "expect": "throw ForbiddenException with code FORBIDDEN"
+        },
+        {
+          "description": "authorizePeriod runs the role guard before the period lookup so id existence does not leak",
+          "given": "caller role is not admitted (e.g. operator) and period_id is a non-existent id",
+          "expect": "throw ForbiddenException with code FORBIDDEN (not NOT_FOUND); reportingPeriodRepo.find() is never called"
+        },
+        {
+          "description": "summary filters weighbridge_records on the production_line_id column of the record, never through a join to stations",
+          "given": "record R1 carries production_line_id = PL-1 while its station has since been reassigned to PL-2; filter is PL-1",
+          "expect": "R1 is included; the generated query references weighbridge_records.production_line_id and performs no join to the stations table for line filtering"
+        },
+        {
+          "description": "summary treats the period range as inclusive at both ends on record_datetime",
+          "given": "period = 2026-09-01..2026-09-30; records at 2026-09-01 00:05, 2026-09-30 23:50, 2026-08-31 23:50 and 2026-10-01 00:10",
+          "expect": "only the first two records are counted; the day-before and day-after records are excluded from every figure"
+        },
+        {
+          "description": "summary derives period membership from record_datetime, never created_at or the mobile sync time",
+          "given": "record R1 has record_datetime inside the period but created_at well after the period ended; record R2 has record_datetime outside the period but created_at inside it",
+          "expect": "R1 is counted, R2 is not; the query filters on record_datetime and never on created_at / synced_at"
+        },
+        {
+          "description": "summary excludes rows whose record_datetime is NULL from every figure and counts them in undated_trip_count",
+          "given": "line PL-1 has 4 records with record_datetime inside the period and 2 records with record_datetime NULL",
+          "expect": "all trip_count / weight / hourly / by_origin / by_destination / daily figures reflect only the 4 dated rows; undated_trip_count = 2"
+        },
+        {
+          "description": "summary splits records by weighbridge_type into the receive and dispatch groups",
+          "given": "5 records of weighbridge_type receive and 3 of weighbridge_type dispatch inside the period on PL-1",
+          "expect": "receive.trip_count = 5 and dispatch.trip_count = 3, each with its own independent metric set"
+        },
+        {
+          "description": "summary produces zero combined figure across the two flows",
+          "given": "both flows contain records",
+          "expect": "the returned payload contains no key totalling the two flows — no combined trip_count, no combined net_weight_total, no grand total anywhere"
+        },
+        {
+          "description": "summary computes net_weight_total, net_weight_trip_count and net_weight_avg from rows whose net_weight is not NULL only",
+          "given": "receive flow has net_weight values 1000, 2000, 3000 and two rows with net_weight NULL",
+          "expect": "receive.net_weight_total = 6000, receive.net_weight_trip_count = 3, receive.net_weight_avg = 2000"
+        },
+        {
+          "description": "summary returns net_weight_avg null when net_weight_trip_count is 0",
+          "given": "receive flow has 4 records, every one with net_weight NULL",
+          "expect": "receive.net_weight_avg = null (no division by zero), receive.net_weight_total = null, receive.net_weight_trip_count = 0"
+        },
+        {
+          "description": "summary counts trip_count over all rows of the flow including those with NULL net_weight",
+          "given": "receive flow has 3 rows with net_weight and 2 rows with net_weight NULL",
+          "expect": "receive.trip_count = 5 while receive.net_weight_trip_count = 3"
+        },
+        {
+          "description": "summary computes missing_net_weight_trip_count per flow as the count of rows with NULL net_weight",
+          "given": "receive flow has 2 rows with NULL net_weight out of 5; dispatch flow has 1 out of 3",
+          "expect": "receive.missing_net_weight_trip_count = 2 and dispatch.missing_net_weight_trip_count = 1, never merged into one number"
+        },
+        {
+          "description": "summary returns hourly as 24 buckets keyed on the hour of record_datetime, every hour present even at zero",
+          "given": "receive flow has records at 07:10, 07:50 and 13:05",
+          "expect": "receive.hourly has exactly 24 entries with hour 0..23; hour 7 has trip_count 2, hour 13 has trip_count 1, the remaining 21 hours have trip_count 0"
+        },
+        {
+          "description": "summary buckets each record into the hour taken from its own record_datetime",
+          "given": "a record with record_datetime 2026-09-04 23:59",
+          "expect": "that record lands in the hour 23 bucket and in no other bucket"
+        },
+        {
+          "description": "summary computes busiest_hour as the hour with the highest trip count and empty_hour_count as the number of zero hours",
+          "given": "receive flow has 3 records at hour 7 and 1 at hour 13",
+          "expect": "receive.busiest_hour = 7, receive.busiest_hour_trip_count = 3, receive.empty_hour_count = 22"
+        },
+        {
+          "description": "summary returns busiest_hour null when the flow has no dated trip",
+          "given": "dispatch flow has zero dated records in the period",
+          "expect": "dispatch.busiest_hour = null, dispatch.busiest_hour_trip_count = 0, dispatch.empty_hour_count = 24"
+        },
+        {
+          "description": "summary groups the receive flow by estate_supplier ordered by net_weight_total descending",
+          "given": "receive records: Estate A total 9000, Supplier B total 15000, Estate C total 3000",
+          "expect": "receive.by_origin order is Supplier B, Estate A, Estate C, each with its own trip_count and net_weight_total"
+        },
+        {
+          "description": "summary never truncates by_origin and never collapses small contributors into an others bucket",
+          "given": "receive flow has 1 dominant origin plus 11 origins with a single trip each",
+          "expect": "receive.by_origin has 12 entries; no 'others'/'lain-lain' bucket exists and the entries' trip_count values sum exactly to receive.trip_count"
+        },
+        {
+          "description": "summary groups the dispatch flow by destination ordered descending and keeps NULL destination as one group of its own",
+          "given": "dispatch records: destination 'Refinery X' total 20000, destination 'Port Y' total 8000, and 3 records with destination NULL total 5000",
+          "expect": "dispatch.by_destination order is Refinery X, Port Y, then the destination:null group with trip_count 3; the null group is not dropped"
+        },
+        {
+          "description": "summary keeps the by_destination group trip counts summing exactly to the dispatch trip_count",
+          "given": "dispatch flow has 10 dated records of which 4 have destination NULL",
+          "expect": "the sum of every by_destination entry's trip_count equals dispatch.trip_count = 10"
+        },
+        {
+          "description": "summary counts draft_trip_count over rows whose status is draft_ongoing or draft_paused",
+          "given": "period+line has 2 records status draft_ongoing, 1 status draft_paused, 5 status completed",
+          "expect": "draft_trip_count = 3"
+        },
+        {
+          "description": "summary still counts draft rows in every other figure",
+          "given": "receive flow has 4 records of which 3 are draft_ongoing, all with net_weight filled",
+          "expect": "receive.trip_count = 4 and receive.net_weight_total includes all 4 records' weights; no status filter is applied to the metric queries"
+        },
+        {
+          "description": "summary groups daily by the date part of record_datetime with all four numbers per date",
+          "given": "records on 2026-09-01 (2 receive, 1 dispatch) and on 2026-09-02 (1 receive)",
+          "expect": "daily has 2 entries, the 2026-09-01 entry carries receive_trip_count 2, receive_net_weight_total, dispatch_trip_count 1 and dispatch_net_weight_total"
+        },
+        {
+          "description": "summary computes daily_total as the sum of every daily row",
+          "given": "daily rows with receive_trip_count 2 and 1, dispatch_trip_count 1 and 0",
+          "expect": "daily_total.receive_trip_count = 3, daily_total.dispatch_trip_count = 1, and the two weight totals equal the sum of the respective daily columns — the two flows remain separate in daily_total"
+        },
+        {
+          "description": "summary computes completeness.days_in_period as the inclusive calendar day count of the period",
+          "given": "period start_date 2026-09-01, end_date 2026-09-30",
+          "expect": "completeness.days_in_period = 30 (both end days counted)"
+        },
+        {
+          "description": "summary computes completeness.days_with_trip as COUNT DISTINCT dates having at least one trip",
+          "given": "period of 30 days with dated records on only 3 distinct dates, two of which have several trips",
+          "expect": "completeness.days_with_trip = 3"
+        },
+        {
+          "description": "export emits one row per trip with the context columns repeated on every row",
+          "given": "period+line has 7 dated records across both flows",
+          "expect": "the streamed CSV has 7 data rows, and each row repeats period name, mill name, production line name and flow type"
+        },
+        {
+          "description": "export keeps rows whose net_weight is NULL, writing an empty value instead of dropping the row",
+          "given": "period+line has 5 records of which 2 have net_weight NULL",
+          "expect": "the CSV has 5 data rows; the 2 rows show an empty net weight cell rather than being omitted or written as 0"
+        },
+        {
+          "description": "export writes no duration column in the CSV header",
+          "given": "period+line has records in both flows",
+          "expect": "the header row contains no duration / lama kendaraan / turnaround column, and each row carries exactly one timestamp column sourced from record_datetime"
+        },
+        {
+          "description": "summary returns null/zero figures and invents nothing when the period+line has zero trips",
+          "given": "weighbridge_records has no row matching period range and PL-1",
+          "expect": "receive.trip_count = 0, receive.net_weight_total = null, receive.net_weight_avg = null, receive.net_weight_trip_count = 0, dispatch identical, by_origin = [], by_destination = [], daily = [], completeness.days_with_trip = 0; no fabricated values"
+        },
+        {
+          "description": "summary still returns a full group for a flow that has zero trips",
+          "given": "period+line has 6 receive records and zero dispatch records",
+          "expect": "the dispatch key is present with trip_count 0, net_weight_total null, net_weight_avg null, net_weight_trip_count 0, 24 hourly buckets at 0, busiest_hour null, empty_hour_count 24 and by_destination []; the group is never omitted from the payload"
+        },
+        {
+          "description": "summary reports total null, avg null and net_weight_trip_count 0 while keeping trip_count when every net_weight is NULL",
+          "given": "period+line has 6 receive records, all with net_weight NULL",
+          "expect": "receive.trip_count = 6, receive.net_weight_total = null, receive.net_weight_avg = null, receive.net_weight_trip_count = 0, receive.missing_net_weight_trip_count = 6"
+        },
+        {
+          "description": "summary places every trip in one bucket and reports empty_hour_count 23 when all trips happen in a single hour",
+          "given": "receive flow has 9 records all with record_datetime inside hour 6",
+          "expect": "hour 6 bucket trip_count = 9, the other 23 buckets trip_count = 0, busiest_hour = 6, busiest_hour_trip_count = 9, empty_hour_count = 23"
+        },
+        {
+          "description": "summary returns by_destination as a single null group whose count equals the dispatch trip_count when every destination is NULL",
+          "given": "dispatch flow has 5 dated records, every one with destination NULL",
+          "expect": "dispatch.by_destination has exactly 1 entry with destination null and trip_count 5, equal to dispatch.trip_count"
+        },
+        {
+          "description": "summary reports draft_trip_count equal to the total trip count and still produces every figure when all trips are draft",
+          "given": "period+line has 8 dated records, all status draft_ongoing or draft_paused, with net_weight filled",
+          "expect": "draft_trip_count = 8, receive.trip_count + dispatch.trip_count = 8, and all weight / hourly / by_origin / by_destination / daily / completeness figures are produced normally"
+        },
+        {
+          "description": "summary ignores a client-sent business_unit_id for a mill-bound role and reports the account mill",
+          "given": "auth user role supervisor with business_unit_id = BU-A; query carries business_unit_id = BU-B and a production_line_id belonging to BU-A",
+          "expect": "the returned business_unit.id = BU-A and every figure is scoped to BU-A; no query ever receives BU-B"
+        },
+        {
+          "description": "summary returns the full result when all conditions pass",
+          "given": "mill-bound supervisor on BU-A, valid period_id covering weighbridge on BU-A, valid production_line_id of BU-A, records present in both flows with mixed net_weight, mixed destinations, mixed statuses and a spread of hours",
+          "expect": "returns business_unit, production_line, period, a receive group and a dispatch group each with trip_count / net_weight_total / net_weight_avg / net_weight_trip_count / missing_net_weight_trip_count / 24 hourly buckets / busiest_hour / busiest_hour_trip_count / empty_hour_count plus by_origin (receive) or by_destination (dispatch), draft_trip_count, undated_trip_count, daily, daily_total and completeness — and no duration-derived field at all"
+        }
+      ]
+    }
+  ],
+  "shared_entities": [
+    {
+      "entity_id": "weighbridge-record",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "period",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "production-line",
+      "operations": [
+        "SELECT"
+      ]
+    },
+    {
+      "entity_id": "business-unit",
+      "operations": [
+        "SELECT"
+      ]
+    }
+  ],
+  "screen_dependencies": [
+    {
+      "screen_id": "screen-140--laporan-stasiun-web",
+      "reason": "Satu-satunya pintu masuk; tile Weighbridge menyala hanya setelah REPORT_ROUTES memetakan kodenya"
+    },
+    {
+      "screen_id": "screen-128--kelola-periode-pelaporan",
+      "reason": "Periode yang dibaca laporan ini dibuat di sana; tanpa periode, laporan kosong"
+    },
+    {
+      "screen_id": "screen-022--form-weighbridge-web",
+      "reason": "Salah satu sumber trip yang dibaca laporan ini; laporan tidak pernah menulis balik"
+    }
+  ],
+  "implementation_notes": [
+    "TIDAK ADA METRIK DURASI, DAN ITU DISENGAJA. Migrasi 2026_08_19_000010 menggabungkan arrival_datetime dan dispatch_datetime menjadi satu record_datetime lalu MEMBUANG keduanya di up(). Tiap trip kini menyimpan tepat satu penanda waktu — waktu datang untuk arus masuk, waktu keluar untuk arus keluar. Lama kendaraan di pabrik menuntut dua penanda waktu pada trip yang sama; datanya tidak ada, jadi metrik itu mustahil. Draft pertama spec ini sempat menetapkannya karena kedua kolom terbaca di blok down() migrasi tersebut — tempat mereka DIPULIHKAN saat rollback. Verifikasi yang benar: entity-catalog (yang sejak awal sudah betul), atau pindai seluruh migrasi dan jumlahkan tambah/buang hanya dari up(), lalu cocokkan dengan $fillable model.",
+    "KOREKSI v1→v2 (2026-10-01), DUA BUTIR, keduanya terungkap saat Phase 4 menaikkan spec_mismatch. (a) business_logic 4 dan unit_test_cases 8/9 memakai kosakata pra-2026-09-25: 'periode yang tidak menyebut jenis stasiun'. Kolom periods.station_type DIBUANG oleh migrasi 2026_09_26_000040; cakupan kini dinyatakan lewat baris period_stations per jenis stasiun, dan Period::$status MELEMPAR LogicException. Konsep 'periode untuk semua stasiun' tidak punya padanan di skema, sehingga unit_test_case 8 mustahil lolos sebagaimana tertulis. (b) Kasus akun terikat mill yang mill-nya kosong ditulis 403 FORBIDDEN di empat tempat — business_logic 1, unit_test_cases 2, error_codes /periods, dan kedua langkah api_test skenario 'akun belum terhubung ke mill'. Kelima laporan sejenis memakai 422 VALIDATION_ERROR dengan alasan tertulis di kodenya: 'Incomplete input, not refused access — 422, never 403'. Alasan itu benar — pengguna tidak ditolak aksesnya, data akunnya belum lengkap — jadi spec yang dikoreksi, bukan implementasinya. Catatan untuk pembaca berikutnya: agen Phase 4 melaporkan butir (b) sebagai 'spec bertentangan sendiri, 2 dari 3 lokasi'. Itu keliru; spec-nya seragam 403 di empat tempat, yakni salah secara konsisten, bukan ambigu. Ia memilih 422 dengan alasan yang salah dan kebetulan benar — persis mengapa pause spec_mismatch tidak boleh diputuskan agen sendiri.",
+    "Sebaran trip per jam adalah PENGGANTI metrik durasi, disetujui user. Dapat dihitung dari satu penanda waktu, dan mengikuti pola 'sebaran per jam' yang sudah ada di Laporan Cages & Tracks.",
+    "record_datetime nullable di DB SECARA SENGAJA: migrasi menyebut ->change() butuh doctrine/dbal yang tidak dipasang, jadi wajib-nya ditegakkan di lapisan aplikasi lewat aturan ['required','date'] di WeighbridgeRecordService. Baris NULL karena itu mungkin ada, dan akan dikecualikan diam-diam oleh filter periode — sebabnya undated_trip_count wajib ada.",
+    "GET /api/production-lines/options-for-report DIPAKAI ULANG apa adanya (dibuat untuk screen-135). Bukan endpoint baru, tidak ditambahkan ke api-index, dan tidak punya unit test di sini.",
+    "Rute web: /reports/weighbridge, nama reports.weighbridge, middleware ['auth','role:supervisor,mill_management,admin'], komponen Livewire App\\Livewire\\Dashboard\\LaporanWeighbridge — mengikuti pola persis /reports/storage-tank. Satu laporan stasiun di repo ini terdiri dari ENAM berkas, bukan empat: service, controller, komponen Livewire, blade komponen, DAN blade layout pembungkus yang memegang <x-slot:styles>. resources/views/dashboard/partials/report-styles.blade.php bersifat bersama dan TIDAK boleh diubah.",
+    "Grup API memakai middleware ['auth:web,sanctum','role:supervisor,mill_management,admin'] — SENGAJA TANPA operator untuk sekarang. Laporan lain menyertakan operator karena pasangan mobile-nya sudah ada; screen-144 (mobile) belum dibangun. Operator dikecualikan di TIGA tempat — middleware API, guardAccess(), dan canAccess() — dan ketiganya harus dilebarkan bersamaan saat screen-144 dikerjakan: melebarkan rutenya saja akan menjatuhkan Operator ke cabang Admin, tempat business_unit_id kiriman klien JUSTRU dihormati.",
+    "WAJIB: tambahkan satu baris ke StationReportService::REPORT_ROUTES memetakan StationType::Weighbridge->value ke 'reports.weighbridge'. Tanpa baris itu laporan ini jadi, seluruh test-nya lolos, dan tile-nya tetap kelabu — layarnya tidak terjangkau dari UI. Komentar di konstanta itu memperingatkan hal yang sama. KONSEKUENSI: test tile-availability yang ada di StationReportServiceTest.php:425 mengasersi weighbridge report_available = false dan akan MERAH setelah baris ini ditambahkan. Test itu harus diperbarui bersamaan — kemerahannya adalah test lama yang kini salah, bukan kode baru yang rusak.",
+    "Urutan REPORT_ROUTES mengikuti station_types.sort_order. Diverifikasi dari migrasi 2026_09_22_000029: weighbridge 10, cages-track 30, sterilizer 40, clarification 70, boiler-room 90, storage-tank 140. Jadi barisnya masuk PALING DEPAN, bukan ditambahkan di akhir."
+  ],
+  "test_scenarios": [
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — sukses sebagai Supervisor atau Mill Management",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/export"
+          },
+          "request_example": {
+            "period_id": "{{step2.data.0.id}}",
+            "production_line_id": "{{step1.data.0.id}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "mount as supervisor bound to BU-A, select the first Production Line, then select the first period",
+        "assert": "no Mill selector is rendered; receive and dispatch blocks each show trip_count, net weight total with its filled-trip count, and average; by_origin table and by_destination table render; 24-hour distribution plus busiest hour and empty-hour count render per flow; missing-net-weight count per flow, draft count and undated count render; daily recap, trend and completeness render; an Export CSV button is enabled; no write action is rendered"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "log in as supervisor, open the report screen, pick a Production Line, pick a period, read the whole page, then click Export CSV",
+        "assert": "the mill name of the account is shown without a mill picker; all receive and dispatch figures, per-origin and per-destination recaps, hourly distribution, daily recap, trend and completeness are visible; the CSV file downloads; station data is unchanged after the visit"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — sukses sebagai Admin",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/periods"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}",
+            "production_line_id": "{{step2.data.0.id}}",
+            "period_id": "{{step3.data.0.id}}"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 5,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/export"
+          },
+          "request_example": {
+            "business_unit_id": "{{step1.data.0.id}}",
+            "production_line_id": "{{step2.data.0.id}}",
+            "period_id": "{{step3.data.0.id}}",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "mount as admin, select a mill, select a Production Line of that mill, then select a period",
+        "assert": "the Mill selector is rendered first; the line and period selectors only populate after the mill is chosen; the full report renders with the same sections as a mill-bound user; every figure is scoped to the chosen mill and line; the Export CSV button is enabled"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "log in as admin, open the report screen, choose a mill, choose a Production Line, choose a period, then click Export CSV",
+        "assert": "the chosen mill and line names appear in the report header; all figures shown belong to that mill and line only; the CSV downloads; no station data changes"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — Production Line belum dipilih",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "11111111-1111-4111-8111-111111111111"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "mount with no Production Line selected",
+        "assert": "no figure block is rendered at all; a prompt to choose a Production Line first is shown; no all-lines or whole-mill aggregate is rendered as a stand-in"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report screen and leave the Production Line selector untouched",
+        "assert": "the page shows the choose-a-line prompt and displays zero numbers; no mill-wide totals appear anywhere on the page"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — Admin mengganti mill setelah memilih line",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "bu-a",
+            "production_line_id": "pl-a1",
+            "period_id": "period-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "bu-b",
+            "production_line_id": "pl-a1",
+            "period_id": "period-a1"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {
+            "business_unit_id": "bu-b"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "as admin with mill BU-A, line PL-A1 and a period selected and the report rendered, change the mill selector to BU-B",
+        "assert": "the selected production_line_id is reset to empty, the line option list reloads with BU-B lines, every figure block stops rendering with no BU-A number left on screen, and the choose-a-line prompt returns"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "as admin, display a report for mill A and line A1, then switch the mill dropdown to mill B",
+        "assert": "the line dropdown clears and now lists mill B lines; no figure from mill A remains visible; the choose-a-line prompt is shown until a new line is deliberately selected"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — mill hanya punya satu Production Line",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-a1"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "mount on a mill whose line option list contains exactly one entry",
+        "assert": "the selected production_line_id remains empty after mount — the single option is not auto-selected; no figure is rendered until the user picks it; after picking it, the report header names that line"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report screen on a mill that has only one Production Line and observe before selecting anything",
+        "assert": "no numbers appear and the line dropdown shows no pre-selected value; after the single line is chosen the report renders with that line's name shown, so the reader always knows which line the numbers belong to"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — Admin memilih mill lebih dulu",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/business-units/options"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "mount as admin with no mill selected yet",
+        "assert": "the Mill selector is rendered and populated; no figure block is rendered; a prompt to choose a mill first is shown; the production line option list and the period option list are both still empty — neither request has been fired"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "log in as admin and open the report screen without touching the mill dropdown",
+        "assert": "a mill picker and the choose-a-mill prompt are visible; zero numbers appear; the line and period dropdowns are empty until a mill is chosen"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — mill belum punya periode pelaporan",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/production-lines/options-for-report"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "mount on a mill that has at least one Production Line but no reporting period covering weighbridge, then select the line",
+        "assert": "the period selector renders empty; a message directing the user to contact Admin for period creation is shown; no figure block is rendered"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report screen on a mill with no weighbridge reporting period and select a Production Line",
+        "assert": "the period dropdown has no options, the contact-Admin guidance is visible, and no numbers appear on the page"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — periode tanpa data",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-empty",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a Production Line and a period whose summary returns trip_count 0 with null weight figures for both flows",
+        "assert": "every weight figure renders as not-available rather than 0, an explicit no-data-for-this-period-and-line statement is rendered, and no empty chart is rendered that could read as zero activity"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report screen, select a line and a period that contains no weighbridge trip for that line",
+        "assert": "the page states that there is no data yet for that period and line; weight totals and averages read as not available instead of zero; no misleading empty graph is drawn"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — trip tersinkron terlambat dari mobile",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-ended",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-current",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select the already-ended period on the line that owns a trip whose record_datetime falls inside that period but whose row was synced after the period closed",
+        "assert": "the late-synced trip is included in the ended period's trip_count and net weight total, its date appears in the daily recap of that period, and the current period's figures are unaffected by it"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for the ended period on the affected line, then switch to the current period",
+        "assert": "the ended period's trip count and weight total include the late-synced trip; the current period does not count it; the figures follow the weighing time, not the sync or row-creation time"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — trip tanpa penanda waktu penimbangan",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-a1",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a line that has trips with a NULL record_datetime plus dated trips, and select a period covering the dated ones",
+        "assert": "the undated trip count renders as its own figure inside the completeness block; the trip counts, weight totals and averages, by_origin, by_destination, hourly distribution and daily recap all reflect only the dated trips, so the undated ones appear nowhere else"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report on a line that has at least one trip with an empty weighing timestamp",
+        "assert": "a separate undated-trip count is visible in the completeness section; that trip is not reflected in any other number, and the reader can reconcile the difference between the report figures and the row count they know about"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — periode hanya memuat satu jenis arus",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-receive-only",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line whose summary returns receive trips but dispatch trip_count 0 with null weight figures",
+        "assert": "the dispatch block is rendered in full with its values shown as not available, it is neither hidden nor collapsed, and the receive block shows its own figures separately"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period that has incoming trips but no outgoing shipments on the selected line",
+        "assert": "the outgoing-flow section is visible with not-available values rather than being absent, so the reader concludes there were no outgoing shipments instead of assuming the section does not exist"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — seluruh trip beratnya kosong",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-all-null-weight",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line where every trip has a NULL net_weight",
+        "assert": "net weight total and average render as not available rather than 0; the filled-weight trip count renders as 0; the trip count renders the real number of trips; the missing-net-weight count per flow equals that flow's trip count"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period in which no trip has a net weight recorded",
+        "assert": "totals and averages read as not available, not zero; the filled-trip count shows 0; the trip count still shows the trips that exist; the unfinished-weighing count per flow matches that flow's trip count"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — penimbangan belum selesai pada sebagian trip",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-partial-weight",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line where part of the trips still have an empty net weight because the tare weight has not been taken",
+        "assert": "the average is rendered from net_weight_total over net_weight_trip_count only; the filled-trip count is rendered next to the average as its denominator; the missing-net-weight count is rendered separately for receive and for dispatch; the unfinished trips do not pull the average down"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period with partially weighed trips and read the total and average per flow",
+        "assert": "the average shown equals the total divided by the filled-weight trip count displayed beside it; each flow shows its own unfinished-weighing count; the unfinished trips are excluded from the average rather than lowering it"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — tujuan belum diisi pada sebagian trip arus keluar",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-null-destination",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line where part of the dispatch trips have destination NULL, then read the by-destination recap",
+        "assert": "the null-destination rows render as their own group labelled as not-yet-filled; the group is not dropped from the table; the sum of the trip_count column across every destination row — including that group — equals the dispatch trip_count shown in the headline figure"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period with some outgoing trips lacking a destination and read the per-destination recap",
+        "assert": "a not-yet-filled destination group is visible in the table; no trip is missing from the recap; the per-destination trip counts add up exactly to the headline outgoing trip count"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — seluruh trip terjadi pada jam yang sama",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-single-hour",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line where every trip happened within the same hour of the day, then read the hourly distribution",
+        "assert": "the distribution renders 24 hours with one hour holding every trip and 23 hours at zero; the busiest hour points at that hour; the empty-hour count renders as 23; the distribution is still rendered rather than hidden"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period where all trips occurred in one single hour and read the hourly distribution",
+        "assert": "one filled hour and 23 empty hours are visible, the busiest hour names that hour, the empty-hour count reads 23, and the distribution remains on the page even though it looks uninformative"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — seluruh trip berstatus draft",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-all-draft",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line where every trip is still in a draft status",
+        "assert": "all figures are rendered and nothing is hidden because of draft status; the draft trip count rendered equals the total trip count across both flows"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period where every trip is still draft",
+        "assert": "the numbers are all visible, the draft count equals the total trip count, and the reader immediately sees that the whole report rests on unfinished data"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — satu asal menyumbang hampir seluruh arus masuk",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-skewed-origin",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line where one estate or supplier contributes nearly all incoming trips while several others contribute very few, then read the by-origin recap",
+        "assert": "every origin that has a trip in the period renders as its own row; the list is not truncated and no remainder/others row is rendered; the small contributors are still present; the trip_count column sums to the receive trip_count headline figure"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period dominated by one origin and read the per-estate/supplier recap",
+        "assert": "all origins are listed including the tiny ones, no row is cut off or lumped into an others bucket, and the per-origin trip counts add up to the headline incoming trip count"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — akun belum terhubung ke mill",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-a1",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 422,
+          "expected_error_code": "VALIDATION_ERROR"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "mount as a supervisor or mill management user whose account has no business unit attached",
+        "assert": "a message telling the user to contact Admin to link the account to a mill is rendered; no mill option list is offered as a workaround; no figure block is rendered"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "log in as a supervisor whose account is not linked to any mill and open the report screen",
+        "assert": "the contact-Admin message is visible, no all-mills dropdown is offered, and no numbers appear on the page"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — mencoba melihat mill atau Production Line milik mill lain",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "business_unit_id": "bu-other",
+            "production_line_id": "pl-a1",
+            "period_id": "period-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "production_line_id": "pl-other-mill",
+            "period_id": "period-a1"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "production_line_id": "pl-a1",
+            "period_id": "period-other-mill"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "as a mill-bound supervisor, force the component state to carry another mill's business_unit_id and then another mill's production_line_id, and refresh the report",
+        "assert": "the business unit shown in the report stays the account mill and the injected id is ignored; the foreign line is refused and no report body is rendered for it; every figure still belongs to the user's own mill"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "log in as a mill-bound supervisor and request the report with another mill's identity and another mill's Production Line in the request",
+        "assert": "the server ignores the client-sent mill and uses the account mill; the foreign Production Line is refused and no report is shown for it; the numbers that do render belong only to the user's own mill"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — Operator mencoba membuka layar web ini",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-a1",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/export"
+          },
+          "request_example": {
+            "period_id": "period-a1",
+            "production_line_id": "pl-a1",
+            "format": "csv"
+          },
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "attempt to mount the component as a station operator",
+        "assert": "mounting is refused by the authorization layer; no summary, period list, production line list or trip detail is ever loaded into the component state"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "log in as a station operator and navigate to the report route",
+        "assert": "access is denied and the report screen does not open; no recap figure, period list, Production Line list or trip detail is visible to the operator"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — periode berstatus tertutup",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-closed",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/export"
+          },
+          "request_example": {
+            "period_id": "period-closed",
+            "production_line_id": "pl-a1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a Production Line and then a period whose status is closed",
+        "assert": "the closed period appears in the option list and is selectable; the full report renders with all figures, recaps, hourly distribution, daily recap, trend and completeness exactly as for an open period; the closed status is rendered as a label on the report; the Export CSV button stays enabled"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report screen, select a line, select a closed period, then click Export CSV",
+        "assert": "the report renders in full, the closed status is shown as a note on the report, and the CSV download completes successfully"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — rekap harian sangat panjang",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-long-60-days",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a long period whose daily recap has dozens of rows, then toggle the daily recap closed and open again",
+        "assert": "the daily recap collapses and expands on toggle; the headline per-flow figures and the trend stay rendered in both states; no figure value changes when the recap is collapsed or expanded"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a long period, collapse the daily recap, read the headline figures and trend, then expand it again",
+        "assert": "the headline per-flow figures and the trend remain readable without scrolling past dozens of rows, and collapsing or expanding the daily recap changes no number on the page"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — arus masuk dan arus keluar tidak pernah dijumlahkan",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-both-flows",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/export"
+          },
+          "request_example": {
+            "period_id": "period-both-flows",
+            "production_line_id": "pl-a1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line holding both receive and dispatch trips, then read the headline figures, daily recap, trend and hourly distribution",
+        "assert": "each metric is rendered separately for receive and for dispatch; no combined trip count, combined weight total, combined average, combined daily column or combined trend line is rendered; the daily recap and daily_total row keep the two flows in separate columns; no grand total summing the two flows exists anywhere in the rendered output"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period containing both flows and scan every section of the page",
+        "assert": "every figure is split into incoming and outgoing; nowhere on the page is there a number that adds the two flows together — not trip count, not weight total, not average, not daily recap, not trend"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — rata-rata berat hanya memakai trip yang beratnya terisi sebagai penyebut",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-10-trips-6-weighed",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line where one flow holds ten trips of which only six have a net weight, then read that flow's average",
+        "assert": "the rendered average equals net_weight_total divided by 6, not by 10; the number 6 is rendered beside the average as the denominator used; the trip count still renders 10; the four weightless trips render as their own missing-net-weight figure so the two numbers reconcile"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period where one flow has ten trips of which six are weighed, and read the average net weight for that flow",
+        "assert": "the average shown is the six trips' total divided by six; the figure 6 is shown next to it as the denominator; the trip count still reads 10; the four unweighed trips are shown as a separate count the reader can reconcile against"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — jumlah penimbangan yang belum selesai ditampilkan per arus",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-missing-weight-both-flows",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line with unweighed trips in both the receive and the dispatch flow, then read the completeness block",
+        "assert": "receive.missing_net_weight_trip_count and dispatch.missing_net_weight_trip_count are rendered as two separate figures; they are never summed into one; each is rendered alongside its own flow's trip count so the share of incomplete data per flow is readable"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period with unfinished weighings on both flows and read the recording-completeness section",
+        "assert": "the unfinished-weighing count appears as one figure for incoming and a separate figure for outgoing, never merged, each shown next to its own flow's trip count"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — penyaringan line memakai line yang melekat pada trip itu sendiri",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-a1",
+            "production_line_id": "pl-recorded-on-trip"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-a1",
+            "production_line_id": "pl-station-current"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "with a trip recorded under line PL-1 whose station has since been reassigned to PL-2, select PL-1 and the period covering the weighing time, then select PL-2 for the same period",
+        "assert": "under PL-1 the trip is counted in the trip count, weight total, origin/destination recap, hourly distribution and daily recap; under PL-2 the same trip does not appear in any figure; the PL-1 figures remain the same as before the station reassignment"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for the line recorded on the trip, then switch to the line the station currently belongs to, for the same period",
+        "assert": "the trip is counted on the line attached to it at weighing time and absent from the station's current line, so each line's historical figures stay stable even after the station was moved"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — keanggotaan periode ditentukan waktu kejadian penimbangan, bukan waktu baris dibuat",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-a1",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line where one trip has its weighing time inside the period but its row created long after the period ended, and another trip has its weighing time outside the period but its row created inside the period range",
+        "assert": "the first trip is counted in every figure of the period; the second trip is counted in none of them; the rendered figures are identical whether the rows' created_at or sync time is altered in the fixture"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for the period holding both of those trips on the affected line",
+        "assert": "the trip whose weighing happened inside the period is counted even though its row was created later; the trip whose weighing happened outside is not counted even though its row was created inside the range; row-creation and sync time influence no number on the page"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — rentang periode inklusif di kedua ujung",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-boundary",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line with trips exactly on the first day, exactly on the last day, exactly one day before and exactly one day after the period",
+        "assert": "the first-day and last-day trips are fully counted in trip counts, weights, origin/destination recaps, hourly distribution and daily recap; the day-before and day-after trips are counted nowhere; the daily recap contains a row for the first day and a row for the last day"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period whose boundaries carry trips on the first day, the last day, the day before and the day after",
+        "assert": "both boundary-day trips are included in every figure, the outside-day trips are excluded entirely, and the daily recap lists the first and last day of the period"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — tidak ada angka lama kendaraan berada di pabrik di mana pun pada laporan",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-both-flows-many-trips",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/export"
+          },
+          "request_example": {
+            "period_id": "period-both-flows-many-trips",
+            "production_line_id": "pl-a1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line holding many trips on both flows, then read every rendered section — headline figures, origin and destination recaps, hourly distribution, daily recap, trend and completeness",
+        "assert": "no in-plant-duration figure is rendered anywhere, not as a single value, not as an average, not as a fastest/slowest extreme; the only time-based rendering is the hourly trip distribution with its busiest hour and empty-hour count, derived from each trip's single timestamp; no column, card or chart implying two timestamps on one trip is rendered"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a busy period on both flows, scan every section of the page, then download the CSV and inspect its header row",
+        "assert": "no vehicle-in-plant duration value appears anywhere on the page or in the downloaded file — no single value, no average, no extreme; the only time-based display is the hourly trip distribution with busiest hour and empty-hour count; the CSV header carries exactly one timestamp column and no duration column"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — sebaran trip per jam dihitung dari penanda waktu tunggal tiap trip",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-spread-hours",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line whose trips are spread across several different hours of the day, then read the hourly distribution",
+        "assert": "24 hour slots are rendered with each slot's trip count taken from the trips' own single timestamps; the busiest hour is rendered with its trip count; the empty-hour count is rendered as its own figure; the sum of the 24 slot counts equals exactly that flow's dated trip count"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period whose trips are spread across several hours and read the hourly distribution",
+        "assert": "all 24 hours of the day are shown with their trip counts, the busiest hour and its trip count are shown, the empty-hour count is shown separately, and the hourly counts add up exactly to the number of trips that carry a timestamp in the period"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — layar hanya membaca dan tidak mengubah data stasiun",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-a1",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/export"
+          },
+          "request_example": {
+            "period_id": "period-a1",
+            "production_line_id": "pl-a1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 3,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "{{step1.period.id}}",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "mount with a rendered report, switch the mill, line and period selections several times, collapse and expand the daily recap, then trigger the CSV export",
+        "assert": "the component exposes no create, update, delete, save or status-change action; only read methods are called; after all interactions the weighbridge_records rows and their statuses are byte-identical to before, and re-reading the same period and line returns the same payload as the first read"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report, change the mill, Production Line and period selections repeatedly, collapse and expand the daily recap, then download the CSV",
+        "assert": "no edit, delete, save or status-change control exists on the screen, and after all those interactions no weighbridge station record has changed its value or its status"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — daftar periode dibatasi pada periode yang mencakup Weighbridge",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/periods"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "mount on a mill holding periods that register weighbridge among their stations and periods that register only other stations, select a Production Line and open the period selector",
+        "assert": "the period options contain only the periods that register weighbridge; periods registering only other stations are absent from the option list; each option's status is the weighbridge station status within that period; both open and closed weighbridge statuses are present among the options"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report screen on a mill with a mix of period scopes, select a Production Line and open the period dropdown",
+        "assert": "only periods that register weighbridge are listed, periods registering only other stations do not appear at all, the status shown per option is the weighbridge station status within that period, and both open and closed remain selectable"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — tidak ada penandaan nilai di luar batas",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-extreme-weights",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line holding trips with very large and very small net weights relative to the rest, then read the headline figures, origin and destination recaps, daily recap and trend",
+        "assert": "every value renders plainly with no out-of-range flag, no warning colour class and no plausibility icon; the payload carries no is_out_of_range / flag field; the extreme values are still included in the totals and the averages like any other trip"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period containing unusually large and unusually small net weights and read the headline figures, recaps, daily recap and trend",
+        "assert": "all values are shown as-is with no out-of-range marking, no warning colouring and no plausibility icon; the report passes no judgement on whether a value is reasonable; the extreme values still contribute to totals and averages"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — kelengkapan pencatatan tampil sebagai bagian laporan",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-incomplete-mix",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "select a period and line holding unweighed trips, draft trips, dispatch trips without a destination and trips with a NULL timestamp, then read the completeness section",
+        "assert": "the completeness section renders at the same visual weight as the headline figures and not as a footnote, and it gathers in one place the missing-net-weight count per flow, the draft trip count, the no-destination dispatch trip count and the undated trip count, plus days_in_period and days_with_trip"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period containing unweighed, draft, destination-less and undated trips and read the report",
+        "assert": "recording completeness is presented as a report section equal in standing to the headline figures; the unfinished-weighing count per flow, the draft count, the destination-less outgoing count and the undated count are all visible in one place so the reader can judge how far the figures can be relied on"
+      }
+    },
+    {
+      "scenario_ref": "Lihat Laporan Periode Weighbridge (Web) — unduh rincian seluruh trip sebagai CSV",
+      "usecase_id": "usecase-146--laporan-weighbridge-web",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/summary"
+          },
+          "request_example": {
+            "period_id": "period-both-flows",
+            "production_line_id": "pl-a1"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/weighbridge-reports/export"
+          },
+          "request_example": {
+            "period_id": "period-both-flows",
+            "production_line_id": "pl-a1",
+            "format": "csv"
+          },
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "LaporanWeighbridge",
+        "action": "with the report rendered for a period and line holding trips on both flows, trigger the CSV export action",
+        "assert": "a streamed CSV response is returned with one row per trip for that period and line; the mill, Production Line, period and flow-type context columns repeat on every row; the column labels match the terms rendered on screen; receive and dispatch rows stay distinguishable through the flow-type column and are never summed; trips with an empty net weight are present as rows with an empty weight cell; the header contains no duration or in-plant-time column"
+      },
+      "browser_test": {
+        "route": "/reports/weighbridge",
+        "action": "open the report for a period with trips on both flows and click Export CSV, then open the downloaded file",
+        "assert": "the file has one row per trip for the selected period and line, repeats the mill, Production Line, period and flow-type context on every row, uses the same column labels as the screen, keeps incoming and outgoing distinguishable via the flow-type column without ever summing them, keeps unweighed trips as rows with an empty weight, and contains no duration or vehicle-in-plant-time column"
+      }
+    }
+  ]
+}

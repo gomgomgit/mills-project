@@ -1,0 +1,94 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-01"
+  },
+  "id": "screen-143--laporan-weighbridge-web",
+  "name": "Laporan Weighbridge (Web)",
+  "module_id": "module-dashboard",
+  "status": "complete",
+  "test_results": {
+    "unit": {
+      "run_at": "2026-10-01T16:05:00Z",
+      "passed": 49,
+      "failed": 0,
+      "coverage": 0
+    },
+    "integration": {
+      "run_at": "2026-10-01T16:05:00Z",
+      "passed": 36,
+      "failed": 0
+    },
+    "component": {
+      "run_at": "2026-10-01T16:05:00Z",
+      "passed": 35,
+      "failed": 0
+    },
+    "browser": {
+      "run_at": "2026-10-01T16:18:00Z",
+      "passed": 36,
+      "failed": 0
+    }
+  },
+  "files_generated": [
+    "backend/app/Services/WeighbridgeReportService.php",
+    "backend/app/Http/Controllers/Api/WeighbridgeReportController.php",
+    "backend/app/Services/StationReportService.php",
+    "backend/routes/api.php",
+    "backend/routes/web.php"
+  ],
+  "test_files_generated": [
+    "backend/tests/Unit/Services/WeighbridgeReportServiceTest.php",
+    "backend/tests/Feature/Api/LaporanWeighbridgeTest.php",
+    "backend/tests/Unit/Services/StationReportServiceTest.php",
+    "e2e-web/tests/laporan-weighbridge.spec.ts",
+    "e2e-web/tests/support/period-lanes.ts"
+  ],
+  "fe_files_generated": [
+    "backend/app/Livewire/Dashboard/LaporanWeighbridge.php",
+    "backend/resources/views/livewire/dashboard/laporan-weighbridge.blade.php",
+    "backend/resources/views/dashboard/laporan-weighbridge.blade.php"
+  ],
+  "fe_test_files_generated": [
+    "backend/tests/Feature/Livewire/LaporanWeighbridgeTest.php"
+  ],
+  "implementation_notes": [
+    "ANGKA DIPISAH PER weighbridge_type, DAN TIDAK ADA ANGKA GABUNGAN SAMA SEKALI. summary() memanggil summaryFlow() dua kali — sekali untuk 'receive', sekali untuk 'dispatch' — dan kedua hasilnya TIDAK PERNAH dilipat menjadi yang ketiga. Diverifikasi dengan membaca kunci tingkat atas: hanya ada 'receive' dan 'dispatch'; 'trip_count' dan 'net_weight_total' hanya hidup DI DALAM hasil summaryFlow(), sehingga keduanya selalu milik satu arus. Menjumlahkan FFB masuk dari estate dengan kirim keluar ke destination menghasilkan angka yang tidak menjawab pertanyaan apa pun.",
+    "EMPAT AGREGAT YANG SENGAJA TAK BER-ARUS, supaya tidak dibaca sebagai kelalaian: draft_trip_count (pengungkapan bahwa angka di atas memuat data belum selesai, bukan penyaring), undatedTripCount (baris tanpa record_datetime — tanpa penanda waktu sebuah baris tidak bisa ditempatkan di periode mana pun, jadi tidak punya arus; dilaporkan supaya selisih terhadap Data Browser bisa DIJELASKAN, bukan hanya diperhatikan), $rowCount pada export (penjaga EXPORT_ROW_LIMIT), dan $tripCount di dalam summaryFlow() yang koleksinya sudah tersaring satu arus.",
+    "ENTRI REPORT_ROUTES DITARUH PALING DEPAN, bukan ditambahkan di ujung. station_types.sort_order menempatkan weighbridge (10) di depan cages-track (30), sterilizer (40), clarification (70), boiler-room (90), dan storage-tank (140), dan urutan map itu load-bearing. Diverifikasi terhadap database: urutan kunci REPORT_ROUTES persis sama dengan urutan sort_order keenam stasiun itu. Tanpa satu baris ini laporannya ada, test-nya lolos, dan tile-nya tetap kelabu — layarnya tidak terjangkau dari UI.",
+    "SATU TEST LAMA DI StationReportServiceTest HARUS BERUBAH, dan itu benar: ia dulu mengasersi weighbridge report_available=false / report_path=null, dari masa ketika laporan ini belum ada. Asersi itulah yang menjadi salah. Separuh 'tile kelabu bukan disembunyikan' dari kasus itu dipindahkan ke threshing, yang memang belum punya entri REPORT_ROUTES — jadi perilaku itu tetap terasersi dan tidak hilang bersama perubahan.",
+    "PENYARINGAN RENTANG PERIODE MEMAKAI whereDate(), bukan where() biasa, pada record_datetime. Ini bukan selera: start/end periode adalah tanggal, dan perbandingan mentah atas kolom timestamp membuat batas inklusif pecah di salah satu engine. Diasersi oleh unit case 16 yang menanam trip tepat di hari pertama, tepat di hari terakhir, H-1, dan H+1, lalu menuntut keduanya di tengah terhitung penuh pada SETIAP angka (jumlah trip, berat, rekap asal/tujuan, sebaran per jam, rekap harian) dan keduanya di luar tidak terhitung di mana pun.",
+    "KEANGGOTAAN PERIODE DARI record_datetime, bukan created_at maupun waktu sinkronisasi — aturan yang diambil dari CagesTrackReportService dan diasersi tersendiri (case 17) dengan trip yang ditimbang di dalam periode namun barisnya ditulis lama setelah periode tutup, yaitu bentuk nyata dari ponsel yang sempat offline.",
+    "PRODUCTION LINE WAJIB DIPILIH SECARA SADAR, dan layar tidak menampilkan satu angka pun sebelum itu — termasuk tidak menampilkan angka seluruh mill sebagai penggantinya. Penyaringannya memakai kolom production_line_id pada tabel record, BUKAN join ke stations, supaya record yang stasiunnya pernah dipindah tetap terhitung di line tempat data itu dihasilkan. Berbeda dari layar input mobile yang auto-skip bila hanya ada satu line: pada laporan, line adalah bagian dari ARTI angkanya.",
+    "LAJUR TANGGAL BARU DI e2e-web/tests/support/period-lanes.ts (weighbridge: 5), bukan memakai ulang lajur yang ada — persis prosedur yang tertulis di berkas itu sendiri, karena spec ini menanam periodenya di 'Business Unit A' juga dan aturan tumpang tindih periode kini PER MILL. Konsekuensi otomatisnya: LANE_CYCLE naik 1000 -> 1200 (LANE_WIDTH 200 x 6 lajur), yang menggeser jendela SETIAP spec pemakai lajur. Aman karena semuanya bergeser bersama dan lajurnya tetap saling lepas secara aritmetika, tetapi itulah alasan sapuan regresi browser wajib dijalankan setelah menambah lajur.",
+    "SPEC BROWSER INI SEMPAT MENGGANTUNG TOTAL, 40 menit tanpa satu test jalan, dan penyebabnya BUKAN di layar ini: ia menyemai 14 periode dan puluhan trip lewat form web Weighbridge (screen-022), dan POST pertama ke /livewire/update menjawab 500 karena '' dikirim ke kolom double precision. Diperbaiki di WeighbridgeRecordService (lihat screen-022 4-implement); sesudahnya spec yang sama selesai 36/36 dalam 1,5 menit. Dicatat di sini karena gejalanya muncul di layar ini sementara sebabnya di layar lain — pembaca berikutnya yang melihat spec ini menggantung harus tahu ke mana melihat.",
+    "SKENARIO 7 ('mill tanpa periode Weighbridge') HARUS MEMILIH PRODUCTION LINE LEBIH DULU. Empty state layar ini adalah rantai if/elseif dengan cabang 'pilih production line' di DEPAN cabang 'belum ada periode', jadi mill yang dipilih tanpa line selalu menampilkan cabang pertama dan no-period-hint mustahil muncul — perburuan test akan gagal pada SETIAP mill tanpa memandang periodenya. Pola berburu ini disalin dari laporan-storage-tank / clarification / boiler-room, dan ketiganya mengidap kerapuhan yang sama; di sini sudah diperbaiki, di sana belum.",
+    "TIDAK ADA MASTER TARGET OPERASIONAL untuk Weighbridge (sama seperti Storage Tank), jadi laporan ini TIDAK menandai nilai di luar batas sama sekali. Dinyatakan sebagai open_question pada business spec, bukan dibiarkan sebagai ketiadaan yang ambigu.",
+    "LAMA KENDARAAN DI PABRIK TIDAK DILAPORKAN, dan itu mustahil bukan sekadar sulit: migrasi 2026_08_19_000010 menggabungkan arrival_datetime dan dispatch_datetime menjadi satu record_datetime lalu MEMBUANG keduanya. Tiap trip menyimpan tepat satu penanda waktu, sementara durasi menuntut dua pada trip yang sama. Diganti sebaran trip per jam + jam tersibuk + jumlah jam kosong, yang dapat dihitung dari satu penanda waktu. Bila durasi memang dibutuhkan, yang harus diubah adalah DATANYA (migrasi + form input), bukan laporannya."
+  ],
+  "deferred_items": [
+    {
+      "description": "screen-144--laporan-weighbridge-mobile — versi mobile read-only dari laporan ini.",
+      "reason": "Layar terpisah, dikerjakan berikutnya. Keempat endpoint /api/weighbridge-reports/* dibangun agar dipakai ulang apa adanya oleh layar mobile, mengikuti pola screen-133 -> screen-139."
+    }
+  ],
+  "known_issues": [
+    {
+      "description": "Trip berstatus draft IKUT TERHITUNG pada seluruh angka, dan jumlahnya ditampilkan sebagai draft_trip_count. Ini konsisten dengan kelima laporan stasiun yang sudah ada — nol di antaranya menyaring status record — tetapi berarti angka laporan dapat bergerak setelah operator menyelesaikan trip yang tertunda. Pertanyaan lintas-laporan apakah seluruh laporan seharusnya menyaring draft diangkat sebagai open_question pada business spec, bukan diputuskan sendiri untuk satu stasiun.",
+      "severity": "minor"
+    },
+    {
+      "description": "Kolom quantity pada weighbridge_records tidak dilaporkan sama sekali. Kolomnya ada dan nullable, tetapi satuannya tidak terbaca dari skema maupun dari daftar metrik yang diminta; melaporkan angka tanpa tahu satuannya berisiko salah dibaca. Perlu keputusan domain sebelum ditambahkan.",
+      "severity": "minor"
+    },
+    {
+      "description": "Coverage unit test tidak terukur — tidak ada driver xdebug maupun pcov terpasang, jadi ambang 80% pada test-strategy tidak dapat diverifikasi angkanya. Berlaku untuk seluruh proyek, bukan khusus layar ini.",
+      "severity": "minor"
+    },
+    {
+      "description": "Tiga spec browser laporan lain (laporan-storage-tank, laporan-clarification, laporan-boiler-room) memakai pola berburu 'mill tanpa periode' yang sama dan masih rapuh terhadap kewajiban Production Line — lihat implementation_notes tentang skenario 7. Di luar cakupan layar ini; bagian dari utang spec browser 2026-09-28 yang lebih besar.",
+      "severity": "major"
+    }
+  ]
+}

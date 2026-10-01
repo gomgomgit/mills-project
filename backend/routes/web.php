@@ -774,4 +774,31 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
     ->get('/reports/storage-tank', \App\Livewire\Dashboard\LaporanStorageTank::class)
     ->name('reports.storage-tank');
 
+// screen-143--laporan-weighbridge-web (Laporan Periode Weighbridge).
+//
+// Supervisor / Mill Management / Admin only. Operator is NOT admitted here and
+// has no web UI at all; the refusal does not depend on the service either —
+// LaporanWeighbridge::canAccess() keeps its own role list and the component
+// refuses to mount. The /api/weighbridge-reports prefix is likewise
+// three-roles-only for now, because the mobile Weighbridge report (screen-144)
+// is not built yet.
+//
+// Route is /reports/weighbridge, NOT /laporan/weighbridge — the repo's
+// convention for report screens is the English /reports/* prefix
+// (/reports/management, /reports/stations, /reports/sterilizer,
+// /reports/cages-track, /reports/boiler-room, /reports/clarification,
+// /reports/storage-tank), and no route in this file uses /laporan. It is also
+// distinct from the DATA screens for the same station, which live under
+// /data/weighbridge (browser), /data/weighbridge/create (input form,
+// screen-022), /data/weighbridge/{id} and /data/weighbridge/{id}/edit — this
+// report reads what those screens write and never writes anything itself.
+//
+// Reachable from the UI ONLY through the Weighbridge tile on screen-140
+// (/reports), which lights up because StationReportService::REPORT_ROUTES now
+// maps the 'weighbridge' code to this route name. Without that one line the
+// report exists, every test here passes, and the screen stays unreachable.
+Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
+    ->get('/reports/weighbridge', \App\Livewire\Dashboard\LaporanWeighbridge::class)
+    ->name('reports.weighbridge');
+
 // === ASDLC_ROUTES_END ===

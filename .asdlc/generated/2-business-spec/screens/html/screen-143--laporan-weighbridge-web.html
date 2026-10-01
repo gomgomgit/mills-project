@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laporan Weighbridge (Web) | Mill Smart Log</title>
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/design-tokens.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/components.css">
+  <link rel="stylesheet" href="../../../1-foundation/uiux-spec/assets/shell.css">
+  <style>
+    /* ============================================================================
+       Kosakata `md-*` bersama — SALINAN STRUKTURAL dari
+       backend/resources/views/dashboard/partials/report-styles.blade.php, kosakata
+       yang sama dipakai Daily Mill Report (screen-025) dan kelima laporan stasiun
+       sebelumnya (screen-129 s.d. screen-133). Mock tidak bisa meng-@include
+       partial Blade, jadi kelasnya disalin ke sini; bedanya HANYA satu — seluruh
+       nilai warna/radius/shadow diambil dari design-tokens.css lewat variabel,
+       tidak ada satu pun literal.
+
+       DUA kosakata tambahan diperkenalkan berkas ini, keduanya murni TATA LETAK:
+         1. `md-group*` — pembungkus KELOMPOK ARUS. Laporan Weighbridge adalah
+            laporan TRANSAKSI, dan tiap angkanya milik salah satu dari dua arus
+            yang tidak pernah dijumlahkan. Kelompoknya karena itu dibuat terlihat
+            sebagai dua blok terpisah dengan garis tepi kiri berbeda, memakai dua
+            warna seri yang SAMA dengan legenda grafik (s1 = arus masuk, s2 = arus
+            keluar) supaya mata membaca blok dan garis sebagai hal yang sama.
+         2. `md-hc*` — grafik batang SEBARAN PER JAM (00–23). Satu grafik per arus,
+            bukan satu grafik berisi dua arus bertumpuk — menumpuknya akan
+            memunculkan tinggi batang gabungan, yaitu persis angka yang laporan ini
+            dilarang punya. Jam tanpa trip digambar sebagai garis dasar tipis
+            (`md-hc__zero`), bukan dihilangkan, supaya 24 jam selalu terlihat utuh
+            dan jam kosong terbaca sebagai kosong — bukan sebagai jam yang tidak ada.
+
+       YANG TIDAK ADA di berkas ini, dan ketiadaannya disengaja:
+         - tidak ada kelas penanda ambang/aman/bahaya — Weighbridge tidak punya
+           master target operasional;
+         - tidak ada satu pun elemen yang menampung angka gabungan kedua arus;
+         - tidak ada elemen durasi kendaraan di pabrik. Tiap trip hanya menyimpan
+           SATU penanda waktu sejak kedua kolom waktu digabung pada 2026-08-19,
+           sehingga durasi tidak dapat dihitung sama sekali dan tidak boleh
+           ditampilkan — bahkan sebagai tempat kosong.
+       ============================================================================ */
+
+    .md {
+      --md-brand: var(--color-brand);
+      --md-brand-dark: var(--color-brand-hover);
+      --md-brand-soft: color-mix(in srgb, var(--color-brand) 12%, var(--color-background));
+      --md-ink: var(--color-text-primary);
+      --md-muted: var(--color-text-muted);
+      --md-line: var(--color-border);
+      --md-card: var(--color-background);
+      --md-soft: color-mix(in srgb, var(--color-surface) 70%, var(--color-background));
+      --md-track: color-mix(in srgb, var(--color-brand) 8%, var(--color-surface));
+      /* tiga seri mutu — netral secara makna, hanya dibedakan terang-gelap */
+      --md-s1: var(--color-brand);
+      --md-s2: var(--color-text-primary);
+      --md-s3: var(--color-text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+      margin-bottom: var(--space-xl);
+      color: var(--md-ink);
+    }
+    .md small { font-weight: 500; color: var(--md-muted); }
+
+    /* ---------- md-hero ---------- */
+    .md-hero {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: var(--space-md);
+      padding: var(--space-lg) var(--space-xl);
+      border-radius: var(--radius-modal);
+      color: var(--color-background);
+      background:
+        radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--color-brand) 72%, var(--color-background)) 0%, transparent 55%),
+        linear-gradient(135deg, var(--color-brand-hover) 0%, var(--color-brand) 60%, color-mix(in srgb, var(--color-brand) 88%, var(--color-background)) 100%);
+    }
+    .md-hero::after {
+      content: '';
+      position: absolute;
+      right: calc(var(--space-2xl) * -1.25);
+      bottom: calc(var(--space-2xl) * -1.6);
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      border: var(--space-xl) solid color-mix(in srgb, var(--color-background) 7%, transparent);
+    }
+    .md-hero__main { position: relative; z-index: 1; min-width: 0; }
+    .md-hero__eyebrow {
+      margin: 0 0 var(--space-xs);
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      opacity: .85;
+    }
+    .md-hero__title { margin: 0; font-size: var(--font-size-h1); font-weight: var(--font-weight-h1); letter-spacing: -.01em; line-height: 1.2; }
+    .md-hero__subtitle { margin: var(--space-xs) 0 0; font-size: var(--font-size-sm); opacity: .85; }
+    .md-hero__meta { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+
+    /* ---------- md-chip ---------- */
+    .md-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: 7px var(--space-sm);
+      border-radius: var(--radius-chip);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+    }
+    .md-chip svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .md-chip--date {
+      background: color-mix(in srgb, var(--color-background) 16%, transparent);
+      border: 1px solid color-mix(in srgb, var(--color-background) 28%, transparent);
+    }
+    .md-chip--status {
+      background: color-mix(in srgb, var(--color-background) 16%, transparent);
+      border: 1px solid color-mix(in srgb, var(--color-background) 28%, transparent);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      font-size: var(--font-size-xs);
+    }
+
+    /* ---------- md-filters ---------- */
+    .md-filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: var(--space-sm) var(--space-md);
+      background: var(--md-card);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-modal);
+      padding: var(--space-md) var(--space-lg);
+      box-shadow: var(--shadow-card);
+    }
+    .md-field { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; flex: 1 1 240px; }
+    .md-field__label { font-size: var(--font-size-xs); font-weight: 600; color: var(--md-muted); }
+    .md-field__control {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      padding: 9px var(--space-sm);
+      font: inherit;
+      font-size: var(--font-size-sm);
+      color: var(--md-ink);
+      background: var(--color-background);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-button);
+    }
+    .md-field__control:focus { outline: 2px solid var(--md-brand); outline-offset: 1px; border-color: var(--md-brand); }
+    .md-filters__actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-left: auto; }
+    .md-filters__hint { flex: 1 1 100%; margin: 0; font-size: var(--font-size-xs); color: var(--md-muted); }
+    .md-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px var(--space-md);
+      border-radius: var(--radius-button);
+      border: 1px solid var(--md-line);
+      background: var(--color-background);
+      color: var(--md-ink);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      min-height: var(--space-touch_target_min);
+    }
+    .md-btn svg { width: 16px; height: 16px; }
+    .md-btn:hover { border-color: var(--md-brand); color: var(--md-brand-dark); }
+    .md-btn--primary { background: var(--md-brand); border-color: var(--md-brand); color: var(--color-background); }
+    .md-btn--primary:hover { background: var(--md-brand-dark); border-color: var(--md-brand-dark); color: var(--color-background); }
+
+    /* Mill sebagai keterangan (pengguna terikat satu mill), bukan pemilih. */
+    .md-millcurrent {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding-bottom: 9px;
+      font-size: var(--font-size-sm);
+      color: var(--md-muted);
+    }
+    .md-millcurrent svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--md-brand); }
+    .md-millcurrent strong { color: var(--md-ink); font-weight: 600; }
+
+    /* ---------- md-kpis ---------- */
+    .md-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; }
+    .md-kpis--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .md-kpis--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .md-kpi {
+      background: var(--md-card);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-card);
+      padding: var(--space-md);
+      box-shadow: var(--shadow-card);
+      transition: box-shadow .15s, transform .15s;
+      min-width: 0;
+    }
+    .md-kpi:hover { box-shadow: var(--shadow-dropdown); transform: translateY(-1px); }
+    .md-kpi__top { display: flex; justify-content: space-between; align-items: center; gap: var(--space-sm); }
+    .md-kpi__label { font-size: var(--font-size-sm); font-weight: 600; color: var(--md-muted); }
+    .md-kpi__icon {
+      display: grid;
+      place-items: center;
+      width: var(--space-xl);
+      height: var(--space-xl);
+      border-radius: var(--radius-button);
+      background: var(--md-brand-soft);
+      color: var(--md-brand);
+      flex-shrink: 0;
+    }
+    .md-kpi__icon svg { width: 18px; height: 18px; }
+    .md-kpi__value {
+      margin: var(--space-sm) 0 2px;
+      font-size: var(--font-size-h1);
+      font-weight: var(--font-weight-h1);
+      letter-spacing: -.02em;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+    .md-kpi__value span { font-size: var(--font-size-sm); font-weight: 600; color: var(--md-muted); }
+    .md-kpi__meta { margin: 0 0 var(--space-sm); font-size: var(--font-size-sm); color: var(--md-muted); font-variant-numeric: tabular-nums; }
+    .md-kpi__foot { margin: var(--space-xs) 0 0; font-size: var(--font-size-xs); color: var(--md-muted); }
+
+    /* ---------- md-bar ---------- */
+    .md-bar { position: relative; height: var(--space-sm); border-radius: var(--radius-chip); background: var(--md-track); }
+    .md-bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, color-mix(in srgb, var(--color-brand) 82%, var(--color-background)), var(--color-brand));
+    }
+    .md-bar--lg { height: 12px; }
+
+    /* ---------- md-row / md-card ---------- */
+    .md-row { display: grid; gap: var(--space-lg); align-items: stretch; }
+    .md-row--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .md-card {
+      background: var(--md-card);
+      border: 1px solid var(--md-line);
+      border-radius: var(--radius-modal);
+      padding: var(--space-lg);
+      box-shadow: var(--shadow-card);
+      min-width: 0;
+    }
+    .md-card__head {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: var(--space-xs) var(--space-md);
+      margin-bottom: var(--space-md);
+    }
+    .md-card__head h3 { margin: 0; font-size: var(--font-size-lg); font-weight: 700; }
+    .md-card__hint { font-size: var(--font-size-xs); color: var(--md-muted); }
+
+    /* ---------- md-budget (kartu kelengkapan pencatatan) ---------- */
+    .md-budget { display: flex; flex-direction: column; gap: var(--space-md); }
+    .md-budget__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'label pct' 'bar bar'; gap: 6px var(--space-sm); }
+    .md-budget__label { grid-area: label; display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-xs) var(--space-sm); font-size: var(--font-size-sm); font-weight: 600; }
+    .md-budget__nums { font-size: var(--font-size-sm); font-weight: 500; color: var(--md-muted); font-variant-numeric: tabular-nums; }
+    .md-budget__nums strong { color: var(--md-ink); }
+    .md-budget__row .md-bar { grid-area: bar; }
+    .md-budget__pct { grid-area: pct; font-size: var(--font-size-h2); font-weight: 700; color: var(--md-brand-dark); font-variant-numeric: tabular-nums; line-height: 1; }
+
+    /* ---------- md-legend ---------- */
+    .md-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: var(--space-sm) var(--space-md);
+      margin-top: 14px;
+      font-size: var(--font-size-xs);
+      color: var(--md-muted);
+      list-style: none;
+      padding: 0;
+    }
+    .md-legend__item { display: inline-flex; align-items: center; gap: var(--space-xs); }
+    .md-legend__swatch { display: inline-block; width: 12px; height: 12px; border-radius: var(--radius-input); flex-shrink: 0; }
+    /* satu contoh warna per seri mutu. Ketiganya netral — warna merek dan dua
+       tingkat warna teks — supaya tak satu pun metrik terbaca sebagai "aman"
+       atau "bahaya". */
+    .md-legend__swatch--s1 { background: var(--md-s1); }
+    .md-legend__swatch--s2 { background: var(--md-s2); }
+    .md-legend__swatch--s3 { background: var(--md-s3); }
+
+    /* ---------- md-lc: grafik garis (kosakata screen-132, kini di partial) ----------
+       Pembeda antar seri ada DUA lapis — warna DAN pola garis (utuh / putus /
+       titik) — supaya tetap terbaca bagi pembaca yang sulit membedakan warna.
+       Hanya variabel token yang dipakai; tidak ada literal warna, radius, atau
+       shadow. */
+    .md-lc { overflow-x: auto; padding-bottom: var(--space-xs); }
+    .md-lc__svg { display: block; width: 100%; min-width: 620px; height: auto; }
+    .md-lc__grid { stroke: var(--md-line); stroke-width: 1; }
+    .md-lc__axis { stroke: var(--md-line); stroke-width: 1; }
+    .md-lc__ytick, .md-lc__xtick { font-family: var(--font-family); font-size: var(--font-size-xs); fill: var(--md-muted); }
+    .md-lc__line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .md-lc__line--s1 { stroke: var(--md-s1); }
+    .md-lc__line--s2 { stroke: var(--md-s2); stroke-dasharray: 7 4; }
+    .md-lc__line--s3 { stroke: var(--md-s3); stroke-dasharray: 2 4; }
+    .md-lc__dot { stroke: var(--color-background); stroke-width: 1.5; }
+    .md-lc__dot--s1 { fill: var(--md-s1); }
+    .md-lc__dot--s2 { fill: var(--md-s2); }
+    .md-lc__dot--s3 { fill: var(--md-s3); }
+
+    /* ---------- md-threshold (dipakai sebagai kotak keterangan, BUKAN ambang) ---------- */
+    .md-threshold {
+      display: flex;
+      gap: var(--space-sm);
+      margin-top: 14px;
+      padding: var(--space-sm) 14px;
+      border-radius: var(--radius-card);
+      background: var(--md-soft);
+      color: var(--md-ink);
+      font-size: var(--font-size-xs);
+      line-height: 1.6;
+    }
+    .md-threshold b { color: var(--md-ink); }
+    .md-threshold svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--md-brand); }
+
+    /* ---------- md-details + md-table ---------- */
+    .md-details { background: var(--md-card); border: 1px solid var(--md-line); border-radius: var(--radius-modal); overflow: hidden; }
+    .md-details > summary {
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-xs) var(--space-md);
+      padding: var(--space-md) var(--space-lg);
+      font-size: var(--font-size-lg);
+      font-weight: 700;
+    }
+    .md-details > summary::-webkit-details-marker { display: none; }
+    .md-details > summary::after {
+      content: '';
+      width: 9px;
+      height: 9px;
+      border-right: 2px solid var(--md-muted);
+      border-bottom: 2px solid var(--md-muted);
+      transform: rotate(45deg);
+      margin-left: auto;
+      transition: transform .15s;
+    }
+    .md-details[open] > summary::after { transform: rotate(-135deg); }
+    .md-details > summary small { font-size: var(--font-size-xs); }
+    .md-details[open] > summary { border-bottom: 1px solid var(--md-line); }
+
+    .md-recap { padding: var(--space-lg); background: var(--md-soft); overflow-x: auto; }
+    .md-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); font-variant-numeric: tabular-nums; }
+    .md-table th, .md-table td { padding: var(--space-sm) var(--space-sm); text-align: right; border-bottom: 1px solid var(--md-line); white-space: nowrap; }
+    .md-table th:first-child, .md-table td:first-child { text-align: left; }
+    .md-table thead th { font-size: var(--font-size-xs); font-weight: 700; color: var(--md-muted); background: var(--md-track); }
+    .md-table tfoot td { font-weight: 700; background: var(--md-track); border-bottom: none; }
+    .md-table .is-muted { color: var(--md-muted); }
+
+    /* Aturan TATA LETAK murni (sudah ada di partial): panel md-recap yang
+       bersarang di dalam md-card ditarik sampai tepi kartu, supaya tabel
+       menggulir mendatar DI DALAM kartunya sendiri dan halaman tidak pernah
+       punya gulir horizontal. */
+    .md-card > .md-recap {
+      margin: 0 calc(var(--space-lg) * -1) calc(var(--space-lg) * -1);
+      border-radius: 0 0 var(--radius-modal) var(--radius-modal);
+    }
+
+    /* ---------- responsif (mengikuti report-styles) ---------- */
+    @media (max-width: 1100px) {
+      .md-kpis--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .md-kpis--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 1024px) {
+      .md-row--2 { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 767px) {
+      .md { gap: 14px; }
+      .md-hero { padding: var(--space-md); border-radius: var(--radius-card); }
+      .md-hero__title { font-size: var(--font-size-h2); }
+      .md-kpis, .md-kpis--4, .md-kpis--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .md-kpi { padding: var(--space-sm) var(--space-sm) var(--space-md); }
+      /* nilai KPI Storage Tank panjang ('4.182,5 MT'), jadi di layar sempit
+         nilainya boleh membungkus — mencegah kartu melebar dan membuat halaman
+         punya gulir mendatar. Aturan tata letak murni. */
+      .md-kpi__value { font-size: var(--font-size-h3); white-space: normal; }
+      .md-kpi__meta { font-size: var(--font-size-xs); }
+      .md-kpi__icon { width: 28px; height: 28px; }
+      .md-card { padding: var(--space-md); border-radius: var(--radius-card); }
+      .md-card > .md-recap { margin: 0 calc(var(--space-md) * -1) calc(var(--space-md) * -1); border-radius: 0 0 var(--radius-card) var(--radius-card); }
+      .md-filters { padding: 14px; border-radius: var(--radius-card); }
+      .md-field { flex: 1 1 100%; }
+      .md-filters__actions { margin-left: 0; width: 100%; }
+      .md-btn { flex: 1 1 auto; justify-content: center; }
+      .md-budget__pct { font-size: var(--font-size-h3); }
+      .md-recap { padding: var(--space-sm); }
+      .md-table { font-size: var(--font-size-xs); }
+      .md-details > summary { padding: var(--space-md); font-size: var(--font-size-body); }
+    }
+
+    /* ---------- md-group: pembungkus kelompok arus (TATA LETAK) ---------- */
+    .md-group { display: flex; flex-direction: column; gap: var(--space-sm); }
+    .md-group__head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: var(--space-xs) var(--space-sm);
+      padding: 2px 0 2px var(--space-md);
+      border-left: 4px solid var(--md-s1);
+    }
+    .md-group--out .md-group__head { border-left-color: var(--md-s2); }
+    .md-group__head h2 { margin: 0; font-size: var(--font-size-h3); font-weight: 700; }
+    .md-group__head p { margin: 0; font-size: var(--font-size-xs); color: var(--md-muted); }
+    .md-group__head p b { color: var(--md-ink); }
+
+    /* ---------- md-hc: grafik batang sebaran per jam (TATA LETAK) ---------- */
+    .md-hc { overflow-x: auto; padding-bottom: var(--space-xs); }
+    .md-hc__svg { display: block; width: 100%; min-width: 620px; height: auto; }
+    .md-hc__grid { stroke: var(--md-line); stroke-width: 1; }
+    .md-hc__axis { stroke: var(--md-line); stroke-width: 1; }
+    .md-hc__ytick, .md-hc__xtick, .md-hc__axislabel { font-family: var(--font-family); font-size: var(--font-size-xs); fill: var(--md-muted); }
+    .md-hc__xtick.is-empty { opacity: .45; }
+    .md-hc__peaklabel { font-family: var(--font-family); font-size: var(--font-size-xs); font-weight: 700; fill: var(--md-ink); }
+    .md-hc__bar--s1 { fill: color-mix(in srgb, var(--md-s1) 55%, var(--color-background)); }
+    .md-hc__bar--s1.is-peak { fill: var(--md-s1); }
+    .md-hc__bar--s2 { fill: color-mix(in srgb, var(--md-s2) 38%, var(--color-background)); }
+    .md-hc__bar--s2.is-peak { fill: var(--md-s2); }
+    .md-hc__zero { fill: var(--md-line); }
+
+    /* ---------- aturan tata letak khusus halaman ini ---------- */
+    .md-field--req .md-field__label i { color: var(--color-destructive); font-style: normal; }
+    .md-field__only {
+      display: inline-block;
+      margin-left: var(--space-xs);
+      padding: 1px var(--space-xs);
+      border-radius: var(--radius-chip);
+      background: var(--md-brand-soft);
+      color: var(--md-brand-dark);
+      font-size: var(--font-size-xs);
+      font-weight: 700;
+    }
+    .md-table .col-group { border-left: 1px solid var(--md-line); }
+    .md-table thead .grouphead th { text-align: center; }
+    .md-table thead .grouphead th:first-child { text-align: left; }
+    .md-no-sum {
+      display: flex;
+      gap: var(--space-sm);
+      padding: 14px var(--space-md);
+      border: 1px dashed var(--md-line);
+      border-radius: var(--radius-card);
+      background: var(--md-soft);
+      font-size: var(--font-size-sm);
+      line-height: 1.6;
+    }
+    .md-no-sum svg { width: 20px; height: 20px; flex-shrink: 0; color: var(--md-brand); }
+    @media (max-width: 767px) {
+      .md-group__head h2 { font-size: var(--font-size-body); }
+    }
+
+    /* ---------- catatan aktor (khusus mock, bukan bagian UI) ---------- */
+    .mock-actors {
+      font-size: var(--font-size-xs);
+      color: var(--color-muted-foreground);
+      font-style: italic;
+      margin-top: var(--space-lg);
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="label">Mill Smart Log</span>
+      </div>
+      <nav class="sidebar-nav">
+        <a class="nav-item" href="#"><span class="label">Dashboard</span></a>
+        <a class="nav-item" href="#"><span class="label">Data Stasiun</span></a>
+        <a class="nav-item active" href="#"><span class="label">Laporan Stasiun</span></a>
+        <a class="nav-item" href="#"><span class="label">Master Data</span></a>
+        <a class="nav-item" href="#"><span class="label">User &amp; Role Management</span></a>
+        <a class="nav-item" href="#"><span class="label">Pengaturan Akun</span></a>
+      </nav>
+    </aside>
+
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-start">
+          <button class="hamburger-btn" type="button" aria-label="Buka menu navigasi">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+          <div class="topbar-title">Laporan Stasiun &gt; Weighbridge</div>
+        </div>
+        <div class="topbar-end">
+          <span>Admin</span>
+        </div>
+      </header>
+
+      <main class="content-area">
+        <div class="md">
+
+          <!-- ============ 1. Hero periode ============ -->
+          <section class="md-hero">
+            <div class="md-hero__main">
+              <p class="md-hero__eyebrow">Laporan Periode &middot; Stasiun Weighbridge</p>
+              <h1 class="md-hero__title">Periode September I 2026</h1>
+              <p class="md-hero__subtitle">PKS Sungai Bahar &middot; Production Line A &middot; 01 Sep 2026 &ndash; 14 Sep 2026 (14 hari)</p>
+            </div>
+            <div class="md-hero__meta">
+              <span class="md-chip md-chip--date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> 01 &ndash; 14 Sep 2026</span>
+              <span class="md-chip md-chip--date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 12h18M3 17h18"/><circle cx="8" cy="7" r="1.6"/><circle cx="14" cy="12" r="1.6"/><circle cx="11" cy="17" r="1.6"/></svg> Line A</span>
+              <span class="md-chip md-chip--status"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V8a5 5 0 0 1 10 0v3"/><rect x="4" y="11" width="16" height="10" rx="2"/></svg> Periode Terbuka</span>
+            </div>
+          </section>
+
+          <!-- ============ 2. Baris filter: Periode, Mill (Admin), Production Line (wajib) ============ -->
+          <section class="md-filters">
+            <div class="md-field">
+              <label class="md-field__label" for="f-periode">Periode Pelaporan</label>
+              <select class="md-field__control" id="f-periode">
+                <option selected>Periode September I 2026 (01 &ndash; 14 Sep 2026) &mdash; Terbuka</option>
+                <option>Periode Agustus II 2026 (16 &ndash; 31 Ags 2026) &mdash; Tertutup</option>
+                <option>Periode Agustus I 2026 (01 &ndash; 15 Ags 2026) &mdash; Tertutup</option>
+                <option>Periode Juli II 2026 (16 &ndash; 31 Jul 2026) &mdash; Tertutup</option>
+              </select>
+            </div>
+
+            <div class="md-field">
+              <label class="md-field__label" for="f-mill">Mill <span class="md-field__only">Admin saja</span></label>
+              <select class="md-field__control" id="f-mill">
+                <option selected>PKS Sungai Bahar</option>
+                <option>PKS Tanjung Lebar</option>
+                <option>PKS Bukit Subur</option>
+              </select>
+            </div>
+
+            <div class="md-field md-field--req">
+              <label class="md-field__label" for="f-line">Production Line <i>*</i> wajib</label>
+              <select class="md-field__control" id="f-line">
+                <option value="">&mdash; pilih Production Line &mdash;</option>
+                <option selected>Line A</option>
+                <option>Line B</option>
+              </select>
+            </div>
+
+            <div class="md-filters__actions">
+              <button class="md-btn md-btn--primary" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg> Ekspor CSV</button>
+            </div>
+
+            <p class="md-filters__hint">Daftar periode hanya memuat periode yang mencakup stasiun Weighbridge atau yang tidak menyebut jenis stasiun; periode tertutup tetap dapat dilihat dan diekspor. Pemilih <b>Mill</b> hanya muncul bagi Admin &mdash; Supervisor dan Mill Management terikat pada mill di akunnya, dan mengganti mill mengosongkan Production Line yang terpilih karena line milik mill lama tidak berlaku di mill baru. <b>Production Line wajib dipilih</b>: sebelum sebuah line dipilih, layar ini tidak menampilkan satu angka pun &mdash; bukan angka seluruh mill. Tampilan di bawah adalah keadaan setelah <b>Line A</b> dipilih. Penyaringan memakai Production Line yang melekat pada trip itu sendiri, bukan line stasiun tempat trip itu tercatat sekarang. Keanggotaan periode ditentukan oleh penanda waktu trip &mdash; bukan waktu baris dibuat maupun waktu sinkronisasi dari mobile. Ekspor CSV mengunduh rincian seluruh trip periode, satu baris per trip dengan kolom konteks diulang.</p>
+          </section>
+
+          <!-- ============ 3. Peringatan pokok: dua arus tidak pernah dijumlahkan ============ -->
+          <div class="md-no-sum">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+            <span>Laporan ini meringkas <b>transaksi penimbangan</b>, bukan pembacaan berkala: satu baris = satu kali kendaraan ditimbang. Karena itu seluruh angkanya dipisah menjadi <b>dua kelompok yang tidak pernah dijumlahkan</b> &mdash; <b>arus masuk</b> (FFB datang dari estate/supplier) dan <b>arus keluar</b> (kiriman meninggalkan pabrik menuju suatu tujuan). Keduanya memakai alat yang sama tetapi menjawab pertanyaan yang berbeda, jadi layar ini <b>tidak menyediakan satu pun angka gabungan keduanya</b>: tidak ada total trip gabungan, tidak ada total berat gabungan, tidak ada batang bertumpuk. &ldquo;Berapa ton yang ditimbang hari ini&rdquo; bukan pertanyaan yang berguna bagi siapa pun &mdash; ia bukan berapa ton FFB yang diterima, dan bukan pula berapa ton yang dikirim.</span>
+          </div>
+
+          <!-- ============ 4a. KELOMPOK: ARUS MASUK ============ -->
+          <section class="md-group">
+            <header class="md-group__head">
+              <h2>Arus Masuk &mdash; FFB dari estate/supplier</h2>
+              <p>penanda waktu tiap trip = <b>waktu kedatangan</b></p>
+            </header>
+            <div class="md-kpis md-kpis--3">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Jumlah Trip Masuk</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17h4V5H2v12h3"/><path d="M14 9h4l3 3v5h-2"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="17.5" cy="17.5" r="2"/></svg></span>
+              </div>
+              <p class="md-kpi__value">688 <span>trip</span></p>
+              <p class="md-kpi__meta">sepanjang 01 &ndash; 14 Sep 2026</p>
+              <p class="md-kpi__foot">17 di antaranya masih <b>draft</b> dan ikut terhitung</p>
+              <p class="md-kpi__foot"><small>Angka ini TIDAK pernah dijumlahkan dengan jumlah trip arus keluar.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Total Berat Bersih Masuk</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-3 7h6z"/><path d="M19 7l-3 7h6z"/><path d="M8 21h8"/></svg></span>
+              </div>
+              <p class="md-kpi__value">4.425,0 <span>ton</span></p>
+              <p class="md-kpi__meta">dari 679 trip yang beratnya terisi</p>
+              <p class="md-kpi__foot">9 trip beratnya <b>belum terisi</b> &mdash; tidak ikut dijumlahkan</p>
+              <p class="md-kpi__foot"><small>Jumlah trip yang beratnya benar-benar terisi ditulis berdampingan dengan totalnya, supaya pembaca tahu total ini berdiri di atas berapa trip &mdash; bukan atas seluruh 688 trip.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Rata-rata Berat Bersih/Trip</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h16"/><path d="M4 14l5-5 4 4 7-7"/></svg></span>
+              </div>
+              <p class="md-kpi__value">6,52 <span>ton</span></p>
+              <p class="md-kpi__meta">penyebutnya 679 trip, bukan 688</p>
+              <p class="md-kpi__foot">4.425,0 ton &divide; 679 trip = <b>6,52 ton</b></p>
+              <p class="md-kpi__foot"><small>Membagi dengan seluruh 688 trip akan menghasilkan 6,43 ton &mdash; rata-rata yang turun secara palsu hanya karena ada penimbangan yang belum selesai. Trip yang beratnya kosong tidak menurunkan rata-rata, ia menghilang darinya.</small></p>
+            </article>
+            </div>
+          </section>
+
+          <!-- ============ 4b. KELOMPOK: ARUS KELUAR ============ -->
+          <section class="md-group md-group--out">
+            <header class="md-group__head">
+              <h2>Arus Keluar &mdash; kiriman meninggalkan pabrik</h2>
+              <p>penanda waktu tiap trip = <b>waktu keluar</b></p>
+            </header>
+            <div class="md-kpis md-kpis--3">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Jumlah Trip Keluar</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17h-4V5h12v12h-3"/><path d="M10 9H6L3 12v5h2"/><circle cx="7.5" cy="17.5" r="2"/><circle cx="17.5" cy="17.5" r="2"/></svg></span>
+              </div>
+              <p class="md-kpi__value">69 <span>trip</span></p>
+              <p class="md-kpi__meta">sepanjang 01 &ndash; 14 Sep 2026</p>
+              <p class="md-kpi__foot">4 di antaranya masih <b>draft</b> dan ikut terhitung</p>
+              <p class="md-kpi__foot"><small>Angka ini TIDAK pernah dijumlahkan dengan jumlah trip arus masuk. Kelompok ini tetap ditampilkan bahkan bila periode tidak memuat satu kiriman keluar pun &mdash; nilainya dinyatakan tidak tersedia, bukan bagiannya disembunyikan.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Total Berat Bersih Keluar</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M5 7h14"/><path d="M5 7l-3 7h6z"/><path d="M19 7l-3 7h6z"/><path d="M8 21h8"/></svg></span>
+              </div>
+              <p class="md-kpi__value">1.587,3 <span>ton</span></p>
+              <p class="md-kpi__meta">dari 66 trip yang beratnya terisi</p>
+              <p class="md-kpi__foot">3 trip beratnya <b>belum terisi</b> &mdash; tidak ikut dijumlahkan</p>
+              <p class="md-kpi__foot"><small>Satu trip dapat punya berat bersih tetapi tidak punya tujuan, atau sebaliknya. Karena itu tiap metrik dihitung dari trip yang metriknya benar-benar terisi, dengan penyebutnya masing-masing.</small></p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Rata-rata Berat Bersih/Trip</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h16"/><path d="M4 14l5-5 4 4 7-7"/></svg></span>
+              </div>
+              <p class="md-kpi__value">24,05 <span>ton</span></p>
+              <p class="md-kpi__meta">penyebutnya 66 trip, bukan 69</p>
+              <p class="md-kpi__foot">1.587,3 ton &divide; 66 trip = <b>24,05 ton</b></p>
+              <p class="md-kpi__foot"><small>Rata-rata arus keluar jauh lebih besar daripada arus masuk karena satuan muatannya memang berbeda &mdash; satu kiriman keluar adalah satu truk tangki penuh, satu trip masuk adalah satu bak FFB. Dua rata-rata ini tidak sebanding, dan justru itulah alasan keduanya tidak pernah disatukan.</small></p>
+            </article>
+            </div>
+          </section>
+
+          <!-- ============ 5. Kelengkapan & data yang belum selesai, per arus ============ -->
+          <div class="md-row md-row--2">
+            <section class="md-card">
+              <header class="md-card__head">
+                <h3>Kelengkapan Pencatatan</h3>
+                <span class="md-card__hint">per arus &mdash; bukan satu angka gabungan</span>
+              </header>
+              <div class="md-budget">
+                <div class="md-budget__row">
+                  <div class="md-budget__label">
+                    <span>Hari dengan minimal satu trip <b>masuk</b></span>
+                    <span class="md-budget__nums"><strong>13</strong> dari 14 hari</span>
+                  </div>
+                  <span class="md-budget__pct">92,9%</span>
+                  <div class="md-bar md-bar--lg"><span style="width: 92.857%"></span></div>
+                </div>
+                <div class="md-budget__row">
+                  <div class="md-budget__label">
+                    <span>Hari dengan minimal satu trip <b>keluar</b></span>
+                    <span class="md-budget__nums"><strong>11</strong> dari 14 hari</span>
+                  </div>
+                  <span class="md-budget__pct">78,6%</span>
+                  <div class="md-bar md-bar--lg"><span style="width: 78.571%"></span></div>
+                </div>
+              </div>
+              <div class="md-threshold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+                <span>Kelengkapan adalah <b>bagian dari laporan, bukan catatan kaki</b>. Hari tanpa satu trip pun bukan hal yang sama dengan hari bertrip nol ton: 11 Sep tidak memuat trip apa pun pada line ini, sementara arus keluar juga tidak memuat trip pada 07 dan 13 Sep. Hari semacam itu tampil sebagai <b>&mdash;</b> pada rekap harian, bukan sebagai 0,0 ton.</span>
+              </div>
+            </section>
+
+            <section class="md-card">
+              <header class="md-card__head">
+                <h3>Yang Belum Selesai &amp; Yang Dikecualikan</h3>
+                <span class="md-card__hint">dinyatakan terbuka &mdash; selisih yang tidak dapat dijelaskan pembaca adalah selisih yang disembunyikan</span>
+              </header>
+              <div class="md-recap">
+                <table class="md-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Keadaan</th>
+                      <th scope="col">Arus masuk</th>
+                      <th scope="col">Arus keluar</th>
+                      <th scope="col">Pengaruh pada angka di atas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Berat bersih <b>belum terisi</b> <small>(penimbangan belum selesai)</small></td>
+                      <td>9 trip</td>
+                      <td>3 trip</td>
+                      <td class="is-muted">ikut jumlah trip, <b>tidak</b> ikut total &amp; rata-rata berat</td>
+                    </tr>
+                    <tr>
+                      <td>Masih berstatus <b>draft</b></td>
+                      <td>17 trip</td>
+                      <td>4 trip</td>
+                      <td class="is-muted"><b>ikut terhitung</b> di seluruh angka di atas</td>
+                    </tr>
+                    <tr>
+                      <td><b>Penanda waktu kosong</b> <small>(tidak dapat ditempatkan pada periode mana pun)</small></td>
+                      <td>3 trip</td>
+                      <td>1 trip</td>
+                      <td class="is-muted"><b>TIDAK ikut terhitung di angka mana pun</b></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="md-threshold">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+                <span>Ketiga baris ini sengaja berada di satu tempat karena ketiganya <b>berlaku berbeda</b>. Trip <b>draft ikut terhitung</b> &mdash; mengikuti kelima laporan stasiun yang sudah ada, yang tak satu pun menyaring status record; laporan yang berhitung dengan aturan berbeda antar stasiun lebih menyesatkan daripada laporan yang memasukkan data belum selesai secara terbuka. Trip yang <b>beratnya belum terisi</b> ikut dihitung sebagai trip tetapi tidak ikut total maupun rata-rata. Trip yang <b>penanda waktunya kosong</b> sama sekali di luar laporan: tanpa penanda waktu ia tidak dapat ditempatkan pada periode mana pun, jadi ia tidak ada di angka mana pun &mdash; dan karena itu jumlahnya dinyatakan di sini, supaya selisih antara layar ini dan Data Browser dapat dijelaskan. <small>Apakah SELURUH laporan periode sebaiknya mengecualikan draft adalah pertanyaan lintas-laporan yang masih terbuka &mdash; menjawabnya mengubah keenam laporan sekaligus, jadi bukan keputusan per stasiun.</small></span>
+              </div>
+            </section>
+          </div>
+
+          <!-- ============ 6. Sebaran trip per jam — satu grafik per arus ============ -->
+          <section class="md-kpis md-kpis--4">
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Jam Tersibuk &mdash; Masuk</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+              </div>
+              <p class="md-kpi__value">09.00</p>
+              <p class="md-kpi__meta">87 trip masuk pada jam itu</p>
+              <p class="md-kpi__foot">jam dengan trip masuk terbanyak sepanjang periode</p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Jam Tanpa Trip &mdash; Masuk</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M4.9 4.9l14.2 14.2"/></svg></span>
+              </div>
+              <p class="md-kpi__value">8 <span>dari 24 jam</span></p>
+              <p class="md-kpi__meta">jam 00&ndash;04, 21&ndash;23</p>
+              <p class="md-kpi__foot">tak satu trip masuk pun sepanjang seluruh periode pada jam-jam itu</p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Jam Tersibuk &mdash; Keluar</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+              </div>
+              <p class="md-kpi__value">10.00</p>
+              <p class="md-kpi__meta">12 trip keluar pada jam itu</p>
+              <p class="md-kpi__foot">jam dengan trip keluar terbanyak sepanjang periode</p>
+            </article>
+            <article class="md-kpi">
+              <div class="md-kpi__top">
+                <span class="md-kpi__label">Jam Tanpa Trip &mdash; Keluar</span>
+                <span class="md-kpi__icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M4.9 4.9l14.2 14.2"/></svg></span>
+              </div>
+              <p class="md-kpi__value">13 <span>dari 24 jam</span></p>
+              <p class="md-kpi__meta">jam 00&ndash;06, 18&ndash;23</p>
+              <p class="md-kpi__foot">tak satu kiriman keluar pun sepanjang seluruh periode pada jam-jam itu</p>
+            </article>
+          </section>
+
+          <section class="md-card">
+            <header class="md-card__head">
+              <h3>Sebaran Trip per Jam dalam Sehari</h3>
+              <span class="md-card__hint">00&ndash;23, dijumlahkan atas seluruh 14 hari periode &middot; satu grafik per arus, tidak ditumpuk</span>
+            </header>
+
+            <div class="md-row md-row--2">
+              <div>
+                <p class="md-card__hint" style="margin-bottom: var(--space-sm)"><b>Arus masuk</b> &mdash; 688 trip tersebar pada 16 jam</p>
+<div class="md-hc"><svg class="md-hc__svg" viewBox="0 0 760 250" role="img" aria-label="Sebaran trip arus masuk menurut jam dalam sehari, 00 sampai 23, dijumlahkan sepanjang periode">
+            <line class="md-hc__grid" x1="40" y1="200.0" x2="748" y2="200.0"/>
+            <text class="md-hc__ytick" x="34" y="204.0" text-anchor="end">0</text>
+            <line class="md-hc__grid" x1="40" y1="164.8" x2="748" y2="164.8"/>
+            <text class="md-hc__ytick" x="34" y="168.8" text-anchor="end">20</text>
+            <line class="md-hc__grid" x1="40" y1="129.6" x2="748" y2="129.6"/>
+            <text class="md-hc__ytick" x="34" y="133.6" text-anchor="end">40</text>
+            <line class="md-hc__grid" x1="40" y1="94.4" x2="748" y2="94.4"/>
+            <text class="md-hc__ytick" x="34" y="98.4" text-anchor="end">60</text>
+            <line class="md-hc__grid" x1="40" y1="59.2" x2="748" y2="59.2"/>
+            <text class="md-hc__ytick" x="34" y="63.2" text-anchor="end">80</text>
+            <line class="md-hc__grid" x1="40" y1="24.0" x2="748" y2="24.0"/>
+            <text class="md-hc__ytick" x="34" y="28.0" text-anchor="end">100</text>
+            <rect class="md-hc__zero" x="45.9" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="75.4" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="104.9" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="134.4" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="163.9" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__bar md-hc__bar--s1" x="193.4" y="198.2" width="17.7" height="1.8" rx="2"><title>Jam 05 &mdash; 1 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="222.9" y="171.8" width="17.7" height="28.2" rx="2"><title>Jam 06 &mdash; 16 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="252.4" y="124.3" width="17.7" height="75.7" rx="2"><title>Jam 07 &mdash; 43 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="281.9" y="73.3" width="17.7" height="126.7" rx="2"><title>Jam 08 &mdash; 72 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1 is-peak" x="311.4" y="46.9" width="17.7" height="153.1" rx="2"><title>Jam 09 &mdash; 87 trip</title></rect>
+            <text class="md-hc__peaklabel" x="320.2" y="40.9" text-anchor="middle">87</text>
+            <rect class="md-hc__bar md-hc__bar--s1" x="340.9" y="69.8" width="17.7" height="130.2" rx="2"><title>Jam 10 &mdash; 74 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="370.4" y="113.8" width="17.7" height="86.2" rx="2"><title>Jam 11 &mdash; 49 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="399.9" y="147.2" width="17.7" height="52.8" rx="2"><title>Jam 12 &mdash; 30 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="429.4" y="115.5" width="17.7" height="84.5" rx="2"><title>Jam 13 &mdash; 48 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="458.9" y="64.5" width="17.7" height="135.5" rx="2"><title>Jam 14 &mdash; 77 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="488.4" y="82.1" width="17.7" height="117.9" rx="2"><title>Jam 15 &mdash; 67 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="517.9" y="89.1" width="17.7" height="110.9" rx="2"><title>Jam 16 &mdash; 63 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="547.4" y="150.7" width="17.7" height="49.3" rx="2"><title>Jam 17 &mdash; 28 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="576.9" y="166.6" width="17.7" height="33.4" rx="2"><title>Jam 18 &mdash; 19 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="606.4" y="180.6" width="17.7" height="19.4" rx="2"><title>Jam 19 &mdash; 11 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s1" x="635.9" y="194.7" width="17.7" height="5.3" rx="2"><title>Jam 20 &mdash; 3 trip</title></rect>
+            <rect class="md-hc__zero" x="665.4" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="694.9" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="724.4" y="197.0" width="17.7" height="3" rx="1"/>
+            <line class="md-hc__axis" x1="40" y1="200" x2="748" y2="200"/>
+            <text class="md-hc__xtick is-empty" x="54.8" y="216" text-anchor="middle">00</text>
+            <text class="md-hc__xtick is-empty" x="84.2" y="216" text-anchor="middle">01</text>
+            <text class="md-hc__xtick is-empty" x="113.8" y="216" text-anchor="middle">02</text>
+            <text class="md-hc__xtick is-empty" x="143.2" y="216" text-anchor="middle">03</text>
+            <text class="md-hc__xtick is-empty" x="172.8" y="216" text-anchor="middle">04</text>
+            <text class="md-hc__xtick" x="202.2" y="216" text-anchor="middle">05</text>
+            <text class="md-hc__xtick" x="231.8" y="216" text-anchor="middle">06</text>
+            <text class="md-hc__xtick" x="261.2" y="216" text-anchor="middle">07</text>
+            <text class="md-hc__xtick" x="290.8" y="216" text-anchor="middle">08</text>
+            <text class="md-hc__xtick" x="320.2" y="216" text-anchor="middle">09</text>
+            <text class="md-hc__xtick" x="349.8" y="216" text-anchor="middle">10</text>
+            <text class="md-hc__xtick" x="379.2" y="216" text-anchor="middle">11</text>
+            <text class="md-hc__xtick" x="408.8" y="216" text-anchor="middle">12</text>
+            <text class="md-hc__xtick" x="438.2" y="216" text-anchor="middle">13</text>
+            <text class="md-hc__xtick" x="467.8" y="216" text-anchor="middle">14</text>
+            <text class="md-hc__xtick" x="497.2" y="216" text-anchor="middle">15</text>
+            <text class="md-hc__xtick" x="526.8" y="216" text-anchor="middle">16</text>
+            <text class="md-hc__xtick" x="556.2" y="216" text-anchor="middle">17</text>
+            <text class="md-hc__xtick" x="585.8" y="216" text-anchor="middle">18</text>
+            <text class="md-hc__xtick" x="615.2" y="216" text-anchor="middle">19</text>
+            <text class="md-hc__xtick" x="644.8" y="216" text-anchor="middle">20</text>
+            <text class="md-hc__xtick is-empty" x="674.2" y="216" text-anchor="middle">21</text>
+            <text class="md-hc__xtick is-empty" x="703.8" y="216" text-anchor="middle">22</text>
+            <text class="md-hc__xtick is-empty" x="733.2" y="216" text-anchor="middle">23</text>
+            <text class="md-hc__axislabel" x="394" y="244" text-anchor="middle">jam dalam sehari (00&ndash;23), dijumlahkan atas seluruh 14 hari periode</text>
+          </svg></div>
+              </div>
+              <div>
+                <p class="md-card__hint" style="margin-bottom: var(--space-sm)"><b>Arus keluar</b> &mdash; 69 trip tersebar pada 11 jam</p>
+<div class="md-hc"><svg class="md-hc__svg" viewBox="0 0 760 250" role="img" aria-label="Sebaran trip arus keluar menurut jam dalam sehari, 00 sampai 23, dijumlahkan sepanjang periode">
+            <line class="md-hc__grid" x1="40" y1="200.0" x2="748" y2="200.0"/>
+            <text class="md-hc__ytick" x="34" y="204.0" text-anchor="end">0</text>
+            <line class="md-hc__grid" x1="40" y1="112.0" x2="748" y2="112.0"/>
+            <text class="md-hc__ytick" x="34" y="116.0" text-anchor="end">10</text>
+            <line class="md-hc__grid" x1="40" y1="24.0" x2="748" y2="24.0"/>
+            <text class="md-hc__ytick" x="34" y="28.0" text-anchor="end">20</text>
+            <rect class="md-hc__zero" x="45.9" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="75.4" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="104.9" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="134.4" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="163.9" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="193.4" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="222.9" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__bar md-hc__bar--s2" x="252.4" y="173.6" width="17.7" height="26.4" rx="2"><title>Jam 07 &mdash; 3 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s2" x="281.9" y="120.8" width="17.7" height="79.2" rx="2"><title>Jam 08 &mdash; 9 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s2" x="311.4" y="120.8" width="17.7" height="79.2" rx="2"><title>Jam 09 &mdash; 9 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s2 is-peak" x="340.9" y="94.4" width="17.7" height="105.6" rx="2"><title>Jam 10 &mdash; 12 trip</title></rect>
+            <text class="md-hc__peaklabel" x="349.8" y="88.4" text-anchor="middle">12</text>
+            <rect class="md-hc__bar md-hc__bar--s2" x="370.4" y="156.0" width="17.7" height="44.0" rx="2"><title>Jam 11 &mdash; 5 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s2" x="399.9" y="191.2" width="17.7" height="8.8" rx="2"><title>Jam 12 &mdash; 1 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s2" x="429.4" y="147.2" width="17.7" height="52.8" rx="2"><title>Jam 13 &mdash; 6 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s2" x="458.9" y="156.0" width="17.7" height="44.0" rx="2"><title>Jam 14 &mdash; 5 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s2" x="488.4" y="103.2" width="17.7" height="96.8" rx="2"><title>Jam 15 &mdash; 11 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s2" x="517.9" y="147.2" width="17.7" height="52.8" rx="2"><title>Jam 16 &mdash; 6 trip</title></rect>
+            <rect class="md-hc__bar md-hc__bar--s2" x="547.4" y="182.4" width="17.7" height="17.6" rx="2"><title>Jam 17 &mdash; 2 trip</title></rect>
+            <rect class="md-hc__zero" x="576.9" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="606.4" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="635.9" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="665.4" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="694.9" y="197.0" width="17.7" height="3" rx="1"/>
+            <rect class="md-hc__zero" x="724.4" y="197.0" width="17.7" height="3" rx="1"/>
+            <line class="md-hc__axis" x1="40" y1="200" x2="748" y2="200"/>
+            <text class="md-hc__xtick is-empty" x="54.8" y="216" text-anchor="middle">00</text>
+            <text class="md-hc__xtick is-empty" x="84.2" y="216" text-anchor="middle">01</text>
+            <text class="md-hc__xtick is-empty" x="113.8" y="216" text-anchor="middle">02</text>
+            <text class="md-hc__xtick is-empty" x="143.2" y="216" text-anchor="middle">03</text>
+            <text class="md-hc__xtick is-empty" x="172.8" y="216" text-anchor="middle">04</text>
+            <text class="md-hc__xtick is-empty" x="202.2" y="216" text-anchor="middle">05</text>
+            <text class="md-hc__xtick is-empty" x="231.8" y="216" text-anchor="middle">06</text>
+            <text class="md-hc__xtick" x="261.2" y="216" text-anchor="middle">07</text>
+            <text class="md-hc__xtick" x="290.8" y="216" text-anchor="middle">08</text>
+            <text class="md-hc__xtick" x="320.2" y="216" text-anchor="middle">09</text>
+            <text class="md-hc__xtick" x="349.8" y="216" text-anchor="middle">10</text>
+            <text class="md-hc__xtick" x="379.2" y="216" text-anchor="middle">11</text>
+            <text class="md-hc__xtick" x="408.8" y="216" text-anchor="middle">12</text>
+            <text class="md-hc__xtick" x="438.2" y="216" text-anchor="middle">13</text>
+            <text class="md-hc__xtick" x="467.8" y="216" text-anchor="middle">14</text>
+            <text class="md-hc__xtick" x="497.2" y="216" text-anchor="middle">15</text>
+            <text class="md-hc__xtick" x="526.8" y="216" text-anchor="middle">16</text>
+            <text class="md-hc__xtick" x="556.2" y="216" text-anchor="middle">17</text>
+            <text class="md-hc__xtick is-empty" x="585.8" y="216" text-anchor="middle">18</text>
+            <text class="md-hc__xtick is-empty" x="615.2" y="216" text-anchor="middle">19</text>
+            <text class="md-hc__xtick is-empty" x="644.8" y="216" text-anchor="middle">20</text>
+            <text class="md-hc__xtick is-empty" x="674.2" y="216" text-anchor="middle">21</text>
+            <text class="md-hc__xtick is-empty" x="703.8" y="216" text-anchor="middle">22</text>
+            <text class="md-hc__xtick is-empty" x="733.2" y="216" text-anchor="middle">23</text>
+            <text class="md-hc__axislabel" x="394" y="244" text-anchor="middle">jam dalam sehari (00&ndash;23), dijumlahkan atas seluruh 14 hari periode</text>
+          </svg></div>
+              </div>
+            </div>
+
+            <ul class="md-legend">
+              <li class="md-legend__item"><span class="md-legend__swatch md-legend__swatch--s1"></span> Arus masuk &mdash; batang penuh pada jam tersibuk</li>
+              <li class="md-legend__item"><span class="md-legend__swatch md-legend__swatch--s2"></span> Arus keluar &mdash; batang penuh pada jam tersibuk</li>
+              <li class="md-legend__item"><small>Garis dasar tipis = <b>jam tanpa satu trip pun</b>. Jam kosong tetap digambar agar 24 jam selalu terlihat utuh.</small></li>
+            </ul>
+
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span><b>LAMA KENDARAAN DI PABRIK TIDAK DILAPORKAN di layar ini, dan ketiadaannya disengaja &mdash; bukan kelalaian.</b> Tiap trip hanya menyimpan <b>SATU</b> penanda waktu &mdash; waktu kedatangan untuk arus masuk, waktu keluar untuk arus keluar &mdash; sejak kedua kolom waktu yang lama digabung menjadi satu pada 2026-08-19. Durasi menuntut <b>dua</b> penanda waktu pada trip yang sama, dan data itu tidak ada; angka durasi yang diturunkan dari satu penanda waktu akan terbaca sah padahal tidak punya dasar sama sekali. Karena itu di layar ini tidak ada kartu durasi, tidak ada kolom durasi, dan tidak pula tempat kosong yang menunggu diisi.
+              <b>Sebaran per jam di atas adalah penggantinya</b> &mdash; ia memang dapat dihitung dari satu penanda waktu, dan menjawab pertanyaan operasional yang berdekatan: <b>kapan timbangan menumpuk</b>. Pada periode ini arus masuk memuncak pada 09.00 (87 trip) sementara arus keluar memuncak pada 10.00 (12 trip).
+              <small>Kedua arus digambar pada dua bidang terpisah, bukan sebagai batang bertumpuk pada satu bidang &mdash; batang bertumpuk akan memunculkan tinggi gabungan, yaitu persis angka yang laporan ini tidak boleh punya.</small></span>
+            </div>
+          </section>
+
+          <!-- ============ 7. Rekap per asal & per tujuan ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h3>Rekap Arus Masuk per Estate/Supplier</h3>
+              <span class="md-card__hint">diurutkan dari jumlah trip terbesar &middot; seluruh asal ditampilkan, tidak dipangkas</span>
+            </header>
+            <div class="md-recap">
+              <table class="md-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Asal (estate/supplier)</th>
+                    <th scope="col">Trip</th>
+                    <th scope="col">Berat bersih (ton)</th>
+                    <th scope="col">Trip berat terisi</th>
+                    <th scope="col">Rata-rata/trip (ton)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Estate Sungai Bahar 1</td><td>218</td><td>1.395,5</td><td class="is-muted">215</td><td>6,49</td></tr>
+                    <tr><td>Estate Sungai Bahar 2</td><td>160</td><td>1.035,0</td><td class="is-muted">156</td><td>6,63</td></tr>
+                    <tr><td>Estate Tanjung Lebar</td><td>133</td><td>859,1</td><td class="is-muted">131</td><td>6,56</td></tr>
+                    <tr><td>Supplier KUD Makmur Jaya</td><td>82</td><td>528,9</td><td class="is-muted">82</td><td>6,45</td></tr>
+                    <tr><td>Supplier CV Tandan Sejahtera</td><td>58</td><td>372,8</td><td class="is-muted">58</td><td>6,43</td></tr>
+                    <tr><td>Supplier KUD Bukit Subur</td><td>37</td><td>233,7</td><td class="is-muted">37</td><td>6,32</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>Total arus masuk</td>
+                    <td>688</td>
+                    <td>4.425,0</td>
+                    <td>679</td>
+                    <td>6,52</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+              <span>Seluruh 6 asal ditampilkan apa adanya, termasuk penyumbang terkecil (Supplier KUD Bukit Subur, 37 trip) &mdash; memangkas daftar membuat penyumbang kecil lenyap dari laporan. Kolom Trip menjumlah tepat ke 688 trip masuk, dan kolom Berat bersih menjumlah tepat ke 4.425,0 ton; rata-rata tiap baris memakai penyebutnya sendiri, yaitu kolom Trip berat terisi.</span>
+            </div>
+          </section>
+
+          <section class="md-card">
+            <header class="md-card__head">
+              <h3>Rekap Arus Keluar per Tujuan</h3>
+              <span class="md-card__hint">diurutkan dari jumlah trip terbesar &middot; dengan kelompok tersendiri untuk tujuan yang belum diisi</span>
+            </header>
+            <div class="md-recap">
+              <table class="md-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tujuan</th>
+                    <th scope="col">Trip</th>
+                    <th scope="col">Berat bersih (ton)</th>
+                    <th scope="col">Trip berat terisi</th>
+                    <th scope="col">Rata-rata/trip (ton)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Bulking Station Talang Duku</td><td>30</td><td>697,7</td><td class="is-muted">30</td><td>23,26</td></tr>
+                    <tr><td>Refinery Jambi</td><td>18</td><td>413,3</td><td class="is-muted">17</td><td>24,31</td></tr>
+                    <tr><td>Gudang Kernel Palembang</td><td>8</td><td>206,1</td><td class="is-muted">8</td><td>25,76</td></tr>
+                    <tr><td>Bulking Station Panjang</td><td>7</td><td>142,1</td><td class="is-muted">6</td><td>23,68</td></tr>
+                    <tr><td class="is-muted"><b>Belum diisi</b> <small>(tujuan tidak terisi pada trip)</small></td><td>6</td><td>128,1</td><td class="is-muted">5</td><td>25,62</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>Total arus keluar</td>
+                    <td>69</td>
+                    <td>1.587,3</td>
+                    <td>66</td>
+                    <td>24,05</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+              <span>Baris <b>Belum diisi</b> memuat 6 trip keluar yang tujuannya belum terisi. Trip itu <b>tidak dibuang</b> dari rekap: membuangnya membuat jumlah trip per tujuan tidak lagi menjumlah ke total arus keluar, dan pembaca akan melihat selisih yang tidak dapat dijelaskan. Dengan baris itu, kolom Trip menjumlah tepat ke 69 trip keluar dan kolom Berat bersih ke 1.587,3 ton. Perhatikan pula bahwa trip tanpa tujuan <b>tetap punya berat bersih</b> &mdash; satu trip dapat terisi pada satu metrik dan kosong pada metrik lain, dan tiap metrik dihitung dari trip yang metriknya sendiri terisi.</span>
+            </div>
+          </section>
+
+          <!-- ============ 8. Tren harian berat bersih: dua garis terpisah ============ -->
+          <section class="md-card">
+            <header class="md-card__head">
+              <h3>Tren Harian Berat Bersih</h3>
+              <span class="md-card__hint">dua garis terpisah pada satu bidang &middot; tidak ada garis ketiga yang menjumlahkan keduanya</span>
+            </header>
+<div class="md-lc"><svg class="md-lc__svg" viewBox="0 0 760 300" role="img" aria-label="Tren harian berat bersih: dua garis terpisah, arus masuk dan arus keluar, sepanjang 14 tanggal">
+            <line class="md-lc__grid" x1="52" y1="258.0" x2="746" y2="258.0"/>
+            <text class="md-lc__ytick" x="44" y="262.0" text-anchor="end">0</text>
+            <line class="md-lc__grid" x1="52" y1="220.0" x2="746" y2="220.0"/>
+            <text class="md-lc__ytick" x="44" y="224.0" text-anchor="end">100</text>
+            <line class="md-lc__grid" x1="52" y1="182.0" x2="746" y2="182.0"/>
+            <text class="md-lc__ytick" x="44" y="186.0" text-anchor="end">200</text>
+            <line class="md-lc__grid" x1="52" y1="144.0" x2="746" y2="144.0"/>
+            <text class="md-lc__ytick" x="44" y="148.0" text-anchor="end">300</text>
+            <line class="md-lc__grid" x1="52" y1="106.0" x2="746" y2="106.0"/>
+            <text class="md-lc__ytick" x="44" y="110.0" text-anchor="end">400</text>
+            <line class="md-lc__grid" x1="52" y1="68.0" x2="746" y2="68.0"/>
+            <text class="md-lc__ytick" x="44" y="72.0" text-anchor="end">500</text>
+            <line class="md-lc__grid" x1="52" y1="30.0" x2="746" y2="30.0"/>
+            <text class="md-lc__ytick" x="44" y="34.0" text-anchor="end">600</text>
+            <line class="md-lc__axis" x1="52" y1="258" x2="746" y2="258"/>
+            <text class="md-lc__xtick" x="52.0" y="278" text-anchor="middle">01</text>
+            <text class="md-lc__xtick" x="105.4" y="278" text-anchor="middle">02</text>
+            <text class="md-lc__xtick" x="158.8" y="278" text-anchor="middle">03</text>
+            <text class="md-lc__xtick" x="212.2" y="278" text-anchor="middle">04</text>
+            <text class="md-lc__xtick" x="265.5" y="278" text-anchor="middle">05</text>
+            <text class="md-lc__xtick" x="318.9" y="278" text-anchor="middle">06</text>
+            <text class="md-lc__xtick" x="372.3" y="278" text-anchor="middle">07</text>
+            <text class="md-lc__xtick" x="425.7" y="278" text-anchor="middle">08</text>
+            <text class="md-lc__xtick" x="479.1" y="278" text-anchor="middle">09</text>
+            <text class="md-lc__xtick" x="532.5" y="278" text-anchor="middle">10</text>
+            <text class="md-lc__xtick" x="585.8" y="278" text-anchor="middle">11</text>
+            <text class="md-lc__xtick" x="639.2" y="278" text-anchor="middle">12</text>
+            <text class="md-lc__xtick" x="692.6" y="278" text-anchor="middle">13</text>
+            <text class="md-lc__xtick" x="746.0" y="278" text-anchor="middle">14</text>
+            <polyline class="md-lc__line md-lc__line--s1" points="52.0,119.2 105.4,103.2 158.8,138.3 212.2,118.7 265.5,163.0 318.9,132.7 372.3,153.7 425.7,108.5 479.1,136.5 532.5,122.2 585.8,258.0 639.2,141.6 692.6,106.6 746.0,128.3"/>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="52.0" cy="119.2" r="3"><title>01 Sep 2026 &mdash; 365,3 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="105.4" cy="103.2" r="3"><title>02 Sep 2026 &mdash; 407,4 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="158.8" cy="138.3" r="3"><title>03 Sep 2026 &mdash; 314,9 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="212.2" cy="118.7" r="3"><title>04 Sep 2026 &mdash; 366,6 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="265.5" cy="163.0" r="3"><title>05 Sep 2026 &mdash; 249,9 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="318.9" cy="132.7" r="3"><title>06 Sep 2026 &mdash; 329,8 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="372.3" cy="153.7" r="3"><title>07 Sep 2026 &mdash; 274,6 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="425.7" cy="108.5" r="3"><title>08 Sep 2026 &mdash; 393,4 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="479.1" cy="136.5" r="3"><title>09 Sep 2026 &mdash; 319,8 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="532.5" cy="122.2" r="3"><title>10 Sep 2026 &mdash; 357,3 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="585.8" cy="258.0" r="3"><title>11 Sep 2026 &mdash; 0,0 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="639.2" cy="141.6" r="3"><title>12 Sep 2026 &mdash; 306,4 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="692.6" cy="106.6" r="3"><title>13 Sep 2026 &mdash; 398,4 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s1" cx="746.0" cy="128.3" r="3"><title>14 Sep 2026 &mdash; 341,2 ton</title></circle>
+            <polyline class="md-lc__line md-lc__line--s2" points="52.0,198.0 105.4,179.1 158.8,206.0 212.2,198.6 265.5,228.0 318.9,206.5 372.3,258.0 425.7,178.3 479.1,218.8 532.5,194.1 585.8,258.0 639.2,215.2 692.6,258.0 746.0,212.1"/>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="52.0" cy="198.0" r="3"><title>01 Sep 2026 &mdash; 157,9 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="105.4" cy="179.1" r="3"><title>02 Sep 2026 &mdash; 207,6 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="158.8" cy="206.0" r="3"><title>03 Sep 2026 &mdash; 136,9 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="212.2" cy="198.6" r="3"><title>04 Sep 2026 &mdash; 156,2 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="265.5" cy="228.0" r="3"><title>05 Sep 2026 &mdash; 78,9 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="318.9" cy="206.5" r="3"><title>06 Sep 2026 &mdash; 135,4 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="372.3" cy="258.0" r="3"><title>07 Sep 2026 &mdash; 0,0 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="425.7" cy="178.3" r="3"><title>08 Sep 2026 &mdash; 209,8 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="479.1" cy="218.8" r="3"><title>09 Sep 2026 &mdash; 103,1 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="532.5" cy="194.1" r="3"><title>10 Sep 2026 &mdash; 168,2 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="585.8" cy="258.0" r="3"><title>11 Sep 2026 &mdash; 0,0 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="639.2" cy="215.2" r="3"><title>12 Sep 2026 &mdash; 112,6 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="692.6" cy="258.0" r="3"><title>13 Sep 2026 &mdash; 0,0 ton</title></circle>
+            <circle class="md-lc__dot md-lc__dot--s2" cx="746.0" cy="212.1" r="3"><title>14 Sep 2026 &mdash; 120,7 ton</title></circle>
+          </svg></div>
+            <ul class="md-legend">
+              <li class="md-legend__item"><span class="md-legend__swatch md-legend__swatch--s1"></span> Arus masuk &mdash; garis utuh &middot; total periode 4.425,0 ton dari 679 trip terisi</li>
+              <li class="md-legend__item"><span class="md-legend__swatch md-legend__swatch--s2"></span> Arus keluar &mdash; garis putus-putus &middot; total periode 1.587,3 ton dari 66 trip terisi</li>
+              <li class="md-legend__item"><small>Sumbu tegak dalam ton, <b>dimulai dari nol</b>. Hari tanpa trip tergambar sebagai titik pada nol &mdash; lihat 11 Sep (kedua arus) serta 07 dan 13 Sep (arus keluar).</small></li>
+            </ul>
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>Kedua arus berbagi satu bidang gambar supaya <b>bentuk</b> keduanya dapat dibandingkan sepanjang tanggal yang sama &mdash; bukan supaya keduanya dijumlahkan. <b>Jarak tegak antara kedua garis bukan sebuah angka yang laporan ini sediakan</b>: ia bukan stok, bukan selisih yang bermakna, dan tidak muncul di tabel mana pun. Yang dapat dibaca dari grafik ini adalah kapan masing-masing arus naik dan turun &mdash; misalnya arus masuk berhenti sama sekali pada 11 Sep, sementara arus keluar berhenti pada tiga tanggal berbeda.
+              <small>Tidak ada nilai yang ditandai di luar batas di layar ini &mdash; Weighbridge tidak punya master target operasional, dan menurunkan ambang dari data periode itu sendiri berisiko dibaca sebagai batas resmi padahal bukan.</small></span>
+            </div>
+          </section>
+
+          <!-- ============ 9. Rekap harian (dapat dibuka/ditutup) ============ -->
+          <details class="md-details" open>
+            <summary>
+              Rekap Harian
+              <small>14 baris &middot; 01 &ndash; 14 Sep 2026 &middot; klik untuk menutup</small>
+            </summary>
+            <div class="md-recap">
+              <table class="md-table">
+                <thead>
+                  <tr class="grouphead">
+                    <th scope="col" rowspan="2">Tanggal</th>
+                    <th scope="colgroup" colspan="3" class="col-group">Arus masuk</th>
+                    <th scope="colgroup" colspan="3" class="col-group">Arus keluar</th>
+                  </tr>
+                  <tr>
+                    <th scope="col" class="col-group">Trip</th>
+                    <th scope="col">Berat bersih (ton)</th>
+                    <th scope="col">Trip berat terisi</th>
+                    <th scope="col" class="col-group">Trip</th>
+                    <th scope="col">Berat bersih (ton)</th>
+                    <th scope="col">Trip berat terisi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>01 Sep 2026</td><td class="col-group">58</td><td>365,3</td><td class="is-muted">58</td><td class="col-group">7</td><td>157,9</td><td class="is-muted">6</td></tr>
+                  <tr><td>02 Sep 2026</td><td class="col-group">61</td><td>407,4</td><td class="is-muted">60</td><td class="col-group">8</td><td>207,6</td><td class="is-muted">8</td></tr>
+                  <tr><td>03 Sep 2026</td><td class="col-group">49</td><td>314,9</td><td class="is-muted">48</td><td class="col-group">6</td><td>136,9</td><td class="is-muted">6</td></tr>
+                  <tr><td>04 Sep 2026</td><td class="col-group">55</td><td>366,6</td><td class="is-muted">55</td><td class="col-group">7</td><td>156,2</td><td class="is-muted">7</td></tr>
+                  <tr><td>05 Sep 2026</td><td class="col-group">38</td><td>249,9</td><td class="is-muted">38</td><td class="col-group">4</td><td>78,9</td><td class="is-muted">3</td></tr>
+                  <tr><td>06 Sep 2026</td><td class="col-group">52</td><td>329,8</td><td class="is-muted">51</td><td class="col-group">6</td><td>135,4</td><td class="is-muted">6</td></tr>
+                  <tr><td>07 Sep 2026</td><td class="col-group">44</td><td>274,6</td><td class="is-muted">42</td><td class="col-group is-muted">0</td><td class="is-muted">&mdash;</td><td class="is-muted">0</td></tr>
+                  <tr><td>08 Sep 2026</td><td class="col-group">60</td><td>393,4</td><td class="is-muted">59</td><td class="col-group">8</td><td>209,8</td><td class="is-muted">8</td></tr>
+                  <tr><td>09 Sep 2026</td><td class="col-group">51</td><td>319,8</td><td class="is-muted">49</td><td class="col-group">5</td><td>103,1</td><td class="is-muted">5</td></tr>
+                  <tr><td>10 Sep 2026</td><td class="col-group">56</td><td>357,3</td><td class="is-muted">56</td><td class="col-group">7</td><td>168,2</td><td class="is-muted">7</td></tr>
+                  <tr><td>11 Sep 2026</td><td class="col-group is-muted">0</td><td class="is-muted">&mdash;</td><td class="is-muted">0</td><td class="col-group is-muted">0</td><td class="is-muted">&mdash;</td><td class="is-muted">0</td></tr>
+                  <tr><td>12 Sep 2026</td><td class="col-group">47</td><td>306,4</td><td class="is-muted">47</td><td class="col-group">5</td><td>112,6</td><td class="is-muted">5</td></tr>
+                  <tr><td>13 Sep 2026</td><td class="col-group">63</td><td>398,4</td><td class="is-muted">62</td><td class="col-group is-muted">0</td><td class="is-muted">&mdash;</td><td class="is-muted">0</td></tr>
+                  <tr><td>14 Sep 2026</td><td class="col-group">54</td><td>341,2</td><td class="is-muted">54</td><td class="col-group">6</td><td>120,7</td><td class="is-muted">5</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>Total periode</td>
+                    <td class="col-group">688</td>
+                    <td>4.425,0</td>
+                    <td>679</td>
+                    <td class="col-group">69</td>
+                    <td>1.587,3</td>
+                    <td>66</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <div class="md-threshold">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>Baris <b>Total periode</b> menjumlah tiap kolom <b>di dalam arusnya sendiri</b> &mdash; dan hanya itu. Tidak ada kolom gabungan, tidak ada kolom &ldquo;total trip&rdquo;, tidak ada kolom &ldquo;total berat ditimbang&rdquo;. Angka 688 dan 69 berdiri sendiri-sendiri dan tidak pernah bertemu di sel mana pun.
+              Tanggal tanpa trip ditulis <b>&mdash;</b> pada kolom beratnya, bukan 0,0 &mdash; nol berarti ditimbang dan hasilnya nol, sedangkan <b>&mdash;</b> berarti tidak ada yang ditimbang. 3 trip masuk dan 1 trip keluar yang penanda waktunya kosong tidak muncul pada baris tanggal mana pun di tabel ini, karena memang tidak dapat ditempatkan pada tanggal mana pun.
+              <small>Rekap ini dapat ditutup lewat judulnya &mdash; periode yang panjang menghasilkan puluhan baris, dan halaman harus tetap terbaca.</small></span>
+            </div>
+          </details>
+
+        </div>
+
+        <p class="mock-actors">
+          Actors: Supervisor, Mill Management, Admin &nbsp;&middot;&nbsp;
+          Entry points: Menu sidebar &lsquo;Laporan Stasiun&rsquo; &rarr; pilih stasiun Weighbridge, Kembali dari layar lain dengan periode dan Production Line yang sama masih terpilih
+        </p>
+      </main>
+    </div>
+  </div>
+  <!-- ===========================================================================
+       JEJAK ANGKA (audit) — bukan bagian UI, hanya agar setiap angka di layar ini
+       dapat ditelusuri. Seluruh nilai di layar diturunkan dengan skrip dari satu
+       daftar trip buatan (seed tetap), bukan dikarang per kartu, sehingga tiap
+       total benar-benar menjumlah dari rinciannya.
+
+       PERIODE: 01–14 Sep 2026 (14 hari), PKS Sungai Bahar, Production Line A,
+       status Terbuka. Production Line WAJIB dipilih — mock ini menggambarkan
+       keadaan SETELAH Line A dipilih, dan pemilihnya tetap terlihat di baris
+       filter supaya pembaca tahu ia bagian dari layar.
+
+       DUA KELOMPOK, TIDAK PERNAH DIJUMLAHKAN:
+         arus masuk : 688 trip | berat terisi 679 trip | belum terisi 9 trip
+                      total 4.425,0 ton | rata-rata 4.425,0 / 679 = 6,52 ton
+                      draft 17 (ikut terhitung) | penanda waktu kosong 3 (DIKECUALIKAN)
+         arus keluar: 69 trip | berat terisi 66 trip | belum terisi 3 trip
+                      total 1.587,3 ton | rata-rata 1.587,3 / 66 = 24,05 ton
+                      draft 4 (ikut terhitung) | penanda waktu kosong 1 (DIKECUALIKAN)
+         TIDAK ADA di berkas ini: 688 + 69, maupun 4.425,0 + 1.587,3.
+         Rata-rata palsu bila penyebutnya seluruh trip: masuk 6,43 ton
+         (bukan 6,52), keluar 23,00 ton (bukan 24,05) —
+         ditampilkan di kartu sebagai alasan mengapa penyebutnya trip terisi.
+
+       SEBARAN PER JAM (00–23), dijumlahkan atas 14 hari:
+         masuk  = [0, 0, 0, 0, 0, 1, 16, 43, 72, 87, 74, 49, 30, 48, 77, 67, 63, 28, 19, 11, 3, 0, 0, 0]
+                  jumlah = 688 (= 688 trip masuk)
+                  tersibuk 09.00 dengan 87 trip
+                  jam tanpa trip = 8 jam -> [0, 1, 2, 3, 4, 21, 22, 23]
+         keluar = [0, 0, 0, 0, 0, 0, 0, 3, 9, 9, 12, 5, 1, 6, 5, 11, 6, 2, 0, 0, 0, 0, 0, 0]
+                  jumlah = 69 (= 69 trip keluar)
+                  tersibuk 10.00 dengan 12 trip
+                  jam tanpa trip = 13 jam -> [0, 1, 2, 3, 4, 5, 6, 18, 19, 20, 21, 22, 23]
+         Digambar sebagai DUA grafik batang terpisah, bukan satu grafik bertumpuk —
+         batang bertumpuk akan memunculkan tinggi gabungan kedua arus.
+
+       DURASI KENDARAAN DI PABRIK: TIDAK ADA di berkas ini, dalam bentuk apa pun.
+         Tiap trip hanya punya SATU penanda waktu sejak penggabungan dua kolom waktu
+         pada 2026-08-19. Dua penanda waktu pada trip yang sama tidak pernah ada,
+         jadi durasi tidak dapat dihitung — dan tidak boleh ditampilkan sebagai
+         angka, sebagai kolom, maupun sebagai tempat kosong. Sebaran per jam adalah
+         penggantinya, bukan pendekatannya.
+
+       REKAP PER ASAL (arus masuk, 6 asal, urut trip terbesar):
+         Estate Sungai Bahar 1           218 trip     1395.5 ton  (terisi 215)
+         Estate Sungai Bahar 2           160 trip     1035.0 ton  (terisi 156)
+         Estate Tanjung Lebar            133 trip      859.1 ton  (terisi 131)
+         Supplier KUD Makmur Jaya         82 trip      528.9 ton  (terisi  82)
+         Supplier CV Tandan Sejahtera     58 trip      372.8 ton  (terisi  58)
+         Supplier KUD Bukit Subur         37 trip      233.7 ton  (terisi  37)
+         jumlah trip  = 688 (= 688)
+         jumlah berat = 4425.0 (= 4425.0)
+
+       REKAP PER TUJUAN (arus keluar, 4 tujuan + kelompok 'belum diisi'):
+         Bulking Station Talang Duku      30 trip      697.7 ton  (terisi  30)
+         Refinery Jambi                   18 trip      413.3 ton  (terisi  17)
+         Gudang Kernel Palembang           8 trip      206.1 ton  (terisi   8)
+         Bulking Station Panjang           7 trip      142.1 ton  (terisi   6)
+         BELUM DIISI                       6 trip      128.1 ton  (terisi   5)
+         jumlah trip  = 69 (= 69)  <- hanya menjumlah bila 'belum diisi' ikut
+         jumlah berat = 1587.3 (= 1587.3)
+
+       REKAP HARIAN (trip masuk / ton masuk / trip keluar / ton keluar):
+         01 Sep   58     365.3     7     157.9
+         02 Sep   61     407.4     8     207.6
+         03 Sep   49     314.9     6     136.9
+         04 Sep   55     366.6     7     156.2
+         05 Sep   38     249.9     4      78.9
+         06 Sep   52     329.8     6     135.4
+         07 Sep   44     274.6     0       0.0
+         08 Sep   60     393.4     8     209.8
+         09 Sep   51     319.8     5     103.1
+         10 Sep   56     357.3     7     168.2
+         11 Sep    0       0.0     0       0.0
+         12 Sep   47     306.4     5     112.6
+         13 Sep   63     398.4     0       0.0
+         14 Sep   54     341.2     6     120.7
+         Total periode = 688 / 4.425,0 / 69 / 1.587,3 — empat angka, empat kolom,
+         tidak ada sel kelima yang menjumlahkan dua arus.
+         Hari tanpa trip masuk : 11 Sep        -> kelengkapan masuk  13/14
+         Hari tanpa trip keluar: 07, 11, 13 Sep -> kelengkapan keluar 11/14
+
+       TREN HARIAN: sumbu tegak ton MULAI DARI NOL, dua garis terpisah (s1 utuh =
+         masuk, s2 putus-putus = keluar). Tidak ada garis ketiga, tidak ada area
+         bertumpuk. Jarak tegak antar garis sengaja dinyatakan BUKAN sebuah angka
+         yang laporan ini sediakan.
+
+       TIDAK ADA penandaan ambang/aman/bahaya: Weighbridge tidak punya master target
+         operasional, dan ambang yang diturunkan dari data periode itu sendiri
+         berisiko dibaca sebagai batas resmi padahal bukan.
+  =========================================================================== -->
+</body>
+</html>

@@ -63,6 +63,14 @@ class StationReportService
      * @var array<string, string>
      */
     public const REPORT_ROUTES = [
+        // screen-143--laporan-weighbridge-web. FIRST, ahead of cages-track and
+        // NOT appended: station_types.sort_order puts weighbridge (10) ahead of
+        // every other station already in this map — cages-track (30),
+        // sterilizer (40), clarification (70), boiler-room (90), storage-tank
+        // (140) — so the front is exactly where this entry keeps the map in
+        // sort_order, and the ordering of this map is load-bearing (see the
+        // note below).
+        StationTypeEnum::Weighbridge->value => 'reports.weighbridge',
         // screen-130--laporan-cages-track-web. Without this one line the
         // report exists, its own tests pass, and the tile stays greyed out —
         // the screen is simply unreachable from the UI.

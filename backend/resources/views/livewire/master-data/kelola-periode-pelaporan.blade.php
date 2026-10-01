@@ -105,6 +105,86 @@
         </div>
     </div>
 
+    {{--
+        Panel "Periode Terbuka Hari Ini per Mill" (business spec v5).
+
+        LETAKNYA SENGAJA DI SINI — sesudah baris filter, sebelum tabel. Panel ini
+        bereaksi pada filter Business Unit, jadi ia harus berada SESUDAH kontrol
+        itu; di atasnya, Admin akan membacanya sebagai panel yang tidak
+        dipengaruhi filter apa pun.
+
+        "Terbuka hari ini" = DUA syarat sekaligus (stasiun berstatus open DAN
+        hari ini di dalam rentang) — seluruhnya dihitung di
+        PeriodService::openPeriodsByBusinessUnit(); JANGAN menurunkan ulang
+        aturannya di sini.
+
+        Baca saja: satu-satunya elemen interaktif adalah tautan nama periode.
+    --}}
+    <section class="kc-open-panel" data-testid="open-today-panel" aria-labelledby="kc-open-panel-heading">
+        <div class="kc-open-panel__head">
+            <h3 class="kc-open-panel__title" id="kc-open-panel-heading">Periode Terbuka Hari Ini per Mill</h3>
+            <p class="kc-open-panel__today" data-testid="open-today-date">
+                Acuan tanggal server: {{ $formatDate($panelToday) }}
+            </p>
+        </div>
+
+        @if (empty($openSummary))
+            <p class="kc-open-panel__none" data-testid="open-today-no-mills">
+                Belum ada Business Unit terdaftar, jadi belum ada periode yang dapat dibuka.
+            </p>
+        @else
+            <div class="kc-open-panel__grid">
+                @foreach ($openSummary as $mill)
+                    @php
+                        // Mill tanpa periode terbuka TETAP mendapat card, hanya diredupkan.
+                        // Itu keadaan paling berguna di panel ini, bukan slot kosong yang
+                        // layak disembunyikan.
+                        $hasOpen = ! empty($mill['open_periods']);
+                    @endphp
+                    <article
+                        @class(['kc-open-card', 'kc-open-card--empty' => ! $hasOpen])
+                        data-testid="open-today-card-{{ $mill['business_unit_id'] }}"
+                    >
+                        <h4 class="kc-open-card__mill">{{ $mill['business_unit_name'] }}</h4>
+
+                        @if ($hasOpen)
+                            {{--
+                                Normalnya satu card memuat SATU periode, karena rentang tidak
+                                boleh tumpang tindih per mill. Tetap di-loop: aturan itu
+                                ditegakkan service, bukan constraint database, jadi bila
+                                ternyata ada dua, keduanya harus terlihat.
+                            --}}
+                            <ul class="kc-open-card__list">
+                                @foreach ($mill['open_periods'] as $period)
+                                    <li class="kc-open-item" data-testid="open-today-item-{{ $period['id'] }}">
+                                        <a
+                                            href="{{ route('master-data.periods.detail', $period['id']) }}"
+                                            class="kc-link kc-open-item__name"
+                                            data-testid="open-today-link-{{ $period['id'] }}"
+                                            wire:navigate
+                                        >{{ $period['name'] }}</a>
+                                        <span class="kc-open-item__range">
+                                            {{ $formatDate($period['start_date']) }} – {{ $formatDate($period['end_date']) }}
+                                        </span>
+                                        <span
+                                            class="kc-open-item__count"
+                                            data-testid="open-today-count-{{ $period['id'] }}"
+                                        >{{ $period['open_station_count'] }} dari {{ $period['station_count'] }} stasiun terbuka</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        @else
+                            <p
+                                class="kc-open-card__empty"
+                                data-testid="open-today-empty-{{ $mill['business_unit_id'] }}"
+                            >Tidak ada periode terbuka hari ini — tidak ada stasiun di mill ini yang dapat menerima input.</p>
+                        @endif
+                    </article>
+                @endforeach
+            </div>
+        @endif
+    </section>
+
     <div class="kc-table-wrap">
         <table class="kc-table" data-testid="period-table">
             <thead class="kc-table__head">
@@ -221,6 +301,13 @@
 
     @if ($meta['total'] > 0)
         <div class="kc-pagination">
+            {{--
+                kc-pagination__summary SENGAJA tidak punya aturan CSS: induknya
+                .kc-pagination sudah menetapkan font-size dan warna yang
+                dibutuhkan, jadi ia penanda semantik murni. Dinyatakan di sini
+                supaya pemeriksaan "tiap kelas harus punya definisi" tidak
+                membacanya sebagai kelas yang terlupakan.
+            --}}
             <span class="kc-pagination__summary">
                 Halaman {{ $meta['page'] }} dari {{ $meta['total_pages'] }} ({{ $meta['total'] }} data)
             </span>
@@ -783,6 +870,136 @@
             columns: 2;
         }
 
+        /*
+            Panel "Periode Terbuka Hari Ini per Mill".
+
+            SETIAP kelas di bawah ini dipakai markup panel di atas, dan setiap
+            kelas yang dipakai markup panel ada di bawah ini — daftarnya
+            disengaja lengkap. Kelas tanpa definisi bukan sekadar kurang rapi:
+            browser akan merendernya dengan gaya bawaan (ul menjorok 40px, h4
+            bermargin tebal) dan cacatnya lolos seluruh test perilaku, persis
+            yang terjadi pada accordion kelola-machinery 2026-10-01.
+
+            JANGAN memakai .md-card dari dashboard/partials/report-styles.blade.php
+            — partial itu tidak di-include layout master-data, jadi markupnya
+            akan tampil tanpa gaya sama sekali.
+        */
+        .kc-open-panel {
+            margin-bottom: 16px;
+            padding: 16px;
+            border: 1px solid var(--kc-border);
+            border-radius: 10px;
+            background: #fff;
+        }
+
+        .kc-open-panel__head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 4px 16px;
+            margin-bottom: 14px;
+        }
+
+        .kc-open-panel__title {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--kc-text);
+        }
+
+        .kc-open-panel__today {
+            margin: 0;
+            font-size: 12px;
+            color: var(--kc-text-muted);
+        }
+
+        .kc-open-panel__none {
+            margin: 0;
+            font-size: 13px;
+            color: var(--kc-text-muted);
+        }
+
+        .kc-open-panel__grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
+
+        .kc-open-card {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 0;
+            padding: 12px 14px;
+            border: 1px solid var(--kc-border);
+            border-left: 3px solid var(--kc-brand);
+            border-radius: var(--kc-radius-input);
+            background: #f6fdf9;
+        }
+
+        /*
+            Mill tanpa periode terbuka: diredupkan, TIDAK disembunyikan. Warna
+            netral dan garis kiri yang pudar supaya bedanya terbaca sekilas
+            tanpa membuatnya tampak seperti galat — ketiadaan periode terbuka
+            adalah keadaan yang sah, sekaligus yang paling perlu terlihat.
+        */
+        .kc-open-card--empty {
+            border-left-color: var(--kc-border);
+            background: #f9fafb;
+        }
+
+        .kc-open-card__mill {
+            margin: 0;
+            font-size: 13px;
+            font-weight: 700;
+            line-height: 1.35;
+            color: var(--kc-text);
+            overflow-wrap: anywhere;
+        }
+
+        .kc-open-card__list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .kc-open-card__empty {
+            margin: 0;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--kc-text-muted);
+        }
+
+        .kc-open-item {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 0;
+        }
+
+        .kc-open-item__name {
+            font-size: 14px;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+        }
+
+        .kc-open-item__range {
+            font-size: 12px;
+            color: var(--kc-text-muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .kc-open-item__count {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--kc-brand-hover);
+            font-variant-numeric: tabular-nums;
+        }
+
         @media (max-width: 767px) {
             .kc-form-grid {
                 grid-template-columns: 1fr;
@@ -790,6 +1007,11 @@
 
             .kc-form-field--span2 {
                 grid-column: span 1;
+            }
+
+            /* Satu kolom di layar sempit — card 240px tidak pernah dipaksa berdampingan. */
+            .kc-open-panel__grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>

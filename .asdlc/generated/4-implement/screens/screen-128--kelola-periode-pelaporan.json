@@ -1,8 +1,8 @@
 {
-  "ver": 6,
+  "ver": 7,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-27"
+    "updated_at": "2026-10-01"
   },
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
@@ -10,24 +10,24 @@
   "status": "complete",
   "test_results": {
     "unit": {
-      "run_at": "2026-09-27T14:05:00Z",
-      "passed": 3108,
+      "run_at": "2026-10-01T16:05:00Z",
+      "passed": 4050,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-09-27T14:05:00Z",
-      "passed": 15,
+      "run_at": "2026-10-01T16:05:00Z",
+      "passed": 22,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-27T14:05:00Z",
-      "passed": 20,
+      "run_at": "2026-10-01T16:05:00Z",
+      "passed": 26,
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-09-27T14:40:00Z",
-      "passed": 15,
+      "run_at": "2026-10-01T16:02:00Z",
+      "passed": 18,
       "failed": 0
     }
   },
@@ -105,7 +105,19 @@
     "Endpoint tidak mendaftarkan 401, sejajar close() dan reopen(); penanganan sesi ada di lapisan middleware. 403 ditegakkan lewat route middleware auth:web + role:admin.",
     "Livewire memakai ulang properti dan alert galat yang sudah ada ($closeErrorMessage, data-testid=\"close-error\"), bukan membuat yang baru. Sukses mengisi $successMessage = 'Periode berhasil dibuka.'",
     "askOpen() sengaja tidak memvalidasi ulang status — ia hanya mengambil snapshot baris untuk isi dialog. Baris yang sudah dihapus tetap membuka dialog lalu gagal di confirm dengan pesan periode tidak ditemukan.",
-    "Tombol 'Buka Periode' hanya dirender pada cabang @if ($period['status'] === 'draft')."
+    "Tombol 'Buka Periode' hanya dirender pada cabang @if ($period['status'] === 'draft').",
+    "PANEL 'PERIODE TERBUKA HARI INI PER MILL' (2026-10-01). Di atas tabel, satu card per Business Unit. Seluruh perhitungannya ada di PeriodService::openPeriodsByBusinessUnit(); komponen Livewire hanya meneruskan filter Business Unit dan menyerahkan hasilnya ke view, dan blade tidak menurunkan ulang satu aturan pun. Endpoint kembarannya GET /api/periods/open-summary.",
+    "PANEL — whereDate(), BUKAN where(). Perbandingan tanggalnya memakai whereDate('start_date','<=',$today) / whereDate('end_date','>=',$today), ejaan yang sama dengan findOverlapping(). Versi pertama memakai where() biasa dan ITU BUG NYATA: `start_date` adalah kolom `date` sungguhan di PostgreSQL sehingga perbandingan biasa lolos di dev dan produksi, tetapi di SQLite yang dipakai seluruh suite nilainya terbaca '2026-10-01 00:00:00' sehingga `<= '2026-10-01'` bernilai FALSE secara leksikografis dan periode hilang tepat pada hari pertamanya. Tertangkap test batas inklusif yang gagal HANYA pada tanggal mulai dan lolos pada dua tanggal lainnya — bentuk kegagalan yang persis menunjuk sebabnya. Ini kembaran jebakan ILIKE/LIKE, hanya arah lolos-gagalnya terbalik.",
+    "PANEL — TANGGAL DIAMBIL SEKALI per pemanggilan lewat Carbon::today() lalu dipakai untuk kueri seluruh mill, dan dikembalikan sebagai meta.today yang dirender sebagai keterangan panel. Test membekukannya dengan Carbon::setTestNow(); ketiga berkas test yang menyentuh panel menambahkan afterEach(fn () => Carbon::setTestNow()) supaya kegagalan di tengah test tidak membocorkan waktu palsu ke test berikutnya.",
+    "PANEL — data-testid memakai prefix open-today-, bukan open-period-. screen-142 sudah memakai open-period-dialog / confirm-open-period / cancel-open-period untuk AKSI membuka periode; panel ini menamai KEADAAN. Dua arti pada satu prefix adalah jebakan bagi pembaca berikutnya. SATU asersi harus tetap berbunyi open-period-dialog: yang di tests/Feature/Livewire/KelolaPeriodePelaporanTest.php memastikan dialog screen-142 TIDAK ada di layar daftar — ia menguji ketiadaan testid milik layar lain, bukan testid panel.",
+    "PANEL — TIGA BELAS KELAS kc-open-* SEMUANYA DIDEFINISIKAN di blok <style> blade ini, dan ada satu test yang menegakkannya: ia mengumpulkan kelas kc-open-* dari HTML yang BENAR-BENAR DIRENDER lalu mencocokkan tiap kelas dengan selektornya di berkas blade. Dimutasi untuk membuktikan ia menggigit — menghapus definisi .kc-open-item__count membuatnya gagal. Kelas md-card dari dashboard/partials/report-styles.blade.php SENGAJA TIDAK DIPAKAI: partial itu hanya di-include layar laporan dashboard, jadi markup ber-md-card di layar master-data akan dirender tanpa gaya apa pun.",
+    "PANEL — ASERSI TAMPILAN TIDAK MEMAKAI assertSee(). Seluruh asersi panel berjalan atas $component->html() mentah, karena assertSee() meng-escape argumennya dan akan meloloskan bentuk yang rusak persis seperti yang terjadi pada penanda accordion kelola-machinery. Satu test khusus menolak bentuk HTML entity yang ter-escape; dimutasi dengan menulis en dash sebagai &ndash; di dalam {{ }} dan test itu gagal sebagaimana seharusnya.",
+    "PANEL — ROUTE /api/periods/open-summary DIDAFTARKAN SEBELUM /api/periods/{id}, bersebelahan dengan /periods/business-units/options supaya syarat urutannya terlihat sekali pandang. Dimutasi untuk membuktikan: dipindah ke bawah {id}, ketiga asersi 200 berubah menjadi 404 — Laravel mencocokkan 'open-summary' sebagai {id}. Penyuntingan routes/api.php dilakukan lewat tulis-ke-sementara + php -l + mv atomik, karena berkas itu dimuat setiap request dan server dev sedang melayani browser test spec lain saat itu.",
+    "TEMUAN FIXTURE (bukan bug produk, tapi menjebak): helper millStations() di tests/Unit/Services/PeriodServiceTest.php melahirkan BusinessUnit TAMBAHAN lewat Station::factory()->forBusinessUnit() → ProductionLine::factory(). Fixture yang tampak membuat 2 mill sebenarnya menghasilkan 4 ('Mill Alpha', 'Mill Beta', 'Rutherfordhaven Mill', 'West Jakaylafurt Mill'). Dua test panel pertama saya gagal karena mengasersi angka mutlak. Diperbaiki dengan mengasersi INVARIANNYA — count(data) === BusinessUnit::count() — dan mengambil entri lewat keyBy('business_unit_name'), bukan lewat posisi indeks. Test apa pun yang menghitung mill pada fixture ini harus melakukan hal yang sama.",
+    "PANEL — SPEC BROWSER MEMAKAI TANGGAL NYATA, satu-satunya blok di e2e-web/tests/kelola-periode-pelaporan.spec.ts yang begitu (helper todayRange(), kemarin sampai besok). Panel menyaring dengan tanggal server, sehingga periode skenario lain yang hidup di tahun 3195 mustahil muncul di sana. Tidak perlu lajur baru di tests/support/period-lanes.ts: seluruh spec penanam periode memakai epoch tahun 2100 atau 2600 yang digeser maju ribuan tahun, jadi tidak satu pun pernah menyentuh tahun berjalan. Jendelanya dibuat sependek mungkin supaya tetap begitu. Penanda letak diuji dengan compareDocumentPosition, bukan hanya keberadaan kedua elemen — asersinya memang tentang urutan.",
+    "PANEL — open_periods TIDAK PERNAH DIPANGKAS dengan first(). Aturan tumpang tindih membuat satu tanggal hanya dimiliki satu periode per mill, jadi normalnya isinya nol atau satu; tetapi aturan itu hidup di findOverlapping() dan BUKAN di constraint database, sehingga memangkasnya akan menyembunyikan pelanggaran alih-alih menampakkannya. Ada satu unit test yang menanam pelanggaran itu langsung ke database dan menuntut keduanya kembali.",
+    "kc-pagination__summary pada blade ini TIDAK punya aturan CSS dan itu disengaja — induknya .kc-pagination sudah menetapkan font-size dan warnanya, jadi ia penanda semantik murni. Dinyatakan di komentar blade supaya pemeriksaan 'tiap kelas harus punya definisi' tidak membacanya sebagai kelas yang terlupakan.",
+    "ANGKA TEST 2026-10-01 SETELAH PANEL: suite backend penuh 4050 lolos / 0 gagal / 4 skip (dari 4021 sebelum panel — tepat +29: 16 unit PeriodService, 7 API, 6 Livewire). Empat skip itu tetap kontrak period-lock usecase-141 dan tidak disentuh. Berkas layar ini: Api/KelolaPeriodePelaporanTest 22 lolos + 4 skip, Livewire/KelolaPeriodePelaporanTest 26 lolos, Unit/Services/PeriodServiceTest 58 lolos. Browser e2e-web/tests/kelola-periode-pelaporan.spec.ts 18 lolos + 1 skip dari 19 — 15 test lama tetap hijau, 4 test panel baru hijau di browser sungguhan."
   ],
   "deferred_items": [
     {

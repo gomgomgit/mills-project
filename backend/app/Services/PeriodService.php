@@ -164,6 +164,113 @@ class PeriodService
     }
 
     /**
+     * openPeriodsByBusinessUnit() — data for the "Periode Terbuka Hari Ini per
+     * Mill" panel above the list (screen-128, business spec v5).
+     *
+     * ONE ENTRY PER BUSINESS UNIT, ALWAYS. The iteration starts from the mill
+     * list, not from the period list, and that direction is the whole point: a
+     * mill with nothing open must still appear, because "this mill cannot take
+     * any input today" is the most useful thing the panel says. Grouping a
+     * period query by mill instead would be correct for every mill that HAS an
+     * open period and would silently drop exactly the ones that matter.
+     *
+     * "OPEN TODAY" IS TWO CONDITIONS, BOTH REQUIRED (user decision 2026-10-01):
+     *   (a) at least one `period_stations` row with status 'open', and
+     *   (b) today inside start_date..end_date, inclusive at both ends.
+     * Together they are the SAME predicate the period lock uses
+     * (usecase-141), so what the panel says is what actually holds for the
+     * operator. Either condition alone says something weaker and more
+     * misleading: a period running today whose 18 stations are all Draft can
+     * receive nothing, and a period with an open station whose range ended last
+     * month is a forgotten close, not today's state.
+     *
+     * The accepted cost of (b): a period still holding open stations past its
+     * end_date does NOT appear here. That blind spot is recorded as the first
+     * open_question on the screen's business spec rather than patched by
+     * loosening the filter — loosening it would cost the panel its single
+     * meaning.
+     *
+     * `$today` IS READ ONCE and reused for every mill. A call that straddles
+     * midnight must not filter two mills by two different dates, and it comes
+     * back as meta.today so the FE can caption the panel and tests can freeze
+     * it with Carbon::setTestNow() instead of guessing.
+     *
+     * NO first() ON THE RESULT. The overlap rule makes one date belong to one
+     * period per mill, so `open_periods` normally holds 0 or 1 entries — but
+     * that rule lives in findOverlapping(), NOT in a database constraint, so
+     * collapsing the list would hide a violation instead of showing it.
+     *
+     * Counts come from two withCount aggregates in one query. status_summary
+     * cannot supply open_station_count: 'mixed' names no number at all.
+     *
+     * @return array{data: list<array{business_unit_id: string, business_unit_name: string, open_periods: list<array<string, mixed>>}>, meta: array{today: string}}
+     */
+    public function openPeriodsByBusinessUnit(?string $businessUnitId = null): array
+    {
+        $today = Carbon::today()->toDateString();
+
+        $businessUnits = BusinessUnit::query()->orderBy('name');
+
+        if ($businessUnitId !== null && $businessUnitId !== '') {
+            $businessUnits->where('id', $businessUnitId);
+        }
+
+        $businessUnits = $businessUnits->get(['id', 'name']);
+
+        if ($businessUnits->isEmpty()) {
+            // The ONLY empty-data case. "No mill has an open period today" is a
+            // list of dim cards, not an empty list — the FE tells them apart by
+            // the number of entries it receives.
+            return ['data' => [], 'meta' => ['today' => $today]];
+        }
+
+        $periods = Period::query()
+            ->whereIn('business_unit_id', $businessUnits->pluck('id')->all())
+            // Table-qualified on purpose: `status` is not a `periods` column
+            // any more and PeriodQueryBuilder refuses the unqualified spelling.
+            ->whereHas('stations', fn ($stations) => $stations->where('period_stations.status', PeriodStatus::Open->value))
+            // whereDate, NOT a bare where — the same spelling findOverlapping()
+            // uses, and for the same reason. `start_date` is a real `date`
+            // column on PostgreSQL, so a bare comparison works there; in the
+            // SQLite the suite runs on, the value comes back as
+            // '2026-10-01 00:00:00' and `<= '2026-10-01'` is lexicographically
+            // FALSE, silently dropping a period on its own first day. Proven by
+            // test case 55 (inclusive bounds), which failed on exactly that day
+            // and passed on the two others.
+            ->whereDate('start_date', '<=', $today)
+            ->whereDate('end_date', '>=', $today)
+            ->withCount([
+                'stations',
+                'stations as open_station_count' => fn ($stations) => $stations->where('period_stations.status', PeriodStatus::Open->value),
+            ])
+            ->orderByDesc('start_date')
+            ->orderBy('name')
+            ->get()
+            ->groupBy('business_unit_id');
+
+        $data = $businessUnits
+            ->map(fn (BusinessUnit $businessUnit) => [
+                'business_unit_id' => $businessUnit->id,
+                'business_unit_name' => $businessUnit->name,
+                'open_periods' => $periods->get($businessUnit->id, collect())
+                    ->map(fn (Period $period) => [
+                        'id' => $period->id,
+                        'name' => $period->name,
+                        'start_date' => optional($period->start_date)->toDateString(),
+                        'end_date' => optional($period->end_date)->toDateString(),
+                        'open_station_count' => (int) $period->open_station_count,
+                        'station_count' => (int) $period->stations_count,
+                    ])
+                    ->values()
+                    ->all(),
+            ])
+            ->values()
+            ->all();
+
+        return ['data' => $data, 'meta' => ['today' => $today]];
+    }
+
+    /**
      * businessUnitOptions() — feeds the Business Unit-select on the
      * create/edit form. Mirrors ProductionLineService::
      * businessUnitOptions() exactly; returns [] (not an exception) when no

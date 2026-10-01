@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 7,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-27"
+    "updated_at": "2026-10-01"
   },
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
@@ -143,6 +143,64 @@
           },
           "performance": {
             "cache": "No cache",
+            "rate_limit": ""
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/periods/open-summary",
+          "description": "Data panel 'Periode Terbuka Hari Ini per Mill': satu entri untuk SETIAP Business Unit, memuat periode mill itu yang punya minimal satu baris period_stations berstatus 'open' DAN rentang tanggalnya memuat tanggal hari ini. Kedua syarat wajib — gabungan itulah yang membuat jawabannya bermakna persis 'mill ini hari ini bisa menerima input', yakni predikat yang sama dengan kunci periode (usecase-141). TIDAK terpaginasi; mill tanpa periode yang memenuhi syarat tetap muncul dengan open_periods kosong, karena ketiadaannya adalah muatan informasi panel ini",
+          "auth_required": true,
+          "request": {
+            "path_params": [],
+            "query_params": [
+              {
+                "name": "business_unit_id",
+                "type": "string",
+                "required": false,
+                "default": null,
+                "description": "Mempersempit hasil ke satu mill. Sengaja TIDAK ada query param status maupun tanggal: endpoint ini terikat pada status 'open' dan pada tanggal hari ini menurut server. Membuat tanggalnya dapat dikirim klien akan membuat panel bisa menjawab hari yang bukan hari ini, dan artinya berhenti tunggal"
+              }
+            ],
+            "body_schema": {}
+          },
+          "response": {
+            "success_schema": {
+              "data": [
+                {
+                  "business_unit_id": "uuid",
+                  "business_unit_name": "string",
+                  "open_periods": [
+                    {
+                      "id": "uuid",
+                      "name": "string",
+                      "start_date": "date",
+                      "end_date": "date",
+                      "open_station_count": "integer — jumlah baris period_stations berstatus open, selalu >= 1 pada entri yang muncul di sini",
+                      "station_count": "integer — seluruh baris period_stations periode itu"
+                    }
+                  ]
+                }
+              ],
+              "meta": {
+                "today": "date — tanggal acuan server yang dipakai menyaring. Dikembalikan supaya FE dapat menampilkannya sebagai keterangan panel dan test tidak perlu menebaknya"
+              }
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada sesi"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "actor bukan admin"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache — isinya berubah setiap kali sebuah stasiun dibuka atau ditutup di screen-142",
             "rate_limit": ""
           }
         },
@@ -357,7 +415,13 @@
         "17. FE: kolom Stasiun menampilkan 'N stasiun' ditambah '· M tertutup' hanya bila closed_station_count > 0, dan 'Belum ada stasiun' bila station_count 0. Kolom Status Stasiun menampilkan badge status_summary dengan kosakata draft→Draft, open→Terbuka, closed→Tertutup, mixed→Campuran, empty→Tanpa Stasiun",
         "18. FE: Edit dan Hapus dirender DISABLED + atribut title ketika is_immutable — bukan disembunyikan; periode dengan 1 dari 19 stasiun tertutup harus menunjukkan bahwa pengubahan terkunci, bukan membuat Admin mencari tombol yang hilang",
         "19. FE: form tambah/ubah TIDAK punya pemilih Jenis Stasiun. Setelah Business Unit dipilih, pratinjau memanggil activeStationTypesForMill() (public justru untuk ini) dan menampilkan daftar jenis stasiun yang akan tercakup; pada mode ubah, jenis yang belum punya baris ditandai badge 'Baru' dan teksnya menjelaskan bahwa menyimpan hanya MENAMBAHKAN. JANGAN menurunkan ulang daftar itu di view",
-        "20. Penegakan kunci periode tertutup bukan bagian layar ini dan belum ada di mana pun (usecase-141)"
+        "20. Penegakan kunci periode tertutup bukan bagian layar ini dan belum ada di mana pun (usecase-141)",
+        "21. open-summary (PeriodService::openPeriodsByBusinessUnit(?string $businessUnitId = null)): ITERASI DIMULAI DARI DAFTAR BUSINESS UNIT, BUKAN DARI DAFTAR PERIODE. Ambil seluruh Business Unit terurut name (dipersempit ke satu bila business_unit_id dikirim), lalu untuk tiap mill ambil periodenya yang memenuhi DUA syarat sekaligus: (a) whereHas('stations', period_stations.status = 'open') — EXISTS, kolom dikualifikasi persis seperti filter status pada list; dan (b) start_date <= :today AND end_date >= :today, inklusif di kedua ujung. Arah iterasi inilah yang membuat mill tanpa periode terbuka mustahil tersaring keluar: ia tetap muncul dengan open_periods: []. Mengawalinya dari daftar periode lalu mengelompokkan per mill akan menghilangkan tepat mill yang paling perlu terlihat",
+        "22. open-summary: open_station_count dari withCount(['stations as open_station_count' => fn ($q) => $q->where('period_stations.status', 'open')]) dan station_count dari withCount('stations') — dua agregat dalam satu kueri, bukan dua kueri per periode. Angka ini TIDAK BOLEH diturunkan dari status_summary: 'mixed' tidak menyebut berapa yang terbuka, dan 'open' hanya berarti seluruhnya terbuka. toRow() juga tidak menyediakannya — ia memberi station_count dan closed_station_count saja — jadi menghitungnya di sini memang penambahan, bukan duplikasi",
+        "23. open-summary: tanggal acuan diambil SEKALI di awal pemanggilan (Carbon::today()) lalu dipakai untuk seluruh kueri, bukan dipanggil ulang per mill — satu respons tidak boleh menyaring dua mill dengan dua tanggal yang berbeda bila pemanggilannya melewati tengah malam. Nilainya dikembalikan sebagai meta.today dan ditampilkan FE sebagai keterangan panel. Karena lewat Carbon, test membekukannya dengan Carbon::setTestNow() sehingga seluruh perilaku tanggal dapat diuji tanpa bergantung pada hari eksekusi suite. PERBANDINGANNYA WAJIB whereDate(), BUKAN where() biasa — ejaan yang sama dengan findOverlapping(), dan alasannya sama: start_date adalah kolom `date` sungguhan di PostgreSQL sehingga perbandingan biasa lolos di sana, tetapi di SQLite yang dipakai seluruh suite nilainya terbaca '2026-10-01 00:00:00' sehingga `<= '2026-10-01'` bernilai FALSE secara leksikografis dan periode hilang tepat pada hari pertamanya. Terbukti saat implementasi: unit test batas inklusif gagal HANYA pada tanggal mulai dan lolos pada dua tanggal lain",
+        "24. open-summary: syarat tanggal adalah bagian dari WHERE, bukan flag pada hasil. Akibat langsungnya yang harus disadari: periode yang masih punya stasiun open namun end_date < today (lupa ditutup) ATAU start_date > today (belum dimulai) TIDAK ikut terambil. Tidak ada kunci is_running maupun is_past_range pada respons — setiap periode yang terkirim sudah pasti berjalan hari ini, sehingga penanda semacam itu hanya akan selalu bernilai sama dan mengundang pembacanya menyangka ada keadaan lain yang ikut terkirim",
+        "25. open-summary TIDAK terpaginasi dan tidak menerima page maupun per_page: batas jumlah barisnya adalah jumlah Business Unit, bukan jumlah periode. open_periods tiap mill NORMALNYA berisi nol atau satu elemen, karena aturan tumpang tindih membuat satu tanggal hanya dimiliki satu periode per mill. Aturan itu ditegakkan di lapisan aplikasi dan BUKAN oleh constraint database, jadi kodenya tetap mengembalikan list dan tetap mengirim semua yang cocok — jangan memaksanya menjadi objek tunggal atau mengambil first(), sebab itu akan menyembunyikan pelanggaran tumpang tindih alih-alih menampakkannya. Urutannya start_date desc lalu name",
+        "26. FE: panel dirender SESUDAH baris filter dan SEBELUM tabel. Ia meneruskan filterBusinessUnitId ke open-summary namun TIDAK meneruskan filterStatus — panel sudah terikat status 'open', dan mengikuti filterStatus hanya akan mengosongkannya tanpa alasan yang bisa dijelaskan kepada Admin. Panel bersifat baca saja: satu-satunya elemen interaktifnya adalah tautan nama periode ke /master-data/periods/{id}. Card mill ber-open_periods kosong dirender redup beserta kalimat akibatnya ('tidak ada stasiun di mill ini yang dapat menerima input hari ini'), bukan hanya kalimat keadaannya. meta.today dirender sebagai keterangan panel supaya pembaca tahu 'hari ini' adalah tanggal server"
       ],
       "data_operations": [
         {
@@ -383,7 +447,7 @@
         {
           "entity_id": "period-station",
           "operation": "SELECT",
-          "description": "eager-load baris stasiun tiap periode untuk stations[], ringkasan, EXISTS filter status, dan guard immutable"
+          "description": "eager-load baris stasiun tiap periode untuk stations[], ringkasan, EXISTS filter status, guard immutable, serta DUA agregat withCount pada open-summary (station_count dan open_station_count)"
         },
         {
           "entity_id": "period-station",
@@ -403,7 +467,7 @@
         {
           "entity_id": "business-unit",
           "operation": "SELECT",
-          "description": "dropdown Business Unit dan resolve business_unit_name"
+          "description": "dropdown Business Unit, resolve business_unit_name, dan — pada open-summary — daftar mill yang menjadi TITIK AWAL iterasi panel sehingga mill tanpa periode terbuka tidak mungkin tersaring keluar"
         },
         {
           "entity_id": "user",
@@ -412,6 +476,30 @@
         }
       ],
       "edge_case_handling": [
+        {
+          "condition": "Tidak ada satu pun mill yang punya periode terbuka hari ini",
+          "handling": "open-summary mengembalikan satu entri per Business Unit dengan open_periods kosong — BUKAN data kosong. FE merender seluruh card dalam keadaan redup berketerangan 'Tidak ada periode terbuka hari ini'; panel tidak disembunyikan"
+        },
+        {
+          "condition": "Belum ada Business Unit sama sekali (panel)",
+          "handling": "open-summary mengembalikan data kosong — satu-satunya keadaan yang menghasilkan data kosong. FE menampilkan keterangan 'belum ada mill terdaftar' alih-alih deretan card"
+        },
+        {
+          "condition": "Periode punya stasiun open tetapi end_date sudah terlampaui (lupa ditutup)",
+          "handling": "TIDAK ikut terambil — syarat tanggal adalah bagian dari WHERE. Keputusan user 2026-10-01, diambil dengan akibatnya diperlihatkan lebih dulu. Keadaan ini tetap terbaca pada tabel daftar lewat badge Status Stasiun, dan ketiadaan penanda khusus untuknya tercatat sebagai open_question pertama pada business spec"
+        },
+        {
+          "condition": "Periode punya stasiun open tetapi start_date masih di masa depan",
+          "handling": "TIDAK ikut terambil. Ia akan muncul sendiri pada hari pertama rentangnya tanpa tindakan Admin apa pun, karena penyaringnya tanggal server pada saat permintaan — bukan sesuatu yang disimpan"
+        },
+        {
+          "condition": "Dua periode pada satu mill sama-sama memenuhi kedua syarat",
+          "handling": "Keduanya dikembalikan di open_periods mill itu, terurut start_date desc. Ini hanya mungkin bila aturan tumpang tindih pernah dilanggar lewat jalur di luar aplikasi (tidak ada constraint database yang menegakkannya), dan justru karena itu tidak boleh dipangkas dengan first(): panel adalah tempat pelanggaran itu terlihat"
+        },
+        {
+          "condition": "business_unit_id pada open-summary menunjuk mill yang tidak ada",
+          "handling": "data kosong, 200 — bukan 404. Endpoint ini meringkas, bukan mengambil satu sumber daya, dan filter yang tidak cocok apa pun adalah hasil kosong yang sah"
+        },
         {
           "condition": "Rentang tanggal beririsan pada mill yang sama",
           "handling": "422 PERIOD_OVERLAP dengan pesan yang menyebut nama dan rentang periode yang bentrok; form tetap terbuka dengan isian Admin"
@@ -446,11 +534,11 @@
         },
         {
           "condition": "Periode sudah dihapus Admin lain di antara form dibuka dan disimpan",
-          "handling": "404 NOT_FOUND; FE menampilkan pesan ramah dan memuat ulang daftar tanpa periode itu"
+          "handling": "404 NOT_FOUND; FE menampilkan pesan ramah dan memuat ulang daftar — beserta panel card — tanpa periode itu"
         },
         {
           "condition": "Mill belum punya stasiun aktif",
-          "handling": "Periode tersimpan dengan stations[] kosong, station_count 0, status_summary 'empty', is_immutable false; pratinjau form sudah menjelaskan bahwa tidak akan ada yang bisa ditutup, dan daftar menampilkan 'Belum ada stasiun' / badge 'Tanpa Stasiun'"
+          "handling": "Periode tersimpan dengan stations[] kosong, station_count 0, status_summary 'empty', is_immutable false; pratinjau form sudah menjelaskan bahwa tidak akan ada yang bisa ditutup, dan daftar menampilkan 'Belum ada stasiun' / badge 'Tanpa Stasiun'. Periode seperti ini tidak mungkin masuk open_periods karena tidak punya baris stasiun untuk dibuka"
         },
         {
           "condition": "Mill mendapat jenis stasiun baru setelah periodenya dibuat",
@@ -458,7 +546,7 @@
         },
         {
           "condition": "Memindahkan periode ke mill lain",
-          "handling": "Baris stasiun mill baru ditambahkan; baris warisan mill lama tetap tinggal karena baris tidak pernah dihapus — hasilnya gabungan kedua inventaris, konsekuensi yang diterima"
+          "handling": "Baris stasiun mill baru ditambahkan; baris warisan mill lama tetap tinggal karena baris tidak pernah dihapus — hasilnya gabungan kedua inventaris, konsekuensi yang diterima. Bila periode itu punya stasiun terbuka, ia ikut berpindah card pada panel karena pengelompokan panel memakai business_unit_id periode"
         },
         {
           "condition": "Periode dengan status stasiun campuran",
@@ -470,7 +558,7 @@
         },
         {
           "condition": "Actor bukan Admin atau tanpa sesi",
-          "handling": "403 FORBIDDEN / 401 UNAUTHENTICATED pada seluruh endpoint periode"
+          "handling": "403 FORBIDDEN / 401 UNAUTHENTICATED pada seluruh endpoint periode, termasuk open-summary"
         }
       ],
       "business_rules_applied": [
@@ -484,7 +572,13 @@
         "Periode tidak dapat diubah maupun dihapus bila ADA SATU saja baris stasiun berstatus closed (aturan 'ANY')",
         "Edit dan Hapus dirender disabled + title dari is_immutable, tidak disembunyikan",
         "Filter status bermakna 'punya minimal satu stasiun berstatus itu'",
-        "Aksi tutup/buka/buka kembali stasiun tidak ada di layar ini — semuanya di screen-142"
+        "Aksi tutup/buka/buka kembali stasiun tidak ada di layar ini — semuanya di screen-142",
+        "Panel memakai syarat GABUNGAN: periode punya minimal satu baris period_stations berstatus open DAN tanggal hari ini berada di dalam rentangnya (inklusif)",
+        "Panel mengembalikan SATU entri per Business Unit, termasuk mill yang tidak punya periode terbuka hari ini",
+        "Syarat tanggal adalah bagian dari WHERE, bukan flag hasil — periode terbuka yang rentangnya sudah lewat atau belum dimulai tidak ikut terambil",
+        "open_station_count dihitung dari period_stations, tidak pernah diturunkan dari status_summary",
+        "Panel mengikuti filter business_unit_id dan TIDAK mengikuti filter status",
+        "Panel tidak terpaginasi, tidak memangkas open_periods dengan first(), dan tidak menyediakan aksi apa pun selain tautan ke screen-142"
       ],
       "unit_test_cases": [
         {
@@ -726,6 +820,86 @@
           "description": "delete: menghapus periode beserta baris stasiunnya ketika tidak ada yang closed",
           "given": "periode dengan baris draft dan open",
           "expect": "periode terhapus dan seluruh baris period_stations-nya ikut terhapus lewat cascade"
+        },
+        {
+          "description": "open-summary: menolak 401 ketika request tidak terautentikasi dan 403 ketika actor bukan Admin",
+          "given": "request tanpa sesi, lalu actor Supervisor / Mill Management / Operator",
+          "expect": "401 UNAUTHENTICATED lalu 403 FORBIDDEN — tidak ada data mill yang bocor"
+        },
+        {
+          "description": "open-summary: mengembalikan SATU entri untuk SETIAP Business Unit, termasuk yang tidak punya periode terbuka hari ini",
+          "given": "3 mill, hanya 1 di antaranya punya periode yang sekaligus berjalan hari ini dan punya baris open",
+          "expect": "data berisi 3 entri terurut nama mill; dua di antaranya ber-open_periods []"
+        },
+        {
+          "description": "open-summary: mengabaikan periode yang seluruh barisnya draft WALAU rentangnya memuat hari ini",
+          "given": "Carbon dibekukan di tengah rentang; mill punya satu periode ber-18 baris draft, nol open",
+          "expect": "entri mill itu ber-open_periods [] — rentang yang sedang berjalan saja tidak cukup"
+        },
+        {
+          "description": "open-summary: mengabaikan periode yang seluruh barisnya closed walau rentangnya memuat hari ini",
+          "given": "Carbon dibekukan di tengah rentang; mill punya satu periode yang seluruh barisnya closed",
+          "expect": "entri mill itu ber-open_periods []"
+        },
+        {
+          "description": "open-summary: memasukkan periode yang punya MINIMAL SATU baris open DAN berjalan hari ini",
+          "given": "Carbon dibekukan di tengah rentang; periode dengan 1 baris open, 1 draft, dan 1 closed",
+          "expect": "periode itu ada di open_periods dengan open_station_count 1 dan station_count 3"
+        },
+        {
+          "description": "open-summary: open_station_count dan station_count dihitung dari period_stations, bukan dari status_summary",
+          "given": "periode berjalan hari ini dengan 5 dari 18 baris berstatus open (status_summary 'mixed')",
+          "expect": "open_station_count 5 dan station_count 18 — angkanya tetap benar walau status_summary tidak menyebut jumlah apa pun"
+        },
+        {
+          "description": "open-summary: batas rentang INKLUSIF di kedua ujung",
+          "given": "periode berbaris open; Carbon dibekukan tepat pada start_date, lalu tepat pada end_date",
+          "expect": "periode itu masuk panel pada KEDUA tanggal batas, bukan hanya di antaranya"
+        },
+        {
+          "description": "open-summary: MENGECUALIKAN periode berbaris open yang end_date-nya sudah terlampaui",
+          "given": "Carbon dibekukan satu hari setelah end_date pada periode yang masih punya baris open (lupa ditutup)",
+          "expect": "entri mill itu ber-open_periods [] — pengecualian ini disengaja (keputusan user 2026-10-01), bukan bug"
+        },
+        {
+          "description": "open-summary: MENGECUALIKAN periode berbaris open yang start_date-nya masih di masa depan",
+          "given": "Carbon dibekukan satu hari sebelum start_date pada periode yang punya baris open",
+          "expect": "entri mill itu ber-open_periods []; membekukan Carbon satu hari kemudian membuatnya muncul tanpa perubahan data apa pun"
+        },
+        {
+          "description": "open-summary: dua periode yang sama-sama memenuhi syarat pada satu mill keduanya dikembalikan",
+          "given": "data dibuat langsung di database sehingga melanggar aturan tumpang tindih — dua periode berbaris open yang keduanya memuat hari ini",
+          "expect": "open_periods memuat KEDUANYA terurut start_date desc; tidak ada first() yang memangkasnya, sebab panel adalah tempat pelanggaran itu terlihat"
+        },
+        {
+          "description": "open-summary: menyempit ke satu mill ketika business_unit_id dikirim",
+          "given": "3 mill, business_unit_id salah satunya",
+          "expect": "data berisi tepat satu entri, yaitu mill itu, dan isinya sama dengan yang muncul pada permintaan tanpa filter"
+        },
+        {
+          "description": "open-summary: mengembalikan 200 dengan data kosong ketika business_unit_id menunjuk mill yang tidak ada",
+          "given": "business_unit_id acak",
+          "expect": "200 dengan data [] — bukan 404"
+        },
+        {
+          "description": "open-summary: mengembalikan data kosong ketika belum ada satu pun Business Unit",
+          "given": "tabel business_units kosong",
+          "expect": "data [] tanpa exception — satu-satunya keadaan yang membuat data kosong"
+        },
+        {
+          "description": "open-summary: mengembalikan meta.today berisi tanggal acuan yang dipakai menyaring",
+          "given": "Carbon dibekukan pada tanggal tertentu",
+          "expect": "meta.today sama dengan tanggal yang dibekukan, sehingga FE dapat menampilkannya dan test tidak perlu menebak acuannya"
+        },
+        {
+          "description": "open-summary: tidak terpaginasi",
+          "given": "GET /api/periods/open-summary dengan page=2 dan per_page=1",
+          "expect": "respons tetap memuat SELURUH Business Unit dan tidak punya meta.page maupun meta.per_page"
+        },
+        {
+          "description": "open-summary: respons TIDAK memuat kunci is_running maupun is_past_range",
+          "given": "periode yang memenuhi syarat",
+          "expect": "kunci-kunci itu absen — setiap periode yang terkirim sudah pasti berjalan hari ini, sehingga penanda semacam itu hanya akan selalu bernilai sama dan mengundang pembacanya menyangka ada keadaan lain yang ikut terkirim"
         }
       ]
     }
@@ -809,7 +983,14 @@
     "Tabel: periods (induk) + period_stations (anak, cascadeOnDelete). Model Period dan PeriodStation, service PeriodService (CRUD layar ini) dan PeriodClosureService (aksi per stasiun, dipakai screen-142 — JANGAN membuat service baru dan jangan memindahkan methodnya), controller Api/PeriodController, Livewire MasterData/KelolaPeriodePelaporan",
     "PENEGAKAN KUNCI PERIODE TIDAK ADA DI LAYAR INI DAN BELUM ADA DI MANA PUN. Sudah diverifikasi 2026-09-27: nol referensi Period di seluruh app/Services/*RecordService.php. Penolakan 422 PERIOD_CLOSED pada create/update/verifikasi record stasiun dan pada jalur sync mobile dilacak oleh usecase-141--kunci-input-periode-tertutup",
     "JANGAN menyentuh 4 test ber-skip di tests/Feature/Api/KelolaPeriodePelaporanTest.php — itu kontrak period-lock usecase-141 yang mengikat pekerjaan berikutnya",
-    "Berkas 4-implement layar ini belum mengikuti perubahan spec ini; implementasinya adalah langkah terpisah sesudah spec"
+    "Berkas 4-implement layar ini belum mengikuti perubahan spec ini; implementasinya adalah langkah terpisah sesudah spec",
+    "PANEL 2026-10-01 — ROUTE /api/periods/open-summary HARUS DIDAFTARKAN SEBELUM /api/periods/{id}, persis perangkap yang sama dengan business-units/options: tanpa itu Laravel akan mencocokkan 'open-summary' sebagai {id} dan menjawab 404 NOT_FOUND. Letakkan ia bersebelahan dengan business-units/options di routes/api.php supaya urutannya terlihat sekali pandang",
+    "PANEL — TANGGAL HARUS LEWAT CARBON, BUKAN date('Y-m-d') ATAU now() BERULANG. Ambil Carbon::today() sekali di awal openPeriodsByBusinessUnit() dan teruskan nilainya ke kueri seluruh mill; test membekukannya dengan Carbon::setTestNow() lalu membersihkannya. Di sini tanggal bukan hiasan: ia bagian dari WHERE, jadi memanggil date('Y-m-d') langsung membuat SELURUH perilaku panel (mana yang masuk, mana yang dikecualikan, batas inklusif) tidak bisa diuji sama sekali dan membuat suite berperilaku berbeda tergantung hari dijalankannya",
+    "PANEL — data-testid memakai prefix open-today-, BUKAN open-period-, dan itu disengaja: screen-142 sudah memakai open-period-dialog / confirm-open-period / cancel-open-period untuk AKSI membuka periode, sementara panel ini menamai KEADAAN 'terbuka hari ini'. Dua arti di satu prefix adalah jebakan untuk pembaca berikutnya, dan prefix open-today- sekaligus menyebut syarat yang membedakan panel ini. Daftarnya: open-today-panel (wadah), open-today-date (keterangan tanggal acuan dari meta.today), open-today-card-{business_unit_id}, open-today-item-{period_id}, open-today-count-{period_id}, open-today-link-{period_id}, open-today-empty-{business_unit_id} (keterangan 'Tidak ada periode terbuka hari ini'), open-today-no-mills (keterangan belum ada mill terdaftar). TIDAK ADA testid untuk penanda 'Sedang berjalan'/'Rentang sudah lewat' — penanda itu dihapus dari rancangan karena setiap periode yang sampai ke panel sudah pasti berjalan hari ini. Asersi yang memastikan open-period-dialog TIDAK ada di layar daftar (tests/Feature/Livewire/KelolaPeriodePelaporanTest.php) harus tetap berbunyi open-period-dialog — ia menguji ketiadaan testid milik screen-142, bukan testid panel",
+    "PANEL — JANGAN MEMAKAI KELAS md-card. Kelas itu didefinisikan di resources/views/dashboard/partials/report-styles.blade.php yang HANYA di-include oleh layar laporan dashboard; layout master-data tidak memuatnya sama sekali, sehingga markup ber-md-card akan dirender tanpa gaya apa pun. Panel memakai prefix kc- milik layar ini dan SELURUH kelas barunya didefinisikan di blok <style> blade ini sendiri: kc-open-panel, kc-open-panel__head, kc-open-panel__title, kc-open-panel__today, kc-open-panel__none, kc-open-panel__grid, kc-open-card, kc-open-card--empty, kc-open-card__mill, kc-open-card__list, kc-open-card__empty, kc-open-item, kc-open-item__name, kc-open-item__range, kc-open-item__count. Token warna/radius diwarisi dari .kc-page (--kc-brand, --kc-text-muted, --kc-border, --kc-radius-input), bukan nilai keras baru",
+    "PANEL — KELAS TANPA DEFINISI ADALAH CACAT, bukan sekadar kurang rapi. Pelajaran kelola-machinery 2026-10-01: lima kelas accordion dipakai markup tanpa satu pun definisi CSS, lolos 25 test Livewire dan 19 spec browser (karena test menguji PERILAKU sementara yang rusak adalah TAMPILAN), dan baru ketahuan saat dilihat mata. Sebelum menyatakan panel selesai: kumpulkan seluruh kelas dari atribut class=\"...\" pada markup panel lalu cocokkan satu per satu dengan selektor di <style> berkas ini",
+    "PANEL — JANGAN MENULIS HTML ENTITY DI DALAM {{ }}. `{{ }}` meng-escape keluarannya, jadi '&#9662;' akan tampil sebagai teks mentah '&#9662;'. Bila penanda butuh simbol, tulis karakter UTF-8 langsung (nol permukaan unescaped, lebih aman daripada {!! !!}). Konsekuensi untuk test: assertSee() JUGA meng-escape argumennya sehingga ia akan MELOLOSKAN bentuk rusaknya — asersikan pada $component->html() dan tolak bentuk rusaknya secara eksplisit",
+    "PANEL — LETAKNYA SESUDAH <div class=\"kc-filter\"> DAN SEBELUM <div class=\"kc-table-wrap\">, di luar <table> sepenuhnya. Panel yang bereaksi pada filter Business Unit harus berada sesudah kontrol itu; menaruhnya di atas filter membuat Admin menyangka panel tidak dipengaruhi filter apa pun"
   ],
   "test_scenarios": [
     {
@@ -861,6 +1042,130 @@
         "route": "/master-data/periods",
         "action": "klik 'Tambah Periode', isi form, simpan",
         "assert": "flash sukses terlihat dan baris periode baru tampil dengan ringkasan jumlah stasiun serta badge 'Draft'"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Periode Pelaporan — panel menampilkan periode terbuka hari ini tiap mill",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods/open-summary"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods/open-summary?business_unit_id={{bu_a}}"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaPeriodePelaporan",
+        "action": "bekukan tanggal di dalam rentang periode, seed mill dengan periode ber-5 dari 18 baris stasiun berstatus open, lalu render layar",
+        "assert": "panel di atas tabel memuat card mill itu berisi nama periode sebagai tautan ke /master-data/periods/{id}, rentang tanggalnya, dan teks '5 dari 18 stasiun terbuka', beserta keterangan tanggal acuan dari meta.today; angkanya diperiksa pada HTML mentah, bukan lewat assertSee yang meng-escape"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "buka halaman pada database yang punya satu periode dengan stasiun terbuka",
+        "assert": "card mill terlihat SEBELUM tabel daftar, memuat hitungan stasiun terbuka dan keterangan tanggal acuan; mengklik nama periode di card berpindah ke /master-data/periods/{id}"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Periode Pelaporan — mill tanpa periode terbuka hari ini tetap punya card",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods/open-summary"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaPeriodePelaporan",
+        "action": "bekukan tanggal; seed tiga mill — satu punya periode berjalan hari ini dengan baris open, satu periode berjalan hari ini yang seluruh barisnya draft, satu periode berjalan hari ini yang seluruh barisnya closed; render layar",
+        "assert": "panel memuat TIGA card terurut nama mill; dua card tanpa periode terbuka hari ini tampil redup berketerangan 'Tidak ada periode terbuka hari ini' beserta akibatnya bahwa tidak ada stasiun di mill itu yang dapat menerima input hari ini — keduanya TIDAK disembunyikan dan TIDAK dipindahkan ke urutan terakhir"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "buka halaman pada database yang tidak punya satu pun periode berjalan hari ini dengan baris stasiun berstatus open",
+        "assert": "panel tetap terlihat dengan seluruh card dalam keadaan redup; tidak ada card yang hilang dan panel tidak menghilang"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Periode Pelaporan — periode terbuka di luar rentang hari ini tidak masuk panel",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods/open-summary"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaPeriodePelaporan",
+        "action": "bekukan tanggal satu hari SETELAH end_date sebuah periode yang masih punya baris stasiun open, render layar; ulangi dengan tanggal dibekukan satu hari SEBELUM start_date periode lain yang juga punya baris open; lalu ulangi tepat pada start_date dan tepat pada end_date",
+        "assert": "pada dua kasus pertama periode TIDAK muncul di panel dan card mill-nya berketerangan 'Tidak ada periode terbuka hari ini'; pada dua kasus batas periode MUNCUL, membuktikan batas rentang inklusif di kedua ujung"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "buka halaman pada database yang punya periode dengan stasiun terbuka namun end_date-nya di masa lalu",
+        "assert": "periode itu TIDAK terlihat di panel dan card mill-nya redup, sementara barisnya tetap terlihat di tabel daftar dengan badge Status Stasiun 'Terbuka' atau 'Campuran'"
+      }
+    },
+    {
+      "scenario_ref": "Kelola Periode Pelaporan — panel mengikuti filter Business Unit namun tidak filter Status Stasiun",
+      "usecase_id": "usecase-128--kelola-periode-pelaporan",
+      "api_test": [
+        {
+          "step": 1,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods/open-summary"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods/open-summary?business_unit_id={{bu_a}}"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
+        }
+      ],
+      "component_test": {
+        "component": "KelolaPeriodePelaporan",
+        "action": "bekukan tanggal; seed dua mill yang masing-masing punya satu periode berjalan hari ini dengan stasiun open; set filterBusinessUnitId ke salah satunya, lalu set filterStatus ke 'closed'",
+        "assert": "setelah filter Business Unit, panel memuat tepat satu card; setelah filterStatus diganti, isi panel TIDAK berubah sama sekali — card yang sama dengan hitungan yang sama"
+      },
+      "browser_test": {
+        "route": "/master-data/periods",
+        "action": "pilih satu Business Unit pada filter, lalu ganti filter Status Stasiun ke 'Tertutup'",
+        "assert": "jumlah card menyusut mengikuti filter Business Unit, sementara mengganti filter Status Stasiun tidak mengosongkan maupun mengubah panel"
       }
     },
     {
@@ -1074,17 +1379,27 @@
           "request_example": {},
           "expected_status": 200,
           "expected_error_code": null
+        },
+        {
+          "step": 2,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods/open-summary"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
         }
       ],
       "component_test": {
         "component": "KelolaPeriodePelaporan",
-        "action": "buka form Tambah Periode saat belum ada Business Unit sama sekali",
-        "assert": "dropdown Business Unit kosong, penyimpanan tidak mungkin, petunjuk membuat Business Unit terlebih dahulu tampil"
+        "action": "render layar lalu buka form Tambah Periode saat belum ada Business Unit sama sekali",
+        "assert": "panel tidak menampilkan satu pun card melainkan keterangan belum ada mill terdaftar; dropdown Business Unit kosong, penyimpanan tidak mungkin, petunjuk membuat Business Unit terlebih dahulu tampil"
       },
       "browser_test": {
         "route": "/master-data/periods",
-        "action": "buka form Tambah Periode pada database tanpa Business Unit",
-        "assert": "dropdown kosong dan petunjuk membuat Business Unit terlihat"
+        "action": "buka halaman lalu form Tambah Periode pada database tanpa Business Unit",
+        "assert": "keterangan 'belum ada mill terdaftar' terlihat di tempat panel, dropdown kosong, dan petunjuk membuat Business Unit terlihat"
       }
     },
     {
@@ -1171,7 +1486,7 @@
       "component_test": {
         "component": "KelolaPeriodePelaporan",
         "action": "buka form edit lalu hapus periodenya langsung di database, kemudian simpan",
-        "assert": "pesan error ramah, daftar dimuat ulang tanpa periode itu, tidak ada exception tak tertangani"
+        "assert": "pesan error ramah, daftar dan panel card dimuat ulang tanpa periode itu, tidak ada exception tak tertangani"
       },
       "browser_test": {
         "route": "/master-data/periods",
@@ -1242,17 +1557,27 @@
           "request_example": {},
           "expected_status": 401,
           "expected_error_code": "UNAUTHENTICATED"
+        },
+        {
+          "step": 6,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods/open-summary"
+          },
+          "request_example": {},
+          "expected_status": 403,
+          "expected_error_code": "FORBIDDEN"
         }
       ],
       "component_test": {
         "component": "KelolaPeriodePelaporan",
         "action": "mount sebagai Operator / Supervisor / Mill Management",
-        "assert": "akses ditolak dan tidak ada data periode yang dirender"
+        "assert": "akses ditolak dan tidak ada data periode yang dirender, termasuk panel Periode Terbuka Hari Ini per Mill"
       },
       "browser_test": {
         "route": "/master-data/periods",
         "action": "login sebagai Supervisor lalu buka /master-data/periods",
-        "assert": "akses ditolak; daftar periode tidak terlihat"
+        "assert": "akses ditolak; daftar periode dan panel card tidak terlihat"
       }
     },
     {
@@ -1298,17 +1623,27 @@
           },
           "expected_status": 200,
           "expected_error_code": null
+        },
+        {
+          "step": 4,
+          "endpoint": {
+            "method": "GET",
+            "path": "/api/periods/open-summary?business_unit_id={{bu_without_stations}}"
+          },
+          "request_example": {},
+          "expected_status": 200,
+          "expected_error_code": null
         }
       ],
       "component_test": {
         "component": "KelolaPeriodePelaporan",
-        "action": "pilih mill tanpa stasiun aktif pada form, simpan, lalu lihat barisnya di daftar",
-        "assert": "pratinjau menjelaskan periode belum akan punya baris stasiun sehingga tidak ada yang bisa ditutup; baris di daftar menampilkan 'Belum ada stasiun' dan badge 'Tanpa Stasiun'; Edit dan Hapus tetap aktif"
+        "action": "pilih mill tanpa stasiun aktif pada form, simpan, lalu lihat barisnya di daftar dan card-nya di panel",
+        "assert": "pratinjau menjelaskan periode belum akan punya baris stasiun sehingga tidak ada yang bisa ditutup; baris di daftar menampilkan 'Belum ada stasiun' dan badge 'Tanpa Stasiun'; card mill itu tetap berketerangan 'Tidak ada periode terbuka hari ini'; Edit dan Hapus tetap aktif"
       },
       "browser_test": {
         "route": "/master-data/periods",
         "action": "buat periode untuk mill tanpa stasiun aktif",
-        "assert": "teks 'Belum ada stasiun' dan badge 'Tanpa Stasiun' terlihat pada barisnya"
+        "assert": "teks 'Belum ada stasiun' dan badge 'Tanpa Stasiun' terlihat pada barisnya, dan card mill itu tetap redup"
       }
     },
     {

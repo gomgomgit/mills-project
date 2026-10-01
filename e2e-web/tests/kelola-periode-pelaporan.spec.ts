@@ -188,6 +188,27 @@ function emptyMillRange(): { start: string; end: string } {
   return { start: iso(startDay), end: iso(startDay + 4) }
 }
 
+/**
+ * Jendela yang MEMUAT HARI INI — satu-satunya jendela di spec ini yang bukan
+ * tanggal jauh di masa depan, dan satu-satunya yang bisa menguji panel
+ * "Periode Terbuka Hari Ini per Mill": panel menyaring dengan tanggal server,
+ * jadi periode tahun 3195 milik skenario lain tidak akan pernah muncul di sana.
+ *
+ * MENGAPA INI TIDAK MENABRAK LAJUR SIAPA PUN. Seluruh spec yang menanam periode
+ * memakai epoch tahun 2100 (spec ini) atau 2600 (lima spec laporan, lihat
+ * tests/support/period-lanes.ts), digeser maju ribuan tahun oleh RUN_OFFSET
+ * masing-masing. Tidak satu pun dari mereka pernah menyentuh tahun berjalan,
+ * sehingga satu periode di sekitar hari ini bebas tabrakan terhadap semuanya —
+ * tanpa perlu lajur baru. Jendelanya dibuat sependek mungkin (kemarin sampai
+ * besok) supaya tetap begitu.
+ */
+function todayRange(): { start: string; end: string } {
+  const iso = (dayShift: number) =>
+    new Date(Date.now() + dayShift * 86400000).toISOString().slice(0, 10)
+
+  return { start: iso(-1), end: iso(1) }
+}
+
 function uniqueName(label: string): string {
   return `Periode ${label} ${RUN_OFFSET}`
 }
@@ -778,6 +799,157 @@ test.describe('Kelola Periode Pelaporan', () => {
     // Clean up in-test: this period lives in ANOTHER mill, and leaving it
     // there would sit in the date space the laporan specs use for their own
     // period in that same mill.
+    await deletePeriod(page, name)
+  })
+})
+
+/**
+ * Panel "Periode Terbuka Hari Ini per Mill" (business spec v5, 2026-10-01).
+ *
+ * Satu-satunya blok di berkas ini yang memakai tanggal NYATA (lihat
+ * todayRange()), karena panel menyaring dengan tanggal server: periode tahun
+ * 3195 milik skenario lain mustahil muncul di sana.
+ *
+ * "Terbuka hari ini" adalah DUA syarat — stasiun berstatus Terbuka DAN hari ini
+ * di dalam rentang. Keadaan Terbuka hanya bisa dibuat dari layar detail
+ * (screen-142), tempat aksinya berada sejak 2026-09-27, jadi penyiapannya lewat
+ * openStationThenBackToList() dan bukan dengan melemahkan asersinya.
+ *
+ * testid panel memakai prefix `open-today-`, BUKAN `open-period-`: yang kedua
+ * sudah dipakai screen-142 untuk AKSI membuka periode, dan dua arti pada satu
+ * prefix adalah jebakan bagi pembaca berikutnya.
+ */
+test.describe('Kelola Periode Pelaporan — panel Periode Terbuka Hari Ini per Mill', () => {
+  test.afterAll(async ({ browser }) => {
+    const page = await browser.newPage()
+
+    try {
+      await login(page, ADMIN, PASSWORD)
+      const deleted = await deletePeriodsByPrefix(page, ['Periode '])
+      console.log(`[cleanup] panel periode terbuka: %d periode dihapus`, deleted)
+    } catch (error) {
+      // Kegagalan membersihkan bukan kegagalan produk.
+      console.warn('[cleanup] panel periode terbuka gagal:', error)
+    } finally {
+      await page.close()
+    }
+  })
+
+  test.beforeEach(async ({ page }) => {
+    await login(page, ADMIN, PASSWORD)
+    await gotoPeriods(page)
+  })
+
+  test('panel berada di atas tabel dan menampilkan satu card untuk setiap mill', async ({ page }) => {
+    const panel = page.locator('[data-testid="open-today-panel"]')
+    await expect(panel).toBeVisible()
+
+    // LETAKNYA, bukan hanya keberadaannya: panel harus mendahului tabel di DOM.
+    // Diukur dengan compareDocumentPosition supaya asersinya tentang urutan
+    // sebenarnya, bukan tentang dua elemen yang kebetulan sama-sama ada.
+    const panelBeforeTable = await page.evaluate(() => {
+      const panelEl = document.querySelector('[data-testid="open-today-panel"]')
+      const tableEl = document.querySelector('[data-testid="period-table"]')
+
+      if (panelEl === null || tableEl === null) {
+        return null
+      }
+
+      // 4 = DOCUMENT_POSITION_FOLLOWING: tabel berada SESUDAH panel.
+      return (panelEl.compareDocumentPosition(tableEl) & 4) !== 0
+    })
+
+    expect(panelBeforeTable).toBe(true)
+
+    // Tanggal acuan dinyatakan, karena ia yang memutuskan apa yang muncul dan
+    // apa yang tidak.
+    await expect(page.locator('[data-testid="open-today-date"]')).toContainText('Acuan tanggal server')
+
+    // Setiap mill punya card — termasuk yang tidak punya periode terbuka.
+    await expect(page.locator('[data-testid^="open-today-card-"]')).not.toHaveCount(0)
+  })
+
+  test('periode dengan stasiun terbuka yang berjalan hari ini tampil di card beserta hitungannya', async ({ page }) => {
+    const name = uniqueName('Panel Hari Ini')
+    const { start, end } = todayRange()
+
+    await createPeriod(page, { name, start, end })
+    const { periodId } = await openStationThenBackToList(page, name)
+
+    const item = page.locator(`[data-testid="open-today-item-${periodId}"]`)
+    await expect(item).toBeVisible()
+
+    // Hitungannya berupa "X dari N", diturunkan dari period_stations — bukan
+    // dari badge ringkasan, yang untuk periode campuran hanya berbunyi
+    // "Campuran" tanpa menyebut angka apa pun.
+    await expect(page.locator(`[data-testid="open-today-count-${periodId}"]`)).toContainText('dari')
+    await expect(page.locator(`[data-testid="open-today-count-${periodId}"]`)).toContainText('stasiun terbuka')
+
+    // Nama periode di card adalah jalan masuk ke layar detail, sama seperti di
+    // baris tabel.
+    await page.locator(`[data-testid="open-today-link-${periodId}"]`).click()
+    await expect(page).toHaveURL(new RegExp(`${periodDetailPath(periodId)}$`))
+
+    await gotoPeriods(page)
+    await deletePeriod(page, name)
+  })
+
+  test('periode yang berjalan hari ini namun seluruh stasiunnya Draft tidak masuk panel', async ({ page }) => {
+    const name = uniqueName('Panel Draft')
+    const { start, end } = todayRange()
+
+    // Dibuat dan DIBIARKAN Draft — rentang yang sedang berjalan saja tidak
+    // cukup, karena tidak ada stasiun yang bisa menerima input di dalamnya.
+    await createPeriod(page, { name, start, end })
+    const periodId = await periodIdFor(page, name)
+
+    await expect(page.locator(`[data-testid="open-today-item-${periodId}"]`)).toHaveCount(0)
+
+    // Card mill-nya TETAP ada, diredupkan, dan menyatakan akibatnya — bukan
+    // dihilangkan.
+    const emptyCard = page.locator('[data-testid^="open-today-empty-"]').first()
+    await expect(emptyCard).toBeVisible()
+    await expect(emptyCard).toContainText('Tidak ada periode terbuka hari ini')
+    await expect(emptyCard).toContainText('dapat menerima input')
+
+    // Dan baris tabelnya tetap ada: periode ini tidak hilang dari layar, hanya
+    // dari panel.
+    await expect(periodRow(page, name)).toBeVisible()
+
+    await deletePeriod(page, name)
+  })
+
+  test('filter Business Unit mempersempit panel, filter Status Stasiun tidak mengubahnya', async ({ page }) => {
+    const name = uniqueName('Panel Filter')
+    const { start, end } = todayRange()
+
+    await createPeriod(page, { name, start, end })
+    const { periodId } = await openStationThenBackToList(page, name)
+
+    await expect(page.locator(`[data-testid="open-today-item-${periodId}"]`)).toBeVisible()
+    const cardsBefore = await page.locator('[data-testid^="open-today-card-"]').count()
+
+    // Filter Business Unit berarti "saya sedang melihat mill ini", jadi panel
+    // ikut menyempit.
+    await selectSearchable(page, 'filterBusinessUnitId', BUSINESS_UNIT)
+    await expect(page.locator(`[data-testid="open-today-item-${periodId}"]`)).toBeVisible()
+    await expect(page.locator('[data-testid^="open-today-card-"]')).toHaveCount(1)
+    expect(cardsBefore).toBeGreaterThan(1)
+
+    // Filter Status Stasiun TIDAK: isi panel sudah terikat status Terbuka, jadi
+    // mengikutinya hanya akan mengosongkan panel tanpa alasan yang bisa
+    // dijelaskan kepada Admin. 'Tertutup' adalah nilai yang paling mungkin
+    // mengosongkannya, jadi itu yang diuji.
+    await selectSearchable(page, 'filterStatus', 'Tertutup')
+    await expect(page.locator(`[data-testid="open-today-item-${periodId}"]`)).toBeVisible()
+    await expect(page.locator('[data-testid^="open-today-card-"]')).toHaveCount(1)
+
+    // Membersihkan filter dengan navigasi ulang, BUKAN dengan memilih
+    // 'Semua Status' — itu placeholder, bukan opsi di listbox. Kedua filter
+    // terikat #[Url], jadi membuka path tanpa query mengembalikan keduanya ke
+    // kosong; tanpa itu baris periodenya tersaring keluar dan deletePeriod()
+    // tidak akan menemukannya.
+    await gotoPeriods(page)
     await deletePeriod(page, name)
   })
 })

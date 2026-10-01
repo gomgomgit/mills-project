@@ -50,6 +50,7 @@ use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\SterilizerRecord;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -66,6 +67,12 @@ beforeEach(function () {
         ->forBusinessUnit($this->businessUnitA)
         ->sterilizer()
         ->create();
+});
+
+afterEach(function () {
+    // Panel tests freeze the date; a mid-test failure must not leak a fake
+    // clock into the next test and make its failure untrustworthy.
+    Carbon::setTestNow();
 });
 
 /**
@@ -733,4 +740,181 @@ it('periode dengan stasiun Terbuka tetap dapat diubah dan dihapus seperti Draft'
 
     expect(Period::find($period->id))->toBeNull();
     expect(PeriodStation::find($stationId))->toBeNull();
+});
+
+/*
+|--------------------------------------------------------------------------
+| Panel "Periode Terbuka Hari Ini per Mill" (business spec v5)
+|--------------------------------------------------------------------------
+|
+| These assert on RAW HTML via ->html(), never through assertSee(): assertSee()
+| escapes its argument by default, so it matches the BROKEN output as happily as
+| the correct one. That is exactly how the kelola-machinery accordion marker
+| shipped as a literal "&#9662;" through 25 passing component tests on
+| 2026-10-01. Rendering is checked here, not just behaviour.
+*/
+
+/**
+ * A period on the given mill with explicit per-type station statuses, so
+ * "1 of 3 open" is expressible. Parent made with ->noStations() so only the
+ * rows asked for exist.
+ *
+ * @param  array<string, string>  $statusByType
+ */
+function livewirePanelPeriod(BusinessUnit $businessUnit, string $name, string $start, string $end, array $statusByType): Period
+{
+    $period = Period::factory()
+        ->forBusinessUnit($businessUnit)
+        ->named($name)
+        ->range($start, $end)
+        ->noStations()
+        ->create();
+
+    foreach ($statusByType as $type => $status) {
+        PeriodStation::factory()->forPeriod($period)->stationType($type)->create(['status' => $status]);
+    }
+
+    return $period;
+}
+
+it('panel: merender card mill beserta hitungan stasiun terbuka dan keterangan tanggal acuan', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    $period = livewirePanelPeriod($this->businessUnitA, 'Periode Oktober', '2026-10-01', '2026-10-31', [
+        'sterilizer' => 'open',
+        'boiler-room' => 'draft',
+        'clarification' => 'closed',
+    ]);
+
+    $html = Livewire::actingAs($this->admin)->test(KelolaPeriodePelaporan::class)->html();
+
+    expect($html)->toContain('data-testid="open-today-panel"');
+    expect($html)->toContain('Periode Terbuka Hari Ini per Mill');
+    expect($html)->toContain('data-testid="open-today-card-'.$this->businessUnitA->id.'"');
+    expect($html)->toContain('data-testid="open-today-item-'.$period->id.'"');
+    expect($html)->toContain('1 dari 3 stasiun terbuka');
+
+    // The period name is the way in to screen-142, from the card as well as
+    // from the table row.
+    expect($html)->toContain(route('master-data.periods.detail', $period->id));
+    expect($html)->toContain('data-testid="open-today-link-'.$period->id.'"');
+
+    // The reference date is the SERVER's date, stated on the panel, because it
+    // decides what appears and what does not.
+    expect($html)->toContain('data-testid="open-today-date"');
+    expect($html)->toContain('15/10/2026');
+});
+
+it('panel: mill tanpa periode terbuka hari ini tetap dapat card, diredupkan, tidak disembunyikan', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    // Alpha: running today but every station still Draft. Beta: nothing at all.
+    livewirePanelPeriod($this->businessUnitA, 'Okt Draft', '2026-10-01', '2026-10-31', [
+        'sterilizer' => 'draft',
+        'boiler-room' => 'draft',
+    ]);
+
+    $html = Livewire::actingAs($this->admin)->test(KelolaPeriodePelaporan::class)->html();
+
+    foreach ([$this->businessUnitA, $this->businessUnitB] as $businessUnit) {
+        expect($html)->toContain('data-testid="open-today-card-'.$businessUnit->id.'"');
+        expect($html)->toContain('data-testid="open-today-empty-'.$businessUnit->id.'"');
+    }
+
+    // The dim state is a real CSS class, not an inline style or a missing card.
+    expect($html)->toContain('kc-open-card--empty');
+
+    // And the card says the CONSEQUENCE, not just the state — the whole reason
+    // an empty card is worth rendering.
+    expect($html)->toContain('tidak ada stasiun di mill ini yang dapat menerima input');
+});
+
+it('panel: periode terbuka di luar rentang hari ini tidak masuk panel namun tetap ada di tabel', function () {
+    // Still holding an open station, but its range ended yesterday — a
+    // forgotten close. Excluded from the panel by the user's decision of
+    // 2026-10-01; open_question #1 on the business spec records the blind spot.
+    $period = livewirePanelPeriod($this->businessUnitA, 'Okt Lupa Ditutup', '2026-10-01', '2026-10-31', [
+        'sterilizer' => 'open',
+    ]);
+
+    Carbon::setTestNow(Carbon::create(2026, 11, 1));
+
+    $html = Livewire::actingAs($this->admin)->test(KelolaPeriodePelaporan::class)->html();
+
+    expect($html)->not->toContain('data-testid="open-today-item-'.$period->id.'"');
+    expect($html)->toContain('data-testid="open-today-empty-'.$this->businessUnitA->id.'"');
+
+    // It has not vanished from the screen — the table below still lists it, with
+    // its station-status badge, which is where this state remains readable.
+    expect($html)->toContain('data-testid="period-row-'.$period->id.'"');
+    expect($html)->toContain('Okt Lupa Ditutup');
+});
+
+it('panel: mengikuti filter Business Unit namun tidak terpengaruh filter Status Stasiun', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    Station::factory()->forBusinessUnit($this->businessUnitB)->sterilizer()->create();
+    livewirePanelPeriod($this->businessUnitA, 'Okt A', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+    livewirePanelPeriod($this->businessUnitB, 'Okt B', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+
+    $component = Livewire::actingAs($this->admin)->test(KelolaPeriodePelaporan::class);
+
+    $both = $component->html();
+    expect($both)->toContain('data-testid="open-today-card-'.$this->businessUnitA->id.'"');
+    expect($both)->toContain('data-testid="open-today-card-'.$this->businessUnitB->id.'"');
+
+    // Business Unit filter narrows the panel: it means "I am looking at this
+    // mill now", so the panel follows.
+    $filtered = $component->set('filterBusinessUnitId', $this->businessUnitA->id)->html();
+    expect($filtered)->toContain('data-testid="open-today-card-'.$this->businessUnitA->id.'"');
+    expect($filtered)->not->toContain('data-testid="open-today-card-'.$this->businessUnitB->id.'"');
+
+    // Status filter does NOT: the panel is already pinned to 'open', so
+    // honouring it could only blank the panel for a reason no Admin could be
+    // told. Asserted against the closed value, the one that would empty it.
+    $afterStatus = $component->set('filterStatus', 'closed')->html();
+    expect($afterStatus)->toContain('data-testid="open-today-card-'.$this->businessUnitA->id.'"');
+    expect($afterStatus)->toContain('Okt A');
+});
+
+it('panel: setiap kelas kc-open-* yang dipakai markup punya definisi CSS di blade ini', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+    livewirePanelPeriod($this->businessUnitA, 'Okt A', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+
+    $html = Livewire::actingAs($this->admin)->test(KelolaPeriodePelaporan::class)->html();
+
+    // A class used by markup with no rule behind it is a DEFECT, not untidiness:
+    // the browser falls back to its own styles (ul indented 40px, h4 with a fat
+    // margin) and every behaviour test still passes. This is the check that
+    // catches it, and it runs against the RENDERED page, not the source.
+    preg_match_all('/class="([^"]*)"/', $html, $matches);
+    $used = collect($matches[1])
+        ->flatMap(fn (string $value) => preg_split('/\s+/', trim($value)))
+        ->filter(fn (string $class) => str_starts_with($class, 'kc-open-'))
+        ->unique()
+        ->values();
+
+    expect($used)->not->toBeEmpty();
+
+    $style = file_get_contents(resource_path('views/livewire/master-data/kelola-periode-pelaporan.blade.php'));
+
+    foreach ($used as $class) {
+        expect($style)->toContain('.'.$class.' {');
+    }
+});
+
+it('panel: tidak ada HTML entity mentah pada keluaran panel', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+    livewirePanelPeriod($this->businessUnitA, 'Okt A', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+
+    $html = Livewire::actingAs($this->admin)->test(KelolaPeriodePelaporan::class)->html();
+
+    // An entity written inside {{ }} renders as literal text, because {{ }}
+    // escapes. The en dash between the two dates is the one character here that
+    // would be tempting to write as &ndash; — assert the real character and
+    // reject the escaped form outright so it cannot come back quietly.
+    expect($html)->toContain('01/10/2026');
+    expect($html)->toContain('31/10/2026');
+    expect($html)->not->toContain('&amp;ndash;');
+    expect($html)->not->toContain('&amp;#8211;');
 });

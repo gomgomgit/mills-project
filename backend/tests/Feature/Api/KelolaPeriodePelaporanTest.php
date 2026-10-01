@@ -71,6 +71,7 @@ use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\SterilizerRecord;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 
 beforeEach(function () {
     $this->businessUnitA = BusinessUnit::factory()->create(['name' => 'Mill Alpha']);
@@ -86,6 +87,12 @@ beforeEach(function () {
         ->forBusinessUnit($this->businessUnitA)
         ->sterilizer()
         ->create();
+});
+
+afterEach(function () {
+    // open-summary tests freeze the date; without this a mid-test failure leaks
+    // a fake clock into the next test.
+    Carbon::setTestNow();
 });
 
 /**
@@ -689,3 +696,145 @@ it('menerima data yang tanggal kejadiannya di luar rentang periode tertutup', fu
         'details' => [['close_door_time' => '09:00', 'open_door_time' => '10:10']],
     ])->assertStatus(201);
 })->skip('Penegakan PERIOD_CLOSED ada di service 18 stasiun — di luar screen-128, lihat usecase-141--kunci-input-periode-tertutup');
+
+/*
+|--------------------------------------------------------------------------
+| GET /api/periods/open-summary — panel "Periode Terbuka Hari Ini per Mill"
+|--------------------------------------------------------------------------
+|
+| Covers unit_test_case 49 (401/403 — route middleware, never a service check,
+| so it can only be asserted here), 60, 62 and 63 of the screen tech-spec v6,
+| plus the route-ordering trap. The service-logic cases live in
+| tests/Unit/Services/PeriodServiceTest.php.
+*/
+
+/**
+ * A period on the given mill with explicit per-type station statuses.
+ *
+ * @param  array<string, string>  $statusByType
+ */
+function apiPanelPeriod(BusinessUnit $businessUnit, string $name, string $start, string $end, array $statusByType): Period
+{
+    $period = Period::factory()
+        ->forBusinessUnit($businessUnit)
+        ->named($name)
+        ->range($start, $end)
+        ->noStations()
+        ->create();
+
+    foreach ($statusByType as $type => $status) {
+        PeriodStation::factory()->forPeriod($period)->stationType($type)->create(['status' => $status]);
+    }
+
+    return $period;
+}
+
+// Case 49
+it('open-summary: menolak 401 tanpa sesi dan 403 untuk actor bukan Admin', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+    apiPanelPeriod($this->businessUnitA, 'Okt A', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+
+    $this->getJson('/api/periods/open-summary')->assertStatus(401);
+
+    foreach ([$this->supervisor, $this->millManagement, $this->operator] as $actor) {
+        $response = $this->actingAs($actor, 'web')->getJson('/api/periods/open-summary');
+
+        $response->assertStatus(403);
+        // No mill name leaks through the refusal.
+        expect($response->getContent())->not->toContain('Mill Alpha');
+    }
+});
+
+// Route-ordering trap: the literal segment must not be matched as {id}.
+it('open-summary: rutenya cocok sebagai segmen literal, bukan sebagai /periods/{id}', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    $response = $this->actingAs($this->admin, 'web')->getJson('/api/periods/open-summary');
+
+    // Registered after /periods/{id} this would answer 404 NOT_FOUND, because
+    // "open-summary" is a perfectly good-looking {id}. Same trap as
+    // /periods/business-units/options.
+    $response->assertStatus(200);
+    $response->assertJsonStructure(['data', 'meta' => ['today']]);
+    expect($response->json('meta.today'))->toBe('2026-10-15');
+});
+
+it('open-summary: mengembalikan satu entri per mill dengan bentuk yang disepakati', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    $period = apiPanelPeriod($this->businessUnitA, 'Okt A', '2026-10-01', '2026-10-31', [
+        'sterilizer' => 'open',
+        'boiler-room' => 'draft',
+    ]);
+
+    $response = $this->actingAs($this->admin, 'web')->getJson('/api/periods/open-summary');
+
+    $response->assertStatus(200);
+    $alpha = collect($response->json('data'))->firstWhere('business_unit_id', $this->businessUnitA->id);
+    $beta = collect($response->json('data'))->firstWhere('business_unit_id', $this->businessUnitB->id);
+
+    expect($alpha['business_unit_name'])->toBe('Mill Alpha');
+    expect($alpha['open_periods'])->toHaveCount(1);
+    expect($alpha['open_periods'][0]['id'])->toBe($period->id);
+    expect($alpha['open_periods'][0]['open_station_count'])->toBe(1);
+    expect($alpha['open_periods'][0]['station_count'])->toBe(2);
+
+    // Mill Beta has nothing open and is STILL present — the panel never hides a
+    // mill, because "cannot take input today" is what it is there to say.
+    expect($beta['open_periods'])->toBe([]);
+});
+
+// Case 63
+it('open-summary: entri periode tidak memuat is_running maupun is_past_range', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+    apiPanelPeriod($this->businessUnitA, 'Okt A', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+
+    $entry = collect($this->actingAs($this->admin, 'web')->getJson('/api/periods/open-summary')->json('data'))
+        ->firstWhere('business_unit_id', $this->businessUnitA->id)['open_periods'][0];
+
+    expect(array_keys($entry))->toBe([
+        'id', 'name', 'start_date', 'end_date', 'open_station_count', 'station_count',
+    ]);
+});
+
+// Case 60
+it('open-summary: business_unit_id yang tidak ada menjawab 200 dengan data kosong, bukan 404', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    $response = $this->actingAs($this->admin, 'web')
+        ->getJson('/api/periods/open-summary?business_unit_id=11111111-2222-3333-4444-555555555555');
+
+    // It summarises; it does not fetch one resource. An unmatched filter is a
+    // legitimate empty result.
+    $response->assertStatus(200);
+    expect($response->json('data'))->toBe([]);
+});
+
+// Case 62
+it('open-summary: tidak terpaginasi — page dan per_page diabaikan dan meta tidak memuatnya', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+    apiPanelPeriod($this->businessUnitA, 'Okt A', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+
+    $full = $this->actingAs($this->admin, 'web')->getJson('/api/periods/open-summary');
+    $paged = $this->actingAs($this->admin, 'web')->getJson('/api/periods/open-summary?page=2&per_page=1');
+
+    // Row count is bounded by the number of mills, not of periods; a panel that
+    // paged would say different things about the same mill per page.
+    expect($paged->json('data'))->toBe($full->json('data'));
+    expect(array_keys($paged->json('meta')))->toBe(['today']);
+});
+
+it('open-summary: menyaring ke satu mill lewat business_unit_id', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+    Station::factory()->forBusinessUnit($this->businessUnitB)->sterilizer()->create();
+    apiPanelPeriod($this->businessUnitA, 'Okt A', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+    apiPanelPeriod($this->businessUnitB, 'Okt B', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+
+    $response = $this->actingAs($this->admin, 'web')
+        ->getJson('/api/periods/open-summary?business_unit_id='.$this->businessUnitA->id);
+
+    $response->assertStatus(200);
+    expect($response->json('data'))->toHaveCount(1);
+    expect($response->json('data.0.business_unit_id'))->toBe($this->businessUnitA->id);
+    expect($response->getContent())->not->toContain('Okt B');
+});

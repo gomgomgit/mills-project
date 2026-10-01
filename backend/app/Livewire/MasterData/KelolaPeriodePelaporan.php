@@ -59,6 +59,17 @@ use Livewire\Component;
  *     of a period's stations; deciding anything per-station happens on the
  *     detail screen, where the `period_stations` id lives.
  *
+ * PANEL "PERIODE TERBUKA HARI INI PER MILL" (2026-10-01). Above the table,
+ * one card per Business Unit, answering one question at a glance: can this
+ * mill take any input today. "Open today" is TWO conditions — a station row
+ * with status 'open' AND today inside the period's range — which is the same
+ * predicate the period lock uses (usecase-141), so the panel and the lock can
+ * never disagree. The whole computation lives in
+ * PeriodService::openPeriodsByBusinessUnit(); this component only forwards the
+ * Business Unit filter and hands the result to the view. A mill with nothing
+ * open still gets a card, dimmed — that is the panel's most useful state, not
+ * an empty slot to hide.
+ *
  * EDIT / HAPUS ARE DRIVEN BY `is_immutable`, NOT RE-DERIVED. That flag is
  * exactly the condition PeriodService::update()/delete() refuse on (409
  * PERIOD_CLOSED_IMMUTABLE — at least one station closed). The buttons are
@@ -397,12 +408,25 @@ class KelolaPeriodePelaporan extends Component
             ->mapWithKeys(fn (array $option) => [$option['code'] => $option['name']])
             ->all();
 
+        // Panel "Periode Terbuka Hari Ini per Mill" (business spec v5). It
+        // follows filterBusinessUnitId but NOT filterStatus: the panel is
+        // already pinned to status 'open', so honouring a status filter could
+        // only blank it for a reason no Admin could be told. It is also NOT
+        // paginated — it summarises every period of every mill, and a panel
+        // that paged would say different things about the same mill depending
+        // on which page of the table happened to be open.
+        $openSummary = $service->openPeriodsByBusinessUnit(
+            $this->filterBusinessUnitId !== '' ? $this->filterBusinessUnitId : null
+        );
+
         return view('livewire.master-data.kelola-periode-pelaporan', [
             'periods' => $result['data'],
             'meta' => $result['meta'],
             'businessUnitOptions' => $service->businessUnitOptions(),
             'stationTypeLabels' => $stationTypeLabels,
             'stationPreview' => $this->stationPreview($service, $stationTypeLabels),
+            'openSummary' => $openSummary['data'],
+            'panelToday' => $openSummary['meta']['today'],
         ]);
     }
 }

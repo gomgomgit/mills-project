@@ -920,6 +920,13 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
 Route::middleware(['auth:web', 'role:admin'])->group(function () {
     Route::get('/periods', [PeriodController::class, 'index']);
     Route::get('/periods/business-units/options', [PeriodController::class, 'businessUnitOptions']);
+    // screen-128 panel "Periode Terbuka Hari Ini per Mill" (2026-10-01). A
+    // LITERAL segment, so it lives up here with business-units/options and for
+    // the identical reason: registered after /periods/{id} it would answer 404,
+    // because "open-summary" is a perfectly good-looking {id}. Keeping the two
+    // literals adjacent makes the ordering requirement visible at a glance
+    // instead of depending on someone reading the comment above.
+    Route::get('/periods/open-summary', [PeriodController::class, 'openSummary']);
     // screen-142--detail-periode-pelaporan / usecase-145. Registered AFTER
     // the literal /periods/business-units/options above for the reason
     // spelled out there — as a GET with a {id} segment, this is the route

@@ -101,6 +101,39 @@ class PeriodController extends Controller
     }
 
     /**
+     * openSummary() — GET /api/periods/open-summary (screen-128 /
+     * usecase-128). Data for the "Periode Terbuka Hari Ini per Mill" panel:
+     * one entry per Business Unit, each with the periods of that mill that
+     * both hold an open station row AND contain today.
+     *
+     * NOT PAGINATED, and that is deliberate — the row count is bounded by the
+     * number of Business Units, not by the number of periods, and a panel that
+     * paged would say different things about the same mill depending on which
+     * page was open. There is no `status` and no date parameter either: the
+     * endpoint is pinned to status 'open' and to the server's today. Letting a
+     * client send the date would let the panel answer a day that is not today,
+     * and its single meaning — "this mill can take input right now" — would be
+     * gone.
+     *
+     * `business_unit_id` that matches nothing answers 200 with empty data, not
+     * 404: this endpoint summarises, it does not fetch one resource.
+     *
+     * ROUTE ORDER MATTERS, same trap as businessUnitOptions(): it must be
+     * registered BEFORE /api/periods/{id} or Laravel matches the literal
+     * "open-summary" segment against {id} and answers 404.
+     */
+    public function openSummary(Request $request): JsonResponse
+    {
+        $businessUnitId = $request->query('business_unit_id');
+
+        return response()->json(
+            $this->service->openPeriodsByBusinessUnit(
+                $businessUnitId !== null ? (string) $businessUnitId : null
+            )
+        );
+    }
+
+    /**
      * show() — GET /api/periods/{id} (screen-142--detail-periode-pelaporan /
      * usecase-145). ONE period with its station rows, 404 NOT_FOUND when it
      * is gone.

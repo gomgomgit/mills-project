@@ -37,3 +37,56 @@ masuk ke artefak ini (v2 masih menggambarkan periode ber-`station_type` dan bers
 - edge case "berakhir tepat pada tanggal mulai periode lain tetap beririsan" ← dari `findOverlapping()` (batas inklusif); turunan agen
 - `usecase_ids` tinggal `usecase-128` ← konsekuensi langsung dari repoint usecase-index v16 yang sudah dikerjakan sebelum langkah ini
 - Kalimat eksplisit "penegakan kunci belum diimplementasikan (usecase-141)" ← diverifikasi ulang 2026-09-27: nol referensi `Period` di seluruh `app/Services/*RecordService.php`. Dicatat sebagai business rule agar artefak tidak mengklaim kunci yang tidak ada
+
+## v4 — 2026-10-01
+
+Permintaan user: *"sebelum list data gw mau ada card dari periode2 yang aktif dari setiap mill."*
+Itu satu kalimat; sebuah panel butuh belasan keputusan. Yang di bawah ini **seluruhnya rumusan
+agent** — user hanya menyatakan: ada card, isinya periode aktif, satu per mill, letaknya sebelum
+daftar.
+
+- **Definisi "aktif" = punya minimal satu baris stasiun berstatus Terbuka (`period_stations.status = 'open'`)** ← KEPUTUSAN AGENT, dan ini yang paling perlu divalidasi user. Sejak migrasi `2026_09_26_000040` kolom `periods.status` DIBUANG (`Period::$status` melempar `LogicException`), jadi sebuah periode tidak punya status tunggal: ia bisa memuat Draft, Terbuka, dan Tertutup sekaligus. "Aktif" karena itu harus didefinisikan, tidak bisa dibaca. Dua tafsiran yang masuk akal:
+    - **(a) berbasis status** — dipilih. Alasannya: (1) ia memakai kosakata yang sudah ada di layar ini ("Terbuka"), bukan konsep status ketiga; (2) `open` adalah status yang MENGIZINKAN input menurut aturan kunci periode yang user ratifikasi hari ini (usecase-141); (3) karena itu "mill tanpa periode terbuka" = "tidak ada stasiun di mill itu yang bisa menerima input" — satu-satunya kalimat pada panel ini yang punya akibat operasional langsung.
+    - **(b) berbasis tanggal** (hari ini di dalam `start_date..end_date`) — ditolak. Ia akan menyebut sebuah periode "aktif" padahal seluruh 18 stasiunnya masih Draft, yaitu justru keadaan di mana tidak ada apa pun yang bisa diinput. Itu kebalikan dari yang ingin diketahui pembacanya.
+  Tanggal tidak dibuang, hanya diturunkan pangkat: ia jadi **penanda** (`Sedang berjalan` / `Rentang sudah lewat`), bukan penyaring — lihat butir berikut.
+
+- **Penanda `Rentang sudah lewat`** ← turunan agent, tidak diminta. Kombinasi "stasiun masih Terbuka + `end_date` sudah terlampaui" adalah keadaan yang perlu ditindaklanjuti (periode lupa ditutup). Bila tanggal dipakai sebagai penyaring, justru keadaan inilah yang akan hilang dari panel. Karena itu panel tidak menyaring dengan tanggal sama sekali.
+
+- **Mill tanpa periode terbuka tetap mendapat card (redup), tidak disembunyikan** ← turunan agent. Dengan 6 Business Unit di basis data dev, menampilkan semuanya masih terbaca, dan card kosong adalah muatan informasi yang paling berguna di panel ini, bukan ruang terbuang. Bila jumlah mill tumbuh jauh di atas itu, keputusan ini perlu ditinjau ulang.
+
+- **Panel mengikuti filter Business Unit, TIDAK mengikuti filter Status Stasiun** ← turunan agent. Filter BU berarti "sekarang saya sedang melihat mill ini", jadi panel ikut. Filter Status Stasiun berpotongan dengan isi panel yang sudah dibatasi Terbuka, sehingga mengikutinya hanya akan membuat panel kosong tanpa alasan yang bisa dijelaskan. Letaknya karena itu DI BAWAH baris filter, bukan di atasnya: panel yang bereaksi pada sebuah kontrol harus berada sesudah kontrol itu.
+
+- **Panel merangkum seluruh periode mill, bukan halaman daftar yang sedang tampil** ← turunan agent. Panel yang ikut berpindah halaman akan menyatakan hal yang berbeda-beda tentang mill yang sama tergantung halaman, dan itu tidak bisa dibenarkan.
+
+- **Hitungan `X dari N stasiun terbuka`** ← turunan agent. `toRow()` sekarang mengembalikan `station_count`, `closed_station_count`, dan `status_summary` — jumlah stasiun TERBUKA tidak ada di antaranya, dan `status_summary` bernilai `'mixed'` tidak menyebutkan angka apa pun. Jadi angka ini menuntut hitungan baru di service; secara sengaja tidak diturunkan dari badge ringkasan.
+
+- **Satu card boleh memuat lebih dari satu periode terbuka** ← turunan agent. Rentang periode tidak boleh tumpang tindih per mill, tetapi dua periode yang tidak tumpang tindih bisa sama-sama punya stasiun terbuka (September lupa ditutup saat Oktober dibuka). Memangkasnya jadi satu akan menyembunyikan tepat anomali itu.
+
+- **Panel bersifat baca saja; satu-satunya aksi adalah tautan ke screen-142** ← turunan agent, konsisten dengan keputusan 2026-09-27 yang memindahkan seluruh aksi per stasiun ke layar detail.
+
+- Keadaan basis data dev saat keputusan ini diambil, supaya pembaca berikutnya tidak menyangka panelnya rusak: **2 periode, 20 baris stasiun (19 Draft, 1 Tertutup), NOL Terbuka.** Jadi hari ini panel akan menampilkan 6 card redup seluruhnya. Itu benar, bukan cacat — aksi "Buka Periode" (draft → open) baru ditambahkan pada screen-142 hari ini juga, sehingga belum ada periode yang pernah dibuka lewat alur normal.
+
+## v5 — 2026-10-01
+
+**KOREKSI ATAS PILIHAN AGENT DI v4, ATAS KEPUTUSAN USER.** v4 mendefinisikan "aktif" murni
+berbasis status (≥1 stasiun Terbuka), dengan tanggal turun pangkat jadi penanda. Di checkpoint
+pra-implementasi user memilih **syarat GABUNGAN**: Terbuka **DAN** tanggal hari ini berada di
+dalam rentang periode. Pilihan itu diambil setelah akibatnya diperlihatkan lebih dulu pada
+pratinjau opsi — termasuk bahwa periode yang lupa ditutup akan hilang dari panel.
+
+Yang berubah karena keputusan itu, semuanya konsekuensi logis dan bukan tambahan baru:
+
+- **Tanggal pindah dari penanda ke WHERE.** Dua penanda `Sedang berjalan` / `Rentang sudah lewat` DIHAPUS seluruhnya, begitu pula field `is_running` dan `is_past_range` pada respons API. Alasannya bukan penyederhanaan melainkan kejujuran: setelah tanggal jadi syarat, setiap periode yang sampai ke panel pasti berjalan hari ini, sehingga penanda semacam itu akan selalu bernilai sama dan justru mengundang pembacanya menyangka ada keadaan lain yang ikut terkirim.
+
+- **Panel kini bermakna satu kalimat, bukan dua.** Syarat gabungan ini PERSIS predikat kunci periode (usecase-141): stasiun terbuka dan tanggal di dalam rentang. Jadi yang terbaca di panel adalah yang benar-benar berlaku bagi operator. Pada rancangan v4 panel dan kunci periode bisa berbeda jawaban untuk mill yang sama — itu hilang.
+
+- **Satu card normalnya memuat NOL atau SATU periode** ← turunan agent, konsekuensi yang baru muncul setelah syarat tanggal masuk: aturan tumpang tindih membuat satu tanggal hanya dimiliki satu periode per mill. Tetapi aturan itu ditegakkan di lapisan APLIKASI dan bukan oleh constraint database (diverifikasi: `findOverlapping()` adalah guard service, tidak ada exclusion constraint di migrasi), jadi kodenya tetap mengembalikan list dan tetap mengirim semua yang cocok. `first()` dilarang eksplisit di spec: memangkasnya akan menyembunyikan pelanggaran tumpang tindih alih-alih menampakkannya.
+
+- **`meta.today` naik dari alat bantu test menjadi bagian tampilan** ← turunan agent. Ketika tanggal hanya penanda, pembaca tidak perlu tahu acuannya. Setelah tanggal menentukan apa yang MUNCUL dan apa yang HILANG, pembaca berhak tahu "hari ini" yang dimaksud adalah tanggal server, bukan tanggal perangkatnya. Ditampilkan sebagai keterangan panel.
+
+- **Endpoint tidak menerima parameter tanggal** ← turunan agent. Membuat tanggalnya dapat dikirim klien akan membuat panel bisa menjawab hari yang bukan hari ini, dan artinya berhenti tunggal.
+
+- **`open_questions` kini berisi dua butir, sebelumnya kosong** ← butir pertama adalah lubang yang DIBUKA oleh keputusan ini dan saya catat terbuka alih-alih ditambal diam-diam: periode yang masih punya stasiun Terbuka sementara rentangnya sudah lewat kini tidak punya permukaan khusus di mana pun. Saya sengaja TIDAK menambahkan penanda sendiri untuk itu, karena user baru saja memilih supaya panel hanya menjawab keadaan hari ini; menambal lewat panel akan membatalkan separuh keputusannya. Jalan keluarnya, bila nanti dibutuhkan, ada di tabel daftar — bukan di panel. Butir kedua: batas keterbacaan "satu card per mill" bila jumlah mill tumbuh jauh di atas 6.
+
+Nama panel ikut berubah: **'Periode Terbuka Hari Ini per Mill'** — judul yang menyebut syaratnya,
+supaya tidak ada pembaca yang menyangka panel ini mendaftar seluruh periode terbuka.

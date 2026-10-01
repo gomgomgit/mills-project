@@ -61,6 +61,7 @@ use App\Models\StationType;
 use App\Models\User;
 use App\Services\PeriodService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -87,6 +88,13 @@ beforeEach(function () {
     // PeriodService::create()/update() stamp created_by/updated_by from
     // auth()->id(), and periods.created_by is NOT NULL.
     $this->actingAs($this->admin, 'web');
+});
+
+afterEach(function () {
+    // Test panel "Periode Terbuka Hari Ini" membekukan tanggal; tanpa ini,
+    // sebuah kegagalan di tengah test akan membocorkan waktu palsu ke test
+    // berikutnya dan membuat kegagalan berikutnya tidak bisa dipercaya.
+    Carbon::setTestNow();
 });
 
 /**
@@ -890,4 +898,281 @@ it('stationTypeLabel: memakai nama dari tabel master dan fallback ke kode tak di
     // is gone too — asserted here because five *ReportService classes used
     // to borrow it and a re-introduction would quietly revive the concept.
     expect(defined(PeriodService::class.'::ALL_STATION_TYPES_LABEL'))->toBeFalse();
+});
+
+/*
+|--------------------------------------------------------------------------
+| openPeriodsByBusinessUnit() — panel "Periode Terbuka Hari Ini per Mill"
+|--------------------------------------------------------------------------
+|
+| Covers unit_test_cases 50–58 and 60–64 of the screen tech-spec v6. Case 49
+| (401/403) is route middleware, never a service check, so it lives in
+| tests/Feature/Api/KelolaPeriodePelaporanTest.php — asserting it here would
+| assert nothing.
+|
+| "Terbuka hari ini" is TWO conditions, both required: a `period_stations` row
+| with status 'open' AND today inside start_date..end_date. Every test below
+| freezes the date, because the date is part of the WHERE — not a flag on the
+| result — so without freezing none of this is testable and the suite would
+| behave differently depending on the day it runs.
+*/
+
+/**
+ * A period on the given mill, with explicit station rows so "1 of 3 open" can
+ * be expressed — the shape the status/date split exists for. The parent is
+ * created with ->noStations() so only the rows asked for exist.
+ *
+ * @param  list<string>  $statusByType  e.g. ['sterilizer' => 'open', ...]
+ */
+function panelPeriod(BusinessUnit $businessUnit, string $name, string $start, string $end, array $statusByType): Period
+{
+    $period = Period::factory()
+        ->forBusinessUnit($businessUnit)
+        ->named($name)
+        ->range($start, $end)
+        ->noStations()
+        ->create();
+
+    foreach ($statusByType as $type => $status) {
+        PeriodStation::factory()
+            ->forPeriod($period)
+            ->stationType($type)
+            ->create(['status' => $status]);
+    }
+
+    return $period;
+}
+
+// Case 50
+it('open-summary: mengembalikan satu entri untuk SETIAP Business Unit, termasuk yang tidak punya periode terbuka hari ini', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+    $businessUnitC = BusinessUnit::factory()->create(['name' => 'Mill Gamma']);
+
+    panelPeriod($this->businessUnitA, 'Okt A', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+
+    $result = $this->service->openPeriodsByBusinessUnit();
+
+    // THE INVARIANT, not a magic number: one entry per Business Unit that
+    // exists, whatever the fixtures happen to have created. (millStations()
+    // quietly creates extra mills of its own through
+    // ProductionLine::factory(), so an absolute count here would assert the
+    // fixture rather than the rule.) A mill with nothing open must still be
+    // present — "this mill can take no input today" is the panel's most useful
+    // statement, not an empty slot to drop.
+    expect($result['data'])->toHaveCount(BusinessUnit::count());
+
+    $byName = collect($result['data'])->keyBy('business_unit_name');
+    expect($byName)->toHaveKeys(['Mill Alpha', 'Mill Beta', 'Mill Gamma']);
+    expect($byName['Mill Alpha']['open_periods'])->toHaveCount(1);
+    expect($byName['Mill Beta']['open_periods'])->toBe([]);
+    expect($byName[$businessUnitC->name]['open_periods'])->toBe([]);
+
+    // Entries are ordered by mill name, so the panel's card order is stable
+    // between requests.
+    $names = collect($result['data'])->pluck('business_unit_name')->all();
+    $sorted = $names;
+    sort($sorted, SORT_NATURAL);
+    expect($names)->toBe($sorted);
+});
+
+// Case 51
+it('open-summary: mengabaikan periode yang seluruh barisnya draft WALAU rentangnya memuat hari ini', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    panelPeriod($this->businessUnitA, 'Okt Draft', '2026-10-01', '2026-10-31', [
+        'sterilizer' => 'draft',
+        'boiler-room' => 'draft',
+        'clarification' => 'draft',
+    ]);
+
+    $result = $this->service->openPeriodsByBusinessUnit($this->businessUnitA->id);
+
+    // A running range on its own is not enough: nothing in this period can
+    // receive input, so saying it is "open today" would be false.
+    expect($result['data'][0]['open_periods'])->toBe([]);
+});
+
+// Case 52
+it('open-summary: mengabaikan periode yang seluruh barisnya closed walau rentangnya memuat hari ini', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    panelPeriod($this->businessUnitA, 'Okt Closed', '2026-10-01', '2026-10-31', [
+        'sterilizer' => 'closed',
+        'boiler-room' => 'closed',
+    ]);
+
+    $result = $this->service->openPeriodsByBusinessUnit($this->businessUnitA->id);
+
+    expect($result['data'][0]['open_periods'])->toBe([]);
+});
+
+// Case 53 + 54
+it('open-summary: memasukkan periode yang punya MINIMAL SATU baris open dan menghitung dari period_stations', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    $period = panelPeriod($this->businessUnitA, 'Okt Campuran', '2026-10-01', '2026-10-31', [
+        'sterilizer' => 'open',
+        'boiler-room' => 'draft',
+        'clarification' => 'closed',
+    ]);
+
+    $result = $this->service->openPeriodsByBusinessUnit($this->businessUnitA->id);
+    $open = $result['data'][0]['open_periods'];
+
+    expect($open)->toHaveCount(1);
+    expect($open[0]['id'])->toBe($period->id);
+    expect($open[0]['name'])->toBe('Okt Campuran');
+    expect($open[0]['start_date'])->toBe('2026-10-01');
+    expect($open[0]['end_date'])->toBe('2026-10-31');
+
+    // The numbers come from period_stations, never from status_summary — which
+    // for this period reads 'mixed' and names no number at all.
+    expect($open[0]['open_station_count'])->toBe(1);
+    expect($open[0]['station_count'])->toBe(3);
+});
+
+// Case 55
+it('open-summary: batas rentang INKLUSIF di kedua ujung', function (string $today) {
+    Carbon::setTestNow(Carbon::parse($today));
+
+    panelPeriod($this->businessUnitA, 'Okt Batas', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+
+    $result = $this->service->openPeriodsByBusinessUnit($this->businessUnitA->id);
+
+    expect($result['data'][0]['open_periods'])->toHaveCount(1);
+})->with(['2026-10-01', '2026-10-15', '2026-10-31']);
+
+// Case 56
+it('open-summary: MENGECUALIKAN periode berbaris open yang end_date-nya sudah terlampaui', function () {
+    // One day past the end: the period still holds an open station — someone
+    // forgot to close it. Excluding it is the user's decision of 2026-10-01,
+    // taken with this consequence shown first; the blind spot is recorded as
+    // open_question #1 on the screen's business spec.
+    Carbon::setTestNow(Carbon::create(2026, 11, 1));
+
+    panelPeriod($this->businessUnitA, 'Okt Lupa Ditutup', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+
+    $result = $this->service->openPeriodsByBusinessUnit($this->businessUnitA->id);
+
+    expect($result['data'][0]['open_periods'])->toBe([]);
+});
+
+// Case 57
+it('open-summary: MENGECUALIKAN periode berbaris open yang start_date-nya masih di masa depan, lalu memunculkannya tanpa perubahan data', function () {
+    panelPeriod($this->businessUnitA, 'Nov Belum Mulai', '2026-11-01', '2026-11-30', ['sterilizer' => 'open']);
+
+    Carbon::setTestNow(Carbon::create(2026, 10, 31));
+    expect($this->service->openPeriodsByBusinessUnit($this->businessUnitA->id)['data'][0]['open_periods'])->toBe([]);
+
+    // Nothing is written anywhere; only the clock moves. The filter is the
+    // server's date at request time, not something stored.
+    Carbon::setTestNow(Carbon::create(2026, 11, 1));
+    expect($this->service->openPeriodsByBusinessUnit($this->businessUnitA->id)['data'][0]['open_periods'])->toHaveCount(1);
+});
+
+// Case 58
+it('open-summary: dua periode yang sama-sama memenuhi syarat pada satu mill keduanya dikembalikan, terurut start_date desc', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    // This violates the overlap rule on purpose, which is only reachable by
+    // writing rows directly — findOverlapping() is a service guard and there is
+    // NO database constraint behind it. The panel is where such a violation has
+    // to become visible, so the list must never be collapsed with first().
+    panelPeriod($this->businessUnitA, 'Okt Satu', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+    panelPeriod($this->businessUnitA, 'Okt Dua', '2026-10-10', '2026-10-20', ['boiler-room' => 'open']);
+
+    $open = $this->service->openPeriodsByBusinessUnit($this->businessUnitA->id)['data'][0]['open_periods'];
+
+    expect($open)->toHaveCount(2);
+    expect(collect($open)->pluck('name')->all())->toBe(['Okt Dua', 'Okt Satu']);
+});
+
+// Case 59
+it('open-summary: menyempit ke satu mill ketika business_unit_id dikirim, dengan isi yang sama', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+    millStations($this->businessUnitB, ['sterilizer']);
+
+    panelPeriod($this->businessUnitA, 'Okt A', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+    panelPeriod($this->businessUnitB, 'Okt B', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+
+    $all = $this->service->openPeriodsByBusinessUnit();
+    $one = $this->service->openPeriodsByBusinessUnit($this->businessUnitA->id);
+
+    expect($all['data'])->toHaveCount(BusinessUnit::count());
+    expect($one['data'])->toHaveCount(1);
+    expect($one['data'][0]['business_unit_id'])->toBe($this->businessUnitA->id);
+
+    // Narrowing changes WHICH mills are listed, never what is said about one —
+    // asserted by comparing the same mill's entry across both calls.
+    $allAlpha = collect($all['data'])->firstWhere('business_unit_id', $this->businessUnitA->id);
+    expect($one['data'][0])->toBe($allAlpha);
+
+    // And Mill Beta's open period is genuinely there in the unfiltered call, so
+    // the narrowing above dropped something real rather than nothing.
+    expect(collect($all['data'])->firstWhere('business_unit_id', $this->businessUnitB->id)['open_periods'])
+        ->toHaveCount(1);
+});
+
+// Case 60
+it('open-summary: business_unit_id yang tidak ada mengembalikan data kosong, bukan exception', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    $result = $this->service->openPeriodsByBusinessUnit('11111111-2222-3333-4444-555555555555');
+
+    // It summarises, it does not fetch one resource — an unmatched filter is a
+    // legitimate empty result, which is why the controller answers 200 and not 404.
+    expect($result['data'])->toBe([]);
+    expect($result['meta']['today'])->toBe('2026-10-15');
+});
+
+// Case 61
+it('open-summary: mengembalikan data kosong ketika belum ada satu pun Business Unit', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    PeriodStation::query()->delete();
+    Period::query()->delete();
+    Station::query()->delete();
+    BusinessUnit::query()->delete();
+
+    // The ONLY case that yields empty data. "No mill has an open period today"
+    // yields a list of entries with empty open_periods — the FE tells the two
+    // apart by how many entries it receives.
+    expect($this->service->openPeriodsByBusinessUnit()['data'])->toBe([]);
+});
+
+// Case 62
+it('open-summary: meta.today adalah tanggal acuan yang dipakai menyaring', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15, 23, 59, 59));
+
+    expect($this->service->openPeriodsByBusinessUnit()['meta']['today'])->toBe('2026-10-15');
+});
+
+// Case 64
+it('open-summary: periode tanpa satu pun baris stasiun tidak mungkin muncul', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    // Mill Beta has no active station, so its period is born with zero rows —
+    // there is nothing to open, so it can never satisfy condition (a).
+    panelPeriod($this->businessUnitB, 'Okt Kosong', '2026-10-01', '2026-10-31', []);
+
+    $result = $this->service->openPeriodsByBusinessUnit($this->businessUnitB->id);
+
+    expect($result['data'])->toHaveCount(1);
+    expect($result['data'][0]['open_periods'])->toBe([]);
+});
+
+// Case 63
+it('open-summary: entri periode TIDAK memuat is_running maupun is_past_range', function () {
+    Carbon::setTestNow(Carbon::create(2026, 10, 15));
+
+    panelPeriod($this->businessUnitA, 'Okt A', '2026-10-01', '2026-10-31', ['sterilizer' => 'open']);
+
+    $entry = $this->service->openPeriodsByBusinessUnit($this->businessUnitA->id)['data'][0]['open_periods'][0];
+
+    // Every period that reaches the panel is already running today, so such a
+    // flag would always carry the same value and invite the reader to think
+    // other states are being sent too. The keys are asserted exactly.
+    expect(array_keys($entry))->toBe([
+        'id', 'name', 'start_date', 'end_date', 'open_station_count', 'station_count',
+    ]);
 });

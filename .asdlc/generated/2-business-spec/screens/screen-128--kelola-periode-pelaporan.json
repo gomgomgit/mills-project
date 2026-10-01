@@ -1,13 +1,13 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-27"
+    "updated_at": "2026-10-01"
   },
-  "ver": 3,
+  "ver": 5,
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
   "module_id": "module-master-data",
-  "description": "Halaman Admin untuk mendaftar dan memelihara Periode Pelaporan — rentang tanggal resmi per mill (Business Unit) yang dipakai sebagai satuan waktu seluruh laporan Full Cycle per Stasiun. Cakupan sebuah periode adalah SELURUH mill pada rentang itu: bukan Production Line dan bukan satu jenis stasiun, sehingga satu tanggal hanya boleh dimiliki satu periode per mill. Menyimpan periode mendaftarkan satu baris stasiun untuk setiap jenis stasiun yang aktif di mill itu, semuanya berstatus Draft. Layar ini menangani daftar, filter, tambah, ubah, dan hapus periode, serta menampilkan ringkasan status stasiun tiap periode supaya Admin tahu periode mana yang perlu ditindaklanjuti. Menutup, membuka, dan membuka kembali stasiun TIDAK dilakukan di sini melainkan di layar Detail Periode Pelaporan (screen-142), karena status melekat pada jenis stasiun dan bukan pada periode. Periode berdiri di luar hierarki Corporate → Company → Business Unit → Production Line → Station.",
+  "description": "Halaman Admin untuk mendaftar dan memelihara Periode Pelaporan — rentang tanggal resmi per mill (Business Unit) yang dipakai sebagai satuan waktu seluruh laporan Full Cycle per Stasiun. Cakupan sebuah periode adalah SELURUH mill pada rentang itu: bukan Production Line dan bukan satu jenis stasiun, sehingga satu tanggal hanya boleh dimiliki satu periode per mill. Menyimpan periode mendaftarkan satu baris stasiun untuk setiap jenis stasiun yang aktif di mill itu, semuanya berstatus Draft. Di atas tabel terdapat panel 'Periode Terbuka Hari Ini per Mill': satu card per mill yang menjawab satu pertanyaan operasional dalam sekali pandang — mill ini hari ini bisa menerima input atau tidak. Panel memakai syarat yang PERSIS sama dengan syarat kunci periode (stasiun berstatus Terbuka dan tanggal hari ini berada di dalam rentang periode), jadi apa yang terbaca di panel adalah apa yang benar-benar berlaku bagi operator. Layar ini menangani daftar, filter, tambah, ubah, dan hapus periode, serta menampilkan ringkasan status stasiun tiap periode supaya Admin tahu periode mana yang perlu ditindaklanjuti. Menutup, membuka, dan membuka kembali stasiun TIDAK dilakukan di sini melainkan di layar Detail Periode Pelaporan (screen-142), karena status melekat pada jenis stasiun dan bukan pada periode. Periode berdiri di luar hierarki Corporate → Company → Business Unit → Production Line → Station.",
   "actors": [
     "actor-admin"
   ],
@@ -15,6 +15,12 @@
     "Menu sidebar 'Kelola Periode Pelaporan'"
   ],
   "information_displayed": [
+    "Panel 'Periode Terbuka Hari Ini per Mill' di atas tabel daftar: satu card untuk setiap Business Unit (mill), memuat periode mill itu yang punya minimal satu baris stasiun berstatus Terbuka DAN rentang tanggalnya memuat tanggal hari ini — yaitu tepat keadaan yang mengizinkan sebuah stasiun menerima input",
+    "Isi card untuk periode yang memenuhi syarat: nama periode sebagai tautan yang membuka layar Detail Periode Pelaporan (screen-142), rentang tanggalnya, dan hitungan 'X dari N stasiun terbuka'",
+    "Card mill yang tidak punya periode memenuhi syarat tampil redup dengan keterangan 'Tidak ada periode terbuka hari ini' — bukan disembunyikan, sebab justru itu keadaan yang perlu diketahui: tidak ada stasiun di mill itu yang bisa menerima input hari ini",
+    "Karena rentang periode tidak boleh tumpang tindih dalam satu mill, satu card normalnya memuat nol atau satu periode. Bila ternyata memuat lebih dari satu, SEMUANYA ditampilkan — itu tanda pelanggaran aturan tumpang tindih yang justru harus terlihat, bukan diringkas menjadi satu",
+    "Panel card mengikuti filter Business Unit (menyempit ke mill yang dipilih) namun TIDAK mengikuti filter Status Stasiun, karena isi panel sudah dibatasi pada status Terbuka",
+    "Tanggal acuan yang dipakai panel ditampilkan sebagai keterangan pada panel, supaya pembaca tahu 'hari ini' yang dimaksud adalah tanggal server — bukan tanggal perangkat yang membuka halaman",
     "Tabel Periode dengan kolom Nama, Business Unit (mill), Tanggal Mulai, Tanggal Selesai, Stasiun, Status Stasiun, dan Aksi",
     "Nama periode tampil sebagai tautan yang membuka layar Detail Periode Pelaporan (screen-142) untuk periode tersebut",
     "Kolom Stasiun sebagai ringkasan 'N stasiun · M tertutup' (bagian '· M tertutup' hanya muncul bila ada yang tertutup), atau 'Belum ada stasiun' untuk periode yang belum punya satu pun baris stasiun",
@@ -32,8 +38,22 @@
   ],
   "available_actions": [
     {
+      "action": "Lihat panel Periode Terbuka Hari Ini per Mill",
+      "description": "Membaca dalam sekali pandang, di atas tabel, mill mana yang hari ini punya periode terbuka — yaitu mill mana yang stasiunnya dapat menerima input hari ini. Panel ini hanya menampilkan, tidak mengubah apa pun",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
+      "action": "Buka Detail Periode dari card",
+      "description": "Menekan nama periode pada card di panel atas untuk membuka layar Detail Periode Pelaporan (screen-142) periode itu, tempat status per stasiun dikelola",
+      "actor_ids": [
+        "actor-admin"
+      ]
+    },
+    {
       "action": "Filter daftar periode",
-      "description": "Menyaring daftar periode berdasarkan Business Unit dan/atau Status Stasiun; filter Status Stasiun mencocokkan periode yang punya minimal satu stasiun berstatus tersebut",
+      "description": "Menyaring daftar periode berdasarkan Business Unit dan/atau Status Stasiun; filter Status Stasiun mencocokkan periode yang punya minimal satu stasiun berstatus tersebut. Filter Business Unit ikut menyempitkan panel card, filter Status Stasiun tidak",
       "actor_ids": [
         "actor-admin"
       ]
@@ -68,7 +88,7 @@
     },
     {
       "action": "Navigasi halaman",
-      "description": "Berpindah halaman pada daftar periode",
+      "description": "Berpindah halaman pada daftar periode; panel card tidak ikut berpindah halaman karena ia merangkum seluruh mill, bukan halaman daftar yang sedang tampil",
       "actor_ids": [
         "actor-admin"
       ]
@@ -76,6 +96,12 @@
   ],
   "business_rules": [
     "Hanya Admin yang dapat mengakses layar ini dan menjalankan seluruh aksinya",
+    "Panel memakai syarat GABUNGAN: sebuah periode masuk panel bila ia punya minimal satu baris stasiun berstatus Terbuka DAN tanggal hari ini berada di dalam rentangnya (inklusif di kedua ujung). Kedua syarat wajib. Ini dipilih supaya panel bermakna persis satu hal — 'mill ini hari ini bisa menerima input' — dan bukan dua hal yang mirip tetapi berbeda",
+    "Panel tidak pernah menyembunyikan sebuah mill. Mill tanpa periode yang memenuhi syarat tetap punya card dalam keadaan redup, karena ketiadaan periode terbuka hari ini adalah informasi operasional yang justru paling perlu terlihat: tidak ada stasiun di mill itu yang dapat menerima input",
+    "Tanggal hari ini adalah bagian dari SYARAT panel, bukan sekadar penanda. Akibat yang diterima secara sadar: periode yang masih punya stasiun Terbuka namun rentangnya sudah lewat — atau belum dimulai — TIDAK tampil di panel. Panel memang hanya menjawab keadaan hari ini; periode semacam itu tetap terlihat di tabel daftar di bawahnya lewat badge Status Stasiun 'Terbuka' atau 'Campuran'",
+    "Hitungan pada card adalah jumlah baris stasiun berstatus Terbuka dibanding seluruh baris stasiun periode itu. Angka ini tidak boleh diturunkan dari badge ringkasan Status Stasiun, sebab 'Campuran' tidak menyebutkan berapa yang terbuka",
+    "Panel card hanya menampilkan, tidak mengubah apa pun. Satu-satunya aksi padanya adalah tautan ke layar Detail Periode Pelaporan",
+    "Aturan tumpang tindih membuat satu tanggal hanya dimiliki satu periode per mill, sehingga sebuah card normalnya memuat nol atau satu periode. Aturan itu ditegakkan di lapisan aplikasi dan BUKAN oleh constraint database, jadi panel tidak boleh menganggapnya mustahil: bila lebih dari satu periode memenuhi syarat untuk satu mill, semuanya ditampilkan supaya pelanggarannya terlihat",
     "Business Unit (mill) wajib dipilih saat membuat periode",
     "Periode TIDAK punya pilihan jenis stasiun. Cakupannya adalah seluruh mill pada rentang itu, dan daftar stasiunnya diturunkan sistem dari inventaris mill — bukan dipilih Admin",
     "Nama periode wajib diisi dan harus unik dalam satu Business Unit",
@@ -95,6 +121,11 @@
     "usecase-128--kelola-periode-pelaporan"
   ],
   "edge_cases": [
+    "Tidak ada satu pun mill yang punya periode terbuka hari ini → seluruh card tampil redup dengan keterangan 'Tidak ada periode terbuka hari ini'; panel tetap ditampilkan, bukan dihilangkan, sebab keadaan itu sendiri adalah informasinya",
+    "Belum ada Business Unit sama sekali → panel tidak menampilkan satu pun card, melainkan keterangan bahwa belum ada mill terdaftar — selaras dengan dropdown Business Unit yang juga kosong pada form",
+    "Periode masih punya stasiun Terbuka tetapi tanggal selesainya sudah terlampaui (lupa ditutup) → TIDAK tampil di panel, karena syarat tanggal tidak terpenuhi. Keadaan ini tetap terbaca di tabel daftar lewat badge Status Stasiun, namun panel tidak menyorotnya — lihat open_questions butir pertama",
+    "Periode sudah punya stasiun Terbuka tetapi tanggal mulainya masih di masa depan → TIDAK tampil di panel; ia baru muncul sendiri pada hari pertama rentangnya tanpa tindakan Admin apa pun",
+    "Dua periode pada satu mill sama-sama memenuhi syarat panel (hanya mungkin bila aturan tumpang tindih pernah dilanggar lewat jalur di luar aplikasi) → keduanya ditampilkan pada card mill itu, tidak dipangkas, sebab menyembunyikan salah satunya berarti menyembunyikan pelanggarannya",
     "Membuat periode dengan rentang tanggal yang beririsan dengan periode lain pada mill yang sama → ditolak, pesan menyebut nama periode yang bentrok beserta rentangnya, form tetap terbuka dengan isian Admin",
     "Membuat periode yang berakhir tepat pada tanggal mulai periode lain di mill yang sama → tetap ditolak, karena batas rentang inklusif dan hari itu dimiliki keduanya",
     "Tanggal selesai lebih awal dari tanggal mulai → ditolak dengan pesan di bawah field tanggal selesai",
@@ -112,5 +143,8 @@
     "Pengguna non-Admin (Operator, Supervisor, Mill Management) mencoba membuka layar ini atau menjalankan aksi tambah/ubah/hapus → akses ditolak, tidak ada data periode yang ditampilkan maupun diubah"
   ],
   "test_priority": "high",
-  "open_questions": []
+  "open_questions": [
+    "Periode yang masih punya stasiun Terbuka sementara rentang tanggalnya sudah lewat — artinya Admin lupa menutupnya — kini tidak punya permukaan khusus di mana pun. Panel sengaja hanya menjawab keadaan hari ini (keputusan user 2026-10-01), dan tabel daftar hanya menampilkannya sebagai badge 'Terbuka'/'Campuran' tanpa menyatakan bahwa rentangnya sudah lewat. Bila keadaan ini perlu ditindaklanjuti secara aktif, yang dibutuhkan adalah penanda atau penyaring tersendiri pada tabel daftar — bukan pelonggaran syarat panel, sebab melonggarkannya akan membuat panel berhenti bermakna 'bisa menerima input hari ini'",
+    "Panel menampilkan satu card untuk SETIAP Business Unit. Dengan 6 mill ini masih terbaca sekali pandang; bila jumlah mill tumbuh jauh di atas itu, keputusan 'tidak pernah menyembunyikan mill' perlu ditinjau ulang — misalnya dengan mengelompokkan mill yang tidak punya periode terbuka menjadi satu baris ringkas, bukan dengan menghilangkannya"
+  ]
 }

@@ -42,3 +42,51 @@ Kontrak `usecase-140` dan `usecase-144` DIPINDAHKAN ke screen-142 (bukan dibuang
 - 13 `test_scenarios` (dari 9 milik usecase-128 di v3) ← 9 lama dipertahankan dengan payload tanpa `station_type`, ditambah 4 baru: mill tanpa stasiun aktif, backfill lewat simpan ulang, makna filter Status Stasiun, dan navigasi ke layar detail. 19 `test_scenarios` milik usecase-140/144 PINDAH ke screen-142
 - Daftar `data-testid` yang hilang vs yang tetap ditulis eksplisit di `implementation_notes` ← turunan agen; dibuat agar langkah implementasi (dan helper e2e-web) punya satu daftar yang bisa dipakai memeriksa dirinya sendiri
 - Endpoint BARU `GET /api/periods/{id}` TIDAK didaftarkan di artefak ini melainkan di screen-142 ← ia hanya dipakai layar detail; catatan urutan rute (literal sebelum berparameter) tetap ditulis di sini karena rute /periods-nya milik layar ini
+
+## v5 — 2026-10-01
+
+Phase 3 untuk panel 'Periode Terbuka per Mill'. Business spec v4 sudah menetapkan APA yang tampil;
+yang di bawah ini keputusan teknis yang tidak diturunkan dari sana maupun dari user.
+
+- **Endpoint API baru `GET /api/periods/open-summary`** ← PILIHAN AGENT. User meminta card di halaman web; sebuah endpoint tidak diminta. Dasarnya gaya rumah yang sudah mapan: kelima kemampuan layar ini punya kembaran API, dan screen-142 bahkan mendapat `POST /api/period-stations/{id}/open` untuk aksi yang hanya ada di Livewire. Panel tanpa kembaran API akan menjadi satu-satunya kemampuan periode yang tidak tercatat di `api-index`. Bila user menilai ini kelebihan cakupan, yang dibuang hanya controller + route + satu kelompok test; `PeriodService::openPeriodsByBusinessUnit()` tetap dibutuhkan komponen Livewire-nya.
+
+- **Nama method `openPeriodsByBusinessUnit(?string $businessUnitId = null)`** ← turunan agent, mengikuti pola nama service yang sudah ada (`listPeriods`, `businessUnitOptions`, `activeStationTypesForMill`).
+
+- **Arah iterasi dimulai dari daftar Business Unit, bukan dari daftar periode** ← keputusan agent, dan inilah satu-satunya hal yang membuat aturan "mill tanpa periode terbuka tetap punya card" tidak bisa bocor. Mengelompokkan hasil kueri periode per mill akan menghasilkan panel yang BENAR pada data yang ada periode terbukanya dan SALAH (mill hilang) justru pada keadaan yang paling perlu terlihat. Aturannya ditegakkan oleh bentuk kodenya, bukan oleh kehati-hatian pembacanya.
+
+- **`is_running` + `is_past_range` sebagai DUA boolean, bukan satu enum tiga nilai** ← keputusan agent. Keadaan "terbuka tetapi belum dimulai" harus bisa diwakili tanpa dipaksa masuk ke salah satu penanda. Dengan satu enum, keadaan ketiga ini akan cepat dipetakan salah ke `past` oleh penulis kode berikutnya. Dua boolean yang keduanya `false` adalah representasi yang jujur dan tidak bisa disalahpahami.
+
+- **`Carbon::today()` diambil SEKALI per pemanggilan dan dikembalikan sebagai `meta.today`** ← turunan agent, dua alasan yang keduanya nyata: (1) pemanggilan yang melewati tengah malam tidak boleh menghasilkan satu respons dengan dua tanggal acuan; (2) `Carbon::setTestNow()` membuat `is_running`/`is_past_range` dapat diuji — tanpa itu, test tanggal hanya bisa ditulis dengan tanggal relatif dan suite akan berperilaku berbeda tergantung hari dijalankannya. `meta.today` tidak diminta siapa pun; ia ada supaya test dan FE tidak perlu menebak acuannya.
+
+- **Dua `withCount` dalam satu kueri** ← turunan agent. `toRow()` memberi `station_count` dan `closed_station_count`, tidak pernah `open_station_count`, jadi angka ini memang penambahan. Menghitungnya per periode dengan kueri terpisah akan menjadi N+1 pada panel yang menampilkan seluruh mill.
+
+- **`open-summary` tidak terpaginasi** ← turunan agent. Batas jumlah barisnya adalah jumlah Business Unit (6 di dev), bukan jumlah periode, sehingga pagination hanya akan menambah cara panel bisa menyatakan hal yang berbeda tentang mill yang sama.
+
+- **`business_unit_id` yang tidak cocok menjawab 200 + data kosong, bukan 404** ← turunan agent. Endpoint ini meringkas, bukan mengambil satu sumber daya; filter yang tidak cocok apa pun adalah hasil kosong yang sah. Satu-satunya keadaan lain yang menghasilkan data kosong adalah belum ada Business Unit sama sekali, dan FE membedakan keduanya lewat jumlah card yang ia minta render.
+
+- **Tidak memakai kelas `md-card`** ← turunan agent, TERVERIFIKASI: `.md-card` hanya didefinisikan di `resources/views/dashboard/partials/report-styles.blade.php`, dipakai 39 kali, dan partial itu hanya di-include oleh layar laporan dashboard. Layout master-data tidak memuatnya, jadi markup ber-`md-card` di layar ini akan dirender tanpa gaya apa pun. Panel memakai prefix `kc-` dan 13 kelas barunya didefinisikan di blok `<style>` blade ini sendiri — nama-namanya dicantumkan di `implementation_notes` supaya pemeriksaan "tiap kelas punya definisi" bisa dijalankan sebagai daftar periksa, bukan dari ingatan.
+
+- **Daftar `data-testid` panel** ← turunan agent, mengikuti pola penamaan `data-testid` yang sudah dipakai layar ini.
+
+- **`GET /api/periods/open-summary` harus didaftarkan sebelum `/api/periods/{id}`** ← bukan asumsi, ini konsekuensi urutan route Laravel yang sudah tercatat sebagai perangkap pada `business-units/options` di `implementation_notes` butir ke-3. Dicatat ulang khusus untuk endpoint baru ini karena perangkapnya persis sama dan akibatnya 404 yang membingungkan.
+
+### Yang DITAHAN dan belum dikerjakan
+
+- **`api-index` belum menambahkan `GET /api/periods/open-summary`** (masih v60, 168 endpoint). Bukan kelalaian: `artifact__patch` hanya bisa MENGGANTI nilai pada path yang sudah ada dan tidak bisa menambah elemen ke sebuah list, sehingga menambah satu endpoint menuntut `artifact__write` yang mengemisi ulang seluruh 168 entri (~62 KB) dengan tangan. Itu pekerjaan salin-tempel masif yang satu slip-nya merusak katalog endpoint seluruh proyek secara diam-diam. Diangkat ke user beserta usulan perbaikan akarnya (mode append pada `artifact__patch`, yang menyentuh `.asdlc/mcp/` sehingga butuh izin eksplisit).
+
+### Penutup utang yang ditahan di v5 — 2026-10-01
+
+`api-index` **sudah** mencatat `GET /api/periods/open-summary` (v60 → v61, 168 → 169 endpoint).
+Yang menahannya bukan artefaknya melainkan tool-nya, dan akarnya sudah diperbaiki atas izin user:
+`artifact__patch` kini menerima `op` — `set` (bawaan), `append`, `extend` — sehingga menambah satu
+endpoint cukup satu edit, bukan mengemisi ulang 169 entri dengan tangan. Diverifikasi sesudahnya:
+164 entri yang ada di commit terakhir masih byte-identik dan urutannya tidak bergeser, nol duplikat
+`method`+`path`, entri baru berada di ujung mengikuti pola pertumbuhan berkas ini.
+
+Catatan operasional yang mahal dipelajari: menjalankan `/mcp` saja TIDAK memuat ulang kode server —
+`/mcp` menyambung ulang ke proses yang sudah hidup, dan Python tidak mengimpor ulang modulnya.
+Terbukti dari umur proses: kedua `server.py` lahir sebelum berkasnya diubah. Yang memuat kode baru
+adalah aksi reconnect/restart pada server bersangkutan di dalam `/mcp`, bukan sekadar membuka
+daftarnya. Cara memastikannya tanpa risiko: kirim satu edit ber-`op` tak dikenal pada path yang
+tidak ada — kode lama menjawab dari pemeriksaan path, kode baru menjawab dari pemeriksaan `op`,
+dan keduanya menolak tanpa menulis apa pun.

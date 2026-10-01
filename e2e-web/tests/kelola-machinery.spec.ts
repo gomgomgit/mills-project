@@ -73,6 +73,23 @@ async function selectSearchableFirst(page, id) {
   await page.locator(`#${id}-listbox`).getByRole('option').nth(1).click();
 }
 
+/*
+ * Fixture ini hidup di halaman terakhir daftar: mesin diurut equipment_code dan
+ * "EQ-BROWSER-*" mengurut setelah seluruh "EQ-######" milik factory (huruf
+ * B lebih besar dari angka), sehingga dengan 672 mesin ia mendarat jauh di
+ * belakang. Mencarinya di halaman 1 akan selalu gagal, berapa pun
+ * fixture-nya diseed.
+ *
+ * Jadi setiap pencarian baris fixture melewati kotak Cari — yang juga
+ * berarti spec ini tidak lagi bergantung pada volume data.
+ */
+async function findRow(page, text) {
+  await page.getByTestId('search-input').fill(text);
+  const row = page.locator('.kc-table__row', { hasText: text });
+  await expect(row.first()).toBeVisible();
+  return row.first();
+}
+
 test.describe('Kelola Machinery', () => {
   // Scenario: "Kelola Machinery — success"
   test('menambah machinery baru dengan memilih machinery group, station/production line terisi otomatis, dan menampilkannya di tabel', async ({ page }) => {
@@ -93,7 +110,7 @@ test.describe('Kelola Machinery', () => {
     await page.locator('#name').fill('Boiler Utama Browser');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
-    const row = page.locator('.kc-table__row', { hasText: uniqueCode });
+    const row = await findRow(page, uniqueCode);
     await expect(row).toBeVisible();
     await expect(row).toContainText('Boiler Utama Browser');
     await expect(row).toContainText('MG-BROWSER-BASE');
@@ -112,22 +129,24 @@ test.describe('Kelola Machinery', () => {
     await page.locator('#equipment_code').fill(uniqueCode);
     await page.locator('#name').fill('Mesin Dengan Anak Baris');
 
-    await page.locator('button', { hasText: 'Tambah Baris Asuransi' }).click();
-    await page.locator('input[wire\\:model="insurances.0.ownership"]').fill('Perusahaan');
-    await page.locator('input[wire\\:model="insurances.0.insurance_policy_no"]').fill('POL-BROWSER-1');
-
-    await page.locator('button', { hasText: 'Tambah Baris Pajak/Pembelian' }).click();
-    await page.locator('input[wire\\:model="taxPurchases.0.policy_type"]').fill('Cash');
+    // Asuransi dan Pajak/Pembelian bukan grid yang barisnya ditambah: form
+    // selalu menampilkan SATU baris masing-masing (insurances.0.* dan
+    // taxPurchases.0.*), dan baris yang dibiarkan kosong tidak tersimpan.
+    // Spec versi lama menekan tombol "Tambah Baris Asuransi" yang tidak
+    // pernah ada di layar ini.
+    await page.locator('#insurance_ownership').fill('Perusahaan');
+    await page.locator('#insurance_insurance_policy_no').fill('POL-BROWSER-1');
+    await page.locator('#tax_policy_type').fill('Cash');
 
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
-    const row = page.locator('.kc-table__row', { hasText: uniqueCode });
+    const row = await findRow(page, uniqueCode);
     await expect(row).toBeVisible();
 
     // Re-open the row in edit mode and confirm both child rows persisted.
     await row.locator('button', { hasText: 'Edit' }).click();
-    await expect(page.locator('input[wire\\:model="insurances.0.insurance_policy_no"]')).toHaveValue('POL-BROWSER-1');
-    await expect(page.locator('input[wire\\:model="taxPurchases.0.policy_type"]')).toHaveValue('Cash');
+    await expect(page.locator('#insurance_insurance_policy_no')).toHaveValue('POL-BROWSER-1');
+    await expect(page.locator('#tax_policy_type')).toHaveValue('Cash');
   });
 
   // Scenario: "Kelola Machinery — Edit Machinery"
@@ -135,13 +154,13 @@ test.describe('Kelola Machinery', () => {
     await login(page, 'mtest-admin01', PASSWORD);
     await gotoMachinery(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'EQ-BROWSER-SEBELUM-EDIT' });
+    const row = await findRow(page, 'EQ-BROWSER-SEBELUM-EDIT');
     await row.locator('button', { hasText: 'Edit' }).click();
 
     await page.locator('#name').fill('Nama Sesudah Edit');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
-    const updatedRow = page.locator('.kc-table__row', { hasText: 'EQ-BROWSER-SEBELUM-EDIT' });
+    const updatedRow = await findRow(page, 'EQ-BROWSER-SEBELUM-EDIT');
     await expect(updatedRow).toContainText('Nama Sesudah Edit');
   });
 
@@ -151,7 +170,7 @@ test.describe('Kelola Machinery', () => {
     await login(page, 'mtest-admin01', PASSWORD);
     await gotoMachinery(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'EQ-BROWSER-HAPUS' });
+    const row = await findRow(page, 'EQ-BROWSER-HAPUS');
     await row.locator('button', { hasText: 'Hapus' }).click();
     await row.locator('button', { hasText: 'Ya, Hapus' }).click();
 
@@ -172,7 +191,7 @@ test.describe('Kelola Machinery', () => {
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
     await expect(page.locator('.kc-form-field__error')).toContainText(/sudah digunakan/i);
-    await expect(page.locator('.kc-modal')).toBeVisible();
+    await expect(page.locator('.kcm-modal')).toBeVisible();
   });
 
   // Scenario: "Kelola Machinery — Machinery Group wajib dipilih"
@@ -187,7 +206,7 @@ test.describe('Kelola Machinery', () => {
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
     await expect(page.locator('.kc-form-field__error')).toContainText(/wajib dipilih/i);
-    await expect(page.locator('.kc-modal')).toBeVisible();
+    await expect(page.locator('.kcm-modal')).toBeVisible();
   });
 
   // Scenario: "Kelola Machinery — Akses ditolak untuk non-Admin"

@@ -80,6 +80,23 @@ async function selectSearchableFirst(page, id) {
   await page.locator(`#${id}-listbox`).getByRole('option').nth(1).click();
 }
 
+/*
+ * Fixture ini hidup di halaman terakhir daftar: grup diurut group_code dan
+ * "MG-BROWSER-*" mengurut setelah seluruh "MG-####" milik factory (huruf B
+ * lebih besar dari angka), sehingga dengan 223 grup ia mendarat di halaman
+ * 12 dari 12. Mencarinya di halaman 1 akan selalu gagal, berapa pun
+ * fixture-nya diseed.
+ *
+ * Jadi setiap pencarian baris fixture melewati kotak Cari — yang juga
+ * berarti spec ini tidak lagi bergantung pada volume data.
+ */
+async function findRow(page, text) {
+  await page.getByTestId('search-input').fill(text);
+  const row = page.locator('.kc-table__row', { hasText: text });
+  await expect(row.first()).toBeVisible();
+  return row.first();
+}
+
 test.describe('Kelola Machinery Group', () => {
   // Scenario: "Kelola Machinery Group — success"
   test('menambah machinery group baru dengan memilih station, production line terisi otomatis, dan menampilkannya di tabel', async ({ page }) => {
@@ -100,7 +117,7 @@ test.describe('Kelola Machinery Group', () => {
     await page.locator('#group_unit').fill('unit');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
-    const row = page.locator('.kc-table__row', { hasText: uniqueCode });
+    const row = await findRow(page, uniqueCode);
     await expect(row).toBeVisible();
     await expect(row).toContainText('Mill Machinery Group Station Baru');
     await expect(row).toContainText('Mill Machinery Group PL Baru');
@@ -112,7 +129,7 @@ test.describe('Kelola Machinery Group', () => {
     await login(page, 'mgtest-admin01', PASSWORD);
     await gotoMachineryGroups(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'MG-BROWSER-SEBELUM-EDIT' });
+    const row = await findRow(page, 'MG-BROWSER-SEBELUM-EDIT');
     await row.locator('button', { hasText: 'Edit' }).click();
 
     await selectSearchable(page, 'group_station_id', 'Mill Machinery Group Station Tujuan Edit');
@@ -121,7 +138,7 @@ test.describe('Kelola Machinery Group', () => {
     await page.locator('#group_code').fill(newCode);
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
-    const updatedRow = page.locator('.kc-table__row', { hasText: newCode });
+    const updatedRow = await findRow(page, newCode);
     await expect(updatedRow).toBeVisible();
     await expect(updatedRow).toContainText('Mill Machinery Group Station Tujuan Edit');
     await expect(page.locator('.kc-table__row', { hasText: 'MG-BROWSER-SEBELUM-EDIT' })).toHaveCount(0);
@@ -132,7 +149,7 @@ test.describe('Kelola Machinery Group', () => {
     await login(page, 'mgtest-admin01', PASSWORD);
     await gotoMachineryGroups(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'MG-BROWSER-HAPUS-BERSIH' });
+    const row = await findRow(page, 'MG-BROWSER-HAPUS-BERSIH');
     await row.locator('button', { hasText: 'Hapus' }).click();
     await row.locator('button', { hasText: 'Ya, Hapus' }).click();
 
@@ -144,7 +161,7 @@ test.describe('Kelola Machinery Group', () => {
     await login(page, 'mgtest-admin01', PASSWORD);
     await gotoMachineryGroups(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'MG-BROWSER-ADA-MACHINERY' });
+    const row = await findRow(page, 'MG-BROWSER-ADA-MACHINERY');
     await row.locator('button', { hasText: 'Hapus' }).click();
     await row.locator('button', { hasText: 'Ya, Hapus' }).click();
 
@@ -164,7 +181,7 @@ test.describe('Kelola Machinery Group', () => {
 
     await expect(page.locator('.kc-form-field__error')).toContainText(/sudah digunakan/i);
     // The modal stays open — submission was blocked by validation.
-    await expect(page.locator('.kc-modal')).toBeVisible();
+    await expect(page.locator('.kcm-modal')).toBeVisible();
   });
 
   // Scenario: "Kelola Machinery Group — Station wajib dipilih"
@@ -178,7 +195,7 @@ test.describe('Kelola Machinery Group', () => {
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
     await expect(page.locator('.kc-form-field__error')).toContainText(/wajib dipilih/i);
-    await expect(page.locator('.kc-modal')).toBeVisible();
+    await expect(page.locator('.kcm-modal')).toBeVisible();
   });
 
   // Scenario: "Kelola Machinery Group — Akses ditolak untuk non-Admin"

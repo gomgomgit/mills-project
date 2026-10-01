@@ -6,6 +6,10 @@ use App\Enums\RecordStatus;
 use App\Enums\StationType;
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
+use App\Models\EffluentPlantDetail;
+use App\Models\EffluentPlantRecord;
+use App\Models\Machinery;
+use App\Models\MachineryGroup;
 use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
@@ -153,8 +157,8 @@ class BrowserTestFixtureSeeder extends Seeder
      */
     protected const EDIT_RECORDS = [
         'effluent-plant' => [
-            \App\Models\EffluentPlantRecord::class,
-            \App\Models\EffluentPlantDetail::class,
+            EffluentPlantRecord::class,
+            EffluentPlantDetail::class,
             'effluent_plant_id',
             'EP-BROWSER-EDIT',
         ],
@@ -215,8 +219,100 @@ class BrowserTestFixtureSeeder extends Seeder
         }
 
         $this->editRecords($mainLine);
+        $this->machineryFixtures($businessUnit);
 
         $this->command?->info('Browser fixture: users, "'.self::MAIN_PRODUCTION_LINE.'" and per-station "PL Tanpa ..." lines are ready.');
+    }
+
+    /**
+     * Fixtures for e2e-web/tests/kelola-machinery*.spec.ts (2026-10-01).
+     *
+     * Those two specs referenced Stations and Machinery Groups by name that
+     * existed in no seeder at all — every one of their 12 data-driven tests
+     * had been failing since the day they were written, which is the class
+     * e2e-web/README.md calls "Expect failures".
+     *
+     * Two things the specs MUTATE, which is why this runs on every seed:
+     *   - MG-BROWSER-SEBELUM-EDIT is renamed by the edit scenario
+     *   - MG-BROWSER-HAPUS-BERSIH and EQ-BROWSER-HAPUS are deleted
+     * firstOrCreate restores all three. The leftovers those scenarios leave
+     * behind (MG-BROWSER-SESUDAH-EDIT-<ts> and the EQ/MG-BROWSER-<ts> rows
+     * the create scenarios add) are swept below, otherwise the database
+     * accumulates a fresh set on every run.
+     *
+     * Their own Production Line is deliberate: these Stations must not
+     * collide with the main line's one-station-per-type key, and the create
+     * scenario asserts the Production Line name shown in the row.
+     */
+    protected function machineryFixtures(BusinessUnit $businessUnit): void
+    {
+        // Sweep what previous runs of the specs left behind, before
+        // recreating the canonical rows.
+        Machinery::where('equipment_code', 'LIKE', 'EQ-BROWSER-%')
+            ->whereNotIn('equipment_code', ['EQ-BROWSER-SEBELUM-EDIT', 'EQ-BROWSER-HAPUS', 'EQ-BROWSER-DIPAKAI'])
+            ->delete();
+        MachineryGroup::where('group_code', 'LIKE', 'MG-BROWSER-SESUDAH-EDIT-%')->delete();
+        MachineryGroup::where('group_code', 'LIKE', 'MG-BROWSER-1%')->delete();
+
+        $line = $this->productionLine($businessUnit, 'Mill Machinery Group PL Baru');
+        $lineTujuan = $this->productionLine($businessUnit, 'Mill Machinery Group PL Tujuan');
+
+        $station = $this->namedStation($line, 'Mill Machinery Group Station Baru');
+        $this->namedStation($lineTujuan, 'Mill Machinery Group Station Tujuan Edit');
+
+        $base = $this->machineryGroup($station, 'MG-BROWSER-BASE');
+        $this->machineryGroup($station, 'MG-BROWSER-SEBELUM-EDIT');
+        $this->machineryGroup($station, 'MG-BROWSER-HAPUS-BERSIH');
+        $this->machineryGroup($station, 'MG-DUP-01');
+        $withMachinery = $this->machineryGroup($station, 'MG-BROWSER-ADA-MACHINERY');
+
+        $this->machinery($base, 'EQ-BROWSER-SEBELUM-EDIT', 'Mesin Sebelum Edit');
+        $this->machinery($base, 'EQ-BROWSER-HAPUS', 'Mesin Untuk Dihapus');
+
+        // Makes MG-BROWSER-ADA-MACHINERY refuse deletion — that refusal is
+        // the whole point of the scenario that targets it.
+        $this->machinery($withMachinery, 'EQ-BROWSER-DIPAKAI', 'Mesin Penahan Hapus');
+    }
+
+    /**
+     * A Station identified by NAME rather than by (line, type). The
+     * type-keyed station() helper allows one row per type per line, which
+     * cannot express two differently named stations these specs need.
+     */
+    protected function namedStation(ProductionLine $line, string $name): Station
+    {
+        return Station::firstOrCreate(
+            ['production_line_id' => $line->id, 'name' => $name],
+            [
+                'business_unit_id' => $line->business_unit_id,
+                'type' => StationType::Weighbridge,
+                'is_active' => true,
+            ],
+        );
+    }
+
+    protected function machineryGroup(Station $station, string $groupCode): MachineryGroup
+    {
+        return MachineryGroup::firstOrCreate(
+            ['group_code' => $groupCode],
+            [
+                'station_id' => $station->id,
+                'production_line_id' => $station->production_line_id,
+            ],
+        );
+    }
+
+    protected function machinery(MachineryGroup $group, string $equipmentCode, string $name): Machinery
+    {
+        return Machinery::firstOrCreate(
+            ['equipment_code' => $equipmentCode],
+            [
+                'name' => $name,
+                'machinery_group_id' => $group->id,
+                'station_id' => $group->station_id,
+                'production_line_id' => $group->production_line_id,
+            ],
+        );
     }
 
     /**

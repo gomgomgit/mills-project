@@ -1,0 +1,283 @@
+{
+  "ver": 1,
+  "meta": {
+    "title": "Mill Smart Log",
+    "updated_at": "2026-10-01"
+  },
+  "id": "usecase-141--kunci-input-periode-tertutup",
+  "name": "Penolakan Input, Edit & Verifikasi pada Periode Tertutup",
+  "description": "Aturan lintas-layar yang mengikat pencatatan data stasiun pada Periode Pelaporan. Sebuah record stasiun hanya boleh dibuat, diubah, dihapus, atau diverifikasi bila ADA periode yang TERBUKA untuk jenis stasiun itu di mill yang bersangkutan, DAN tanggal kejadian record berada di dalam rentang periode tersebut. Bila tidak ada periode terbuka untuk stasiun itu — karena belum ada periode sama sekali, karena periodenya masih Draft, atau karena stasiunnya sudah Ditutup — permintaan ditolak. Tanpa aturan ini, menutup periode hanya menghentikan pengubahan periodenya sendiri sementara data stasiun terus mengalir masuk, sehingga angka sebuah laporan periode yang sudah ditutup masih dapat berubah setelah penutupan — dan itu membatalkan arti 'tertutup'.",
+  "actors": [
+    "actor-station-operator",
+    "actor-supervisor",
+    "actor-mill-management",
+    "actor-admin"
+  ],
+  "preconditions": [
+    "Pengguna sudah masuk dan berhak menulis data stasiun yang bersangkutan",
+    "Record yang hendak ditulis membawa jenis stasiun, mill, dan tanggal kejadian"
+  ],
+  "main_flow": [
+    {
+      "step": 1,
+      "actor": "actor-station-operator",
+      "description": "Pengguna mengirim permintaan menulis data stasiun — membuat baru, mengubah, menghapus, atau memverifikasi"
+    },
+    {
+      "step": 2,
+      "actor": "System",
+      "description": "Sistem menentukan jenis stasiun dan mill dari record yang dikirim, serta tanggal kejadian record itu"
+    },
+    {
+      "step": 3,
+      "actor": "System",
+      "description": "Sistem mencari periode pada mill itu yang mendaftarkan jenis stasiun tersebut dengan status TERBUKA"
+    },
+    {
+      "step": 4,
+      "actor": "System",
+      "description": "Sistem memeriksa apakah tanggal kejadian record berada di dalam rentang periode terbuka itu, inklusif pada kedua ujungnya"
+    },
+    {
+      "step": 5,
+      "actor": "System",
+      "description": "Bila keduanya terpenuhi, permintaan diteruskan ke pemrosesan normal; bila tidak, permintaan ditolak dan nol baris berubah"
+    }
+  ],
+  "alternative_flows": [
+    {
+      "name": "Tidak ada periode sama sekali",
+      "trigger": "Pada langkah 3, mill belum punya satu pun periode",
+      "steps": [
+        "Permintaan ditolak",
+        "Pesan menyatakan belum ada periode terbuka untuk stasiun itu dan mengarahkan menghubungi Admin",
+        "Nol baris tersimpan"
+      ]
+    },
+    {
+      "name": "Periode ada tetapi stasiunnya masih Draft",
+      "trigger": "Pada langkah 3, baris stasiun pada periode berstatus Draft",
+      "steps": [
+        "Permintaan ditolak — Draft BUKAN terbuka",
+        "Pesan menyatakan periode untuk stasiun itu belum dibuka",
+        "Nol baris tersimpan"
+      ]
+    },
+    {
+      "name": "Stasiun pada periode sudah Ditutup",
+      "trigger": "Pada langkah 3, baris stasiun pada periode berstatus Tertutup",
+      "steps": [
+        "Permintaan ditolak",
+        "Pesan menyatakan periode untuk stasiun itu sudah ditutup",
+        "Nol baris tersimpan, termasuk pada jalur ubah, hapus, dan verifikasi"
+      ]
+    },
+    {
+      "name": "Ada periode terbuka tetapi tanggal record di luar rentangnya",
+      "trigger": "Pada langkah 4, tanggal kejadian record jatuh sebelum tanggal awal atau sesudah tanggal akhir periode terbuka itu",
+      "steps": [
+        "Permintaan ditolak",
+        "Pesan menyebutkan rentang periode yang berlaku supaya pengguna tahu tanggal mana yang diterima",
+        "Nol baris tersimpan"
+      ]
+    },
+    {
+      "name": "Periode terbuka milik jenis stasiun lain",
+      "trigger": "Pada langkah 3, mill punya periode terbuka tetapi hanya untuk jenis stasiun yang berbeda",
+      "steps": [
+        "Permintaan ditolak",
+        "Keterbukaan satu jenis stasiun TIDAK pernah membuka jenis stasiun lain di periode yang sama",
+        "Nol baris tersimpan"
+      ]
+    },
+    {
+      "name": "Periode terbuka milik mill lain",
+      "trigger": "Pada langkah 3, periode terbuka untuk jenis stasiun itu ada, tetapi milik mill yang berbeda",
+      "steps": [
+        "Permintaan ditolak",
+        "Periode milik mill lain tidak pernah membuka pintu bagi mill ini",
+        "Nol baris tersimpan"
+      ]
+    },
+    {
+      "name": "Record tersinkron terlambat dari mobile",
+      "trigger": "Pada langkah 3, record ditimbang saat stasiunnya masih terbuka tetapi permintaannya baru tiba setelah stasiun itu ditutup",
+      "steps": [
+        "Permintaan DITOLAK — pemeriksaan memakai status pada saat permintaan tiba, bukan pada saat kejadian",
+        "Pemulihannya lewat Admin membuka kembali stasiun itu di layar Detail Periode Pelaporan, lalu pengguna mengirim ulang",
+        "Konsekuensinya dicatat sebagai open_question: antrean offline membuat kasus ini pasti terjadi"
+      ]
+    },
+    {
+      "name": "Dua jenis stasiun berbeda status di periode yang sama",
+      "trigger": "Pada langkah 3, satu periode memuat stasiun A yang sudah Tertutup dan stasiun B yang masih Terbuka",
+      "steps": [
+        "Penulisan untuk stasiun B tetap diterima",
+        "Penulisan untuk stasiun A ditolak",
+        "Status dinilai per jenis stasiun, tidak pernah per periode"
+      ]
+    }
+  ],
+  "postconditions": [
+    "Bila diterima: record tersimpan seperti biasa dan tidak ada perilaku lain yang berubah",
+    "Bila ditolak: nol baris data stasiun berubah, dan pengguna menerima pesan yang menyebutkan sebabnya"
+  ],
+  "business_rules": [
+    "Menulis data stasiun menuntut adanya periode yang TERBUKA untuk jenis stasiun itu di mill yang bersangkutan",
+    "Status dinilai PER JENIS STASIUN lewat baris stasiun pada periode, tidak pernah per periode secara keseluruhan",
+    "Hanya status Terbuka yang mengizinkan; Draft dan Tertutup sama-sama menolak",
+    "Tanggal kejadian record wajib berada di dalam rentang periode terbuka itu, inklusif pada kedua ujung",
+    "Aturan ini berlaku untuk membuat, mengubah, menghapus, dan memverifikasi — semuanya dapat mengubah angka laporan periode",
+    "Penolakan terjadi sebelum baris apa pun disentuh; nol perubahan sebagian",
+    "Periode milik mill lain maupun jenis stasiun lain tidak pernah membuka pintu",
+    "Record yang tiba setelah penutupan ditolak walau kejadiannya di dalam rentang; pemulihannya lewat Admin membuka kembali stasiun itu"
+  ],
+  "bdd_scenarios": [
+    {
+      "scenario": "Kunci Periode — input ditolak saat mill belum punya periode sama sekali",
+      "given": "Seorang pengguna berhak menulis data sebuah stasiun, dan mill-nya belum punya satu pun Periode Pelaporan",
+      "when": "Pengguna mengirim data stasiun baru",
+      "then": "Permintaan ditolak dengan pesan bahwa belum ada periode terbuka untuk stasiun itu beserta arahan menghubungi Admin, dan nol baris data stasiun tersimpan"
+    },
+    {
+      "scenario": "Kunci Periode — input ditolak saat stasiun pada periode masih Draft",
+      "given": "Mill punya Periode Pelaporan yang mencakup stasiun itu, tetapi baris stasiunnya masih berstatus Draft",
+      "when": "Pengguna mengirim data stasiun baru bertanggal di dalam rentang periode itu",
+      "then": "Permintaan ditolak dengan pesan bahwa periode untuk stasiun itu belum dibuka, dan nol baris tersimpan — Draft tidak pernah diperlakukan sebagai terbuka"
+    },
+    {
+      "scenario": "Kunci Periode — input ditolak saat stasiun pada periode sudah Ditutup",
+      "given": "Mill punya Periode Pelaporan yang mencakup stasiun itu dengan baris stasiun berstatus Tertutup",
+      "when": "Pengguna mengirim data stasiun baru bertanggal di dalam rentang periode itu",
+      "then": "Permintaan ditolak dengan pesan bahwa periode untuk stasiun itu sudah ditutup, dan nol baris tersimpan sehingga angka laporan periode yang sudah ditutup tidak berubah"
+    },
+    {
+      "scenario": "Kunci Periode — input diterima saat stasiun pada periode Terbuka dan tanggal di dalam rentang",
+      "given": "Mill punya Periode Pelaporan yang mencakup stasiun itu dengan baris stasiun berstatus Terbuka",
+      "when": "Pengguna mengirim data stasiun baru bertanggal di dalam rentang periode itu",
+      "then": "Permintaan diterima dan record tersimpan seperti biasa, tanpa perubahan perilaku lain pada alur penyimpanan"
+    },
+    {
+      "scenario": "Kunci Periode — input ditolak saat tanggal record di luar rentang periode terbuka",
+      "given": "Mill punya Periode Pelaporan dengan stasiun itu berstatus Terbuka untuk rentang tanggal tertentu",
+      "when": "Pengguna mengirim data stasiun bertanggal sehari sebelum tanggal awal periode, lalu mencoba lagi bertanggal sehari sesudah tanggal akhirnya",
+      "then": "Kedua permintaan ditolak dengan pesan yang menyebutkan rentang periode yang berlaku sehingga pengguna tahu tanggal mana yang diterima, dan nol baris tersimpan"
+    },
+    {
+      "scenario": "Kunci Periode — rentang periode inklusif di kedua ujung",
+      "given": "Mill punya Periode Pelaporan dengan stasiun itu berstatus Terbuka",
+      "when": "Pengguna mengirim data stasiun bertanggal tepat pada tanggal awal periode, lalu satu lagi bertanggal tepat pada tanggal akhirnya",
+      "then": "Kedua permintaan diterima dan tersimpan — kedua tanggal ujung termasuk di dalam rentang, bukan di luarnya"
+    },
+    {
+      "scenario": "Kunci Periode — keterbukaan satu jenis stasiun tidak membuka jenis stasiun lain",
+      "given": "Mill punya satu Periode Pelaporan yang di dalamnya stasiun A berstatus Terbuka dan stasiun B berstatus Tertutup",
+      "when": "Pengguna mengirim data untuk stasiun B bertanggal di dalam rentang periode itu",
+      "then": "Permintaan ditolak meskipun periode yang sama punya stasiun lain yang terbuka, karena status dinilai per jenis stasiun dan bukan per periode"
+    },
+    {
+      "scenario": "Kunci Periode — penulisan untuk stasiun yang terbuka tetap berjalan di periode yang sebagian tertutup",
+      "given": "Mill punya satu Periode Pelaporan yang di dalamnya stasiun A berstatus Terbuka dan stasiun B berstatus Tertutup",
+      "when": "Pengguna mengirim data untuk stasiun A bertanggal di dalam rentang periode itu",
+      "then": "Permintaan diterima dan tersimpan — penutupan stasiun B tidak menghentikan pencatatan stasiun A di periode yang sama"
+    },
+    {
+      "scenario": "Kunci Periode — periode terbuka milik mill lain tidak membuka pintu",
+      "given": "Mill A belum punya periode terbuka untuk sebuah jenis stasiun, sementara Mill B punya periode terbuka untuk jenis stasiun yang sama pada rentang tanggal yang sama",
+      "when": "Pengguna Mill A mengirim data stasiun itu bertanggal di dalam rentang periode Mill B",
+      "then": "Permintaan ditolak — periode milik mill lain tidak pernah membuka pintu bagi mill ini, dan nol baris tersimpan"
+    },
+    {
+      "scenario": "Kunci Periode — pengubahan record pada stasiun yang sudah ditutup ditolak",
+      "given": "Sebuah record stasiun sudah tersimpan, lalu baris stasiunnya pada periode itu ditutup",
+      "when": "Pengguna mengubah record tersebut",
+      "then": "Permintaan ditolak dan nilai record tidak berubah sedikit pun, karena pengubahan sama-sama dapat menggeser angka laporan periode yang sudah ditutup"
+    },
+    {
+      "scenario": "Kunci Periode — penghapusan record pada stasiun yang sudah ditutup ditolak",
+      "given": "Sebuah record stasiun sudah tersimpan, lalu baris stasiunnya pada periode itu ditutup",
+      "when": "Pengguna menghapus record tersebut",
+      "then": "Permintaan ditolak dan record tetap ada, karena menghapus satu baris mengubah angka laporan periode yang sudah ditutup sama nyatanya dengan menambah baris"
+    },
+    {
+      "scenario": "Kunci Periode — verifikasi record pada stasiun yang sudah ditutup ditolak",
+      "given": "Sebuah record stasiun sudah tersimpan dan belum terverifikasi, lalu baris stasiunnya pada periode itu ditutup",
+      "when": "Pengguna memverifikasi record tersebut",
+      "then": "Permintaan ditolak dan status verifikasi record tidak berubah, karena verifikasi ikut terkunci bersama penutupan"
+    },
+    {
+      "scenario": "Kunci Periode — record tersinkron terlambat setelah penutupan ditolak",
+      "given": "Seorang Operator mencatat data stasiun di aplikasi mobile saat stasiun itu masih terbuka, data tersimpan lokal, lalu Admin menutup stasiun itu sebelum perangkat sempat tersinkron",
+      "when": "Perangkat akhirnya mengirim record tersebut ke server",
+      "then": "Permintaan ditolak karena status dinilai pada saat permintaan tiba dan bukan pada saat kejadian, record tetap tertahan di perangkat, dan pemulihannya adalah Admin membuka kembali stasiun itu lalu pengguna mengirim ulang"
+    },
+    {
+      "scenario": "Kunci Periode — penolakan tidak menyisakan perubahan sebagian",
+      "given": "Sebuah permintaan menulis data stasiun membawa baris induk beserta beberapa baris detail, dan stasiun itu sedang tertutup",
+      "when": "Pengguna mengirim permintaan tersebut",
+      "then": "Penolakan terjadi sebelum satu baris pun disentuh, sehingga tidak ada baris induk tanpa detail maupun detail tanpa induk yang tertinggal di basis data"
+    },
+    {
+      "scenario": "Kunci Periode — aturan berlaku sama dari web maupun mobile",
+      "given": "Sebuah jenis stasiun pada periode berstatus Tertutup di sebuah mill",
+      "when": "Data stasiun itu dikirim dari layar web dan dari aplikasi mobile untuk tanggal yang sama",
+      "then": "Kedua jalur ditolak dengan sebab yang sama, karena penegakannya berada di lapisan layanan yang dipakai bersama dan bukan di salah satu antarmuka"
+    }
+  ],
+  "related_screen_ids": [
+    "screen-010--form-weighbridge",
+    "screen-011--form-grading",
+    "screen-012--form-cages-track",
+    "screen-013--data-preview-weighbridge",
+    "screen-014--data-preview-grading",
+    "screen-015--data-preview-cages-track",
+    "screen-022--form-weighbridge-web",
+    "screen-023--form-grading-web",
+    "screen-024--form-cages-track-web",
+    "screen-041--form-threshing",
+    "screen-042--form-pressing",
+    "screen-043--form-depricarping",
+    "screen-044--form-kernel-plant",
+    "screen-045--data-preview-threshing",
+    "screen-046--data-preview-pressing",
+    "screen-047--data-preview-depricarping",
+    "screen-048--data-preview-kernel-plant",
+    "screen-057--form-threshing-web",
+    "screen-058--form-pressing-web",
+    "screen-059--form-depricarping-web",
+    "screen-060--form-kernel-plant-web",
+    "screen-071--form-solid-waste-disposal",
+    "screen-072--form-process-water",
+    "screen-073--form-kernel-dispatch",
+    "screen-074--form-cpo-dispatch",
+    "screen-075--form-effluent-plant",
+    "screen-076--form-storage-tank",
+    "screen-077--form-engine-room",
+    "screen-078--form-boiler-room",
+    "screen-079--form-clarification",
+    "screen-080--form-process-quality-control",
+    "screen-081--data-preview-solid-waste-disposal",
+    "screen-082--data-preview-process-water",
+    "screen-083--data-preview-kernel-dispatch",
+    "screen-084--data-preview-cpo-dispatch",
+    "screen-085--data-preview-effluent-plant",
+    "screen-086--data-preview-storage-tank",
+    "screen-087--data-preview-engine-room",
+    "screen-088--data-preview-boiler-room",
+    "screen-089--data-preview-clarification",
+    "screen-090--data-preview-process-quality-control",
+    "screen-111--form-solid-waste-disposal-web",
+    "screen-112--form-process-water-web",
+    "screen-113--form-kernel-dispatch-web",
+    "screen-114--form-cpo-dispatch-web",
+    "screen-115--form-effluent-plant-web",
+    "screen-116--form-storage-tank-web",
+    "screen-117--form-engine-room-web",
+    "screen-118--form-boiler-room-web",
+    "screen-119--form-clarification-web",
+    "screen-120--form-process-quality-control-web",
+    "screen-122--form-sterilizer",
+    "screen-123--data-preview-sterilizer",
+    "screen-126--form-sterilizer-web"
+  ]
+}

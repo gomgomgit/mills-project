@@ -300,6 +300,16 @@ def _write_artifact(key: str, data: dict) -> dict:
 
 _INDEX_RE = re.compile(r"\[(\d+)\]")
 
+# Edit ops. `set` is the original behaviour and stays the default so every existing
+# caller keeps working unchanged. `append`/`extend` exist because `set` cannot grow a
+# list: adding one endpoint to api-index (168 entries) otherwise means re-emitting the
+# whole document through artifact__write by hand, which is exactly the silent-drop risk
+# this tool was built to remove.
+_SET = "set"
+_APPEND = "append"
+_EXTEND = "extend"
+_OPS = (_SET, _APPEND, _EXTEND)
+
 
 def _parse_edit_path(raw: str):
     """Parse a dotted/indexed edit path into a list of segments.
@@ -337,11 +347,17 @@ def _parse_edit_path(raw: str):
     return segs
 
 
-def _apply_edit(doc, segs: list, value, raw: str):
-    """Set value at segs inside doc, in place. The target must already exist.
+def _apply_edit(doc, segs: list, value, raw: str, op: str = _SET):
+    """Apply one edit at segs inside doc, in place. The target must already exist.
 
-    Requiring prior existence is deliberate: a typo'd path must fail loudly rather
-    than silently grow a field no template or schema knows about. Use
+    op:
+        "set"     — replace the value at segs (the original, default behaviour).
+        "append"  — segs must hold a list; `value` is appended as ONE element.
+        "extend"  — segs must hold a list; `value` must be a list, each element appended.
+
+    Requiring prior existence is deliberate for every op: a typo'd path must fail
+    loudly rather than silently grow a field no template or schema knows about, and
+    appending to a list that does not exist yet is the same mistake. Use
     artifact__write to add a field.
 
     Returns {"error": str} on failure, else None.
@@ -379,7 +395,40 @@ def _apply_edit(doc, segs: list, value, raw: str):
                 )
             }
 
-    cursor[last] = value
+    if op == _SET:
+        cursor[last] = value
+        return None
+
+    # append / extend — the path must already hold a list. Checked here rather than
+    # trusted, because appending to a dict would otherwise silently create the key "0".
+    target = cursor[last]
+    if not isinstance(target, list):
+        return {
+            "error": (
+                f"path '{raw}': op '{op}' needs a list, but '{raw}' holds "
+                f"a {type(target).__name__}"
+            )
+        }
+
+    if op == _APPEND:
+        target.append(value)
+        return None
+
+    if not isinstance(value, list):
+        return {
+            "error": (
+                f"path '{raw}': op 'extend' needs value to be a list, got "
+                f"{type(value).__name__} — use op 'append' for a single element"
+            )
+        }
+    if not value:
+        return {
+            "error": (
+                f"path '{raw}': op 'extend' with an empty list changes nothing — "
+                "drop the edit instead"
+            )
+        }
+    target.extend(value)
     return None
 
 
@@ -409,6 +458,9 @@ def _patch_artifact(key: str, edits: list) -> dict:
     Args:
         key:   Dot-notation artifact key. The artifact must already exist.
         edits: [{"path": "endpoints[34].screen_id", "value": "screen-031--x"}, ...]
+               Each edit may carry an optional "op": "set" (default) replaces the
+               value, "append" appends `value` as one element to the list at path,
+               "extend" appends every element of a list `value`.
 
     Returns:
         {"ok": True, "key", "path", "changed_fields", "edits_applied"}
@@ -445,11 +497,20 @@ def _patch_artifact(key: str, edits: list) -> dict:
         if "path" not in edit or "value" not in edit:
             return {"error": f"edits[{i}] must have both 'path' and 'value'"}
 
+        op = edit.get("op", _SET)
+        if op not in _OPS:
+            return {
+                "error": (
+                    f"edits[{i}]: unknown op '{op}' — expected one of "
+                    + ", ".join(_OPS)
+                )
+            }
+
         segs = _parse_edit_path(edit["path"])
         if isinstance(segs, dict):
             return {"error": f"edits[{i}]: " + segs["error"]}
 
-        failure = _apply_edit(new_data, segs, edit["value"], edit["path"])
+        failure = _apply_edit(new_data, segs, edit["value"], edit["path"], op)
         if failure:
             return {"error": f"edits[{i}]: " + failure["error"]}
 
@@ -530,10 +591,18 @@ def register(mcp) -> None:
 
         edits: [{"path": "endpoints[34].screen_id", "value": "screen-031--x"}, ...]
 
+        Each edit takes an optional "op":
+          "set"    (default) replace the value at path
+          "append" path must hold a list; `value` is appended as ONE element
+          "extend" path must hold a list; `value` must be a list, each element appended
+
+        append/extend are how you GROW a list without restating it — adding one
+        endpoint to a 168-entry api-index is one edit, not a full re-emit.
+
         Paths use dots for keys and [n] for list indices ("a.b[2].c"). Every path
         must already exist — a typo fails loudly instead of adding a stray field;
-        use artifact__write to add or remove fields. All-or-nothing: if any edit
-        fails, nothing is written.
+        use artifact__write to add a new field or remove one. All-or-nothing: if any
+        edit fails, nothing is written.
         """
         return _patch_artifact(artifact_key, edits)
 

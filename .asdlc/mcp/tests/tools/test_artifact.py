@@ -1319,3 +1319,207 @@ class TestPatchArtifact:
         _write_artifact("project.1-foundation.prd", {"goals": "same"})
         result = _patch_artifact("project.1-foundation.prd", [{"path": "goals", "value": "same"}])
         assert result["ok"] is True and result["changed_fields"] == []
+
+
+class TestAppendAndExtend:
+    """op append/extend — growing a list without restating it.
+
+    Why this exists: `set` can change any value but cannot make a list longer, so
+    adding one endpoint to api-index (168 entries) forced a full artifact__write by
+    hand. These tests pin both the growth and the guards, because an append that
+    silently lands somewhere other than the intended list is worse than a refusal.
+    """
+
+    def test_ap1_append_grows_list_by_one_at_the_end(self, fs):
+        _write_artifact("project.1-foundation.prd", {"notes": ["one", "two"]})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "notes", "op": "append", "value": "three"},
+        ])
+        assert result["ok"] is True
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["notes"] == ["one", "two", "three"]
+
+    def test_ap2_append_leaves_existing_elements_byte_identical(self, fs):
+        original = {
+            "ver": 1,
+            "meta": {"title": "T"},
+            "endpoints": [{"path": "/a", "screen_id": "s1"}, {"path": "/b", "screen_id": "s2"}],
+        }
+        _write_artifact("project.1-foundation.prd", original)
+        _patch_artifact("project.1-foundation.prd", [
+            {"path": "endpoints", "op": "append", "value": {"path": "/c", "screen_id": "s3"}},
+        ])
+        after = read_file(_ap(fs, "project.1-foundation.prd"))
+        # The entire point: the 2 entries the caller never restated are untouched.
+        assert after["endpoints"][0] == {"path": "/a", "screen_id": "s1"}
+        assert after["endpoints"][1] == {"path": "/b", "screen_id": "s2"}
+        assert after["endpoints"][2] == {"path": "/c", "screen_id": "s3"}
+        assert after["ver"] == 1 and after["meta"] == {"title": "T"}
+
+    def test_ap3_append_accepts_a_dict_element(self, fs):
+        _write_artifact("project.1-foundation.prd", {"items": []})
+        _patch_artifact("project.1-foundation.prd", [
+            {"path": "items", "op": "append", "value": {"k": [1, 2], "n": None}},
+        ])
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["items"] == [{"k": [1, 2], "n": None}]
+
+    def test_ap4_append_reaches_a_list_nested_under_a_list_element(self, fs):
+        _write_artifact("project.1-foundation.prd", {
+            "contracts": [{"logic": ["a"]}, {"logic": ["b", "c"]}],
+        })
+        _patch_artifact("project.1-foundation.prd", [
+            {"path": "contracts[1].logic", "op": "append", "value": "d"},
+        ])
+        after = read_file(_ap(fs, "project.1-foundation.prd"))
+        assert after["contracts"][1]["logic"] == ["b", "c", "d"]
+        assert after["contracts"][0]["logic"] == ["a"]
+
+    def test_ap5_append_to_a_dict_is_refused_naming_the_type(self, fs):
+        _write_artifact("project.1-foundation.prd", {"meta": {"title": "T"}})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "meta", "op": "append", "value": "x"},
+        ])
+        assert "error" in result
+        assert "needs a list" in result["error"] and "dict" in result["error"]
+        # Nothing written: the dict must not have gained a "0" key.
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["meta"] == {"title": "T"}
+
+    def test_ap6_append_to_a_scalar_is_refused(self, fs):
+        _write_artifact("project.1-foundation.prd", {"goals": "g", "ver": 1})
+        for path, typename in (("goals", "str"), ("ver", "int")):
+            result = _patch_artifact("project.1-foundation.prd", [
+                {"path": path, "op": "append", "value": "x"},
+            ])
+            assert "error" in result and typename in result["error"]
+
+    def test_ap7_append_to_a_missing_key_is_refused_and_points_at_write(self, fs):
+        _write_artifact("project.1-foundation.prd", {"goals": "g"})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "notes", "op": "append", "value": "x"},
+        ])
+        assert "error" in result
+        assert "does not exist" in result["error"] and "artifact__write" in result["error"]
+
+    def test_ap8_append_with_out_of_range_parent_index_is_refused(self, fs):
+        _write_artifact("project.1-foundation.prd", {"contracts": [{"logic": ["a"]}]})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "contracts[5].logic", "op": "append", "value": "x"},
+        ])
+        assert "error" in result and "out of range" in result["error"]
+
+    def test_ap9_extend_appends_every_element(self, fs):
+        _write_artifact("project.1-foundation.prd", {"notes": ["one"]})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "notes", "op": "extend", "value": ["two", "three", "four"]},
+        ])
+        assert result["ok"] is True
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["notes"] == [
+            "one", "two", "three", "four",
+        ]
+
+    def test_ap10_extend_with_a_non_list_value_is_refused_and_suggests_append(self, fs):
+        _write_artifact("project.1-foundation.prd", {"notes": ["one"]})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "notes", "op": "extend", "value": "two"},
+        ])
+        assert "error" in result
+        assert "needs value to be a list" in result["error"] and "append" in result["error"]
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["notes"] == ["one"]
+
+    def test_ap11_extend_with_an_empty_list_is_refused_as_a_no_op(self, fs):
+        _write_artifact("project.1-foundation.prd", {"notes": ["one"]})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "notes", "op": "extend", "value": []},
+        ])
+        assert "error" in result and "changes nothing" in result["error"]
+
+    def test_ap12_unknown_op_is_refused_listing_the_valid_ones(self, fs):
+        _write_artifact("project.1-foundation.prd", {"notes": ["one"]})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "notes", "op": "push", "value": "two"},
+        ])
+        assert "error" in result
+        assert "unknown op 'push'" in result["error"]
+        for op in ("set", "append", "extend"):
+            assert op in result["error"]
+
+    def test_ap13_omitting_op_still_means_set(self, fs):
+        """Back-compat: every call written before append existed must behave the same."""
+        _write_artifact("project.1-foundation.prd", {"notes": ["one", "two"]})
+        _patch_artifact("project.1-foundation.prd", [
+            {"path": "notes", "value": ["replaced"]},
+        ])
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["notes"] == ["replaced"]
+
+    def test_ap14_explicit_set_op_replaces_as_before(self, fs):
+        _write_artifact("project.1-foundation.prd", {"notes": ["one"], "goals": "g"})
+        _patch_artifact("project.1-foundation.prd", [
+            {"path": "goals", "op": "set", "value": "g2"},
+        ])
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["goals"] == "g2"
+
+    def test_ap15_mixed_ops_in_one_call_all_apply(self, fs):
+        _write_artifact("project.1-foundation.prd", {
+            "ver": 1, "notes": ["one"], "endpoints": [{"path": "/a"}],
+        })
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "ver", "value": 2},
+            {"path": "notes", "op": "append", "value": "two"},
+            {"path": "endpoints", "op": "extend", "value": [{"path": "/b"}, {"path": "/c"}]},
+        ])
+        assert result["edits_applied"] == 3
+        after = read_file(_ap(fs, "project.1-foundation.prd"))
+        assert after["ver"] == 2
+        assert after["notes"] == ["one", "two"]
+        assert [e["path"] for e in after["endpoints"]] == ["/a", "/b", "/c"]
+
+    def test_ap16_a_failing_append_writes_nothing_at_all(self, fs):
+        _write_artifact("project.1-foundation.prd", {"ver": 1, "notes": ["one"], "meta": {}})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "ver", "value": 2},
+            {"path": "notes", "op": "append", "value": "two"},
+            {"path": "meta", "op": "append", "value": "boom"},
+        ])
+        assert "error" in result
+        after = read_file(_ap(fs, "project.1-foundation.prd"))
+        # Not even the two edits that succeeded in memory reached disk.
+        assert after == {"ver": 1, "notes": ["one"], "meta": {}}
+
+    def test_ap17_append_reports_changed_fields_from_schema(self, fs):
+        _write_schema(fs, "project.1-foundation.prd", SAMPLE_SCHEMA)
+        _write_artifact("project.1-foundation.prd", {"assumptions": ["a"], "goals": "same"})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "assumptions", "op": "append", "value": "b"},
+        ])
+        assert result["ok"] is True and result["changed_fields"] == ["assumptions"]
+
+    def test_ap18_append_still_runs_template_validation(self, fs):
+        _write_template(fs, "project.1-foundation.prd", {"ver": 1, "notes": ["string"]})
+        _write_artifact("project.1-foundation.prd", {"ver": 1, "notes": ["one"]})
+        result = _patch_artifact("project.1-foundation.prd", [
+            {"path": "notes", "op": "append", "value": {"not": "a string"}},
+        ])
+        assert "error" in result and "Validation failed" in result["error"]
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["notes"] == ["one"]
+
+    def test_ap19_two_appends_to_the_same_list_land_in_order(self, fs):
+        _write_artifact("project.1-foundation.prd", {"notes": ["one"]})
+        _patch_artifact("project.1-foundation.prd", [
+            {"path": "notes", "op": "append", "value": "two"},
+            {"path": "notes", "op": "append", "value": "three"},
+        ])
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["notes"] == ["one", "two", "three"]
+
+    def test_ap20_append_onto_an_empty_list_works(self, fs):
+        _write_artifact("project.1-foundation.prd", {"notes": []})
+        _patch_artifact("project.1-foundation.prd", [
+            {"path": "notes", "op": "append", "value": "first"},
+        ])
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["notes"] == ["first"]
+
+    def test_ap21_append_a_list_value_nests_it_rather_than_flattening(self, fs):
+        """append is ONE element even when that element is itself a list — extend flattens."""
+        _write_artifact("project.1-foundation.prd", {"notes": ["one"]})
+        _patch_artifact("project.1-foundation.prd", [
+            {"path": "notes", "op": "append", "value": ["two", "three"]},
+        ])
+        assert read_file(_ap(fs, "project.1-foundation.prd"))["notes"] == ["one", ["two", "three"]]

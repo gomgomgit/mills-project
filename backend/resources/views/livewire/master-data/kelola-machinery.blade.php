@@ -121,7 +121,12 @@
                                     class="kc-button kc-button--ghost kc-button--sm"
                                     aria-expanded="{{ $isOpen ? 'true' : 'false' }}"
                                     data-testid="toggle-group"
-                                >{{ $isOpen ? '&#9662;' : '&#9656;' }}</button>
+                                {{-- Karakter UTF-8 langsung, BUKAN HTML entity: `{{ }}` meng-escape
+                                     keluarannya, jadi '&#9662;' akan tampil sebagai teks mentah
+                                     "&#9662;" alih-alih ▾. Memakai {!! !!} juga bisa, tetapi
+                                     karakter langsung tidak menambah permukaan unescaped sama
+                                     sekali. --}}
+                                >{{ $isOpen ? '▾' : '▸' }}</button>
                             </td>
                             <td>{{ $group['group_code'] }}</td>
                             <td>{{ $group['station_name'] ?? '-' }}</td>
@@ -154,7 +159,7 @@
 
                         @if ($isOpen)
                             {{-- Kolom grup yang jarang dibaca pindah ke sini, bukan dihapus. --}}
-                            <tr class="kc-table__row kc-table__row--static" wire:key="group-panel-{{ $group['id'] }}">
+                            <tr class="kc-table__row kc-table__row--static kc-table__row--panel" wire:key="group-panel-{{ $group['id'] }}">
                                 <td colspan="6">
                                     <dl class="kc-detail-panel" data-testid="group-panel">
                                         <div><dt>Deskripsi</dt><dd>{{ $group['description'] ?? '-' }}</dd></div>
@@ -186,9 +191,9 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr class="kc-table__row kc-table__row--static" wire:key="child-empty-{{ $group['id'] }}">
+                                <tr class="kc-table__row kc-table__row--static kc-table__row--panel" wire:key="child-empty-{{ $group['id'] }}">
                                     <td colspan="6">
-                                        <p class="kc-empty__subtitle" data-testid="group-empty">Grup ini belum berisi mesin.</p>
+                                        <p class="kc-empty__subtitle kc-empty__subtitle--nested" data-testid="group-empty">Grup ini belum berisi mesin.</p>
                                     </td>
                                 </tr>
                             @endforelse
@@ -771,6 +776,45 @@
             text-align: right;
         }
 
+        /* Lebar kolom toggle disamakan dengan indentasi badan tabel supaya
+           judul kolom dan isinya berbaris lurus; tanpa ini lebarnya ditentukan
+           browser dan ikut bergeser saat isi kolom lain berubah. */
+        .kc-table__toggle-head {
+            width: var(--kc-group-indent);
+            padding-right: 0;
+        }
+
+        /* Teks khusus pembaca layar. TANPA aturan ini kelasnya tidak berarti
+           apa-apa dan kata "Buka" tampil sebagai judul kolom di atas tombol
+           accordion — terbaca sebagai label nyasar. */
+        .kc-sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Penghitung "mesin tanpa grup" di toolbar. Kelas ini sudah dipakai di
+           markup sejak awal tetapi tidak pernah didefinisikan di halaman ini,
+           jadi penghitungnya tampil sebagai teks polos. Bentuknya disamakan
+           dengan .kc-badge di kelola-station agar konsisten antarhalaman. */
+        .kc-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 999px;
+            background: #f3f4f6;
+            color: var(--kc-text-muted);
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
         .kc-table__row td {
             padding: 12px 16px;
             border-bottom: 1px solid var(--kc-border);
@@ -784,6 +828,104 @@
         .kc-table__actions {
             text-align: right;
             white-space: nowrap;
+        }
+
+        /* ── Accordion grup ───────────────────────────────────────────────
+           Baris grup, panel ringkasnya, dan baris mesin di dalamnya
+           sebelumnya TANPA CSS sama sekali: <dl> panel tampil dengan margin
+           bawaan browser dan indentasi <dd> 40px, sementara baris mesin tidak
+           terbedakan sedikit pun dari baris grup — itu sebabnya terbaca
+           berantakan.
+
+           Satu nilai indentasi dipakai bersama lewat custom property supaya
+           panel ringkas dan baris mesin SELALU berbaris lurus. Keduanya
+           menjorok di bawah kolom teks grup, bukan di bawah tombol buka/tutup
+           — kalau nilainya ditulis dua kali, keduanya pasti melenceng cepat
+           atau lambat. */
+        .kc-table {
+            --kc-group-indent: 44px;
+            --kc-nest-tint: #fbfcfc;
+        }
+
+        .kc-table__row--group > td {
+            background: #f9fafb;
+            font-weight: 600;
+            color: var(--kc-text);
+        }
+
+        .kc-table__row--group > td:first-child {
+            width: var(--kc-group-indent);
+            padding-right: 0;
+        }
+
+        .kc-table__row--child > td {
+            background: var(--kc-nest-tint);
+        }
+
+        /* Sel kosong pertama tiap baris mesin memegang garis panduan tegak
+           yang menghubungkan seluruh isi satu grup. Itu yang membuat mata
+           tahu di mana sebuah grup berakhir tanpa perlu membaca kodenya. */
+        .kc-table__row--child > td:first-child {
+            width: var(--kc-group-indent);
+            padding-right: 0;
+            position: relative;
+        }
+
+        .kc-table__row--child > td:first-child::after {
+            content: "";
+            position: absolute;
+            left: 23px;
+            top: 0;
+            bottom: 0;
+            border-left: 2px solid var(--kc-border);
+        }
+
+        .kc-table__row--child > td:nth-child(2) {
+            color: var(--kc-text-muted);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        .kc-table__row--panel > td {
+            background: var(--kc-nest-tint);
+            padding-top: 14px;
+            padding-bottom: 14px;
+        }
+
+        .kc-detail-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 14px 28px;
+            margin: 0;
+            padding-left: calc(var(--kc-group-indent) - 16px);
+        }
+
+        .kc-detail-panel > div {
+            min-width: 0;
+        }
+
+        .kc-detail-panel dt {
+            margin: 0 0 3px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: var(--kc-text-muted);
+        }
+
+        /* margin: 0 WAJIB — tanpa ini <dd> membawa indentasi bawaan browser
+           sebesar 40px dan seluruh kolom nilai melenceng dari labelnya. */
+        .kc-detail-panel dd {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.45;
+            color: var(--kc-text);
+            overflow-wrap: anywhere;
+        }
+
+        .kc-empty__subtitle--nested {
+            padding-left: calc(var(--kc-group-indent) - 16px);
+            font-style: italic;
         }
 
         .kc-confirm {

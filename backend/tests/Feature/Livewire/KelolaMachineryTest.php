@@ -457,3 +457,55 @@ it('filters the list when filterMachineryGroupId is set, resetting to page 1', f
         ->assertSet('page', 1)
         ->assertViewHas('machineryRows', fn ($rows) => collect($rows)->pluck('equipment_code')->all() === ['EQ-LW-A1']);
 });
+
+/*
+ * Penanda buka/tutup accordion pada baris grup.
+ *
+ * Ditemukan mata manusia, bukan test: `{{ }}` di Blade meng-escape
+ * keluarannya, jadi menulis '&#9662;' di dalamnya membuat browser
+ * menampilkan teks mentah "&#9662;" alih-alih ▾. Accordion-nya sendiri tetap
+ * berfungsi — tombolnya bisa diklik dan aria-expanded benar — sehingga NOL
+ * test perilaku yang bisa menangkapnya. Test ini memeriksa karakter yang
+ * sebenarnya terkirim ke browser, dan menolak bentuk entity yang rusak itu
+ * secara eksplisit supaya ia tidak bisa kembali diam-diam.
+ *
+ * Catatan kenapa assertSee() tidak dipakai: ia meng-escape argumennya secara
+ * bawaan, jadi assertSee('&#9662;') justru COCOK dengan keluaran yang salah.
+ * Itu sebabnya asersinya dilakukan pada HTML mentah.
+ */
+it('renders a real triangle character as the group accordion marker, never an HTML entity', function () {
+    $component = Livewire::actingAs($this->admin)
+        ->test(KelolaMachinery::class)
+        ->set('viewMode', 'grup');
+
+    $closed = $component->html();
+
+    // Tertutup: segitiga kanan ▸ (U+25B8), bukan teks "&#9656;".
+    expect($closed)->toContain('▸');
+    expect($closed)->not->toContain('&#9656;');
+    expect($closed)->not->toContain('&amp;#9656;');
+
+    $open = $component->call('toggleGroup', $this->group->id)->html();
+
+    // Terbuka: segitiga bawah ▾ (U+25BE), bukan teks "&#9662;".
+    expect($open)->toContain('▾');
+    expect($open)->not->toContain('&#9662;');
+    expect($open)->not->toContain('&amp;#9662;');
+});
+
+/*
+ * aria-expanded tetap mengikuti keadaan sebenarnya. Dipisahkan dari test di
+ * atas karena ini kontrak aksesibilitas, bukan kontrak visual — keduanya
+ * sempat benar dan rusak secara independen.
+ */
+it('keeps aria-expanded on the group toggle in step with the open state', function () {
+    $component = Livewire::actingAs($this->admin)
+        ->test(KelolaMachinery::class)
+        ->set('viewMode', 'grup');
+
+    expect($component->html())->toContain('aria-expanded="false"');
+
+    $component->call('toggleGroup', $this->group->id);
+
+    expect($component->html())->toContain('aria-expanded="true"');
+});

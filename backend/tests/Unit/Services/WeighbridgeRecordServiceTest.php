@@ -502,3 +502,124 @@ it('tetap mengizinkan create() dan update() pada line mill sendiri', function ()
 
     expect(WeighbridgeRecord::find($created['id'])->wb_card_number)->toBe('SCOPE-OWN-2');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Empty string on the nullable numeric fields (bug ditemukan 2026-10-01)
+|--------------------------------------------------------------------------
+|
+| App\Livewire\Data\FormWeighbridge binds every untouched field to '' , and
+| `['nullable', 'numeric']` lets '' through untouched — `nullable` makes Laravel
+| skip the remaining rules for an empty value, so validation NEVER catches it.
+| Verified directly: Validator::make(['quantity' => ''],
+| ['quantity' => ['nullable', 'numeric']]) PASSES.
+|
+| WHY NOBODY SAW IT. `quantity` and `tare_weight` are `double precision`.
+| PostgreSQL — dev and production — refuses '' with
+| SQLSTATE[22P02] invalid input syntax for type double precision: ""
+| and answers HTTP 500, while SQLite (phpunit.xml forces it for the whole suite)
+| accepts '' into a numeric column silently. Every save with the optional Netto
+| or Quantity left blank was broken in dev and production with the suite green,
+| and it surfaced only because the Weighbridge browser spec HUNG seeding its
+| fixtures through that very form.
+|
+| THESE TESTS WORK ON SQLITE ANYWAY, which is the point: they assert the stored
+| value IS NULL, and '' !== null in either engine. The defect was always
+| catchable here — the assertion simply had never been written.
+*/
+
+it('menyimpan NULL, bukan string kosong, ketika tare_weight dan quantity dibiarkan kosong', function () {
+    $result = $this->service->create(
+        weighbridgeFormPayload([
+            'production_line_id' => $this->station->production_line_id,
+            'tare_weight' => '',
+            'quantity' => '',
+        ]),
+        $this->creator
+    );
+
+    // Dibaca langsung dari baris database: cast model bisa menyembunyikan ''
+    // sebagai 0.0, dan yang ditolak PostgreSQL adalah nilai yang DIKIRIM.
+    $row = DB::table('weighbridge_records')->where('id', $result['id'])->first();
+
+    expect($row->tare_weight)->toBeNull();
+    expect($row->quantity)->toBeNull();
+    expect($row->tare_weight)->not->toBe('');
+    expect($row->quantity)->not->toBe('');
+});
+
+it('memperlakukan spasi saja sama dengan kosong pada tare_weight dan quantity', function () {
+    $result = $this->service->create(
+        weighbridgeFormPayload([
+            'production_line_id' => $this->station->production_line_id,
+            'tare_weight' => '   ',
+            'quantity' => "\t ",
+        ]),
+        $this->creator
+    );
+
+    $row = DB::table('weighbridge_records')->where('id', $result['id'])->first();
+
+    expect($row->tare_weight)->toBeNull();
+    expect($row->quantity)->toBeNull();
+});
+
+it('tidak mengubah tare_weight dan quantity yang benar-benar diisi', function () {
+    $result = $this->service->create(
+        weighbridgeFormPayload([
+            'production_line_id' => $this->station->production_line_id,
+            'tare_weight' => '2500',
+            'quantity' => '17.5',
+        ]),
+        $this->creator
+    );
+
+    $row = DB::table('weighbridge_records')->where('id', $result['id'])->first();
+
+    expect((float) $row->tare_weight)->toBe(2500.0);
+    expect((float) $row->quantity)->toBe(17.5);
+});
+
+it('gross_weight kosong tetap ditolak sebagai wajib, bukan diubah menjadi NULL', function () {
+    // gross_weight SENGAJA tidak dinormalkan: ia `required`, dan `required`
+    // sudah menolak '' dengan pesan yang benar. Diasersi di sini supaya
+    // normalisasi di atas tidak pernah merembet dan mengubah kolom wajib
+    // menjadi nullable secara diam-diam.
+    expect(fn () => $this->service->create(
+        weighbridgeFormPayload([
+            'production_line_id' => $this->station->production_line_id,
+            'gross_weight' => '',
+        ]),
+        $this->creator
+    ))->toThrow(ValidationException::class);
+
+    expect(WeighbridgeRecord::query()->count())->toBe(0);
+});
+
+it('update juga menormalkan string kosong pada kedua kolom numerik nullable', function () {
+    $created = $this->service->create(
+        weighbridgeFormPayload([
+            'production_line_id' => $this->station->production_line_id,
+            'tare_weight' => '2500',
+            'quantity' => '17.5',
+        ]),
+        $this->creator
+    );
+
+    // Mengosongkan kembali kedua field lewat form — jalur yang sama,
+    // normalisasi yang sama. Tanpa itu update() memukul 500 yang persis sama.
+    $this->service->update(
+        $created['id'],
+        weighbridgeFormPayload([
+            'production_line_id' => $this->station->production_line_id,
+            'tare_weight' => '',
+            'quantity' => '',
+        ]),
+        $this->creator
+    );
+
+    $row = DB::table('weighbridge_records')->where('id', $created['id'])->first();
+
+    expect($row->tare_weight)->toBeNull();
+    expect($row->quantity)->toBeNull();
+});

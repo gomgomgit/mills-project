@@ -378,6 +378,36 @@ class WeighbridgeRecordService
             $attributes[$field] = $data[$field] ?? null;
         }
 
+        // EMPTY STRING MUST BECOME NULL ON THE NULLABLE NUMERIC FIELDS, and
+        // validation will NOT do it for us. `['nullable', 'numeric']` lets ''
+        // through untouched — verified: Validator::make(['quantity' => ''],
+        // ['quantity' => ['nullable', 'numeric']]) PASSES, because `nullable`
+        // makes Laravel skip the other rules for an empty value. So without
+        // this, '' reaches the INSERT.
+        //
+        // WHY THAT WAS INVISIBLE FOR SO LONG. PostgreSQL (dev and production)
+        // refuses it outright — `quantity` and `tare_weight` are
+        // `double precision`:
+        //
+        //   SQLSTATE[22P02] invalid input syntax for type double precision: ""
+        //
+        // while SQLite — which phpunit.xml forces for the whole suite — accepts
+        // '' into a numeric column without a murmur. The web form binds every
+        // untouched field to '' (App\Livewire\Data\FormWeighbridge::$form), so
+        // EVERY save with the optional Netto/Quantity left blank returned a 500
+        // in dev and production while the entire test suite stayed green. The
+        // same shape as the ILIKE and the bare-where traps: green where it is
+        // cheap to be green, broken where it matters.
+        //
+        // gross_weight is deliberately NOT in this list: it is `required`, and
+        // `required` already rejects '' with the right message. Normalising it
+        // would only swap one rejection for an identical one.
+        foreach (['tare_weight', 'quantity'] as $numeric) {
+            if (is_string($attributes[$numeric]) && trim($attributes[$numeric]) === '') {
+                $attributes[$numeric] = null;
+            }
+        }
+
         if ($attributes['weighbridge_type'] !== 'dispatch') {
             $attributes['destination'] = null;
         }

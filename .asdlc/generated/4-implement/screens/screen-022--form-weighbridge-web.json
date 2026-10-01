@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-01"
   },
   "id": "screen-022--form-weighbridge-web",
   "name": "Form Weighbridge (Web)",
@@ -40,7 +40,9 @@
     "Checked/Acknowledged diimplementasikan sebagai checkbox self-attestation boolean (bukan pilih user lain) di WeighbridgeRecordService::applyVerification() - mengisi checked_by/acknowledged_by dengan id user yang login, role-gated (Supervisor untuk Checked, Mill Management untuk Acknowledged), field FE hanya dirender untuk role yang sesuai",
     "Route web /data/weighbridge/create HARUS terdaftar SEBELUM /data/weighbridge/{id} (screen-019) di routes/web.php agar literal 'create' tidak tertangkap sebagai {id} - didokumentasikan dengan komentar IMPORTANT di file tsb",
     "Ditambahkan tombol 'Tambah Data' di Data Browser Weighbridge (screen-016) dan tombol 'Edit' di Detail Weighbridge (screen-019) sebagai entry point ke screen ini - keduanya navigasi client-side murni, tidak ada perubahan API pada kedua screen tsb selain link",
-    "Error umum non-field-keyed (NoActiveWeighbridgeStationException, 422) ditangkap terpisah dari ValidationException di FormWeighbridge::save() dan ditampilkan sebagai alert level-halaman ($generalError), bukan error inline per-field"
+    "Error umum non-field-keyed (NoActiveWeighbridgeStationException, 422) ditangkap terpisah dari ValidationException di FormWeighbridge::save() dan ditampilkan sebagai alert level-halaman ($generalError), bukan error inline per-field",
+    "BUG DIPERBAIKI 2026-10-01 — STRING KOSONG PADA KOLOM NUMERIK NULLABLE MEMBUAT SIMPAN 500. Form ini mengikat setiap field yang belum disentuh ke '' (FormWeighbridge::$form), dan aturan ['nullable','numeric'] MELOLOSKAN '' tanpa mengubahnya — `nullable` membuat Laravel melewati aturan sisanya untuk nilai kosong. Diverifikasi langsung: Validator::make(['quantity'=>''], ['quantity'=>['nullable','numeric']]) LOLOS. WeighbridgeRecordService::normalizeFormFields() lalu menyalinnya apa adanya, sehingga '' sampai ke INSERT. PostgreSQL (dev dan produksi) menolaknya: SQLSTATE[22P02] invalid input syntax for type double precision: \"\" — HTTP 500. SQLite, yang dipaksa phpunit.xml untuk seluruh suite, menerima '' ke kolom numerik tanpa suara. Akibatnya SETIAP penyimpanan dengan Netto atau Quantity dibiarkan kosong gagal di dev dan produksi sementara seluruh suite hijau. Perbaikannya: normalizeFormFields() mengubah '' dan string berisi spasi saja menjadi null pada tare_weight dan quantity. gross_weight SENGAJA tidak ikut — ia `required`, dan `required` sudah menolak '' dengan pesan yang benar. Lima test baru di tests/Unit/Services/WeighbridgeRecordServiceTest.php mengunci perilakunya; tiga di antaranya gagal bila normalisasinya dicabut (diverifikasi dengan mutasi), dan ketiganya berjalan di SQLite — cacat ini SELALU bisa ditangkap di sana, asersinya saja yang belum pernah ditulis.",
+    "CARA BUG DI ATAS AKHIRNYA TERLIHAT, karena ini yang perlu diingat: bukan oleh test, melainkan karena spec browser laporan Weighbridge (e2e-web/tests/laporan-weighbridge.spec.ts) MENGGANTUNG saat menyemai fixture-nya — ia menyemai 14 periode dan puluhan trip lewat form INI, POST pertama ke /livewire/update menjawab 500, dan waitForURL menunggu sampai batas 40 menit hook-nya. Sesudah diperbaiki, spec yang sama lewat beforeAll dan menjalankan 6 test dalam 45 detik. Pelajaran yang sama dengan ILIKE dan where-vs-whereDate: perbedaan SQLite vs PostgreSQL adalah tempat cacat bersembunyi di proyek ini, dan test yang hanya berjalan di SQLite tidak membuktikan form bisa menyimpan."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -54,6 +56,10 @@
     },
     {
       "description": "Business Unit tidak dapat diubah di mode edit by design (immutable setelah create) - jika record perlu dipindah ke mill lain, tidak ada jalur UI untuk itu di screen ini",
+      "severity": "minor"
+    },
+    {
+      "description": "Kolom teks nullable (division, block) masih dikirim sebagai string kosong, bukan null, ketika dibiarkan kosong. PostgreSQL menerimanya pada kolom teks sehingga tidak ada kegagalan, tetapi artinya '' dan null hidup bercampur di kolom yang sama dan kueri apa pun yang membedakan 'belum diisi' harus memeriksa keduanya. Tidak diubah bersama perbaikan numerik 2026-10-01 karena tidak merusak apa pun dan test yang ada mungkin mengasersi '' secara langsung — perlu pemeriksaan tersendiri sebelum disentuh.",
       "severity": "minor"
     }
   ],

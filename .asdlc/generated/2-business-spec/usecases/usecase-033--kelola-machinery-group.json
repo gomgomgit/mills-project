@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-30"
+    "updated_at": "2026-10-01"
   },
   "id": "usecase-033--kelola-machinery-group",
   "name": "Kelola Machinery Group",
@@ -33,7 +33,7 @@
     {
       "step": 4,
       "actor": "System",
-      "description": "Sistem memvalidasi kode grup unik secara global, menyimpan Machinery Group baru, dan menampilkannya di daftar"
+      "description": "Sistem memvalidasi kode grup unik secara global, menyalin production_line_id dari Station terpilih (Machinery Group tidak menyimpan business_unit_id — kolom itu dibuang 2026-08-20), menyimpan Machinery Group baru, dan menampilkannya di daftar"
     }
   ],
   "alternative_flows": [
@@ -43,6 +43,7 @@
       "steps": [
         "Admin mengubah kode, deskripsi, satuan, workshop factor, biaya per peralatan, dan/atau Station induk",
         "Sistem memvalidasi kode grup unik secara global",
+        "Sistem menyalin ulang production_line_id dari Station terpilih",
         "Sistem menyimpan perubahan dan memperbarui daftar"
       ]
     },
@@ -114,7 +115,7 @@
     "Machinery Group tidak dapat dihapus jika masih memiliki satu atau lebih Machinery terkait",
     "Hanya Admin yang dapat mengakses dan mengelola data Machinery Group",
     "Machinery Group harus terkait ke tepat satu Station yang sudah ada",
-    "Station yang dipilih harus berada di bawah Business Unit yang sama dengan Machinery Group",
+    "Production Line Machinery Group selalu mengikuti Station yang dipilih; Machinery Group tidak menyimpan business_unit_id — kolom itu dibuang dari tabelnya pada 2026-08-20",
     "Pada mode Grup, paginasi dihitung per Machinery Group (20 grup per halaman)"
   ],
   "bdd_scenarios": [
@@ -176,7 +177,7 @@
       "scenario": "Kelola Machinery Group — Hapus grup, jumlah mesin sudah terlihat lebih dulu",
       "given": "Admin sudah login ke web app dan sedang melihat daftar Machinery Group pada mode Grup",
       "when": "Admin membaca baris sebuah grup sebelum menekan Hapus",
-      "then": "Baris grup sudah menampilkan jumlah Machinery di dalamnya sebelum tombol Hapus ditekan; bila jumlahnya lebih dari nol, Sistem menolak penghapusan dengan pesan penjelasan"
+      "then": "Baris grup sudah menampilkan jumlah Machinery di dalamnya sebelum tombol Hapus ditekan; bila jumlahnya lebih dari 0, Sistem menolak penghapusan dengan pesan penjelasan"
     },
     {
       "scenario": "Kelola Machinery Group — Station induk tidak dipilih",
@@ -185,10 +186,10 @@
       "then": "Sistem menolak penyimpanan dengan pesan bahwa setiap grup harus terkait tepat satu Station yang sudah ada"
     },
     {
-      "scenario": "Kelola Machinery Group — Station di luar Business Unit grup",
-      "given": "Admin sudah login ke web app dan terdapat Station di bawah Business Unit yang berbeda",
-      "when": "Admin memilih Station yang berada di bawah Business Unit berbeda dari Business Unit grup",
-      "then": "Sistem menolak penyimpanan dengan pesan bahwa Station harus berada di bawah Business Unit yang sama dengan grup"
+      "scenario": "Kelola Machinery Group — Production Line diturunkan dari Station, bukan dari kiriman klien",
+      "given": "Admin sudah login ke web app dan terdapat Station pada Production Line yang berbeda-beda",
+      "when": "Admin menyimpan Machinery Group sementara body permintaan membawa production_line_id yang berbeda dari milik Station terpilih",
+      "then": "Sistem menyimpan production_line_id milik Station terpilih dan mengabaikan nilai dari kiriman klien, sehingga hierarki mustahil tidak sinkron lewat jalur input"
     }
   ],
   "related_screen_ids": [

@@ -1,13 +1,13 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-30"
+    "updated_at": "2026-10-01"
   },
   "id": "screen-033--kelola-machinery-group",
   "name": "Kelola Machinery Group",
   "module_id": "module-master-data",
-  "description": "DISERAP ke screen-031 (Kelola Mesin) pada 2026-09-30 — layar ini tidak lagi punya rute, entri sidebar, maupun tampilan tersendiri. Seluruh pengelolaan Machinery Group kini terjadi di dalam layar hierarkis Kelola Mesin: grup tampil sebagai baris induk yang dapat dibuka untuk menampilkan Machinery di dalamnya, dan tambah/ubah/hapus grup dilakukan dari layar yang sama. Rute lama /master-data/machinery-groups diarahkan (redirect) ke /master-data/machinery. Entri ini dipertahankan karena screen-index bersifat append-only dan karena usecase-033 masih hidup — hanya pindah rumah; isinya di bawah ini adalah catatan cakupan usecase itu, bukan deskripsi layar yang masih berdiri.",
+  "description": "DISERAP ke screen-031 (Kelola Mesin) pada 2026-09-30 — layar ini tidak lagi punya rute, entri sidebar, maupun tampilan tersendiri. Seluruh pengelolaan Machinery Group kini terjadi di dalam layar hierarkis Kelola Mesin: grup tampil sebagai baris induk yang dapat dibuka untuk menampilkan Machinery di dalamnya, dan tambah/ubah/hapus grup dilakukan dari layar yang sama. Rute lama /master-data/machinery-groups diarahkan (301 redirect) ke /master-data/machinery. Entri ini dipertahankan karena screen-index bersifat append-only dan karena usecase-033 masih hidup — hanya pindah rumah; isinya di bawah ini adalah catatan cakupan usecase itu, bukan deskripsi layar yang masih berdiri.",
   "actors": [
     "actor-admin"
   ],
@@ -17,7 +17,7 @@
   "information_displayed": [
     "Seluruh butir di bawah ini kini ditampilkan oleh screen-031 (Kelola Mesin), bukan oleh layar tersendiri.",
     "Daftar Machinery Group: kode grup, deskripsi, satuan, nama Station induk, nama Production Line, jumlah Machinery terkait, tanggal dibuat — pada screen-031 sebagian pindah ke panel ringkas yang muncul saat grup dibuka",
-    "Form tambah/edit: dropdown pilih Business Unit lalu Station induk, kode grup, deskripsi, satuan, workshop factor, biaya per peralatan"
+    "Form tambah/edit: dropdown pilih Station induk (satu-satunya pilihan hierarki — Production Line diturunkan dari Station, tidak dipilih terpisah), kode grup, deskripsi, satuan, workshop factor, biaya per peralatan"
   ],
   "available_actions": [
     {
@@ -54,7 +54,7 @@
     "Machinery Group tidak dapat dihapus jika masih memiliki satu atau lebih Machinery terkait",
     "Hanya Admin yang dapat mengakses dan mengelola data Machinery Group",
     "Machinery Group harus terkait ke tepat satu Station yang sudah ada",
-    "Station yang dipilih harus berada di bawah Business Unit yang sama dengan Machinery Group (konsistensi hierarki)",
+    "Production Line Machinery Group selalu mengikuti Station yang dipilih — production_line_id disalin otomatis dari Station, bukan diisi terpisah, sehingga hierarkinya mustahil tidak sinkron. Machinery Group TIDAK menyimpan business_unit_id; kolom itu dibuang dari tabelnya oleh migrasi 2026-08-20 dan digantikan production_line_id",
     "Seluruh aturan di atas tetap berlaku dan kini ditegakkan oleh screen-031; tidak ada satu pun yang dilonggarkan oleh penggabungan"
   ],
   "usecase_ids": [
@@ -65,7 +65,7 @@
     "Percobaan menyimpan kode grup yang sudah dipakai Machinery Group lain — validasi gagal",
     "Belum ada Station sama sekali — form Tambah Machinery Group tidak dapat diisi, arahkan Admin untuk membuat Station dahulu",
     "Belum ada Machinery Group sama sekali — tampilkan empty state dengan ajakan tambah data pertama",
-    "Pengguna membuka rute lama /master-data/machinery-groups (bookmark atau tautan lama) — diarahkan ke /master-data/machinery, bukan 404"
+    "Pengguna membuka rute lama /master-data/machinery-groups (bookmark atau tautan lama) — diarahkan 301 ke /master-data/machinery, bukan 404; guard role:admin tetap berjalan lebih dulu sehingga sesi non-Admin tetap ditolak 403 alih-alih ikut dialihkan"
   ],
   "test_priority": "medium",
   "open_questions": []

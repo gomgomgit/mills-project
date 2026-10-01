@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-30"
+    "updated_at": "2026-10-01"
   },
   "id": "screen-031--kelola-machinery",
   "name": "Kelola Mesin",
@@ -421,7 +421,7 @@
       ],
       "business_logic": [
         "1. GET list: paginate sesuai shared-decisions.pagination. Tiga cabang saling eksklusif — machinery_group_id diisi: WHERE machinery_group_id = ? (isi grup yang dibuka); ungrouped=true: WHERE machinery_group_id IS NULL (wadah 'Tanpa grup'); keduanya kosong: tanpa filter grup (mode Rata, 20 mesin per halaman). Bila machinery_group_id DAN ungrouped=true dikirim bersamaan: return 422 VALIDATION_ERROR — ditolak tegas, bukan salah satu diabaikan diam-diam",
-        "2. GET list dengan search: WHERE equipment_code ILIKE %s% OR name ILIKE %s%, digabung AND dengan cabang filter grup di atas. Eager-load MachineryGroup untuk machinery_group_code; machinery_group_code bernilai null untuk mesin tanpa grup",
+        "2. GET list dengan search: WHERE lower(equipment_code) LIKE lower(?) OR lower(name) LIKE lower(?), digabung AND dengan cabang filter grup di atas. WAJIB bentuk lower()+LIKE, BUKAN ILIKE dan BUKAN LIKE telanjang — lihat implementation_notes: ILIKE adalah syntax error di SQLite (driver test) sementara LIKE telanjang case-sensitive di PostgreSQL (driver dev/prod), jadi hanya bentuk ini yang berperilaku sama di keduanya. Eager-load MachineryGroup untuk machinery_group_code; machinery_group_code bernilai null untuk mesin tanpa grup",
         "3. GET /api/machinery-groups/options: SELECT id, group_code, station_id, production_line_id dari seluruh Machinery Group, urut group_code, untuk dropdown form (tanpa pagination)",
         "4. GET /api/machinery/:id: SELECT Machinery + eager-load insurances + tax_purchases untuk mengisi form Edit lengkap",
         "5. POST create: validate machinery_group_id ada → validate equipment_code required + unik global → validate picture (jika ada) → if invalid: return 422 VALIDATION_ERROR → turunkan station_id/production_line_id dari Machinery Group terpilih (Machinery TIDAK punya kolom business_unit_id — dibuang 2026-08-20) → simpan picture jika ada → insert Machinery baru → insert seluruh baris insurances/tax_purchases yang dikirim, boleh nol baris (child rows opsional, tanpa validasi keunikan)",
@@ -516,6 +516,10 @@
         {
           "condition": "search tidak cocok pada apa pun",
           "handling": "Return 200 dengan data: [] dan meta.total: 0 — FE menampilkan empty state pencarian, bukan daftar kosong tanpa penjelasan"
+        },
+        {
+          "condition": "search dikirim dengan besar-kecil huruf yang berbeda dari data tersimpan",
+          "handling": "Tetap cocok, di SQLite maupun PostgreSQL — dijamin oleh bentuk lower()+LIKE. Bentuk ILIKE atau LIKE telanjang akan membuat perilaku ini berbeda antar driver, dan itulah yang wajib dihindari"
         }
       ],
       "business_rules_applied": [
@@ -528,6 +532,7 @@
         "Layar wajib menyediakan dua mode tampilan; mode Rata mempertahankan kemampuan melihat seluruh Machinery dalam satu daftar",
         "Paginasi dihitung per mesin pada mode Rata (20 per halaman)",
         "Pencarian mencocokkan mesin di kedua mode",
+        "Pencarian harus tidak peka besar-kecil huruf dan berperilaku SAMA di SQLite maupun PostgreSQL",
         "Machinery tanpa Machinery Group wajib tetap terlihat di kedua mode"
       ],
       "unit_test_cases": [
@@ -555,6 +560,16 @@
           "description": "GET list dengan search mencocokkan equipment_code maupun name",
           "given": "Machinery 'EQ-9001' bernama 'Screw Press Utama' dan 'EQ-9002' bernama 'Boiler Feed'",
           "expect": "search=press mengembalikan hanya EQ-9001; search=EQ-9002 mengembalikan hanya EQ-9002"
+        },
+        {
+          "description": "GET list dengan search tidak peka besar-kecil huruf",
+          "given": "Machinery bernama 'Screw Press Utama'",
+          "expect": "search=SCREW, search=screw, dan search=Screw ketiganya mengembalikan baris yang sama"
+        },
+        {
+          "description": "Query pencarian memakai lower()+LIKE, bukan ILIKE maupun LIKE telanjang",
+          "given": "SQL yang dihasilkan untuk sebuah pencarian diperiksa langsung",
+          "expect": "SQL memuat lower(equipment_code) LIKE dan lower(name) LIKE; TIDAK memuat ILIKE (syntax error di SQLite) dan tidak memakai LIKE telanjang pada kolomnya (case-sensitive di PostgreSQL). Test ini yang mencegah kedua bentuk itu masuk kembali — keduanya lolos sebagian driver dan gagal di driver lain"
         },
         {
           "description": "GET list menggabungkan search dengan filter grup memakai AND, bukan OR",
@@ -1156,7 +1171,8 @@
   ],
   "implementation_notes": [
     "KOREKSI KOLOM (2026-09-30). Versi sebelumnya spec ini — dan tech spec screen-031 maupun screen-033 sejak 2026-08-19 — menyebut `business_unit_id` pada Machinery dan Machinery Group. Kolom itu DIBUANG dari kedua tabel oleh migrasi 2026_08_20_000011 dan digantikan `production_line_id`; seluruh kode ikut pindah pada perubahan yang sama, tetapi nol artefak diperbarui. Spec karena itu salah selama enam minggu. Menulis kode dari versi lama akan menghasilkan query ke kolom yang tidak ada — error keras di PostgreSQL. `stations.business_unit_id` TIDAK ikut dibuang dan tetap benar; koreksi ini hanya berlaku untuk machinery dan machinery_groups.",
-    "PENGGABUNGAN screen-031 + screen-033 (2026-09-30). Layar ini kini satu-satunya rumah bagi Machinery maupun Machinery Group. Rute lama /master-data/machinery-groups WAJIB di-redirect ke /master-data/machinery, bukan dibiarkan 404 — bookmark dan tautan lama akan patah tanpa itu. Entri sidebar 'Kelola Machinery Group' dihapus dan 'Kelola Machinery' berganti label jadi 'Kelola Mesin'; sidebar 13 menjadi 12 entri.",
+    "KOREKSI BENTUK PENCARIAN (2026-10-01). Versi sebelumnya business_logic butir 2 menuliskan `ILIKE`. Itu SALAH dan akan membuat seluruh test gagal: SQLite — driver yang dipakai phpunit.xml — memperlakukan ILIKE sebagai syntax error. Perbaikan 'wajar'-nya, LIKE telanjang, justru lebih berbahaya: SQLite mencocokkan tanpa peka huruf sehingga SELURUH suite lolos, sementara PostgreSQL (dev/prod) case-sensitive dan mengembalikan 0 baris — cacat yang mustahil terlihat dari test. Ketiga perilaku ini dibuktikan langsung pada kedua driver, bukan disimpulkan. Satu-satunya bentuk yang identik di keduanya, dan yang dipakai kodenya, adalah `lower(kolom) LIKE lower(?)`. Ada unit test yang memeriksa bentuk SQL-nya justru agar kedua bentuk terlarang itu tidak masuk kembali.",
+    "PENGGABUNGAN screen-031 + screen-033 (2026-09-30). Layar ini kini satu-satunya rumah bagi Machinery maupun Machinery Group. Rute lama /master-data/machinery-groups WAJIB di-redirect ke /master-data/machinery, bukan dibiarkan 404 — bookmark dan tautan lama akan patah tanpa itu. Entri sidebar 'Kelola Machinery Group' dihapus dan 'Kelola Machinery' berganti label jadi 'Kelola Mesin'; sidebar 13 menjadi 12 entri. Guard role:admin berjalan LEBIH DULU daripada redirect, sehingga sesi non-Admin ditolak 403 alih-alih ikut dialihkan.",
     "Komponen Livewire KelolaMachineryGroup beserta blade-nya DISERAP ke KelolaMachinery — jangan ditinggalkan sebagai layar mati yang masih bisa dicapai lewat URL langsung.",
     "NOL migrasi, NOL kolom baru, NOL perubahan entitas. machinery_group_id sudah nullable dan tetap nullable. Seluruh perubahan API bersifat aditif: query param baru (ungrouped, search) dan field respons baru (has_search_match_in_machinery, meta.ungrouped_machinery_count).",
     "Form Machinery Group TIDAK punya dropdown Business Unit — satu-satunya pilihan hierarki adalah Station, dan production_line_id diturunkan darinya. Versi lama spec menyebut 'dropdown pilih Business Unit lalu Station induk'; itu tidak pernah ada di kodenya.",
@@ -1175,7 +1191,8 @@
     "GET /api/machinery/:id (detail lengkap + child rows) adalah endpoint yang tidak ada di screen master data lain — diperlukan karena kompleksitas form Edit yang harus memuat 2 grid child sekaligus, tidak cukup hanya row ringkas dari GET list",
     "Test terdampak: backend/tests/Feature/Livewire/KelolaMachineryTest.php (23 test) dan KelolaMachineryGroupTest.php (18 test), plus e2e-web/tests/kelola-machinery.spec.ts dan kelola-machinery-group.spec.ts. Asersi PERILAKU jangan dilemahkan — yang menyesuaikan hanyalah rute dan selector.",
     "Cakupan mill yang sudah berlaku di kedua layar TIDAK dilonggarkan sedikit pun oleh penggabungan ini.",
-    "BELUM DIKERJAKAN: atribusi 5 endpoint machinery-group di project.3-tech-spec.api-index masih menunjuk screen-033, dan ketiga artefak screen-033 masih memuat 33 penyebutan business_unit_id yang sudah mati. Keduanya tidak memengaruhi Phase 4 (generasi kode membaca spec ini), tetapi perlu dibereskan sebagai pekerjaan terpisah."
+    "KONTRAK GANDA — WAJIB DIJAGA BERPASANGAN. api_contracts[1] di sini adalah sumber yang dijalankan Phase 4, dan screen-033 tech spec memuat salinan yang byte-identical dengannya (diverifikasi dengan diff pada 2026-10-01, setelah v2 screen-033 sempat memuat salinan yang lebih tipis tanpa ada yang sadar). Siapa pun yang mengubah kontrak Machinery Group WAJIB mengubah keduanya lalu mem-diff-nya — dua salinan dari satu kontrak adalah persis cara `business_unit_id` melenceng selama enam minggu.",
+    "TINDAK LANJUT SELESAI (2026-10-01). Atribusi 5 endpoint machinery-group di project.3-tech-spec.api-index kini menunjuk screen-031 (api-index v59), dan ketiga artefak screen-033 (business spec v4, usecase v3, tech spec v3) sudah bebas dari penyebutan business_unit_id yang mati — yang tersisa hanya catatan koreksi yang sengaja menyebut nama kolom lama. bdd_scenario usecase-033 'Station di luar Business Unit grup' ikut berganti nama menjadi 'Production Line diturunkan dari Station, bukan dari kiriman klien', dan scenario_ref di sini mengikutinya — keduanya wajib berubah bersama agar tidak ada rujukan menggantung."
   ],
   "test_scenarios": [
     {
@@ -1940,7 +1957,7 @@
       }
     },
     {
-      "scenario_ref": "Kelola Machinery Group — Station di luar Business Unit grup",
+      "scenario_ref": "Kelola Machinery Group — Production Line diturunkan dari Station, bukan dari kiriman klien",
       "usecase_id": "usecase-033--kelola-machinery-group",
       "api_test": [
         {
@@ -1961,7 +1978,7 @@
       "component_test": {
         "component": "KelolaMachinery",
         "action": "simpan grup dengan Station milik Production Line tertentu sementara body membawa production_line_id lain",
-        "assert": "production_line_id tersimpan SELALU mengikuti Station terpilih; nilai dari body diabaikan, sehingga ketidaksinkronan hierarki mustahil terjadi lewat jalur input. Catatan: nama skenario ini masih menyebut 'Business Unit' karena mengacu ke bdd_scenario usecase-033 yang belum dikoreksi — lihat implementation_notes"
+        "assert": "production_line_id tersimpan SELALU mengikuti Station terpilih; nilai dari body diabaikan, sehingga ketidaksinkronan hierarki mustahil terjadi lewat jalur input"
       },
       "browser_test": {
         "route": "/master-data/machinery",

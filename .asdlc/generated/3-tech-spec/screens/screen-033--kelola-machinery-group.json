@@ -1,13 +1,13 @@
 {
-  "ver": 1,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-01"
   },
   "id": "screen-033--kelola-machinery-group",
   "name": "Kelola Machinery Group",
   "module_id": "module-master-data",
-  "route": "/master-data/machinery-groups",
+  "route": "/master-data/machinery-groups — DISERAP: rute ini kini 301 redirect ke /master-data/machinery, bukan layar tersendiri",
   "auth_requirement": "role: admin",
   "actor_permissions": [
     {
@@ -39,7 +39,7 @@
         {
           "method": "GET",
           "path": "/api/machinery-groups",
-          "description": "List Machinery Group dengan Station induk dan jumlah Machinery terkait, dipaginasi, opsional filter per Station",
+          "description": "List Machinery Group dengan Station induk, Production Line, dan jumlah Machinery terkait, dipaginasi — tulang punggung mode Grup. Membawa penanda pencarian agar FE tahu grup mana harus terbuka otomatis, dan penghitung mesin tanpa grup pada meta",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -52,18 +52,25 @@
                 "description": "Filter Machinery Group milik satu Station"
               },
               {
+                "name": "search",
+                "type": "string",
+                "required": false,
+                "default": "",
+                "description": "Cocokkan pada group_code atau description grup, ATAU pada equipment_code/name Machinery di dalamnya — grup ikut terbawa bila mesinnya yang cocok"
+              },
+              {
                 "name": "page",
                 "type": "integer",
                 "required": false,
                 "default": "1",
-                "description": "Halaman"
+                "description": "Halaman — dihitung per GRUP, bukan per baris yang tampil di layar"
               },
               {
                 "name": "per_page",
                 "type": "integer",
                 "required": false,
                 "default": "20",
-                "description": "Jumlah per halaman, max 100"
+                "description": "Jumlah grup per halaman, max 100"
               }
             ],
             "body_schema": {}
@@ -80,8 +87,10 @@
                   "cost_per_equipment": "float",
                   "station_id": "uuid",
                   "station_name": "string",
-                  "business_unit_id": "uuid",
+                  "production_line_id": "uuid",
+                  "production_line_name": "string",
                   "machinery_count": "integer",
+                  "has_search_match_in_machinery": "boolean",
                   "created_at": "timestamp"
                 }
               ],
@@ -89,7 +98,8 @@
                 "page": "integer",
                 "per_page": "integer",
                 "total": "integer",
-                "total_pages": "integer"
+                "total_pages": "integer",
+                "ungrouped_machinery_count": "integer"
               }
             },
             "error_codes": [
@@ -108,7 +118,7 @@
         {
           "method": "GET",
           "path": "/api/stations/options",
-          "description": "List ringkas seluruh Station (id, name, business_unit_id) untuk dropdown pilih Station induk pada form Machinery Group",
+          "description": "List ringkas seluruh Station (id, name, production_line_id) untuk dropdown pilih Station induk pada form Machinery Group",
           "auth_required": true,
           "request": {
             "path_params": [],
@@ -121,7 +131,7 @@
                 {
                   "id": "uuid",
                   "name": "string",
-                  "business_unit_id": "uuid"
+                  "production_line_id": "uuid"
                 }
               ]
             },
@@ -165,7 +175,7 @@
               "cost_per_equipment": "float",
               "station_id": "uuid",
               "station_name": "string",
-              "business_unit_id": "uuid",
+              "production_line_id": "uuid",
               "machinery_count": 0,
               "created_at": "timestamp"
             },
@@ -220,7 +230,7 @@
               "cost_per_equipment": "float",
               "station_id": "uuid",
               "station_name": "string",
-              "business_unit_id": "uuid",
+              "production_line_id": "uuid",
               "machinery_count": "integer",
               "created_at": "timestamp"
             },
@@ -228,7 +238,7 @@
               {
                 "http_code": 422,
                 "error_code": "VALIDATION_ERROR",
-                "condition": "group_code kosong/sudah dipakai, atau station_id tidak valid"
+                "condition": "group_code kosong/sudah dipakai Machinery Group lain, atau station_id tidak valid"
               },
               {
                 "http_code": 404,
@@ -292,32 +302,34 @@
         }
       ],
       "business_logic": [
-        "1. GET list: paginate sesuai shared-decisions.pagination, filter opsional by station_id, eager-load Station untuk station_name, hitung machinery_count via COUNT machinery WHERE machinery_group_id",
-        "2. GET /api/stations/options: SELECT id, name, business_unit_id dari seluruh Station, urut nama, untuk dropdown form (tanpa pagination) — business_unit_id disertakan agar FE dapat menyalin business_unit_id Station terpilih ke Machinery Group secara otomatis (konsistensi hierarki)",
-        "3. POST create: validate station_id ada → validate group_code required + unik secara global → if invalid: return 422 VALIDATION_ERROR → salin business_unit_id dari Station terpilih → insert Machinery Group baru",
-        "4. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate station_id ada → validate group_code required + unik global (exclude self) → if invalid: return 422 VALIDATION_ERROR → salin ulang business_unit_id dari Station terpilih → update Machinery Group",
-        "5. DELETE: validate id exists → if not: return 404 NOT_FOUND → count Machinery WHERE machinery_group_id=id → if count > 0: return 409 MACHINERY_GROUP_HAS_MACHINERY → else delete Machinery Group"
+        "1. GET list: paginate PER GRUP sesuai shared-decisions.pagination (20 grup per halaman), filter opsional by station_id, eager-load Station untuk station_name dan Production Line untuk production_line_name, hitung machinery_count via COUNT machinery WHERE machinery_group_id. Machinery yang tampil karena grupnya dibuka TIDAK pernah ikut terhitung di sini — ia datang dari GET /api/machinery, permintaan yang berbeda",
+        "2. GET list dengan search: sertakan grup yang group_code/description-nya cocok, ATAU yang punya minimal satu Machinery dengan equipment_code/name cocok (EXISTS subquery). has_search_match_in_machinery bernilai true hanya pada kasus kedua — itulah sinyal yang dipakai FE untuk membuka grup otomatis; tanpa sinyal ini hasil pencarian akan tersembunyi di balik grup tertutup dan sama saja dengan tidak ditemukan",
+        "3. GET list meta: sertakan ungrouped_machinery_count = COUNT machinery WHERE machinery_group_id IS NULL, satu query agregat sekali per permintaan — memakai meta pada endpoint yang sudah ada alih-alih menambah endpoint penghitung tersendiri",
+        "4. GET /api/stations/options: SELECT id, name, production_line_id dari seluruh Station, urut nama, untuk dropdown form (tanpa pagination) — production_line_id disertakan agar FE dapat menampilkannya sebelum submit; server tetap menurunkannya ulang dari Station saat create/update, tidak pernah memercayai kiriman klien",
+        "5. POST create: validate station_id ada → validate group_code required + unik secara global → if invalid: return 422 VALIDATION_ERROR → salin production_line_id dari Station terpilih (Machinery Group TIDAK punya kolom business_unit_id — dibuang 2026-08-20) → insert Machinery Group baru",
+        "6. PATCH update: validate id exists → if not: return 404 NOT_FOUND → validate station_id ada → validate group_code required + unik global DENGAN MENGECUALIKAN dirinya sendiri (kode milik grup lain tetap ditolak) → if invalid: return 422 VALIDATION_ERROR → salin ulang production_line_id dari Station terpilih → update Machinery Group",
+        "7. DELETE: validate id exists → if not: return 404 NOT_FOUND → count Machinery WHERE machinery_group_id=id → if count > 0: return 409 MACHINERY_GROUP_HAS_MACHINERY → else delete Machinery Group. machinery_count sudah tampil di baris grup sebelum Hapus ditekan, sehingga penolakan ini tidak mengejutkan pembaca"
       ],
       "data_operations": [
         {
           "entity_id": "machinery-group",
           "operation": "SELECT",
-          "description": "SELECT Machinery Group dipaginasi dengan Station induk + machinery_count, opsional filter station_id"
+          "description": "SELECT Machinery Group dipaginasi per grup dengan Station + Production Line + machinery_count, opsional filter station_id, opsional search yang juga menjangkau Machinery di dalamnya"
         },
         {
           "entity_id": "station",
           "operation": "SELECT",
-          "description": "SELECT ringkas seluruh Station untuk dropdown; SELECT untuk validasi station_id ada dan mengambil business_unit_id-nya saat create/update"
+          "description": "SELECT ringkas seluruh Station untuk dropdown (id, name, production_line_id); SELECT untuk validasi station_id ada dan mengambil production_line_id-nya saat create/update"
         },
         {
           "entity_id": "machinery-group",
           "operation": "INSERT",
-          "description": "INSERT Machinery Group baru, business_unit_id disalin dari Station terpilih"
+          "description": "INSERT Machinery Group baru, production_line_id disalin dari Station terpilih"
         },
         {
           "entity_id": "machinery-group",
           "operation": "UPDATE",
-          "description": "UPDATE Machinery Group, business_unit_id disalin ulang dari Station terpilih"
+          "description": "UPDATE Machinery Group, production_line_id disalin ulang dari Station terpilih"
         },
         {
           "entity_id": "machinery-group",
@@ -327,13 +339,13 @@
         {
           "entity_id": "machinery",
           "operation": "SELECT",
-          "description": "COUNT Machinery WHERE machinery_group_id sebelum delete"
+          "description": "COUNT Machinery WHERE machinery_group_id sebelum delete; COUNT per grup untuk machinery_count; COUNT WHERE machinery_group_id IS NULL untuk meta.ungrouped_machinery_count; EXISTS subquery untuk has_search_match_in_machinery"
         }
       ],
       "edge_case_handling": [
         {
           "condition": "Kode grup sudah dipakai Machinery Group lain",
-          "handling": "Return 422 VALIDATION_ERROR dengan errors.group_code"
+          "handling": "Return 422 VALIDATION_ERROR dengan errors.group_code — berlaku pada create maupun update"
         },
         {
           "condition": "Machinery Group masih memiliki Machinery terkait saat dihapus",
@@ -350,6 +362,18 @@
         {
           "condition": "station_id tidak valid/tidak ditemukan",
           "handling": "Return 422 VALIDATION_ERROR dengan errors.station_id"
+        },
+        {
+          "condition": "search cocok pada Machinery tetapi tidak pada grupnya",
+          "handling": "Grup tetap disertakan di data dengan has_search_match_in_machinery: true, sehingga FE membukanya otomatis dan mesin yang cocok terlihat"
+        },
+        {
+          "condition": "Grup tidak berisi Machinery sama sekali",
+          "handling": "machinery_count bernilai 0; GET /api/machinery?machinery_group_id=... mengembalikan data: [] dan FE menampilkan pesan bahwa grup ini belum berisi mesin, bukan area kosong"
+        },
+        {
+          "condition": "Tidak ada satu pun Machinery tanpa grup",
+          "handling": "meta.ungrouped_machinery_count bernilai 0; FE tidak menampilkan wadah 'Tanpa grup' maupun penghitungnya"
         }
       ],
       "business_rules_applied": [
@@ -357,73 +381,111 @@
         "Machinery Group tidak dapat dihapus jika masih memiliki satu atau lebih Machinery terkait",
         "Hanya Admin yang dapat mengakses dan mengelola data Machinery Group",
         "Machinery Group harus terkait ke tepat satu Station yang sudah ada",
-        "Station yang dipilih harus berada di bawah Business Unit yang sama dengan Machinery Group (ditegakkan otomatis dengan menyalin business_unit_id dari Station, bukan input terpisah yang bisa tidak sinkron)"
+        "Production Line Machinery Group selalu mengikuti Station yang dipilih — ditegakkan otomatis dengan menyalin production_line_id dari Station, bukan input terpisah yang bisa tidak sinkron. Machinery Group tidak menyimpan business_unit_id; kolom itu dibuang dari tabelnya pada 2026-08-20",
+        "Pada mode Grup paginasi dihitung per Machinery Group (20 grup per halaman)",
+        "Pencarian harus mencocokkan Machinery Group DAN Machinery; grup yang memuat mesin cocok wajib terbuka otomatis",
+        "Machinery tanpa Machinery Group wajib tetap terlihat"
       ],
       "unit_test_cases": [
         {
-          "description": "returns paginated machinery group list with station_name and machinery_count for each row",
-          "given": "MachineryGroupRepository.findPaginated() returns rows joined with Station and Machinery count",
-          "expect": "return 200 with data array including station_name and machinery_count per row, plus pagination meta"
+          "description": "GET list memaginasi per GRUP, bukan per baris yang tampil di layar, dan tiap baris membawa station_name serta machinery_count",
+          "given": "25 Machinery Group, masing-masing berisi 3 Machinery",
+          "expect": "data berisi 20 grup dengan station_name dan machinery_count terisi, meta.total = 25, meta.total_pages = 2 — bukan 75 atau 100 yang akan muncul bila mesin ikut terhitung"
         },
         {
-          "description": "filters list by station_id when provided",
-          "given": "query param station_id=X is provided",
-          "expect": "only machinery groups belonging to station_id=X are returned"
+          "description": "GET list menyertakan machinery_count yang benar per grup",
+          "given": "Grup A berisi 4 Machinery, Grup B kosong",
+          "expect": "machinery_count Grup A = 4, Grup B = 0"
         },
         {
-          "description": "returns 403 FORBIDDEN when authenticated user is not Admin (list)",
-          "given": "authenticated user role != admin",
-          "expect": "return 403 FORBIDDEN, no data returned"
+          "description": "GET list menyertakan production_line_name lewat Station induk",
+          "given": "Grup terkait Station yang berada di Production Line 'Line 2'",
+          "expect": "production_line_name bernilai 'Line 2' dan production_line_id terisi id Line 2"
         },
         {
-          "description": "returns Station options list unpaginated for dropdown, including business_unit_id per row",
-          "given": "StationRepository.all() returns existing Stations",
-          "expect": "return 200 with data: [{id, name, business_unit_id}, ...] ordered by name"
+          "description": "search yang cocok pada group_code menandai has_search_match_in_machinery false",
+          "given": "Grup ber-group_code 'STR-01', tidak ada mesinnya yang cocok",
+          "expect": "Grup ikut di data, has_search_match_in_machinery = false — FE tidak perlu membukanya"
         },
         {
-          "description": "returns 422 VALIDATION_ERROR when creating Machinery Group with non-existent station_id",
-          "given": "StationRepository.findById(station_id) returns null",
-          "expect": "throw ValidationException with errors.station_id; http 422 VALIDATION_ERROR"
+          "description": "search yang cocok HANYA pada mesin di dalamnya tetap membawa grupnya, ditandai true",
+          "given": "Grup 'PRS-01' berisi mesin bernama 'Screw Press Utama'; kata kunci 'screw' tidak cocok pada grupnya",
+          "expect": "Grup PRS-01 ikut di data dengan has_search_match_in_machinery = true"
         },
         {
-          "description": "returns 422 VALIDATION_ERROR when creating Machinery Group with empty or duplicate group_code",
-          "given": "input group_code is empty, or MachineryGroupRepository.existsByCode(code) returns true",
-          "expect": "throw ValidationException with errors.group_code; http 422 VALIDATION_ERROR"
+          "description": "search yang tidak cocok pada apa pun mengembalikan daftar kosong",
+          "given": "Tidak ada grup maupun mesin yang cocok",
+          "expect": "200, data: [], meta.total: 0"
         },
         {
-          "description": "copies business_unit_id from the selected Station automatically on create, not read from user input",
-          "given": "valid station_id belonging to business_unit X is provided",
-          "expect": "created Machinery Group's business_unit_id equals X, regardless of any business_unit_id present in the raw request payload"
+          "description": "meta.ungrouped_machinery_count menghitung mesin tanpa grup",
+          "given": "3 Machinery dengan machinery_group_id NULL",
+          "expect": "meta.ungrouped_machinery_count = 3"
         },
         {
-          "description": "returns 404 NOT_FOUND when updating/deleting Machinery Group with non-existent id",
-          "given": "MachineryGroupRepository.findById(id) returns null",
-          "expect": "throw NotFoundException; http 404 NOT_FOUND"
+          "description": "meta.ungrouped_machinery_count bernilai 0 bila semua mesin punya grup",
+          "given": "Nol Machinery dengan machinery_group_id NULL",
+          "expect": "meta.ungrouped_machinery_count = 0 — hadir sebagai angka, bukan hilang dari respons"
         },
         {
-          "description": "returns 422 VALIDATION_ERROR when updating Machinery Group with group_code already used by another Machinery Group",
-          "given": "MachineryGroupRepository.findById(id) returns existing Machinery Group; MachineryGroupRepository.existsByCodeExcludingId(code, id) returns true",
-          "expect": "throw ValidationException with errors.group_code; http 422 VALIDATION_ERROR"
+          "description": "filter station_id hanya mengembalikan grup milik Station itu",
+          "given": "Station X punya 2 grup, Station Y punya 5",
+          "expect": "Dipanggil dengan station_id X: tepat 2 grup"
         },
         {
-          "description": "allows updating Machinery Group keeping its own unchanged group_code (self excluded from uniqueness check)",
-          "given": "group_code is unchanged from the Machinery Group's current group_code",
-          "expect": "update succeeds, no VALIDATION_ERROR"
+          "description": "GET /api/stations/options mengembalikan seluruh Station tanpa paginasi, tiap baris membawa production_line_id",
+          "given": "12 Station tersebar di beberapa Production Line",
+          "expect": "12 entri, tanpa kunci meta, urut nama, dan tiap entri punya production_line_id — field itulah yang membuat penyalinan production_line_id ke grup bisa berjalan; nol entri membawa business_unit_id"
         },
         {
-          "description": "returns 409 MACHINERY_GROUP_HAS_MACHINERY when deleting Machinery Group that still has related Machinery records",
-          "given": "MachineryGroupRepository.findById(id) returns existing Machinery Group; MachineryRepository.countByMachineryGroupId(id) returns 2 (> 0)",
-          "expect": "throw ConflictException; http 409 MACHINERY_GROUP_HAS_MACHINERY; Machinery Group is not deleted"
+          "description": "POST create menolak group_code yang kosong maupun yang sudah dipakai",
+          "given": "Satu permintaan dengan group_code kosong; satu lagi memakai 'STR-01' yang sudah dipakai grup lain",
+          "expect": "Keduanya 422 VALIDATION_ERROR dengan errors.group_code"
         },
         {
-          "description": "returns success result when all conditions pass",
-          "given": "MachineryGroupRepository.existsByCode()/ExcludingId() return false, StationRepository.findById() returns a valid Station, MachineryRepository.countByMachineryGroupId() returns 0 where relevant, MachineryGroupRepository.save()/delete() persist successfully",
-          "expect": "return the created/updated Machinery Group object with id, group_code, description, unit, workshop_factor, cost_per_equipment, station_id, station_name, business_unit_id, machinery_count, created_at (or { deleted: true } for delete)"
+          "description": "POST create menyalin production_line_id dari Station, bukan dari body",
+          "given": "Body menyertakan production_line_id yang BERBEDA dari milik Station terpilih",
+          "expect": "Baris tersimpan memakai production_line_id milik Station; nilai dari body diabaikan"
         },
         {
-          "description": "returns 403 FORBIDDEN for create/update/delete when authenticated user is not Admin",
-          "given": "authenticated user role != admin",
-          "expect": "return 403 FORBIDDEN, no mutation performed"
+          "description": "POST create menolak station_id yang tidak ada",
+          "given": "station_id berupa uuid yang tidak ada",
+          "expect": "422 VALIDATION_ERROR dengan errors.station_id"
+        },
+        {
+          "description": "PATCH update menyalin ulang production_line_id saat Station induk diganti",
+          "given": "Grup dipindah dari Station di Line 1 ke Station di Line 2",
+          "expect": "production_line_id tersimpan mengikuti Station baru, bukan tetap Line 1"
+        },
+        {
+          "description": "PATCH update mengizinkan group_code milik dirinya sendiri",
+          "given": "Grup menyimpan ulang dengan group_code yang sama",
+          "expect": "200, bukan 422"
+        },
+        {
+          "description": "PATCH update MENOLAK group_code yang sudah dipakai Machinery Group LAIN",
+          "given": "Grup A memakai 'STR-01'; Grup B disimpan ulang memakai 'STR-01'",
+          "expect": "422 VALIDATION_ERROR dengan errors.group_code — pengecualian diri sendiri tidak boleh melonggarkan keunikan terhadap grup lain"
+        },
+        {
+          "description": "PATCH update dengan id tidak dikenal mengembalikan 404 sebelum validasi lain",
+          "given": "uuid tidak ada, body juga membawa group_code duplikat",
+          "expect": "404 NOT_FOUND, bukan 422"
+        },
+        {
+          "description": "DELETE menolak grup yang masih punya Machinery",
+          "given": "Grup dengan 1 Machinery terkait",
+          "expect": "409 MACHINERY_GROUP_HAS_MACHINERY, grup tetap ada"
+        },
+        {
+          "description": "DELETE berhasil pada grup kosong",
+          "given": "Grup dengan machinery_count 0",
+          "expect": "200 deleted:true, grup hilang dari tabel"
+        },
+        {
+          "description": "Seluruh endpoint menolak pengguna non-Admin, termasuk create/update/delete",
+          "given": "Supervisor, Mill Management, dan Operator memanggil tiap endpoint list, options, create, update, dan delete",
+          "expect": "403 FORBIDDEN pada semuanya, nol perubahan data"
         }
       ]
     }
@@ -443,21 +505,33 @@
       "operations": [
         "SELECT"
       ]
+    },
+    {
+      "entity_id": "machinery",
+      "operations": [
+        "SELECT"
+      ]
     }
   ],
   "screen_dependencies": [
+    {
+      "screen_id": "screen-031--kelola-machinery",
+      "reason": "DISERAP ke sana pada 2026-09-30. Layar ini tidak lagi berdiri sendiri; seluruh kontrak di bawah dijalankan oleh Kelola Mesin"
+    },
     {
       "screen_id": "screen-030--kelola-station",
       "reason": "Machinery Group harus terkait ke Station yang sudah ada; jika belum ada Station, Admin diarahkan ke Kelola Station dahulu"
     }
   ],
   "implementation_notes": [
+    "KOREKSI KOLOM (2026-10-01). Versi 1 spec ini menyebut `business_unit_id` pada Machinery Group di 25 tempat. Kolom itu DIBUANG dari tabel machinery_groups oleh migrasi 2026_08_20_000011 dan digantikan `production_line_id`; seluruh kode ikut pindah pada perubahan yang sama, tetapi artefak ini tidak pernah diperbarui — salah selama enam minggu. `stations.business_unit_id` TIDAK ikut dibuang dan tetap benar; koreksi ini hanya berlaku untuk machinery_groups.",
+    "KOREKSI v2→v3 (2026-10-01). Versi 2 memuat catatan yang mengaku kontraknya 'sama persis' dengan api_contracts[1] milik screen-031, padahal yang ditulis justru versi yang LEBIH TIPIS — kurang 8 unit test (paginasi per grup, machinery_count, production_line_name, penanda pencarian, penghitung mesin tanpa grup), 3 edge case, dan 3 business rule. Klaim identitas itu salah selama satu versi. v3 menyalin kontrak screen-031 apa adanya sehingga klaimnya kini benar; screen-031 adalah sumbernya karena itulah yang dibaca Phase 4.",
+    "DISERAP ke screen-031 (Kelola Mesin) pada 2026-09-30. Rute /master-data/machinery-groups kini 301 redirect, bukan layar tersendiri. Guard role:admin tetap berjalan LEBIH DULU, sehingga sesi non-Admin ditolak 403 alih-alih ikut dialihkan — keberadaan halaman admin tidak boleh bocor lewat pengalihan.",
+    "DUPLIKASI YANG DISENGAJA, DAN RISIKONYA. Kontrak di artefak ini sama persis dengan api_contracts[1] milik screen-031 tech spec — diverifikasi dengan diff, bukan diasumsikan. Dipertahankan karena usecase-033 masih hidup dan screen-index bersifat append-only, tetapi dua salinan dari satu kontrak adalah persis cara `business_unit_id` sempat melenceng selama enam minggu, dan cara v2 spec ini sempat menipis tanpa ada yang sadar. Siapa pun yang mengubah kontrak Machinery Group WAJIB mengubah keduanya lalu mem-diff-nya; screen-031 adalah sumber yang dijalankan.",
+    "Komponen Livewire KelolaMachineryGroup, blade-nya, dan layout master-data/machinery-groups.blade.php sudah DIHAPUS. MachineryGroupService, MachineryGroupController, model, dan factory TETAP ADA — yang diserap adalah layarnya, bukan entitasnya.",
     "403 FORBIDDEN pada seluruh endpoint disimpulkan dari actor_permissions, sama seperti master data lainnya",
-    "Livewire component dapat memanggil Service Layer yang sama dengan REST API, konsisten dengan pola master data lainnya",
-    "machinery_count dihitung via withCount('machinery'), station_name via eager-load with('station')",
-    "business_unit_id pada Machinery Group SELALU disalin dari Station yang dipilih (bukan input form terpisah) — mencegah data hierarki yang tidak konsisten (mis. Machinery Group mengklaim Business Unit A padahal Station-nya milik Business Unit B)",
-    "Placeholder migration+model minimal machinery_groups/machinery kemungkinan sudah dibuat oleh screen-030 (Kelola Station, untuk delete-guard-nya) — screen ini MEMPERLUAS model tersebut dengan field lengkap (group_code, description, unit, workshop_factor, cost_per_equipment), bukan membuat ulang dari nol",
-    "Machinery Group TIDAK punya field logo"
+    "Livewire component memanggil Service Layer yang sama dengan REST API, konsisten dengan pola master data lainnya",
+    "production_line_id Machinery Group SELALU disalin dari Station yang dipilih (bukan dropdown/input terpisah) — pola anti-drift yang sama dipakai satu tingkat di bawahnya, di mana Machinery menyalin station_id/production_line_id dari Machinery Group"
   ],
   "test_scenarios": [
     {
@@ -482,21 +556,21 @@
           },
           "request_example": {
             "station_id": "{{station_id}}",
-            "group_code": "MG-WB-002"
+            "group_code": "STR-99"
           },
           "expected_status": 201,
           "expected_error_code": null
         }
       ],
       "component_test": {
-        "component": "MachineryGroupForm",
-        "action": "pilih Station induk dari dropdown, isi kode grup unik, klik Simpan",
-        "assert": "form submit berhasil, baris baru muncul di daftar dengan Station induk yang benar dan machinery_count 0"
+        "component": "KelolaMachinery",
+        "action": "klik Tambah Grup pada toolbar, pilih Station induk, isi kode grup, klik Simpan",
+        "assert": "grup baru tampil di daftar mode Grup dengan Station induk, Production Line, dan jumlah mesin 0"
       },
       "browser_test": {
-        "route": "/master-data/machinery-groups",
-        "action": "klik Tambah Machinery Group, pilih Station, isi kode grup, klik Simpan",
-        "assert": "baris Machinery Group baru muncul di tabel dengan Station induk yang benar"
+        "route": "/master-data/machinery",
+        "action": "tambah grup baru dari toolbar",
+        "assert": "grup baru terlihat di daftar tanpa memuat ulang halaman"
       }
     },
     {
@@ -510,24 +584,23 @@
             "path": "/api/machinery-groups/:id"
           },
           "request_example": {
-            "id": "<existing-machinery-group-id>",
             "station_id": "{{station_id}}",
-            "group_code": "MG-WB-002B",
-            "description": "Grup diperbarui"
+            "group_code": "STR-99",
+            "description": "Diubah"
           },
           "expected_status": 200,
           "expected_error_code": null
         }
       ],
       "component_test": {
-        "component": "MachineryGroupForm",
-        "action": "klik Edit pada baris Machinery Group, ubah deskripsi/field lain, klik Simpan",
-        "assert": "baris Machinery Group diperbarui dengan nilai baru"
+        "component": "KelolaMachinery",
+        "action": "klik Edit pada baris grup, ubah deskripsi, klik Simpan",
+        "assert": "data terbaru tampil di daftar dengan Station induk yang benar"
       },
       "browser_test": {
-        "route": "/master-data/machinery-groups",
-        "action": "klik Edit pada baris, ubah deskripsi, klik Simpan",
-        "assert": "tabel menampilkan data yang sudah diperbarui"
+        "route": "/master-data/machinery",
+        "action": "edit sebuah grup",
+        "assert": "perubahan terlihat di baris grup"
       }
     },
     {
@@ -540,22 +613,20 @@
             "method": "DELETE",
             "path": "/api/machinery-groups/:id"
           },
-          "request_example": {
-            "id": "<machinery-group-id-no-machinery>"
-          },
+          "request_example": {},
           "expected_status": 200,
           "expected_error_code": null
         }
       ],
       "component_test": {
-        "component": "MachineryGroupList",
-        "action": "klik Hapus pada baris Machinery Group tanpa Machinery terkait, konfirmasi",
-        "assert": "baris Machinery Group terhapus dari daftar"
+        "component": "KelolaMachinery",
+        "action": "hapus grup yang jumlah mesinnya 0",
+        "assert": "grup hilang dari daftar"
       },
       "browser_test": {
-        "route": "/master-data/machinery-groups",
-        "action": "klik Hapus pada Machinery Group tanpa Machinery terkait, konfirmasi dialog",
-        "assert": "baris Machinery Group hilang dari daftar"
+        "route": "/master-data/machinery",
+        "action": "hapus grup kosong",
+        "assert": "baris grup hilang dari daftar"
       }
     },
     {
@@ -568,22 +639,20 @@
             "method": "DELETE",
             "path": "/api/machinery-groups/:id"
           },
-          "request_example": {
-            "id": "<machinery-group-id-with-machinery>"
-          },
+          "request_example": {},
           "expected_status": 409,
           "expected_error_code": "MACHINERY_GROUP_HAS_MACHINERY"
         }
       ],
       "component_test": {
-        "component": "MachineryGroupList",
-        "action": "klik Hapus pada baris Machinery Group yang masih memiliki Machinery terkait, konfirmasi",
-        "assert": "pesan error ditampilkan, baris tetap ada di daftar"
+        "component": "KelolaMachinery",
+        "action": "hapus grup yang jumlah mesinnya lebih dari 0",
+        "assert": "pesan penolakan yang menjelaskan grup masih berisi mesin; grup tetap ada di daftar"
       },
       "browser_test": {
-        "route": "/master-data/machinery-groups",
-        "action": "klik Hapus pada Machinery Group dengan Machinery terkait, konfirmasi dialog",
-        "assert": "pesan error 'Machinery Group masih memiliki Machinery terkait' ditampilkan, baris tidak hilang"
+        "route": "/master-data/machinery",
+        "action": "hapus grup yang barisnya menampilkan jumlah mesin lebih dari 0",
+        "assert": "penolakan terlihat dan grup tetap ada"
       }
     },
     {
@@ -598,21 +667,21 @@
           },
           "request_example": {
             "station_id": "{{station_id}}",
-            "group_code": "MG-WB-001"
+            "group_code": "STR-01"
           },
           "expected_status": 422,
           "expected_error_code": "VALIDATION_ERROR"
         }
       ],
       "component_test": {
-        "component": "MachineryGroupForm",
-        "action": "isi kode grup (Tambah/Edit) yang sudah dipakai Machinery Group lain, klik Simpan",
-        "assert": "pesan validasi muncul di bawah field kode, form tidak tersimpan"
+        "component": "KelolaMachinery",
+        "action": "simpan grup dengan kode yang sudah dipakai grup lain",
+        "assert": "pesan validasi pada field kode grup; nol baris baru tersimpan"
       },
       "browser_test": {
-        "route": "/master-data/machinery-groups",
-        "action": "submit form Machinery Group (Tambah/Edit) dengan kode yang sudah dipakai",
-        "assert": "pesan validasi kode sudah dipakai ditampilkan, tidak ada baris baru/berubah"
+        "route": "/master-data/machinery",
+        "action": "isi kode grup duplikat lalu klik Simpan",
+        "assert": "pesan validasi terlihat dan grup tidak bertambah"
       }
     },
     {
@@ -631,14 +700,14 @@
         }
       ],
       "component_test": {
-        "component": "MachineryGroupForm",
-        "action": "buka form Tambah Machinery Group saat daftar opsi Station kosong",
-        "assert": "dropdown Station kosong/nonaktif, form menampilkan arahan untuk membuat Station dahulu"
+        "component": "KelolaMachinery",
+        "action": "buka form Tambah Grup saat nol Station ada",
+        "assert": "dropdown Station kosong dan Admin diarahkan membuat Station dahulu"
       },
       "browser_test": {
-        "route": "/master-data/machinery-groups",
-        "action": "klik Tambah Machinery Group saat belum ada Station sama sekali",
-        "assert": "form tampil tanpa opsi Station yang dapat dipilih, arahan membuat Station dahulu terlihat"
+        "route": "/master-data/machinery",
+        "action": "tekan Tambah Grup pada database tanpa Station",
+        "assert": "arahan membuat Station terlihat"
       }
     },
     {
@@ -657,14 +726,14 @@
         }
       ],
       "component_test": {
-        "component": "MachineryGroupManagement",
-        "action": "coba muat layar Kelola Machinery Group sebagai user non-Admin",
-        "assert": "tampilan akses ditolak muncul, daftar/kontrol Machinery Group tidak dirender"
+        "component": "KelolaMachinery",
+        "action": "panggil aksi tambah/ubah/hapus grup sebagai Supervisor",
+        "assert": "ditolak; nol perubahan pada data Machinery Group"
       },
       "browser_test": {
         "route": "/master-data/machinery-groups",
-        "action": "navigasi ke /master-data/machinery-groups sebagai user non-Admin",
-        "assert": "browser menampilkan status akses ditolak/redirect, layar Kelola Machinery Group tidak dapat diakses"
+        "action": "login sebagai Supervisor lalu buka rute lama ini",
+        "assert": "ditolak 403 oleh guard role:admin, TIDAK dialihkan — pengalihan hanya berlaku setelah guard lolos"
       }
     }
   ]

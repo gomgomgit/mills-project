@@ -1,8 +1,8 @@
 {
-  "ver": 58,
+  "ver": 59,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-09-28"
+    "updated_at": "2026-10-01"
   },
   "endpoints": [
     {
@@ -399,8 +399,8 @@
     {
       "method": "GET",
       "path": "/api/machinery-groups",
-      "description": "List Machinery Group dengan Station induk dan jumlah Machinery terkait, dipaginasi, opsional filter per Station",
-      "screen_id": "screen-033--kelola-machinery-group",
+      "description": "List Machinery Group dengan Station induk, Production Line, dan jumlah Machinery terkait; dipaginasi PER GRUP, opsional filter per Station, opsional search yang juga menjangkau equipment_code/name Machinery di dalam grup (has_search_match_in_machinery). Tulang punggung mode Grup layar Kelola Mesin sejak penggabungan 2026-09-30",
+      "screen_id": "screen-031--kelola-machinery",
       "usecase_id": "usecase-033--kelola-machinery-group",
       "auth_required": true,
       "actor_ids": [
@@ -410,8 +410,8 @@
     {
       "method": "GET",
       "path": "/api/stations/options",
-      "description": "List ringkas seluruh Station (id, name, business_unit_id) untuk dropdown pilih Station induk pada form Machinery Group",
-      "screen_id": "screen-033--kelola-machinery-group",
+      "description": "List ringkas seluruh Station (id, name, production_line_id) untuk dropdown pilih Station induk pada form Machinery Group — production_line_id itulah yang disalin ke grup; kolom business_unit_id tidak ada pada machinery_groups",
+      "screen_id": "screen-031--kelola-machinery",
       "usecase_id": "usecase-033--kelola-machinery-group",
       "auth_required": true,
       "actor_ids": [
@@ -421,8 +421,8 @@
     {
       "method": "POST",
       "path": "/api/machinery-groups",
-      "description": "Membuat Machinery Group baru",
-      "screen_id": "screen-033--kelola-machinery-group",
+      "description": "Membuat Machinery Group baru; production_line_id disalin dari Station terpilih, bukan dari kiriman klien",
+      "screen_id": "screen-031--kelola-machinery",
       "usecase_id": "usecase-033--kelola-machinery-group",
       "auth_required": true,
       "actor_ids": [
@@ -432,8 +432,8 @@
     {
       "method": "PATCH",
       "path": "/api/machinery-groups/:id",
-      "description": "Mengubah data Machinery Group",
-      "screen_id": "screen-033--kelola-machinery-group",
+      "description": "Mengubah data Machinery Group; production_line_id disalin ulang dari Station terpilih",
+      "screen_id": "screen-031--kelola-machinery",
       "usecase_id": "usecase-033--kelola-machinery-group",
       "auth_required": true,
       "actor_ids": [
@@ -444,7 +444,7 @@
       "method": "DELETE",
       "path": "/api/machinery-groups/:id",
       "description": "Menghapus Machinery Group jika tidak memiliki Machinery terkait",
-      "screen_id": "screen-033--kelola-machinery-group",
+      "screen_id": "screen-031--kelola-machinery",
       "usecase_id": "usecase-033--kelola-machinery-group",
       "auth_required": true,
       "actor_ids": [
@@ -454,7 +454,7 @@
     {
       "method": "GET",
       "path": "/api/machinery",
-      "description": "List Machinery dengan Machinery Group induk, dipaginasi, opsional filter per Machinery Group",
+      "description": "List Machinery dengan Machinery Group induk, dipaginasi; opsional filter per Machinery Group, opsional ungrouped=true untuk mesin tanpa grup (ditolak 422 bila dikirim bersama machinery_group_id), opsional search pada equipment_code/name. Melayani mode Rata layar Kelola Mesin",
       "screen_id": "screen-031--kelola-machinery",
       "usecase_id": "usecase-031--kelola-machinery",
       "auth_required": true,

@@ -384,6 +384,15 @@
                  hierarchy and were four separate sidebar entries; folded into a single
                  collapsible group to shorten the rail. Opens automatically when the
                  current route is one of them, so the active page is never hidden. --}}
+            {{-- shell-nav-group-wrap SENGAJA tidak punya aturan CSS, dan itu sudah
+                 diperiksa (nol selektor yang cocok di seluruh resources/ dan
+                 public/), bukan terlupakan. Ia penanda semantik murni yang
+                 membedakan <li> pembungkus grup dari <li> item biasa: seluruh
+                 gayanya dibawa .shell-nav-group pada <details> di dalamnya, yang
+                 punya 14 aturan sendiri. Dinyatakan di sini supaya pemeriksaan
+                 "tiap kelas yang dipakai markup harus punya definisi" tidak
+                 menemukannya lagi sebagai cacat — dan supaya siapa pun yang nanti
+                 butuh menata <li> ini tahu hook-nya sudah tersedia. --}}
             <li class="shell-nav-group-wrap">
                 <details class="shell-nav-group"{!! request()->routeIs('master-data.corporates', 'master-data.companies', 'master-data.production-lines', 'master-data.business-units') ? ' open' : '' !!}>
                     <summary>

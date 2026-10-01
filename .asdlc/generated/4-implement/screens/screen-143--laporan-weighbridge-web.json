@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-01"
+    "updated_at": "2026-10-02"
   },
   "id": "screen-143--laporan-weighbridge-web",
   "name": "Laporan Weighbridge (Web)",
@@ -89,6 +89,14 @@
     {
       "description": "Tiga spec browser laporan lain (laporan-storage-tank, laporan-clarification, laporan-boiler-room) memakai pola berburu 'mill tanpa periode' yang sama dan masih rapuh terhadap kewajiban Production Line — lihat implementation_notes tentang skenario 7. Di luar cakupan layar ini; bagian dari utang spec browser 2026-09-28 yang lebih besar.",
       "severity": "major"
+    },
+    {
+      "description": "Dua jalur ekspor ada di WeighbridgeReportService namun TIDAK diasersi di mana pun: (a) penolakan EXPORT_ROW_LIMIT (> 50.000 baris → ExportFailedException 422) dan (b) kegagalan tulis di tengah stream. Diperiksa: nol kemunculan EXPORT_ROW_LIMIT maupun ExportFailedException di ketiga berkas test layar ini. Ekspor itu sendiri TERCAKUP — beberapa skenario API dan skenario 35 Livewire menguji CSV-nya — yang hilang hanya dua jalur penolakan ini. Paritasnya: dari lima layar laporan sejenis, hanya storage-tank punya kasus kegagalan-di-tengah-stream (case 30), dan NOL di antaranya menguji batas baris, jadi ini bukan layar ini sendirian yang tertinggal. Pola yang bisa disalin bila dikerjakan: case 30 StorageTankReportServiceTest (ia membuka StreamedResponseException lalu mengasersi payload-nya) dan WeighbridgeRecordServiceTest yang menyisipkan EXPORT_ROW_LIMIT + 1 baris lewat bulk insert agar tetap cepat.",
+      "severity": "minor"
+    },
+    {
+      "description": "Angka regresi untuk enam spec browser laporan yang lebih lama tidak sepenuhnya dapat dipercaya karena BrowserTestFixtureSeeder tidak pernah dijalankan — playwright.config.ts menyatakan seeding sebagai prasyarat, dan percobaannya ditolak sandbox sebagai 'Irreversible Local Destruction'. Penolakan itu TIDAK diakali. Yang tetap kokoh terlepas dari itu: 85 dari 102 kegagalan merender 'Pilih production line terlebih dahulu' dengan pemilih line masih kosong, yaitu sebab yang tidak bergantung pada fixture apa pun; dan tanggal git membuktikan keenam spec terakhir disentuh 24-27 September sementara kewajiban Production Line mendarat 28 September (a5ccfba).",
+      "severity": "minor"
     }
   ]
 }

@@ -87,6 +87,18 @@ beforeEach(function () {
         ->forBusinessUnit($this->businessUnitA)
         ->sterilizer()
         ->create();
+
+    // AKTOR YANG TERIKAT MILL, khusus untuk jalur TULIS data stasiun.
+    // $this->supervisor dan $this->operator di atas sengaja dibiarkan TANPA mill
+    // karena test akses memakai keduanya begitu — tetapi sejak aturan mill-scope
+    // mendarat (2026-09-28, commit a5ccfba) setiap penulisan record menuntut aktor
+    // yang terikat mill, dan tanpa itu permintaan berhenti di 403
+    // CrossMillWriteDeniedException sebelum kunci periode tersentuh sama sekali.
+    // Itulah yang membuat keempat test kontrak usecase-141 di bawah gagal 403
+    // ketika skip-nya dilepas: mereka ditulis 2026-09-27, sehari SEBELUM aturan
+    // itu ada.
+    $this->supervisorA = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnitA)->create();
+    $this->operatorA = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnitA)->create();
 });
 
 afterEach(function () {
@@ -549,16 +561,28 @@ it('backfill tidak pernah menghapus baris stasiun, termasuk untuk jenis yang sud
     expect(PeriodStation::findOrFail($clarificationRowId)->status->value)->toBe('open');
 });
 
-// ── usecase-141 — KUNCI INPUT PERIODE TERTUTUP (BELUM DIIMPLEMENTASIKAN) ─
+// ── usecase-141 — KUNCI INPUT PERIODE TERTUTUP (SUDAH DITEGAKKAN) ────────
 //
-// The four skipped tests below are the contract of
-// usecase-141--kunci-input-periode-tertutup, written in full so they become
-// runnable the moment that use case lands. Verified 2026-09-27: zero Period
-// references across app/Services/*RecordService.php — the lock does not exist
-// anywhere yet, and nothing in screen-128 or screen-142 may claim it does.
+// Keempat test di bawah adalah kontrak
+// usecase-141--kunci-input-periode-tertutup, ditulis 2026-09-27 saat kuncinya
+// belum ada dan ber-skip sampai 2026-10-02. Sejak hari itu kuncinya ditegakkan
+// di ke-18 app/Services/*RecordService.php lewat trait
+// App\Support\Concerns\EnforcesPeriodLock, jadi skip-nya dilepas.
 //
-// They stayed here when the closure tests moved to
-// tests/Feature/Api/DetailPeriodePelaporanTest.php, untouched.
+// SATU DI ANTARANYA DITULIS ULANG, DAN ITU PERLU DISEBUT. Keempatnya dirancang
+// terhadap model BLACKLIST: "yang diblokir hanyalah tanggal DI DALAM periode
+// yang tertutup". Aturan yang diratifikasi user pada 2026-10-01 adalah WHITELIST
+// — "input data hanya bisa pada rentang waktu periode yang terbuka untuk stasiun
+// tersebut" — dan di bawahnya sebuah tanggal yang tidak dicakup periode terbuka
+// mana pun DITOLAK, bukan diterima. Test keempat dulu mengasersi 201 untuk
+// tanggal di luar rentang; sekarang ia mengasersi aturan yang sama yang menjadi
+// maksud aslinya (keanggotaan periode ditentukan TANGGAL KEJADIAN, bukan waktu
+// input) dengan cara yang sah di bawah whitelist: periode Oktober ditutup,
+// periode November dibuka, lalu record bertanggal November diterima sementara
+// yang bertanggal Oktober ditolak.
+//
+// Mereka tetap di berkas ini saat test penutupan pindah ke
+// tests/Feature/Api/DetailPeriodePelaporanTest.php.
 
 // Scenario: "data mobile menyusul setelah periode ditutup"
 it('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali', function () {
@@ -582,7 +606,7 @@ it('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya 
     ];
 
     // Step 2 — the offline record syncs into a closed period -> 422 PERIOD_CLOSED
-    $rejected = $this->actingAs($this->operator, 'web')->postJson('/api/sterilizer-records', $payload);
+    $rejected = $this->actingAs($this->operatorA, 'web')->postJson('/api/sterilizer-records', $payload);
     $rejected->assertStatus(422);
     $rejected->assertJsonPath('code', 'PERIOD_CLOSED');
 
@@ -590,8 +614,8 @@ it('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya 
     $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/reopen")->assertOk();
 
     // Step 4 — the same record now goes through -> 201; the data was never lost.
-    $this->actingAs($this->operator, 'web')->postJson('/api/sterilizer-records', $payload)->assertStatus(201);
-})->skip('Penegakan PERIOD_CLOSED ada di service 18 stasiun — di luar screen-128, lihat usecase-141--kunci-input-periode-tertutup');
+    $this->actingAs($this->operatorA, 'web')->postJson('/api/sterilizer-records', $payload)->assertStatus(201);
+});
 
 // Scenario 15: "upaya verifikasi pada periode tertutup"
 it('menolak 422 PERIOD_CLOSED saat mencoba memverifikasi record di dalam periode tertutup', function () {
@@ -613,16 +637,29 @@ it('menolak 422 PERIOD_CLOSED saat mencoba memverifikasi record di dalam periode
     $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/close")->assertOk();
 
     // Step 2 — verification attempt -> 422 PERIOD_CLOSED
-    $verify = $this->actingAs($this->supervisor, 'web')
-        ->patchJson("/api/sterilizer-records/{$record->id}", ['checked' => true]);
+    //
+    // ENDPOINT DIPERBAIKI 2026-10-02. Bentuk lamanya memanggil
+    // PATCH /api/sterilizer-records/{id} dengan hanya ['checked' => true].
+    // Verifikasi TIDAK berjalan lewat route form itu: ia punya route generik
+    // sendiri untuk ke-18 stasiun, PATCH /api/records/{stationType}/{id}/verification
+    // (RecordVerificationService). Memanggil route form dengan payload sepotong
+    // berhenti di 422 VALIDATION_ERROR karena field wajibnya kosong — gagal karena
+    // alasan yang salah, dan menutupi fakta bahwa jalur verifikasi sesungguhnya
+    // belum terkunci sama sekali. Kunci di jalur itu ditambahkan bersama
+    // perbaikan test ini.
+    $verify = $this->actingAs($this->supervisorA, 'web')
+        ->patchJson("/api/records/sterilizer/{$record->id}/verification", [
+            'level' => 'checked',
+            'value' => true,
+        ]);
     $verify->assertStatus(422);
     $verify->assertJsonPath('code', 'PERIOD_CLOSED');
 
     // Step 3 — the record itself is still readable, just frozen -> 200
-    $show = $this->actingAs($this->supervisor, 'web')->getJson("/api/sterilizer-records/{$record->id}");
+    $show = $this->actingAs($this->supervisorA, 'web')->getJson("/api/sterilizer-records/{$record->id}");
     $show->assertOk();
     expect($record->fresh()->checked_by)->toBeNull();
-})->skip('Penegakan PERIOD_CLOSED ada di service 18 stasiun — di luar screen-128, lihat usecase-141--kunci-input-periode-tertutup');
+});
 
 // Scenario 19: "mengubah data stasiun pada periode tertutup"
 it('menolak 422 PERIOD_CLOSED untuk input baru maupun perubahan data stasiun pada periode tertutup', function () {
@@ -644,7 +681,7 @@ it('menolak 422 PERIOD_CLOSED untuk input baru maupun perubahan data stasiun pad
     $this->actingAs($this->admin, 'web')->postJson("/api/period-stations/{$stationId}/close")->assertOk();
 
     // Step 2 — new record inside the closed range -> 422 PERIOD_CLOSED
-    $create = $this->actingAs($this->supervisor, 'web')->postJson('/api/sterilizer-records', [
+    $create = $this->actingAs($this->supervisorA, 'web')->postJson('/api/sterilizer-records', [
         'production_line_id' => $this->sterilizerStation->production_line_id,
         'sterilizer_id' => 'STR-CLOSED-001',
         'date' => '2026-10-15',
@@ -654,48 +691,100 @@ it('menolak 422 PERIOD_CLOSED untuk input baru maupun perubahan data stasiun pad
     $create->assertJsonPath('code', 'PERIOD_CLOSED');
 
     // Step 3 — editing an existing record inside the range -> 422 PERIOD_CLOSED
-    $update = $this->actingAs($this->supervisor, 'web')
-        ->patchJson("/api/sterilizer-records/{$existing->id}", ['note' => 'diubah']);
+    //
+    // PAYLOAD DILENGKAPI 2026-10-02: PATCH pada route form menuntut payload utuh,
+    // bukan satu field. Dengan hanya ['note' => ...] permintaannya berhenti di 422
+    // VALIDATION_ERROR — benar statusnya, salah sebabnya, dan itu akan membuat
+    // test ini "lulus" bahkan bila kunci periodenya tidak ada sama sekali.
+    $update = $this->actingAs($this->supervisorA, 'web')
+        ->patchJson("/api/sterilizer-records/{$existing->id}", [
+            'production_line_id' => $this->sterilizerStation->production_line_id,
+            'sterilizer_id' => 'STR-CLOSED-EDIT',
+            'date' => '2026-10-15',
+            'note' => 'diubah',
+            'details' => [['close_door_time' => '08:00', 'open_door_time' => '09:10']],
+        ]);
     $update->assertStatus(422);
     $update->assertJsonPath('code', 'PERIOD_CLOSED');
 
     // Step 4 — still readable -> 200
-    $this->actingAs($this->supervisor, 'web')
+    $this->actingAs($this->supervisorA, 'web')
         ->getJson("/api/sterilizer-records/{$existing->id}")
         ->assertOk();
-})->skip('Penegakan PERIOD_CLOSED ada di service 18 stasiun — di luar screen-128, lihat usecase-141--kunci-input-periode-tertutup');
+});
 
-// Scenario 20: "data diinput setelah periode ditutup namun tanggal kejadiannya di luar rentang"
-it('menerima data yang tanggal kejadiannya di luar rentang periode tertutup', function () {
-    $period = Period::factory()
+// Scenario 20: "keanggotaan periode ditentukan TANGGAL KEJADIAN, bukan waktu input"
+//
+// DITULIS ULANG 2026-10-02. Bentuk lamanya menanam SATU periode Oktober, menutupnya,
+// lalu mengasersi 201 untuk record bertanggal 2 November dan 30 September — benar di
+// bawah model blacklist, tetapi berlawanan dengan aturan whitelist yang diratifikasi
+// user 2026-10-01: tanggal yang tidak dicakup periode terbuka mana pun ditolak.
+//
+// Maksud aslinya tetap dipertahankan dan justru diuji lebih tajam: yang menentukan
+// periode mana yang mengikat sebuah record adalah TANGGAL KEJADIANNYA, bukan kapan ia
+// diinput atau disinkronkan. Dibuktikan dengan dua periode berdampingan — Oktober
+// tertutup, November terbuka — lalu memasukkan ketiga tanggal pada saat yang sama.
+it('keanggotaan periode dari tanggal kejadian: November terbuka diterima, Oktober tertutup ditolak', function () {
+    $october = Period::factory()
         ->forBusinessUnit($this->businessUnitA)
         ->stationType('sterilizer')
+        ->named('Oktober 2026')
         ->range('2026-10-01', '2026-10-31')
         ->open()
         ->create();
 
-    // Step 1 — close -> 200
+    $november = Period::factory()
+        ->forBusinessUnit($this->businessUnitA)
+        ->stationType('sterilizer')
+        ->named('November 2026')
+        ->range('2026-11-01', '2026-11-30')
+        ->open()
+        ->create();
+
+    expect($november->id)->not->toBe($october->id);
+
+    // Oktober ditutup; November dibiarkan TERBUKA.
     $this->actingAs($this->admin, 'web')
-        ->postJson('/api/period-stations/'.periodStationId($period).'/close')
+        ->postJson('/api/period-stations/'.periodStationId($october).'/close')
         ->assertOk();
 
-    // Step 2 — event date AFTER the range -> 201; period membership uses
-    // the event date, never the input or sync time.
-    $this->actingAs($this->supervisor, 'web')->postJson('/api/sterilizer-records', [
+    $payload = fn (string $date, string $id) => [
         'production_line_id' => $this->sterilizerStation->production_line_id,
-        'sterilizer_id' => 'STR-AFTER-001',
-        'date' => '2026-11-02',
+        'sterilizer_id' => $id,
+        'date' => $date,
         'details' => [['close_door_time' => '08:00', 'open_door_time' => '09:10']],
-    ])->assertStatus(201);
+    ];
 
-    // Step 3 — event date BEFORE the range -> 201
-    $this->actingAs($this->supervisor, 'web')->postJson('/api/sterilizer-records', [
-        'production_line_id' => $this->sterilizerStation->production_line_id,
-        'sterilizer_id' => 'STR-BEFORE-001',
-        'date' => '2026-09-30',
-        'details' => [['close_door_time' => '09:00', 'open_door_time' => '10:10']],
-    ])->assertStatus(201);
-})->skip('Penegakan PERIOD_CLOSED ada di service 18 stasiun — di luar screen-128, lihat usecase-141--kunci-input-periode-tertutup');
+    // (a) Tanggal kejadian di NOVEMBER -> 201. Penutupan Oktober tidak
+    // menghentikan pencatatan November, walau keduanya diinput pada saat yang sama:
+    // yang mengikat adalah tanggal kejadian, bukan waktu input.
+    $this->actingAs($this->supervisorA, 'web')
+        ->postJson('/api/sterilizer-records', $payload('2026-11-02', 'STR-NOV-001'))
+        ->assertStatus(201);
+
+    // (b) Tanggal kejadian di OKTOBER yang sudah tertutup -> 422 PERIOD_CLOSED,
+    // sehingga angka laporan Oktober yang sudah ditutup tidak bisa bergerak lagi.
+    $rejected = $this->actingAs($this->supervisorA, 'web')
+        ->postJson('/api/sterilizer-records', $payload('2026-10-15', 'STR-OKT-001'));
+    $rejected->assertStatus(422);
+    $rejected->assertJsonPath('code', 'PERIOD_CLOSED');
+    expect($rejected->json('message'))->toContain('Oktober 2026');
+
+    // (c) Tanggal yang TIDAK dicakup periode mana pun (September) -> 422 juga.
+    // Inilah perbedaan nyata whitelist terhadap blacklist, dan konsekuensi yang
+    // diterima user secara sadar: tanpa periode terbuka yang mencakupnya, data
+    // tidak bisa masuk — termasuk untuk menyusulkan data lama.
+    $outside = $this->actingAs($this->supervisorA, 'web')
+        ->postJson('/api/sterilizer-records', $payload('2026-09-30', 'STR-SEP-001'));
+    $outside->assertStatus(422);
+    $outside->assertJsonPath('code', 'PERIOD_CLOSED');
+    // Pesannya menyebut rentang yang menerima data, supaya pengguna tahu
+    // tanggal mana yang sah tanpa meninggalkan form.
+    expect($outside->json('message'))->toContain('01/11/2026');
+
+    // Hanya satu record yang benar-benar tersimpan.
+    expect(SterilizerRecord::count())->toBe(1);
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -736,7 +825,7 @@ it('open-summary: menolak 401 tanpa sesi dan 403 untuk actor bukan Admin', funct
 
     $this->getJson('/api/periods/open-summary')->assertStatus(401);
 
-    foreach ([$this->supervisor, $this->millManagement, $this->operator] as $actor) {
+    foreach ([$this->supervisorA, $this->millManagement, $this->operator] as $actor) {
         $response = $this->actingAs($actor, 'web')->getJson('/api/periods/open-summary');
 
         $response->assertStatus(403);

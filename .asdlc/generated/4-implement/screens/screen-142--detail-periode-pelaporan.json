@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-27"
+    "updated_at": "2026-10-02"
   },
   "id": "screen-142--detail-periode-pelaporan",
   "name": "Detail Periode Pelaporan",
@@ -62,12 +62,13 @@
     "Setup yang dulu lewat dialog accordion sekarang lewat layar detail: tiga helper lokal di spec screen-128 (closeStationThenBackToList, openStationThenBackToList, reopenStationThenBackToList). Tidak ada asersi yang dilemahkan untuk menghindarinya.",
     "Lajur tanggal e2e dipisahkan secara ARITMETIS dari spec screen-128, bukan probabilistik: epoch dan rumus RUN_OFFSET identik, digeser DETAIL_BASE 5.000 hari, sementara slot terjauh spec 128 hanya +1.260 hari. Sengaja TIDAK memakai period-lanes.ts, yang ber-epoch 2600 sementara kedua spec periode hidup di epoch 2100 — mencampurnya akan mengulang tepat kekeliruan 'lajur abad' yang berkas itu sendiri peringatkan.",
     "e2e dijalankan EMPAT kali berturut-turut (144 lolos / 5 skip / 0 gagal tiap kali) dan hitungan DB tidak bergerak satu baris pun melintasi keempatnya. Run berulang itu bukan kelebihan: residu periode memerahkan suite 1-2 run KEMUDIAN lewat paginasi 20-baris atau PERIOD_OVERLAP, bukan seketika. Diverifikasi ulang secara independen di luar agen implementasi: 144 lolos / 5 skip / 0 gagal.",
-    "Penjaga Period (atribut dan query builder) tidak pernah melempar sepanjang pekerjaan ini — getDetail() hanya findOrFail + eager-load, dan satu-satunya filter status tetap where('period_stations.status', ...) yang sudah ada."
+    "Penjaga Period (atribut dan query builder) tidak pernah melempar sepanjang pekerjaan ini — getDetail() hanya findOrFail + eager-load, dan satu-satunya filter status tetap where('period_stations.status', ...) yang sudah ada.",
+    "AKSI 'BUKA KEMBALI' DI LAYAR INI BERPINDAH ARTI SEJAK 2026-10-02. Sebelum kunci periode ditegakkan, membuka kembali sebuah stasiun hanyalah koreksi status. Sesudahnya, ia adalah SATU-SATUNYA jalan pulih bagi data yang tertahan: record yang ditangkap offline saat stasiun masih terbuka lalu tiba setelah penutupan ditolak 422 PERIOD_CLOSED — penilaiannya memakai status pada saat permintaan TIBA, bukan pada saat kejadian, karena alternatifnya adalah mempercayai waktu tangkap yang dikirim klien untuk memutuskan apakah sebuah kunci server berlaku. Pemulihannya: Admin membuka kembali baris stasiun itu di layar ini, lalu klien mengirim ulang. Konsekuensinya bagi UX layar ini: tombol Buka Kembali perlu tetap mudah ditemukan untuk baris yang sudah tertutup, dan itu sudah demikian."
   ],
   "deferred_items": [
     {
-      "description": "Kunci input periode tertutup (usecase-141) tetap tidak diimplementasikan.",
-      "reason": "Nol referensi Period di seluruh app/Services/*RecordService.php dan di RecordVerificationService — diverifikasi ulang. Empat test ber-skip di tests/Feature/Api/KelolaPeriodePelaporanTest.php tetap menjadi kontrak yang mengikat. Skema period_stations sengaja dirancang agar kueri JOIN kunci itu wajar nanti, tapi menulisnya sebelum skema stabil berarti menulisnya dua kali."
+      "description": "TIDAK LAGI DITUNDA — kunci input periode tertutup (usecase-141) diimplementasikan 2026-10-02.",
+      "reason": "Butir ini dibiarkan di tempatnya alih-alih dihapus supaya alasan penundaannya tetap terbaca: skema period_stations memang dirancang agar kueri kunci ini wajar, dan menulis kuncinya sebelum skema itu stabil akan berarti menulisnya dua kali. Setelah skema stabil, kuncinya ditegakkan di trait App\\Support\\Concerns\\EnforcesPeriodLock yang dipakai ke-18 *RecordService (create + update) DAN RecordVerificationService — empat jalur tulis. Klaim lama 'nol referensi Period di seluruh *RecordService dan RecordVerificationService' sudah tidak berlaku, dan diganti di sini supaya artefak ini tidak menyangkal perilaku yang berlaku. Keempat test kontrak di tests/Feature/Api/KelolaPeriodePelaporanTest.php kini berjalan, dan suite backend berjalan tanpa satu pun skip."
     }
   ],
   "known_issues": [

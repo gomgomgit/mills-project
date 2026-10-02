@@ -9,6 +9,7 @@ use App\Exceptions\NoActivePressingStationException;
 use App\Models\PressingDetail;
 use App\Models\PressingRecord;
 use App\Models\User;
+use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
@@ -58,7 +59,7 @@ use Throwable;
  */
 class PressingRecordService
 {
-    use ScopesToActorMill;
+    use EnforcesPeriodLock, ScopesToActorMill;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -105,6 +106,11 @@ class PressingRecordService
         if ($station === null) {
             throw new NoActivePressingStationException();
         }
+
+        // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
+        // penolakan tidak menyisakan induk tanpa detail. Jenis stasiun dan mill
+        // diambil dari stasiun yang SUDAH di-resolve, bukan dari request.
+        $this->assertPeriodOpenForWrite('pressing', $station->business_unit_id, $attributes['date'] ?? null);
 
         $attributes['station_id'] = $station->id;
         // Snapshot the line from the RESOLVED STATION, never from the
@@ -159,6 +165,19 @@ class PressingRecordService
 
         $this->validateForm($attributes);
         $this->validateDetails($details);
+
+        // KUNCI PERIODE (usecase-141) — DUA tanggal diperiksa, bukan satu.
+        // Mengubah tanggal sebuah record berarti mengeluarkannya dari periode
+        // lama dan memasukkannya ke periode baru, dan mengeluarkan satu baris
+        // dari periode yang sudah ditutup menggeser angka laporannya sama
+        // nyatanya dengan menambah baris ke dalamnya. Jadi kedua ujung
+        // perpindahan harus berada di periode yang terbuka. Verifikasi
+        // (checked/acknowledged) lewat jalur ini ikut terkunci, sesuai spec.
+        $record->loadMissing('station');
+        $periodLockMillId = $record->station->business_unit_id;
+
+        $this->assertPeriodOpenForWrite('pressing', $periodLockMillId, optional($record->date)->toDateString());
+        $this->assertPeriodOpenForWrite('pressing', $periodLockMillId, $attributes['date'] ?? null);
 
         $this->applyVerification($attributes, $data, $actor);
 

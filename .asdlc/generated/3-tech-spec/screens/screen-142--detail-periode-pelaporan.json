@@ -2,7 +2,7 @@
   "ver": 1,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-27"
+    "updated_at": "2026-10-02"
   },
   "id": "screen-142--detail-periode-pelaporan",
   "name": "Detail Periode Pelaporan",
@@ -398,7 +398,7 @@
         "11. Seluruh aksi menyasar SATU baris; jenis stasiun lain pada periode yang sama tidak dibaca dan tidak diubah",
         "12. FE: askClose(period_station_id) memuat count lalu membuka dialog; confirmClose() memanggil close dengan id yang sama; cancelClose() menutup dialog tanpa memanggil apa pun. Buka Kembali memakai konfirmasi inline pada baris (askReopen / confirmReopen / cancelReopen)",
         "13. FE: setelah sukses, muat ulang periode (jalur usecase-145) sehingga status baris, ringkasan jumlah tertutup, badge status_summary, dan keadaan disabled Edit/Hapus ikut menyesuaikan",
-        "14. PENEGAKAN KUNCI TIDAK ADA DI SINI: layar ini hanya menetapkan status baris. Penolakan create/update/verifikasi record stasiun (422 PERIOD_CLOSED) adalah usecase-141 dan BELUM diimplementasikan sama sekali — nol referensi Period di seluruh app/Services/*RecordService.php"
+        "14. PENEGAKAN KUNCI TIDAK ADA DI SINI, DAN SEJAK 2026-10-02 MEMANG SUDAH ADA DI TEMPATNYA: layar ini hanya menetapkan status baris. Penolakan create/update/verifikasi record stasiun (422 PERIOD_CLOSED) adalah usecase-141, terimplementasi di trait App\\Support\\Concerns\\EnforcesPeriodLock yang dipakai ke-18 *RecordService dan RecordVerificationService. Artinya menutup sebuah stasiun dari layar ini kini benar-benar membekukan angkanya."
       ],
       "data_operations": [
         {
@@ -468,7 +468,7 @@
         },
         {
           "condition": "Record stasiun coba masuk / diubah / diverifikasi saat stasiunnya tertutup",
-          "handling": "SEHARUSNYA 422 PERIOD_CLOSED, tetapi BELUM diimplementasikan — milik usecase-141, di ke-18 *RecordService dan jalur sync mobile. 4 test ber-skip di tests/Feature/Api/KelolaPeriodePelaporanTest.php adalah kontrak yang mengikat pekerjaan itu"
+          "handling": "422 PERIOD_CLOSED — SUDAH diimplementasikan sejak 2026-10-02 (usecase-141), di ke-18 *RecordService dan di RecordVerificationService, yang juga mencakup jalur sync mobile karena keduanya dipakai bersama oleh API dan Livewire. Empat test ber-skip di tests/Feature/Api/KelolaPeriodePelaporanTest.php sudah dilepas skip-nya dan berjalan hijau."
         },
         {
           "condition": "Record dengan tanggal kejadian di luar rentang periode tertutup",
@@ -487,7 +487,7 @@
         "Keanggotaan periode ditentukan tanggal kejadian di pabrik dengan batas inklusif",
         "Membuka kembali stasiun mengosongkan closed_by dan closed_at pada baris itu",
         "Penutupan atomik lewat UPDATE bersyarat agar penutup pertama tidak tertimpa",
-        "Penegakan kunci periode tertutup bukan tanggung jawab layar ini dan belum diimplementasikan (usecase-141)"
+        "Penegakan kunci periode tertutup bukan tanggung jawab layar ini; ia hidup di lapisan layanan (usecase-141) dan sudah diimplementasikan sejak 2026-10-02"
       ],
       "unit_test_cases": [
         {
@@ -870,7 +870,7 @@
     "unverifiedCount() memakai whitelist station_type ⇒ model record milik RecordVerificationService, satu-satunya peta jenis-stasiun→model di codebase ini. Jangan merangkai nama kelas dan jangan menduplikasi petanya",
     "Kolom tanggal kejadian per jenis stasiun: 'date' untuk semua kecuali weighbridge yang memakai 'record_datetime'. Perbandingannya whereDate inklusif di kedua ujung rentang",
     "Definisi 'belum terverifikasi' yang dipakai: checked_by IS NULL OR acknowledged_by IS NULL — salah satu tahap verifikasi masih kosong. Ini turunan agen, tidak dinyatakan eksplisit di business spec",
-    "PENEGAKAN KUNCI PERIODE TIDAK ADA DI LAYAR INI DAN BELUM ADA DI MANA PUN. Sudah diverifikasi 2026-09-27: nol referensi Period di seluruh app/Services/*RecordService.php. Penolakan 422 PERIOD_CLOSED pada create/update/verifikasi record stasiun dan pada jalur sync mobile adalah usecase-141--kunci-input-periode-tertutup — jangan mengklaim kunci itu berjalan",
+    "PENEGAKAN KUNCI PERIODE SUDAH ADA SEJAK 2026-10-02 — catatan ini sebelumnya menyatakan 'BELUM ADA DI MANA PUN' dan diperbarui bersama implementasinya, supaya artefak tidak lagi menyangkal perilaku yang sudah berlaku. Tempatnya: trait App\\Support\\Concerns\\EnforcesPeriodLock di ke-18 app/Services/*RecordService.php (create + update) dan di app/Services/RecordVerificationService.php. Yang perlu diingat bagi pembaca layar INI: menutup satu baris stasiun di sini kini punya akibat nyata di seluruh jalur tulis stasiun itu, dan membuka kembali adalah satu-satunya jalan pulih bagi record yang tertahan — itulah yang membuat aksi 'Buka Kembali' di layar ini berpindah dari kenyamanan menjadi mekanisme pemulihan.",
     "JANGAN menyentuh 4 test ber-skip di tests/Feature/Api/KelolaPeriodePelaporanTest.php — itu kontrak period-lock usecase-141 yang mengikat pekerjaan berikutnya. 4 test_scenario di sini (data mobile menyusul, upaya verifikasi, mengubah record stasiun, record di luar rentang) memakai api_test yang menunjuk endpoint record stasiun dan mengharapkan 422 PERIOD_CLOSED; keempatnya baru bisa hijau setelah usecase-141 dikerjakan",
     "test_scenario 'data mobile menyusul' mengandaikan POST record stasiun idempoten terhadap UUID yang dibuat offline (sesuai shared-decisions: ID entitas yang dibuat offline memakai UUID)",
     "LUBANG BACKFILL: PeriodService::update() menolak 409 pada periode yang punya minimal satu baris closed, dan backfill baris stasiun baru hanya berjalan di dalam update() yang sukses. Akibatnya periode semacam itu tidak bisa mendapat baris jenis stasiun baru sampai barisnya dibuka kembali. Jalan keluar hari ini manual dan harus dijelaskan ke Admin dari layar ini: Buka Kembali → simpan periode → Tutup lagi. Perbaikan tuntasnya adalah aksi 'sinkronkan stasiun' add-only yang diizinkan meski ada baris tertutup — usecase baru, belum diputuskan",

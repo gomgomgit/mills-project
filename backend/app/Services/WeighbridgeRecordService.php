@@ -8,6 +8,7 @@ use App\Exceptions\InvalidDateRangeException;
 use App\Exceptions\NoActiveWeighbridgeStationException;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
+use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,7 +36,7 @@ use Throwable;
  */
 class WeighbridgeRecordService
 {
-    use ScopesToActorMill;
+    use EnforcesPeriodLock, ScopesToActorMill;
 
     /**
      * Row limit enforced on export() (business_logic step 5) — protects
@@ -318,6 +319,11 @@ class WeighbridgeRecordService
             throw new NoActiveWeighbridgeStationException();
         }
 
+        // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
+        // penolakan tidak menyisakan induk tanpa detail. Jenis stasiun dan mill
+        // diambil dari stasiun yang SUDAH di-resolve, bukan dari request.
+        $this->assertPeriodOpenForWrite('weighbridge', $station->business_unit_id, $attributes['record_datetime'] ?? null);
+
         $attributes['station_id'] = $station->id;
         // Snapshot the line from the RESOLVED STATION, never from the
         // request: the client sends `production_line_id` only to SELECT the
@@ -357,6 +363,19 @@ class WeighbridgeRecordService
         $attributes = $this->normalizeFormFields($data);
 
         $this->validateForm($attributes);
+
+        // KUNCI PERIODE (usecase-141) — DUA tanggal diperiksa, bukan satu.
+        // Mengubah tanggal sebuah record berarti mengeluarkannya dari periode
+        // lama dan memasukkannya ke periode baru, dan mengeluarkan satu baris
+        // dari periode yang sudah ditutup menggeser angka laporannya sama
+        // nyatanya dengan menambah baris ke dalamnya. Jadi kedua ujung
+        // perpindahan harus berada di periode yang terbuka. Verifikasi
+        // (checked/acknowledged) lewat jalur ini ikut terkunci, sesuai spec.
+        $record->loadMissing('station');
+        $periodLockMillId = $record->station->business_unit_id;
+
+        $this->assertPeriodOpenForWrite('weighbridge', $periodLockMillId, optional($record->record_datetime)->toDateString());
+        $this->assertPeriodOpenForWrite('weighbridge', $periodLockMillId, $attributes['record_datetime'] ?? null);
 
         $this->applyVerification($attributes, $data, $actor);
 

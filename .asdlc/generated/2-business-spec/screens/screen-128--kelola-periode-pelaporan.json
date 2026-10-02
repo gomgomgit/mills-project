@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-01"
+    "updated_at": "2026-10-02"
   },
-  "ver": 5,
+  "ver": 6,
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
   "module_id": "module-master-data",
@@ -115,7 +115,7 @@
     "Filter Status Stasiun bermakna 'periode ini punya minimal satu stasiun berstatus itu', bukan 'seluruh stasiunnya berstatus itu'. Dengan makna 'seluruh', periode yang stasiunnya campuran akan hilang dari semua nilai filter padahal jelas ada di daftar tanpa filter — kegagalan terburuk yang bisa dilakukan sebuah filter. Konsekuensi yang diterima: satu periode campuran dapat muncul pada lebih dari satu nilai filter",
     "Menutup, membuka, dan membuka kembali stasiun tidak tersedia di layar ini — semuanya berada di layar Detail Periode Pelaporan (screen-142), karena statusnya melekat pada jenis stasiun",
     "Penentuan apakah sebuah record berada di dalam periode memakai tanggal kejadian di pabrik, bukan tanggal data diinput maupun dikirim dari aplikasi mobile",
-    "Penolakan input, perubahan, dan verifikasi record stasiun pada periode tertutup BUKAN bagian layar ini dan belum diimplementasikan sama sekali — dilacak oleh usecase-141--kunci-input-periode-tertutup"
+    "Penolakan input, perubahan, dan verifikasi record stasiun pada periode tertutup BUKAN bagian layar ini — ia ditegakkan di lapisan layanan dan dilacak oleh usecase-141--kunci-input-periode-tertutup. SEJAK 2026-10-02 PENEGAKAN ITU SUDAH ADA: ke-18 *RecordService (create dan update) beserta RecordVerificationService menolak 422 PERIOD_CLOSED bila tidak ada periode TERBUKA untuk jenis stasiun itu yang mencakup tanggal kejadian record. Artinya menutup sebuah stasiun dari layar Detail Periode Pelaporan kini benar-benar membekukan angkanya, bukan hanya menandainya."
   ],
   "usecase_ids": [
     "usecase-128--kelola-periode-pelaporan"

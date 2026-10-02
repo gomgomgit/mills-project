@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\StationType as StationTypeEnum;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\UnauthorizedException;
 
 /**
@@ -33,7 +36,7 @@ use Illuminate\Validation\UnauthorizedException;
  */
 class RecordVerificationService
 {
-    use ScopesToActorMill;
+    use EnforcesPeriodLock, ScopesToActorMill;
 
     public const LEVEL_CHECKED = 'checked';
 
@@ -113,6 +116,34 @@ class RecordVerificationService
         // penolakan terjadi sebelum satu kolom pun berubah: tidak ada efek
         // separuh untuk di-rollback.
         $this->assertRecordWritableByActor($record, $actor);
+
+        // KUNCI PERIODE (usecase-141) — JALUR TULIS KEEMPAT, dan satu-satunya yang
+        // TIDAK lewat salah satu dari 18 *RecordService, jadi guard di sana tidak
+        // menutupinya. Spec menyebut verifikasi secara eksplisit: menyetujui atau
+        // membatalkan persetujuan mengubah angka yang dibaca laporan periode sama
+        // nyatanya dengan mengubah nilainya, jadi ia ikut terkunci bersama
+        // penutupan.
+        //
+        // Jenis stasiun dan mill dibaca dari STASIUN MILIK RECORD, bukan dari
+        // segmen {stationType} pada URL: yang terakhir datang dari request, dan
+        // record-nya sendiri adalah sumber yang tidak bisa dipalsukan pemanggil.
+        //
+        // Tanggal kejadian: 17 stasiun memakai `date`, Weighbridge memakai
+        // `record_datetime`. Keduanya dibaca apa adanya — atribut yang tidak ada
+        // mengembalikan null, dan guard-nya menolak tanggal kosong dengan pesannya
+        // sendiri alih-alih menebak hari ini.
+        $record->loadMissing('station');
+        $station = $record->station;
+        $stationType = $station->type instanceof StationTypeEnum
+            ? $station->type->value
+            : (string) $station->type;
+        $eventDate = $record->date ?? $record->record_datetime ?? null;
+
+        $this->assertPeriodOpenForWrite(
+            $stationType,
+            $station->business_unit_id,
+            $eventDate instanceof Carbon ? $eventDate->toDateString() : ($eventDate === null ? null : (string) $eventDate),
+        );
 
         $record->forceFill([
             $this->column($level) => $value ? $actor->id : null,

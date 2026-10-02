@@ -29,6 +29,12 @@ beforeEach(function () {
     $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
     $this->admin = User::factory()->role(UserRole::Admin)->create();
     $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnit)->create();
+    // Prasyarat kunci periode (usecase-141): ke-18 *RecordService menolak
+    // penulisan data stasiun tanpa Periode Pelaporan yang TERBUKA untuk jenis
+    // stasiun itu. Test di berkas ini menguji aturan stasiunnya sendiri, bukan
+    // kunci periodenya, jadi prasyaratnya dipenuhi di sini. Kunci periodenya
+    // diuji tersendiri di tests/Unit/Support/EnforcesPeriodLockTest.php.
+    openPeriodFor($this->businessUnit->id, 'grading');
 });
 
 function gradingApiPayload(array $overrides = []): array

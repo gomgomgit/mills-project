@@ -49,6 +49,21 @@ beforeEach(function () {
         'acknowledged_by' => null,
     ]);
     $this->admin = User::factory()->role(UserRole::Admin)->create();
+
+    // Prasyarat kunci periode (usecase-141): verifikasi adalah jalur tulis
+    // KEEMPAT dan ikut terkunci bersama penutupan periode — menyetujui atau
+    // membatalkan persetujuan menggeser angka yang dibaca laporan periode sama
+    // nyatanya dengan mengubah nilainya. Berkas ini menguji aturan verifikasinya
+    // (peran + cakupan mill), bukan kunci periodenya, jadi prasyaratnya dipenuhi
+    // di sini untuk KEDUA mill.
+    //
+    // openPeriodForStation() membaca tipe dari stasiunnya sendiri, dan itu
+    // penting di berkas ini: $this->station dibuat TANPA tipe sehingga tipenya
+    // acak, sementara record-nya CagesTrackRecord. Guard-nya mempercayai stasiun
+    // milik record, jadi periodenya harus dibuka untuk tipe stasiun itu — bukan
+    // untuk 'cages-track'.
+    openPeriodForStation($this->station);
+    openPeriodForStation($this->otherStation);
 });
 
 it('supervisor: approves Checked By straight from the Detail screen, storing their own id', function () {

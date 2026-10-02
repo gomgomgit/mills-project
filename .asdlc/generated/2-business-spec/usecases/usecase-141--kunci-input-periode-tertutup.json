@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-01"
+    "updated_at": "2026-10-02"
   },
   "id": "usecase-141--kunci-input-periode-tertutup",
   "name": "Penolakan Input, Edit & Verifikasi pada Periode Tertutup",
@@ -128,9 +128,12 @@
     "Hanya status Terbuka yang mengizinkan; Draft dan Tertutup sama-sama menolak",
     "Tanggal kejadian record wajib berada di dalam rentang periode terbuka itu, inklusif pada kedua ujung",
     "Aturan ini berlaku untuk membuat, mengubah, menghapus, dan memverifikasi — semuanya dapat mengubah angka laporan periode",
+    "MENGUBAH TANGGAL KEJADIAN MENUNTUT KEDUA TANGGAL BERADA DI PERIODE YANG TERBUKA — yang lama maupun yang baru. Memindahkan sebuah record keluar dari periode tertutup mengurangi angka laporan periode itu sama nyatanya dengan menambah baris ke dalamnya, jadi memeriksa hanya tanggal yang baru akan meninggalkan pintu keluar yang persis sama besar dengan pintu masuk yang ditutup. Ditambahkan 2026-10-02 saat aturan ini diimplementasikan; tidak dinyatakan user, diturunkan dari aturan 'menghapus sama nyatanya dengan menambah' di atas.",
     "Penolakan terjadi sebelum baris apa pun disentuh; nol perubahan sebagian",
     "Periode milik mill lain maupun jenis stasiun lain tidak pernah membuka pintu",
-    "Record yang tiba setelah penutupan ditolak walau kejadiannya di dalam rentang; pemulihannya lewat Admin membuka kembali stasiun itu"
+    "Record yang tiba setelah penutupan ditolak walau kejadiannya di dalam rentang; pemulihannya lewat Admin membuka kembali stasiun itu",
+    "Record tanpa tanggal kejadian ditolak, bukan ditempatkan pada periode yang berjalan hari ini — baris tanpa penanda waktu tidak bisa ditempatkan di periode mana pun, dan menebak 'hari ini' akan menyelundupkannya ke periode yang salah. Ditambahkan 2026-10-02: `weighbridge_records.record_datetime` nullable di database (migrasi penggabungan tidak dapat memakai ->change()), jadi keadaan ini dapat dicapai.",
+    "VERIFIKASI ADALAH JALUR TULIS KEEMPAT DAN TERPISAH. Ia tidak melewati satu pun service record per stasiun melainkan satu layanan verifikasi bersama lewat route generiknya sendiri, sehingga kunci yang dipasang pada jalur create/ubah TIDAK menutupinya. Dinyatakan sebagai aturan, bukan catatan teknis, karena ia yang membuat 'verifikasi ikut terkunci' benar-benar berlaku alih-alih hanya tertulis."
   ],
   "bdd_scenarios": [
     {
@@ -191,7 +194,7 @@
       "scenario": "Kunci Periode — pengubahan record pada stasiun yang sudah ditutup ditolak",
       "given": "Sebuah record stasiun sudah tersimpan, lalu baris stasiunnya pada periode itu ditutup",
       "when": "Pengguna mengubah record tersebut",
-      "then": "Permintaan ditolak dan nilai record tidak berubah sedikit pun, karena pengubahan sama-sama dapat menggeser angka laporan periode yang sudah ditutup"
+      "then": "Permintaan ditolak dan nilai record tidak berubah sedikit pun, karena pengubahan sama-sama dapat menggeser angka laporan periode yang sudah ditutup. Berlaku juga bila yang diubah adalah TANGGALNYA: memindahkan record keluar dari periode tertutup ditolak, sebab mengurangi angka periode itu sama nyatanya dengan menambahnya."
     },
     {
       "scenario": "Kunci Periode — penghapusan record pada stasiun yang sudah ditutup ditolak",

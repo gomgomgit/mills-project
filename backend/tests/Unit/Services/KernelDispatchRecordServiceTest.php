@@ -58,6 +58,12 @@ beforeEach(function () {
     // menguji hal yang persis sama. Cakupan mill untuk peran terikat diuji
     // di tests/Feature/Livewire/DataBrowser*Test.php dan Detail*Test.php.
     $this->actingAs(User::factory()->role(UserRole::Admin)->create());
+    // Prasyarat kunci periode (usecase-141): ke-18 *RecordService menolak
+    // penulisan data stasiun tanpa Periode Pelaporan yang TERBUKA untuk jenis
+    // stasiun itu. Test di berkas ini menguji aturan stasiunnya sendiri, bukan
+    // kunci periodenya, jadi prasyaratnya dipenuhi di sini. Kunci periodenya
+    // diuji tersendiri di tests/Unit/Support/EnforcesPeriodLockTest.php.
+    openPeriodFor($this->businessUnit->id, 'kernel-dispatch');
 });
 
 it('throws InvalidDateRangeException when date_from is after date_to on listRecords()', function () {
@@ -439,6 +445,12 @@ it('menolak update() record milik mill lain, dan tidak mengubah satu kolom pun',
 it('mengizinkan Admin menulis ke line mill mana pun (dibuktikan dengan dua mill berbeda)', function () {
     $millB = BusinessUnit::factory()->create();
     $stationB = Station::factory()->forBusinessUnit($millB)->kernelDispatch()->create();
+
+    // Mill KEDUA butuh periode terbukanya sendiri: kunci periode (usecase-141)
+    // dinilai per mill, dan periode milik mill pertama tidak pernah membuka pintu
+    // bagi mill ini. Tanpa baris ini test ini gagal karena ALASAN YANG BENAR,
+    // yaitu tepat aturan yang diuji terpisah di EnforcesPeriodLockTest.
+    openPeriodForStation($stationB);
     // Admin dinilai dari PERAN: business_unit_id-nya sengaja diisi (19 dari 21
     // Admin di dev punya kolom ini terisi) dan harus diabaikan.
     $admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();

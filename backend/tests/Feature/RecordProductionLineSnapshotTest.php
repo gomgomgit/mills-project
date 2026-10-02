@@ -330,6 +330,14 @@ function stationAndActorFor(string $state): array
     $station = Station::factory()->forBusinessUnit($businessUnit)->{$state}()->create();
     $actor = User::factory()->forBusinessUnit($businessUnit)->role(UserRole::Operator)->create();
 
+    // Prasyarat kunci periode (usecase-141): ke-18 *RecordService menolak
+    // penulisan tanpa Periode Pelaporan yang TERBUKA untuk jenis stasiun itu.
+    // Berkas ini menguji snapshot production_line_id, bukan kunci periodenya,
+    // jadi prasyaratnya dipenuhi di sini — satu titik untuk seluruh dataset
+    // 18 stasiun. Kunci periodenya diuji tersendiri di
+    // tests/Unit/Support/EnforcesPeriodLockTest.php.
+    openPeriodForStation($station);
+
     test()->actingAs($actor);
 
     return [$station, $actor, $businessUnit];

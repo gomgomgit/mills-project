@@ -42,6 +42,21 @@ beforeEach(function () {
     ]);
     $this->admin = User::factory()->role(UserRole::Admin)->create();
     $this->operator = User::factory()->role(UserRole::Operator)->create();
+
+    // Prasyarat kunci periode (usecase-141): verifikasi adalah jalur tulis
+    // KEEMPAT dan ikut terkunci bersama penutupan periode — menyetujui atau
+    // membatalkan persetujuan menggeser angka yang dibaca laporan periode sama
+    // nyatanya dengan mengubah nilainya. Berkas ini menguji aturan verifikasinya
+    // (peran + cakupan mill), bukan kunci periodenya, jadi prasyaratnya dipenuhi
+    // di sini untuk KEDUA mill.
+    //
+    // openPeriodForStation() membaca tipe dari stasiunnya sendiri, dan itu
+    // penting di berkas ini: $this->station dibuat TANPA tipe sehingga tipenya
+    // acak, sementara record-nya CagesTrackRecord. Guard-nya mempercayai stasiun
+    // milik record, jadi periodenya harus dibuka untuk tipe stasiun itu — bukan
+    // untuk 'cages-track'.
+    openPeriodForStation($this->station);
+    openPeriodForStation($this->otherStation);
 });
 
 function verifyUrl(string $stationType, string $id): string
@@ -254,4 +269,61 @@ it('cakupan mill: Grading (bentuk verifikasi berbeda) juga dijaga — Mill Manag
         ->assertStatus(403);
 
     expect($grading->fresh()->acknowledged_by)->toBeNull();
+});
+
+// ── kunci periode pada jalur verifikasi (usecase-141) ───────────────────────
+//
+// Jalur ini sempat LUPUT pada implementasi pertama kunci periode: ia tidak lewat
+// satu pun dari 18 *RecordService, jadi guard di sana tidak menutupinya. Dua test
+// di bawah menguji PERILAKU-nya; keberadaan pemanggilannya dijaga secara
+// struktural di tests/Unit/Support/EnforcesPeriodLockTest.php.
+
+it('menolak verifikasi 422 PERIOD_CLOSED ketika stasiun pada periode sudah ditutup', function () {
+    $stationType = $this->station->type instanceof \App\Enums\StationType
+        ? $this->station->type->value
+        : (string) $this->station->type;
+
+    // Tutup baris stasiun pada periode prasyarat yang dibuka beforeEach.
+    \App\Models\PeriodStation::query()
+        ->whereIn('period_id', \App\Models\Period::query()
+            ->where('business_unit_id', $this->businessUnit->id)->pluck('id'))
+        ->where('station_type', $stationType)
+        ->update(['status' => \App\Enums\PeriodStatus::Closed->value]);
+
+    $response = $this->actingAs($this->supervisor, 'web')
+        ->patchJson(verifyUrl('cages-track', $this->record->id), ['level' => 'checked', 'value' => true]);
+
+    $response->assertStatus(422);
+    $response->assertJsonPath('code', 'PERIOD_CLOSED');
+
+    // Atestasinya tidak bergerak sedikit pun.
+    expect($this->record->fresh()->checked_by)->toBeNull();
+});
+
+it('menolak PEMBATALAN verifikasi juga, karena arah false ikut menggeser angka laporan', function () {
+    $stationType = $this->station->type instanceof \App\Enums\StationType
+        ? $this->station->type->value
+        : (string) $this->station->type;
+
+    // Verifikasi dulu selagi periodenya masih terbuka.
+    $this->actingAs($this->supervisor, 'web')
+        ->patchJson(verifyUrl('cages-track', $this->record->id), ['level' => 'checked', 'value' => true])
+        ->assertOk();
+
+    expect($this->record->fresh()->checked_by)->toBe($this->supervisor->id);
+
+    \App\Models\PeriodStation::query()
+        ->whereIn('period_id', \App\Models\Period::query()
+            ->where('business_unit_id', $this->businessUnit->id)->pluck('id'))
+        ->where('station_type', $stationType)
+        ->update(['status' => \App\Enums\PeriodStatus::Closed->value]);
+
+    // Membatalkan atestasi yang sah sama merusaknya dengan menambahkannya:
+    // keduanya mengubah apa yang dibaca laporan periode yang sudah ditutup.
+    $response = $this->actingAs($this->supervisor, 'web')
+        ->patchJson(verifyUrl('cages-track', $this->record->id), ['level' => 'checked', 'value' => false]);
+
+    $response->assertStatus(422);
+    $response->assertJsonPath('code', 'PERIOD_CLOSED');
+    expect($this->record->fresh()->checked_by)->toBe($this->supervisor->id);
 });

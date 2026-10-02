@@ -2,7 +2,7 @@
   "ver": 19,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-28"
+    "updated_at": "2026-10-02"
   },
   "entities": [
     {
@@ -6679,7 +6679,7 @@
         "Transisi status yang diizinkan: draft -> open, open -> closed, closed -> open (buka kembali). Menutup dan membuka kembali hanya boleh dilakukan actor-admin. Transisi berlaku per baris, bukan per periode.",
         "closed_by dan closed_at wajib terisi saat status = closed, dan dikosongkan saat dibuka kembali",
         "KUNCI PERIODE TERTUTUP: record stasiun mana pun (18 entitas *-record) yang kolom date-nya jatuh di dalam [start_date, end_date] milik PERIODE INDUK, dan yang jenis stasiunnya cocok dengan baris period-station berstatus closed di periode itu, tidak boleh di-INSERT, di-UPDATE, maupun diubah kolom checked_by/acknowledged_by-nya. Bentuk kuerinya adalah JOIN induk-anak: periods p JOIN period_stations ps ON ps.period_id = p.id WHERE p.business_unit_id = ? AND ps.station_type = ? AND ps.status = 'closed' AND <record.date> BETWEEN p.start_date AND p.end_date. Penentuan periode memakai record.date (tanggal kejadian di pabrik), BUKAN created_at atau waktu sync.",
-        "Penegakan kunci wajib di layer service backend (create/update/verifikasi), bukan hanya di UI — aplikasi mobile mengirim record langsung ke POST /api/{stasiun}-records sehingga kunci di layar bisa dilewati. CATATAN 2026-09-25: kunci ini BELUM diimplementasikan di mana pun (diverifikasi: nol referensi Period di seluruh *RecordService dan di RecordVerificationService); ia dilacak sebagai usecase-141 dan sengaja ditulis sekali di atas skema ini, bukan sebelum skemanya stabil."
+        "Penegakan kunci wajib di layer service backend (create/update/verifikasi), bukan hanya di UI — aplikasi mobile mengirim record langsung ke POST /api/{stasiun}-records sehingga kunci di layar bisa dilewati. TERIMPLEMENTASI 2026-10-02 (usecase-141): trait App\\Support\\Concerns\\EnforcesPeriodLock dipakai ke-18 *RecordService (create dan update) DAN RecordVerificationService — empat jalur tulis, dan yang keempat memang tidak lewat salah satu dari 18 service itu. Aturannya whitelist: butuh periode dengan baris stasiun berstatus open yang mencakup tanggal kejadian record, inklusif di kedua ujung; selain itu 422 PERIOD_CLOSED."
       ],
       "test_fixture": {
         "id": "prs-001",

@@ -1,12 +1,12 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-27"
+    "updated_at": "2026-10-02"
   },
   "ver": 2,
   "id": "usecase-140--tutup-buka-periode-pelaporan",
   "name": "Tutup & Buka Kembali Periode Pelaporan",
-  "description": "Admin menutup SATU JENIS STASIUN di dalam sebuah Periode Pelaporan untuk mengunci angkanya, dan bila perlu membukanya kembali. Keduanya dilakukan dari layar Detail Periode Pelaporan (screen-142), bukan dari daftar periode: status tutup/buka melekat pada jenis stasiun, bukan pada periode, sebab stasiun tidak selesai serentak — Sterilizer bisa ditutup sementara Clarification masih berjalan. Menutup sebuah stasiun dimaksudkan mengunci record stasiun jenis itu yang tanggal kejadiannya berada di dalam rentang periode: tidak ada data baru boleh masuk, tidak ada yang boleh diubah, dan verifikasi pun ikut terkunci. Karena verifikasi ikut terkunci, sebelum konfirmasi sistem menampilkan jumlah record JENIS STASIUN ITU yang belum terverifikasi dalam rentang tersebut. Membuka kembali stasiun mengembalikan semua kemampuan itu dan menghapus catatan penutupannya. Catatan penting: penegakan kuncinya sendiri (penolakan input/ubah/verifikasi) dilacak oleh usecase-141 dan BELUM diimplementasikan — usecase ini baru menetapkan statusnya.",
+  "description": "Admin menutup SATU JENIS STASIUN di dalam sebuah Periode Pelaporan untuk mengunci angkanya, dan bila perlu membukanya kembali. Keduanya dilakukan dari layar Detail Periode Pelaporan (screen-142), bukan dari daftar periode: status melekat pada jenis stasiun, bukan pada periode. Menutup sebuah stasiun berarti menolak input, perubahan, dan verifikasi record jenis stasiun itu dalam rentang tersebut. Membuka kembali stasiun mengembalikan semua kemampuan itu dan menghapus catatan penutupannya. Catatan penting: penegakan kuncinya sendiri (penolakan input/ubah/verifikasi) dilacak oleh usecase-141 dan SUDAH diimplementasikan sejak 2026-10-02 — usecase ini menetapkan statusnya, usecase-141 yang menegakkannya.",
   "actors": [
     "actor-admin"
   ],
@@ -94,7 +94,7 @@
         "Aplikasi mobile menampilkan pesan bahwa stasiun pada periode itu sudah ditutup dan Admin perlu dihubungi",
         "Data tetap tersimpan di perangkat dan tidak dibuang dari antrean",
         "Data terkirim otomatis setelah Admin membuka kembali stasiun itu",
-        "CATATAN: penegakan ini dilacak oleh usecase-141 dan belum diimplementasikan"
+        "CATATAN: penegakan ini dilacak oleh usecase-141 dan SUDAH diimplementasikan sejak 2026-10-02 (422 PERIOD_CLOSED di ke-18 *RecordService dan di RecordVerificationService)"
       ]
     },
     {
@@ -104,7 +104,7 @@
         "Sistem menolak aksi verifikasi",
         "Status verifikasi record tidak berubah",
         "Pesan menjelaskan bahwa stasiun pada periode itu sudah ditutup",
-        "CATATAN: penegakan ini dilacak oleh usecase-141 dan belum diimplementasikan"
+        "CATATAN: penegakan ini dilacak oleh usecase-141 dan SUDAH diimplementasikan sejak 2026-10-02 (422 PERIOD_CLOSED di ke-18 *RecordService dan di RecordVerificationService)"
       ]
     },
     {
@@ -164,7 +164,7 @@
     "Aksi ini hanya tersedia di layar Detail Periode Pelaporan (screen-142); daftar periode tidak menyediakannya",
     "Sebelum konfirmasi penutupan, jumlah record belum terverifikasi untuk JENIS STASIUN YANG AKAN DITUTUP wajib ditampilkan — bukan jumlah se-periode",
     "'Belum terverifikasi' berarti salah satu tahap verifikasi masih kosong: belum di-check atau belum di-acknowledge",
-    "Menutup stasiun dimaksudkan mengunci input, perubahan, dan verifikasi record jenis stasiun itu dalam rentang periode; penegakan kunci tersebut adalah pekerjaan usecase-141 dan belum diimplementasikan",
+    "Menutup stasiun mengunci input, perubahan, dan verifikasi record jenis stasiun itu dalam rentang periode; penegakan kunci tersebut adalah pekerjaan usecase-141 dan SUDAH diimplementasikan sejak 2026-10-02 — sejak itu penutupan benar-benar membekukan angka, bukan hanya menandai status",
     "Penentuan apakah sebuah record berada dalam periode memakai tanggal kejadian di pabrik, bukan tanggal data diinput atau dikirim, dengan batas rentang inklusif di kedua ujungnya",
     "Data mobile yang ditolak karena stasiun tertutup tidak boleh dibuang dari antrean perangkat",
     "Membuka kembali stasiun menghapus catatan penutup dan waktu penutupan pada baris itu",
@@ -200,13 +200,13 @@
       "scenario": "Tutup & Buka Kembali Periode Pelaporan — data mobile menyusul setelah stasiun ditutup",
       "given": "Satu jenis stasiun pada sebuah periode sudah berstatus Tertutup dan Operator memiliki data offline jenis stasiun itu di perangkat yang tanggal kejadiannya berada dalam rentang periode tersebut",
       "when": "Aplikasi mobile Operator mengirimkan data offline tersebut ke server",
-      "then": "Sistem menolak penerimaan data, aplikasi mobile menampilkan pesan bahwa stasiun pada periode itu sudah ditutup dan Admin perlu dihubungi, data tetap tersimpan di perangkat tanpa dibuang dari antrean, dan terkirim otomatis setelah Admin membuka kembali stasiun itu — penegakan yang dilacak usecase-141 dan belum diimplementasikan"
+      "then": "Sistem menolak penerimaan data, aplikasi mobile menampilkan pesan bahwa stasiun pada periode itu sudah ditutup dan Admin perlu dihubungi, data tetap tersimpan di perangkat tanpa dibuang dari antrean, dan terkirim otomatis setelah Admin membuka kembali stasiun itu — penegakan yang dilacak usecase-141 dan sudah berlaku sejak 2026-10-02. Catatan: penolakan dinilai pada saat permintaan TIBA, bukan pada saat kejadian, sehingga record yang ditangkap offline saat stasiun masih terbuka tetap ditolak bila tiba setelah penutupan."
     },
     {
       "scenario": "Tutup & Buka Kembali Periode Pelaporan — upaya verifikasi pada stasiun tertutup",
       "given": "Satu jenis stasiun pada sebuah periode sudah berstatus Tertutup dan masih terdapat record jenis stasiun itu yang belum terverifikasi dalam rentang periode",
       "when": "Supervisor atau Mill Management mencoba memverifikasi record jenis stasiun itu yang tanggal kejadiannya berada dalam rentang periode",
-      "then": "Sistem menolak aksi verifikasi, status verifikasi record tidak berubah, dan pesan menjelaskan bahwa stasiun pada periode itu sudah ditutup — penegakan yang dilacak usecase-141 dan belum diimplementasikan"
+      "then": "Sistem menolak aksi verifikasi, status verifikasi record tidak berubah, dan pesan menjelaskan bahwa stasiun pada periode itu sudah ditutup — penegakan yang dilacak usecase-141 dan sudah berlaku sejak 2026-10-02 lewat RecordVerificationService"
     },
     {
       "scenario": "Tutup & Buka Kembali Periode Pelaporan — menutup stasiun yang sudah tertutup",
@@ -230,7 +230,7 @@
       "scenario": "Tutup & Buka Kembali Periode Pelaporan — mengubah data stasiun pada stasiun tertutup",
       "given": "Satu jenis stasiun pada sebuah periode sudah berstatus Tertutup dan terdapat record jenis stasiun itu yang tanggal kejadiannya berada dalam rentang periode",
       "when": "Pengguna mencoba menginput record baru atau mengubah record jenis stasiun itu pada tanggal kejadian di dalam rentang periode",
-      "then": "Sistem menolak penyimpanan, record tidak berubah, dan pesan menjelaskan bahwa stasiun pada periode itu sudah ditutup — penegakan yang dilacak usecase-141 dan belum diimplementasikan"
+      "then": "Sistem menolak penyimpanan, record tidak berubah, dan pesan menjelaskan bahwa stasiun pada periode itu sudah ditutup — penegakan yang dilacak usecase-141 dan sudah berlaku sejak 2026-10-02 lewat ke-18 *RecordService"
     },
     {
       "scenario": "Tutup & Buka Kembali Periode Pelaporan — data diinput setelah stasiun ditutup namun tanggal kejadiannya di luar rentang",

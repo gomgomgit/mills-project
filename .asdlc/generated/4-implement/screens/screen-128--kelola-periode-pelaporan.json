@@ -1,8 +1,8 @@
 {
-  "ver": 7,
+  "ver": 8,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-01"
+    "updated_at": "2026-10-02"
   },
   "id": "screen-128--kelola-periode-pelaporan",
   "name": "Kelola Periode Pelaporan",
@@ -117,7 +117,8 @@
     "PANEL — SPEC BROWSER MEMAKAI TANGGAL NYATA, satu-satunya blok di e2e-web/tests/kelola-periode-pelaporan.spec.ts yang begitu (helper todayRange(), kemarin sampai besok). Panel menyaring dengan tanggal server, sehingga periode skenario lain yang hidup di tahun 3195 mustahil muncul di sana. Tidak perlu lajur baru di tests/support/period-lanes.ts: seluruh spec penanam periode memakai epoch tahun 2100 atau 2600 yang digeser maju ribuan tahun, jadi tidak satu pun pernah menyentuh tahun berjalan. Jendelanya dibuat sependek mungkin supaya tetap begitu. Penanda letak diuji dengan compareDocumentPosition, bukan hanya keberadaan kedua elemen — asersinya memang tentang urutan.",
     "PANEL — open_periods TIDAK PERNAH DIPANGKAS dengan first(). Aturan tumpang tindih membuat satu tanggal hanya dimiliki satu periode per mill, jadi normalnya isinya nol atau satu; tetapi aturan itu hidup di findOverlapping() dan BUKAN di constraint database, sehingga memangkasnya akan menyembunyikan pelanggaran alih-alih menampakkannya. Ada satu unit test yang menanam pelanggaran itu langsung ke database dan menuntut keduanya kembali.",
     "kc-pagination__summary pada blade ini TIDAK punya aturan CSS dan itu disengaja — induknya .kc-pagination sudah menetapkan font-size dan warnanya, jadi ia penanda semantik murni. Dinyatakan di komentar blade supaya pemeriksaan 'tiap kelas harus punya definisi' tidak membacanya sebagai kelas yang terlupakan.",
-    "ANGKA TEST 2026-10-01 SETELAH PANEL: suite backend penuh 4050 lolos / 0 gagal / 4 skip (dari 4021 sebelum panel — tepat +29: 16 unit PeriodService, 7 API, 6 Livewire). Empat skip itu tetap kontrak period-lock usecase-141 dan tidak disentuh. Berkas layar ini: Api/KelolaPeriodePelaporanTest 22 lolos + 4 skip, Livewire/KelolaPeriodePelaporanTest 26 lolos, Unit/Services/PeriodServiceTest 58 lolos. Browser e2e-web/tests/kelola-periode-pelaporan.spec.ts 18 lolos + 1 skip dari 19 — 15 test lama tetap hijau, 4 test panel baru hijau di browser sungguhan."
+    "ANGKA TEST 2026-10-01 SETELAH PANEL: suite backend penuh 4050 lolos / 0 gagal / 4 skip (dari 4021 sebelum panel — tepat +29: 16 unit PeriodService, 7 API, 6 Livewire). Empat skip itu tetap kontrak period-lock usecase-141 dan tidak disentuh. Berkas layar ini: Api/KelolaPeriodePelaporanTest 22 lolos + 4 skip, Livewire/KelolaPeriodePelaporanTest 26 lolos, Unit/Services/PeriodServiceTest 58 lolos. Browser e2e-web/tests/kelola-periode-pelaporan.spec.ts 18 lolos + 1 skip dari 19 — 15 test lama tetap hijau, 4 test panel baru hijau di browser sungguhan.",
+    "KUNCI PERIODE (usecase-141) DITEGAKKAN 2026-10-02, dan layar ini adalah tempat Admin memutuskan apakah pintunya terbuka. Penegakannya sendiri TIDAK di layar ini: trait App\\Support\\Concerns\\EnforcesPeriodLock dipakai ke-18 app/Services/*RecordService.php (create + update) dan app/Services/RecordVerificationService.php. Yang berubah bagi layar INI adalah artinya: membuat periode kini melahirkan baris stasiun berstatus Draft yang MENOLAK input sampai Admin membukanya di screen-142, sehingga mill yang periodenya belum dibuka terkunci sepenuhnya. Itu sebabnya panel 'Periode Terbuka Hari Ini per Mill' pada layar ini berpindah dari kenyamanan menjadi alat diagnosis: card redup kini berarti 'operator mill ini tidak bisa menginput apa pun hari ini', bukan sekadar catatan administratif."
   ],
   "deferred_items": [
     {
@@ -127,8 +128,8 @@
   ],
   "known_issues": [
     {
-      "description": "Empat test ber-skip di tests/Feature/Api/KelolaPeriodePelaporanTest.php tetap tinggal di sini dan tidak disentuh — keduanya kontrak usecase-141 (kunci input periode tertutup) yang belum diimplementasikan sama sekali. Komentar seksi di sekitarnya diperbarui agar tidak lagi terbaca sebagai bagian usecase-140, yang sudah pindah ke screen-142.",
-      "severity": "medium"
+      "description": "SELESAI 2026-10-02 — dicatat di sini karena butir ini sebelumnya berbunyi 'belum diimplementasikan sama sekali'. Keempat test kontrak usecase-141 di tests/Feature/Api/KelolaPeriodePelaporanTest.php kini BERJALAN (skip-nya dilepas), dan suite berjalan tanpa satu pun skip. Tiga di antaranya butuh perbaikan lebih dari sekadar melepas skip, karena ditulis 2026-09-27 sehari sebelum aturan mill-scope mendarat: aktornya tidak terikat mill sehingga berhenti di 403 sebelum kunci periode tersentuh, satu memanggil route FORM alih-alih route verifikasi, dan satu mengirim PATCH sepotong yang berhenti di 422 VALIDATION_ERROR — yang terakhir akan 'lulus' bahkan bila kuncinya tidak ada sama sekali. Satu test ditulis ulang seluruhnya karena mengkodekan model blacklist yang digantikan keputusan user 2026-10-01.",
+      "severity": "minor"
     },
     {
       "description": "DIPERBAIKI 2026-09-23. Sebelumnya suite browser e2e-web meracuni dirinya sendiri: ketiga spec yang membuat Periode Pelaporan tidak punya afterAll maupun afterEach, sehingga periode dibuat lewat UI lalu ditinggalkan. Laju penumpukan terukur ~15 baris per run terhadap daftar yang dipaginasi 20 baris, sehingga setelah sekitar satu setengah run halaman 1 penuh oleh residu dan baris yang baru dibuat test terdorong ke halaman 2 — toBeVisible() gagal di helper createPeriod() sebelum satu pun asersi perilaku dieksekusi. Terukur pada hari itu: 117 periode, 116 di antaranya residu; setelah dibersihkan suite hijau, tiga run kemudian 40 baris dan 19 test gagal lagi. PERBAIKAN: helper bersama e2e-web/tests/support/periods.ts (deletePeriodsByPrefix) plus afterAll di kelola-periode-pelaporan.spec.ts dan laporan-sterilizer.spec.ts — laporan-stasiun.spec.ts tidak membuat periode sehingga tidak perlu. Periode berstatus closed dibuka kembali dulu lewat POST /reopen sebelum dihapus, karena delete() menolak status closed. Pembersihan tidak pernah menggagalkan test: galat dicatat ke console lalu ditelan. DIBUKTIKAN dengan dua run berturut-turut dari keadaan bersih: keduanya 53 lolos / 0 gagal / 1 dilewati, dan jumlah baris periode kembali ke 1 setiap kali.",

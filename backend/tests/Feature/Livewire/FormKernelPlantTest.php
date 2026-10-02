@@ -36,6 +36,12 @@ beforeEach(function () {
     // reference rows must be seeded explicitly here for tests asserting
     // their content.
     $this->seed(KernelPlantOperationalTargetSeeder::class);
+    // Prasyarat kunci periode (usecase-141): ke-18 *RecordService menolak
+    // penulisan data stasiun tanpa Periode Pelaporan yang TERBUKA untuk jenis
+    // stasiun itu. Test di berkas ini menguji aturan stasiunnya sendiri, bukan
+    // kunci periodenya, jadi prasyaratnya dipenuhi di sini. Kunci periodenya
+    // diuji tersendiri di tests/Unit/Support/EnforcesPeriodLockTest.php.
+    openPeriodFor($this->businessUnit->id, 'kernel-plant');
 });
 
 it('mounts with zero detail rows for a brand-new draft (no pre-population)', function () {

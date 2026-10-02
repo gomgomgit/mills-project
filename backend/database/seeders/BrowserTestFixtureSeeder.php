@@ -489,6 +489,8 @@ class BrowserTestFixtureSeeder extends Seeder
     {
         $author = User::where('username', 'eptest-supervisor01')->firstOrFail();
 
+        $this->sweepEditLeftovers();
+
         foreach (self::EDIT_RECORDS as $stationType => [$recordClass, $detailClass, $idColumn, $businessId, $reading]) {
             $station = Station::where('production_line_id', $line->id)
                 ->where('type', $stationType)
@@ -525,6 +527,39 @@ class BrowserTestFixtureSeeder extends Seeder
         $weighbridge = $this->weighbridgeEditRecord($line, $author);
         $this->gradingEditRecord($line, $author, $weighbridge);
         $this->cagesTrackEditRecord($line, $author);
+    }
+
+    /**
+     * Sweeps the `*-BROWSER-EDIT-DONE` rows the edit scenarios leave behind.
+     *
+     * WHY THIS IS NECESSARY, not tidiness. Every "klik Edit dari Detail"
+     * scenario RENAMES its fixture to `<id>-DONE` — that rename IS the thing it
+     * asserts. So the fixture consumes itself, and on the next seed
+     * updateOrCreate() finds no `<id>` row and CREATES a fresh one, leaving two
+     * rows whose ids differ only by a suffix. The specs locate their row with
+     * `hasText: '<id>'`, which is a SUBSTRING match: it then resolves to two
+     * elements and Playwright refuses it as a strict mode violation. Measured,
+     * not predicted — it happened to Grading, Weighbridge and Boiler Room within
+     * one afternoon.
+     *
+     * Same situation, and the same remedy, as the MachineryGroup residue swept in
+     * machineryFixtures(): the specs mutate their fixture, so the seeder restores
+     * it to exactly one row per run. The contract is "seed, then run" — running
+     * the suite twice without re-seeding leaves the edit scenarios without their
+     * row, which is why this seeder exists at all.
+     *
+     * ORDER MATTERS: `grading_records.weighbridge_record_id` is NOT NULL, so a
+     * Grading row must go before the Weighbridge row it points at.
+     */
+    protected function sweepEditLeftovers(): void
+    {
+        GradingRecord::where('grading_number', 'GR-BROWSER-EDIT-DONE')->delete();
+        WeighbridgeRecord::where('wb_card_number', 'WB-BROWSER-EDIT-DONE')->delete();
+        CagesTrackRecord::where('cages_track_number', 'CT-BROWSER-EDIT-DONE')->delete();
+
+        foreach (self::EDIT_RECORDS as [$recordClass, , $idColumn, $businessId]) {
+            $recordClass::where($idColumn, $businessId.'-DONE')->delete();
+        }
     }
 
     /**
@@ -628,6 +663,12 @@ class BrowserTestFixtureSeeder extends Seeder
                 'production_line_id' => $station->production_line_id,
                 'date' => self::RECORD_DATE,
                 'tippler_start_time' => self::RECORD_DATE.' 06:00:00',
+                // WAJIB menurut validasi form meski NULLABLE di database. Tanpa
+                // ini record-nya tersimpan tetapi TIDAK BISA DISIMPAN ULANG:
+                // "klik Edit dari Detail" ditolak dengan "Tippler Stop Time wajib
+                // diisi." dan halaman tidak pernah keluar dari /edit. Dibaca dari
+                // respons server lewat trace.zip, bukan ditebak dari tangkapan layar.
+                'tippler_stop_time' => self::RECORD_DATE.' 18:00:00',
                 'cages_out' => 12,
                 'cages_tipped' => 10,
                 'status' => RecordStatus::DraftOngoing,

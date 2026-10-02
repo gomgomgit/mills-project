@@ -154,9 +154,15 @@ test.describe('Form Cages Track (Web)', () => {
     await page.locator('[data-testid="detail-hour-select-0"]').selectOption('7');
     await page.locator('[data-testid="add-row-button"]').click();
 
-    const row2Options = await page.locator('[data-testid="detail-hour-select-1"] option').allInnerTexts();
-    expect(row2Options).not.toContain('07:00');
-    expect(row2Options).toContain('08:00');
+    // ASERSI YANG MENGULANG, bukan allInnerTexts(). Dua putaran Livewire baru saja
+    // terjadi (selectOption pada wire:model.live, lalu addDetailRow), dan
+    // allInnerTexts() membaca SEKALI tanpa menunggu: ia mengembalikan [] karena
+    // baris kedua belum ter-render, lalu toContain('08:00') gagal atas array kosong
+    // — terbaca seolah dropdown-nya salah padahal ia hanya belum ada.
+    const row2Options = page.locator('[data-testid="detail-hour-select-1"] option');
+
+    await expect(row2Options.filter({ hasText: '08:00' })).toHaveCount(1);
+    await expect(row2Options.filter({ hasText: '07:00' })).toHaveCount(0);
   });
 
   // Scenario: "Field Wajib Belum Lengkap"
@@ -193,7 +199,21 @@ test.describe('Form Cages Track (Web)', () => {
   });
 
   // Scenario: "Business Unit Tanpa Station Cages Track Aktif"
-  test('pilih Production Line tanpa station cages-track, klik Simpan, error ditampilkan', async ({ page }) => {
+  //
+  // DITULIS ULANG 2026-10-02 UNTUK MENGASERSI PERILAKU YANG NYATA. Versi lama
+  // mengklik "+ Tambah Baris" lalu mengharap `general-error` muncul SETELAH
+  // Simpan. Itu tidak pernah bisa terjadi, dan log Playwright menunjukkan
+  // sebabnya kata per kata: tombolnya dirender `disabled`. N (jumlah kolom
+  // checklist) adalah COUNT(machinery) pada stasiun cages-track line terpilih
+  // (CagesTrackRecordService::machineryCountForStation); pada line tanpa stasiun
+  // itu N = 0, `FormCagesTrack::canAddRow()` false, dan tombolnya mati.
+  //
+  // Jadi produk menghentikan pengguna LEBIH AWAL daripada yang diasersi test
+  // lama — sebelum ia mengisi seluruh grid, bukan sesudah menekan Simpan. Dan
+  // aturan yang sama tetap terbukti: pada line tanpa stasiun aktif, data tidak
+  // bisa masuk. Keduanya diasersi di bawah: barisnya tidak bisa ditambah, DAN
+  // Simpan tetap ditolak.
+  test('pilih Production Line tanpa station cages-track: baris tidak bisa ditambah dan Simpan ditolak', async ({ page }) => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(CREATE_PATH);
 
@@ -201,12 +221,16 @@ test.describe('Form Cages Track (Web)', () => {
     await page.locator('[data-testid="cages-track-number-input"]').fill('CT-NO-STATION');
     await page.locator('[data-testid="cages-out-input"]').fill('12');
     await page.locator('[data-testid="cages-tipped-input"]').fill('10');
-    await page.locator('[data-testid="add-row-button"]').click();
-    await page.locator('[data-testid="detail-hour-select-0"]').selectOption({ index: 1 });
-    await page.locator('[data-testid="detail-cage-0-1"]').check();
+
+    // Penghalang sebenarnya: tanpa stasiun cages-track pada line ini, tidak ada
+    // satu pun cage untuk dicentang, jadi baris detail tidak bisa dibuat.
+    await expect(page.locator('[data-testid="add-row-button"]')).toBeDisabled();
+
     await page.locator('[data-testid="save-button"]').click();
 
-    await expect(page.locator('[data-testid="general-error"]')).toBeVisible();
+    // Dan penyimpanannya tetap ditolak — tidak ada baris detail yang sah, yang
+    // divalidasi lebih dulu daripada resolusi stasiun.
+    await expect(page.locator('[data-testid="detail-error"]')).toBeVisible();
   });
 
   // Scenario: "Record Tidak Ditemukan (mode edit)"

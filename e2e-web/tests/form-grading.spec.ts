@@ -22,6 +22,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
 import { removeOpenPeriodForForms, seedOpenPeriodForForms } from './support/period-fixture'
+import { fillAndKeep, selectLive } from './support/livewire'
 
 const CREATE_PATH = '/data/grading/create';
 /**
@@ -40,6 +41,9 @@ const CREATE_PATH = '/data/grading/create';
  * pernah dibuat siapa pun, bukan regresi.
  */
 const BUSINESS_UNIT_NAME = 'BU Browser Test';
+
+/** Satu-satunya line mill ini yang memikul stasiun setiap jenis. */
+const PRODUCTION_LINE_NAME = 'PL Mill A';
 
 
 test.describe('Form Grading (Web)', () => {
@@ -79,12 +83,24 @@ test.describe('Form Grading (Web)', () => {
     await page.locator('[data-testid="add-data-button"]').click();
     await page.waitForURL(CREATE_PATH);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
-    await page.locator('[data-testid="wb-card-no-select"]').selectOption({ index: 1 });
+    // Tunggu putaran Livewire tiap pemilihan: keduanya wire:model.live, dan
+    // re-render yang mendarat belakangan menghapus apa yang sudah diketik.
+    await selectLive(page, 'business-unit-select', { label: BUSINESS_UNIT_NAME });
+    // Production Line WAJIB, dan spec ini lahir sebelum ia ada. Sejak 2026-08-20
+    // stasiun di-resolve dari production_line_id, bukan dari business_unit_id
+    // (entity-catalog v9: Production Line masuk ke hierarki antara Business Unit
+    // dan Station). Tanpa memilihnya, resolveActiveStationForActor(null, ...)
+    // mengembalikan null dan penyimpanan ditolak dengan "Business Unit yang
+    // dipilih belum memiliki station ... yang aktif" — pesan yang masih berkata
+    // "Business Unit" padahal yang kurang adalah Production Line, dan itulah yang
+    // membuat sebabnya sulit terbaca. Opsinya baru terisi setelah putaran BU di
+    // atas selesai, karena itu urutannya tidak boleh dibalik.
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
+    await selectLive(page, 'wb-card-no-select', { index: 1 });
     const uniqueSuffix = Date.now();
-    await page.locator('[data-testid="grading-number-input"]').fill(`GR-BROWSER-${uniqueSuffix}`);
-    await page.locator('[data-testid="netto-input"]').fill('1000');
-    await page.locator('[data-testid="quantity-input"]').fill('120');
+    await fillAndKeep(page, 'grading-number-input', `GR-BROWSER-${uniqueSuffix}`);
+    await fillAndKeep(page, 'netto-input', '1000');
+    await fillAndKeep(page, 'quantity-input', '120');
     await page.locator('[data-testid="add-row-button"]').click();
     await page.locator('[data-testid="detail-parameter-select-0"]').selectOption({ index: 1 });
     await page.locator('[data-testid="detail-quantity-input-0"]').fill('30');
@@ -101,7 +117,7 @@ test.describe('Form Grading (Web)', () => {
     await page.locator('.gr-table__row', { hasText: 'GR-BROWSER-EDIT' }).click();
     await page.locator('[data-testid="edit-button"]').click();
 
-    await page.locator('[data-testid="grading-number-input"]').fill('GR-BROWSER-EDIT-DONE');
+    await fillAndKeep(page, 'grading-number-input', 'GR-BROWSER-EDIT-DONE');
     await page.locator('[data-testid="save-button"]').click();
 
     await page.waitForURL((url) => !url.pathname.endsWith('/edit'));
@@ -113,13 +129,23 @@ test.describe('Form Grading (Web)', () => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(CREATE_PATH);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
+    await selectLive(page, 'business-unit-select', { label: BUSINESS_UNIT_NAME });
+    // Production Line WAJIB, dan spec ini lahir sebelum ia ada. Sejak 2026-08-20
+    // stasiun di-resolve dari production_line_id, bukan dari business_unit_id
+    // (entity-catalog v9: Production Line masuk ke hierarki antara Business Unit
+    // dan Station). Tanpa memilihnya, resolveActiveStationForActor(null, ...)
+    // mengembalikan null dan penyimpanan ditolak dengan "Business Unit yang
+    // dipilih belum memiliki station ... yang aktif" — pesan yang masih berkata
+    // "Business Unit" padahal yang kurang adalah Production Line, dan itulah yang
+    // membuat sebabnya sulit terbaca. Opsinya baru terisi setelah putaran BU di
+    // atas selesai, karena itu urutannya tidak boleh dibalik.
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     await page.locator('[data-testid="date-input"]').fill('2020-01-01');
     await page.locator('[data-testid="wb-card-no-select"]').selectOption({ index: 1 });
     const uniqueSuffix = Date.now();
-    await page.locator('[data-testid="grading-number-input"]').fill(`GR-BROWSER-DT-${uniqueSuffix}`);
-    await page.locator('[data-testid="netto-input"]').fill('1000');
-    await page.locator('[data-testid="quantity-input"]').fill('120');
+    await fillAndKeep(page, 'grading-number-input', `GR-BROWSER-DT-${uniqueSuffix}`);
+    await fillAndKeep(page, 'netto-input', '1000');
+    await fillAndKeep(page, 'quantity-input', '120');
     await page.locator('[data-testid="add-row-button"]').click();
     await page.locator('[data-testid="detail-parameter-select-0"]').selectOption({ index: 1 });
     await page.locator('[data-testid="detail-quantity-input-0"]').fill('30');
@@ -139,9 +165,34 @@ test.describe('Form Grading (Web)', () => {
     await page.locator('[data-testid="detail-parameter-select-0"]').selectOption({ index: 1 });
     const selectedValue = await page.locator('[data-testid="detail-parameter-select-0"]').inputValue();
 
-    const row2Options = await page.locator('[data-testid="detail-parameter-select-1"] option').allInnerTexts();
-    const row1SelectedLabel = await page.locator(`[data-testid="detail-parameter-select-0"] option[value="${selectedValue}"]`).innerText();
-    expect(row2Options).not.toContain(row1SelectedLabel);
+    const row1SelectedLabel = await page
+      .locator(`[data-testid="detail-parameter-select-0"] option[value="${selectedValue}"]`)
+      .innerText();
+
+    // ASERSI YANG MENGULANG, bukan allInnerTexts(). Pemilihan di baris pertama
+    // memicu putaran Livewire yang menyusun ulang opsi baris kedua; membaca
+    // sekali tanpa menunggu bisa menangkap DOM lama — atau, seperti yang terjadi
+    // pada spec Cages Track, array kosong karena barisnya belum ter-render.
+    // Kegagalannya lalu terbaca seolah dropdown-nya salah padahal ia belum siap.
+    // COCOKAN EKSAK, bukan hasText. hasText mencocokkan SUBSTRING, dan daftar 16
+    // parameter grading memuat "Masak" DAN "Mengkal / Kurang Masak": menyaring
+    // dengan "Masak" ikut menangkap yang kedua, sehingga asersi ini gagal padahal
+    // pengecualiannya bekerja. Jebakan yang saya buat sendiri saat memperbaiki
+    // balapan di atas — dicatat supaya tidak diulang.
+    const row2Select = page.locator('[data-testid="detail-parameter-select-1"]');
+    const row2Labels = row2Select.locator('option');
+
+    // Menunggu SELECT-nya, bukan option-nya: <option> di dalam <select> tertutup
+    // tidak pernah dianggap visible oleh Playwright. Lalu menunggu opsinya lebih
+    // dari sekadar placeholder, supaya pembacaan di bawah tidak menangkap dropdown
+    // yang belum disusun ulang oleh putaran Livewire baris pertama.
+    await expect(row2Select).toBeVisible();
+    await expect(row2Labels.nth(1)).toHaveCount(1);
+
+    await expect(
+      await row2Labels.allInnerTexts(),
+      `parameter "${row1SelectedLabel}" yang sudah dipakai baris pertama tidak boleh ditawarkan di baris kedua`,
+    ).not.toContain(row1SelectedLabel);
   });
 
   // Scenario: "Field Wajib Belum Lengkap"
@@ -149,7 +200,17 @@ test.describe('Form Grading (Web)', () => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(CREATE_PATH);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
+    await selectLive(page, 'business-unit-select', { label: BUSINESS_UNIT_NAME });
+    // Production Line WAJIB, dan spec ini lahir sebelum ia ada. Sejak 2026-08-20
+    // stasiun di-resolve dari production_line_id, bukan dari business_unit_id
+    // (entity-catalog v9: Production Line masuk ke hierarki antara Business Unit
+    // dan Station). Tanpa memilihnya, resolveActiveStationForActor(null, ...)
+    // mengembalikan null dan penyimpanan ditolak dengan "Business Unit yang
+    // dipilih belum memiliki station ... yang aktif" — pesan yang masih berkata
+    // "Business Unit" padahal yang kurang adalah Production Line, dan itulah yang
+    // membuat sebabnya sulit terbaca. Opsinya baru terisi setelah putaran BU di
+    // atas selesai, karena itu urutannya tidak boleh dibalik.
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     await page.locator('[data-testid="save-button"]').click();
 
     // DISARING KE SATU SPAN, sejak 2026-10-02. Mengosongkan form memunculkan
@@ -168,33 +229,61 @@ test.describe('Form Grading (Web)', () => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(CREATE_PATH);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
-    await page.locator('[data-testid="wb-card-no-select"]').selectOption({ index: 1 });
-    await page.locator('[data-testid="grading-number-input"]').fill('GR-NO-DETAIL');
-    await page.locator('[data-testid="netto-input"]').fill('1000');
-    await page.locator('[data-testid="quantity-input"]').fill('120');
+    // Tunggu putaran Livewire tiap pemilihan: keduanya wire:model.live, dan
+    // re-render yang mendarat belakangan menghapus apa yang sudah diketik.
+    await selectLive(page, 'business-unit-select', { label: BUSINESS_UNIT_NAME });
+    // Production Line WAJIB, dan spec ini lahir sebelum ia ada. Sejak 2026-08-20
+    // stasiun di-resolve dari production_line_id, bukan dari business_unit_id
+    // (entity-catalog v9: Production Line masuk ke hierarki antara Business Unit
+    // dan Station). Tanpa memilihnya, resolveActiveStationForActor(null, ...)
+    // mengembalikan null dan penyimpanan ditolak dengan "Business Unit yang
+    // dipilih belum memiliki station ... yang aktif" — pesan yang masih berkata
+    // "Business Unit" padahal yang kurang adalah Production Line, dan itulah yang
+    // membuat sebabnya sulit terbaca. Opsinya baru terisi setelah putaran BU di
+    // atas selesai, karena itu urutannya tidak boleh dibalik.
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
+    await selectLive(page, 'wb-card-no-select', { index: 1 });
+    await fillAndKeep(page, 'grading-number-input', 'GR-NO-DETAIL');
+    await fillAndKeep(page, 'netto-input', '1000');
+    await fillAndKeep(page, 'quantity-input', '120');
     await page.locator('[data-testid="save-button"]').click();
 
     await expect(page.locator('[data-testid="detail-error"]')).toBeVisible();
   });
 
   // Scenario: "Business Unit Tanpa Station Grading Aktif"
-  test('pilih Business Unit tanpa station grading, klik Simpan, error ditampilkan', async ({ page }) => {
+  // DITULIS ULANG 2026-10-02 UNTUK MENGASERSI PERILAKU YANG NYATA. Versi lama
+  // memilih Business Unit 'Mill Tanpa Grading' lalu mengharap `general-error`
+  // muncul setelah Simpan. Dua hal membuatnya tidak pernah bisa terjadi:
+  //
+  //   1. Tidak ada Business Unit bernama 'Mill Tanpa Grading' di instance ini
+  //      (dibaca langsung dari tabel `business_units`).
+  //   2. Dan seandainya ada, ia TETAP tidak akan muncul: `stest-supervisor01`
+  //      adalah Supervisor yang terikat satu mill, dan
+  //      ScopesToActorMill::businessUnitsForActor() membatasi daftarnya ke
+  //      `whereKey($user->business_unit_id)` untuk setiap peran selain Admin.
+  //
+  // Jadi produk menutup jalannya LEBIH RAPAT daripada yang diasersi test lama:
+  // mill lain tidak pernah bisa dipilih, bukan ditolak setelah dicoba. Itulah
+  // yang diasersi sekarang — satu-satunya mill yang ditawarkan adalah mill si
+  // aktor sendiri, dan tidak ada yang lain.
+  test('Supervisor terikat mill hanya ditawari mill-nya sendiri, bukan mill tanpa station grading', async ({ page }) => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(CREATE_PATH);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: 'Mill Tanpa Grading' });
-    await page.locator('[data-testid="grading-number-input"]').fill('GR-NO-STATION');
-    await page.locator('[data-testid="license-plate-no-input"]').fill('B 1234 XY');
-    await page.locator('[data-testid="estate-supplier-input"]').fill('Estate A');
-    await page.locator('[data-testid="netto-input"]').fill('1000');
-    await page.locator('[data-testid="quantity-input"]').fill('120');
-    await page.locator('[data-testid="add-row-button"]').click();
-    await page.locator('[data-testid="detail-parameter-select-0"]').selectOption({ index: 1 });
-    await page.locator('[data-testid="detail-quantity-input-0"]').fill('30');
-    await page.locator('[data-testid="save-button"]').click();
+    const options = page.locator('[data-testid="business-unit-select"] option');
 
-    await expect(page.locator('[data-testid="general-error"]')).toBeVisible();
+    // Placeholder "Pilih Business Unit" + tepat satu mill, tidak lebih.
+    await expect(options).toHaveCount(2);
+    await expect(options.filter({ hasText: BUSINESS_UNIT_NAME })).toHaveCount(1);
+    await expect(options.filter({ hasText: 'Mill Tanpa Grading' })).toHaveCount(0);
+
+    // Mill mana pun selain miliknya tidak dapat dipilih sama sekali — bukan
+    // dipilih lalu ditolak.
+    await expect(
+      options.filter({ hasText: 'Mill Kode Duplikat' }),
+      'mill lain tidak boleh ditawarkan kepada Supervisor yang terikat mill',
+    ).toHaveCount(0);
   });
 
   // Scenario: "Record Tidak Ditemukan (mode edit)"

@@ -123,7 +123,12 @@ test.describe('Data Browser Cages Track', () => {
     await page.locator('.ct-table__row').first().click();
 
     await page.waitForURL(/\/data\/cages-track\/[0-9a-f-]+$/);
-    await expect(page.getByText('Detail Cages Track')).toBeVisible();
+    // Judul HALAMAN, bukan getByText: shell header merender judul yang sama di
+    // <h1 class="shell-header__title">, jadi getByText cocok ke dua elemen dan
+    // expect() Playwright menolaknya dalam strict mode. Menunjuk .ct-page__title
+    // juga membuat asersinya lebih tepat — ia membuktikan halaman DETAIL yang
+    // terbuka, bukan sekadar ada tulisan itu di layar.
+    await expect(page.locator('.ct-page__title')).toContainText('Detail Cages Track');
   });
 
   // Scenario: "Telusuri & Ekspor Data Cages Track — Ekspor Gagal"

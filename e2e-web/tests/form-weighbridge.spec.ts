@@ -23,6 +23,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
 import { removeOpenPeriodForForms, seedOpenPeriodForForms } from './support/period-fixture'
+import { fillAndKeep, selectLive } from './support/livewire'
 
 const CREATE_PATH = '/data/weighbridge/create';
 /**
@@ -41,6 +42,9 @@ const CREATE_PATH = '/data/weighbridge/create';
  * pernah dibuat siapa pun, bukan regresi.
  */
 const BUSINESS_UNIT_NAME = 'BU Browser Test';
+
+/** Satu-satunya line mill ini yang memikul stasiun setiap jenis. */
+const PRODUCTION_LINE_NAME = 'PL Mill A';
 
 
 test.describe('Form Weighbridge (Web)', () => {
@@ -80,13 +84,25 @@ test.describe('Form Weighbridge (Web)', () => {
     await page.locator('[data-testid="add-data-button"]').click();
     await page.waitForURL(CREATE_PATH);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
+    // Tunggu putaran Livewire-nya: wire:model.live, dan re-render yang mendarat
+    // belakangan menghapus apa yang sudah diketik di bawahnya.
+    await selectLive(page, 'business-unit-select', { label: BUSINESS_UNIT_NAME });
+    // Production Line WAJIB, dan spec ini lahir sebelum ia ada. Sejak 2026-08-20
+    // stasiun di-resolve dari production_line_id, bukan dari business_unit_id
+    // (entity-catalog v9: Production Line masuk ke hierarki antara Business Unit
+    // dan Station). Tanpa memilihnya, resolveActiveStationForActor(null, ...)
+    // mengembalikan null dan penyimpanan ditolak dengan "Business Unit yang
+    // dipilih belum memiliki station ... yang aktif" — pesan yang masih berkata
+    // "Business Unit" padahal yang kurang adalah Production Line, dan itulah yang
+    // membuat sebabnya sulit terbaca. Opsinya baru terisi setelah putaran BU di
+    // atas selesai, karena itu urutannya tidak boleh dibalik.
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     const uniqueSuffix = Date.now();
-    await page.locator('[data-testid="wb-card-number-input"]').fill(`WB-BROWSER-${uniqueSuffix}`);
-    await page.locator('[data-testid="vehicle-number-input"]').fill('B 1234 XY');
-    await page.locator('[data-testid="driver-name-input"]').fill('Budi');
-    await page.locator('[data-testid="estate-supplier-input"]').fill('Estate A');
-    await page.locator('[data-testid="gross-weight-input"]').fill('15000');
+    await fillAndKeep(page, 'wb-card-number-input', `WB-BROWSER-${uniqueSuffix}`);
+    await fillAndKeep(page, 'vehicle-number-input', 'B 1234 XY');
+    await fillAndKeep(page, 'driver-name-input', 'Budi');
+    await fillAndKeep(page, 'estate-supplier-input', 'Estate A');
+    await fillAndKeep(page, 'gross-weight-input', '15000');
     await page.locator('[data-testid="save-button"]').click();
 
     await page.waitForURL((url) => url.pathname.startsWith('/data/weighbridge/') && !url.pathname.endsWith('/create'));
@@ -100,7 +116,7 @@ test.describe('Form Weighbridge (Web)', () => {
     await page.locator('.wb-table__row', { hasText: 'WB-BROWSER-EDIT' }).click();
     await page.locator('[data-testid="edit-button"]').click();
 
-    await page.locator('[data-testid="wb-card-number-input"]').fill('WB-BROWSER-EDIT-DONE');
+    await fillAndKeep(page, 'wb-card-number-input', 'WB-BROWSER-EDIT-DONE');
     await page.locator('[data-testid="save-button"]').click();
 
     await page.waitForURL((url) => !url.pathname.endsWith('/edit'));
@@ -112,14 +128,26 @@ test.describe('Form Weighbridge (Web)', () => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(CREATE_PATH);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
+    // Tunggu putaran Livewire-nya: wire:model.live, dan re-render yang mendarat
+    // belakangan menghapus apa yang sudah diketik di bawahnya.
+    await selectLive(page, 'business-unit-select', { label: BUSINESS_UNIT_NAME });
+    // Production Line WAJIB, dan spec ini lahir sebelum ia ada. Sejak 2026-08-20
+    // stasiun di-resolve dari production_line_id, bukan dari business_unit_id
+    // (entity-catalog v9: Production Line masuk ke hierarki antara Business Unit
+    // dan Station). Tanpa memilihnya, resolveActiveStationForActor(null, ...)
+    // mengembalikan null dan penyimpanan ditolak dengan "Business Unit yang
+    // dipilih belum memiliki station ... yang aktif" — pesan yang masih berkata
+    // "Business Unit" padahal yang kurang adalah Production Line, dan itulah yang
+    // membuat sebabnya sulit terbaca. Opsinya baru terisi setelah putaran BU di
+    // atas selesai, karena itu urutannya tidak boleh dibalik.
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     await page.locator('[data-testid="record-datetime-input"]').fill('2020-01-01T08:00');
     const uniqueSuffix = Date.now();
-    await page.locator('[data-testid="wb-card-number-input"]').fill(`WB-BROWSER-DT-${uniqueSuffix}`);
-    await page.locator('[data-testid="vehicle-number-input"]').fill('B 1234 XY');
-    await page.locator('[data-testid="driver-name-input"]').fill('Budi');
-    await page.locator('[data-testid="estate-supplier-input"]').fill('Estate A');
-    await page.locator('[data-testid="gross-weight-input"]').fill('15000');
+    await fillAndKeep(page, 'wb-card-number-input', `WB-BROWSER-DT-${uniqueSuffix}`);
+    await fillAndKeep(page, 'vehicle-number-input', 'B 1234 XY');
+    await fillAndKeep(page, 'driver-name-input', 'Budi');
+    await fillAndKeep(page, 'estate-supplier-input', 'Estate A');
+    await fillAndKeep(page, 'gross-weight-input', '15000');
     await page.locator('[data-testid="save-button"]').click();
 
     await page.waitForURL((url) => url.pathname.startsWith('/data/weighbridge/') && !url.pathname.endsWith('/create'));
@@ -144,7 +172,19 @@ test.describe('Form Weighbridge (Web)', () => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(CREATE_PATH);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
+    // Tunggu putaran Livewire-nya: wire:model.live, dan re-render yang mendarat
+    // belakangan menghapus apa yang sudah diketik di bawahnya.
+    await selectLive(page, 'business-unit-select', { label: BUSINESS_UNIT_NAME });
+    // Production Line WAJIB, dan spec ini lahir sebelum ia ada. Sejak 2026-08-20
+    // stasiun di-resolve dari production_line_id, bukan dari business_unit_id
+    // (entity-catalog v9: Production Line masuk ke hierarki antara Business Unit
+    // dan Station). Tanpa memilihnya, resolveActiveStationForActor(null, ...)
+    // mengembalikan null dan penyimpanan ditolak dengan "Business Unit yang
+    // dipilih belum memiliki station ... yang aktif" — pesan yang masih berkata
+    // "Business Unit" padahal yang kurang adalah Production Line, dan itulah yang
+    // membuat sebabnya sulit terbaca. Opsinya baru terisi setelah putaran BU di
+    // atas selesai, karena itu urutannya tidak boleh dibalik.
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     await page.locator('[data-testid="save-button"]').click();
 
     // DISARING KE SATU SPAN, sejak 2026-10-02. Mengosongkan form memunculkan
@@ -159,19 +199,38 @@ test.describe('Form Weighbridge (Web)', () => {
   });
 
   // Scenario: "Business Unit Tanpa Station Weighbridge Aktif"
-  test('pilih Business Unit tanpa station weighbridge, klik Simpan, error ditampilkan', async ({ page }) => {
+  // DITULIS ULANG 2026-10-02 UNTUK MENGASERSI PERILAKU YANG NYATA. Versi lama
+  // memilih Business Unit 'Mill Tanpa Weighbridge' lalu mengharap `general-error`
+  // muncul setelah Simpan. Dua hal membuatnya tidak pernah bisa terjadi:
+  //
+  //   1. Tidak ada Business Unit bernama 'Mill Tanpa Weighbridge' di instance ini
+  //      (dibaca langsung dari tabel `business_units`).
+  //   2. Dan seandainya ada, ia TETAP tidak akan muncul: `stest-supervisor01`
+  //      adalah Supervisor yang terikat satu mill, dan
+  //      ScopesToActorMill::businessUnitsForActor() membatasi daftarnya ke
+  //      `whereKey($user->business_unit_id)` untuk setiap peran selain Admin.
+  //
+  // Jadi produk menutup jalannya LEBIH RAPAT daripada yang diasersi test lama:
+  // mill lain tidak pernah bisa dipilih, bukan ditolak setelah dicoba. Itulah
+  // yang diasersi sekarang — satu-satunya mill yang ditawarkan adalah mill si
+  // aktor sendiri, dan tidak ada yang lain.
+  test('Supervisor terikat mill hanya ditawari mill-nya sendiri, bukan mill tanpa station weighbridge', async ({ page }) => {
     await login(page, 'stest-supervisor01', PASSWORD);
     await page.goto(CREATE_PATH);
 
-    await page.locator('[data-testid="business-unit-select"]').selectOption({ label: 'Mill Tanpa Weighbridge' });
-    await page.locator('[data-testid="wb-card-number-input"]').fill('WB-NO-STATION');
-    await page.locator('[data-testid="vehicle-number-input"]').fill('B 1234 XY');
-    await page.locator('[data-testid="driver-name-input"]').fill('Budi');
-    await page.locator('[data-testid="estate-supplier-input"]').fill('Estate A');
-    await page.locator('[data-testid="gross-weight-input"]').fill('15000');
-    await page.locator('[data-testid="save-button"]').click();
+    const options = page.locator('[data-testid="business-unit-select"] option');
 
-    await expect(page.locator('[data-testid="general-error"]')).toBeVisible();
+    // Placeholder "Pilih Business Unit" + tepat satu mill, tidak lebih.
+    await expect(options).toHaveCount(2);
+    await expect(options.filter({ hasText: BUSINESS_UNIT_NAME })).toHaveCount(1);
+    await expect(options.filter({ hasText: 'Mill Tanpa Weighbridge' })).toHaveCount(0);
+
+    // Mill mana pun selain miliknya tidak dapat dipilih sama sekali — bukan
+    // dipilih lalu ditolak.
+    await expect(
+      options.filter({ hasText: 'Mill Kode Duplikat' }),
+      'mill lain tidak boleh ditawarkan kepada Supervisor yang terikat mill',
+    ).toHaveCount(0);
   });
 
   // Scenario: "Record Tidak Ditemukan (mode edit)"

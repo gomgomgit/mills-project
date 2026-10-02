@@ -39,7 +39,13 @@ test.describe('Data Browser Sterilizer', () => {
     await page.locator('#date_from').fill('2020-01-01');
     await page.locator('#date_to').fill('2020-01-02');
 
-    await expect(page.getByText('Tidak ada data')).toBeVisible();
+    // Kelas judulnya, bukan getByText: SUBTITLE empty state juga memuat frasa
+    // "Tidak ada data" ("Tidak ada data sterilizer yang cocok dengan filter
+    // saat ini"), sehingga getByText cocok ke DUA elemen dan expect() Playwright
+    // menolaknya dalam strict mode — gagalnya bukan karena empty state tidak
+    // muncul. Pola yang sama dipakai data-browser-boiler-room (.br-empty__title),
+    // yang karena itu tidak pernah terkena.
+    await expect(page.locator('.sf-empty__title')).toContainText('Tidak ada data');
   });
 
   test('klik baris membuka halaman detail', async ({ page }) => {

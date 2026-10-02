@@ -277,7 +277,7 @@
          Jam Olah      21.50 / tersedia 2 line × 24.00 = 48.00            = 44.8%
        Rata-rata harian MTD memakai 15 hari (panel 'Reliability per Line').
        EE tidak lagi ditaruh di kartu Jam Olah — sudah tampil per line di blok
-       'Distribusi Jam per Line'.
+       'Milling Hours per Line'.
     */
     $kpis = [
         ['label' => 'FFB Diterima', 'value' => '600.00', 'unit' => 'MT', 'meta' => 'MTD 8,990.35 MT', 'icon' => 'truck', 'period' => 'Tdy',
@@ -503,7 +503,7 @@
         {{-- Distribusi jam --}}
         <article class="md-card">
             <header class="md-card__head">
-                <h3>Distribusi Jam per Line</h3>
+                <h3>Milling Hours per Line</h3>
                 <span class="md-card__hint">Tdy · 24 jam tersedia</span>
             </header>
             <div class="md-hours">

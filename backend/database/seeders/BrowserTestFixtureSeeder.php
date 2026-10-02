@@ -175,7 +175,8 @@ class BrowserTestFixtureSeeder extends Seeder
      * Detail" and detail-page scenarios navigate to these by name, so they
      * must pre-exist rather than be created by the test.
      *
-     * station type => [record model, detail model, id column, business id]
+     * station type => [record model, detail model, id column, business id,
+     * one filled reading column]
      *
      * Dated inside 2026-08-01..2026-08-15 because the Data Browser specs
      * filter on exactly that window before asserting the export.
@@ -186,6 +187,16 @@ class BrowserTestFixtureSeeder extends Seeder
      * had been red since the day they were written, waiting on a fixture
      * nothing created. Measured, not assumed: a count of every
      * `*-BROWSER-EDIT` row in the dev database returned 1.
+     *
+     * THE FIFTH ELEMENT IS NOT DECORATION. Every one of these services counts
+     * a detail row as real only when its Time-Slot is set AND at least one
+     * READING column is filled (`isRowFilled()`); a row carrying nothing but
+     * `time_slot` is filtered away, and re-saving the record then fails with
+     * "Minimal satu baris ... harus diisi". That is why all twelve "klik Edit
+     * dari Detail" scenarios still timed out after the records themselves
+     * existed: the form loaded, the Save was refused, and the page never left
+     * /edit. One real reading per station fixes it — the specific column is
+     * read from each service's own READING_FIELDS, not guessed.
      *
      * These eleven share one shape: a `date` column on the record and a
      * detail row keyed by `time_slot`. The other three the specs need do
@@ -200,17 +211,17 @@ class BrowserTestFixtureSeeder extends Seeder
      * @var array<string, array{0: class-string, 1: class-string, 2: string, 3: string}>
      */
     protected const EDIT_RECORDS = [
-        'boiler-room' => [BoilerRoomRecord::class, BoilerRoomDetail::class, 'boiler_room_id', 'BR-BROWSER-EDIT'],
-        'clarification' => [ClarificationRecord::class, ClarificationDetail::class, 'clarification_id', 'CLR-BROWSER-EDIT'],
-        'depricarping' => [DepricarpingRecord::class, DepricarpingDetail::class, 'presser_id', 'DP-BROWSER-EDIT'],
-        'effluent-plant' => [EffluentPlantRecord::class, EffluentPlantDetail::class, 'effluent_plant_id', 'EP-BROWSER-EDIT'],
-        'engine-room' => [EngineRoomRecord::class, EngineRoomDetail::class, 'engine_room_id', 'ER-BROWSER-EDIT'],
-        'kernel-plant' => [KernelPlantRecord::class, KernelPlantDetail::class, 'kernel_plant_id', 'KP-BROWSER-EDIT'],
-        'pressing' => [PressingRecord::class, PressingDetail::class, 'presser_id', 'PR-BROWSER-EDIT'],
-        'process-quality-control' => [ProcessQualityControlRecord::class, ProcessQualityControlDetail::class, 'process_qc_id', 'PQC-BROWSER-EDIT'],
-        'process-water' => [ProcessWaterRecord::class, ProcessWaterDetail::class, 'process_water_id', 'PW-BROWSER-EDIT'],
-        'storage-tank' => [StorageTankRecord::class, StorageTankDetail::class, 'storage_tank_id', 'ST-BROWSER-EDIT'],
-        'threshing' => [ThreshingRecord::class, ThreshingDetail::class, 'thresher_id', 'TH-BROWSER-EDIT'],
+        'boiler-room' => [BoilerRoomRecord::class, BoilerRoomDetail::class, 'boiler_room_id', 'BR-BROWSER-EDIT', ['steam_pressure_bar' => 12.5]],
+        'clarification' => [ClarificationRecord::class, ClarificationDetail::class, 'clarification_id', 'CLR-BROWSER-EDIT', ['clarification_tank_temp_c' => 93]],
+        'depricarping' => [DepricarpingRecord::class, DepricarpingDetail::class, 'presser_id', 'DP-BROWSER-EDIT', ['polishing_drum_speed_rpm' => 1200]],
+        'effluent-plant' => [EffluentPlantRecord::class, EffluentPlantDetail::class, 'effluent_plant_id', 'EP-BROWSER-EDIT', ['anaerobic_pond_1_ph' => 7.0]],
+        'engine-room' => [EngineRoomRecord::class, EngineRoomDetail::class, 'engine_room_id', 'ER-BROWSER-EDIT', ['steam_turbine_inlet_pressure_bar' => 20.0]],
+        'kernel-plant' => [KernelPlantRecord::class, KernelPlantDetail::class, 'kernel_plant_id', 'KP-BROWSER-EDIT', ['claybath_hydro_sg' => 1.12]],
+        'pressing' => [PressingRecord::class, PressingDetail::class, 'presser_id', 'PR-BROWSER-EDIT', ['digester_temp_c' => 95]],
+        'process-quality-control' => [ProcessQualityControlRecord::class, ProcessQualityControlDetail::class, 'process_qc_id', 'PQC-BROWSER-EDIT', ['fruit_press_oil_loss_in_sludge_percent' => 1.2]],
+        'process-water' => [ProcessWaterRecord::class, ProcessWaterDetail::class, 'process_water_id', 'PW-BROWSER-EDIT', ['raw_water_flow_m3h' => 40]],
+        'storage-tank' => [StorageTankRecord::class, StorageTankDetail::class, 'storage_tank_id', 'ST-BROWSER-EDIT', ['cpo_sounding_depth_mm' => 2500]],
+        'threshing' => [ThreshingRecord::class, ThreshingDetail::class, 'thresher_id', 'TH-BROWSER-EDIT', ['ffb_throughput_mt_hour' => 30]],
     ];
 
     protected const RECORD_DATE = '2026-08-05';
@@ -478,7 +489,7 @@ class BrowserTestFixtureSeeder extends Seeder
     {
         $author = User::where('username', 'eptest-supervisor01')->firstOrFail();
 
-        foreach (self::EDIT_RECORDS as $stationType => [$recordClass, $detailClass, $idColumn, $businessId]) {
+        foreach (self::EDIT_RECORDS as $stationType => [$recordClass, $detailClass, $idColumn, $businessId, $reading]) {
             $station = Station::where('production_line_id', $line->id)
                 ->where('type', $stationType)
                 ->firstOrFail();
@@ -499,7 +510,7 @@ class BrowserTestFixtureSeeder extends Seeder
                     $record->getForeignKey() => $record->id,
                     'time_slot' => '07:00',
                 ],
-                [],
+                $reading,
             );
 
             $this->promoteToSaved($record);

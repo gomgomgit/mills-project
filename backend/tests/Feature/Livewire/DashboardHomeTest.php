@@ -24,7 +24,7 @@ it('renders the daily mill report with every section', function () {
         ->assertSee('Penerimaan FFB vs Budget')
         ->assertSee('Stok FFB')
         ->assertSee('Milling per Line')
-        ->assertSee('Distribusi Jam per Line')
+        ->assertSee('Milling Hours per Line')
         ->assertSee('Kualitas & Stok Tangki')
         ->assertSee('Energi & Air')
         ->assertSee('Oil Extraction Rate')

@@ -140,7 +140,7 @@ import { readFile } from 'node:fs/promises'
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
 import { deletePeriodsByPrefix } from './support/periods'
-import { closeStation, createPeriodViaUi } from './support/period-screen'
+import { closeStation, createOpenPeriodViaUi } from './support/period-screen'
 import { laneOffset } from './support/period-lanes'
 
 const REPORT_PATH = '/reports/weighbridge'
@@ -259,6 +259,27 @@ const PERIOD_INCLUSIVE = `${PERIOD_PREFIX}Rentang Inklusif ${RUN_OFFSET}`
 const PERIOD_EXTREME = `${PERIOD_PREFIX}Nilai Ekstrem ${RUN_OFFSET}`
 const PERIOD_OTHER_MILL = `${PERIOD_PREFIX}Mill Lain ${RUN_OFFSET}`
 
+/**
+ * DUA PERIODE SATU HARI DI KEDUA SISI PERIOD_INCLUSIVE — ADA HANYA SUPAYA
+ * TRIP DI LUAR JENDELA BISA DITANAM, sejak 2026-10-02.
+ *
+ * Skenario "rentang inklusif" menanam empat trip: tepat di kedua ujung
+ * PERIOD_INCLUSIVE, dan satu hari di LUAR masing-masing ujung yang harus
+ * tidak muncul di mana pun. Kunci periode (usecase-141) adalah WHITELIST:
+ * tanggal yang tidak dimuat satu pun periode terbuka ditolak 422
+ * PERIOD_CLOSED, jadi tanpa kedua periode ini dua trip itu tidak pernah
+ * tersimpan — dan asersi toHaveCount(0) lolos karena datanya tidak ada,
+ * bukan karena laporannya menyaring. Asersi yang selalu hijau adalah jenis
+ * cacat termahal dalam suite ini.
+ *
+ * Keduanya satu hari, duduk di CELAH yang sudah ada antar-jendela (cursor
+ * memberi jarak 3 hari), jadi tidak satu pun jendela lain tergeser dan tidak
+ * ada yang tumpang tindih. Keduanya tidak pernah dipilih di pemilih periode,
+ * jadi tidak mengubah satu pun angka yang diasersi.
+ */
+const PERIOD_BEFORE_INCLUSIVE = `${PERIOD_PREFIX}Sehari Sebelum Inklusif ${RUN_OFFSET}`
+const PERIOD_AFTER_INCLUSIVE = `${PERIOD_PREFIX}Sehari Sesudah Inklusif ${RUN_OFFSET}`
+
 /** WB card numbers of this run, unique so old records cannot blend in. */
 const CARD = (suffix: string) => `WB-${RUN_OFFSET}-${suffix}`
 
@@ -354,15 +375,29 @@ async function resolveProductionLine(page: Page): Promise<void> {
 // Fixture builders (other screens' UI)
 // ---------------------------------------------------------------------
 
+/**
+ * MEMBUAT PERIODE DAN LANGSUNG MEMBUKA BARIS STASIUNNYA, sejak 2026-10-02.
+ *
+ * Kunci periode (usecase-141) menjadikan periode TERBUKA prasyarat menulis
+ * record stasiun: setiap *RecordService menolak 422 PERIOD_CLOSED bila tidak
+ * ada periode `open` milik mill itu yang memuat tanggal record. Periode yang
+ * baru dibuat selalu DRAFT, jadi sebelum perubahan ini seluruh fixture spec
+ * ini ditolak oleh form-nya dan beforeAll menggantung sampai timeout —
+ * BUKAN gagal dengan pesan yang menyebut periode.
+ *
+ * Mill tanpa baris stasiun berjenis ini (PERIOD_OTHER_MILL) dilewati tanpa
+ * galat; tidak ada record yang ditanam di sana.
+ */
 async function createPeriod(
   page: Page,
   options: { name: string; start: string; end: string; businessUnit?: string },
 ): Promise<void> {
-  await createPeriodViaUi(page, {
+  await createOpenPeriodViaUi(page, {
     businessUnit: options.businessUnit ?? BUSINESS_UNIT,
     name: options.name,
     start: options.start,
     end: options.end,
+    stationLabel: STATION_TYPE,
   })
 }
 
@@ -582,6 +617,20 @@ test.describe('Laporan Weighbridge', () => {
       ] as Array<[string, typeof MAIN]>) {
         await createPeriod(page, { name, start: window.start, end: window.end })
       }
+
+      // Periode satu hari di kedua sisi PERIOD_INCLUSIVE — lihat
+      // PERIOD_BEFORE_INCLUSIVE: tanpa keduanya, kedua trip "di luar rentang"
+      // ditolak kunci periode dan asersinya menjadi selalu-hijau.
+      await createPeriod(page, {
+        name: PERIOD_BEFORE_INCLUSIVE,
+        start: isoDate(INCLUSIVE.startDay - 1),
+        end: isoDate(INCLUSIVE.startDay - 1),
+      })
+      await createPeriod(page, {
+        name: PERIOD_AFTER_INCLUSIVE,
+        start: isoDate(INCLUSIVE.endDay + 1),
+        end: isoDate(INCLUSIVE.endDay + 1),
+      })
 
       // Another mill, and one without a single active station — so its period
       // gets NO Weighbridge station row and must NOT be offered here.
@@ -1762,13 +1811,18 @@ test.describe('Laporan Weighbridge', () => {
     // thing since migration 2026_09_26_000040) and never another station
     // type's status in the same period.
     //
-    // PERIOD_MAIN reads "Draft" rather than "Terbuka" on purpose:
-    // PeriodService::create() registers every station row as DRAFT, and only
-    // PERIOD_CLOSED is taken through draft -> open -> closed by closeStation()
-    // in beforeAll. Draft means "this station has not been used in this period
-    // yet" — and it still does not filter the list.
+    // PERIOD_MAIN reads "Terbuka" and PERIOD_CLOSED reads "Tertutup" — TWO
+    // DIFFERENT STATUSES SIDE BY SIDE IN ONE LIST, which is the point: the
+    // status is read per `period_stations` row, not per period.
+    //
+    // PERIOD_MAIN was "Draft" until 2026-10-02. It is "Terbuka" now because
+    // createPeriod() in this spec opens the station row right after creating
+    // the period: the period lock (usecase-141) refuses every record whose
+    // date no OPEN period admits, so a Draft period means no fixture at all.
+    // PERIOD_CLOSED is still taken the whole way draft -> open -> closed by
+    // closeStation() in beforeAll.
     await expect(options.filter({ hasText: PERIOD_CLOSED })).toContainText('Tertutup')
-    await expect(options.filter({ hasText: PERIOD_MAIN })).toContainText('Draft')
+    await expect(options.filter({ hasText: PERIOD_MAIN })).toContainText('Terbuka')
     await expect(options.filter({ hasText: PERIOD_MAIN })).toContainText(STATION_TYPE)
 
     // Both remain selectable, and both render a full report: STATUS NEVER
@@ -1779,7 +1833,7 @@ test.describe('Laporan Weighbridge', () => {
     await expect(page.locator('[data-testid="flow-receive"]')).toBeVisible()
 
     await selectPeriod(page, PERIOD_MAIN)
-    await expect(page.locator('[data-testid="period-status-badge"]')).toHaveText('Draft')
+    await expect(page.locator('[data-testid="period-status-badge"]')).toHaveText('Terbuka')
     await expect(page.locator('[data-testid="flow-receive"]')).toBeVisible()
   })
 

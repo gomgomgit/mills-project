@@ -224,6 +224,111 @@ export async function selectSearchable(page: Page, id: string, label: string): P
  * stasiun, atau hint "mill ini belum punya stasiun aktif" untuk mill tanpa
  * stasiun) sebelum menyentuh field lain.
  */
+/**
+ * createPeriodViaUi() + MEMBUKA satu baris stasiunnya, lewat UI, lalu kembali ke
+ * daftar periode.
+ *
+ * WAJIB SEJAK 2026-10-02. Kunci periode (usecase-141) menolak setiap penulisan
+ * data stasiun tanpa periode yang baris stasiunnya berstatus TERBUKA dan yang
+ * rentangnya mencakup tanggal kejadian record. Periode yang baru dibuat lahir
+ * dengan SEMUA baris stasiunnya berstatus Draft — dan Draft menolak, sama seperti
+ * Tertutup. Jadi spec yang menyemai record lewat form HARUS membuka stasiunnya
+ * lebih dulu; `createPeriodViaUi()` saja tidak cukup lagi.
+ *
+ * `stationLabel` memakai LABEL manusiawi dari master station_types (mis. "Boiler
+ * Room"), karena itulah yang dirender layar Detail Periode Pelaporan — bukan kode
+ * seperti 'boiler-room'.
+ *
+ * TOLERAN TERHADAP MILL TANPA BARIS STASIUN ITU. Mill seperti "Mill Kode
+ * Duplikat" tidak punya stasiun aktif, sehingga periodenya lahir tanpa satu pun
+ * baris dan tidak ada yang bisa dibuka. Itu BUKAN kegagalan: beberapa spec sengaja
+ * menanam periode di mill seperti itu untuk menguji keadaan "Tanpa Stasiun".
+ * Dalam hal itu helper ini melewatkan langkah pembukaannya dan kembali seperti
+ * biasa.
+ */
+/**
+ * Membuat satu periode lewat screen-128 LALU MEMBUKA baris stasiun yang
+ * diminta di screen-142, dan kembali ke daftar.
+ *
+ * MENGAPA INI ADA, SEJAK 2026-10-02. Kunci periode (usecase-141) menjadikan
+ * periode TERBUKA sebagai prasyarat menulis record stasiun: ke-18
+ * *RecordService dan RecordVerificationService menolak 422 PERIOD_CLOSED
+ * ketika tidak ada periode `open` milik mill itu yang memuat tanggal record.
+ * createPeriodViaUi() sendiri hanya menghasilkan periode DRAFT —
+ * PeriodService::create() menetapkan status Draft secara keras dan tidak
+ * menerima field `status` — jadi setiap spec yang menanam record lewat UI
+ * setelah membuat periodenya HARUS membuka stasiunnya lebih dulu, atau
+ * form-nya ditolak dan spec-nya menggantung di beforeAll.
+ *
+ * TOLERAN TERHADAP MILL TANPA BARIS STASIUN ITU, dan itu bukan kelonggaran:
+ * setiap spec laporan menanam satu PERIOD_OTHER_MILL di mill yang memang
+ * TIDAK punya stasiun aktif berjenis itu — justru itu yang diujinya (periode
+ * tanpa baris stasiun tidak boleh muncul di pemilih periode). Tidak ada
+ * record yang ditanam di periode seperti itu, jadi tidak ada yang perlu
+ * dibuka; melemparkan galat di sini hanya akan menggagalkan skenario yang
+ * sehat.
+ */
+export async function createOpenPeriodViaUi(
+  page: Page,
+  options: { businessUnit: string; name: string; start: string; end: string; stationLabel: string },
+): Promise<void> {
+  await createPeriodViaUi(page, options)
+
+  const periodId = await periodIdFor(page, options.name)
+
+  await gotoPeriodDetail(page, periodId)
+
+  const stationId = await findStationIdFor(page, periodId, options.stationLabel)
+
+  if (stationId !== null) {
+    await openStation(page, periodId, stationId)
+  }
+
+  await page.goto(PERIODS_PATH)
+  await expect(periodRow(page, options.name)).toBeVisible()
+}
+
+/**
+ * Seperti stationIdFor(), tapi mengembalikan null alih-alih melempar ketika
+ * periode itu tidak punya baris stasiun berlabel itu — termasuk ketika ia
+ * tidak punya baris stasiun sama sekali.
+ */
+export async function findStationIdFor(
+  page: Page,
+  periodId: string,
+  stationLabel: string,
+): Promise<string | null> {
+  const rows = page.locator(`[data-testid="period-stations-${periodId}"] tbody tr`)
+
+  // Menunggu SALAH SATU dari dua keadaan akhir yang sah: tabel stasiun berisi,
+  // atau layar menyatakan periode ini tanpa stasiun. Tanpa penantian ini,
+  // count() bisa membaca 0 semata karena tabelnya belum ter-render.
+  await expect(
+    rows.first().or(page.locator(`[data-testid="period-stations-empty-${periodId}"]`)).first(),
+  ).toBeVisible()
+
+  const total = await rows.count()
+
+  for (let index = 0; index < total; index += 1) {
+    const row = rows.nth(index)
+    const label = (await row.locator('td').first().innerText()).trim()
+
+    if (label !== stationLabel) {
+      continue
+    }
+
+    const testId = await row.getAttribute('data-testid')
+
+    if (testId === null || !testId.startsWith('period-station-row-')) {
+      throw new Error(`baris stasiun "${stationLabel}" tidak membawa data-testid period-station-row-{id}`)
+    }
+
+    return testId.slice('period-station-row-'.length)
+  }
+
+  return null
+}
+
 export async function createPeriodViaUi(
   page: Page,
   options: { businessUnit: string; name: string; start: string; end: string },

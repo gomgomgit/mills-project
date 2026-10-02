@@ -101,7 +101,7 @@ const MAX_PAGES = 50
  * Header yang membuat permintaan API dikenali sebagai stateful + lolos CSRF.
  * Token XSRF di cookie ter-URL-encode, jadi harus di-decode dulu.
  */
-async function statefulHeaders(page: Page): Promise<Record<string, string>> {
+export async function statefulHeaders(page: Page): Promise<Record<string, string>> {
   const cookies = await page.context().cookies()
   const xsrf = cookies.find((cookie) => cookie.name === 'XSRF-TOKEN')
 

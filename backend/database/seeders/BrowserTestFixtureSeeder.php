@@ -5,14 +5,41 @@ namespace Database\Seeders;
 use App\Enums\RecordStatus;
 use App\Enums\StationType;
 use App\Enums\UserRole;
+use App\Models\BoilerRoomDetail;
+use App\Models\BoilerRoomRecord;
 use App\Models\BusinessUnit;
+use App\Models\CagesTippedTime;
+use App\Models\CagesTrackRecord;
+use App\Models\ClarificationDetail;
+use App\Models\ClarificationRecord;
+use App\Models\DepricarpingDetail;
+use App\Models\DepricarpingRecord;
 use App\Models\EffluentPlantDetail;
 use App\Models\EffluentPlantRecord;
+use App\Models\EngineRoomDetail;
+use App\Models\EngineRoomRecord;
+use App\Models\GradingDetail;
+use App\Models\GradingParameter;
+use App\Models\GradingRecord;
+use App\Models\KernelPlantDetail;
+use App\Models\KernelPlantRecord;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Models\PressingDetail;
+use App\Models\PressingRecord;
+use App\Models\ProcessQualityControlDetail;
+use App\Models\ProcessQualityControlRecord;
+use App\Models\ProcessWaterDetail;
+use App\Models\ProcessWaterRecord;
 use App\Models\ProductionLine;
 use App\Models\Station;
+use App\Models\StorageTankDetail;
+use App\Models\StorageTankRecord;
+use App\Models\ThreshingDetail;
+use App\Models\ThreshingRecord;
 use App\Models\User;
+use App\Models\WeighbridgeRecord;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -153,18 +180,58 @@ class BrowserTestFixtureSeeder extends Seeder
      * Dated inside 2026-08-01..2026-08-15 because the Data Browser specs
      * filter on exactly that window before asserting the export.
      *
+     * ELEVEN STATIONS, NOT ONE, SINCE 2026-10-02. Until then this list held
+     * `effluent-plant` alone while FOURTEEN `form-*` specs navigate to a
+     * `*-BROWSER-EDIT` row — so thirteen "klik Edit dari Detail" scenarios
+     * had been red since the day they were written, waiting on a fixture
+     * nothing created. Measured, not assumed: a count of every
+     * `*-BROWSER-EDIT` row in the dev database returned 1.
+     *
+     * These eleven share one shape: a `date` column on the record and a
+     * detail row keyed by `time_slot`. The other three the specs need do
+     * not, and each gets its own method below — Cages Track (extra required
+     * header fields, detail table `cages_tipped_times`), Grading (a
+     * Weighbridge card FK plus four required figures) and Weighbridge
+     * (`record_datetime` instead of `date`, and NO detail table at all).
+     *
+     * The four `form-*` specs with no edit scenario — CPO Dispatch, Kernel
+     * Dispatch, Solid Waste Disposal, Sterilizer — are deliberately absent.
+     *
      * @var array<string, array{0: class-string, 1: class-string, 2: string, 3: string}>
      */
     protected const EDIT_RECORDS = [
-        'effluent-plant' => [
-            EffluentPlantRecord::class,
-            EffluentPlantDetail::class,
-            'effluent_plant_id',
-            'EP-BROWSER-EDIT',
-        ],
+        'boiler-room' => [BoilerRoomRecord::class, BoilerRoomDetail::class, 'boiler_room_id', 'BR-BROWSER-EDIT'],
+        'clarification' => [ClarificationRecord::class, ClarificationDetail::class, 'clarification_id', 'CLR-BROWSER-EDIT'],
+        'depricarping' => [DepricarpingRecord::class, DepricarpingDetail::class, 'presser_id', 'DP-BROWSER-EDIT'],
+        'effluent-plant' => [EffluentPlantRecord::class, EffluentPlantDetail::class, 'effluent_plant_id', 'EP-BROWSER-EDIT'],
+        'engine-room' => [EngineRoomRecord::class, EngineRoomDetail::class, 'engine_room_id', 'ER-BROWSER-EDIT'],
+        'kernel-plant' => [KernelPlantRecord::class, KernelPlantDetail::class, 'kernel_plant_id', 'KP-BROWSER-EDIT'],
+        'pressing' => [PressingRecord::class, PressingDetail::class, 'presser_id', 'PR-BROWSER-EDIT'],
+        'process-quality-control' => [ProcessQualityControlRecord::class, ProcessQualityControlDetail::class, 'process_qc_id', 'PQC-BROWSER-EDIT'],
+        'process-water' => [ProcessWaterRecord::class, ProcessWaterDetail::class, 'process_water_id', 'PW-BROWSER-EDIT'],
+        'storage-tank' => [StorageTankRecord::class, StorageTankDetail::class, 'storage_tank_id', 'ST-BROWSER-EDIT'],
+        'threshing' => [ThreshingRecord::class, ThreshingDetail::class, 'thresher_id', 'TH-BROWSER-EDIT'],
     ];
 
     protected const RECORD_DATE = '2026-08-05';
+
+    /**
+     * A second Production Line whose Cages Track station carries EXACTLY
+     * eight machinery rows. form-cages-track.spec.ts's "Jumlah Kolom Grid"
+     * scenario selects it by this name and asserts the checklist renders 8
+     * columns; N comes from
+     * CagesTrackRecordService::machineryCountForStation(), a plain
+     * COUNT(machinery WHERE station_id = ?) since 2026-08-20 — the
+     * mill-setting `jumlah_cages` that spec's docblock still mentions was
+     * removed then.
+     */
+    public const SMALL_PRODUCTION_LINE = 'PL Mill Kecil';
+
+    /** Machinery rows on the MAIN line's Cages Track station. */
+    protected const MAIN_LINE_CAGES = 10;
+
+    /** Machinery rows on SMALL_PRODUCTION_LINE's Cages Track station. */
+    protected const SMALL_LINE_CAGES = 8;
 
     public function run(): void
     {
@@ -218,6 +285,7 @@ class BrowserTestFixtureSeeder extends Seeder
             $this->user($username, UserRole::Supervisor, $businessUnit, self::CHANGE_PASSWORD_PASSWORD);
         }
 
+        $this->cagesFixtures($businessUnit, $mainLine);
         $this->editRecords($mainLine);
         $this->machineryFixtures($businessUnit);
 
@@ -275,6 +343,83 @@ class BrowserTestFixtureSeeder extends Seeder
     }
 
     /**
+     * Cages Track needs MACHINERY, not a mill setting — and it needs two
+     * different counts on two different lines.
+     *
+     * N (the Cages Tipped Time grid's checklist column count) is
+     * COUNT(machinery WHERE station_id = ?) since 2026-08-20, when
+     * mill-setting `jumlah_cages` was removed; CagesTrackRecordService
+     * ::machineryCountForStation() is the whole of it. With zero machinery N
+     * is 0, `FormCagesTrack::canAddRow()` returns false, and "+ Tambah Baris"
+     * renders DISABLED — which is why seven form-cages-track scenarios timed
+     * out clicking it. Measured before writing this: the main line's Cages
+     * Track station carried 0 machinery rows.
+     *
+     * SMALL_PRODUCTION_LINE exists only to carry a DIFFERENT count (8), which
+     * is what the "Jumlah Kolom Grid" scenario asserts. It cannot be a second
+     * station on the main line: station() keys one row per type per line.
+     *
+     * The equipment codes deliberately do NOT start with `EQ-BROWSER-` —
+     * machineryFixtures() sweeps that prefix on every run, keeping only three
+     * named survivors, and it runs after this. A swept cage would put the
+     * count back to zero on the next seed.
+     */
+    protected function cagesFixtures(BusinessUnit $businessUnit, ProductionLine $mainLine): void
+    {
+        $mainStation = Station::where('production_line_id', $mainLine->id)
+            ->where('type', StationType::CagesTrack)
+            ->firstOrFail();
+
+        $this->cages($mainStation, 'CAGE-BROWSER-MAIN', self::MAIN_LINE_CAGES);
+
+        $smallLine = $this->productionLine($businessUnit, self::SMALL_PRODUCTION_LINE);
+        $smallStation = $this->station($smallLine, StationType::CagesTrack, active: true);
+
+        $this->cages($smallStation, 'CAGE-BROWSER-KECIL', self::SMALL_LINE_CAGES);
+
+        // "PL Tanpa Cages Track" — the ONE "PL Tanpa ..." line the specs ask
+        // for that run() does not build, because Cages Track has no entry in
+        // STATION_FAMILIES (it has no `cagestest-*` account family). Measured:
+        // the specs name twelve such lines and eleven existed.
+        //
+        // Carries every OTHER station type, same as the eleven built in run():
+        // a line that is simply empty would read like a seeding bug rather
+        // than the deliberate "no active station of this type" case the
+        // scenario tests.
+        $withoutLine = $this->productionLine($businessUnit, 'PL Tanpa Cages Track');
+
+        foreach (StationType::cases() as $otherType) {
+            if ($otherType === StationType::Other || $otherType === StationType::CagesTrack) {
+                continue;
+            }
+
+            $this->station($withoutLine, $otherType, active: true);
+        }
+    }
+
+    /**
+     * Exactly $count machinery rows on $station, named deterministically so a
+     * re-seed neither duplicates them nor changes the count the grid renders.
+     * No MachineryGroup: `machinery.machinery_group_id` is nullable and the
+     * count does not look at it.
+     */
+    protected function cages(Station $station, string $codePrefix, int $count): void
+    {
+        for ($n = 1; $n <= $count; $n++) {
+            $code = sprintf('%s-%02d', $codePrefix, $n);
+
+            Machinery::firstOrCreate(
+                ['equipment_code' => $code],
+                [
+                    'name' => 'Cage '.$n,
+                    'station_id' => $station->id,
+                    'production_line_id' => $station->production_line_id,
+                ],
+            );
+        }
+    }
+
+    /**
      * A Station identified by NAME rather than by (line, type). The
      * type-keyed station() helper allows one row per type per line, which
      * cannot express two differently named stations these specs need.
@@ -318,6 +463,16 @@ class BrowserTestFixtureSeeder extends Seeder
     /**
      * One pre-existing record per station, on the main line, with a single
      * detail row so the detail grid is not empty.
+     *
+     * WHY production_line_id IS SET HERE, AND WHY ITS ABSENCE WAS INVISIBLE.
+     * Migration 2026_09_28_* (Production Line isolation) made
+     * `production_line_id` NOT NULL on every one of the 18 record tables.
+     * This method never set it, so it could no longer INSERT — and nobody
+     * noticed, because the single row it had to create (EP-BROWSER-EDIT)
+     * already existed, which turns updateOrCreate() into an UPDATE. On a
+     * fresh database the seeder would have failed outright. It is read from
+     * the record's own station rather than from $line so the two can never
+     * disagree.
      */
     protected function editRecords(ProductionLine $line): void
     {
@@ -332,8 +487,9 @@ class BrowserTestFixtureSeeder extends Seeder
                 [$idColumn => $businessId],
                 [
                     'station_id' => $station->id,
+                    'production_line_id' => $station->production_line_id,
                     'date' => self::RECORD_DATE,
-                    'status' => RecordStatus::Saved,
+                    'status' => RecordStatus::DraftOngoing,
                     'created_by' => $author->id,
                 ],
             );
@@ -345,7 +501,159 @@ class BrowserTestFixtureSeeder extends Seeder
                 ],
                 [],
             );
+
+            $this->promoteToSaved($record);
         }
+
+        // The Weighbridge record comes FIRST: the Grading record below needs
+        // its id for the NOT NULL `weighbridge_record_id`, and Form Grading's
+        // WB Card No dropdown is fed by exactly this row
+        // (FormGrading::loadWeighbridgeOptions() lists every Weighbridge
+        // record whose station belongs to the chosen mill). One row serves
+        // both, which is why they are not seeded independently.
+        $weighbridge = $this->weighbridgeEditRecord($line, $author);
+        $this->gradingEditRecord($line, $author, $weighbridge);
+        $this->cagesTrackEditRecord($line, $author);
+    }
+
+    /**
+     * WB-BROWSER-EDIT. The one record table with no `date` column and no
+     * detail table at all — Weighbridge is one row per weighing transaction,
+     * so there is nothing to attach a detail row to.
+     */
+    protected function weighbridgeEditRecord(ProductionLine $line, User $author): WeighbridgeRecord
+    {
+        $station = Station::where('production_line_id', $line->id)
+            ->where('type', StationType::Weighbridge)
+            ->firstOrFail();
+
+        return WeighbridgeRecord::updateOrCreate(
+            ['wb_card_number' => 'WB-BROWSER-EDIT'],
+            [
+                'station_id' => $station->id,
+                'production_line_id' => $station->production_line_id,
+                'weighbridge_type' => 'receive',
+                'record_datetime' => self::RECORD_DATE.' 08:00:00',
+                'vehicle_number' => 'B 1234 WB',
+                'driver_name' => 'Driver Browser Test',
+                'estate_supplier' => 'Estate Browser Test',
+                'division' => 'Divisi 1',
+                'gross_weight' => 15000,
+                'tare_weight' => 5000,
+                'net_weight' => 10000,
+                'status' => RecordStatus::Saved,
+                'created_by' => $author->id,
+            ],
+        );
+    }
+
+    /**
+     * GR-BROWSER-EDIT. Four figures are NOT NULL on `grading_records`
+     * (license_plate_no, estate_supplier, netto, quantity) on top of the
+     * usual columns, and its detail row needs a real grading parameter plus
+     * quantity/uom/percentage — so it cannot ride the uniform loop above.
+     */
+    protected function gradingEditRecord(ProductionLine $line, User $author, WeighbridgeRecord $weighbridge): void
+    {
+        $station = Station::where('production_line_id', $line->id)
+            ->where('type', StationType::Grading)
+            ->firstOrFail();
+
+        $record = GradingRecord::updateOrCreate(
+            ['grading_number' => 'GR-BROWSER-EDIT'],
+            [
+                'station_id' => $station->id,
+                'production_line_id' => $station->production_line_id,
+                'date' => self::RECORD_DATE,
+                'weighbridge_record_id' => $weighbridge->id,
+                'license_plate_no' => $weighbridge->vehicle_number,
+                'estate_supplier' => $weighbridge->estate_supplier,
+                'netto' => 10000,
+                'quantity' => 120,
+                'status' => RecordStatus::DraftOngoing,
+                'created_by' => $author->id,
+            ],
+        );
+
+        // firstOrFail, not a created parameter: the 16 grading parameters are
+        // master data from the ordinary seeders. Inventing one here would
+        // hide their absence, which is a real failure rather than a fixture
+        // gap this seeder should paper over.
+        $parameter = GradingParameter::query()->orderBy('name')->firstOrFail();
+
+        GradingDetail::updateOrCreate(
+            [
+                'grading_record_id' => $record->id,
+                'grading_parameter_id' => $parameter->id,
+            ],
+            [
+                'quantity' => 30,
+                'uom' => 'kg',
+                'percentage' => 25,
+            ],
+        );
+
+        $this->promoteToSaved($record);
+    }
+
+    /**
+     * CT-BROWSER-EDIT. Three extra NOT NULL header fields
+     * (tippler_start_time, cages_out, cages_tipped), and a detail table
+     * called `cages_tipped_times` rather than `cages_track_details` whose key
+     * is `tipped_hour`, not `time_slot`. `checked_cage_numbers` is CSV TEXT,
+     * matching CagesTrackRecordService's own spelling (it implodes the array
+     * with commas) — a JSON array here would read back as one bogus cage.
+     */
+    protected function cagesTrackEditRecord(ProductionLine $line, User $author): void
+    {
+        $station = Station::where('production_line_id', $line->id)
+            ->where('type', StationType::CagesTrack)
+            ->firstOrFail();
+
+        $record = CagesTrackRecord::updateOrCreate(
+            ['cages_track_number' => 'CT-BROWSER-EDIT'],
+            [
+                'station_id' => $station->id,
+                'production_line_id' => $station->production_line_id,
+                'date' => self::RECORD_DATE,
+                'tippler_start_time' => self::RECORD_DATE.' 06:00:00',
+                'cages_out' => 12,
+                'cages_tipped' => 10,
+                'status' => RecordStatus::DraftOngoing,
+                'created_by' => $author->id,
+            ],
+        );
+
+        CagesTippedTime::updateOrCreate(
+            [
+                'cages_track_record_id' => $record->id,
+                'tipped_hour' => 7,
+            ],
+            [
+                'checked_cage_numbers' => '1,2',
+                'total_cages' => 2,
+                'cages_remain' => self::MAIN_LINE_CAGES - 2,
+            ],
+        );
+
+        $this->promoteToSaved($record);
+    }
+
+    /**
+     * Flips a record to `saved` AFTER its detail row exists.
+     *
+     * SIX of the record models refuse `saved` while they have no detail —
+     * CagesTrack, Depricarping, Grading, KernelPlant, Pressing and Threshing
+     * each throw a ValidationException from a `saving` hook. Creating the
+     * record already saved and attaching the detail afterwards is therefore
+     * impossible for them, so every record here is created DRAFT and promoted
+     * once its detail is in place. The twelve models without the hook take the
+     * same path rather than a second one: the specs read `saved` from all of
+     * them, and one code path cannot drift from the other.
+     */
+    protected function promoteToSaved(Model $record): void
+    {
+        $record->update(['status' => RecordStatus::Saved]);
     }
 
     protected function accountsFor(string $prefix, BusinessUnit $businessUnit): void

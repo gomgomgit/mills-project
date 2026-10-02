@@ -19,14 +19,59 @@
  * "GR-BROWSER-EDIT" exists under "Mill A".
  */
 
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { removeOpenPeriodForForms, seedOpenPeriodForForms } from './support/period-fixture'
 
 const CREATE_PATH = '/data/grading/create';
-const BUSINESS_UNIT_NAME = 'Mill A';
+/**
+ * 'BU Browser Test', BUKAN 'Mill A', sejak 2026-10-02.
+ *
+ * Tidak ada Business Unit bernama 'Mill A' di instance ini — dibaca langsung
+ * dari tabel `business_units`, isinya: BU Browser Test, Business Unit A..D,
+ * Mill Kode Duplikat. Jadi setiap selectOption({ label: 'Mill A' }) di bawah
+ * menunggu opsi yang tidak akan pernah ada, lalu gagal sebagai timeout 30
+ * detik tanpa menyebut sebabnya.
+ *
+ * Dan seandainya 'Mill A' ADA, ia tetap tidak akan muncul: pemiliknya
+ * `stest-supervisor01` adalah Supervisor yang terikat ke satu mill, sehingga
+ * dropdown-nya hanya memuat mill-nya sendiri (clampMillIdForActor). Nama ini
+ * berasal dari masa sebelum pengikatan mill — nama fixture lama yang tidak
+ * pernah dibuat siapa pun, bukan regresi.
+ */
+const BUSINESS_UNIT_NAME = 'BU Browser Test';
 
 
 test.describe('Form Grading (Web)', () => {
+  /**
+   * PRASYARAT PERIODE PELAPORAN, sejak 2026-10-02.
+   *
+   * Kunci periode (usecase-141) menolak 422 PERIOD_CLOSED setiap penulisan
+   * record stasiun yang tidak dimuat sebuah periode TERBUKA. Spec ini menulis
+   * record lewat form, jadi tanpa blok ini setiap skenario "Simpan berhasil"
+   * gagal sebagai timeout — bukan sebagai pesan yang menyebut periode.
+   *
+   * Alasan lengkap, termasuk mengapa satu periode lebar dan mengapa ia dihapus
+   * di afterAll alih-alih ditinggalkan: tests/support/period-fixture.ts.
+   */
+  let periodFixturePage: Page
+
+  test.beforeAll(async ({ browser }) => {
+    // 30 detik bawaan Playwright untuk sebuah hook TIDAK CUKUP, dan itu terukur:
+    // `php artisan serve` melayani satu permintaan sekaligus, jadi login lewat UI
+    // ditambah beberapa panggilan API periode melewatinya pada mesin yang sibuk —
+    // 4 dari 9 spek pertama gagal di hook-nya sendiri sebelum batas ini dinaikkan.
+    test.setTimeout(180_000)
+    periodFixturePage = await seedOpenPeriodForForms(browser, 'grading')
+  })
+
+  test.afterAll(async () => {
+    // Alasan yang sama dengan beforeAll di atas — pembersihan juga memanggil API
+    // periode, dan 30 detik bawaan untuk sebuah hook pernah terlampaui di sini.
+    test.setTimeout(120_000)
+    await removeOpenPeriodForForms(periodFixturePage)
+  })
+
   // Scenario: "Buat Record Grading Baru — berhasil"
   test('klik Tambah Data, isi form lengkap termasuk 1 baris Grading Detail, klik Simpan, halaman Detail menampilkan record baru beserta grid detail', async ({ page }) => {
     await login(page, 'stest-supervisor01', PASSWORD);

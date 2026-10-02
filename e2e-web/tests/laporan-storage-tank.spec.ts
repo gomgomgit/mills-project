@@ -147,7 +147,7 @@ import { readFile } from 'node:fs/promises'
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
 import { deletePeriodsByPrefix } from './support/periods'
-import { closeStation, createPeriodViaUi, openStationRow } from './support/period-screen'
+import { closeStation, createOpenPeriodViaUi, openStationRow } from './support/period-screen'
 import { laneOffset } from './support/period-lanes'
 
 const REPORT_PATH = '/reports/storage-tank'
@@ -292,6 +292,27 @@ const PERIOD_EXTREME = `${PERIOD_PREFIX}Nilai Ekstrem ${RUN_OFFSET}`
 const PERIOD_WHOLE_MILL = `${PERIOD_PREFIX}Seluruh Mill ${RUN_OFFSET}`
 const PERIOD_OTHER_MILL = `${PERIOD_PREFIX}Mill Lain ${RUN_OFFSET}`
 
+/**
+ * DUA PERIODE SATU HARI DI KEDUA SISI PERIOD_INCLUSIVE — ADA HANYA SUPAYA
+ * RECORD DI LUAR JENDELA BISA DITANAM, sejak 2026-10-02.
+ *
+ * Skenario "rentang inklusif" menanam empat record: tepat di kedua ujung
+ * PERIOD_INCLUSIVE, dan satu hari di LUAR masing-masing ujung yang harus
+ * tidak muncul di mana pun. Kunci periode (usecase-141) adalah WHITELIST:
+ * tanggal yang tidak dimuat satu pun periode terbuka ditolak 422
+ * PERIOD_CLOSED, jadi tanpa kedua periode ini dua record itu tidak pernah
+ * tersimpan — dan asersi toHaveCount(0) lolos karena datanya tidak ada,
+ * bukan karena laporannya menyaring. Asersi yang selalu hijau adalah jenis
+ * cacat termahal dalam suite ini.
+ *
+ * Keduanya satu hari, duduk di CELAH yang sudah ada antar-jendela (cursor
+ * memberi jarak 3 hari), jadi tidak satu pun jendela lain tergeser dan tidak
+ * ada yang tumpang tindih. Keduanya tidak pernah dipilih di pemilih periode,
+ * jadi tidak mengubah satu pun angka yang diasersi.
+ */
+const PERIOD_BEFORE_INCLUSIVE = `${PERIOD_PREFIX}Sehari Sebelum Inklusif ${RUN_OFFSET}`
+const PERIOD_AFTER_INCLUSIVE = `${PERIOD_PREFIX}Sehari Sesudah Inklusif ${RUN_OFFSET}`
+
 /** The tanks of this run, unique per run so old records cannot blend in. */
 const TANK_SCRAMBLED = `ST-${RUN_OFFSET}-SCR`
 const TANK_QUALITY = `ST-${RUN_OFFSET}-QUA`
@@ -380,15 +401,29 @@ async function resolveProductionLine(page: Page): Promise<void> {
 // Fixture builders (other screens' UI)
 // ---------------------------------------------------------------------
 
+/**
+ * MEMBUAT PERIODE DAN LANGSUNG MEMBUKA BARIS STASIUNNYA, sejak 2026-10-02.
+ *
+ * Kunci periode (usecase-141) menjadikan periode TERBUKA prasyarat menulis
+ * record stasiun: setiap *RecordService menolak 422 PERIOD_CLOSED bila tidak
+ * ada periode `open` milik mill itu yang memuat tanggal record. Periode yang
+ * baru dibuat selalu DRAFT, jadi sebelum perubahan ini seluruh fixture spec
+ * ini ditolak oleh form-nya dan beforeAll menggantung sampai timeout —
+ * BUKAN gagal dengan pesan yang menyebut periode.
+ *
+ * Mill tanpa baris stasiun berjenis ini (PERIOD_OTHER_MILL) dilewati tanpa
+ * galat; tidak ada record yang ditanam di sana.
+ */
 async function createPeriod(
   page: Page,
   options: { name: string; start: string; end: string; businessUnit?: string },
 ): Promise<void> {
-  await createPeriodViaUi(page, {
+  await createOpenPeriodViaUi(page, {
     businessUnit: options.businessUnit ?? BUSINESS_UNIT,
     name: options.name,
     start: options.start,
     end: options.end,
+    stationLabel: STATION_TYPE,
   })
 }
 
@@ -604,6 +639,20 @@ test.describe('Laporan Storage Tank', () => {
       ] as Array<[string, typeof MAIN]>) {
         await createPeriod(page, { name, start: window.start, end: window.end })
       }
+
+      // Periode satu hari di kedua sisi PERIOD_INCLUSIVE — lihat
+      // PERIOD_BEFORE_INCLUSIVE: tanpa keduanya, kedua record "di luar
+      // rentang" ditolak kunci periode dan asersinya menjadi selalu-hijau.
+      await createPeriod(page, {
+        name: PERIOD_BEFORE_INCLUSIVE,
+        start: isoDate(INCLUSIVE.startDay - 1),
+        end: isoDate(INCLUSIVE.startDay - 1),
+      })
+      await createPeriod(page, {
+        name: PERIOD_AFTER_INCLUSIVE,
+        start: isoDate(INCLUSIVE.startDay + 10),
+        end: isoDate(INCLUSIVE.startDay + 10),
+      })
 
       // Covers the whole mill, Storage Tank included — so it MUST be offered by this
       // screen's period picker. Before 2026-09-26 this was a period with
@@ -1757,7 +1806,15 @@ test.describe('Laporan Storage Tank', () => {
       await login(adminPage, ADMIN, PASSWORD)
       await adminPage.goto(PERIODS_PATH)
       const { stationId } = await openStationRow(adminPage, PERIOD_WHOLE_MILL, STATION_TYPE)
-      await expect(adminPage.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Draft')
+      // "Terbuka", bukan "Draft", SEJAK 2026-10-02: createPeriod() di spec ini
+      // membuka baris stasiunnya segera setelah membuat periodenya, karena
+      // kunci periode (usecase-141) menolak setiap record yang tidak dimuat
+      // periode TERBUKA. Yang diuji di sini tetap sama — bahwa periode itu
+      // PUNYA baris `period_stations` untuk jenis stasiun layar ini, yaitu
+      // yang dicocokkan whereHas() pemilih periode; openStationRow() di atas
+      // sudah melempar bila barisnya tidak ada. Statusnya diasersi apa adanya
+      // agar perubahan diam-diam pada helper itu tetap terbaca di sini.
+      await expect(adminPage.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
     } finally {
       await adminContext.close()
     }

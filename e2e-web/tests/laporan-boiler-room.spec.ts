@@ -117,7 +117,7 @@ import { readFile } from 'node:fs/promises'
 import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
 import { deletePeriodsByPrefix } from './support/periods'
-import { closeStation, createPeriodViaUi, openStationRow } from './support/period-screen'
+import { closeStation, createOpenPeriodViaUi, openStationRow } from './support/period-screen'
 import { laneOffset } from './support/period-lanes'
 
 const REPORT_PATH = '/reports/boiler-room'
@@ -217,6 +217,25 @@ const PERIOD_OTHER_MILL = `${PERIOD_PREFIX}Mill Lain ${RUN_OFFSET}`
 /** The date one day BEFORE the main window — must never be reported. */
 const OUTSIDE_DATE = isoDate(MAIN.startDay - 1)
 
+/**
+ * Periode satu hari yang memuat OUTSIDE_DATE — ADA HANYA SUPAYA RECORD DI
+ * LUAR JENDELA BISA DITANAM, sejak 2026-10-02.
+ *
+ * Kunci periode (usecase-141) adalah WHITELIST: tanggal yang tidak dimuat
+ * satu pun periode terbuka ditolak 422 PERIOD_CLOSED. Record OUTSIDE_DATE
+ * justru harus benar-benar ADA di database agar skenario "data di luar
+ * jendela tidak boleh dilaporkan" menguji sesuatu — tanpa periode ini
+ * record itu tidak pernah tersimpan, dan asersi toHaveCount(0) lolos karena
+ * datanya tidak ada, bukan karena laporannya menyaring. Itu asersi yang
+ * selalu hijau, jenis cacat termahal dalam suite ini.
+ *
+ * Satu hari, tepat di OUTSIDE_DATE, dan ia TIDAK pernah dipilih di pemilih
+ * periode mana pun — jadi ia tidak mengubah satu pun angka yang diasersi.
+ * Ia tetap berada di dalam lajur spec ini: LANE_MARGIN (25 hari) di
+ * tests/support/period-lanes.ts ada justru untuk hari sebelum RUN_OFFSET.
+ */
+const PERIOD_OUTSIDE = `${PERIOD_PREFIX}Luar Jendela ${RUN_OFFSET}`
+
 /** The two boiler units of PERIOD_MAIN, unique per run. */
 const UNIT_ONE = `BLR-${RUN_OFFSET}-A1`
 const UNIT_TWO = `BLR-${RUN_OFFSET}-A2`
@@ -297,15 +316,29 @@ async function resolveProductionLine(page: Page): Promise<void> {
 // Fixture builders (other screens' UI)
 // ---------------------------------------------------------------------
 
+/**
+ * MEMBUAT PERIODE DAN LANGSUNG MEMBUKA BARIS STASIUNNYA, sejak 2026-10-02.
+ *
+ * Kunci periode (usecase-141) menjadikan periode TERBUKA prasyarat menulis
+ * record stasiun: setiap *RecordService menolak 422 PERIOD_CLOSED bila tidak
+ * ada periode `open` milik mill itu yang memuat tanggal record. Periode yang
+ * baru dibuat selalu DRAFT, jadi sebelum perubahan ini seluruh fixture spec
+ * ini ditolak oleh form-nya dan beforeAll menggantung sampai timeout —
+ * BUKAN gagal dengan pesan yang menyebut periode.
+ *
+ * Mill tanpa baris stasiun berjenis ini (PERIOD_OTHER_MILL) dilewati tanpa
+ * galat; tidak ada record yang ditanam di sana.
+ */
 async function createPeriod(
   page: Page,
   options: { name: string; start: string; end: string; businessUnit?: string },
 ): Promise<void> {
-  await createPeriodViaUi(page, {
+  await createOpenPeriodViaUi(page, {
     businessUnit: options.businessUnit ?? BUSINESS_UNIT,
     name: options.name,
     start: options.start,
     end: options.end,
+    stationLabel: STATION_TYPE,
   })
 }
 
@@ -514,6 +547,10 @@ test.describe('Laporan Boiler Room', () => {
       await page.goto(PERIODS_PATH)
 
       await createPeriod(page, { name: PERIOD_MAIN, start: MAIN.start, end: MAIN.end })
+      // Periode satu hari untuk OUTSIDE_DATE — lihat PERIOD_OUTSIDE: tanpa
+      // periode terbuka yang memuatnya, record di luar jendela ditolak oleh
+      // kunci periode dan asersinya menjadi selalu-hijau.
+      await createPeriod(page, { name: PERIOD_OUTSIDE, start: OUTSIDE_DATE, end: OUTSIDE_DATE })
       await createPeriod(page, { name: PERIOD_SPARSE, start: SPARSE.start, end: SPARSE.end })
       await createPeriod(page, { name: PERIOD_EMPTY, start: EMPTY.start, end: EMPTY.end })
       await createPeriod(page, { name: PERIOD_CLOSED, start: CLOSED.start, end: CLOSED.end })
@@ -1098,7 +1135,15 @@ test.describe('Laporan Boiler Room', () => {
       await login(adminPage, ADMIN, PASSWORD)
       await adminPage.goto(PERIODS_PATH)
       const { stationId } = await openStationRow(adminPage, PERIOD_WHOLE_MILL, STATION_TYPE)
-      await expect(adminPage.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Draft')
+      // "Terbuka", bukan "Draft", SEJAK 2026-10-02: createPeriod() di spec ini
+      // membuka baris stasiunnya segera setelah membuat periodenya, karena
+      // kunci periode (usecase-141) menolak setiap record yang tidak dimuat
+      // periode TERBUKA. Yang diuji di sini tetap sama — bahwa periode itu
+      // PUNYA baris `period_stations` untuk jenis stasiun layar ini, yaitu
+      // yang dicocokkan whereHas() pemilih periode; openStationRow() di atas
+      // sudah melempar bila barisnya tidak ada. Statusnya diasersi apa adanya
+      // agar perubahan diam-diam pada helper itu tetap terbaca di sini.
+      await expect(adminPage.locator(`[data-testid="station-status-badge-${stationId}"]`)).toHaveText('Terbuka')
     } finally {
       await adminContext.close()
     }

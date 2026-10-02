@@ -17,14 +17,44 @@
  * "EP-BROWSER-EDIT" under "PL Mill A".
  */
 
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { removeOpenPeriodForForms, seedOpenPeriodForForms } from './support/period-fixture'
 
 const CREATE_PATH = '/data/effluent-plant/create';
 const PRODUCTION_LINE_NAME = 'PL Mill A';
 
 
 test.describe('Form Effluent Plant (Web)', () => {
+  /**
+   * PRASYARAT PERIODE PELAPORAN, sejak 2026-10-02.
+   *
+   * Kunci periode (usecase-141) menolak 422 PERIOD_CLOSED setiap penulisan
+   * record stasiun yang tidak dimuat sebuah periode TERBUKA. Spec ini menulis
+   * record lewat form, jadi tanpa blok ini setiap skenario "Simpan berhasil"
+   * gagal sebagai timeout — bukan sebagai pesan yang menyebut periode.
+   *
+   * Alasan lengkap, termasuk mengapa satu periode lebar dan mengapa ia dihapus
+   * di afterAll alih-alih ditinggalkan: tests/support/period-fixture.ts.
+   */
+  let periodFixturePage: Page
+
+  test.beforeAll(async ({ browser }) => {
+    // 30 detik bawaan Playwright untuk sebuah hook TIDAK CUKUP, dan itu terukur:
+    // `php artisan serve` melayani satu permintaan sekaligus, jadi login lewat UI
+    // ditambah beberapa panggilan API periode melewatinya pada mesin yang sibuk —
+    // 4 dari 9 spek pertama gagal di hook-nya sendiri sebelum batas ini dinaikkan.
+    test.setTimeout(180_000)
+    periodFixturePage = await seedOpenPeriodForForms(browser, 'effluent-plant')
+  })
+
+  test.afterAll(async () => {
+    // Alasan yang sama dengan beforeAll di atas — pembersihan juga memanggil API
+    // periode, dan 30 detik bawaan untuk sebuah hook pernah terlampaui di sini.
+    test.setTimeout(120_000)
+    await removeOpenPeriodForForms(periodFixturePage)
+  })
+
   // Scenario: "Buat Record Effluent Plant Baru — berhasil"
   test('klik Tambah Data, isi form lengkap termasuk 1 kolom bacaan, klik Simpan, halaman Detail menampilkan record baru', async ({ page }) => {
     await login(page, 'eptest-supervisor01', PASSWORD);

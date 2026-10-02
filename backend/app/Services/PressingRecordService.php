@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
+use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * PressingRecordService — screen-050--data-browser-pressing-web /
@@ -59,7 +60,7 @@ use Throwable;
  */
 class PressingRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill;
+    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -210,7 +211,7 @@ class PressingRecordService
         return collect($rawDetails)
             ->map(fn ($row) => [
                 'id' => $row['id'] ?? null,
-                'time_slot' => $row['time_slot'] ?? null,
+                'time_slot' => $this->canonicalTimeSlot($row['time_slot'] ?? null),
                 'digester_temp_c' => $row['digester_temp_c'] ?? null,
                 'digester_level_percent' => $row['digester_level_percent'] ?? null,
                 'press_motor_current_amps' => $row['press_motor_current_amps'] ?? null,

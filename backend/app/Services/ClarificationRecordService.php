@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
+use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * ClarificationRecordService — screen-099--data-browser-clarification-web /
@@ -54,7 +55,7 @@ use Throwable;
  */
 class ClarificationRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill;
+    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -214,7 +215,7 @@ class ClarificationRecordService
             ->map(function ($row) {
                 $normalized = [
                     'id' => $row['id'] ?? null,
-                    'time_slot' => $row['time_slot'] ?? null,
+                    'time_slot' => $this->canonicalTimeSlot($row['time_slot'] ?? null),
                 ];
 
                 foreach (self::DETAIL_FIELDS as $field) {

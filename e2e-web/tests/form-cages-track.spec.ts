@@ -167,7 +167,15 @@ test.describe('Form Cages Track (Web)', () => {
     await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     await page.locator('[data-testid="save-button"]').click();
 
-    await expect(page.locator('.fc-field__error')).toContainText('Cages Track Number');
+    // DISARING KE SATU SPAN, sejak 2026-10-02. Mengosongkan form memunculkan
+    // SEBERAPA PUN galat inline sekaligus (beberapa di layar ini), dan
+    // `expect(locator)` Playwright berjalan dalam strict mode: locator yang
+    // cocok ke lebih dari satu elemen DITOLAK, bukan dicocokkan ke salah
+    // satunya. Jadi asersi lama gagal sebagai "strict mode violation" —
+    // bukan karena pesannya tidak ada, melainkan karena ada yang lain di
+    // sebelahnya. Menyaring ke span yang memuat teksnya tetap menuntut
+    // pesan itu benar-benar muncul.
+    await expect(page.locator('.fc-field__error').filter({ hasText: 'Cages Track Number' })).toBeVisible();
   });
 
   // Scenario: "Belum Ada Baris Cages Tipped Time Valid"

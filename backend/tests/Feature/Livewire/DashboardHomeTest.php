@@ -109,7 +109,12 @@ it('spells out the down-time abbreviations the way the mill does', function () {
 it('shows available milling hours per line, computed from that line own hours', function () {
     $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
 
-    $start = strpos($html, 'Distribusi Jam per Line');
+    // 'Milling Hours per Line' sejak commit 8d97485 (2026-10-02); teks lamanya
+    // 'Distribusi Jam per Line' sudah tidak ada di halaman. Tanpa penjagaan di
+    // bawah, strpos() mengembalikan false, substr() membaca dari AWAL halaman,
+    // dan dua dari empat test ini tetap hijau atas wilayah yang salah.
+    $start = strpos($html, 'Milling Hours per Line');
+    expect($start)->not->toBeFalse();
     $block = substr($html, $start, strpos($html, 'Kualitas', $start) - $start);
 
     // Total downtime = CDT + SDT + EDT. Line 1: 8.50 + 1.50 + 3.00 = 13.00 ; Line 2: 13.50.
@@ -133,7 +138,12 @@ it('shows available milling hours per line, computed from that line own hours', 
 it('keeps available milling hours and total downtime summing to 24', function () {
     $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
 
-    $start = strpos($html, 'Distribusi Jam per Line');
+    // 'Milling Hours per Line' sejak commit 8d97485 (2026-10-02); teks lamanya
+    // 'Distribusi Jam per Line' sudah tidak ada di halaman. Tanpa penjagaan di
+    // bawah, strpos() mengembalikan false, substr() membaca dari AWAL halaman,
+    // dan dua dari empat test ini tetap hijau atas wilayah yang salah.
+    $start = strpos($html, 'Milling Hours per Line');
+    expect($start)->not->toBeFalse();
     $block = substr($html, $start, strpos($html, 'Kualitas', $start) - $start);
 
     // Total downtime dari label, Available Milling Hours dari segmen hijau — dua
@@ -173,7 +183,12 @@ it('reports reliability as available milling hours and total downtime, not EE an
 it('derives the hours table so downtime and milling hours close back to Available', function () {
     $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
 
-    $start = strpos($html, 'Hours per Line');
+    // Markup penutup judul panel, bukan teks telanjang: judul grafik
+    // <h3>Milling Hours per Line</h3> MEMUAT substring 'Hours per Line', jadi
+    // jangkar lama menangkap grafik itu alih-alih panel tabelnya. Judul panel
+    // dirender <h4 class="dmr-panel__title">.
+    $start = strpos($html, '>Hours per Line</h4>');
+    expect($start)->not->toBeFalse();
     $table = substr($html, $start, strpos($html, '</table>', $start) - $start);
 
     $row = function (string $label) use ($table): array {
@@ -203,7 +218,12 @@ it('derives the hours table so downtime and milling hours close back to Availabl
 it('prints a figure on every hour segment wide enough to hold one', function () {
     $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
 
-    $start = strpos($html, 'Distribusi Jam per Line');
+    // 'Milling Hours per Line' sejak commit 8d97485 (2026-10-02); teks lamanya
+    // 'Distribusi Jam per Line' sudah tidak ada di halaman. Tanpa penjagaan di
+    // bawah, strpos() mengembalikan false, substr() membaca dari AWAL halaman,
+    // dan dua dari empat test ini tetap hijau atas wilayah yang salah.
+    $start = strpos($html, 'Milling Hours per Line');
+    expect($start)->not->toBeFalse();
     $block = substr($html, $start, strpos($html, 'Kualitas', $start) - $start);
 
     preg_match_all('/<span style="width: ([\d.]+)%[^>]*>([^<]*)<\/span>/', $block, $m);
@@ -227,7 +247,12 @@ it('prints a figure on every hour segment wide enough to hold one', function () 
 it('sizes each bar against that line own available hours', function () {
     $html = Livewire::actingAs($this->user)->test(DashboardHome::class)->html();
 
-    $start = strpos($html, 'Distribusi Jam per Line');
+    // 'Milling Hours per Line' sejak commit 8d97485 (2026-10-02); teks lamanya
+    // 'Distribusi Jam per Line' sudah tidak ada di halaman. Tanpa penjagaan di
+    // bawah, strpos() mengembalikan false, substr() membaca dari AWAL halaman,
+    // dan dua dari empat test ini tetap hijau atas wilayah yang salah.
+    $start = strpos($html, 'Milling Hours per Line');
+    expect($start)->not->toBeFalse();
     $block = substr($html, $start, strpos($html, 'Kualitas', $start) - $start);
 
     preg_match_all('/<span style="width: ([\d.]+)%/', $block, $m);

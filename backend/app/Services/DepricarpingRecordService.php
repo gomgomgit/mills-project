@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
+use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * DepricarpingRecordService — screen-051--data-browser-depricarping-web /
@@ -69,7 +70,7 @@ use Throwable;
  */
 class DepricarpingRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill;
+    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -220,7 +221,7 @@ class DepricarpingRecordService
         return collect($rawDetails)
             ->map(fn ($row) => [
                 'id' => $row['id'] ?? null,
-                'time_slot' => $row['time_slot'] ?? null,
+                'time_slot' => $this->canonicalTimeSlot($row['time_slot'] ?? null),
                 'fan_static_pressure_mmh2o' => $row['fan_static_pressure_mmh2o'] ?? null,
                 'polishing_drum_speed_rpm' => $row['polishing_drum_speed_rpm'] ?? null,
                 'air_velocity_ms' => $row['air_velocity_ms'] ?? null,

@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
+use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * StorageTankRecordService — screen-096--data-browser-storage-tank-web /
@@ -56,7 +57,7 @@ use Throwable;
  */
 class StorageTankRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill;
+    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -229,7 +230,7 @@ class StorageTankRecordService
             ->map(function ($row) {
                 $normalized = [
                     'id' => $row['id'] ?? null,
-                    'time_slot' => $row['time_slot'] ?? null,
+                    'time_slot' => $this->canonicalTimeSlot($row['time_slot'] ?? null),
                 ];
 
                 foreach (self::DETAIL_FIELDS as $field) {

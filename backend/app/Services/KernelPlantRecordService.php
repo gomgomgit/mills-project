@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
+use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * KernelPlantRecordService — screen-052--data-browser-kernel-plant-web /
@@ -69,7 +70,7 @@ use Throwable;
  */
 class KernelPlantRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill;
+    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -220,7 +221,7 @@ class KernelPlantRecordService
         return collect($rawDetails)
             ->map(fn ($row) => [
                 'id' => $row['id'] ?? null,
-                'time_slot' => $row['time_slot'] ?? null,
+                'time_slot' => $this->canonicalTimeSlot($row['time_slot'] ?? null),
                 'ripple_mill_1_amps' => $row['ripple_mill_1_amps'] ?? null,
                 'ripple_mill_2_amps' => $row['ripple_mill_2_amps'] ?? null,
                 'claybath_hydro_sg' => $row['claybath_hydro_sg'] ?? null,

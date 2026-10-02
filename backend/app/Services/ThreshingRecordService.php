@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
+use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * ThreshingRecordService — screen-049--data-browser-threshing-web /
@@ -59,7 +60,7 @@ use Throwable;
  */
 class ThreshingRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill;
+    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -209,7 +210,7 @@ class ThreshingRecordService
         return collect($rawDetails)
             ->map(fn ($row) => [
                 'id' => $row['id'] ?? null,
-                'time_slot' => $row['time_slot'] ?? null,
+                'time_slot' => $this->canonicalTimeSlot($row['time_slot'] ?? null),
                 'ffb_throughput_mt_hour' => $row['ffb_throughput_mt_hour'] ?? null,
                 'thresher_drum_speed_rpm' => $row['thresher_drum_speed_rpm'] ?? null,
                 'motor_current_amps' => $row['motor_current_amps'] ?? null,

@@ -147,7 +147,15 @@ test.describe('Form Weighbridge (Web)', () => {
     await page.locator('[data-testid="business-unit-select"]').selectOption({ label: BUSINESS_UNIT_NAME });
     await page.locator('[data-testid="save-button"]').click();
 
-    await expect(page.locator('.fw-field__error')).toContainText('WB Card Number');
+    // DISARING KE SATU SPAN, sejak 2026-10-02. Mengosongkan form memunculkan
+    // SEBERAPA PUN galat inline sekaligus (beberapa di layar ini), dan
+    // `expect(locator)` Playwright berjalan dalam strict mode: locator yang
+    // cocok ke lebih dari satu elemen DITOLAK, bukan dicocokkan ke salah
+    // satunya. Jadi asersi lama gagal sebagai "strict mode violation" —
+    // bukan karena pesannya tidak ada, melainkan karena ada yang lain di
+    // sebelahnya. Menyaring ke span yang memuat teksnya tetap menuntut
+    // pesan itu benar-benar muncul.
+    await expect(page.locator('.fw-field__error').filter({ hasText: 'WB Card Number' })).toBeVisible();
   });
 
   // Scenario: "Business Unit Tanpa Station Weighbridge Aktif"

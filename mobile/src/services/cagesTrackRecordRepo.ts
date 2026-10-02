@@ -1,4 +1,5 @@
 import { query, run } from '@/services/localDb'
+import { resolveActiveStationId } from '@/services/activeStation'
 
 /**
  * cagesTrackRecordRepo — screen-009--monitor-cages-track /
@@ -450,13 +451,18 @@ export async function getProgressSummary(userId: string): Promise<CagesTrackProg
  * it.
  */
 export async function createDraft(userId: string): Promise<string> {
+  // Stasiun tempat draft ini DIBUAT, bukan yang kebetulan terpilih saat sync.
+  // Null bila belum ada line terpilih atau cache stasiun masih kosong — lihat
+  // src/services/activeStation.ts.
+  const stationId = await resolveActiveStationId('cages-track', userId)
+
   const id = generateId()
   const timestamp = nowIso()
 
   await run(
-    `INSERT INTO cages_track_record (id, status, created_by, tippler_start_time, created_at, updated_at)
-     VALUES (?, 'draft_ongoing', ?, ?, ?, ?)`,
-    [id, userId, timestamp, timestamp, timestamp],
+    `INSERT INTO cages_track_record (id, status, created_by, station_id, tippler_start_time, created_at, updated_at)
+     VALUES (?, 'draft_ongoing', ?, ?, ?, ?, ?)`,
+    [id, userId, stationId, timestamp, timestamp, timestamp],
   )
 
   return id

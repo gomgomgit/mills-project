@@ -1,4 +1,5 @@
 import { query, run } from '@/services/localDb'
+import { resolveActiveStationId } from '@/services/activeStation'
 
 /**
  * sterilizerRecordRepo — screen-121--monitor-sterilizer /
@@ -237,13 +238,18 @@ export function computeDurationMinutes(closeDoorTime: string | null, openDoorTim
  * sekali saat draft baru dibuat, tidak dapat diedit manual").
  */
 export async function createDraft(userId: string): Promise<string> {
+  // Stasiun tempat draft ini DIBUAT, bukan yang kebetulan terpilih saat sync.
+  // Null bila belum ada line terpilih atau cache stasiun masih kosong — lihat
+  // src/services/activeStation.ts.
+  const stationId = await resolveActiveStationId('sterilizer', userId)
+
   const id = generateId()
   const timestamp = nowIso()
 
   await run(
-    `INSERT INTO sterilizer_record (id, status, created_by, date, created_at, updated_at)
-     VALUES (?, 'draft_ongoing', ?, ?, ?, ?)`,
-    [id, userId, todayDateString(), timestamp, timestamp],
+    `INSERT INTO sterilizer_record (id, status, created_by, station_id, date, created_at, updated_at)
+     VALUES (?, 'draft_ongoing', ?, ?, ?, ?, ?)`,
+    [id, userId, stationId, todayDateString(), timestamp, timestamp],
   )
 
   return id

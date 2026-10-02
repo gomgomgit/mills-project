@@ -1,4 +1,5 @@
 import { query, run } from '@/services/localDb'
+import { resolveActiveStationId } from '@/services/activeStation'
 
 /**
  * storageTankRecordRepo — screen-066--monitor-storage-tank /
@@ -282,13 +283,18 @@ function isRowFilled(row: {
  * caller can navigate to Form Storage Tank with it.
  */
 export async function createDraft(userId: string): Promise<string> {
+  // Stasiun tempat draft ini DIBUAT, bukan yang kebetulan terpilih saat sync.
+  // Null bila belum ada line terpilih atau cache stasiun masih kosong — lihat
+  // src/services/activeStation.ts.
+  const stationId = await resolveActiveStationId('storage-tank', userId)
+
   const id = generateId()
   const timestamp = nowIso()
 
   await run(
-    `INSERT INTO storage_tank_record (id, status, created_by, date, created_at, updated_at)
-     VALUES (?, 'draft_ongoing', ?, ?, ?, ?)`,
-    [id, userId, timestamp, timestamp, timestamp],
+    `INSERT INTO storage_tank_record (id, status, created_by, station_id, date, created_at, updated_at)
+     VALUES (?, 'draft_ongoing', ?, ?, ?, ?, ?)`,
+    [id, userId, stationId, timestamp, timestamp, timestamp],
   )
 
   return id

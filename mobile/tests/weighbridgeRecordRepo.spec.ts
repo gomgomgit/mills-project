@@ -190,7 +190,7 @@ describe('weighbridgeRecordRepo', () => {
       expect(run).toHaveBeenCalledTimes(1)
       expect(run).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO weighbridge_record'),
-        [id, USER_ID, expect.any(String), expect.any(String)],
+        [id, USER_ID, null, expect.any(String), expect.any(String)],
       )
     })
   })

@@ -245,7 +245,7 @@ describe('gradingRecordRepo', () => {
       expect(run).toHaveBeenCalledTimes(1)
       expect(run).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO grading_record'),
-        [id, USER_ID, expect.any(String), expect.any(String)],
+        [id, USER_ID, null, expect.any(String), expect.any(String)],
       )
     })
 
@@ -255,7 +255,7 @@ describe('gradingRecordRepo', () => {
       await createDraft(USER_ID)
 
       const [sql] = vi.mocked(run).mock.calls[0]
-      expect(sql).toContain("VALUES (?, 'draft_ongoing', ?, ?, ?)")
+      expect(sql).toContain("VALUES (?, 'draft_ongoing', ?, ?, ?, ?)")
     })
   })
 

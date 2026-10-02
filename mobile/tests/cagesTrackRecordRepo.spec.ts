@@ -270,15 +270,21 @@ describe('cagesTrackRecordRepo', () => {
       expect(run).toHaveBeenCalledTimes(1)
       const [sql, params] = vi.mocked(run).mock.calls[0]
       expect(sql).toContain(
-        'INSERT INTO cages_track_record (id, status, created_by, tippler_start_time, created_at, updated_at)',
+        'INSERT INTO cages_track_record (id, status, created_by, station_id, tippler_start_time, created_at, updated_at)',
       )
-      expect(sql).toContain("VALUES (?, 'draft_ongoing', ?, ?, ?, ?)")
-      expect(params).toEqual([id, USER_ID, expect.any(String), expect.any(String), expect.any(String)])
-      // tippler_start_time (index 2) is set to the SAME timestamp as
-      // created_at (index 3) / updated_at (index 4) — the "auto-fill once,
-      // at draft creation" rule.
-      expect(params[2]).toBe(params[3])
+      expect(sql).toContain("VALUES (?, 'draft_ongoing', ?, ?, ?, ?, ?)")
+      // station_id null: resolveActiveStationId() membaca Production Line yang
+      // diingat dari localStorage, yang kosong di lingkungan test, jadi ia pulang
+      // null tanpa menyentuh query(). Perilaku resolusinya diuji terpisah di
+      // tests/activeStation.spec.ts.
+      expect(params).toEqual([id, USER_ID, null, expect.any(String), expect.any(String), expect.any(String)])
+      // tippler_start_time (index 3) is set to the SAME timestamp as
+      // created_at (index 4) / updated_at (index 5) — the "auto-fill once,
+      // at draft creation" rule. Indeksnya bergeser satu sejak station_id
+      // masuk di posisi 2 (2026-10-02); asersi posisional memang begitu, dan
+      // itulah sebabnya ia dikomentari dengan nama kolomnya, bukan angkanya saja.
       expect(params[3]).toBe(params[4])
+      expect(params[4]).toBe(params[5])
     })
   })
 

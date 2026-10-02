@@ -189,8 +189,13 @@ describe('processQualityControlRecordRepo', () => {
 
       const [headerSql, headerParams] = vi.mocked(run).mock.calls[0]
       expect(headerSql).toContain('INSERT INTO process_quality_control_record')
-      expect(headerSql).toContain("VALUES (?, 'draft_ongoing', ?, ?, ?, ?)")
-      expect(headerParams).toEqual([id, USER_ID, expect.any(String), expect.any(String), expect.any(String)])
+      expect(headerSql).toContain("VALUES (?, 'draft_ongoing', ?, ?, ?, ?, ?)")
+            // station_id null di sini, dan itu memang yang diharapkan: resolveActiveStationId()
+      // membaca Production Line yang diingat dari localStorage, yang kosong di
+      // lingkungan test — jadi ia pulang null tanpa menyentuh query(). Yang dijaga
+      // asersi ini adalah kolomnya benar-benar DITULIS; perilaku resolusinya sendiri
+      // diuji di tests/activeStation.spec.ts.
+      expect(headerParams).toEqual([id, USER_ID, null, expect.any(String), expect.any(String), expect.any(String)])
     })
   })
 

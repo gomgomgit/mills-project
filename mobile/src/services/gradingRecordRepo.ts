@@ -1,4 +1,5 @@
 import { query, run } from '@/services/localDb'
+import { resolveActiveStationId } from '@/services/activeStation'
 
 /**
  * gradingRecordRepo — screen-008--monitor-grading /
@@ -534,13 +535,18 @@ export async function getAllRecords(userId: string): Promise<GradingRecord[]> {
  * record's id so the caller can navigate to Form Grading with it.
  */
 export async function createDraft(userId: string): Promise<string> {
+  // Stasiun tempat draft ini DIBUAT, bukan yang kebetulan terpilih saat sync.
+  // Null bila belum ada line terpilih atau cache stasiun masih kosong — lihat
+  // src/services/activeStation.ts.
+  const stationId = await resolveActiveStationId('grading', userId)
+
   const id = generateId()
   const timestamp = nowIso()
 
   await run(
-    `INSERT INTO grading_record (id, status, created_by, created_at, updated_at)
-     VALUES (?, 'draft_ongoing', ?, ?, ?)`,
-    [id, userId, timestamp, timestamp],
+    `INSERT INTO grading_record (id, status, created_by, station_id, created_at, updated_at)
+     VALUES (?, 'draft_ongoing', ?, ?, ?, ?)`,
+    [id, userId, stationId, timestamp, timestamp],
   )
 
   return id

@@ -9,3 +9,8 @@
 
 ## Temuan gap lintas-screen (konsisten dengan screen-013)
 MonitorGradingView.vue (screen-008) tombol "Buka Data Preview" navigasi ke data-preview-grading TANPA parameter id — situasi identik dengan screen-007/013. Route sendiri benar terdaftar, hanya belum dipakai dengan id oleh pemanggilnya.
+
+## v4 — 2026-10-03
+
+Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan (49dc0c5, 0594c63); kode tidak diubah.
+- Test yang dikutip: backend/tests/Feature/Api/RecordVerificationTest.php (blok kunci periode) dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; dicatat bahwa mobile/tests/recordVerification.spec.ts belum punya kasus PERIOD_CLOSED khusus (hanya offline). test_results tidak disentuh.

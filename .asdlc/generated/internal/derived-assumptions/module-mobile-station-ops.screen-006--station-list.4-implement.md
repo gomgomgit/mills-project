@@ -20,3 +20,9 @@
 - SVG path tiap icon override ditulis tangan (bukan dari library Lucide asli, karena package `lucide-vue-next` tidak terpasang di mobile) ← konsisten dengan pola 15 icon existing lain di file yang sama, sudah ada known_issue serupa sebelumnya
 - Icon override HANYA berlaku untuk tile aktif, tidak pernah untuk tile disabled/placeholder ← translasi langsung dari business_logic step 3 tech-spec, bukan asumsi baru
 - 1 test e2e di luar scope (form-cages-track.spec.ts) ditemukan gagal saat regresi penuh, dicatat sebagai known_issue tapi TIDAK diperbaiki (di luar directive screen-006 only) ← disiplin scope, bukan diabaikan begitu saja
+
+## v13 — 2026-10-03
+
+Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan (49dc0c5, 0594c63); kode tidak diubah.
+- Berkas test yang dikutip dipilih sendiri: backend/tests/Unit/Support/EnforcesPeriodLockTest.php, backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php, mobile/tests/syncService.spec.ts, mobile/tests/StationListView.spec.ts. Tidak ada test (mobile) yang memakai respons PERIOD_CLOSED secara spesifik; test mobile yang dikutip hanya mencakup galat generik.
+- test_results tidak disentuh; tidak ada test dijalankan (sesuai brief).

@@ -33,3 +33,8 @@ hanya beda bahasa):
 BELUM DIKERJAKAN: atribusi 5 endpoint machinery-group di api-index masih menunjuk
 screen-033. Tidak memengaruhi Phase 4 (generasi kode membaca tech spec layar, bukan
 api-index), tetapi tabel rujukannya salah sampai diperbaiki.
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v4)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

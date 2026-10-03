@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-011--form-grading",
   "name": "Form Grading",
@@ -132,6 +132,10 @@
         {
           "condition": "Clear ditekan",
           "handling": "Tampilkan dialog konfirmasi wajib sebelum DELETE dieksekusi"
+        },
+        {
+          "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Bila Weighbridge acuannya tertolak, Grading ikut gagal sinkron dengan alasan 'Weighbridge terkait belum tersinkron'. Pemulihan: Admin membuka kembali baris stasiun Grading di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
@@ -142,7 +146,8 @@
         "UOM tiap baris snapshot dari Quality Parameter yang dipilih, tidak dapat diedit manual",
         "Percentage dihitung otomatis berdasarkan uom baris (kg terhadap Netto, bunch terhadap Quantity)",
         "Tanggal otomatis sekali saat draft baru dibuat",
-        "Checked By tidak ditampilkan pada form ini"
+        "Checked By tidak ditampilkan pada form ini",
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron dari screen-006, bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'grading' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `date`"
       ],
       "unit_test_cases": [
         {
@@ -322,7 +327,8 @@
     "Opsi dropdown Quality Parameter per baris = computed reaktif atas seluruh detailRows.value (bukan hanya properti lokal baris itu) — setiap baris perlu tahu apa yang dipilih baris LAIN, sehingga computed ini harus bereaksi terhadap perubahan grading_parameter_id di baris manapun, bukan cuma baris dirinya sendiri",
     "Cakupan dropdown WB Card No: SEMUA record weighbridge_record lokal apa pun statusnya, urut arrival_datetime terbaru dulu — asumsi agent karena tidak ada instruksi eksplisit user soal filter tanggal/status; jika salah, cukup revisi query-nya tanpa mengubah struktur field lain",
     "Checked By TIDAK diimplementasikan pada form ini sama sekali (kolom checked_by di grading_record tetap ada di skema tapi tidak dibaca/ditulis dari screen ini) — mengikuti mock referensi yang tidak mencantumkannya",
-    "Percentage dan UOM tidak pernah diinput manual oleh user — keduanya read-only/computed di UI, hanya qty dan quality_parameter yang benar-benar interaktif per baris"
+    "Percentage dan UOM tidak pernah diinput manual oleh user — keduanya read-only/computed di UI, hanya qty dan quality_parameter yang benar-benar interaktif per baris",
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormGradingView tidak memanggil server sama sekali (stasiun ini tidak punya write-through; hanya sinkron manual dari screen-006 lewat POST /api/grading-records). Guard EnforcesPeriodLock::assertPeriodOpenForWrite('grading', mill, date) berjalan di GradingRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
   ],
   "test_scenarios": [
     {

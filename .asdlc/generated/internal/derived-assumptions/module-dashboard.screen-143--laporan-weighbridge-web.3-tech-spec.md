@@ -20,3 +20,8 @@ per-butir. 49 unit test dan 35 test scenario diturunkan `test-spec-writer-agent`
 - 49 `unit_test_cases` dan 35 `test_scenarios` ← diturunkan agent. `scenario_ref` diverifikasi cocok karakter-per-karakter DAN urutan dengan 35 `bdd_scenarios` usecase-146 v2; nol rujukan menggantung.
 
 - **CATATAN PROSES, bukan asumsi:** tulisan pertama artefak ini mendarat dengan `test_scenarios: []` — 35 skenario hilang karena payload 102 KB terlalu besar untuk satu panggilan dan agent menuliskan array kosong. Tertangkap oleh diff terhadap oracle yang dibangun sebelum menulis, lalu diperbaiki dengan satu panggilan `artifact__patch`. Artefak final diverifikasi byte-identical dengan oracle.
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v2)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

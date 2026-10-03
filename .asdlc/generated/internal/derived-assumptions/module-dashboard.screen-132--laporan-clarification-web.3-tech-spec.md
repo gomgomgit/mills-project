@@ -40,3 +40,8 @@
 - `unit_test_cases` = 7 kasus ditulis dalam BAHASA INDONESIA ← mengikuti gaya kasus yang sudah ada pada artefak ini.
 - `test_scenarios` = 5 skenario baru; hanya skenario pertama yang `browser_test`-nya diisi ← `e2e-web/tests/laporan-*.spec.ts` memang MEMILIH sebuah Production Line sebelum membaca angka, jadi "angka tampil setelah line dipilih" benar-benar dijalankan. Empat sisanya (angka satu line, line mill lain diabaikan, ekspor tersaring, stasiun dipindah) tidak punya asersi browser sama sekali, jadi ketiganya dikosongkan dan celahnya ditulis di `implementation_notes`.
 - Kasus "daftar periode tidak pernah tersaring per line" TIDAK dimasukkan ke `unit_test_cases` layar web ← uji dengan maksud itu ada di sisi mobile (repo + komponen + browser), tidak di suite web. Menuliskannya di sini akan melaporkan cakupan yang tidak ada.
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v4)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

@@ -16,3 +16,11 @@
 - "Cages Tipped header dikunci setelah baris pertama dibuat" (open question v2) DIHAPUS dari implementation_notes — tidak lagi relevan karena N tidak lagi bersumber dari header tsb ← inferensi agent, konsekuensi langsung dari perubahan sumber N
 - 6 unit test baru/diubah untuk mencerminkan sumber N yang baru (mill_setting, bukan cages_tipped header), termasuk test eksplisit bahwa nilai header Cages Tipped TIDAK memengaruhi jumlah kolom ← turunan langsung dari perubahan bisnis, derivasi manual (bukan test-spec-writer-agent, fork tidak bisa spawn subagent)
 - 1 test_scenario baru "Jumlah Kolom Grid Mengikuti Mills Setting, Bukan Cages Tipped Header" ditambahkan; 12 skenario lain dipertahankan verbatim dari v2 karena tidak terdampak ← sama, derivasi manual
+
+## v4 — 2026-10-03
+
+Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan (49dc0c5, 0594c63); kode tidak diubah.
+- Tidak menambah unit_test_cases: form tidak punya logika periode untuk diuji (simpan lokal tanpa cek periode).
+- Dikonfirmasi dari kode: form ini tidak mengimpor syncAfterSave/apiClient — stasiun ini tidak punya write-through (pushSavedRecordNow hanya mencakup 15 stasiun seragam).
+- Dikonfirmasi dari kode: form hanya membuka draft (draft_ongoing/draft_paused) — Data Preview mengarahkan record saved/synced ke layar preview, bukan form — sehingga tidak ada jalur edit/PATCH record tersinkron.
+- Kalimat edge case/aturan/catatan dirumuskan sendiri; 'pemulihan = Admin membuka kembali baris stasiun di screen-142 lalu sinkron ulang' mengikuti brief.

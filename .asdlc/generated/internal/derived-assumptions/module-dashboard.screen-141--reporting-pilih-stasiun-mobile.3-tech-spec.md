@@ -19,3 +19,8 @@
 - `api_contracts[0].endpoints` dibiarkan `[]` ← layar ini wajib nol pemanggilan jaringan, termasuk untuk memperoleh line. Menambahkan endpoint daftar line di sini akan meruntuhkan aturan yang paling menentukan bagi layar ini.
 - `test_scenarios` = hanya DUA skenario baru ← enam uji komponen dan dua uji browser yang ada semuanya membuktikan dua perilaku saja (line terbawa; tanpa ingatan query dibiarkan kosong). Memecahnya menjadi enam skenario akan membuat artefak tampak punya cakupan lebih luas daripada yang diuji.
 - Kedua `browser_test` DIISI ← `mobile/tests/e2e/reporting-pilih-stasiun.spec.ts` benar-benar memuat keduanya ("menekan tile stasiun mendaratkan laporan yang SUDAH terisi Production Line-nya" dan "tanpa ingatan line, tile tetap berpindah").
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v2)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

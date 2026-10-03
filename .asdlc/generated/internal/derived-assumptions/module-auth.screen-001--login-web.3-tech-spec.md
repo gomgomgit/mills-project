@@ -7,3 +7,8 @@
 - Urutan 7-langkah business_logic dengan percabangan ← translasi teknis dari main_flow usecase
 - Implementation note: rate limiting/lockout belum diputuskan ← open question di business spec, dicatat sebagai catatan implementasi bukan keputusan final
 - Implementation note: sesi login ganda tidak dibatasi di MVP ← open question di business spec, dicatat sebagai catatan implementasi bukan keputusan final
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v1)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

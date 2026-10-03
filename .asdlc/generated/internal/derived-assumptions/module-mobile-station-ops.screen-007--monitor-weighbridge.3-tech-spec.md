@@ -23,3 +23,8 @@
 - Query counter butuh fungsi repo BARU getTodaySummary(userId) ← tidak ada fungsi existing yang agregat khusus "hari ini"; ringkasan lama (dihapus di v3) agregat semua waktu, scope berbeda
 - Counter filter pakai date(arrival_datetime) = date('now','localtime') di SQLite ← "hari ini" berarti tanggal lokal device, bukan UTC
 - Ditulis langsung tanpa delegasi test-spec-writer-agent (perubahan aditif kecil) — 3 unit test baru + 2 test_scenario baru ditambahkan manual mengikuti pola yang sudah ada
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v5)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

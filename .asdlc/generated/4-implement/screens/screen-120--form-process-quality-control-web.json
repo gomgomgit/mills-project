@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-120--form-process-quality-control-web",
   "name": "Form Process Quality Control (Web)",
@@ -29,7 +29,8 @@
     "Route /data/process-quality-control/create registered BEFORE /data/process-quality-control/{id} (screen-110) so the literal 'create' segment is not swallowed by {id}",
     "checked/acknowledged self-attestation checkboxes mirror FormClarification's dual-checkbox pattern (both Checked By AND Acknowledged By)",
     "NoActiveProcessQualityControlStationException (mirrors NoActiveClarificationStationException) thrown when production_line_id has no active station type=process-quality-control",
-    "This is the FINAL screen of the FINAL (10th) station implemented in this project -- all 10 stations from the 2026-08-31 batch (Solid Waste Disposal, Process Water, Kernel Dispatch, CPO Dispatch, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Clarification, Process Quality Control) are now fully implemented end-to-end (mobile + web) with all Data Browser tiles routed on Production Process Activity"
+    "This is the FINAL screen of the FINAL (10th) station implemented in this project -- all 10 stations from the 2026-08-31 batch (Solid Waste Disposal, Process Water, Kernel Dispatch, CPO Dispatch, Effluent Plant, Storage Tank, Engine Room, Boiler Room, Clarification, Process Quality Control) are now fully implemented end-to-end (mobile + web) with all Data Browser tiles routed on Production Process Activity",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): ProcessQualityControlRecordService::create() memanggil assertPeriodOpenForWrite('process-quality-control', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormProcessQualityControl::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/ProcessQualityControlRecordServiceTest.php, tests/Feature/Api/FormProcessQualityControlTest.php, tests/Feature/Livewire/FormProcessQualityControlTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [

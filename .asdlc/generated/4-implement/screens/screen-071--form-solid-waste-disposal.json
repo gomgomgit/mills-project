@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-071--form-solid-waste-disposal",
   "name": "Form Solid Waste Disposal",
@@ -24,7 +24,8 @@
     "Save/Simpan button is `type=\"button\"` with a direct `@click=\"onSimpan\"` handler (NOT `type=\"submit\"` relying on the enclosing `<form>`'s @submit.prevent) — mirrors FormCagesTrackView.vue's exact convention; jsdom (the Vitest test environment) does not implement the native submit-button-triggers-form-submission behavior, so a submit-button-based approach would silently never invoke the handler under test",
     "Net Weight (MT) computed client-side (gross_weight_mt - tare_weight_mt) via rowNetWeight()/buildDetailPayload(), recomputed immediately before every save call — same 'computed then persisted' pattern as CagesTippedTimeFormRow.total_cages",
     "Hapus baris follows the queue-for-deletion pattern (a row with an existing id is queued in pendingDeletionIds, only actually DELETEd by the repo on the next Simpan/Pause call) — consistent with Form Cages Track",
-    "FormField ids given explicitly (id=\"solid_waste_disposal_id\", id=\"date\") rather than relying on FormField's auto-derived label-slug id, for stable, predictable test selectors"
+    "FormField ids given explicitly (id=\"solid_waste_disposal_id\", id=\"date\") rather than relying on FormField's auto-derived label-slug id, for stable, predictable test selectors",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormSolidWasteDisposalView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('solid_waste_disposal_record') → pushSavedRecordNow → POST /api/solid-waste-disposal-records bila Mills Setting immediate_sync_enabled aktif, dan penolakannya (termasuk 422 PERIOD_CLOSED) DIAM — record tetap 'saved' dan alasannya baru tampil di SyncResultDialog pada sinkron manual screen-006. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('solid-waste-disposal', mill, date) di SolidWasteDisposalRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik). Kegagalan write-through yang diam dicakup secara generik oleh mobile/tests/writeThroughSync.spec.ts."
   ],
   "deferred_items": [],
   "known_issues": [

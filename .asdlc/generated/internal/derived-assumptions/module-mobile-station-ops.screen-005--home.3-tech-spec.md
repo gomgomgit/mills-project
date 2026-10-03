@@ -14,3 +14,8 @@
 - screen_dependencies: dependensi ke screen-010/011/012 (lanjutkan draft paused) DIHAPUS ← fitur lanjutkan draft paused sudah tidak ada di Home; hanya screen-006 (Station List) yang tersisa sebagai dependency
 - implementation_notes: hero image adalah aset statis dibundle di aplikasi, bukan diserve dari API ← konsekuensi teknis dari keputusan bisnis "boleh cari di Unsplash" (aset gambar, bukan endpoint)
 - test scenarios derived: 0 unit-service (tidak ada backend), 7 unit test (level komponen/frontend), 0 API, 4 component, 4 browser ← delegated ke test-spec-writer-agent dari Phase 2 bdd_scenarios (yang sudah diganti total di v2 usecase-005), tidak ditanyakan ke user (autopilot)
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v4)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

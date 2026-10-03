@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-020--detail-grading-web",
   "name": "Detail Grading (Web)",
@@ -34,7 +34,8 @@
     "Field grouping & urutan field di blade view sengaja MENIRU PERSIS mobile/src/views/DataPreviewGradingView.vue mode detail (Grading Number, Tanggal, WB Card Number, License Plate No, Vehicle Code, Estate, Divisi, Netto (kg), Quantity (bunch), Note, grid Grading Detail, Acknowledged By) per arahan eksplisit: web station screens mengikuti flow/UX mobile, tidak didesain independen",
     "Route /grading-records/{id} didaftarkan SETELAH /grading-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}",
     "Route /data/grading/{id} mengaktifkan kembali affordance clickable-row yang sudah lebih dulu dibangun (guarded via Route::has('data.grading.detail')) di screen-017's Blade view — tidak ada perubahan pada screen-017 selain test yang di-update untuk mencerminkan perilaku baru ini",
-    "Layout Blade terpisah (grading-detail.blade.php) dari screen-017 (grading.blade.php) karena Blade #[Layout(...)] tidak menerima parameter untuk judul header yang berbeda — shell/sidebar disalin identik dari layout screen-017 (termasuk link Kelola Station/Machinery Group/Machinery/Mills Setting yang sudah lebih dulu ditambahkan ke sidebar tersebut)"
+    "Layout Blade terpisah (grading-detail.blade.php) dari screen-017 (grading.blade.php) karena Blade #[Layout(...)] tidak menerima parameter untuk judul header yang berbeda — shell/sidebar disalin identik dari layout screen-017 (termasuk link Kelola Station/Machinery Group/Machinery/Mills Setting yang sudah lebih dulu ditambahkan ke sidebar tersebut)",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): aksi verifikasi langsung di layar Detail (approve/un-approve, 2026-09-14) sebelumnya TIDAK terdokumentasi sama sekali di artefak ini. backend/app/Livewire/Data/DetailGrading.php memakai trait backend/app/Livewire/Data/Concerns/HandlesRecordVerification.php (verificationModelClass()=GradingRecord::class) dan blade-nya merender aksi lewat canCheck()/canAcknowledge() + :message=$verificationMessage — Grading hanya Acknowledged By (canCheck() selalu false). Aksi memanggil backend/app/Services/RecordVerificationService.php::setVerification() (jalur tulis keempat): peran -> cakupan mill (403) -> assertPeriodOpenForWrite('grading', mill stasiun record, `date` record) -> 422 PERIOD_CLOSED sebelum kolom berubah -> baru tulis checked_by/acknowledged_by. Sejak fix 0594c63 HandlesRecordVerification menangkap HttpException sehingga penolakan periode tampil sebagai alert $verificationMessage (sebelumnya 422 mentah). Padanan API: PATCH /api/records/{stationType}/{id}/verification (RecordVerificationController). Diuji: backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...'; trait bersama, diwakili DetailCagesTrack, plus kasus khusus Grading tanpa Checked By), backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED setujui & batalkan), backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist)."
   ],
   "deferred_items": [],
   "known_issues": [

@@ -8,3 +8,8 @@
 - logo validation rule (jpg/png, max 2MB) ← not specified anywhere, inferred as a reasonable default file-upload constraint, mirrors typical Laravel validation patterns; flagged since no source document specifies exact limits
 - logo_url as the response field name (vs `logo` as the request/upload field name) ← mirrors machinery.picture_url's request-vs-response naming split, kept consistent across the two entities that now have image uploads
 - corporate_code and name both required+unique independently (not one superseding the other) ← direct continuation of the entity-catalog v4 decision already logged there
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v2)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

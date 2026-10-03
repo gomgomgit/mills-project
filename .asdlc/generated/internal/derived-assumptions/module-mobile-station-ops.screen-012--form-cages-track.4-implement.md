@@ -9,3 +9,9 @@
 
 ## Catatan proses (bukan derived assumption teknis)
 Selama implementasi screen ini, sub-agent code-writer dan test-writer melaporkan tool Read/Edit tidak tersedia di sesi mereka (hanya Bash+Write) — bekerja-sekitar via pola tulis-file-baru+mv atau cat+Write. Setiap file yang dihasilkan lewat pola ini (cagesTrackRecordRepo.ts, router/index.ts, cagesTrackRecordRepo.spec.ts, FormCagesTrackView.spec.ts) diverifikasi langsung oleh command (dibaca penuh) sebelum dianggap aman — semua isinya benar dan konsisten dengan pola screen sebelumnya, tidak ada kode berbahaya atau kehilangan data.
+
+## v5 — 2026-10-03
+
+Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan (49dc0c5, 0594c63); kode tidak diubah.
+- Berkas test yang dikutip dipilih sendiri: backend/tests/Unit/Support/EnforcesPeriodLockTest.php, backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php, mobile/tests/syncService.spec.ts. Tidak ada test (mobile) yang memakai respons PERIOD_CLOSED secara spesifik; test mobile yang dikutip hanya mencakup galat generik.
+- test_results tidak disentuh; tidak ada test dijalankan (sesuai brief).

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-085--data-preview-effluent-plant",
   "name": "Data Preview Effluent Plant",
@@ -21,7 +21,8 @@
     "Dual-mode component (list/detail driven by :id? route param), mirrors DataPreviewProcessWaterView.vue's watch()-driven mode switch exactly",
     "Detail mode renders the Effluent Plant Detail grid read-only straight from stored columns (no recomputation, historical data), however many rows the record actually has, plus an empty-state message for zero rows",
     "Checked By/Acknowledged By rendered read-only with no role restriction on viewing, consistent with Data Preview Process Water and this screen's business spec",
-    "UNLIKE Data Preview Threshing/Process Water: this screen has NO operational-target reference table section, per this station's explicit scope; UNLIKE Data Preview Process Water specifically, all 19 non-time_slot detail columns (including 3 enum status columns) are rendered in the detail-row grid since there are no identifying/context columns to treat differently"
+    "UNLIKE Data Preview Threshing/Process Water: this screen has NO operational-target reference table section, per this station's explicit scope; UNLIKE Data Preview Process Water specifically, all 19 non-time_slot detail columns (including 3 enum status columns) are rendered in the detail-row grid since there are no identifying/context columns to treat differently",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): mode detail memasang RecordVerificationActions (station-type='effluent-plant', local-table='effluent_plant_record') yang memanggil PATCH /api/records/effluent-plant/{server_id}/verification; backend RecordVerificationService::setVerification menerapkan peran + cakupan mill lalu assertPeriodOpenForWrite (EnforcesPeriodLock) atas `date` record sebelum menulis — periode stasiun tidak terbuka / tanggal di luar rentang → 422 PERIOD_CLOSED tanpa perubahan kolom; komponen menampilkan pesan server dan baris lokal tidak diperbarui (UPDATE lokal hanya setelah sukses); offline → pesan 'Butuh koneksi internet untuk verifikasi'. Tercakup oleh backend/tests/Feature/Api/RecordVerificationTest.php (blok 'kunci periode pada jalur verifikasi') dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; mobile/tests/recordVerification.spec.ts mencakup galat offline tetapi belum punya kasus PERIOD_CLOSED khusus."
   ],
   "deferred_items": [],
   "known_issues": [

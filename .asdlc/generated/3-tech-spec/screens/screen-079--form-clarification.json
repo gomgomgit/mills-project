@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-079--form-clarification",
   "name": "Form Clarification",
@@ -100,6 +100,10 @@
         {
           "condition": "Back ditekan saat form dirty",
           "handling": "ConfirmDialog ditampilkan sebelum navigasi keluar tanpa menyimpan"
+        },
+        {
+          "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Pengecualian: bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mencoba mengirim record ini ke server (writeThroughSync.syncAfterSave('clarification_record') → syncService.pushSavedRecordNow → POST /api/clarification-records); penolakan 422 PERIOD_CLOSED pada kiriman langsung ini DIAM by design — form tetap bernavigasi ke Monitor tanpa pesan, record tetap 'saved', alasannya tidak disimpan — dan baru terlihat pada sinkron manual berikutnya di screen-006. Pemulihan: Admin membuka kembali baris stasiun Clarification di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
@@ -108,7 +112,8 @@
         "Grid Clarification Detail dinamis 0..24 baris, ditambah/dihapus satu per satu",
         "Time-Slot tiap baris unik dan urutan menaik kanonis",
         "Minimal satu baris valid sebelum Simpan (tidak berlaku untuk Pause)",
-        "Clarification ID wajib diisi sebelum Simpan (tidak berlaku untuk Pause)"
+        "Clarification ID wajib diisi sebelum Simpan (tidak berlaku untuk Pause)",
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron (manual dari screen-006, atau kiriman langsung saat Simpan bila immediate_sync_enabled aktif), bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'clarification' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `date`"
       ],
       "unit_test_cases": [
         {
@@ -173,7 +178,8 @@
     "6 kolom bacaan numerik + Findings (7 non-time_slot columns total) per baris — TANPA kolom enum/status, TANPA kolom teks-satuan-campuran; hanya Findings yang berupa teks bebas",
     "isRowFilled() mengecek seluruh 7 kolom non-time_slot (numerik !== null ATAU findings bukan null dan bukan '')",
     "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak ada CollapsibleSection/read-only reference data pada layar ini",
-    "Field urutan pada grid & form mengikuti urutan kolom migration clarification_details persis: Clarification Tank Temp → Oil Tank Temperature → Sludge Tank Temp → Buffer Tank Level → Pure Oil Production Rate → Downtime → Findings"
+    "Field urutan pada grid & form mengikuti urutan kolom migration clarification_details persis: Clarification Tank Temp → Oil Tank Temperature → Sludge Tank Temp → Buffer Tank Level → Pure Oil Production Rate → Downtime → Findings",
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormClarificationView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('clarification_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/clarification-records, create), kegagalannya diam. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('clarification', mill, date) berjalan di ClarificationRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
   ],
   "test_scenarios": [
     {

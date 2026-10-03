@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-107--detail-engine-room-web",
   "name": "Detail Engine Room (Web)",
@@ -108,6 +108,78 @@
             "cache": "No cache",
             "rate_limit": ""
           }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/records/{stationType}/{id}/verification",
+          "description": "Setujui / batalkan verifikasi satu record Engine Room secara langsung (aksi approve/un-approve, ditambahkan 2026-09-14). Endpoint GENERIK 18 stasiun: RecordVerificationController::update -> RecordVerificationService::setVerification. Layar Detail web ini TIDAK memanggilnya lewat HTTP — aksi Livewire toggleChecked()/toggleAcknowledged() (trait HandlesRecordVerification) memanggil RecordVerificationService::setVerification() yang sama secara langsung; endpoint ini padanan API-nya (dipakai Data Preview mobile) dengan aturan identik. Hanya menulis kolom checked_by/acknowledged_by, data record lain tidak disentuh.",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "stationType",
+                "type": "string",
+                "required": true,
+                "description": "Jenis stasiun; untuk layar ini 'engine-room'. Di-resolve lewat whitelist eksplisit RecordVerificationService::MODEL_BY_STATION_TYPE -> EngineRoomRecord (tidak pernah dirangkai jadi nama kelas); tidak dikenal -> 404"
+              },
+              {
+                "name": "id",
+                "type": "uuid",
+                "required": true,
+                "description": "ID record Engine Room"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "level": "enum(checked, acknowledged) — required",
+              "value": "boolean — required; true = simpan id aktor sendiri, false = kosongkan kolom ke null (un-approve)"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "checked_by": "uuid|null",
+              "checked_by_name": "string|null",
+              "acknowledged_by": "uuid|null",
+              "acknowledged_by_name": "string|null"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada session/token"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "peran tidak berhak: Operator ditolak guard route role:supervisor,mill_management,admin; peran yang tidak berhak atas level tsb ditolak service (Supervisor menulis checked_by, Mill Management menulis acknowledged_by, Admin boleh keduanya) — respons hanya membawa message"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "record milik mill lain (CrossMillWriteDeniedException, ScopesToActorMill::assertRecordWritableByActor) — kolom verifikasi tidak berubah"
+              },
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "stationType tidak dikenal atau id tidak ditemukan (respons hanya message)"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "payload tidak valid (level/value), atau aktor non-Admin terikat mill tanpa users.business_unit_id (gagal-tertutup)"
+              },
+              {
+                "http_code": 422,
+                "error_code": "PERIOD_CLOSED",
+                "condition": "usecase-141: tidak ada Periode Pelaporan dengan baris stasiun 'engine-room' berstatus open yang mencakup tanggal kejadian record (date) — belum ada periode / masih Draft / sudah ditutup / di luar rentang (pesan menyebut rentang valid). Kolom verifikasi tidak berubah"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
         }
       ],
       "business_logic": [
@@ -117,7 +189,8 @@
         "4. Return full record + details array (27 kolom bacaan per baris)",
         "5. FE render field per section (Identitas Engine Room, Engine Room Detail grid dengan seluruh baris yang ada, Verifikasi) read-only -- TIDAK ADA section Target Operasional untuk stasiun ini",
         "6. On klik Back: navigasi client-side ke /data/engine-room, tanpa panggilan API tambahan",
-        "7. On klik Edit: navigasi client-side ke /data/engine-room/{id}/edit"
+        "7. On klik Edit: navigasi client-side ke /data/engine-room/{id}/edit",
+        "VERIFIKASI (aksi approve/un-approve di layar Detail, 2026-09-14; kunci periode sejak 2026-10-02): toggleChecked()/toggleAcknowledged() (trait HandlesRecordVerification, model EngineRoomRecord) -> RecordVerificationService::setVerification() dengan urutan: (a) canVerify() — aturan peran: Supervisor menulis checked_by, Mill Management menulis acknowledged_by, Admin boleh keduanya; Operator tidak pernah memverifikasi; tombol hanya dirender bila canCheck()/canAcknowledge() true, dan aturan yang sama menolak panggilan langsung; (b) findOrFail(id); (c) assertRecordWritableByActor() — cakupan mill: aktor non-Admin hanya record mill-nya sendiri (403), aktor terikat mill tanpa business_unit_id 422; (d) assertPeriodOpenForWrite(jenis stasiun & mill dibaca dari STASIUN MILIK RECORD, bukan dari URL; tanggal kejadian = kolom `date` record itu sendiri) -> 422 PERIOD_CLOSED bila tidak ada periode open untuk stasiun 'engine-room' yang mencakup tanggal tsb (status dinilai saat request); (e) baru kemudian forceFill checked_by/acknowledged_by = id aktor (value=true) atau null (value=false) lalu reloadRecord(); pesan sukses/penolakan ditampilkan via $verificationMessage. Penolakan terjadi sebelum satu kolom pun berubah; arah pembatalan (false) ikut terkunci."
       ],
       "data_operations": [
         {
@@ -153,13 +226,22 @@
         {
           "condition": "Record memiliki nol baris Engine Room Detail",
           "handling": "details array kosong dikembalikan, FE tampilkan grid kosong/empty-state, bukan error"
+        },
+        {
+          "condition": "Verifikasi (setujui ATAU batalkan) saat tidak ada periode untuk mill record, baris stasiun 'engine-room' pada periode masih Draft atau sudah ditutup, atau tanggal kejadian record (date) di luar rentang periode yang open",
+          "handling": "setVerification() melempar PeriodClosedException 422 PERIOD_CLOSED sebelum forceFill — kolom checked_by/acknowledged_by tidak berubah; HandlesRecordVerification menangkap HttpException (sejak 0594c63) dan menampilkan pesan dari exception sebagai alert di layar Detail ($verificationMessage), bukan respons 422 mentah"
+        },
+        {
+          "condition": "Verifikasi record milik mill lain (mis. memanggil aksi langsung dengan id record Mill B)",
+          "handling": "assertRecordWritableByActor melempar CrossMillWriteDeniedException 403 (API: code FORBIDDEN) — kolom tidak berubah; di layar Detail ditangkap sebagai AuthorizationException dan tampil sebagai alert $verificationMessage (catatan: layar Detail Mill A sendiri sudah tidak memuat record Mill B)"
         }
       ],
       "business_rules_applied": [
         "Seluruh field read-only",
         "Checked By dan Acknowledged By keduanya ditampilkan",
         "Grid Engine Room Detail ditampilkan langsung dari data tersimpan, menampilkan persis baris yang ada",
-        "Tidak ada tabel referensi target operasional pada stasiun ini"
+        "Tidak ada tabel referensi target operasional pada stasiun ini",
+        "Verifikasi (Checked By / Acknowledged By) adalah jalur tulis keempat dan ikut terkunci periode: menyetujui maupun membatalkan persetujuan hanya diterima bila baris stasiun pada Periode Pelaporan mill record berstatus open dan tanggal kejadian record berada di dalam rentangnya (usecase-141)"
       ],
       "unit_test_cases": [
         {
@@ -196,6 +278,16 @@
           "description": "returns the 2 enum status columns as their raw string value (or null) on each detail row",
           "given": "a detail row has diesel_gen_1_status='standby', diesel_gen_2_status=null",
           "expect": "response.details[n].diesel_gen_1_status='standby', diesel_gen_2_status=null"
+        },
+        {
+          "description": "verification refused with 422 PERIOD_CLOSED when the station row is closed in the period (column unchanged)",
+          "given": "record Engine Room mill sendiri dengan date di dalam rentang periode, baris period_stations 'engine-room' status=closed; Supervisor memanggil setVerification(level=checked, value=true)",
+          "expect": "throw PeriodClosedException (422, PERIOD_CLOSED); checked_by tetap null; di layar Detail $verificationMessage berisi pesan penolakan"
+        },
+        {
+          "description": "verification accepted when the station row is open and the event date is inside the period range",
+          "given": "record Engine Room mill sendiri dengan date di dalam rentang periode, baris period_stations 'engine-room' status=open; Supervisor memanggil setVerification(level=checked, value=true)",
+          "expect": "checked_by = id aktor; record di-reload dan pesan sukses ditampilkan"
         }
       ]
     }
@@ -228,7 +320,8 @@
     "Response resolve created_by/checked_by/acknowledged_by ke nama user via join, mengikuti pola screen-105--detail-effluent-plant-web persis",
     "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-105/screen-106",
     "Field grouping & urutan field di blade view MENIRU PERSIS mobile/src/views/DataPreviewEngineRoomView.vue mode detail (Engine Room ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Engine Room Detail dengan seluruh baris yang ada) per arahan eksplisit: web station screens mengikuti flow/UX mobile -- TIDAK ADA section Target Operasional pada Blade view ini",
-    "Route /engine-room-records/{id} didaftarkan SETELAH /engine-room-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}, sama pola dengan screen-106"
+    "Route /engine-room-records/{id} didaftarkan SETELAH /engine-room-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}, sama pola dengan screen-106",
+    "VERIFIKASI + KUNCI PERIODE (sinkronisasi 2026-10-03, kode tidak diubah): layar Detail punya aksi approve/un-approve langsung sejak 2026-09-14 lewat trait App\\Livewire\\Data\\Concerns\\HandlesRecordVerification (DetailEngineRoom implementasikan verificationModelClass()=EngineRoomRecord::class + reloadRecord()), yang memanggil RecordVerificationService::setVerification() — padanan API-nya PATCH /api/records/{stationType}/{id}/verification. Level yang diekspos: Checked By dan Acknowledged By. Sejak 49dc0c5 setVerification() menegakkan assertPeriodOpenForWrite() pada tanggal kejadian record (`date`); sejak fix 0594c63 HandlesRecordVerification juga menangkap HttpException sehingga 422 PERIOD_CLOSED tampil sebagai alert $verificationMessage, bukan respons mentah. Diuji di backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...', memakai DetailCagesTrack sebagai wakil trait bersama) dan backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED untuk setujui & batalkan)."
   ],
   "test_scenarios": [
     {

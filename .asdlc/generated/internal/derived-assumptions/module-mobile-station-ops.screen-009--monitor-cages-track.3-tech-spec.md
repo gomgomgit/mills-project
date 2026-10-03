@@ -6,3 +6,8 @@
 - Counter dihitung dari filter date(date) = hari ini (field `date`, bukan tippler_start_time) ← `date` adalah field kalender murni yang sudah ada; tippler_start_time punya presisi waktu tapi bukan field yang dimaksud untuk filter "hari ini"
 - New Data sekarang juga men-set tippler_start_time=now saat INSERT (bukan cuma status/created_by seperti Weighbridge/Grading) ← konsekuensi langsung dari business rule baru "tippler_start_time diisi otomatis sekali saat draft baru dibuat" di entity-catalog v3
 - sumCagesRecorded (Jumlah Cage/Lori Tercatat) dihitung via 2 query terpisah (record ids hari ini → SUM total_cages WHERE cages_track_record_id IN (...)) bukan 1 JOIN SQL ← localDb.ts hanya expose query()/run() generik, pola yang sama dipakai di screen lain untuk agregasi lintas tabel
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v2)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

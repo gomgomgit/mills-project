@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-123--data-preview-sterilizer",
   "name": "Data Preview Sterilizer",
@@ -25,7 +25,8 @@
     "Test file's useRoute() mock returns a fresh reactive() object created in beforeEach (not mutated in-place across the whole file) — same convention as DataPreviewCpoDispatchView.spec.ts, avoiding leftover watchers from earlier tests corrupting later mock call counts",
     "Log Siklus table rendered read-only directly from stored columns (no recomputation) — duration_minutes shown exactly as persisted (already server-finalized), consistent with the 'computed then persisted, never recomputed on read' convention used throughout this codebase for derived numeric fields",
     "Detail-mode preview table shows a condensed column set (Sterilizer No, Close Door Time, Open Door Time, Duration (Minutes), Number of Cages, Cages Status, Checked by SPV) rather than all 13 detail columns — Peak/Exhaust Time columns omitted from this condensed mobile view (full column set is only shown on the web Detail/Form screens), mirroring CPO Dispatch Data Preview's own condensed mobile table convention",
-    "This is the FINAL station of this project (18th and last of the 18 canonical stations, promoted 2026-09-01)"
+    "This is the FINAL station of this project (18th and last of the 18 canonical stations, promoted 2026-09-01)",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): mode detail memasang RecordVerificationActions (station-type='sterilizer', local-table='sterilizer_record') yang memanggil PATCH /api/records/sterilizer/{server_id}/verification; backend RecordVerificationService::setVerification menerapkan peran + cakupan mill lalu assertPeriodOpenForWrite (EnforcesPeriodLock) atas `date` header record sebelum menulis — periode stasiun tidak terbuka / tanggal di luar rentang → 422 PERIOD_CLOSED tanpa perubahan kolom; komponen menampilkan pesan server dan baris lokal tidak diperbarui (UPDATE lokal hanya setelah sukses); offline → pesan 'Butuh koneksi internet untuk verifikasi'. Tercakup oleh backend/tests/Feature/Api/RecordVerificationTest.php (blok 'kunci periode pada jalur verifikasi') dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; mobile/tests/recordVerification.spec.ts mencakup galat offline tetapi belum punya kasus PERIOD_CLOSED khusus."
   ],
   "deferred_items": [],
   "known_issues": [

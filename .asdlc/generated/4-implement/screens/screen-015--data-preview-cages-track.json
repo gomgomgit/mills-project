@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-015--data-preview-cages-track",
   "name": "Data Preview Cages Track",
@@ -28,7 +28,8 @@
     "Checked By/Acknowledged By ARE shown in detail mode (unlike Weighbridge/Grading, which omit them) — consistent with Form Cages Track's own decision to keep both fields; no role restriction on viewing, only on editing (already enforced in the Form)",
     "'Inputted By' has no dedicated cages_track_record column (created_by is a user id, no local user-name lookup table exists) — rendered from authStore.currentUser?.name, same source FormCagesTrackView.vue's own 'Inputted By' field uses; valid because detail mode is only ever reached via this screen's own getAllRecords(userId)-scoped list (always the current user's own records)",
     "This closes the entire Cages Track station overhaul (screens 009/012/015) on top of entity-catalog v3",
-    "Independently re-verified beyond the agent's own report (established practice this session after the screen-012 agent stall incident): full mobile vitest suite 385/385 passing across 20 files; cagesTrackRecordRepo.ts screen-009 functions (getProgressSummary/getTodaySummary/getDrafts/createDraft/resumeDraft/pauseDraft/deleteDraft) confirmed still present/untouched (36 grep matches) after the getAllRecords() addition; full Playwright suite 101/101 passing across the whole app (Weighbridge/Grading/Cages Track/Station List/Home/Auth), no regressions; DataPreviewCagesTrackView.vue read in full and confirmed correct (date-filter slice rationale cross-checked against localSchema.ts's actual DDL and FormCagesTrackView.vue's write site, not just the component's own comment); DataPreviewCagesTrackView.spec.ts read in full and confirmed to genuinely exercise the component's real logic (list/detail mode, filters, badge mapping, row-tap routing, watch()-driven route reactivity, breadcrumb/hamburger) rather than being superficial"
+    "Independently re-verified beyond the agent's own report (established practice this session after the screen-012 agent stall incident): full mobile vitest suite 385/385 passing across 20 files; cagesTrackRecordRepo.ts screen-009 functions (getProgressSummary/getTodaySummary/getDrafts/createDraft/resumeDraft/pauseDraft/deleteDraft) confirmed still present/untouched (36 grep matches) after the getAllRecords() addition; full Playwright suite 101/101 passing across the whole app (Weighbridge/Grading/Cages Track/Station List/Home/Auth), no regressions; DataPreviewCagesTrackView.vue read in full and confirmed correct (date-filter slice rationale cross-checked against localSchema.ts's actual DDL and FormCagesTrackView.vue's write site, not just the component's own comment); DataPreviewCagesTrackView.spec.ts read in full and confirmed to genuinely exercise the component's real logic (list/detail mode, filters, badge mapping, row-tap routing, watch()-driven route reactivity, breadcrumb/hamburger) rather than being superficial",
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): mode detail memasang RecordVerificationActions (station-type='cages-track', local-table='cages_track_record') yang memanggil PATCH /api/records/cages-track/{server_id}/verification; backend RecordVerificationService::setVerification menerapkan peran + cakupan mill lalu assertPeriodOpenForWrite (EnforcesPeriodLock) atas `date` record sebelum menulis — periode stasiun tidak terbuka / tanggal di luar rentang → 422 PERIOD_CLOSED tanpa perubahan kolom; komponen menampilkan pesan server dan baris lokal tidak diperbarui (UPDATE lokal hanya setelah sukses); offline → pesan 'Butuh koneksi internet untuk verifikasi'. Tercakup oleh backend/tests/Feature/Api/RecordVerificationTest.php (blok 'kunci periode pada jalur verifikasi') dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; mobile/tests/recordVerification.spec.ts mencakup galat offline tetapi belum punya kasus PERIOD_CLOSED khusus."
   ],
   "deferred_items": [],
   "known_issues": [

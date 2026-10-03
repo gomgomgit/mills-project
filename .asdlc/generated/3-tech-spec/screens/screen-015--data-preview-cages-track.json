@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-015--data-preview-cages-track",
   "name": "Data Preview Cages Track",
@@ -38,7 +38,8 @@
         "9. On Back di mode LIST → navigasi ke Monitor Cages Track",
         "10. On Back di mode DETAIL → navigasi kembali ke mode LIST (id param dihapus dari route)",
         "11. On tap breadcrumb segment → navigasi ke route terkait",
-        "12. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+        "12. On tap hamburger → buka menu navigasi (Ganti Password, Logout)",
+        "13. Mode DETAIL, record tersinkron (punya server_id): aksi verifikasi RecordVerificationActions (Tandai/Batalkan sudah diperiksa — Supervisor/Admin; Tandai/Batalkan sudah dikonfirmasi — Mill Management/Admin) adalah satu-satunya tulis ke server dari layar ini: recordVerificationApi.setVerification('cages-track', 'cages_track_record', record, level, value) → PATCH /api/records/cages-track/{server_id}/verification {level, value}. Server (RecordVerificationService::setVerification) menilai peran + cakupan mill aktor, lalu assertPeriodOpenForWrite atas jenis stasiun & mill MILIK RECORD dan tanggal kejadian record itu sendiri (`date`) SEBELUM menulis kolom verifikasi; baris lokal (checked_by/acknowledged_by + *_name) hanya diperbarui setelah server menerima, lalu detail dimuat ulang (event 'updated')."
       ],
       "data_operations": [
         {
@@ -69,6 +70,10 @@
         {
           "condition": "Filter tanggal/search tidak menghasilkan apapun (termasuk saat filter default hari ini tidak ada datanya)",
           "handling": "Tampilkan pesan tidak ditemukan dengan opsi reset filter"
+        },
+        {
+          "condition": "Verifikasi (menyetujui maupun membatalkan) saat periode pelaporan stasiun Cages Track untuk mill record tidak terbuka (belum ada periode / masih Draft / sudah ditutup) atau `date` record di luar rentang periode; atau perangkat tanpa jaringan",
+          "handling": "Server menolak 422 error_code PERIOD_CLOSED sebelum kolom apa pun berubah; status verifikasi di server dan baris lokal tidak berubah (UPDATE lokal hanya berjalan setelah respons sukses, event 'updated' tidak di-emit). RecordVerificationActions menampilkan pesan server apa adanya (verification-message, gaya error) — pesan 'di luar rentang' menyebut rentang yang berlaku. Tanpa jaringan (respons tanpa status) → pesan 'Butuh koneksi internet untuk verifikasi. Coba lagi saat online.' Pemulihan: Admin membuka kembali baris stasiun di Detail Periode Pelaporan (screen-142), lalu verifikasi diulang."
         }
       ],
       "business_rules_applied": [
@@ -77,7 +82,8 @@
         "Filter tanggal & pencarian bekerja terhadap list yang sedang ditampilkan",
         "Breadcrumb harus dapat dinavigasi",
         "Filter tanggal default ke hari ini saat list pertama kali dibuka",
-        "Checked By/Acknowledged By ditampilkan apa adanya di detail, tanpa pembatasan role untuk melihat"
+        "Checked By/Acknowledged By ditampilkan apa adanya di detail, tanpa pembatasan role untuk melihat",
+        "Verifikasi (menyetujui maupun membatalkan) ikut terkunci periode (usecase-141) — status periode dinilai per jenis stasiun saat permintaan tiba di server, bukan saat kejadian"
       ],
       "unit_test_cases": [
         {
@@ -174,6 +180,11 @@
           "description": "returns success result when all conditions pass",
           "given": "cagesTrackRepo.getAllRecords(userId) returns valid records for the current user, no filter/lookup errors occur",
           "expect": "list mode renders the full/filtered record list successfully with correct status labels and default today filter, no exception thrown"
+        },
+        {
+          "description": "RecordVerificationActions shows the server PERIOD_CLOSED message and leaves the verification state unchanged",
+          "given": "detail record tersinkron (server_id ada, checked_by null), aktor supervisor; setVerification ditolak dengan galat ternormalisasi { status: 422, message: '<pesan PERIOD_CLOSED dari server>' }",
+          "expect": "verification-message menampilkan pesan server tersebut dengan kelas error; event 'updated' tidak di-emit; tombol tetap berlabel 'Tandai sudah diperiksa' (checked_by lokal tidak berubah)"
         }
       ]
     }
@@ -195,7 +206,8 @@
     "Filter tanggal & search dilakukan client-side terhadap hasil query getAllRecords",
     "Default dateFilter = tanggal lokal hari ini (format YYYY-MM-DD via todayLocalDateString()-style, BUKAN toISOString() yang UTC-based), diisi SEKALI saat komponen mount di mode list",
     "cagesTrackRecordRepo.ts butuh fungsi baru getAllRecords(userId) (mirror weighbridgeRecordRepo.ts/gradingRecordRepo.ts's getAllRecords()) dan reuse getDraftWithTippedTimes() yang sudah ditulis ulang di screen-012 untuk mode detail",
-    "Grid Cages Tipped Time read-only: setiap baris tampilkan Time (format jam), daftar cage yang dicentang (parse checked_cage_numbers), Total Cages, Cages Remain — render langsung dari kolom tersimpan, tidak perlu hitung ulang (data historis)"
+    "Grid Cages Tipped Time read-only: setiap baris tampilkan Time (format jam), daftar cage yang dicentang (parse checked_cage_numbers), Total Cages, Cages Remain — render langsung dari kolom tersimpan, tidak perlu hitung ulang (data historis)",
+    "Kunci periode (usecase-141): pengecualian atas 'tidak ada panggilan API' — aksi verifikasi di mode detail memanggil PATCH /api/records/cages-track/{id}/verification (RecordVerificationController → RecordVerificationService::setVerification, trait EnforcesPeriodLock). Tanggal yang dinilai = `date` record; jenis stasiun & mill dibaca dari stasiun milik record, bukan dari segmen URL. Penolakan 422 PERIOD_CLOSED (satu kode, empat pesan) dinormalisasi apiClient menjadi {status, message} dan ditampilkan RecordVerificationActions. Endpoint sengaja tidak ditambahkan ke `endpoints` karena kontrak ini tidak mendeklarasikan endpoint apa pun untuk disalin bentuknya."
   ],
   "test_scenarios": [
     {

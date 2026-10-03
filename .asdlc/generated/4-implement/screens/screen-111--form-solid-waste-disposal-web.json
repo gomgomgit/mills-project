@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-111--form-solid-waste-disposal-web",
   "name": "Form Solid Waste Disposal (Web)",
@@ -39,7 +39,8 @@
     "Checked By DAN Acknowledged By keduanya ada di form ini sebagai checkbox self-attestation role-gated, konsisten dengan mobile screen-071 dan Detail Solid Waste Disposal Web (screen-101)",
     "Route web /data/solid-waste-disposal/create HARUS didaftarkan SEBELUM /data/solid-waste-disposal/{id} (screen-101) — sama pola dengan screen-022/023/024",
     "Ditambahkan tombol 'Tambah Data' di Data Browser (screen-091) dan tombol 'Edit' di Detail (screen-101) sebagai entry point ke screen ini",
-    "Station::factory()->solidWasteDisposal() state reused (ditambahkan bersama screen-091's implementation) untuk kebutuhan test suite screen ini"
+    "Station::factory()->solidWasteDisposal() state reused (ditambahkan bersama screen-091's implementation) untuk kebutuhan test suite screen ini",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): SolidWasteDisposalRecordService::create() memanggil assertPeriodOpenForWrite('solid-waste-disposal', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormSolidWasteDisposal::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/SolidWasteDisposalRecordServiceTest.php, tests/Feature/Api/FormSolidWasteDisposalTest.php, tests/Feature/Livewire/FormSolidWasteDisposalTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [

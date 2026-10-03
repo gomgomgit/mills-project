@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-083--data-preview-kernel-dispatch",
   "name": "Data Preview Kernel Dispatch",
@@ -38,7 +38,8 @@
         "9. On Back di mode LIST → navigasi ke Monitor Kernel Dispatch",
         "10. On Back di mode DETAIL → navigasi kembali ke mode LIST (id param dihapus dari route)",
         "11. On tap breadcrumb segment → navigasi ke route terkait",
-        "12. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+        "12. On tap hamburger → buka menu navigasi (Ganti Password, Logout)",
+        "13. Mode DETAIL, record tersinkron (punya server_id): aksi verifikasi RecordVerificationActions (Tandai/Batalkan sudah diperiksa — Supervisor/Admin; Tandai/Batalkan sudah dikonfirmasi — Mill Management/Admin) adalah satu-satunya tulis ke server dari layar ini: recordVerificationApi.setVerification('kernel-dispatch', 'kernel_dispatch_record', record, level, value) → PATCH /api/records/kernel-dispatch/{server_id}/verification {level, value}. Server (RecordVerificationService::setVerification) menilai peran + cakupan mill aktor, lalu assertPeriodOpenForWrite atas jenis stasiun & mill MILIK RECORD dan tanggal kejadian record itu sendiri (`date` header record) SEBELUM menulis kolom verifikasi; baris lokal (checked_by/acknowledged_by + *_name) hanya diperbarui setelah server menerima, lalu detail dimuat ulang (event 'updated')."
       ],
       "data_operations": [
         {
@@ -69,6 +70,10 @@
         {
           "condition": "Filter tanggal/search tidak menghasilkan apapun",
           "handling": "Tampilkan pesan tidak ditemukan dengan opsi reset filter"
+        },
+        {
+          "condition": "Verifikasi (menyetujui maupun membatalkan) saat periode pelaporan stasiun Kernel Dispatch untuk mill record tidak terbuka (belum ada periode / masih Draft / sudah ditutup) atau `date` record di luar rentang periode; atau perangkat tanpa jaringan",
+          "handling": "Server menolak 422 error_code PERIOD_CLOSED sebelum kolom apa pun berubah; status verifikasi di server dan baris lokal tidak berubah (UPDATE lokal hanya berjalan setelah respons sukses, event 'updated' tidak di-emit). RecordVerificationActions menampilkan pesan server apa adanya (verification-message, gaya error) — pesan 'di luar rentang' menyebut rentang yang berlaku. Tanpa jaringan (respons tanpa status) → pesan 'Butuh koneksi internet untuk verifikasi. Coba lagi saat online.' Pemulihan: Admin membuka kembali baris stasiun di Detail Periode Pelaporan (screen-142), lalu verifikasi diulang."
         }
       ],
       "business_rules_applied": [
@@ -76,7 +81,8 @@
         "List menampilkan seluruh record apapun statusnya",
         "Filter tanggal & pencarian bekerja terhadap list yang sedang ditampilkan",
         "Filter tanggal default ke hari ini saat list pertama kali dibuka",
-        "Checked By/Acknowledged By ditampilkan apa adanya di detail, tanpa pembatasan role untuk melihat"
+        "Checked By/Acknowledged By ditampilkan apa adanya di detail, tanpa pembatasan role untuk melihat",
+        "Verifikasi (menyetujui maupun membatalkan) ikut terkunci periode (usecase-141) — status periode dinilai per jenis stasiun saat permintaan tiba di server, bukan saat kejadian"
       ],
       "unit_test_cases": [
         {
@@ -143,6 +149,11 @@
           "description": "navigates to list mode (id param removed) when Back pressed in detail mode",
           "given": "current mode = 'detail'",
           "expect": "router navigation called toward preview route WITHOUT id param"
+        },
+        {
+          "description": "RecordVerificationActions shows the server PERIOD_CLOSED message and leaves the verification state unchanged",
+          "given": "detail record tersinkron (server_id ada, checked_by null), aktor supervisor; setVerification ditolak dengan galat ternormalisasi { status: 422, message: '<pesan PERIOD_CLOSED dari server>' }",
+          "expect": "verification-message menampilkan pesan server tersebut dengan kelas error; event 'updated' tidak di-emit; tombol tetap berlabel 'Tandai sudah diperiksa' (checked_by lokal tidak berubah)"
         }
       ]
     }
@@ -163,7 +174,8 @@
     "Mode list dan detail berbagi 1 komponen/route yang sama (bedanya cuma ada/tidaknya :id param), mirror pola DataPreviewSolidWasteDisposalView.vue",
     "Filter tanggal & search dilakukan client-side terhadap hasil query getAllRecords",
     "kernelDispatchRecordRepo.ts butuh fungsi getAllRecords(userId) dan reuse getDraftWithDetails() untuk mode detail",
-    "Tabel Log Kejadian read-only: setiap baris tampil langsung dari kolom tersimpan, tidak perlu hitung ulang (data historis)"
+    "Tabel Log Kejadian read-only: setiap baris tampil langsung dari kolom tersimpan, tidak perlu hitung ulang (data historis)",
+    "Kunci periode (usecase-141): pengecualian atas 'tidak ada panggilan API' — aksi verifikasi di mode detail memanggil PATCH /api/records/kernel-dispatch/{id}/verification (RecordVerificationController → RecordVerificationService::setVerification, trait EnforcesPeriodLock). Tanggal yang dinilai = `date` header record (bukan Tanggal Kejadian per baris Log Kejadian); jenis stasiun & mill dibaca dari stasiun milik record, bukan dari segmen URL. Penolakan 422 PERIOD_CLOSED (satu kode, empat pesan) dinormalisasi apiClient menjadi {status, message} dan ditampilkan RecordVerificationActions. Endpoint sengaja tidak ditambahkan ke `endpoints` karena kontrak ini tidak mendeklarasikan endpoint apa pun untuk disalin bentuknya."
   ],
   "test_scenarios": [
     {

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-122--form-sterilizer",
   "name": "Form Sterilizer",
@@ -116,6 +116,10 @@
         {
           "condition": "Siklus melewati tengah malam (Open Door Time < Close Door Time)",
           "handling": "Duration dihitung dengan wrap 24 jam (menambah 1440 menit) baik di preview client maupun di server"
+        },
+        {
+          "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Pengecualian: bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mencoba mengirim record ini ke server (writeThroughSync.syncAfterSave('sterilizer_record') → syncService.pushSavedRecordNow → POST /api/sterilizer-records); penolakan 422 PERIOD_CLOSED pada kiriman langsung ini DIAM by design — form tetap bernavigasi ke Monitor tanpa pesan, record tetap 'saved', alasannya tidak disimpan — dan baru terlihat pada sinkron manual berikutnya di screen-006. Pemulihan: Admin membuka kembali baris stasiun Sterilizer di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
@@ -123,7 +127,8 @@
         "Checked By (header) hanya Supervisor, Acknowledged By hanya Mill Management",
         "Log Siklus adalah event-log bebas, jumlah baris tidak dibatasi",
         "Minimal satu baris Log Siklus dengan Close Door Time terisi sebelum Simpan",
-        "Duration (Minutes) dihitung otomatis per baris, TIDAK PERNAH dapat diedit manual"
+        "Duration (Minutes) dihitung otomatis per baris, TIDAK PERNAH dapat diedit manual",
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron (manual dari screen-006, atau kiriman langsung saat Simpan bila immediate_sync_enabled aktif), bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'sterilizer' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `date`"
       ],
       "unit_test_cases": [
         {
@@ -232,7 +237,8 @@
     "Duration (Minutes) dihitung client-side lalu dipersist untuk preview UX, TAPI server (SterilizerRecordService) SELALU menghitung ulang nilai final saat Simpan/Pause — client-side value tidak pernah dipercaya sebagai sumber kebenaran akhir, berbeda dari Net Weight CPO Dispatch yang dipersist apa adanya dari client",
     "13 kolom detail mengikuti persis urutan field entity-catalog sterilizer-detail: sterilizer_no, close_door_time, peak_1_time, exhaust_1_time, peak_2_time, exhaust_2_time, peak_3_time, exhaust_3_time, open_door_time, duration_minutes, number_of_cages, cages_status, checked_by_spv, remarks",
     "BERBEDA dari CPO Dispatch/Kernel Dispatch: TIDAK ADA kolom event_date per baris — seluruh baris siklus memakai Date milik header (satu Sterilizer Record = satu tanggal, banyak siklus dalam tanggal itu). checked_by_spv adalah checkbox boolean sederhana per baris, BUKAN referensi nama Supervisor (berbeda dari header checked_by yang merupakan FK user)",
-    "Ini adalah stasiun TERAKHIR dari 18 stasiun kanonis proyek ini (dipromosikan 2026-09-01)"
+    "Ini adalah stasiun TERAKHIR dari 18 stasiun kanonis proyek ini (dipromosikan 2026-09-01)",
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormSterilizerView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('sterilizer_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/sterilizer-records, create), kegagalannya diam. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('sterilizer', mill, date) berjalan di SterilizerRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142. Skenario ini teruji end-to-end di backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali') memakai POST /api/sterilizer-records."
   ],
   "test_scenarios": [
     {

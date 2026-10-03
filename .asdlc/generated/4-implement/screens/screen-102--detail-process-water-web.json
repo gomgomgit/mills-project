@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-102--detail-process-water-web",
   "name": "Detail Process Water (Web)",
@@ -25,7 +25,8 @@
     "Field grouping/order in the Blade view mirrors mobile/src/views/DataPreviewProcessWaterView.vue's detail mode exactly (Process Water ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid Process Water Detail with all reading columns), per explicit product direction that web station screens mirror mobile flow/UX",
     "Route /data/process-water/{id} registered after /data/process-water/create (screen-112) so the literal 'create' segment is not swallowed by {id}",
     "UNLIKE Detail Threshing: this screen has NO operational-target reference table section -- no ThreshingOperationalTarget-equivalent query, no reference table anywhere on this page",
-    "404 handled automatically by ModelNotFoundException -> ApiExceptionHandler (findOrFail), same as every other detail screen in this codebase"
+    "404 handled automatically by ModelNotFoundException -> ApiExceptionHandler (findOrFail), same as every other detail screen in this codebase",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): aksi verifikasi langsung di layar Detail (approve/un-approve, 2026-09-14) sebelumnya TIDAK terdokumentasi sama sekali di artefak ini. backend/app/Livewire/Data/DetailProcessWater.php memakai trait backend/app/Livewire/Data/Concerns/HandlesRecordVerification.php (verificationModelClass()=ProcessWaterRecord::class) dan blade-nya merender aksi lewat canCheck()/canAcknowledge() + :message=$verificationMessage — Checked By (Supervisor/Admin) dan Acknowledged By (Mill Management/Admin). Aksi memanggil backend/app/Services/RecordVerificationService.php::setVerification() (jalur tulis keempat): peran -> cakupan mill (403) -> assertPeriodOpenForWrite('process-water', mill stasiun record, `date` record) -> 422 PERIOD_CLOSED sebelum kolom berubah -> baru tulis checked_by/acknowledged_by. Sejak fix 0594c63 HandlesRecordVerification menangkap HttpException sehingga penolakan periode tampil sebagai alert $verificationMessage (sebelumnya 422 mentah). Padanan API: PATCH /api/records/{stationType}/{id}/verification (RecordVerificationController). Diuji: backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...'; trait bersama, diwakili DetailCagesTrack), backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED setujui & batalkan), backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist)."
   ],
   "deferred_items": [],
   "known_issues": [

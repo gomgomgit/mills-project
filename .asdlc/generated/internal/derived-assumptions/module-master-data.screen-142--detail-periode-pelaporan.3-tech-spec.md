@@ -11,3 +11,8 @@
 - 4 skenario yang api_test-nya menunjuk endpoint record stasiun (`422 PERIOD_CLOSED`) tetap dipertahankan di sini ← keputusan agen yang sama seperti v1 screen-128: mereka kontrak lintas-layar milik usecase-141. Konsekuensinya keempatnya TIDAK akan hijau sebelum usecase-141 dikerjakan; dicatat eksplisit di `implementation_notes`
 - Seed id pada api_test dibedakan tegas: `{{seed.*_station_id}}` = `period_stations` id, `{{seed.period_id}}` = period id ← turunan agen, untuk mencegah kekeliruan paling mahal di layar ini (mengirim period id ke endpoint /period-stations)
 - Catatan bahwa helper `e2e-web/tests/support/period*.ts` mengandaikan accordion dan harus diarahkan ke rute detail ← turunan agen dari pembacaan berkas; ini catatan untuk langkah implementasi, tidak ada berkas yang disentuh
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v1)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: bukan entity-catalog v20 (node ini sudah clean), melainkan re-track shared-decisions pada putaran yang sama; spec layar ini sudah ditulis setelah kunci periode diimplementasikan sehingga isinya tidak terdampak — penilaian agen, tidak dinyatakan user per layar

@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
-  "ver": 6,
+  "ver": 7,
   "id": "screen-010--form-weighbridge",
   "name": "Form Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -83,6 +83,10 @@
         {
           "condition": "Clear ditekan",
           "handling": "Tampilkan dialog konfirmasi wajib sebelum DELETE dieksekusi"
+        },
+        {
+          "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Pemulihan: Admin membuka kembali baris stasiun Weighbridge di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
@@ -93,7 +97,8 @@
         "Tanggal & Waktu Arrival otomatis sekali untuk tipe Receive",
         "Tanggal & Waktu Dispatch otomatis sekali untuk tipe Dispatch (sama seperti Arrival)",
         "Tujuan Muatan wajib diisi hanya saat tipe Dispatch",
-        "Net Weight dihitung otomatis dari Gross - Tare"
+        "Net Weight dihitung otomatis dari Gross - Tare",
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron dari screen-006, bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'weighbridge' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `record_datetime`"
       ],
       "unit_test_cases": [
         {
@@ -216,7 +221,8 @@
     "Checked By dihapus total dari layar ini — kolom checked_by di entity tetap ada di skema tapi tidak lagi dibaca/ditulis dari screen ini",
     "arrival_datetime dan dispatch_datetime lama disatukan menjadi satu kolom record_datetime pada entity-catalog v5; label tampilan tetap berbeda sesuai weighbridge_type yang dipilih, namun perilaku pengisian (auto-set sekali, tidak dapat diedit) kini identik untuk kedua tipe",
     "Field Tujuan Muatan (destination) baru, hanya dirender saat weighbridge_type=dispatch, wajib diisi saat itu",
-    "Label (kg) pada Gross/Tare/Net Weight dan (tandan) pada Kuantitas adalah teks statis pada label field, bukan perubahan tipe data/unit konversi — nilai tetap tersimpan sebagai angka polos di kolom yang sama"
+    "Label (kg) pada Gross/Tare/Net Weight dan (tandan) pada Kuantitas adalah teks statis pada label field, bukan perubahan tipe data/unit konversi — nilai tetap tersimpan sebagai angka polos di kolom yang sama",
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormWeighbridgeView tidak memanggil server sama sekali (stasiun ini tidak punya write-through; hanya sinkron manual dari screen-006 lewat POST /api/weighbridge-records). Guard EnforcesPeriodLock::assertPeriodOpenForWrite('weighbridge', mill, record_datetime) berjalan di WeighbridgeRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
   ],
   "test_scenarios": [
     {

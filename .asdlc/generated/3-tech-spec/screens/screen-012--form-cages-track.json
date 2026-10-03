@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-012--form-cages-track",
   "name": "Form Cages Track",
@@ -127,6 +127,10 @@
         {
           "condition": "Clear ditekan",
           "handling": "Tampilkan dialog konfirmasi wajib sebelum DELETE dieksekusi"
+        },
+        {
+          "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Pemulihan: Admin membuka kembali baris stasiun Cages Track di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
@@ -137,7 +141,8 @@
         "Tambah baris disabled jika mill_setting.jumlah_cages belum tersedia/0",
         "Minimal satu baris Cages Tipped Time valid sebelum Simpan",
         "Time tiap baris harus > Time baris terakhir ditambahkan, tidak boleh duplikat",
-        "Total Cages dan Cages Remain dihitung otomatis per baris, tidak dapat diedit manual"
+        "Total Cages dan Cages Remain dihitung otomatis per baris, tidak dapat diedit manual",
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron dari screen-006, bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'cages-track' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `date`"
       ],
       "unit_test_cases": [
         {
@@ -301,7 +306,8 @@
     "checked_cage_numbers disimpan sebagai CSV string (mis. '1,3,5,7') — parsing/serialization dilakukan di level repo atau view, konsisten dengan keputusan entity-catalog",
     "Hapus baris mengikuti pola queue-for-deletion (baris dengan id ditandai, baru DELETE eksekusi saat Simpan/Pause berikutnya) — sama seperti Grading Detail, asumsi agent dari open_question business spec",
     "Checked By/Acknowledged By TETAP ada di form ini (berbeda dari Weighbridge/Grading yang menghapusnya total) — mengikuti mock referensi yang eksplisit mencantumkan kedua field dengan role gating",
-    "BARU: perlu local reference table `mill_setting` di localSchema.ts (mirroring server entity mill-setting: id, business_unit_id UNIQUE, app_name, logo, home_page_image, jumlah_cages, timestamps), mengikuti pola read-only `station` (lihat stationRepo.ts's header comment) — pre-seeded/disinkronkan oleh mekanisme sync terpisah, di luar scope screen ini untuk mengimplementasikan sync-nya, hanya membaca. BARU: perlu millSettingRepo.ts kecil, read-only, pola sama seperti stationRepo.ts, mengekspos fungsi mis. getJumlahCages(businessUnitId): Promise<number | null>. business_unit_id record ini didapat dari join station (station_id pada cages_track_record) → station.business_unit_id — bukan disimpan langsung di cages_track_record"
+    "BARU: perlu local reference table `mill_setting` di localSchema.ts (mirroring server entity mill-setting: id, business_unit_id UNIQUE, app_name, logo, home_page_image, jumlah_cages, timestamps), mengikuti pola read-only `station` (lihat stationRepo.ts's header comment) — pre-seeded/disinkronkan oleh mekanisme sync terpisah, di luar scope screen ini untuk mengimplementasikan sync-nya, hanya membaca. BARU: perlu millSettingRepo.ts kecil, read-only, pola sama seperti stationRepo.ts, mengekspos fungsi mis. getJumlahCages(businessUnitId): Promise<number | null>. business_unit_id record ini didapat dari join station (station_id pada cages_track_record) → station.business_unit_id — bukan disimpan langsung di cages_track_record",
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormCagesTrackView tidak memanggil server sama sekali (stasiun ini tidak punya write-through; hanya sinkron manual dari screen-006 lewat POST /api/cages-track-records). Guard EnforcesPeriodLock::assertPeriodOpenForWrite('cages-track', mill, date) berjalan di CagesTrackRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
   ],
   "test_scenarios": [
     {

@@ -11,3 +11,8 @@
 - label status Indonesia (Draft/Terbuka/Tertutup) hanya di UI, nilai tersimpan tetap draft|open|closed ← tidak dinyatakan di spec manapun
 - fix auto-fix round 1: normalisasi business_unit_id '' -> null di buildValidator() ← bug nyata PostgreSQL-only (22P02) yang lolos dari unit+component test karena suite berjalan di SQLite. Perbaikan mengikuti pola $stationType yang sudah ada di file yang sama
 - status "complete" meski coverage gate 80% tidak terverifikasi ← keputusan command ini, bukan agen (agen menyerahkannya). Dasarnya preseden proyek: 38 screen lain berstatus complete dengan known_issue coverage identik, dan tidak ada driver xdebug/pcov di environment ini sehingga tidak satu pun screen pernah punya coverage terukur. test_results.unit.coverage = 0 mengikuti konvensi 39 screen lain sebagai penanda "tidak terukur"
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v8)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); turunan dari re-track tech-spec, shared-decisions, entity-models, dan shared-modules pada putaran yang sama — penilaian agen, tidak dinyatakan user per layar

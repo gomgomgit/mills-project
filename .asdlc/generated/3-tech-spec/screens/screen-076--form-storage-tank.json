@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-076--form-storage-tank",
   "name": "Form Storage Tank",
@@ -126,6 +126,10 @@
         {
           "condition": "User memilih opsi kosong ('') pada dropdown Steam Heating Valve Status lalu Simpan/Pause",
           "handling": "String kosong dikonversi menjadi null sebelum ditulis ke SQLite, menghindari kegagalan CHECK constraint enum pada kolom tersebut"
+        },
+        {
+          "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Pengecualian: bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mencoba mengirim record ini ke server (writeThroughSync.syncAfterSave('storage_tank_record') → syncService.pushSavedRecordNow → POST /api/storage-tank-records); penolakan 422 PERIOD_CLOSED pada kiriman langsung ini DIAM by design — form tetap bernavigasi ke Monitor tanpa pesan, record tetap 'saved', alasannya tidak disimpan — dan baru terlihat pada sinkron manual berikutnya di screen-006. Pemulihan: Admin membuka kembali baris stasiun Storage Tank di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
@@ -136,7 +140,8 @@
         "Setiap kolom bacaan opsional per baris; minimal satu baris valid (Time-Slot terpilih + minimal satu kolom terisi) sebelum Simpan",
         "Storage Tank ID wajib diisi sebelum Simpan",
         "Steam Heating Valve Status adalah satu-satunya kolom status/enum pada baris",
-        "Tidak ada tabel referensi target operasional pada stasiun ini"
+        "Tidak ada tabel referensi target operasional pada stasiun ini",
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron (manual dari screen-006, atau kiriman langsung saat Simpan bila immediate_sync_enabled aktif), bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'storage-tank' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `date`"
       ],
       "unit_test_cases": [
         {
@@ -280,7 +285,8 @@
     "Tidak ada tabel referensi Target Operasional untuk stasiun ini — berbeda dari Threshing/Pressing/Depricarping/Kernel Plant",
     "Constraint model server StorageTankRecord (minimal 1 storage-tank-detail row exists) divalidasi di level FE + repo mobile (localDb), bukan constraint DB",
     "Breadcrumb & hamburger mengikuti pola yang sama dengan Form Effluent Plant/Process Water/Threshing/Pressing/Depricarping/Kernel Plant",
-    "Kolom enum (steam_heating_valve_status) disimpan sebagai TEXT biasa di SQLite lokal (tidak ada CHECK constraint di localSchema.ts), sehingga isu empty-string-vs-null hanya relevan pada backend (lihat screen-096/116's tech-spec) — tetap dikonversi ke null di repo mobile untuk konsistensi payload dengan backend jika/ketika sync diaktifkan nanti"
+    "Kolom enum (steam_heating_valve_status) disimpan sebagai TEXT biasa di SQLite lokal (tidak ada CHECK constraint di localSchema.ts), sehingga isu empty-string-vs-null hanya relevan pada backend (lihat screen-096/116's tech-spec) — tetap dikonversi ke null di repo mobile untuk konsistensi payload dengan backend jika/ketika sync diaktifkan nanti",
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormStorageTankView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('storage_tank_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/storage-tank-records, create), kegagalannya diam. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('storage-tank', mill, date) berjalan di StorageTankRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
   ],
   "test_scenarios": [
     {

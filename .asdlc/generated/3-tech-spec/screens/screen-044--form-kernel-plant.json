@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-044--form-kernel-plant",
   "name": "Form Kernel Plant",
@@ -122,6 +122,10 @@
         {
           "condition": "Clear ditekan",
           "handling": "Tampilkan dialog konfirmasi wajib sebelum DELETE dieksekusi"
+        },
+        {
+          "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Pengecualian: bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mencoba mengirim record ini ke server (writeThroughSync.syncAfterSave('kernel_plant_record') → syncService.pushSavedRecordNow → POST /api/kernel-plant-records); penolakan 422 PERIOD_CLOSED pada kiriman langsung ini DIAM by design — form tetap bernavigasi ke Monitor tanpa pesan, record tetap 'saved', alasannya tidak disimpan — dan baru terlihat pada sinkron manual berikutnya di screen-006. Pemulihan: Admin membuka kembali baris stasiun Kernel Plant di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
@@ -131,7 +135,8 @@
         "Time-Slot tiap baris harus lebih lambat (index kanonis lebih besar) dari Time-Slot baris terakhir ditambahkan, tidak boleh duplikat, maksimal 24 baris",
         "Setiap kolom bacaan opsional per baris; minimal satu baris valid (Time-Slot terpilih + minimal satu dari 9 kolom terisi) sebelum Simpan; downtime_minutes dan findings dihitung sebagai kolom bacaan yang sah, setara dengan 7 kolom numerik lainnya",
         "Kernel Plant ID wajib diisi sebelum Simpan",
-        "Tabel Target Operasional murni referensi 3 kolom, tidak pernah ikut tersimpan"
+        "Tabel Target Operasional murni referensi 3 kolom, tidak pernah ikut tersimpan",
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron (manual dari screen-006, atau kiriman langsung saat Simpan bila immediate_sync_enabled aktif), bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'kernel-plant' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `date`"
       ],
       "unit_test_cases": [
         {
@@ -276,7 +281,8 @@
     "FormKernelPlantView.vue: SearchableSelect.vue dipakai untuk Time-Slot per baris (menggantikan label read-only lama), mirip FormDepricarpingView.vue, DENGAN pendingDeletionIds untuk baris ber-id yang dihapus",
     "Target Operasional bersumber dari konstanta statis KERNEL_PLANT_OPERATIONAL_TARGETS (mobile/src/data/kernelPlantOperationalTargets.ts, dibuat di screen-040), bukan tabel tersinkron — UNTOUCHED oleh revisi ini, tetap 6 baris x 3 kolom (struktur 3 kolom mengikuti Threshing/Pressing, BUKAN 4 kolom seperti Depricarping)",
     "STRUKTUR SAMA seperti Depricarping (bukan Threshing/Pressing yang hanya punya satu kolom teks bebas 'Downtime Reason'): Kernel Plant punya downtime_minutes (integer) DAN findings (teks bebas) terpisah, kedua-duanya dihitung sebagai kolom bacaan yang sah untuk validasi minimal-1-baris — STRUKTUR INI TIDAK TERPENGARUH oleh revisi grid dinamis, hanya mekanisme tambah/hapus/pilih baris yang berubah",
-    "Dirty-check Back membandingkan JSON snapshot header (kernel_plant_id/note/checked_by/acknowledged_by, TIDAK termasuk date yang selalu auto/disabled) + seluruh baris (id, time_slot, 9 kolom bacaan) + daftar id yang di-queue untuk dihapus"
+    "Dirty-check Back membandingkan JSON snapshot header (kernel_plant_id/note/checked_by/acknowledged_by, TIDAK termasuk date yang selalu auto/disabled) + seluruh baris (id, time_slot, 9 kolom bacaan) + daftar id yang di-queue untuk dihapus",
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormKernelPlantView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('kernel_plant_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/kernel-plant-records, create), kegagalannya diam. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('kernel-plant', mill, date) berjalan di KernelPlantRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
   ],
   "test_scenarios": [
     {

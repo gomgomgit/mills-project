@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-019--detail-weighbridge-web",
   "name": "Detail Weighbridge (Web)",
@@ -35,7 +35,8 @@
     "Route /weighbridge-records/{id} didaftarkan SETELAH /weighbridge-records/export agar segmen literal 'export' tidak ketangkap sebagai {id}",
     "Route /data/weighbridge/{id} mengaktifkan kembali affordance clickable-row di screen-016's Blade view",
     "Layout Blade terpisah (weighbridge-detail.blade.php) dari screen-016 karena Blade #[Layout(...)] tidak menerima parameter judul header",
-    "VER 2 (bersamaan dengan implementasi screen-022): tombol Edit ditambahkan, navigasi client-side ke route('data.weighbridge.edit', id) - tidak ada perubahan API"
+    "VER 2 (bersamaan dengan implementasi screen-022): tombol Edit ditambahkan, navigasi client-side ke route('data.weighbridge.edit', id) - tidak ada perubahan API",
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): aksi verifikasi langsung di layar Detail (approve/un-approve, 2026-09-14) sebelumnya TIDAK terdokumentasi sama sekali di artefak ini. backend/app/Livewire/Data/DetailWeighbridge.php memakai trait backend/app/Livewire/Data/Concerns/HandlesRecordVerification.php (verificationModelClass()=WeighbridgeRecord::class) dan blade-nya merender aksi lewat canCheck()/canAcknowledge() + :message=$verificationMessage — Checked By (Supervisor/Admin) dan Acknowledged By (Mill Management/Admin). Aksi memanggil backend/app/Services/RecordVerificationService.php::setVerification() (jalur tulis keempat): peran -> cakupan mill (403) -> assertPeriodOpenForWrite('weighbridge', mill stasiun record, `record_datetime` record) -> 422 PERIOD_CLOSED sebelum kolom berubah -> baru tulis checked_by/acknowledged_by. Sejak fix 0594c63 HandlesRecordVerification menangkap HttpException sehingga penolakan periode tampil sebagai alert $verificationMessage (sebelumnya 422 mentah). Padanan API: PATCH /api/records/{stationType}/{id}/verification (RecordVerificationController). Diuji: backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...'; trait bersama, diwakili DetailCagesTrack), backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED setujui & batalkan), backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist)."
   ],
   "deferred_items": [],
   "known_issues": [

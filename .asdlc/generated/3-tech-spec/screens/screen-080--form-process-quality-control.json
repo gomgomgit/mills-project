@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-080--form-process-quality-control",
   "name": "Form Process Quality Control",
@@ -100,6 +100,10 @@
         {
           "condition": "Back ditekan saat form dirty",
           "handling": "ConfirmDialog ditampilkan sebelum navigasi keluar tanpa menyimpan"
+        },
+        {
+          "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Pengecualian: bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mencoba mengirim record ini ke server (writeThroughSync.syncAfterSave('process_quality_control_record') → syncService.pushSavedRecordNow → POST /api/process-quality-control-records); penolakan 422 PERIOD_CLOSED pada kiriman langsung ini DIAM by design — form tetap bernavigasi ke Monitor tanpa pesan, record tetap 'saved', alasannya tidak disimpan — dan baru terlihat pada sinkron manual berikutnya di screen-006. Pemulihan: Admin membuka kembali baris stasiun Process Quality Control di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
@@ -108,7 +112,8 @@
         "Grid Process Quality Control Detail dinamis 0..24 baris, ditambah/dihapus satu per satu",
         "Time-Slot tiap baris unik dan urutan menaik kanonis",
         "Minimal satu baris valid sebelum Simpan (tidak berlaku untuk Pause)",
-        "Process QC ID wajib diisi sebelum Simpan (tidak berlaku untuk Pause)"
+        "Process QC ID wajib diisi sebelum Simpan (tidak berlaku untuk Pause)",
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron (manual dari screen-006, atau kiriman langsung saat Simpan bila immediate_sync_enabled aktif), bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'process-quality-control' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `date`"
       ],
       "unit_test_cases": [
         {
@@ -173,7 +178,8 @@
     "16 kolom non-time_slot per baris (jumlah kolom bacaan terbanyak di seluruh proyek): Shift (teks bebas, identitas baris), 12 kolom numerik (Fruit Press Oil Loss in Sludge/Fibre, Purifier & Clarification Balance Inlet Temp/Backpressure, Vacuum Drying Station Drier Temp/Vacuum Pressure, Decanter/Centrifuge Feed Rate/Oil Loss in Cake, Final Storage FFA/Moisture Content/Impurities-Dirt/DOBI Index), QC Inspector ID (teks bebas, identitas baris), QC Engineering Corrective Actions (teks bebas, ikut 'filled' check), Findings (teks bebas, ikut 'filled' check) — TANPA kolom enum/status apapun",
     "isRowFilled() mengecek 14 kolom (12 numerik + QC Engineering Corrective Actions + Findings) — Shift dan QC Inspector ID adalah kolom identitas/konteks baris, TIDAK ikut menentukan 'filled', mirrors ProcessWaterRecordService's exclusion of shift/inspector_id",
     "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak ada CollapsibleSection/read-only reference data pada layar ini",
-    "Field urutan pada grid & form mengikuti urutan kolom migration process_quality_control_details persis: Shift → Fruit Press Oil Loss in Sludge → Fruit Press Oil Loss in Fibre → Purifier & Clarification Balance Inlet Temp → Purifier & Clarification Balance Backpressure → Vacuum Drying Station Drier Temp → Vacuum Drying Station Vacuum Pressure → Decanter/Centrifuge Feed Rate → Decanter/Centrifuge Oil Loss in Cake → Final Storage FFA → Final Storage Moisture Content → Final Storage Impurities/Dirt → Final Storage DOBI Index → QC Inspector ID → QC Engineering Corrective Actions → Findings"
+    "Field urutan pada grid & form mengikuti urutan kolom migration process_quality_control_details persis: Shift → Fruit Press Oil Loss in Sludge → Fruit Press Oil Loss in Fibre → Purifier & Clarification Balance Inlet Temp → Purifier & Clarification Balance Backpressure → Vacuum Drying Station Drier Temp → Vacuum Drying Station Vacuum Pressure → Decanter/Centrifuge Feed Rate → Decanter/Centrifuge Oil Loss in Cake → Final Storage FFA → Final Storage Moisture Content → Final Storage Impurities/Dirt → Final Storage DOBI Index → QC Inspector ID → QC Engineering Corrective Actions → Findings",
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormProcessQualityControlView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('process_quality_control_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/process-quality-control-records, create), kegagalannya diam. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('process-quality-control', mill, date) berjalan di ProcessQualityControlRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
   ],
   "test_scenarios": [
     {

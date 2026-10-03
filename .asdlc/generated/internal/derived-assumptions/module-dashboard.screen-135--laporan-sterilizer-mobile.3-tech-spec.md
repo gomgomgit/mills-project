@@ -34,3 +34,8 @@
 - `test_scenarios` = 6 skenario baru; lima `browser_test` diisi, satu dikosongkan ← `mobile/tests/e2e/laporan-*.spec.ts` punya 7 uji browser Production Line yang nyata (dijalankan terhadap Vite dev server), tetapi tidak satu pun menguji "stasiun dipindah". Skenario itulah yang `browser_test`-nya dikosongkan.
 - `data_operations` dibiarkan `[]` ← artefak layar mobile memang tidak mendaftarkan operasi data (seluruh akses data lewat API layar web), dan menambahnya hanya untuk revisi ini akan membuat satu layar berbeda dari empat saudaranya.
 - `success_schema` endpoint `/summary` DILURUSKAN dari bentuk terbungkus `data` menjadi datar ← tidak diminta briefing. Controller memanggil `response()->json($this->service->summary(...))` tanpa pembungkus, `sterilizerReportRepo.ts` membaca body-nya apa adanya, dan keempat laporan mobile lainnya sudah datar. Kalau dibiarkan, blok `production_line` yang baru akan tertulis di lapisan yang tidak pernah ada. Pembetulannya dicatat juga di `implementation_notes`.
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v3)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-014--data-preview-grading",
   "name": "Data Preview Grading",
@@ -25,7 +25,8 @@
     "gradingRecordRepo.ts ditambah getAllRecords(userId) baru (SELECT * FROM grading_record WHERE created_by=?, ORDER BY updated_at DESC) — murni additive, blok screen-008 dan screen-011 di file yang sama tidak disentuh.",
     "Mode detail reuse getDraftWithDetails() (sudah ada dari screen-011) tanpa duplikasi query; nama Quality Parameter di-resolve di level view dengan join id→name terhadap getGradingParameterOptions() (juga reuse, sudah ada). Checked By tidak dirender sama sekali di detail, konsisten dengan screen-011.",
     "known_issue lama ('MonitorGradingView Buka Data Preview navigasi tanpa id') dinyatakan RESOLVED, bukan dihapus diam-diam — sekarang perilaku itu benar by design: Monitor Grading v4's 'Load Data' button SENGAJA navigasi tanpa id (mode list), bukan bug.",
-    "Independently re-verified (bukan hanya laporan agent): 295/295 vitest seluruh file (naik dari 265, +30 dari screen-014's 4 unit + 29 component - 3 lama), 79/79 Playwright FULL SUITE (seluruh app, bukan cuma Grading) — konfirmasi tidak ada regresi ke screen lain manapun setelah 3 putaran overhaul Grading (008/011/014)."
+    "Independently re-verified (bukan hanya laporan agent): 295/295 vitest seluruh file (naik dari 265, +30 dari screen-014's 4 unit + 29 component - 3 lama), 79/79 Playwright FULL SUITE (seluruh app, bukan cuma Grading) — konfirmasi tidak ada regresi ke screen lain manapun setelah 3 putaran overhaul Grading (008/011/014).",
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): mode detail memasang RecordVerificationActions (station-type='grading', local-table='grading_record', supports-checked=false) yang memanggil PATCH /api/records/grading/{server_id}/verification; backend RecordVerificationService::setVerification menerapkan peran + cakupan mill lalu assertPeriodOpenForWrite (EnforcesPeriodLock) atas `date` record sebelum menulis — periode stasiun tidak terbuka / tanggal di luar rentang → 422 PERIOD_CLOSED tanpa perubahan kolom; komponen menampilkan pesan server dan baris lokal tidak diperbarui (UPDATE lokal hanya setelah sukses); offline → pesan 'Butuh koneksi internet untuk verifikasi'. Tercakup oleh backend/tests/Feature/Api/RecordVerificationTest.php (blok 'kunci periode pada jalur verifikasi') dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; mobile/tests/recordVerification.spec.ts mencakup galat offline tetapi belum punya kasus PERIOD_CLOSED khusus."
   ],
   "deferred_items": [],
   "known_issues": [

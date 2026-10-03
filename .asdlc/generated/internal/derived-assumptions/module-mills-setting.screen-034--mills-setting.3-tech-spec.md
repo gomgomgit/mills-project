@@ -13,3 +13,8 @@
 - `icon: null` explicitly resets a station to its type-default icon (matching uiux-spec component_patterns 'station-tile' fallback behavior already documented) ← direct implication of the coordinator's correction, not separately re-stated by the user.
 - No existing icon-picker UI convention found in the codebase — FE implementation note says to use a simple dropdown/select of supported icon names; deferred as an implementation detail, not a business-spec decision.
 - Re-derived 3 of 16 unit_test_cases (the ones specific to station image upload) to match icon-set behavior instead: file-store test → icon-set test, format-validation test → allow-list-validation test, added a new reset-to-default (icon=null) test. The remaining 13 unit tests (mill-setting CRUD, ownership/403, logo/home_page_image upload) are unaffected and unchanged.
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v2)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-077--form-engine-room",
   "name": "Form Engine Room",
@@ -23,7 +23,8 @@
     "The 2 enum status columns (Diesel Gen 1 Status, Diesel Gen 2 Status: Run/Standby/Off) are each rendered as a native <select> dropdown with a '-- Pilih --' empty option, styled with the existing .native-select CSS class; local SQLite has no CHECK constraint so no empty-string coercion is required in this repo (unlike the web backend, see screen-097/117)",
     "UNLIKE Form Threshing/Form Effluent Plant: this screen has NO operational-target reference table section -- no CollapsibleSection, no static-constant data file, per this station's explicit scope",
     "Every FormField id in the grid is set explicitly (e.g. steam-inlet-pressure-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide, same defensive pattern as FormStorageTankView.vue",
-    "Field order in the grid & template mirrors the migration column order exactly: Steam Turbine (6 fields) -> Diesel Gen 1 (5) -> Diesel Gen 2 (5) -> Electrical Sync (4) -> Air Compressor/Battery/Fuel/Energy (4) -> Action Taken/Findings (2) = 27 total"
+    "Field order in the grid & template mirrors the migration column order exactly: Steam Turbine (6 fields) -> Diesel Gen 1 (5) -> Diesel Gen 2 (5) -> Electrical Sync (4) -> Air Compressor/Battery/Fuel/Energy (4) -> Action Taken/Findings (2) = 27 total",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormEngineRoomView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('engine_room_record') → pushSavedRecordNow → POST /api/engine-room-records bila Mills Setting immediate_sync_enabled aktif, dan penolakannya (termasuk 422 PERIOD_CLOSED) DIAM — record tetap 'saved' dan alasannya baru tampil di SyncResultDialog pada sinkron manual screen-006. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('engine-room', mill, date) di EngineRoomRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik). Kegagalan write-through yang diam dicakup secara generik oleh mobile/tests/writeThroughSync.spec.ts."
   ],
   "deferred_items": [],
   "known_issues": [

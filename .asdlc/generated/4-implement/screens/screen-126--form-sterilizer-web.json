@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-126--form-sterilizer-web",
   "name": "Form Sterilizer (Web)",
@@ -41,7 +41,8 @@
     "Route web /data/sterilizer/create HARUS didaftarkan SEBELUM /data/sterilizer/{id} (screen-125) — sama pola dengan screen-022/023/024/111/113/114",
     "Ditambahkan tombol 'Tambah Data' di Data Browser (screen-124) dan tombol 'Edit' di Detail (screen-125) sebagai entry point ke screen ini",
     "Station::factory()->sterilizer() state reused (ditambahkan bersama screen-124's implementation) untuk kebutuhan test suite screen ini",
-    "Ini adalah screen TERAKHIR dari 18 stasiun kanonis proyek ini (dipromosikan 2026-09-01). Bersama dengan Part C (promosi ProductionLineService::DEFAULT_STATIONS, migration backfill 2026_09_01_000027, StationType enum, mobile localSchema.ts/StationGrid.vue/stationRepo.ts/StationListView.vue, blade production-process-activity.blade.php), 0 placeholder tersisa di manapun dalam proyek Mill Smart Log — 18 stasiun kanonis, SEMUA 18 aktif dan terimplementasi penuh (mobile + web + backend)."
+    "Ini adalah screen TERAKHIR dari 18 stasiun kanonis proyek ini (dipromosikan 2026-09-01). Bersama dengan Part C (promosi ProductionLineService::DEFAULT_STATIONS, migration backfill 2026_09_01_000027, StationType enum, mobile localSchema.ts/StationGrid.vue/stationRepo.ts/StationListView.vue, blade production-process-activity.blade.php), 0 placeholder tersisa di manapun dalam proyek Mill Smart Log — 18 stasiun kanonis, SEMUA 18 aktif dan terimplementasi penuh (mobile + web + backend).",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): SterilizerRecordService::create() memanggil assertPeriodOpenForWrite('sterilizer', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormSterilizer::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (menguji POST/PATCH /api/sterilizer-records stasiun ini langsung: ditolak 422 PERIOD_CLOSED di periode tertutup, dan diterima lagi setelah periode dibuka kembali); test per-layar (tests/Unit/Services/SterilizerRecordServiceTest.php, tests/Feature/Api/FormSterilizerTest.php, tests/Feature/Livewire/FormSterilizerTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [

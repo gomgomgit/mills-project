@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-055--detail-depricarping-web",
   "name": "Detail Depricarping (Web)",
@@ -26,7 +26,8 @@
     "Detail grid table renders all 8 reading columns (Fan Static Pressure, Polishing Drum Speed, Air Velocity, Fibre Moisture, Kernel Recovery in Fibre, Nut Silo 1/2 Temp, Downtime (Mins), Findings) -- one more column than Threshing/Pressing's 6-column grid, reflecting Depricarping's split Downtime Mins + Findings columns",
     "Field grouping/order in the Blade view mirrors mobile/src/views/DataPreviewDepricarpingView.vue's detail mode exactly, per explicit product direction that web station screens mirror mobile flow/UX",
     "Route /data/depricarping/{id} registered after /data/depricarping/create (screen-059) so the literal 'create' segment is not swallowed by {id}",
-    "REVISED 2026-08-24 (documentation-only correction, no functional code change needed): the Blade view (depricarping-detail.blade.php) already iterated $record['details'] directly with a plain @foreach and never assumed exactly 24 rows, so it required zero changes for the entity-catalog v12 dynamic-add-row revision to DepricarpingRecordService -- it correctly renders however many rows a record actually has, confirmed by grep (no '24' literal in the view), mirrors DetailPressing's (screen-054) identical finding"
+    "REVISED 2026-08-24 (documentation-only correction, no functional code change needed): the Blade view (depricarping-detail.blade.php) already iterated $record['details'] directly with a plain @foreach and never assumed exactly 24 rows, so it required zero changes for the entity-catalog v12 dynamic-add-row revision to DepricarpingRecordService -- it correctly renders however many rows a record actually has, confirmed by grep (no '24' literal in the view), mirrors DetailPressing's (screen-054) identical finding",
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): aksi verifikasi langsung di layar Detail (approve/un-approve, 2026-09-14) sebelumnya TIDAK terdokumentasi sama sekali di artefak ini. backend/app/Livewire/Data/DetailDepricarping.php memakai trait backend/app/Livewire/Data/Concerns/HandlesRecordVerification.php (verificationModelClass()=DepricarpingRecord::class) dan blade-nya merender aksi lewat canCheck()/canAcknowledge() + :message=$verificationMessage — Checked By (Supervisor/Admin) dan Acknowledged By (Mill Management/Admin). Aksi memanggil backend/app/Services/RecordVerificationService.php::setVerification() (jalur tulis keempat): peran -> cakupan mill (403) -> assertPeriodOpenForWrite('depricarping', mill stasiun record, `date` record) -> 422 PERIOD_CLOSED sebelum kolom berubah -> baru tulis checked_by/acknowledged_by. Sejak fix 0594c63 HandlesRecordVerification menangkap HttpException sehingga penolakan periode tampil sebagai alert $verificationMessage (sebelumnya 422 mentah). Padanan API: PATCH /api/records/{stationType}/{id}/verification (RecordVerificationController). Diuji: backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...'; trait bersama, diwakili DetailCagesTrack), backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED setujui & batalkan), backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist)."
   ],
   "deferred_items": [],
   "known_issues": [

@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-012--form-cages-track",
   "name": "Form Cages Track",
@@ -29,7 +29,8 @@
     "Independently re-verified (bukan hanya laporan agent, seluruh perbaikan v3 dikerjakan langsung oleh command): 351/351 vitest seluruh app, 91/92 Playwright FULL SUITE (1 kegagalan di data-preview-cages-track.spec.ts adalah screen-015 yang memang belum direvisi — task terpisah, sudah diantisipasi, bukan regresi dari pekerjaan ini). 25/25 Playwright untuk form-cages-track+monitor-cages-track spesifik.",
     "v4 (Mills Setting jumlah_cages): jumlahCagesFromMillSetting ref ditambahkan di FormCagesTrackView.vue, dimuat sekali onMounted via getJumlahCages(authStore.currentUser?.business_unit_id). cageColumns, canAddTippedTimeRow, dan cages_remain per baris sekarang semuanya diturunkan dari ref ini, bukan form.cages_tipped. Computed cagesTippedLocked dan hint header-nya DIHAPUS total — cages_tipped kini murni input manual biasa, tidak lagi memengaruhi grid, sesuai tech-spec v3.",
     "v4: dipakai authStore.currentUser?.business_unit_id, BUKAN path literal spec (cages_track_record.station_id -> station.business_unit_id) — karena station_id belum pernah diisi oleh createDraft() saat ini (perbaikan itu milik alur pembuatan draft di Monitor screen, di luar scope perubahan ini). Secara fungsional setara untuk app mobile single-business-unit-per-sesi ini, dan konsisten dengan pola yang sudah dipakai saat login (fetchAndCacheMillSetting/seedDefaultStationsIfNeeded).",
-    "v4: hint baris kedua (data-testid=add-row-jumlah-cages-hint) ditambahkan di sebelah tombol Tambah baris untuk kondisi mill_setting belum tersedia/0, mengikuti pola hint UI yang sudah ada."
+    "v4: hint baris kedua (data-testid=add-row-jumlah-cages-hint) ditambahkan di sebelah tombol Tambah baris untuk kondisi mill_setting belum tersedia/0, mengikuti pola hint UI yang sudah ada.",
+    "REVISI (tech-spec v4, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormCagesTrackView menyimpan HANYA ke SQLite lokal (tidak ada apiClient/syncAfterSave; stasiun ini tidak punya write-through) dan tidak memeriksa periode; record 'saved' dikirim lewat sinkron manual screen-006 (POST /api/cages-track-records), dan penolakan 422 PERIOD_CLOSED membuat record tetap 'saved' dengan alasan server di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('cages-track', mill, date) di CagesTrackRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik)."
   ],
   "deferred_items": [],
   "known_issues": [

@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-044--form-kernel-plant",
   "name": "Form Kernel Plant",
@@ -25,7 +25,8 @@
     "availableTimeSlotOptions() compares slots by their index in canonicalTimeSlots() rather than a raw hour number (since slots wrap starting at 07:00, not 0-23) -- the one structural difference from Cages Tipped Time's availableHourOptions(), otherwise the floor/exclusion logic is identical to Depricarping's/Pressing's/Threshing's fixed version",
     "Every FormField id in the grid is set explicitly (e.g. ripple-mill-1-{index}, downtime-minutes-{index}, findings-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide",
     "Time-Slot per row is now a SearchableSelect.vue instance (was a read-only label) -- mirrors FormDepricarpingView.vue exactly, WITH pendingDeletionIds for existing (has-id) rows removed via Hapus baris",
-    "Playwright e2e suite (mobile/tests/e2e/form-kernel-plant.spec.ts) REVISED 2026-08-24 alongside this fix to exercise Tambah baris/Hapus baris and the Time-Slot <select> (was 'always 24 rows, drive New Data flow directly'); syntax verified via `playwright test --list` (10 scenarios), not executed against a live dev server + backend in this environment, matching the sibling stations' now-standard verification depth for this revision."
+    "Playwright e2e suite (mobile/tests/e2e/form-kernel-plant.spec.ts) REVISED 2026-08-24 alongside this fix to exercise Tambah baris/Hapus baris and the Time-Slot <select> (was 'always 24 rows, drive New Data flow directly'); syntax verified via `playwright test --list` (10 scenarios), not executed against a live dev server + backend in this environment, matching the sibling stations' now-standard verification depth for this revision.",
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormKernelPlantView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('kernel_plant_record') → pushSavedRecordNow → POST /api/kernel-plant-records bila Mills Setting immediate_sync_enabled aktif, dan penolakannya (termasuk 422 PERIOD_CLOSED) DIAM — record tetap 'saved' dan alasannya baru tampil di SyncResultDialog pada sinkron manual screen-006. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('kernel-plant', mill, date) di KernelPlantRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik). Kegagalan write-through yang diam dicakup secara generik oleh mobile/tests/writeThroughSync.spec.ts."
   ],
   "deferred_items": [],
   "known_issues": [

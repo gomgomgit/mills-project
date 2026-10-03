@@ -21,3 +21,8 @@
 - `production_line` disisipkan tepat setelah `business_unit` di dalam `data` ← layar ini memang membungkus responsnya dengan `data`, berbeda dari endpoint `/summary` laporan.
 - `test_scenarios[*].browser_test` = KOSONG pada keempat skenario baru ← `e2e-web/tests/laporan-stasiun.spec.ts` tidak menyentuh Production Line sama sekali. Yang nyata hanya 3 uji API + 3 uji Livewire, dan ketiganya sudah tercermin di `unit_test_cases`.
 - `data_operations` = ditambah SATU entri `production-line` (bukan dua seperti Data Browser) ← di layar ini opsi dan resolusi nama datang dari satu kueri pada tabel yang sama; tidak ada penjepitan terpisah seperti `clampProductionLineIdToMill()`.
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v2)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

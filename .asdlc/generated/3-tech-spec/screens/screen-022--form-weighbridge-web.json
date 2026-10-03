@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-022--form-weighbridge-web",
   "name": "Form Weighbridge (Web)",
@@ -78,6 +78,11 @@
                 "http_code": 422,
                 "error_code": "NO_ACTIVE_WEIGHBRIDGE_STATION",
                 "condition": "business unit tanpa station weighbridge aktif"
+              },
+              {
+                "http_code": 422,
+                "error_code": "PERIOD_CLOSED",
+                "condition": "tidak ada Periode Pelaporan dengan baris stasiun 'weighbridge' berstatus Terbuka di mill record ini (belum ada periode / masih Draft / sudah Tertutup), atau record_datetime di luar rentang periode terbuka itu (inklusif kedua ujung); juga bila record_datetime kosong"
               }
             ]
           },
@@ -135,6 +140,11 @@
                 "http_code": 404,
                 "error_code": "RECORD_NOT_FOUND",
                 "condition": "id tidak ditemukan"
+              },
+              {
+                "http_code": 422,
+                "error_code": "PERIOD_CLOSED",
+                "condition": "tanggal LAMA (record_datetime yang tersimpan) atau tanggal BARU (record_datetime di body) tidak berada di periode yang Terbuka untuk stasiun 'weighbridge' di mill record ini"
               }
             ]
           },
@@ -158,7 +168,8 @@
         "11. FE: Net Weight dihitung reaktif untuk preview tapi field disabled (invariant data, dikecualikan dari konvensi web-form-input)",
         "12. FE: checkbox Checked hanya untuk role supervisor, Acknowledged hanya mill_management",
         "13. Simpan berhasil -> navigasi ke Detail Weighbridge",
-        "14. Batal -> kembali tanpa API call"
+        "14. Batal -> kembali tanpa API call",
+        "15. KUNCI PERIODE (usecase-141): SEBELUM penulisan apa pun -- create: setelah validasi field & resolve station, sebelum penulisan pertama; update: setelah findOrFail + cek akses + validasi -- WeighbridgeRecordService memanggil EnforcesPeriodLock::assertPeriodOpenForWrite('weighbridge', station.business_unit_id, tanggal). Tanggal kejadian stasiun ini = record_datetime (bagian tanggalnya). Create: 1 cek terhadap record_datetime BARU. Update: 2 cek -- record_datetime LAMA (tersimpan) DAN record_datetime BARU (body), keduanya harus di periode Terbuka. Lolos hanya bila mill punya Periode Pelaporan yang baris period_stations untuk 'weighbridge' berstatus open DAN tanggal di start_date..end_date (inklusif); status dinilai saat request, bukan saat kejadian. Gagal -> PeriodClosedException 422 PERIOD_CLOSED, nol record tersimpan/berubah"
       ],
       "data_operations": [
         {
@@ -202,6 +213,18 @@
         {
           "condition": "checked/acknowledged oleh role tidak berhak",
           "handling": "diabaikan diam-diam"
+        },
+        {
+          "condition": "Belum ada Periode Pelaporan untuk stasiun ini, atau baris stasiun 'weighbridge' pada periode yang mencakup record_datetime masih Draft / sudah Tertutup",
+          "handling": "422 PERIOD_CLOSED dengan pesan sesuai alasan -- 'Belum ada Periode Pelaporan yang terbuka untuk stasiun ini, sehingga data bertanggal dd/mm/YYYY belum dapat disimpan...' / 'Periode \"<nama>\" untuk stasiun ini belum dibuka (masih Draft)...' / 'Periode \"<nama>\" untuk stasiun ini sudah ditutup...'; nol record tersimpan (penolakan terjadi sebelum penulisan pertama); Livewire FormWeighbridge::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError), bukan error inline per-field"
+        },
+        {
+          "condition": "record_datetime berada di luar rentang semua periode yang Terbuka untuk stasiun 'weighbridge' di mill ini",
+          "handling": "422 PERIOD_CLOSED; pesan menyebut rentang yang berlaku: 'Tanggal dd/mm/YYYY berada di luar periode yang terbuka untuk stasiun ini. Periode yang menerima data saat ini: \"<nama>\" (dd/mm/YYYY s/d dd/mm/YYYY).'; nol record tersimpan; tampil sebagai $generalError"
+        },
+        {
+          "condition": "Update memindahkan record_datetime keluar dari periode Tertutup (tanggal lama di periode Tertutup, tanggal baru di periode Terbuka)",
+          "handling": "Ditolak 422 PERIOD_CLOSED -- tanggal LAMA ikut diperiksa, sehingga record tidak bisa dikeluarkan dari periode tertutup (mengeluarkan baris menggeser angka laporan sama nyatanya dengan menambah); record tidak berubah"
         }
       ],
       "business_rules_applied": [
@@ -209,7 +232,8 @@
         "record_datetime default sekarang, tetap dapat diedit",
         "Net Weight dihitung model event, tidak menerima override",
         "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
-        "Business Unit tidak berubah setelah dibuat"
+        "Business Unit tidak berubah setelah dibuat",
+        "Kunci periode (usecase-141, whitelist): data Weighbridge hanya dapat dibuat/diubah bila mill record punya Periode Pelaporan yang baris stasiun 'weighbridge'-nya Terbuka DAN tanggal kejadian (record_datetime) berada di rentangnya (inklusif kedua ujung); tanpa periode, Draft, Tertutup, tanggal kosong, atau di luar rentang -> 422 PERIOD_CLOSED. Status dinilai per jenis stasiun saat request; periode mill lain atau jenis stasiun lain tidak membuka akses; update memeriksa tanggal lama DAN baru"
       ],
       "unit_test_cases": [
         {
@@ -271,6 +295,21 @@
           "description": "returns success with resolved station_name",
           "given": "create/update sukses",
           "expect": "response berisi station_name via relasi"
+        },
+        {
+          "description": "422 PERIOD_CLOSED on create when the mill has no open period for weighbridge",
+          "given": "station 'weighbridge' aktif dan body valid, tetapi mill tidak punya Periode Pelaporan (atau baris stasiun 'weighbridge' masih Draft/Tertutup)",
+          "expect": "throw PeriodClosedException (422, error_code PERIOD_CLOSED) dengan pesan alasan yang sesuai; nol record tersimpan"
+        },
+        {
+          "description": "422 PERIOD_CLOSED on update when the OLD date sits in a closed period even though the NEW date is in an open one",
+          "given": "record existing dengan record_datetime di periode yang baris 'weighbridge'-nya Tertutup; PATCH mengganti record_datetime ke tanggal di periode lain yang Terbuka",
+          "expect": "throw PeriodClosedException 422 PERIOD_CLOSED; record tidak berubah"
+        },
+        {
+          "description": "accepts create on the open period's start and end dates (inclusive)",
+          "given": "periode Terbuka untuk 'weighbridge' 2026-10-01..2026-10-31; dua create dengan record_datetime=2026-10-01T08:00:00 dan record_datetime=2026-10-31T17:00:00",
+          "expect": "keduanya tersimpan dengan status=saved, tidak ada PeriodClosedException"
         }
       ]
     }
@@ -306,7 +345,8 @@
     "Business Unit dropdown reuse GET /api/business-units (sudah ada, publik)",
     "Mode edit prefill reuse GET /api/weighbridge-records/{id} (screen-019)",
     "Route web /data/weighbridge/create HARUS didaftarkan SEBELUM /data/weighbridge/{id} agar tidak tertangkap sebagai {id}",
-    "Checked/Acknowledged sebagai checkbox self-attestation, mengisi checked_by/acknowledged_by dengan id user login"
+    "Checked/Acknowledged sebagai checkbox self-attestation, mengisi checked_by/acknowledged_by dengan id user login",
+    "KUNCI PERIODE (usecase-141; kode sudah ada sejak 49dc0c5, spec disinkronkan 2026-10-03): ditegakkan di WeighbridgeRecordService::create() (1 cek, tanggal baru) dan update() (2 cek, tanggal lama + baru) via trait App\\Support\\Concerns\\EnforcesPeriodLock; exception App\\Exceptions\\PeriodClosedException (HttpException 422, PERIOD_CLOSED). Berlaku sama untuk API (WeighbridgeRecordController store/update) dan Livewire FormWeighbridge::save() (catch HttpException -> $generalError). Cakupan test: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist, 4 pesan, inklusif, per jenis stasiun, per mill, tanggal kosong, plus cek statis bahwa ke-18 *RecordService memanggil guard >=1x di create dan >=2x di update) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end lewat jalur Sterilizer). Test per-layar (tests/Unit/Services/WeighbridgeRecordServiceTest.php, tests/Feature/Api/FormWeighbridgeTest.php, tests/Feature/Livewire/FormWeighbridgeTest.php) hanya membuka periode sebagai prasyarat (openPeriodFor()/openPeriodForStation() di tests/Pest.php); 3 unit_test_cases kunci periode di atas adalah spesifikasi, belum ada sebagai test khusus stasiun ini"
   ],
   "test_scenarios": [
     {

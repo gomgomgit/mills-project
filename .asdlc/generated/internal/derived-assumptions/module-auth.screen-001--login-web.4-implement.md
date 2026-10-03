@@ -9,3 +9,8 @@
 - Design token di-inline sebagai CSS biasa (bukan lewat pipeline Vite/Tailwind) ← belum ada asset pipeline di scaffold backend-only
 - POST /api/login diberi middleware('web') eksplisit (bukan hanya EnsureFrontendRequestsAreStateful) agar session selalu dibuat sesuai business_logic step 6 ← keputusan fix implementasi, konsekuensi arsitektur untuk usecase-002 (mobile) perlu ditinjau ulang nanti
 - AuthServiceTest pakai RefreshDatabase+sqlite in-memory+factories, bukan true mock ← deviasi pragmatis dari test_strategy.unit_test.mock_policy karena AuthService pakai Eloquent langsung
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v1)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); turunan dari re-track tech-spec, shared-decisions, entity-models, dan shared-modules pada putaran yang sama — penilaian agen, tidak dinyatakan user per layar

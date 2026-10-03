@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-074--form-cpo-dispatch",
   "name": "Form CPO Dispatch",
@@ -25,7 +25,8 @@
     "Net Weight (MT) computed client-side (gross_weight_mt - tare_weight_mt) via rowNetWeight()/buildDetailPayload(), recomputed immediately before every save call — same 'computed then persisted' pattern as KernelDispatchDetailFormRow",
     "Hapus baris follows the queue-for-deletion pattern (a row with an existing id is queued in pendingDeletionIds, only actually DELETEd by the repo on the next Simpan/Pause call) — consistent with Form Kernel Dispatch/Form Solid Waste Disposal",
     "FormField ids given explicitly (id=\"cpo_dispatch_id\", id=\"date\") rather than relying on FormField's auto-derived label-slug id, for stable, predictable test selectors",
-    "Time In/Time Out rendered as <input type=\"time\"> pairs (the only two detail fields of this kind) — CPO Dispatch has no enum-typed detail column (no gate-status equivalent), unlike Kernel Dispatch's Remarks/Gate Status <select>"
+    "Time In/Time Out rendered as <input type=\"time\"> pairs (the only two detail fields of this kind) — CPO Dispatch has no enum-typed detail column (no gate-status equivalent), unlike Kernel Dispatch's Remarks/Gate Status <select>",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormCpoDispatchView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('cpo_dispatch_record') → pushSavedRecordNow → POST /api/cpo-dispatch-records bila Mills Setting immediate_sync_enabled aktif, dan penolakannya (termasuk 422 PERIOD_CLOSED) DIAM — record tetap 'saved' dan alasannya baru tampil di SyncResultDialog pada sinkron manual screen-006. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('cpo-dispatch', mill, date) di CpoDispatchRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik). Kegagalan write-through yang diam dicakup secara generik oleh mobile/tests/writeThroughSync.spec.ts."
   ],
   "deferred_items": [],
   "known_issues": [

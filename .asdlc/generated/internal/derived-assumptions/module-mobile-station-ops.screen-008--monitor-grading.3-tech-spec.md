@@ -12,3 +12,8 @@
 - Business logic dan test_scenarios ditulis ulang total mengikuti pola screen-007--monitor-weighbridge v4 (counter 3-card + list draft/pause + New Data/Load Data) ← mirroring struktural dari instruksi user "hal yang sama seperti weighbridge", diterjemahkan 1:1 ke entitas grading-record
 - Counter dihitung dari filter date(date) = hari ini (bukan arrival_datetime seperti Weighbridge) ← field timestamp Grading bernama `date`, bukan `arrival_datetime`, sesuai entity-catalog v2
 - Fungsi repo baru diasumsikan: getTodaySummary(userId), getDrafts(userId) pada gradingRecordRepo.ts, mengikuti pola nama yang sama persis dengan weighbridgeRecordRepo.ts ← belum ada di kode, akan dibuat saat implementasi
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v2)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

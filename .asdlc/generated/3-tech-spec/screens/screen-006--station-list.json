@@ -1,8 +1,8 @@
 {
-  "ver": 9,
+  "ver": 10,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-006--station-list",
   "name": "Station List",
@@ -149,13 +149,18 @@
         {
           "condition": "Salah satu repo getDrafts() gagal",
           "handling": "Stasiun dianggap tidak ada draft, best-effort"
+        },
+        {
+          "condition": "Sinkron record ke stasiun yang periodenya tidak terbuka / tanggal kejadian di luar rentang periode (usecase-141)",
+          "handling": "Server menolak 422 PERIOD_CLOSED PER RECORD — syncService menangkap galat per baris di dalam loop (pushUniformRow untuk 15 stasiun seragam; syncWeighbridgeRecords/syncGradingRecords/syncCagesTrackRecords untuk 3 stasiun bespoke), bukan all-or-nothing: record lain dalam batch yang sama tetap tersinkron. Record yang ditolak tetap berstatus 'saved' di perangkat (tidak di-UPDATE ke 'synced', server_id tetap kosong) dan SyncItemResult.reason = pesan server (apiClient.normalizeError → message), ditampilkan di daftar gagal SyncResultDialog. Khusus Grading: bila Weighbridge acuannya ditolak, Grading ikut gagal dengan alasan 'Weighbridge terkait belum tersinkron' (bukan pesan periode). Dapat dicoba ulang dengan menekan Sinkronisasi lagi setelah Admin membuka kembali baris stasiunnya di screen-142 (Detail Periode Pelaporan)."
         }
       ],
       "business_rules_applied": [
         "18 stasiun MVP aktif (7 sejak 2026-08-23, 10 lagi sejak 2026-08-31, Sterilizer sejak 2026-09-01) - 0 placeholder tersisa",
         "Warna tombol mencerminkan status draft",
         "Ikon tile memakai station.icon jika diisi else default per tipe",
-        "Breadcrumb dapat dinavigasi"
+        "Breadcrumb dapat dinavigasi",
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron: tiap record dinilai sendiri-sendiri terhadap periode berstatus Terbuka untuk jenis stasiunnya, pada saat request sinkron diterima (bukan saat data dicatat di perangkat); penolakan satu record tidak membatalkan record lain dalam batch"
       ],
       "unit_test_cases": [
         {
@@ -274,7 +279,8 @@
     "2026-08-23: 4 stasiun baru dipromosikan dari placeholder ke aktif - StationListView.vue diperluas import 4 repo baru, MONITOR_ROUTE_NAMES dan loadDraftStatusByType diperluas 4 entri; StationGrid.vue ACTIVE_ICONS diperluas 4 entri; stationRepo.ts StationType union diperluas 4 literal baru.",
     "KOREKSI ver 7 (2026-08-31): 10 stasiun baru ditambahkan (6 promosi placeholder + 4 baru) - StationListView.vue diperluas 10 repo baru, MONITOR_ROUTE_NAMES dan loadDraftStatusByType diperluas 10 entri; StationGrid.vue ACTIVE_ICONS diperluas 10 entri; stationRepo.ts StationType union diperluas 10 literal baru. Total 17 stasiun aktif, 2 placeholder tersisa (Sterilizer, Loading Ramp).",
     "KOREKSI ver 8 (2026-09-01): Placeholder 'Loading Ramp' dihapus sepenuhnya dari daftar kanonis - ternyata nama duplikat untuk stasiun yang sama dengan Cages Track (sudah aktif), bukan stasiun terpisah. Total sekarang 17 stasiun aktif, 1 placeholder tersisa (Sterilizer).",
-    "KOREKSI ver 9 (2026-09-01, promosi final): Sterilizer dipromosikan dari placeholder (type=other) menjadi stasiun aktif (type=sterilizer) - stasiun terakhir dari 18 stasiun kanonis. StationListView.vue menambah import sterilizerRecordRepo, satu entri di MONITOR_ROUTE_NAMES dan loadDraftStatusByType (Promise.all); StationGrid.vue memindahkan icon Sterilizer dari PLACEHOLDER_ICONS ke ACTIVE_ICONS (glyph SVG sama persis, kini dipakai untuk tile aktif); stationRepo.ts StationType union menambah literal 'sterilizer'. Section 'Skema Mendatang (Belum Tersedia)' pada StationGrid.vue kini otomatis tidak render apa pun (placeholderStations.length === 0) - tidak perlu perubahan kode di conditional-nya. Test scenario 'Pilih Stasiun - Tap Disabled' DIHAPUS dari test_scenarios di bawah (bukan direpurpose) karena 0 tile disabled tersisa untuk diuji - tidak ada lagi kondisi tap-disabled yang berlaku di screen ini. Entri edge_case_handling 'Tap Stasiun Disabled' juga dihapus dengan alasan yang sama."
+    "KOREKSI ver 9 (2026-09-01, promosi final): Sterilizer dipromosikan dari placeholder (type=other) menjadi stasiun aktif (type=sterilizer) - stasiun terakhir dari 18 stasiun kanonis. StationListView.vue menambah import sterilizerRecordRepo, satu entri di MONITOR_ROUTE_NAMES dan loadDraftStatusByType (Promise.all); StationGrid.vue memindahkan icon Sterilizer dari PLACEHOLDER_ICONS ke ACTIVE_ICONS (glyph SVG sama persis, kini dipakai untuk tile aktif); stationRepo.ts StationType union menambah literal 'sterilizer'. Section 'Skema Mendatang (Belum Tersedia)' pada StationGrid.vue kini otomatis tidak render apa pun (placeholderStations.length === 0) - tidak perlu perubahan kode di conditional-nya. Test scenario 'Pilih Stasiun - Tap Disabled' DIHAPUS dari test_scenarios di bawah (bukan direpurpose) karena 0 tile disabled tersisa untuk diuji - tidak ada lagi kondisi tap-disabled yang berlaku di screen ini. Entri edge_case_handling 'Tap Stasiun Disabled' juga dihapus dengan alasan yang sama.",
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): Station List adalah titik tempat Operator melihat penolakan PERIOD_CLOSED untuk data mobile — syncAllRecords() memanggil POST /api/{station}-records satu per satu; guard EnforcesPeriodLock::assertPeriodOpenForWrite() di {Station}RecordService::create() menolak 422 code=PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang — menyebut rentang yang berlaku). Tidak ada kode mobile khusus usecase-141: jalur galat generik yang sudah ada (catch per record → reason → SyncResultDialog) sudah cukup. Write-through saat Simpan di form (Mills Setting immediate_sync_enabled, 15 stasiun selain Weighbridge/Grading/Cages Track) memakai pushUniformRow yang sama tetapi penolakannya DIAM, sehingga alasan penolakan baru terlihat lewat sinkron manual dari layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); grid stasiun tidak menampilkan indikator record 'saved' yang tertahan."
   ],
   "test_scenarios": [
     {

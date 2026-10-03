@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-021--detail-cages-track-web",
   "name": "Detail Cages Track (Web)",
@@ -35,7 +35,8 @@
     "Field grouping & urutan field di blade view MENIRU PERSIS mobile/src/views/DataPreviewCagesTrackView.vue mode detail (Cages Track Number, Tanggal, Tippler Start/Stop Time, Cages Out, Cages Tipped, Inputted By, Checked By, Acknowledged By, Note, grid Cages Tipped Time) per arahan eksplisit: web station screens mengikuti flow/UX mobile, tidak didesain independen",
     "Route /cages-track-records/{id} didaftarkan SETELAH /cages-track-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}",
     "Route /data/cages-track/{id} mengaktifkan affordance clickable-row yang sudah dibangun di screen-018's Blade view (guarded via Route::has('data.cages-track.detail')) — DataBrowserCagesTrackTest.php diupdate untuk mencerminkan perilaku baru ini, mengikuti pola screen-016/017",
-    "Layout Blade terpisah (cages-track-detail.blade.php) dari screen-018 (cages-track.blade.php) karena Blade #[Layout(...)] tidak menerima parameter untuk judul header yang berbeda — shell/sidebar disalin identik dari layout screen-018/020"
+    "Layout Blade terpisah (cages-track-detail.blade.php) dari screen-018 (cages-track.blade.php) karena Blade #[Layout(...)] tidak menerima parameter untuk judul header yang berbeda — shell/sidebar disalin identik dari layout screen-018/020",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): aksi verifikasi langsung di layar Detail (approve/un-approve, 2026-09-14) sebelumnya TIDAK terdokumentasi sama sekali di artefak ini. backend/app/Livewire/Data/DetailCagesTrack.php memakai trait backend/app/Livewire/Data/Concerns/HandlesRecordVerification.php (verificationModelClass()=CagesTrackRecord::class) dan blade-nya merender aksi lewat canCheck()/canAcknowledge() + :message=$verificationMessage — Checked By (Supervisor/Admin) dan Acknowledged By (Mill Management/Admin). Aksi memanggil backend/app/Services/RecordVerificationService.php::setVerification() (jalur tulis keempat): peran -> cakupan mill (403) -> assertPeriodOpenForWrite('cages-track', mill stasiun record, `date` record) -> 422 PERIOD_CLOSED sebelum kolom berubah -> baru tulis checked_by/acknowledged_by. Sejak fix 0594c63 HandlesRecordVerification menangkap HttpException sehingga penolakan periode tampil sebagai alert $verificationMessage (sebelumnya 422 mentah). Padanan API: PATCH /api/records/{stationType}/{id}/verification (RecordVerificationController). Diuji: backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...'; trait bersama, diwakili DetailCagesTrack), backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED setujui & batalkan), backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist)."
   ],
   "deferred_items": [],
   "known_issues": [

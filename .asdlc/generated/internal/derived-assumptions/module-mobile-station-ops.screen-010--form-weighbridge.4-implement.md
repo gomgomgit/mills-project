@@ -24,3 +24,9 @@
 
 - DIRTY_CHECK_FIELDS menambahkan destination sebagai field dirty-check, sementara weighbridge_type/record_datetime tetap dikecualikan ← tech spec tidak eksplisit menyebut field mana yang masuk dirty-check; agent mengikuti pola lama (field auto/derived dikecualikan, field yang diketik user dimasukkan)
 - buildPayload() memaksa destination='' saat type=receive sebagai jaminan defensif tambahan (bukan hanya UI hide) ← konsisten dengan pola enforcement checked_by dua-lapis (UI + payload) yang sudah ada di screen ini sejak v1, tidak dinyatakan eksplisit di tech spec v6
+
+## v6 — 2026-10-03
+
+Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan (49dc0c5, 0594c63); kode tidak diubah.
+- Berkas test yang dikutip dipilih sendiri: backend/tests/Unit/Support/EnforcesPeriodLockTest.php, backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php, mobile/tests/syncService.spec.ts. Tidak ada test (mobile) yang memakai respons PERIOD_CLOSED secara spesifik; test mobile yang dikutip hanya mencakup galat generik.
+- test_results tidak disentuh; tidak ada test dijalankan (sesuai brief).

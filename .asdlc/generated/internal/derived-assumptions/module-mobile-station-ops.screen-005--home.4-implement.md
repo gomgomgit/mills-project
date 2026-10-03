@@ -15,3 +15,8 @@
 - Hero image didownload manual ke mobile/src/assets/home-hero-mill.jpg (bukan di-generate oleh code-writer-agent) ← keputusan offline-first, URL Unsplash diverifikasi HTTP 200 sebelum didownload
 - Dead-code cleanup (dieksekusi & diverifikasi terpisah dari screen-impl-agent, bukan bagian laporannya): PausedDraftsList.vue, useHomeSummary.ts, draftRecordsRepo.ts, useHomeSummary.spec.ts dihapus setelah grep konfirmasi tidak ada consumer lain selain HomeView versi lama ← konsekuensi langsung dari business rule "Home tidak menampilkan status draft/record"
 - tests/e2e/station-list.spec.ts diperbaiki (selector "Daftar Stasiun" → testid menu-card-production-process-activity) ← ditemukan sebagai regresi nyata saat menjalankan ulang seluruh suite Playwright secara independen (bukan hanya trust laporan agent), bukan oleh screen-impl-agent
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v4)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); turunan dari re-track tech-spec, shared-decisions, entity-models, dan shared-modules pada putaran yang sama — penilaian agen, tidak dinyatakan user per layar

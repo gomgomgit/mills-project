@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-073--form-kernel-dispatch",
   "name": "Form Kernel Dispatch",
@@ -112,6 +112,10 @@
         {
           "condition": "Clear ditekan",
           "handling": "Tampilkan dialog konfirmasi wajib sebelum DELETE dieksekusi"
+        },
+        {
+          "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Pengecualian: bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mencoba mengirim record ini ke server (writeThroughSync.syncAfterSave('kernel_dispatch_record') → syncService.pushSavedRecordNow → POST /api/kernel-dispatch-records); penolakan 422 PERIOD_CLOSED pada kiriman langsung ini DIAM by design — form tetap bernavigasi ke Monitor tanpa pesan, record tetap 'saved', alasannya tidak disimpan — dan baru terlihat pada sinkron manual berikutnya di screen-006. Pemulihan: Admin membuka kembali baris stasiun Kernel Dispatch di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
@@ -119,7 +123,8 @@
         "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
         "Log Kejadian adalah event-log bebas, jumlah baris tidak dibatasi",
         "Minimal satu baris Log Kejadian dengan Tanggal Kejadian terisi sebelum Simpan",
-        "Net Weight dihitung otomatis per baris, tidak dapat diedit manual"
+        "Net Weight dihitung otomatis per baris, tidak dapat diedit manual",
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron (manual dari screen-006, atau kiriman langsung saat Simpan bila immediate_sync_enabled aktif), bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'kernel-dispatch' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian header `date` (bukan event_date per baris detail)"
       ],
       "unit_test_cases": [
         {
@@ -221,7 +226,8 @@
     "Berbeda dari stasiun grid-jam: TIDAK ADA konsep N-kolom checklist/jam — Log Kejadian murni tabel bebas per-kejadian, mengikuti pola solid-waste-disposal-detail/cages-tipped-time hanya dari sisi 'unbounded rows added manually', bukan dari sisi struktur kolomnya",
     "Hapus baris mengikuti pola queue-for-deletion (baris dengan id ditandai, baru DELETE eksekusi saat Simpan/Pause berikutnya), konsisten dengan Form Solid Waste Disposal/Form Cages Track",
     "Net Weight (MT) dihitung client-side lalu dipersist, tidak pernah dihitung ulang oleh repo saat load",
-    "21 kolom detail (lebih banyak dari Solid Waste Disposal's 17) mengikuti persis urutan field entity-catalog kernel-dispatch-detail: event_date, shift, weighbridge_ticket_no, waybill_number, transporter_contractor, vehicle_plate_no, driver_name, silo_source_id, destination_buyer, gross_weight_mt, tare_weight_mt, net_weight_mt, kernel_moisture_percent, dirt_impurities_percent, ffa_percent, broken_kernel_percent, security_seal_no_top, security_seal_no_bottom, weighbridge_operator_id, remarks_gate_status, findings"
+    "21 kolom detail (lebih banyak dari Solid Waste Disposal's 17) mengikuti persis urutan field entity-catalog kernel-dispatch-detail: event_date, shift, weighbridge_ticket_no, waybill_number, transporter_contractor, vehicle_plate_no, driver_name, silo_source_id, destination_buyer, gross_weight_mt, tare_weight_mt, net_weight_mt, kernel_moisture_percent, dirt_impurities_percent, ffa_percent, broken_kernel_percent, security_seal_no_top, security_seal_no_bottom, weighbridge_operator_id, remarks_gate_status, findings",
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormKernelDispatchView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('kernel_dispatch_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/kernel-dispatch-records, create), kegagalannya diam. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('kernel-dispatch', mill, date) berjalan di KernelDispatchRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
   ],
   "test_scenarios": [
     {

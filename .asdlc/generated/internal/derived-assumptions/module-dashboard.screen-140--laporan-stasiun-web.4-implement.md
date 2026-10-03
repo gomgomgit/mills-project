@@ -11,3 +11,8 @@ yang tidak ditentukan spec.
 - **Ikon fallback untuk jenis stasiun tak dikenal** ← spec mewajibkan daftar stasiun bersumber dari master yang bisa bertambah kapan saja, tetapi tidak menyebut apa yang terjadi bila muncul kode tanpa ikon. Dipilih ikon umum agar menambah jenis stasiun di master tidak pernah merusak halaman.
 - **`keepSelectionValid()`** membuang `businessUnitId` basi di komponen ← spec hanya mendefinisikan perilaku service. Tanpa ini, pilihan mill yang mill-nya sudah dihapus akan membuat service menjawab 404 untuk pilihan yang tidak pernah dibuat pengguna.
 - **Kondisi aktif entri sidebar** = `routeIs('reports.stations','reports.sterilizer')` ← agar menu tetap tersorot ketika pengguna sudah masuk ke layar laporan turunannya. Tidak diminta spec.
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v1)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); turunan dari re-track tech-spec, shared-decisions, entity-models, dan shared-modules pada putaran yang sama — penilaian agen, tidak dinyatakan user per layar

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-075--form-effluent-plant",
   "name": "Form Effluent Plant",
@@ -23,7 +23,8 @@
     "'Minimal 1 baris valid' (Time-Slot terpilih + minimal 1 kolom bacaan/status terisi) validated at FE + repo level (effluentPlantRecordRepo.saveDraft() throws EffluentPlantDetailRequiredError) -- UNLIKE Process Water, this station has NO identifying/context columns (no shift/inspector_id equivalent), so all 19 non-time_slot columns (including the 3 enum status columns) participate in the 'filled' check",
     "3 enum status columns (Biogas Flare Status: On/Off/Fault, Dosing Pump 1 Status: Run/Stop, Sludge Dewatering Status: Run/Stop) rendered as native <select> dropdowns with a '-- Pilih --' empty option, styled with a new .native-select CSS class added to this view's scoped styles; local SQLite has no CHECK constraint so no empty-string coercion is required in this repo (unlike the web backend, see screen-115)",
     "UNLIKE Form Threshing/Form Process Water: this screen has NO operational-target reference table section -- no CollapsibleSection, no static-constant data file, per this station's explicit scope",
-    "Every FormField id in the grid is set explicitly (e.g. anaerobic-pond-1-ph-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide, same defensive pattern as FormProcessWaterView.vue"
+    "Every FormField id in the grid is set explicitly (e.g. anaerobic-pond-1-ph-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide, same defensive pattern as FormProcessWaterView.vue",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormEffluentPlantView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('effluent_plant_record') → pushSavedRecordNow → POST /api/effluent-plant-records bila Mills Setting immediate_sync_enabled aktif, dan penolakannya (termasuk 422 PERIOD_CLOSED) DIAM — record tetap 'saved' dan alasannya baru tampil di SyncResultDialog pada sinkron manual screen-006. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('effluent-plant', mill, date) di EffluentPlantRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik). Kegagalan write-through yang diam dicakup secara generik oleh mobile/tests/writeThroughSync.spec.ts."
   ],
   "deferred_items": [],
   "known_issues": [

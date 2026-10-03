@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-056--detail-kernel-plant-web",
   "name": "Detail Kernel Plant (Web)",
@@ -99,13 +99,84 @@
             "cache": "No cache",
             "rate_limit": "No limit"
           }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/records/{stationType}/{id}/verification",
+          "description": "Setujui / batalkan verifikasi satu record Kernel Plant secara langsung (aksi approve/un-approve, ditambahkan 2026-09-14). Endpoint GENERIK 18 stasiun: RecordVerificationController::update -> RecordVerificationService::setVerification. Layar Detail web ini TIDAK memanggilnya lewat HTTP — aksi Livewire toggleChecked()/toggleAcknowledged() (trait HandlesRecordVerification) memanggil RecordVerificationService::setVerification() yang sama secara langsung; endpoint ini padanan API-nya (dipakai Data Preview mobile) dengan aturan identik. Hanya menulis kolom checked_by/acknowledged_by, data record lain tidak disentuh.",
+          "auth_required": true,
+          "request": {
+            "path_params": [
+              {
+                "name": "stationType",
+                "type": "string",
+                "description": "Jenis stasiun; untuk layar ini 'kernel-plant'. Di-resolve lewat whitelist eksplisit RecordVerificationService::MODEL_BY_STATION_TYPE -> KernelPlantRecord (tidak pernah dirangkai jadi nama kelas); tidak dikenal -> 404"
+              },
+              {
+                "name": "id",
+                "type": "uuid",
+                "description": "ID record Kernel Plant"
+              }
+            ],
+            "query_params": [],
+            "body_schema": {
+              "level": "enum(checked, acknowledged) — required",
+              "value": "boolean — required; true = simpan id aktor sendiri, false = kosongkan kolom ke null (un-approve)"
+            }
+          },
+          "response": {
+            "success_schema": {
+              "id": "uuid",
+              "checked_by": "uuid|null",
+              "checked_by_name": "string|null",
+              "acknowledged_by": "uuid|null",
+              "acknowledged_by_name": "string|null"
+            },
+            "error_codes": [
+              {
+                "http_code": 401,
+                "error_code": "UNAUTHENTICATED",
+                "condition": "tidak ada session/token"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "peran tidak berhak: Operator ditolak guard route role:supervisor,mill_management,admin; peran yang tidak berhak atas level tsb ditolak service (Supervisor menulis checked_by, Mill Management menulis acknowledged_by, Admin boleh keduanya) — respons hanya membawa message"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "record milik mill lain (CrossMillWriteDeniedException, ScopesToActorMill::assertRecordWritableByActor) — kolom verifikasi tidak berubah"
+              },
+              {
+                "http_code": 404,
+                "error_code": "RECORD_NOT_FOUND",
+                "condition": "stationType tidak dikenal atau id tidak ditemukan (respons hanya message)"
+              },
+              {
+                "http_code": 422,
+                "error_code": "VALIDATION_ERROR",
+                "condition": "payload tidak valid (level/value), atau aktor non-Admin terikat mill tanpa users.business_unit_id (gagal-tertutup)"
+              },
+              {
+                "http_code": 422,
+                "error_code": "PERIOD_CLOSED",
+                "condition": "usecase-141: tidak ada Periode Pelaporan dengan baris stasiun 'kernel-plant' berstatus open yang mencakup tanggal kejadian record (date) — belum ada periode / masih Draft / sudah ditutup / di luar rentang (pesan menyebut rentang valid). Kolom verifikasi tidak berubah"
+              }
+            ]
+          },
+          "performance": {
+            "cache": "No cache",
+            "rate_limit": ""
+          }
         }
       ],
       "business_logic": [
         "1. findOrFail(id) → if not found: return 404 RECORD_NOT_FOUND (via ModelNotFoundException)",
         "2. Eager-load station, createdBy, checkedBy, acknowledgedBy, kernelPlantDetails",
         "3. Map kernelPlantDetails (berapapun jumlahnya, termasuk nol) ke urutan canonical time-slot (bukan urutan insert), resolve nama-nama user",
-        "4. Return full detail row shape"
+        "4. Return full detail row shape",
+        "VERIFIKASI (aksi approve/un-approve di layar Detail, 2026-09-14; kunci periode sejak 2026-10-02): toggleChecked()/toggleAcknowledged() (trait HandlesRecordVerification, model KernelPlantRecord) -> RecordVerificationService::setVerification() dengan urutan: (a) canVerify() — aturan peran: Supervisor menulis checked_by, Mill Management menulis acknowledged_by, Admin boleh keduanya; Operator tidak pernah memverifikasi; tombol hanya dirender bila canCheck()/canAcknowledge() true, dan aturan yang sama menolak panggilan langsung; (b) findOrFail(id); (c) assertRecordWritableByActor() — cakupan mill: aktor non-Admin hanya record mill-nya sendiri (403), aktor terikat mill tanpa business_unit_id 422; (d) assertPeriodOpenForWrite(jenis stasiun & mill dibaca dari STASIUN MILIK RECORD, bukan dari URL; tanggal kejadian = kolom `date` record itu sendiri) -> 422 PERIOD_CLOSED bila tidak ada periode open untuk stasiun 'kernel-plant' yang mencakup tanggal tsb (status dinilai saat request); (e) baru kemudian forceFill checked_by/acknowledged_by = id aktor (value=true) atau null (value=false) lalu reloadRecord(); pesan sukses/penolakan ditampilkan via $verificationMessage. Penolakan terjadi sebelum satu kolom pun berubah; arah pembatalan (false) ikut terkunci."
       ],
       "data_operations": [
         {
@@ -135,12 +206,21 @@
         {
           "condition": "Record memiliki nol baris Kernel Plant Detail",
           "handling": "details array kosong dikembalikan, FE tampilkan grid kosong/empty-state, bukan error"
+        },
+        {
+          "condition": "Verifikasi (setujui ATAU batalkan) saat tidak ada periode untuk mill record, baris stasiun 'kernel-plant' pada periode masih Draft atau sudah ditutup, atau tanggal kejadian record (date) di luar rentang periode yang open",
+          "handling": "setVerification() melempar PeriodClosedException 422 PERIOD_CLOSED sebelum forceFill — kolom checked_by/acknowledged_by tidak berubah; HandlesRecordVerification menangkap HttpException (sejak 0594c63) dan menampilkan pesan dari exception sebagai alert di layar Detail ($verificationMessage), bukan respons 422 mentah"
+        },
+        {
+          "condition": "Verifikasi record milik mill lain (mis. memanggil aksi langsung dengan id record Mill B)",
+          "handling": "assertRecordWritableByActor melempar CrossMillWriteDeniedException 403 (API: code FORBIDDEN) — kolom tidak berubah; di layar Detail ditangkap sebagai AuthorizationException dan tampil sebagai alert $verificationMessage (catatan: layar Detail Mill A sendiri sudah tidak memuat record Mill B)"
         }
       ],
       "business_rules_applied": [
         "Seluruh field ditampilkan read-only",
         "Hanya Supervisor/Mill Management/Admin yang dapat mengakses",
-        "Grid Kernel Plant Detail ditampilkan langsung dari data tersimpan, menampilkan persis baris yang ada (revisi 2026-08-24: tidak lagi selalu 24)"
+        "Grid Kernel Plant Detail ditampilkan langsung dari data tersimpan, menampilkan persis baris yang ada (revisi 2026-08-24: tidak lagi selalu 24)",
+        "Verifikasi (Checked By / Acknowledged By) adalah jalur tulis keempat dan ikut terkunci periode: menyetujui maupun membatalkan persetujuan hanya diterima bila baris stasiun pada Periode Pelaporan mill record berstatus open dan tanggal kejadian record berada di dalam rentangnya (usecase-141)"
       ],
       "unit_test_cases": [
         {
@@ -172,6 +252,16 @@
           "description": "resolves created_by_name, checked_by_name, acknowledged_by_name to user names when present",
           "given": "record with all 3 user FKs set",
           "expect": "all 3 name fields resolved to the corresponding users' names"
+        },
+        {
+          "description": "verification refused with 422 PERIOD_CLOSED when the station row is closed in the period (column unchanged)",
+          "given": "record Kernel Plant mill sendiri dengan date di dalam rentang periode, baris period_stations 'kernel-plant' status=closed; Supervisor memanggil setVerification(level=checked, value=true)",
+          "expect": "throw PeriodClosedException (422, PERIOD_CLOSED); checked_by tetap null; di layar Detail $verificationMessage berisi pesan penolakan"
+        },
+        {
+          "description": "verification accepted when the station row is open and the event date is inside the period range",
+          "given": "record Kernel Plant mill sendiri dengan date di dalam rentang periode, baris period_stations 'kernel-plant' status=open; Supervisor memanggil setVerification(level=checked, value=true)",
+          "expect": "checked_by = id aktor; record di-reload dan pesan sukses ditampilkan"
         }
       ]
     }
@@ -199,7 +289,8 @@
     "Target Operasional table queried DIRECTLY by DetailKernelPlant::render() (KernelPlantOperationalTarget::orderBy('sort_order')->get()) -- NOT part of the GET /api/kernel-plant-records/{id} response -- per this screen's tech-spec direction, mirrors DetailThreshing/DetailPressing exactly, with 3 columns (equipment_parameter/target_benchmark/corrective_action_plan) like Threshing/Pressing, not 4 like Depricarping -- UNTOUCHED by this revision",
     "Field grouping/order in the Blade view mirrors mobile/src/views/DataPreviewKernelPlantView.vue's detail mode exactly (Kernel Plant ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid, Target Operasional table), per explicit product direction that web station screens mirror mobile flow/UX",
     "Route /data/kernel-plant/{id} registered after /data/kernel-plant/create (screen-060) so the literal 'create' segment is not swallowed by {id}",
-    "REVISI 2026-08-24 (entity-catalog v12): grid Kernel Plant Detail pada Blade view ini TIDAK PERNAH mengasumsikan 24 baris tetap -- sudah sejak awal me-render `@foreach ($record['details'] as $row)` langsung dari array details, tanpa literal '24' di manapun (dikonfirmasi via grep) -- TIDAK ADA perubahan fungsional pada layar ini akibat revisi grid dinamis di Form Kernel Plant (screen-060)/mobile (screen-044), hanya doc comment/wording di artifact ini yang diperbarui"
+    "REVISI 2026-08-24 (entity-catalog v12): grid Kernel Plant Detail pada Blade view ini TIDAK PERNAH mengasumsikan 24 baris tetap -- sudah sejak awal me-render `@foreach ($record['details'] as $row)` langsung dari array details, tanpa literal '24' di manapun (dikonfirmasi via grep) -- TIDAK ADA perubahan fungsional pada layar ini akibat revisi grid dinamis di Form Kernel Plant (screen-060)/mobile (screen-044), hanya doc comment/wording di artifact ini yang diperbarui",
+    "VERIFIKASI + KUNCI PERIODE (sinkronisasi 2026-10-03, kode tidak diubah): layar Detail punya aksi approve/un-approve langsung sejak 2026-09-14 lewat trait App\\Livewire\\Data\\Concerns\\HandlesRecordVerification (DetailKernelPlant implementasikan verificationModelClass()=KernelPlantRecord::class + reloadRecord()), yang memanggil RecordVerificationService::setVerification() — padanan API-nya PATCH /api/records/{stationType}/{id}/verification. Level yang diekspos: Checked By dan Acknowledged By. Sejak 49dc0c5 setVerification() menegakkan assertPeriodOpenForWrite() pada tanggal kejadian record (`date`); sejak fix 0594c63 HandlesRecordVerification juga menangkap HttpException sehingga 422 PERIOD_CLOSED tampil sebagai alert $verificationMessage, bukan respons mentah. Diuji di backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...', memakai DetailCagesTrack sebagai wakil trait bersama) dan backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED untuk setujui & batalkan)."
   ],
   "test_scenarios": [
     {

@@ -6,3 +6,9 @@
 - Field header wajib (grading_number, date, vehicle_number, driver_name, estate_supplier) disimpulkan dari pola weighbridge form karena tech-spec excerpt tidak mengenumerasi field wajib secara eksplisit — perlu dikonfirmasi ulang ke tech-spec lengkap
 - GradingDetailGrid.vue category field free-text, tidak ada daftar kategori enumerasi di entity-catalog/tech-spec — mungkin perlu jadi dropdown jika ada daftar kategori baku
 - Validasi "checked_by hanya supervisor" dan "minimal 1 baris detail" ditegakkan di 2 lapis: repo (defense in depth) dan view (UX cepat)
+
+## v5 — 2026-10-03
+
+Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan (49dc0c5, 0594c63); kode tidak diubah.
+- Berkas test yang dikutip dipilih sendiri: backend/tests/Unit/Support/EnforcesPeriodLockTest.php, backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php, mobile/tests/syncService.spec.ts. Tidak ada test (mobile) yang memakai respons PERIOD_CLOSED secara spesifik; test mobile yang dikutip hanya mencakup galat generik.
+- test_results tidak disentuh; tidak ada test dijalankan (sesuai brief).

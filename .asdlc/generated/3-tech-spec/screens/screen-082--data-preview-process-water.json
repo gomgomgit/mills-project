@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-082--data-preview-process-water",
   "name": "Data Preview Process Water",
@@ -38,7 +38,8 @@
         "9. On Back di mode LIST -> navigasi ke Monitor Process Water",
         "10. On Back di mode DETAIL -> navigasi kembali ke mode LIST (id param dihapus dari route)",
         "11. On tap breadcrumb segment -> navigasi ke route terkait",
-        "12. On tap hamburger -> buka menu navigasi (Ganti Password, Logout)"
+        "12. On tap hamburger -> buka menu navigasi (Ganti Password, Logout)",
+        "13. Mode DETAIL, record tersinkron (punya server_id): aksi verifikasi RecordVerificationActions (Tandai/Batalkan sudah diperiksa — Supervisor/Admin; Tandai/Batalkan sudah dikonfirmasi — Mill Management/Admin) adalah satu-satunya tulis ke server dari layar ini: recordVerificationApi.setVerification('process-water', 'process_water_record', record, level, value) → PATCH /api/records/process-water/{server_id}/verification {level, value}. Server (RecordVerificationService::setVerification) menilai peran + cakupan mill aktor, lalu assertPeriodOpenForWrite atas jenis stasiun & mill MILIK RECORD dan tanggal kejadian record itu sendiri (`date`) SEBELUM menulis kolom verifikasi; baris lokal (checked_by/acknowledged_by + *_name) hanya diperbarui setelah server menerima, lalu detail dimuat ulang (event 'updated')."
       ],
       "data_operations": [
         {
@@ -73,6 +74,10 @@
         {
           "condition": "Record di mode detail memiliki nol baris Process Water Detail (kasus tepi: tersimpan tanpa baris apapun)",
           "handling": "Grid menampilkan pesan/empty state (process-water-detail-rows-empty), bukan error -- header tetap dirender normal"
+        },
+        {
+          "condition": "Verifikasi (menyetujui maupun membatalkan) saat periode pelaporan stasiun Process Water untuk mill record tidak terbuka (belum ada periode / masih Draft / sudah ditutup) atau `date` record di luar rentang periode; atau perangkat tanpa jaringan",
+          "handling": "Server menolak 422 error_code PERIOD_CLOSED sebelum kolom apa pun berubah; status verifikasi di server dan baris lokal tidak berubah (UPDATE lokal hanya berjalan setelah respons sukses, event 'updated' tidak di-emit). RecordVerificationActions menampilkan pesan server apa adanya (verification-message, gaya error) — pesan 'di luar rentang' menyebut rentang yang berlaku. Tanpa jaringan (respons tanpa status) → pesan 'Butuh koneksi internet untuk verifikasi. Coba lagi saat online.' Pemulihan: Admin membuka kembali baris stasiun di Detail Periode Pelaporan (screen-142), lalu verifikasi diulang."
         }
       ],
       "business_rules_applied": [
@@ -83,7 +88,8 @@
         "Filter tanggal default ke hari ini saat list pertama kali dibuka",
         "Checked By/Acknowledged By ditampilkan apa adanya di detail, tanpa pembatasan role untuk melihat",
         "Grid Process Water Detail menampilkan persis baris yang tersimpan pada record",
-        "Tidak ada tabel referensi target operasional pada stasiun ini"
+        "Tidak ada tabel referensi target operasional pada stasiun ini",
+        "Verifikasi (menyetujui maupun membatalkan) ikut terkunci periode (usecase-141) — status periode dinilai per jenis stasiun saat permintaan tiba di server, bukan saat kejadian"
       ],
       "unit_test_cases": [
         {
@@ -155,6 +161,11 @@
           "description": "navigates to list mode (id param removed) when Back pressed in detail mode",
           "given": "current mode = 'detail' (id route param present)",
           "expect": "router navigation called toward preview route WITHOUT id param; Monitor Process Water route is NOT targeted"
+        },
+        {
+          "description": "RecordVerificationActions shows the server PERIOD_CLOSED message and leaves the verification state unchanged",
+          "given": "detail record tersinkron (server_id ada, checked_by null), aktor supervisor; setVerification ditolak dengan galat ternormalisasi { status: 422, message: '<pesan PERIOD_CLOSED dari server>' }",
+          "expect": "verification-message menampilkan pesan server tersebut dengan kelas error; event 'updated' tidak di-emit; tombol tetap berlabel 'Tandai sudah diperiksa' (checked_by lokal tidak berubah)"
         }
       ]
     }
@@ -177,7 +188,8 @@
     "Default dateFilter = tanggal lokal hari ini (format YYYY-MM-DD via todayLocalDateString()-style, BUKAN toISOString() yang UTC-based), diisi SEKALI saat komponen mount di mode list",
     "processWaterRecordRepo.ts butuh fungsi getAllRecords(userId) (mirror threshingRecordRepo.ts) dan reuse getDraftWithDetails() yang sudah ditulis di screen-072 untuk mode detail",
     "Grid Process Water Detail read-only: setiap baris tampilkan Time-Slot (format jam), Shift, Inspector ID, dan sisa kolom bacaan -- render langsung dari kolom tersimpan, tidak perlu hitung ulang (data historis); jumlah baris yang dirender sepenuhnya mengikuti `details.length` dari getDraftWithDetails()",
-    "Tidak ada tabel referensi Target Operasional untuk stasiun ini"
+    "Tidak ada tabel referensi Target Operasional untuk stasiun ini",
+    "Kunci periode (usecase-141): pengecualian atas 'tidak ada panggilan API' — aksi verifikasi di mode detail memanggil PATCH /api/records/process-water/{id}/verification (RecordVerificationController → RecordVerificationService::setVerification, trait EnforcesPeriodLock). Tanggal yang dinilai = `date` record; jenis stasiun & mill dibaca dari stasiun milik record, bukan dari segmen URL. Penolakan 422 PERIOD_CLOSED (satu kode, empat pesan) dinormalisasi apiClient menjadi {status, message} dan ditampilkan RecordVerificationActions. Endpoint sengaja tidak ditambahkan ke `endpoints` karena kontrak ini tidak mendeklarasikan endpoint apa pun untuk disalin bentuknya."
   ],
   "test_scenarios": [
     {

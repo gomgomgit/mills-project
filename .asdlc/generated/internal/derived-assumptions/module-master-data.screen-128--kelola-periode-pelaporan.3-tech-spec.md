@@ -90,3 +90,8 @@ adalah aksi reconnect/restart pada server bersangkutan di dalam `/mcp`, bukan se
 daftarnya. Cara memastikannya tanpa risiko: kirim satu edit ber-`op` tak dikenal pada path yang
 tidak ada — kode lama menjawab dari pemeriksaan path, kode baru menjawab dari pemeriksaan `op`,
 dan keduanya menolak tanpa menulis apa pun.
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v8)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: bukan entity-catalog v20 (node ini sudah clean), melainkan re-track shared-decisions pada putaran yang sama; spec layar ini sudah ditulis setelah kunci periode diimplementasikan sehingga isinya tidak terdampak — penilaian agen, tidak dinyatakan user per layar

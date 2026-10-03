@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-103--detail-kernel-dispatch-web",
   "name": "Detail Kernel Dispatch (Web)",
@@ -33,7 +33,8 @@
     "details di-sort by event_date di service layer (toDetailRow()), bukan hanya di query, supaya urutan konsisten terlepas dari urutan insert",
     "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-019/020/021/101",
     "Field grouping & urutan field di blade view mengikuti struktur mobile/src/views/DataPreviewKernelDispatchView.vue mode detail, per arahan eksplisit: web station screens mengikuti flow/UX mobile",
-    "Route /kernel-dispatch-records/{id} didaftarkan SETELAH /kernel-dispatch-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}"
+    "Route /kernel-dispatch-records/{id} didaftarkan SETELAH /kernel-dispatch-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): aksi verifikasi langsung di layar Detail (approve/un-approve, 2026-09-14) sebelumnya TIDAK terdokumentasi sama sekali di artefak ini. backend/app/Livewire/Data/DetailKernelDispatch.php memakai trait backend/app/Livewire/Data/Concerns/HandlesRecordVerification.php (verificationModelClass()=KernelDispatchRecord::class) dan blade-nya merender aksi lewat canCheck()/canAcknowledge() + :message=$verificationMessage — Checked By (Supervisor/Admin) dan Acknowledged By (Mill Management/Admin). Aksi memanggil backend/app/Services/RecordVerificationService.php::setVerification() (jalur tulis keempat): peran -> cakupan mill (403) -> assertPeriodOpenForWrite('kernel-dispatch', mill stasiun record, `date` record) -> 422 PERIOD_CLOSED sebelum kolom berubah -> baru tulis checked_by/acknowledged_by. Sejak fix 0594c63 HandlesRecordVerification menangkap HttpException sehingga penolakan periode tampil sebagai alert $verificationMessage (sebelumnya 422 mentah). Padanan API: PATCH /api/records/{stationType}/{id}/verification (RecordVerificationController). Diuji: backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...'; trait bersama, diwakili DetailCagesTrack), backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED setujui & batalkan), backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist)."
   ],
   "deferred_items": [],
   "known_issues": [

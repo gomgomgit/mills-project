@@ -31,3 +31,12 @@
 ## v5 — 2026-08-19 (info dari coordinator, shared infra)
 
 - implementation_notes: ditambahkan known-limitation eksplisit soal fetchAndCacheStationIconOverrides() mencocokkan berdasarkan (business_unit_id, type) bukan station id asli — aman untuk MVP (maks 1 station aktif per tipe per mill), berisiko silent-misapply jika ada >1 station aktif tipe sama di masa depan ← dinyatakan eksplisit oleh coordinator/user, bukan inferensi agent, dicatat verbatim sesuai instruksi
+
+## v10 — 2026-10-03
+
+Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan (49dc0c5, 0594c63); kode tidak diubah.
+- Perilaku per-record (bukan all-or-nothing) dikonfirmasi dari kode syncService.ts (try/catch per baris di pushUniformRow dan sync{Weighbridge,Grading,CagesTrack}Records), bukan dari brief.
+- Menambahkan sendiri catatan kaskade Grading: Weighbridge yang tertolak membuat Grading gagal dengan alasan 'Weighbridge terkait belum tersinkron', bukan pesan periode.
+- Menyebut write-through (immediate_sync_enabled) sebagai jalur kedua yang penolakannya diam sehingga alasan hanya terlihat di layar ini — temuan kode, tidak ada di brief.
+- Menyatakan 'grid stasiun tidak menampilkan indikator record saved yang tertahan' sebagai konsekuensi terbuka (diverifikasi: StationListView/StationGrid tidak menghitung record 'saved').
+- Tidak menambah unit_test_cases: tidak ada logika baru di layar ini; penanganan galat generik sudah teruji.

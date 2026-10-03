@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-115--form-effluent-plant-web",
   "name": "Form Effluent Plant (Web)",
@@ -28,7 +28,8 @@
     "UNLIKE Form Threshing Web: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
     "Route /data/effluent-plant/create registered BEFORE /data/effluent-plant/{id} (screen-105) so the literal 'create' segment is not swallowed by {id}",
     "checked/acknowledged self-attestation checkboxes mirror FormProcessWater's dual-checkbox pattern (both Checked By AND Acknowledged By)",
-    "NoActiveEffluentPlantStationException (mirrors NoActiveProcessWaterStationException) thrown when production_line_id has no active station type=effluent-plant"
+    "NoActiveEffluentPlantStationException (mirrors NoActiveProcessWaterStationException) thrown when production_line_id has no active station type=effluent-plant",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): EffluentPlantRecordService::create() memanggil assertPeriodOpenForWrite('effluent-plant', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormEffluentPlant::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/EffluentPlantRecordServiceTest.php, tests/Feature/Api/FormEffluentPlantTest.php, tests/Feature/Livewire/FormEffluentPlantTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
   ],
   "deferred_items": [
     {

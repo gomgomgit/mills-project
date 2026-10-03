@@ -11,3 +11,8 @@
 - `screen_dependencies` menyertakan `screen-005--home` ← karena run ini **mengubah** `HomeView.vue` (kartu `dashboard-reporting` yang tadinya `showComingSoon`). Ketergantungannya nyata, bukan sekadar navigasi.
 - Skenario "Belum masuk" diuji pada lapis **router**, bukan `mount()` ← satu-satunya entri yang menyimpang dari pola, karena komponennya memang tidak pernah dipasang saat penjagaan sesi menolak.
 - Browser test peran dibatasi **dua** wakil (Operator + Supervisor) padahal component test menguji keempatnya ← menjaga waktu jalan e2e tetap wajar; keempat peran tetap tertutup penuh di lapis component.
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v1)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); layar ini bukan jalur tulis data stasiun sehingga tidak terdampak — penilaian agen, tidak dinyatakan user per layar

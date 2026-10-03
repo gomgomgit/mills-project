@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-118--form-boiler-room-web",
   "name": "Form Boiler Room (Web)",
@@ -29,7 +29,8 @@
     "UNLIKE Form Threshing Web: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
     "Route /data/boiler-room/create registered BEFORE /data/boiler-room/{id} (screen-108) so the literal 'create' segment is not swallowed by {id}",
     "checked/acknowledged self-attestation checkboxes mirror FormEngineRoom's dual-checkbox pattern (both Checked By AND Acknowledged By)",
-    "NoActiveBoilerRoomStationException (mirrors NoActiveEngineRoomStationException) thrown when production_line_id has no active station type=boiler-room"
+    "NoActiveBoilerRoomStationException (mirrors NoActiveEngineRoomStationException) thrown when production_line_id has no active station type=boiler-room",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): BoilerRoomRecordService::create() memanggil assertPeriodOpenForWrite('boiler-room', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormBoilerRoom::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/BoilerRoomRecordServiceTest.php, tests/Feature/Api/FormBoilerRoomTest.php, tests/Feature/Livewire/FormBoilerRoomTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [

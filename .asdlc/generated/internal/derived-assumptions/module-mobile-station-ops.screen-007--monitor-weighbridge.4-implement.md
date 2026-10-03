@@ -19,3 +19,8 @@
 - getTodaySummary(userId) fungsi baru terpisah, bukan modifikasi getSummary() ← getSummary() masih dipakai StationListView.vue untuk currentDraft, scope agregat berbeda (semua waktu vs hari ini)
 - loadTodaySummary() gagal silent (tidak pakai shared error ref) ← kegagalan load counter tidak boleh memblokir UX list draft yang jauh lebih penting
 - Ditemukan saat verifikasi independen: 8/8 Playwright gagal karena backend (php artisan serve) mati di tengah sesi panjang ini — bukan regresi kode, restart backend menyelesaikannya, dicatat di implementation_notes agar transparan bukan disembunyikan
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v5)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); turunan dari re-track tech-spec, shared-decisions, entity-models, dan shared-modules pada putaran yang sama — penilaian agen, tidak dinyatakan user per layar

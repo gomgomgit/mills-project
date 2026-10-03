@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-080--form-process-quality-control",
   "name": "Form Process Quality Control",
@@ -23,7 +23,8 @@
     "16 non-time_slot columns per row (the MOST of any station in the project): 12 numeric readings across Fruit Press/Purifier & Clarification Balance/Vacuum Drying Station/Decanter-Centrifuge/Final Storage are plain type=number FormFields; Shift/QC Inspector ID/QC Engineering Corrective Actions/Findings are plain text FormFields -- NO enum/status dropdowns anywhere on this screen",
     "UNLIKE Form Threshing/Form Boiler Room: this screen has NO operational-target reference table section -- no CollapsibleSection, no static-constant data file, per this station's explicit scope",
     "Every FormField id in the grid is set explicitly (e.g. fruit-press-oil-loss-in-sludge-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- same defensive pattern as FormClarificationView.vue",
-    "Field order in the grid & template mirrors the migration column order exactly: Shift -> Fruit Press Oil Loss in Sludge -> Fruit Press Oil Loss in Fibre -> Purifier & Clarification Balance Inlet Temp -> Purifier & Clarification Balance Backpressure -> Vacuum Drying Station Drier Temp -> Vacuum Drying Station Vacuum Pressure -> Decanter/Centrifuge Feed Rate -> Decanter/Centrifuge Oil Loss in Cake -> Final Storage FFA -> Final Storage Moisture Content -> Final Storage Impurities/Dirt -> Final Storage DOBI Index -> QC Inspector ID -> QC Engineering Corrective Actions -> Findings = 16 total"
+    "Field order in the grid & template mirrors the migration column order exactly: Shift -> Fruit Press Oil Loss in Sludge -> Fruit Press Oil Loss in Fibre -> Purifier & Clarification Balance Inlet Temp -> Purifier & Clarification Balance Backpressure -> Vacuum Drying Station Drier Temp -> Vacuum Drying Station Vacuum Pressure -> Decanter/Centrifuge Feed Rate -> Decanter/Centrifuge Oil Loss in Cake -> Final Storage FFA -> Final Storage Moisture Content -> Final Storage Impurities/Dirt -> Final Storage DOBI Index -> QC Inspector ID -> QC Engineering Corrective Actions -> Findings = 16 total",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormProcessQualityControlView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('process_quality_control_record') → pushSavedRecordNow → POST /api/process-quality-control-records bila Mills Setting immediate_sync_enabled aktif, dan penolakannya (termasuk 422 PERIOD_CLOSED) DIAM — record tetap 'saved' dan alasannya baru tampil di SyncResultDialog pada sinkron manual screen-006. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('process-quality-control', mill, date) di ProcessQualityControlRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik). Kegagalan write-through yang diam dicakup secara generik oleh mobile/tests/writeThroughSync.spec.ts."
   ],
   "deferred_items": [],
   "known_issues": [

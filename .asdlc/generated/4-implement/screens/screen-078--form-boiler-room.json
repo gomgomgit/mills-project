@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-078--form-boiler-room",
   "name": "Form Boiler Room",
@@ -24,7 +24,8 @@
     "The 3 free-text columns (Fuel Feed Rate, ID Fan Load, SA Fan Load) are rendered as plain text FormFields, not numeric inputs, because their paper-form units are mixed/ambiguous (Hz/%/tons, A/%) per the entity-catalog's actual field type",
     "UNLIKE Form Threshing/Form Effluent Plant: this screen has NO operational-target reference table section -- no CollapsibleSection, no static-constant data file, per this station's explicit scope",
     "Every FormField id in the grid is set explicitly (e.g. steam-pressure-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide, same defensive pattern as FormEngineRoomView.vue",
-    "Field order in the grid & template mirrors the migration column order exactly: Steam Pressure -> Steam Temp -> Feed Water Temp -> Feed Water Tank Level -> Boiler Water Level -> Water TDS -> Water pH -> Fuel Feed Rate -> ID Fan Load -> SA Fan Load -> Exhaust Gas Temp -> Dust Collector Differential Pressure -> Blowdown Executed -> Sootblowing Executed -> Findings = 15 total"
+    "Field order in the grid & template mirrors the migration column order exactly: Steam Pressure -> Steam Temp -> Feed Water Temp -> Feed Water Tank Level -> Boiler Water Level -> Water TDS -> Water pH -> Fuel Feed Rate -> ID Fan Load -> SA Fan Load -> Exhaust Gas Temp -> Dust Collector Differential Pressure -> Blowdown Executed -> Sootblowing Executed -> Findings = 15 total",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormBoilerRoomView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('boiler_room_record') → pushSavedRecordNow → POST /api/boiler-room-records bila Mills Setting immediate_sync_enabled aktif, dan penolakannya (termasuk 422 PERIOD_CLOSED) DIAM — record tetap 'saved' dan alasannya baru tampil di SyncResultDialog pada sinkron manual screen-006. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('boiler-room', mill, date) di BoilerRoomRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik). Kegagalan write-through yang diam dicakup secara generik oleh mobile/tests/writeThroughSync.spec.ts."
   ],
   "deferred_items": [],
   "known_issues": [

@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-057--form-threshing-web",
   "name": "Form Threshing (Web)",
@@ -26,7 +26,8 @@
     "All 6 reading-column inputs per row are genuinely editable number/text fields, never disabled -- unlike Form Cages Track Web's Total Cages/Cages Remain (computed, disabled as a documented uiux-spec exception), Threshing has no computed detail-grid fields, so the 'no disabled web inputs' rule applies with zero exceptions in this screen's detail grid",
     "Target Operasional table queried directly by FormThreshing::render(), never sent as part of the create/update payload",
     "Route /data/threshing/create registered BEFORE /data/threshing/{id} (screen-053) so the literal 'create' segment is not swallowed by {id}",
-    "checked/acknowledged self-attestation checkboxes mirror FormCagesTrack's dual-checkbox pattern (both Checked By AND Acknowledged By, unlike Form Weighbridge/Grading Web which only have Acknowledged)"
+    "checked/acknowledged self-attestation checkboxes mirror FormCagesTrack's dual-checkbox pattern (both Checked By AND Acknowledged By, unlike Form Weighbridge/Grading Web which only have Acknowledged)",
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): ThreshingRecordService::create() memanggil assertPeriodOpenForWrite('threshing', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormThreshing::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/ThreshingRecordServiceTest.php, tests/Feature/Api/FormThreshingTest.php, tests/Feature/Livewire/FormThreshingTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [

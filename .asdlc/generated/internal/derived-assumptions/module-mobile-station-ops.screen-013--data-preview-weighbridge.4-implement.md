@@ -30,3 +30,8 @@ Read/Edit tool tidak tersedia untuk sub-agent (3 screen berturut-turut). File ro
 - detailTypeLabel/detailDatetimeLabel fallback ke label 'Receive'/'Tanggal & Waktu Arrival' saat weighbridge_type bernilai null (record legacy/belum diset) ← tidak dinyatakan eksplisit di tech spec, defensive default konsisten dengan weighbridge_type default 'receive' di Form Weighbridge (screen-010)
 - Field Tipe Weighbridge & Tanggal/Tujuan Muatan ditambahkan sebagai FormField disabled biasa (bukan komponen khusus) ← konsisten dengan pola detail-mode read-only screen ini yang sudah ada sejak v1, tidak ada instruksi untuk styling berbeda
 - Temuan tak terduga (out of scope, diungkap bukan disembunyikan): full-suite Playwright run menemukan tests/e2e/form-grading.spec.ts (screen-011, 2 test) JUGA gagal akibat shared schema rename yang sama (men-seed weighbridge_record.arrival_datetime untuk kebutuhan FK) — sebelumnya hanya form-weighbridge.spec.ts (screen-010) yang diketahui coordinator. Tidak diperbaiki (di luar scope directive "screen-013 ONLY"), dicatat sebagai known_issue major di 4-implement.
+
+## v6 — 2026-10-03
+
+Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan (49dc0c5, 0594c63); kode tidak diubah.
+- Test yang dikutip: backend/tests/Feature/Api/RecordVerificationTest.php (blok kunci periode) dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; dicatat bahwa mobile/tests/recordVerification.spec.ts belum punya kasus PERIOD_CLOSED khusus (hanya offline). test_results tidak disentuh.

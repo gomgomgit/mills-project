@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-046--data-preview-pressing",
   "name": "Data Preview Pressing",
@@ -20,7 +20,8 @@
   "implementation_notes": [
     "Dual-mode component (list/detail driven by :id? route param), mirrors DataPreviewThreshingView.vue's watch()-driven mode switch exactly",
     "Detail mode renders the Pressing Detail grid read-only straight from stored columns (no recomputation, historical data), however many rows the record actually has (REVISED 2026-08-24: no longer always 24 -- this screen required NO functional code change for the entity-catalog v12 dynamic-add-row revision, since it already rendered `details.length` rows directly and already had an empty-state for zero rows) plus the same static Target Operasional reference table used by Form Pressing (screen-042)",
-    "Checked By/Acknowledged By rendered read-only with no role restriction on viewing, consistent with Data Preview Threshing and this screen's business spec"
+    "Checked By/Acknowledged By rendered read-only with no role restriction on viewing, consistent with Data Preview Threshing and this screen's business spec",
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): mode detail memasang RecordVerificationActions (station-type='pressing', local-table='pressing_record') yang memanggil PATCH /api/records/pressing/{server_id}/verification; backend RecordVerificationService::setVerification menerapkan peran + cakupan mill lalu assertPeriodOpenForWrite (EnforcesPeriodLock) atas `date` record sebelum menulis — periode stasiun tidak terbuka / tanggal di luar rentang → 422 PERIOD_CLOSED tanpa perubahan kolom; komponen menampilkan pesan server dan baris lokal tidak diperbarui (UPDATE lokal hanya setelah sukses); offline → pesan 'Butuh koneksi internet untuk verifikasi'. Tercakup oleh backend/tests/Feature/Api/RecordVerificationTest.php (blok 'kunci periode pada jalur verifikasi') dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; mobile/tests/recordVerification.spec.ts mencakup galat offline tetapi belum punya kasus PERIOD_CLOSED khusus."
   ],
   "deferred_items": [],
   "known_issues": [

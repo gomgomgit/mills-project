@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-023--form-grading-web",
   "name": "Form Grading (Web)",
@@ -45,7 +45,8 @@
     "FALLOUT DITEMUKAN & DIPERBAIKI: grading_records.vehicle_code masih NOT NULL di database meski sudah dibuat opsional di UI mobile pada sesi sebelumnya (perubahan itu tidak pernah menyentuh skema). Migration baru dibuat untuk membuat kolom nullable; entity-catalog (v8) turut diperbarui agar konsisten. doctrine/dbal ditambahkan ke composer.json — migration pertama di proyek ini yang butuh CHANGE kolom, bukan sekadar ADD COLUMN",
     "Route web /data/grading/create HARUS didaftarkan SEBELUM /data/grading/{id} (screen-020) — sama pola dengan screen-022",
     "Ditambahkan tombol 'Tambah Data' di Data Browser Grading (screen-017) dan tombol 'Edit' di Detail Grading (screen-020) sebagai entry point ke screen ini",
-    "Station::factory()->grading() state ditambahkan (mirrors weighbridge() state yang sudah ada) untuk kebutuhan test suite screen ini"
+    "Station::factory()->grading() state ditambahkan (mirrors weighbridge() state yang sudah ada) untuk kebutuhan test suite screen ini",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): GradingRecordService::create() memanggil assertPeriodOpenForWrite('grading', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormGrading::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/GradingRecordServiceTest.php, tests/Feature/Api/FormGradingTest.php, tests/Feature/Livewire/FormGradingTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [

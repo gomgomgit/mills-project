@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-112--form-process-water-web",
   "name": "Form Process Water (Web)",
@@ -27,7 +27,8 @@
     "UNLIKE Form Threshing Web: this screen has NO operational-target reference table section -- no query, no reference data of any kind",
     "Route /data/process-water/create registered BEFORE /data/process-water/{id} (screen-102) so the literal 'create' segment is not swallowed by {id}",
     "checked/acknowledged self-attestation checkboxes mirror FormThreshing's dual-checkbox pattern (both Checked By AND Acknowledged By)",
-    "NoActiveProcessWaterStationException (mirrors NoActiveThreshingStationException) thrown when production_line_id has no active station type=process-water"
+    "NoActiveProcessWaterStationException (mirrors NoActiveThreshingStationException) thrown when production_line_id has no active station type=process-water",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): ProcessWaterRecordService::create() memanggil assertPeriodOpenForWrite('process-water', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormProcessWater::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/ProcessWaterRecordServiceTest.php, tests/Feature/Api/FormProcessWaterTest.php, tests/Feature/Livewire/FormProcessWaterTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
   ],
   "deferred_items": [
     {

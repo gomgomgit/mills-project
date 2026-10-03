@@ -1,8 +1,8 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-011--form-grading",
   "name": "Form Grading",
@@ -27,7 +27,8 @@
     "GradingDetailGrid.vue TIDAK dipakai lagi oleh screen ini (grid detail diimplementasi inline di FormGradingView.vue) — dead-code candidate lintas screen 011/014, dicatat sebagai known_issue, bukan dihapus sepihak.",
     "BUG DITEMUKAN & DIPERBAIKI (v3, independen dari laporan agent): seedGradingParametersIfNeeded() sempat diekspor tapi TIDAK PERNAH dipanggil — diperbaiki dengan wiring ke mobile/src/main.ts.",
     "v4 — fitur baru: setiap Quality Parameter hanya bisa dipakai di SATU baris Grading Detail. Ditambahkan availableParameterOptions(index) di FormGradingView.vue — computed reaktif atas SELURUH detailRows.value (bukan cuma baris sendiri) yang mengecualikan grading_parameter_id yang sudah dipakai baris LAIN dari opsi dropdown baris tersebut; baris itu sendiri tetap menampilkan parameter yang sedang dipilihnya. Reaktif otomatis terhadap tambah/hapus/ganti baris manapun — tidak perlu event handler tambahan karena computed membaca seluruh array. Murni pembatasan pilihan UI, tidak ada perubahan skema/validasi saat Simpan.",
-    "Independently re-verified (bukan hanya laporan agent, implementasi v4 dikerjakan langsung oleh command bukan sub-agent): 301/301 vitest (28 file FormGradingView.spec.ts, +3 test baru), 80/80 Playwright FULL SUITE seluruh app (10 form-grading termasuk 1 test e2e baru untuk exclusion + freed-on-remove). 1 kegagalan e2e sempat terjadi saat penulisan test (nama parameter fixture test bertabrakan dengan nama parameter asli hasil seedGradingParametersIfNeeded() — 'Brondolan Segar'/'Masak' adalah nama asli dari 16 parameter kanonis), diperbaiki dengan assert terhadap option value (id) bukan visible text."
+    "Independently re-verified (bukan hanya laporan agent, implementasi v4 dikerjakan langsung oleh command bukan sub-agent): 301/301 vitest (28 file FormGradingView.spec.ts, +3 test baru), 80/80 Playwright FULL SUITE seluruh app (10 form-grading termasuk 1 test e2e baru untuk exclusion + freed-on-remove). 1 kegagalan e2e sempat terjadi saat penulisan test (nama parameter fixture test bertabrakan dengan nama parameter asli hasil seedGradingParametersIfNeeded() — 'Brondolan Segar'/'Masak' adalah nama asli dari 16 parameter kanonis), diperbaiki dengan assert terhadap option value (id) bukan visible text.",
+    "REVISI (tech-spec v4, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormGradingView menyimpan HANYA ke SQLite lokal (tidak ada apiClient/syncAfterSave; stasiun ini tidak punya write-through) dan tidak memeriksa periode; record 'saved' dikirim lewat sinkron manual screen-006 (POST /api/grading-records), dan penolakan 422 PERIOD_CLOSED membuat record tetap 'saved' dengan alasan server di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('grading', mill, date) di GradingRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Bila Weighbridge acuannya ditolak, Grading gagal sinkron dengan alasan 'Weighbridge terkait belum tersinkron' (mobile/tests/syncService.spec.ts 'fails a Grading record without POSTing when its parent Weighbridge record has not been synced'). Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik)."
   ],
   "deferred_items": [],
   "known_issues": [

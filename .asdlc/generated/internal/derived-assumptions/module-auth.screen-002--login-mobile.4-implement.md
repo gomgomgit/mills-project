@@ -8,3 +8,8 @@
 - Device name detection pakai navigator.userAgent + random suffix cache (bukan @capacitor/device) ← placeholder karena package belum terpasang
 - Offline session-expiry pakai heuristik grace period 7 hari ← tech-spec eksplisit menyebut durasi validitas token offline sebagai open question, agent memilih default konkret
 - **Gap ditemukan (major)**: endpoint GET /api/business-units tidak ada di api-index/tech-spec manapun — dropdown Business Area di LoginForm mobile akan kosong di runtime nyata sampai endpoint ini ditambahkan. Perlu ditambahkan sebagai endpoint shared (dipakai screen-001 web login juga) di iterasi berikutnya.
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v2)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); turunan dari re-track tech-spec, shared-decisions, entity-models, dan shared-modules pada putaran yang sama — penilaian agen, tidak dinyatakan user per layar

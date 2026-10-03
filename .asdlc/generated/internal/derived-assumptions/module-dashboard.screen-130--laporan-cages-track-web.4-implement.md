@@ -13,3 +13,8 @@ tidak ditentukan spec — ditambah dua koreksi terhadap spec itu sendiri.
 - **Asersi `laporan-stasiun.spec.ts` diubah menjadi invarian** ← keputusan user 2026-09-24 atas `spec_mismatch`. Bukan turunan agent; dicatat di sini karena mengubah berkas test milik screen-140, bukan screen-130.
 - **Dua skenario browser ditulis `test.skip` beralasan** ← "hari ber-record tanpa rincian" dan "akun terikat mill tanpa mill" keduanya diblokir validator aplikasi sendiri, jadi tidak ada layar yang dapat menyemainya. Bukan kelalaian: perilakunya tertutup di lapis unit, Api, dan Livewire.
 - **`e2e-web/tests/laporan-stasiun.spec.ts` masuk `test_files_generated`** ← berkas milik screen-140, diubah oleh run ini. Dicatat agar jejaknya tidak hilang.
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v1)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); turunan dari re-track tech-spec, shared-decisions, entity-models, dan shared-modules pada putaran yang sama — penilaian agen, tidak dinyatakan user per layar

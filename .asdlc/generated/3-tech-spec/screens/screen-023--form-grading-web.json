@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-023--form-grading-web",
   "name": "Form Grading (Web)",
@@ -75,6 +75,11 @@
                 "http_code": 422,
                 "error_code": "NO_ACTIVE_GRADING_STATION",
                 "condition": "business unit tanpa station grading aktif"
+              },
+              {
+                "http_code": 422,
+                "error_code": "PERIOD_CLOSED",
+                "condition": "tidak ada Periode Pelaporan dengan baris stasiun 'grading' berstatus Terbuka di mill record ini (belum ada periode / masih Draft / sudah Tertutup), atau date di luar rentang periode terbuka itu (inklusif kedua ujung); juga bila date kosong"
               }
             ]
           },
@@ -130,6 +135,11 @@
                 "http_code": 404,
                 "error_code": "RECORD_NOT_FOUND",
                 "condition": "id tidak ditemukan"
+              },
+              {
+                "http_code": 422,
+                "error_code": "PERIOD_CLOSED",
+                "condition": "tanggal LAMA (date yang tersimpan) atau tanggal BARU (date di body) tidak berada di periode yang Terbuka untuk stasiun 'grading' di mill record ini"
               }
             ]
           },
@@ -156,7 +166,8 @@
         "14. FE: Tambah baris menambah 1 baris kosong tanpa id; Hapus baris menghapus baris dari form state (jika punya id, dihapus dari array yang dikirim -> ditangani sebagai DELETE oleh backend)",
         "15. FE: render field per section (Identitas Grading, Referensi Weighbridge & Kendaraan, Asal Muatan, Data Berat & Kuantitas, Grading Detail grid, Verifikasi)",
         "16. Simpan berhasil -> navigasi ke Detail Grading (Web)",
-        "17. Batal -> kembali tanpa API call, dengan konfirmasi jika form dirty"
+        "17. Batal -> kembali tanpa API call, dengan konfirmasi jika form dirty",
+        "18. KUNCI PERIODE (usecase-141): SEBELUM penulisan apa pun -- create: setelah validasi field & resolve station, sebelum penulisan pertama; update: setelah findOrFail + cek akses + validasi -- GradingRecordService memanggil EnforcesPeriodLock::assertPeriodOpenForWrite('grading', station.business_unit_id, tanggal). Tanggal kejadian stasiun ini = date (tanggal header). Create: 1 cek terhadap date BARU. Update: 2 cek -- date LAMA (tersimpan) DAN date BARU (body), keduanya harus di periode Terbuka. Lolos hanya bila mill punya Periode Pelaporan yang baris period_stations untuk 'grading' berstatus open DAN tanggal di start_date..end_date (inklusif); status dinilai saat request, bukan saat kejadian. Gagal -> PeriodClosedException 422 PERIOD_CLOSED, nol record maupun baris detail tersimpan/berubah"
       ],
       "data_operations": [
         {
@@ -233,6 +244,18 @@
         {
           "condition": "Ganti WB Card No setelah auto-fill",
           "handling": "FE re-isi ulang license_plate_no/estate_supplier/division dari record baru"
+        },
+        {
+          "condition": "Belum ada Periode Pelaporan untuk stasiun ini, atau baris stasiun 'grading' pada periode yang mencakup date masih Draft / sudah Tertutup",
+          "handling": "422 PERIOD_CLOSED dengan pesan sesuai alasan -- 'Belum ada Periode Pelaporan yang terbuka untuk stasiun ini, sehingga data bertanggal dd/mm/YYYY belum dapat disimpan...' / 'Periode \"<nama>\" untuk stasiun ini belum dibuka (masih Draft)...' / 'Periode \"<nama>\" untuk stasiun ini sudah ditutup...'; nol record maupun baris detail tersimpan (penolakan terjadi sebelum penulisan pertama); Livewire FormGrading::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError), bukan error inline per-field"
+        },
+        {
+          "condition": "date berada di luar rentang semua periode yang Terbuka untuk stasiun 'grading' di mill ini",
+          "handling": "422 PERIOD_CLOSED; pesan menyebut rentang yang berlaku: 'Tanggal dd/mm/YYYY berada di luar periode yang terbuka untuk stasiun ini. Periode yang menerima data saat ini: \"<nama>\" (dd/mm/YYYY s/d dd/mm/YYYY).'; nol record maupun baris detail tersimpan; tampil sebagai $generalError"
+        },
+        {
+          "condition": "Update memindahkan date keluar dari periode Tertutup (tanggal lama di periode Tertutup, tanggal baru di periode Terbuka)",
+          "handling": "Ditolak 422 PERIOD_CLOSED -- tanggal LAMA ikut diperiksa, sehingga record tidak bisa dikeluarkan dari periode tertutup (mengeluarkan baris menggeser angka laporan sama nyatanya dengan menambah); record dan baris detailnya tidak berubah"
         }
       ],
       "business_rules_applied": [
@@ -241,7 +264,8 @@
         "Setiap Quality Parameter hanya dapat dipakai di satu baris",
         "UOM dan Percentage adalah computed/snapshot, tidak dapat diedit manual",
         "Business Unit tidak berubah setelah record dibuat",
-        "Acknowledged By hanya Mill Management"
+        "Acknowledged By hanya Mill Management",
+        "Kunci periode (usecase-141, whitelist): data Grading hanya dapat dibuat/diubah bila mill record punya Periode Pelaporan yang baris stasiun 'grading'-nya Terbuka DAN tanggal kejadian (date) berada di rentangnya (inklusif kedua ujung); tanpa periode, Draft, Tertutup, tanggal kosong, atau di luar rentang -> 422 PERIOD_CLOSED. Status dinilai per jenis stasiun saat request; periode mill lain atau jenis stasiun lain tidak membuka akses; update memeriksa tanggal lama DAN baru"
       ],
       "unit_test_cases": [
         {
@@ -303,6 +327,21 @@
           "description": "404 RECORD_NOT_FOUND when updating non-existent id",
           "given": "findOrFail throws",
           "expect": "404 RECORD_NOT_FOUND"
+        },
+        {
+          "description": "422 PERIOD_CLOSED on create when the mill has no open period for grading",
+          "given": "station 'grading' aktif dan body valid, tetapi mill tidak punya Periode Pelaporan (atau baris stasiun 'grading' masih Draft/Tertutup)",
+          "expect": "throw PeriodClosedException (422, error_code PERIOD_CLOSED) dengan pesan alasan yang sesuai; nol record maupun baris detail tersimpan"
+        },
+        {
+          "description": "422 PERIOD_CLOSED on update when the OLD date sits in a closed period even though the NEW date is in an open one",
+          "given": "record existing dengan date di periode yang baris 'grading'-nya Tertutup; PATCH mengganti date ke tanggal di periode lain yang Terbuka",
+          "expect": "throw PeriodClosedException 422 PERIOD_CLOSED; record dan baris detailnya tidak berubah"
+        },
+        {
+          "description": "accepts create on the open period's start and end dates (inclusive)",
+          "given": "periode Terbuka untuk 'grading' 2026-10-01..2026-10-31; dua create dengan date=2026-10-01 dan date=2026-10-31",
+          "expect": "keduanya tersimpan dengan status=saved, tidak ada PeriodClosedException"
         }
       ]
     }
@@ -351,7 +390,8 @@
     "WB Card No dropdown scoped ke business_unit_id via query langsung Livewire (WeighbridgeRecord whereHas station.business_unit_id), bukan endpoint REST terpisah - sama pola dengan Business Unit dan Quality Parameter dropdown",
     "Route web /data/grading/create HARUS didaftarkan SEBELUM /data/grading/{id} (screen-020) agar tidak tertangkap sebagai {id} - sama pola dengan screen-022",
     "Detail upsert (insert/update/delete baris) dijalankan dalam DB transaction agar konsisten",
-    "Acknowledged sebagai checkbox self-attestation, mengisi acknowledged_by dengan id user login; Checked By tidak diimplementasikan sama sekali di screen ini, konsisten dengan mobile screen-011 dan Detail Grading Web"
+    "Acknowledged sebagai checkbox self-attestation, mengisi acknowledged_by dengan id user login; Checked By tidak diimplementasikan sama sekali di screen ini, konsisten dengan mobile screen-011 dan Detail Grading Web",
+    "KUNCI PERIODE (usecase-141; kode sudah ada sejak 49dc0c5, spec disinkronkan 2026-10-03): ditegakkan di GradingRecordService::create() (1 cek, tanggal baru) dan update() (2 cek, tanggal lama + baru) via trait App\\Support\\Concerns\\EnforcesPeriodLock; exception App\\Exceptions\\PeriodClosedException (HttpException 422, PERIOD_CLOSED). Berlaku sama untuk API (GradingRecordController store/update) dan Livewire FormGrading::save() (catch HttpException -> $generalError). Cakupan test: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist, 4 pesan, inklusif, per jenis stasiun, per mill, tanggal kosong, plus cek statis bahwa ke-18 *RecordService memanggil guard >=1x di create dan >=2x di update) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end lewat jalur Sterilizer). Test per-layar (tests/Unit/Services/GradingRecordServiceTest.php, tests/Feature/Api/FormGradingTest.php, tests/Feature/Livewire/FormGradingTest.php) hanya membuka periode sebagai prasyarat (openPeriodFor()/openPeriodForStation() di tests/Pest.php); 3 unit_test_cases kunci periode di atas adalah spesifikasi, belum ada sebagai test khusus stasiun ini"
   ],
   "test_scenarios": [
     {

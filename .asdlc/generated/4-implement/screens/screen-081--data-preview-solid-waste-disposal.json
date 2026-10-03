@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-081--data-preview-solid-waste-disposal",
   "name": "Data Preview Solid Waste Disposal",
@@ -23,7 +23,8 @@
     "Mirrors DataPreviewCagesTrackView.vue's dual route-driven mode pattern exactly: LIST mode (no :id param, via getAllRecords()) with client-side date+search filter (default date = today), DETAIL mode (:id param present, via getDraftWithDetails()) rendering the header + Log Kejadian table read-only",
     "A watch() on the id route param (immediate: true), not a one-time onMounted read, drives both the initial load and every list<->detail transition within the same component instance — Vue Router reuses this instance for param-only navigations on the same route record",
     "Test file's useRoute() mock returns a fresh reactive() object created in beforeEach (not mutated in-place across the whole file) — @vue/test-utils does not auto-unmount wrappers between tests, so reusing one shared reactive object across the whole spec file let earlier tests' still-active watchers re-fire and corrupt later tests' mock call counts; this is now avoided",
-    "Log Kejadian table rendered read-only directly from stored columns (no recomputation) — net_weight_mt shown exactly as persisted, consistent with the 'computed then persisted, never recomputed on read' convention used throughout this codebase for derived numeric fields"
+    "Log Kejadian table rendered read-only directly from stored columns (no recomputation) — net_weight_mt shown exactly as persisted, consistent with the 'computed then persisted, never recomputed on read' convention used throughout this codebase for derived numeric fields",
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): mode detail memasang RecordVerificationActions (station-type='solid-waste-disposal', local-table='solid_waste_disposal_record') yang memanggil PATCH /api/records/solid-waste-disposal/{server_id}/verification; backend RecordVerificationService::setVerification menerapkan peran + cakupan mill lalu assertPeriodOpenForWrite (EnforcesPeriodLock) atas `date` record sebelum menulis — periode stasiun tidak terbuka / tanggal di luar rentang → 422 PERIOD_CLOSED tanpa perubahan kolom; komponen menampilkan pesan server dan baris lokal tidak diperbarui (UPDATE lokal hanya setelah sukses); offline → pesan 'Butuh koneksi internet untuk verifikasi'. Tercakup oleh backend/tests/Feature/Api/RecordVerificationTest.php (blok 'kunci periode pada jalur verifikasi') dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; mobile/tests/recordVerification.spec.ts mencakup galat offline tetapi belum punya kasus PERIOD_CLOSED khusus."
   ],
   "deferred_items": [],
   "known_issues": [

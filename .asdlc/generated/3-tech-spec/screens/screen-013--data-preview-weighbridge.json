@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
-  "ver": 4,
+  "ver": 5,
   "id": "screen-013--data-preview-weighbridge",
   "name": "Data Preview Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -38,7 +38,8 @@
         "9. On Back di mode LIST → navigasi ke Monitor Weighbridge",
         "10. On Back di mode DETAIL → navigasi kembali ke mode LIST (id param dihapus dari route)",
         "11. On tap breadcrumb segment → navigasi ke route terkait",
-        "12. On tap hamburger → buka menu navigasi (Ganti Password, Logout)"
+        "12. On tap hamburger → buka menu navigasi (Ganti Password, Logout)",
+        "13. Mode DETAIL, record tersinkron (punya server_id): aksi verifikasi RecordVerificationActions (Tandai/Batalkan sudah diperiksa — Supervisor/Admin; Tandai/Batalkan sudah dikonfirmasi — Mill Management/Admin) adalah satu-satunya tulis ke server dari layar ini: recordVerificationApi.setVerification('weighbridge', 'weighbridge_record', record, level, value) → PATCH /api/records/weighbridge/{server_id}/verification {level, value}. Server (RecordVerificationService::setVerification) menilai peran + cakupan mill aktor, lalu assertPeriodOpenForWrite atas jenis stasiun & mill MILIK RECORD dan tanggal kejadian record itu sendiri (`record_datetime`) SEBELUM menulis kolom verifikasi; baris lokal (checked_by/acknowledged_by + *_name) hanya diperbarui setelah server menerima, lalu detail dimuat ulang (event 'updated')."
       ],
       "data_operations": [
         {
@@ -64,6 +65,10 @@
         {
           "condition": "Filter tanggal/search tidak menghasilkan apapun (termasuk saat filter default hari ini tidak ada datanya)",
           "handling": "Tampilkan pesan tidak ditemukan dengan opsi reset filter"
+        },
+        {
+          "condition": "Verifikasi (menyetujui maupun membatalkan) saat periode pelaporan stasiun Weighbridge untuk mill record tidak terbuka (belum ada periode / masih Draft / sudah ditutup) atau `record_datetime` record di luar rentang periode; atau perangkat tanpa jaringan",
+          "handling": "Server menolak 422 error_code PERIOD_CLOSED sebelum kolom apa pun berubah; status verifikasi di server dan baris lokal tidak berubah (UPDATE lokal hanya berjalan setelah respons sukses, event 'updated' tidak di-emit). RecordVerificationActions menampilkan pesan server apa adanya (verification-message, gaya error) — pesan 'di luar rentang' menyebut rentang yang berlaku. Tanpa jaringan (respons tanpa status) → pesan 'Butuh koneksi internet untuk verifikasi. Coba lagi saat online.' Pemulihan: Admin membuka kembali baris stasiun di Detail Periode Pelaporan (screen-142), lalu verifikasi diulang."
         }
       ],
       "business_rules_applied": [
@@ -71,7 +76,8 @@
         "List menampilkan seluruh record apapun statusnya",
         "Filter tanggal & pencarian bekerja terhadap list yang sedang ditampilkan",
         "Breadcrumb harus dapat dinavigasi",
-        "Filter tanggal default ke hari ini saat list pertama kali dibuka"
+        "Filter tanggal default ke hari ini saat list pertama kali dibuka",
+        "Verifikasi (menyetujui maupun membatalkan) ikut terkunci periode (usecase-141) — status periode dinilai per jenis stasiun saat permintaan tiba di server, bukan saat kejadian"
       ],
       "unit_test_cases": [
         {
@@ -188,6 +194,11 @@
           "description": "renders destination field only when detail record.weighbridge_type is 'dispatch'",
           "given": "two detail records, one with weighbridge_type='receive' (destination=null) and one with weighbridge_type='dispatch' (destination='PKS Sukamaju')",
           "expect": "destination field is absent/not rendered for the receive record, and rendered with its value for the dispatch record"
+        },
+        {
+          "description": "RecordVerificationActions shows the server PERIOD_CLOSED message and leaves the verification state unchanged",
+          "given": "detail record tersinkron (server_id ada, checked_by null), aktor supervisor; setVerification ditolak dengan galat ternormalisasi { status: 422, message: '<pesan PERIOD_CLOSED dari server>' }",
+          "expect": "verification-message menampilkan pesan server tersebut dengan kelas error; event 'updated' tidak di-emit; tombol tetap berlabel 'Tandai sudah diperiksa' (checked_by lokal tidak berubah)"
         }
       ]
     }
@@ -208,7 +219,8 @@
     "Mode list dan detail berbagi 1 komponen/route yang sama (bedanya cuma ada/tidaknya :id param)",
     "Filter tanggal & search dilakukan client-side terhadap hasil query getAllRecords",
     "Default dateFilter = tanggal lokal hari ini (format YYYY-MM-DD, konsisten dengan input type=date), diisi SEKALI saat komponen mount di mode list — bukan setiap kali list mode dimasuki ulang dari detail (Back dari detail TIDAK mereset filter yang sudah diubah user kembali ke hari ini)",
-    "Field label untuk record_datetime/destination di detail read-only harus konsisten dengan Form Weighbridge (screen-010): 'Tanggal & Waktu Arrival' vs 'Tanggal & Waktu Dispatch', destination dirender hanya untuk tipe dispatch. Sumber data field ini sudah unified sebagai weighbridge_type/record_datetime/destination di entity-catalog v5 — tidak ada lagi arrival_datetime/dispatch_datetime terpisah."
+    "Field label untuk record_datetime/destination di detail read-only harus konsisten dengan Form Weighbridge (screen-010): 'Tanggal & Waktu Arrival' vs 'Tanggal & Waktu Dispatch', destination dirender hanya untuk tipe dispatch. Sumber data field ini sudah unified sebagai weighbridge_type/record_datetime/destination di entity-catalog v5 — tidak ada lagi arrival_datetime/dispatch_datetime terpisah.",
+    "Kunci periode (usecase-141): pengecualian atas 'tidak ada panggilan API' — aksi verifikasi di mode detail memanggil PATCH /api/records/weighbridge/{id}/verification (RecordVerificationController → RecordVerificationService::setVerification, trait EnforcesPeriodLock). Tanggal yang dinilai = `record_datetime` record (Weighbridge satu-satunya stasiun yang tidak memakai `date`); jenis stasiun & mill dibaca dari stasiun milik record, bukan dari segmen URL. Penolakan 422 PERIOD_CLOSED (satu kode, empat pesan) dinormalisasi apiClient menjadi {status, message} dan ditampilkan RecordVerificationActions. Endpoint sengaja tidak ditambahkan ke `endpoints` karena kontrak ini tidak mendeklarasikan endpoint apa pun untuk disalin bentuknya."
   ],
   "test_scenarios": [
     {

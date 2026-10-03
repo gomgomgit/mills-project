@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
-  "ver": 5,
+  "ver": 6,
   "id": "screen-010--form-weighbridge",
   "name": "Form Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -27,7 +27,8 @@
     "DIRTY_CHECK_FIELDS menambahkan destination; weighbridge_type/record_datetime tetap dikecualikan (field derived/otomatis, konsisten dengan pola pengecualian sebelumnya).",
     "Label Kuantitas diubah jadi 'Kuantitas (tandan)'; dispatchTimer/startDispatchTicker/stopDispatchTicker/onBeforeUnmount dihapus total.",
     "Checked By tetap dihapus total dari layar ini (carry-over dari v4) — kolom checked_by/acknowledged_by di entity tetap ada, tapi screen ini tidak membaca/menulisnya.",
-    "Regresi penuh diverifikasi independen: npx vitest run unscoped = 21 file test, 407 test, semua lulus; npx vue-tsc --noEmit bersih untuk FormWeighbridgeView.vue."
+    "Regresi penuh diverifikasi independen: npx vitest run unscoped = 21 file test, 407 test, semua lulus; npx vue-tsc --noEmit bersih untuk FormWeighbridgeView.vue.",
+    "REVISI (tech-spec v7, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormWeighbridgeView menyimpan HANYA ke SQLite lokal (tidak ada apiClient/syncAfterSave; stasiun ini tidak punya write-through) dan tidak memeriksa periode; record 'saved' dikirim lewat sinkron manual screen-006 (POST /api/weighbridge-records), dan penolakan 422 PERIOD_CLOSED membuat record tetap 'saved' dengan alasan server di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('weighbridge', mill, record_datetime) di WeighbridgeRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tanggal yang dinilai adalah record_datetime (penanda waktu lengkap) — dicakup kasus 'menerima penanda waktu lengkap, bukan hanya tanggal — jalur Weighbridge' di EnforcesPeriodLockTest. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik)."
   ],
   "deferred_items": [],
   "known_issues": [

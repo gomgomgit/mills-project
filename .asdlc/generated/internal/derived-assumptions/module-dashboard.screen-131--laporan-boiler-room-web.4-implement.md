@@ -11,3 +11,8 @@
 - **Test pembagi `avg_per_day` diperkuat, bukan ditukar angkanya** ← fixture dipegang pada `days_in_period = 2 × days_with_records` agar 1,0 dan 0,5 tidak pernah diam-diam berimpit, plus asersi pendamping atas kedua pembilang/pembagi dan `not->toBe(0.5)`. Diverifikasi di sumber bahwa `maintenanceOf()` memakai variabel yang sama dengan yang dipublikasikan sebagai `total.days_with_records`, jadi asersinya mengunci pembagi sungguhan.
 - **Rekap harian memakai tombol + markup ber-`@if`, bukan `<details>`** ← konsekuensi kontradiksi spec: `<details>` tertutup tetap menyimpan anaknya di DOM, sehingga "hilang dari DOM setelah ditutup" mustahil dipenuhi. Berbeda dari screen-130 yang memakai `<details>`; perbedaan itu disengaja dan berasal dari skenario testnya sendiri.
 - **Selector CSS baru diverifikasi tidak dapat meregresi layar lain** ← `.md-card > .md-recap` hanya berlaku bila `.md-recap` adalah anak LANGSUNG `.md-card`; sterilizer dan cages-track menaruhnya di dalam `<details>`, jadi tidak tersentuh. Pemeriksaan ini tidak diminta, tetapi menambah selector ke partial bersama tanpa memeriksanya adalah cara khas meregresi layar yang tidak sedang dikerjakan.
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v1)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); turunan dari re-track tech-spec, shared-decisions, entity-models, dan shared-modules pada putaran yang sama — penilaian agen, tidak dinyatakan user per layar

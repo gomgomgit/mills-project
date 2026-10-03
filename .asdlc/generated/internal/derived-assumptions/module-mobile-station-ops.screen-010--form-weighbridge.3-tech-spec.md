@@ -35,3 +35,12 @@
 - business_logic step 3/8 dan implementation_notes diubah: record_datetime tidak lagi live-ticking untuk dispatch, kini auto-set sekali untuk kedua tipe (tidak perlu interval timer sama sekali) ← instruksi eksplisit user saat REVISI checkpoint
 - unit_test_cases: 2 test baru ditambahkan (dispatch auto-set-once, dispatch preserve-on-resume), 1 test live-tick dihapus, 4 test lain di-reword untuk menghapus bahasa "freeze"/"live-ticking" (20 test total, dari 19) ← turunan langsung dari koreksi di atas
 - test_scenarios "success" dan "Ganti Tipe Setelah Field Terisi" di-reword untuk menghapus bahasa freeze/live-ticking; 6 skenario lain tidak berubah dari v5 ← turunan langsung dari koreksi di atas
+
+## v7 — 2026-10-03
+
+Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan (49dc0c5, 0594c63); kode tidak diubah.
+- Tidak menambah unit_test_cases: form tidak punya logika periode untuk diuji (simpan lokal tanpa cek periode).
+- Dikonfirmasi dari kode: form ini tidak mengimpor syncAfterSave/apiClient — stasiun ini tidak punya write-through (pushSavedRecordNow hanya mencakup 15 stasiun seragam).
+- Dikonfirmasi dari kode: form hanya membuka draft (draft_ongoing/draft_paused) — Data Preview mengarahkan record saved/synced ke layar preview, bukan form — sehingga tidak ada jalur edit/PATCH record tersinkron.
+- Kalimat edge case/aturan/catatan dirumuskan sendiri; 'pemulihan = Admin membuka kembali baris stasiun di screen-142 lalu sinkron ulang' mengikuti brief.
+- Kolom tanggal kejadian = record_datetime (dikonfirmasi di WeighbridgeRecordService).

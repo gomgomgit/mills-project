@@ -6,3 +6,8 @@
 - Konsekuensi: ChangePasswordWebTest.php (screen-003) yang tadinya expect 403 untuk role operator diubah jadi expect 200 ← perubahan capability nyata (operator kini bisa akses endpoint ini walau operator sebenarnya tidak bisa akses web sama sekali secara praktik), dicatat eksplisit sebagai perubahan access-control, bukan sekadar bug fix
 - useConnectivityGuard.ts digeneralisasi (bukan diganti) dengan opsi blocksAction/offlineActionMessage generik di samping path khusus login yang sudah ada
 - Error shape API hanya expose message (bukan machine-readable code) ← keterbatasan yang sama seperti screen-003, form mobile cocokkan pesan exception untuk routing error per-field
+
+## re-track — 2026-10-03 (isi artefak tidak berubah, tetap v1)
+
+Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
+- Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); turunan dari re-track tech-spec, shared-decisions, entity-models, dan shared-modules pada putaran yang sama — penilaian agen, tidak dinyatakan user per layar

@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-060--form-kernel-plant-web",
   "name": "Form Kernel Plant (Web)",
@@ -28,7 +28,8 @@
     "Route /data/kernel-plant/create registered BEFORE /data/kernel-plant/{id} (screen-056) so the literal 'create' segment is not swallowed by {id}",
     "checked/acknowledged self-attestation checkboxes mirror FormDepricarping's dual-checkbox pattern (both Checked By AND Acknowledged By, unlike Form Weighbridge/Grading Web which only have Acknowledged)",
     "Ran the full backend Pest suite as the final step of this 6-screen pass (Kernel Plant is the LAST of the 4 new stations to receive this fix): 1299/1299 passing (up from the baseline of 1287/1287 before this fix), confirming zero regressions across Threshing/Pressing/Depricarping/Kernel Plant and every other station.",
-    "Detail upsert (insert/update/delete) dijalankan dalam DB transaction agar konsisten, sama pola dengan Depricarping/Pressing/Threshing/Cages Track/Grading Detail."
+    "Detail upsert (insert/update/delete) dijalankan dalam DB transaction agar konsisten, sama pola dengan Depricarping/Pressing/Threshing/Cages Track/Grading Detail.",
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): KernelPlantRecordService::create() memanggil assertPeriodOpenForWrite('kernel-plant', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormKernelPlant::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/KernelPlantRecordServiceTest.php, tests/Feature/Api/FormKernelPlantTest.php, tests/Feature/Livewire/FormKernelPlantTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
   ],
   "deferred_items": [],
   "known_issues": [

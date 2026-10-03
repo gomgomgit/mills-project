@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-041--form-threshing",
   "name": "Form Threshing",
@@ -22,7 +22,8 @@
     "Target Operasional reference table sourced from a STATIC constant (mobile/src/data/threshingOperationalTargets.ts, created under screen-037) rather than a synced local reference table -- judgment call, documented in that file's own header comment and repeated here: building a third local-reference-sync mechanism (after station/mill_setting) for 6 rarely-changing rows was judged out of proportion; if Admin edits these values via web in the future, mobile needs an app update to reflect it",
     "'Minimal 1 baris valid' (Time-Slot terpilih + minimal 1 kolom bacaan terisi) validated at FE + repo level (threshingRecordRepo.saveDraft() throws ThreshingDetailRequiredError) -- NOT enforced by the server model's ThreshingRecord::booted() saving guard, which only checks row EXISTENCE (now meaningfully true only once the user has added at least one row, since rows are no longer pre-created)",
     "availableTimeSlotOptions() compares slots by their index in canonicalTimeSlots() rather than a raw hour number (since slots wrap starting at 07:00, not 0-23) -- the one structural difference from Cages Tipped Time's availableHourOptions(), otherwise the floor/exclusion logic is identical",
-    "Every FormField id in the grid is set explicitly (e.g. ffb-throughput-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide"
+    "Every FormField id in the grid is set explicitly (e.g. ffb-throughput-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide",
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormThreshingView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('threshing_record') → pushSavedRecordNow → POST /api/threshing-records bila Mills Setting immediate_sync_enabled aktif, dan penolakannya (termasuk 422 PERIOD_CLOSED) DIAM — record tetap 'saved' dan alasannya baru tampil di SyncResultDialog pada sinkron manual screen-006. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('threshing', mill, date) di ThreshingRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik). Kegagalan write-through yang diam dicakup secara generik oleh mobile/tests/writeThroughSync.spec.ts."
   ],
   "deferred_items": [],
   "known_issues": [

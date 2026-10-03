@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-078--form-boiler-room",
   "name": "Form Boiler Room",
@@ -101,6 +101,10 @@
         {
           "condition": "Back ditekan saat form dirty",
           "handling": "ConfirmDialog ditampilkan sebelum navigasi keluar tanpa menyimpan"
+        },
+        {
+          "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Pengecualian: bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mencoba mengirim record ini ke server (writeThroughSync.syncAfterSave('boiler_room_record') → syncService.pushSavedRecordNow → POST /api/boiler-room-records); penolakan 422 PERIOD_CLOSED pada kiriman langsung ini DIAM by design — form tetap bernavigasi ke Monitor tanpa pesan, record tetap 'saved', alasannya tidak disimpan — dan baru terlihat pada sinkron manual berikutnya di screen-006. Pemulihan: Admin membuka kembali baris stasiun Boiler Room di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
@@ -111,7 +115,8 @@
         "Minimal satu baris valid sebelum Simpan (tidak berlaku untuk Pause)",
         "Boiler Room ID wajib diisi sebelum Simpan (tidak berlaku untuk Pause)",
         "Blowdown Executed dan Sootblowing Executed adalah 2 kolom status/enum Y/N independen",
-        "Fuel Feed Rate, ID Fan Load, SA Fan Load adalah kolom teks bebas, bukan numerik"
+        "Fuel Feed Rate, ID Fan Load, SA Fan Load adalah kolom teks bebas, bukan numerik",
+        "Kunci periode (usecase-141) ditegakkan di server saat sinkron (manual dari screen-006, atau kiriman langsung saat Simpan bila immediate_sync_enabled aktif), bukan di form: Simpan menulis ke SQLite lokal tanpa memeriksa periode; status periode jenis stasiun 'boiler-room' dinilai pada saat request diterima server (bukan saat data dicatat di perangkat), terhadap tanggal kejadian `date`"
       ],
       "unit_test_cases": [
         {
@@ -181,7 +186,8 @@
     "14 kolom non-time_slot per baris; 2 di antaranya adalah kolom status/enum Y/N (blowdown_executed, sootblowing_executed) yang disimpan sebagai plain TEXT di SQLite lokal (tidak ada CHECK constraint di sisi mobile); 3 kolom (fuel_feed_rate, id_fan_load, sa_fan_load) adalah teks bebas karena satuan pada form kertas asal bercampur (Hz/%/tons, A/%)",
     "isRowFilled() mengecek seluruh 14 kolom non-time_slot (numerik !== null ATAU string/enum bukan null dan bukan '')",
     "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak ada CollapsibleSection/read-only reference data pada layar ini",
-    "Field urutan pada grid & form mengikuti urutan kolom migration boiler_room_details persis: Steam Pressure → Steam Temp → Feed Water Temp → Feed Water Tank Level → Boiler Water Level → Water TDS → Water pH → Fuel Feed Rate → ID Fan Load → SA Fan Load → Exhaust Gas Temp → Dust Collector Differential Pressure → Blowdown Executed → Sootblowing Executed → Findings"
+    "Field urutan pada grid & form mengikuti urutan kolom migration boiler_room_details persis: Steam Pressure → Steam Temp → Feed Water Temp → Feed Water Tank Level → Boiler Water Level → Water TDS → Water pH → Fuel Feed Rate → ID Fan Load → SA Fan Load → Exhaust Gas Temp → Dust Collector Differential Pressure → Blowdown Executed → Sootblowing Executed → Findings",
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormBoilerRoomView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('boiler_room_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/boiler-room-records, create), kegagalannya diam. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('boiler-room', mill, date) berjalan di BoilerRoomRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
   ],
   "test_scenarios": [
     {

@@ -203,6 +203,12 @@ class CpoDispatchRecordService
         }
     }
 
+    /** '' / null → null; anything else → float. See upsertDetails(). */
+    protected function numericOrNull(mixed $value): ?float
+    {
+        return filled($value) ? (float) $value : null;
+    }
+
     /**
      * upsertDetails() — for each valid detail row, compute net_weight_mt =
      * gross_weight_mt - tare_weight_mt (server-side, never accepted from
@@ -222,8 +228,12 @@ class CpoDispatchRecordService
         $keptIds = [];
 
         foreach ($validRows as $row) {
-            $gross = $row['gross_weight_mt'] !== null ? (float) $row['gross_weight_mt'] : null;
-            $tare = $row['tare_weight_mt'] !== null ? (float) $row['tare_weight_mt'] : null;
+            // '' dari field angka yang dikosongkan HARUS jadi null, bukan
+            // dilewatkan apa adanya: PostgreSQL menolak '' untuk kolom float
+            // (SQLSTATE 22P02 → 500) sementara SQLite di suite menerimanya
+            // diam-diam, dan `(float) ''` menyimpan berat kosong sebagai 0.
+            $gross = $this->numericOrNull($row['gross_weight_mt'] ?? null);
+            $tare = $this->numericOrNull($row['tare_weight_mt'] ?? null);
             $netWeight = ($gross !== null && $tare !== null) ? $gross - $tare : null;
 
             $detailAttributes = [
@@ -242,10 +252,10 @@ class CpoDispatchRecordService
                 'gross_weight_mt' => $gross,
                 'tare_weight_mt' => $tare,
                 'net_weight_mt' => $netWeight,
-                'ffa_percent' => $row['ffa_percent'],
-                'moisture_percent' => $row['moisture_percent'],
-                'impurities_percent' => $row['impurities_percent'],
-                'dobi' => $row['dobi'],
+                'ffa_percent' => $this->numericOrNull($row['ffa_percent'] ?? null),
+                'moisture_percent' => $this->numericOrNull($row['moisture_percent'] ?? null),
+                'impurities_percent' => $this->numericOrNull($row['impurities_percent'] ?? null),
+                'dobi' => $this->numericOrNull($row['dobi'] ?? null),
                 'destination_buyer' => $row['destination_buyer'],
                 'weighbridge_operator' => $row['weighbridge_operator'],
                 'findings' => $row['findings'],

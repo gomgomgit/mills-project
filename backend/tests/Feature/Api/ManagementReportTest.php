@@ -123,3 +123,17 @@ it('export: also authenticates via Sanctum token (mobile-style guard, dual auth)
 
     $response->assertOk();
 });
+
+// "Ekspor CSV" adalah tautan biasa: browser bernavigasi ke sana hanya dengan
+// cookie sesi. Tanpa grup 'web' sesi tidak pernah dimulai pada rute api ini,
+// sehingga auth:web hanya lolos bila origin halaman kebetulan tercantum di
+// SANCTUM_STATEFUL_DOMAINS — di port/host lain unduhannya berupa 401 JSON
+// (terbukti di e2e-web/tests/management-report.spec.ts pada port 8001).
+// Diasersikan pada rute, karena actingAs() di test melewati sesi sama sekali.
+it('ekspor memakai grup middleware web seperti 18 rute ekspor Data Browser', function () {
+    $route = app('router')->getRoutes()->match(
+        \Illuminate\Http\Request::create('/api/reports/management-summary/export', 'GET')
+    );
+
+    expect($route->gatherMiddleware())->toContain('web');
+});

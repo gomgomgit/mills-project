@@ -204,6 +204,12 @@ class KernelDispatchRecordService
         }
     }
 
+    /** '' / null → null; anything else → float. See upsertDetails(). */
+    protected function numericOrNull(mixed $value): ?float
+    {
+        return filled($value) ? (float) $value : null;
+    }
+
     /**
      * upsertDetails() — for each valid detail row, compute net_weight_mt =
      * gross_weight_mt - tare_weight_mt (server-side, never accepted from
@@ -218,8 +224,12 @@ class KernelDispatchRecordService
         $keptIds = [];
 
         foreach ($validRows as $row) {
-            $gross = $row['gross_weight_mt'] !== null ? (float) $row['gross_weight_mt'] : null;
-            $tare = $row['tare_weight_mt'] !== null ? (float) $row['tare_weight_mt'] : null;
+            // '' dari field angka yang dikosongkan HARUS jadi null, bukan
+            // dilewatkan apa adanya: PostgreSQL menolak '' untuk kolom float
+            // (SQLSTATE 22P02 → 500) sementara SQLite di suite menerimanya
+            // diam-diam, dan `(float) ''` menyimpan berat kosong sebagai 0.
+            $gross = $this->numericOrNull($row['gross_weight_mt'] ?? null);
+            $tare = $this->numericOrNull($row['tare_weight_mt'] ?? null);
             $netWeight = ($gross !== null && $tare !== null) ? $gross - $tare : null;
 
             $detailAttributes = [
@@ -236,10 +246,10 @@ class KernelDispatchRecordService
                 'gross_weight_mt' => $gross,
                 'tare_weight_mt' => $tare,
                 'net_weight_mt' => $netWeight,
-                'kernel_moisture_percent' => $row['kernel_moisture_percent'],
-                'dirt_impurities_percent' => $row['dirt_impurities_percent'],
-                'ffa_percent' => $row['ffa_percent'],
-                'broken_kernel_percent' => $row['broken_kernel_percent'],
+                'kernel_moisture_percent' => $this->numericOrNull($row['kernel_moisture_percent'] ?? null),
+                'dirt_impurities_percent' => $this->numericOrNull($row['dirt_impurities_percent'] ?? null),
+                'ffa_percent' => $this->numericOrNull($row['ffa_percent'] ?? null),
+                'broken_kernel_percent' => $this->numericOrNull($row['broken_kernel_percent'] ?? null),
                 'security_seal_no_top' => $row['security_seal_no_top'],
                 'security_seal_no_bottom' => $row['security_seal_no_bottom'],
                 'weighbridge_operator_id' => $row['weighbridge_operator_id'],

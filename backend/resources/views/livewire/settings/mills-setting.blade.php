@@ -2,7 +2,7 @@
     <div class="ms-page__header">
         <div>
             <h2 class="ms-page__title">Mills Setting</h2>
-            <p class="ms-page__subtitle">Atur nama aplikasi, logo, gambar halaman utama, icon station, dan jumlah cages untuk mill Anda.</p>
+            <p class="ms-page__subtitle">Atur nama aplikasi, logo, gambar halaman utama, pengiriman data langsung, dan icon station untuk mill Anda.</p>
         </div>
     </div>
 

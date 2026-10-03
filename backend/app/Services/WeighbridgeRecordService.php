@@ -259,9 +259,10 @@ class WeighbridgeRecordService
 
     /**
      * Fields accepted by both create() and update() request bodies —
-     * everything except business_unit_id (create-only, resolves station_id,
-     * never accepted on update per screen-022 business_rules: "Business
-     * Unit tidak dapat diubah setelah record dibuat") and checked/
+     * everything except production_line_id (create-only, resolves
+     * station_id via resolveActiveStationForActor(), never accepted on
+     * update — the station, and with it the line and mill, cannot change
+     * after the record is created) and checked/
      * acknowledged (role-gated booleans, handled separately below since
      * they map to checked_by/acknowledged_by, not stored verbatim).
      */

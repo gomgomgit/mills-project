@@ -250,6 +250,28 @@ it('creates record with resolved station_id and inserted details when valid', fu
     expect($result['details'])->toHaveCount(1);
 });
 
+// Field angka yang dikosongkan di form web datang sebagai '' (Livewire tidak
+// melewati ConvertEmptyStringsToNull). Sampai 2026-10-03 nilai itu diteruskan
+// apa adanya: PostgreSQL menolaknya (SQLSTATE 22P02 → 500) sementara SQLite di
+// suite ini menerimanya diam-diam, dan `(float) ''` menyimpan berat kosong
+// sebagai 0 sehingga Net ikut terhitung palsu. Asersinya pada nilai MENTAH di
+// tabel, bukan atribut model yang sudah di-cast.
+it('stores blank numeric detail fields as null, not empty string or 0', function () {
+    $this->service->create(
+        solidWasteFormPayload([
+            'production_line_id' => $this->station->production_line_id,
+            'details' => [['event_date' => '2026-08-31', 'gross_weight_mt' => '', 'tare_weight_mt' => '']],
+        ]),
+        $this->creator
+    );
+
+    $row = (array) DB::table('solid_waste_disposal_details')->select(['gross_weight_mt', 'tare_weight_mt', 'net_weight_mt'])->first();
+
+    foreach ($row as $column => $value) {
+        expect($value)->toBeNull("kolom {$column} seharusnya null");
+    }
+});
+
 it('computes net_weight_mt as gross_weight_mt minus tare_weight_mt', function () {
     $result = $this->service->create(
         solidWasteFormPayload([

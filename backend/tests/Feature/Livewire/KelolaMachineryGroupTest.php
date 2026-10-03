@@ -330,6 +330,17 @@ it('akses ditolak: returns 403 and never renders the component for a non-admin s
     'operator' => ['operator'],
 ]);
 
+// Sejak 2026-09-30 layar ini DISERAP ke Kelola Mesin (screen-031); rute lama
+// dipertahankan sebagai 301 supaya bookmark dan tautan tidak patah. Sebelum
+// 2026-10-03 hanya penolakan 403 untuk non-Admin yang diuji — jalur yang
+// benar-benar dipakai Admin hanya dicakup spec browser.
+it('Admin: rute lama /master-data/machinery-groups mengalihkan 301 ke Kelola Mesin', function () {
+    $response = $this->actingAs($this->admin, 'web')->get('/master-data/machinery-groups');
+
+    $response->assertStatus(301);
+    $response->assertRedirect('/master-data/machinery');
+});
+
 // Pagination — nextPage()/previousPage() move the page and clamp at 1.
 it('nextPage/previousPage: paginates the list and clamps at page 1', function () {
     MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-LW-PA')->create();

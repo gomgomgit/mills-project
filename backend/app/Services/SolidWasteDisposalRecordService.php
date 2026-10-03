@@ -218,8 +218,10 @@ class SolidWasteDisposalRecordService
         $keptIds = [];
 
         foreach ($validRows as $row) {
-            $gross = $row['gross_weight_mt'] !== null ? (float) $row['gross_weight_mt'] : null;
-            $tare = $row['tare_weight_mt'] !== null ? (float) $row['tare_weight_mt'] : null;
+            // '' dari field berat yang dikosongkan HARUS jadi null: `(float) ''`
+            // menyimpan berat kosong sebagai 0 dan Net ikut terhitung palsu.
+            $gross = filled($row['gross_weight_mt'] ?? null) ? (float) $row['gross_weight_mt'] : null;
+            $tare = filled($row['tare_weight_mt'] ?? null) ? (float) $row['tare_weight_mt'] : null;
             $netWeight = ($gross !== null && $tare !== null) ? $gross - $tare : null;
 
             $detailAttributes = [

@@ -466,10 +466,17 @@ Route::middleware(['auth:web,sanctum', 'role:supervisor,mill_management,admin'])
 // business_unit_id is never a request param here — always resolved from
 // the acting user (ManagementReportController), since Mill Management is
 // scoped to their own mill only.
-Route::middleware(['auth:web,sanctum', 'role:mill_management'])->group(function () {
-    Route::get('/reports/management-summary', [ManagementReportController::class, 'summary']);
-    Route::get('/reports/management-summary/export', [ManagementReportController::class, 'export']);
-});
+//
+// The EXPORT route additionally carries the 'web' group (2026-10-03), like
+// the 18 Data Browser export routes: "Ekspor CSV" is a plain link, so the
+// browser navigates to it with only the session cookie. Without 'web' the
+// session is never started on this api route and auth:web only succeeds
+// when the page's origin happens to be in SANCTUM_STATEFUL_DOMAINS — on any
+// other port/host the download was a 401 JSON body instead of a file.
+Route::middleware(['auth:web,sanctum', 'role:mill_management'])
+    ->get('/reports/management-summary', [ManagementReportController::class, 'summary']);
+Route::middleware(['web', 'auth:web,sanctum', 'role:mill_management'])
+    ->get('/reports/management-summary/export', [ManagementReportController::class, 'export']);
 
 // screen-032--kelola-user-role
 // Session-guarded ('auth:web' — this screen is web-only, no mobile

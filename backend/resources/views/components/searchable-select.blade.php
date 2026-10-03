@@ -186,6 +186,31 @@
             options: options,
             selected: entangledSelected !== null ? entangledSelected : '',
 
+            // Options are copied into Alpine state ONCE, at init. When a
+            // Livewire re-render changes them (a dependent picker: choose a
+            // Business Unit -> its Production Lines), morph updates this
+            // element's attributes but Alpine never re-reads x-data, so the
+            // list kept showing the FIRST render's options (2026-10-03:
+            // Kelola Station's Production Line offered only the placeholder,
+            // and in edit mode the previous mill's lines). The current
+            // options are therefore mirrored in data-ss-options and re-read
+            // whenever morph rewrites that attribute — the element itself is
+            // kept, so focus and the wire:model entangle stay intact.
+            init() {
+                const sync = () => {
+                    try {
+                        this.options = JSON.parse(this.$el.dataset.ssOptions || '[]');
+                    } catch (e) {
+                        // Malformed attribute: keep the last good options.
+                    }
+                };
+
+                new MutationObserver(sync).observe(this.$el, {
+                    attributes: true,
+                    attributeFilter: ['data-ss-options'],
+                });
+            },
+
             get allOptions() {
                 return [{ value: '', label: placeholderLabel }, ...this.options];
             },
@@ -292,6 +317,7 @@
 
 <div
     x-data="ssSelect(@js($normalizedOptions), @js((string) $placeholder), {!! $entangleExpression !!})"
+    data-ss-options="{{ json_encode($normalizedOptions) }}"
     class="ss-combobox"
     @click.outside="closeList()"
 >

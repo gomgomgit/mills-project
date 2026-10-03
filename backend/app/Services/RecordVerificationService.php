@@ -4,12 +4,33 @@ namespace App\Services;
 
 use App\Enums\StationType as StationTypeEnum;
 use App\Enums\UserRole;
+use App\Exceptions\CrossMillWriteDeniedException;
+use App\Models\BoilerRoomRecord;
+use App\Models\CagesTrackRecord;
+use App\Models\ClarificationRecord;
+use App\Models\CpoDispatchRecord;
+use App\Models\DepricarpingRecord;
+use App\Models\EffluentPlantRecord;
+use App\Models\EngineRoomRecord;
+use App\Models\GradingRecord;
+use App\Models\KernelDispatchRecord;
+use App\Models\KernelPlantRecord;
+use App\Models\PressingRecord;
+use App\Models\ProcessQualityControlRecord;
+use App\Models\ProcessWaterRecord;
+use App\Models\SolidWasteDisposalRecord;
+use App\Models\SterilizerRecord;
+use App\Models\StorageTankRecord;
+use App\Models\ThreshingRecord;
 use App\Models\User;
+use App\Models\WeighbridgeRecord;
 use App\Support\Concerns\EnforcesPeriodLock;
 use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\UnauthorizedException;
+use Illuminate\Validation\ValidationException;
 
 /**
  * RecordVerificationService — single place where "Checked By" (Supervisor)
@@ -52,7 +73,7 @@ class RecordVerificationService
      * @var list<class-string<Model>>
      */
     protected const NO_CHECKED_BY_MODELS = [
-        \App\Models\GradingRecord::class,
+        GradingRecord::class,
     ];
 
     /**
@@ -87,9 +108,9 @@ class RecordVerificationService
      * @param  class-string<Model>  $modelClass
      *
      * @throws UnauthorizedException when the actor's role may not write this level
-     * @throws \App\Exceptions\CrossMillWriteDeniedException 403 — record belongs to another mill
-     * @throws \Illuminate\Validation\ValidationException 422 — mill-bound actor with no mill
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException when the record is gone
+     * @throws CrossMillWriteDeniedException 403 — record belongs to another mill
+     * @throws ValidationException 422 — mill-bound actor with no mill
+     * @throws ModelNotFoundException when the record is gone
      */
     public function setVerification(string $modelClass, string $recordId, User $actor, string $level, bool $value): void
     {
@@ -159,24 +180,24 @@ class RecordVerificationService
      * @var array<string, class-string<Model>>
      */
     protected const MODEL_BY_STATION_TYPE = [
-        'boiler-room' => \App\Models\BoilerRoomRecord::class,
-        'cages-track' => \App\Models\CagesTrackRecord::class,
-        'clarification' => \App\Models\ClarificationRecord::class,
-        'cpo-dispatch' => \App\Models\CpoDispatchRecord::class,
-        'depricarping' => \App\Models\DepricarpingRecord::class,
-        'effluent-plant' => \App\Models\EffluentPlantRecord::class,
-        'engine-room' => \App\Models\EngineRoomRecord::class,
-        'grading' => \App\Models\GradingRecord::class,
-        'kernel-dispatch' => \App\Models\KernelDispatchRecord::class,
-        'kernel-plant' => \App\Models\KernelPlantRecord::class,
-        'pressing' => \App\Models\PressingRecord::class,
-        'process-quality-control' => \App\Models\ProcessQualityControlRecord::class,
-        'process-water' => \App\Models\ProcessWaterRecord::class,
-        'solid-waste-disposal' => \App\Models\SolidWasteDisposalRecord::class,
-        'sterilizer' => \App\Models\SterilizerRecord::class,
-        'storage-tank' => \App\Models\StorageTankRecord::class,
-        'threshing' => \App\Models\ThreshingRecord::class,
-        'weighbridge' => \App\Models\WeighbridgeRecord::class,
+        'boiler-room' => BoilerRoomRecord::class,
+        'cages-track' => CagesTrackRecord::class,
+        'clarification' => ClarificationRecord::class,
+        'cpo-dispatch' => CpoDispatchRecord::class,
+        'depricarping' => DepricarpingRecord::class,
+        'effluent-plant' => EffluentPlantRecord::class,
+        'engine-room' => EngineRoomRecord::class,
+        'grading' => GradingRecord::class,
+        'kernel-dispatch' => KernelDispatchRecord::class,
+        'kernel-plant' => KernelPlantRecord::class,
+        'pressing' => PressingRecord::class,
+        'process-quality-control' => ProcessQualityControlRecord::class,
+        'process-water' => ProcessWaterRecord::class,
+        'solid-waste-disposal' => SolidWasteDisposalRecord::class,
+        'sterilizer' => SterilizerRecord::class,
+        'storage-tank' => StorageTankRecord::class,
+        'threshing' => ThreshingRecord::class,
+        'weighbridge' => WeighbridgeRecord::class,
     ];
 
     /** @return class-string<Model>|null */

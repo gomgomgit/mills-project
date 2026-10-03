@@ -14,7 +14,6 @@ use App\Exceptions\InvalidDateRangeException;
 use App\Models\BusinessUnit;
 use App\Models\CagesTippedTime;
 use App\Models\CagesTrackRecord;
-use App\Models\GradingRecord;
 use App\Models\Station;
 use App\Models\WeighbridgeRecord;
 use App\Services\ManagementReportService;
@@ -25,7 +24,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->service = new ManagementReportService();
+    $this->service = new ManagementReportService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
 });

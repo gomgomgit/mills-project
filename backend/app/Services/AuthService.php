@@ -64,10 +64,10 @@ class AuthService
      *     token?: string,
      * }
      *
-     * @throws ValidationException              (422 VALIDATION_ERROR — required fields / password format)
-     * @throws InvalidCredentialsException       (401 INVALID_CREDENTIALS)
-     * @throws AccountInactiveException          (403 ACCOUNT_INACTIVE)
-     * @throws BusinessAreaMismatchException     (403 BUSINESS_AREA_MISMATCH)
+     * @throws ValidationException (422 VALIDATION_ERROR — required fields / password format)
+     * @throws InvalidCredentialsException (401 INVALID_CREDENTIALS)
+     * @throws AccountInactiveException (403 ACCOUNT_INACTIVE)
+     * @throws BusinessAreaMismatchException (403 BUSINESS_AREA_MISMATCH)
      */
     public function login(string $username, string $password, ?string $businessUnitId = null, ?string $deviceName = null): array
     {
@@ -85,12 +85,12 @@ class AuthService
         $user = User::where('username', $username)->first();
 
         if (! $user || ! Hash::check($password, $user->getAuthPassword())) {
-            throw new InvalidCredentialsException();
+            throw new InvalidCredentialsException;
         }
 
         // Step 4: account must be active.
         if (! $user->is_active) {
-            throw new AccountInactiveException();
+            throw new AccountInactiveException;
         }
 
         // Step 5: business area resolution. $businessUnitId is now ALWAYS
@@ -119,12 +119,12 @@ class AuthService
                 // data-integrity problem (Kelola User & Role requires one
                 // for every non-Admin role), not a normal Admin case —
                 // reject it the same way an explicit mismatch is rejected.
-                throw new BusinessAreaMismatchException();
+                throw new BusinessAreaMismatchException;
             }
             // else: Admin with none assigned — proceed with $businessUnitId
             // left null, no exception.
         } elseif (! $user->business_unit_id || (string) $user->business_unit_id !== (string) $businessUnitId) {
-            throw new BusinessAreaMismatchException();
+            throw new BusinessAreaMismatchException;
         }
 
         $businessUnit = $businessUnitId !== null ? $user->businessUnit : null;
@@ -261,9 +261,9 @@ class AuthService
      * implementation assumes existing sessions remain valid (no forced
      * re-login), per the tech-spec's documented assumption.
      *
-     * @throws ValidationException                  (422 VALIDATION_ERROR — required fields / new_password format)
+     * @throws ValidationException (422 VALIDATION_ERROR — required fields / new_password format)
      * @throws PasswordConfirmationMismatchException (422 PASSWORD_CONFIRMATION_MISMATCH)
-     * @throws OldPasswordIncorrectException         (422 OLD_PASSWORD_INCORRECT)
+     * @throws OldPasswordIncorrectException (422 OLD_PASSWORD_INCORRECT)
      */
     public function changePassword(User $user, string $oldPassword, string $newPassword, string $newPasswordConfirmation): void
     {
@@ -275,12 +275,12 @@ class AuthService
 
         // Step 3: new_password_confirmation must match new_password.
         if (! hash_equals($newPassword, $newPasswordConfirmation)) {
-            throw new PasswordConfirmationMismatchException();
+            throw new PasswordConfirmationMismatchException;
         }
 
         // Step 4: old_password must match the user's current password hash.
         if (! Hash::check($oldPassword, $user->getAuthPassword())) {
-            throw new OldPasswordIncorrectException();
+            throw new OldPasswordIncorrectException;
         }
 
         // Step 5: persist the new password hash.

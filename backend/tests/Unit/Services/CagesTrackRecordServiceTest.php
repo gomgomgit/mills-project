@@ -48,9 +48,11 @@ use App\Models\BusinessUnit;
 use App\Models\CagesTippedTime;
 use App\Models\CagesTrackRecord;
 use App\Models\Machinery;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\CagesTrackRecordService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -80,7 +82,7 @@ function cagesFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new CagesTrackRecordService();
+    $this->service = new CagesTrackRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     // Additive for screen-024--form-cages-track-web's create()/update()
@@ -300,7 +302,7 @@ it('returns a StreamedResponse with the correct content-type for csv and excel f
  */
 it('throws ModelNotFoundException when the id does not exist', function () {
     $this->service->getDetail((string) Str::uuid());
-})->throws(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+})->throws(ModelNotFoundException::class);
 
 it('returns the full record with resolved station_name when id exists', function () {
     $record = CagesTrackRecord::factory()->forStation($this->station)->create();
@@ -403,14 +405,14 @@ it('throws ValidationException when a required field is empty', function () {
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]],
         ]),
         $this->creator
-    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+    ))->toThrow(ValidationException::class);
 });
 
 it('throws ValidationException when details array is empty', function () {
     expect(fn () => $this->service->create(
         cagesFormPayload(['production_line_id' => $this->cagesTrackStation->production_line_id, 'details' => []]),
         $this->creator
-    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+    ))->toThrow(ValidationException::class);
 });
 
 it('throws ValidationException when a detail row has empty checked_cage_numbers', function () {
@@ -420,7 +422,7 @@ it('throws ValidationException when a detail row has empty checked_cage_numbers'
             'details' => [['tipped_hour' => 8, 'checked_cage_numbers' => []]],
         ]),
         $this->creator
-    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+    ))->toThrow(ValidationException::class);
 });
 
 it('throws ValidationException when tipped_hour is not strictly ascending across detail rows', function () {
@@ -433,7 +435,7 @@ it('throws ValidationException when tipped_hour is not strictly ascending across
             ],
         ]),
         $this->creator
-    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+    ))->toThrow(ValidationException::class);
 });
 
 it('throws ValidationException when two detail rows share the same tipped_hour', function () {
@@ -446,11 +448,11 @@ it('throws ValidationException when two detail rows share the same tipped_hour',
             ],
         ]),
         $this->creator
-    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+    ))->toThrow(ValidationException::class);
 });
 
 it('throws NoActiveCagesTrackStationException when production_line_id has no active cages-track station', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
 
     expect(fn () => $this->service->create(
         cagesFormPayload([
@@ -462,7 +464,7 @@ it('throws NoActiveCagesTrackStationException when production_line_id has no act
 });
 
 it('sets checked_by to requester id when checked=true and requester role=supervisor', function () {
-    $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         cagesFormPayload([
@@ -477,7 +479,7 @@ it('sets checked_by to requester id when checked=true and requester role=supervi
 });
 
 it('ignores checked=true when requester role is not supervisor', function () {
-    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
+    $millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         cagesFormPayload([
@@ -492,7 +494,7 @@ it('ignores checked=true when requester role is not supervisor', function () {
 });
 
 it('sets acknowledged_by to requester id when acknowledged=true and requester role=mill_management', function () {
-    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
+    $millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         cagesFormPayload([
@@ -569,7 +571,7 @@ it('updates record and upserts details: inserts new row, updates existing row, d
 });
 
 it('updates record without accepting a production_line_id change', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->create();
     $record = CagesTrackRecord::factory()->forStation($this->cagesTrackStation)->create();
     CagesTippedTime::factory()->forRecord($record)->create();
 
@@ -592,11 +594,11 @@ it('throws ModelNotFoundException when updating a non-existent id', function () 
         (string) Str::uuid(),
         cagesFormPayload(['details' => [['tipped_hour' => 8, 'checked_cage_numbers' => [1]]]]),
         $this->creator
-    ))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+    ))->toThrow(ModelNotFoundException::class);
 });
 
 it('machineryCountForStation does not enforce any role restriction — any actor can create()', function () {
-    $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         cagesFormPayload([

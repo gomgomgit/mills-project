@@ -46,7 +46,7 @@ function storageTankFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new StorageTankRecordService();
+    $this->service = new StorageTankRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->storageTankStation = Station::factory()->forBusinessUnit($this->businessUnit)->storageTank()->create();

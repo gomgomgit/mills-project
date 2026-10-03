@@ -48,7 +48,7 @@ function engineRoomFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new EngineRoomRecordService();
+    $this->service = new EngineRoomRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->engineRoomStation = Station::factory()->forBusinessUnit($this->businessUnit)->engineRoom()->create();

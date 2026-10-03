@@ -52,7 +52,7 @@ function processQualityControlFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new ProcessQualityControlRecordService();
+    $this->service = new ProcessQualityControlRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->pqcStation = Station::factory()->forBusinessUnit($this->businessUnit)->processQualityControl()->create();

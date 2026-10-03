@@ -48,7 +48,7 @@ function boilerRoomFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new BoilerRoomRecordService();
+    $this->service = new BoilerRoomRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->boilerRoomStation = Station::factory()->forBusinessUnit($this->businessUnit)->boilerRoom()->create();

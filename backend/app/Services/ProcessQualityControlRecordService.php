@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\RecordStatus;
 use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
@@ -10,6 +11,7 @@ use App\Models\ProcessQualityControlDetail;
 use App\Models\ProcessQualityControlRecord;
 use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
+use App\Support\Concerns\NormalizesTimeSlot;
 use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +20,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
-use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * ProcessQualityControlRecordService — screen-100--data-browser-process-quality-control-web /
@@ -54,7 +55,7 @@ use App\Support\Concerns\NormalizesTimeSlot;
  */
 class ProcessQualityControlRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
+    use EnforcesPeriodLock, NormalizesTimeSlot, ScopesToActorMill;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -109,7 +110,7 @@ class ProcessQualityControlRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveProcessQualityControlStationException();
+            throw new NoActiveProcessQualityControlStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
@@ -130,7 +131,7 @@ class ProcessQualityControlRecordService
         $this->applyVerification($attributes, $data, $actor);
 
         $record = DB::transaction(function () use ($attributes, $details) {
-            $attributes['status'] = \App\Enums\RecordStatus::Synced;
+            $attributes['status'] = RecordStatus::Synced;
             $record = ProcessQualityControlRecord::create($attributes);
             $this->upsertDetails($record, $details);
             $record->update(['status' => 'saved']);
@@ -424,7 +425,7 @@ class ProcessQualityControlRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('processQualityControlDetails')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -527,7 +528,7 @@ class ProcessQualityControlRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -577,7 +578,7 @@ class ProcessQualityControlRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = ProcessQualityControlRecord::query();

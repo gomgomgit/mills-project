@@ -71,7 +71,7 @@ class SterilizerRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveSterilizerStationException();
+            throw new NoActiveSterilizerStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
@@ -352,7 +352,7 @@ class SterilizerRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('sterilizerDetails')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -452,7 +452,7 @@ class SterilizerRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -502,7 +502,7 @@ class SterilizerRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = SterilizerRecord::query();

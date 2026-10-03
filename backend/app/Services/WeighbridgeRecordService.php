@@ -85,7 +85,7 @@ class WeighbridgeRecordService
         $total = $query->count();
 
         if ($total > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -144,7 +144,7 @@ class WeighbridgeRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -214,7 +214,7 @@ class WeighbridgeRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = WeighbridgeRecord::query();
@@ -317,7 +317,7 @@ class WeighbridgeRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveWeighbridgeStationException();
+            throw new NoActiveWeighbridgeStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya

@@ -10,6 +10,7 @@
  * on top (addDetailRow()/detailRows.{i}.* array-path property sets).
  */
 
+use App\Enums\Uom;
 use App\Enums\UserRole;
 use App\Livewire\Data\FormGrading;
 use App\Models\BusinessUnit;
@@ -25,7 +26,7 @@ beforeEach(function () {
     $this->weighbridgeStation = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->gradingStation = Station::factory()->forBusinessUnit($this->businessUnit)->grading()->create();
     $this->weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->weighbridgeStation)->create(['wb_card_number' => 'WB-GR-001']);
-    $this->gradingParameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $this->gradingParameter = GradingParameter::factory()->create(['uom' => Uom::Kg]);
     $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
     $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
     // Prasyarat kunci periode (usecase-141): ke-18 *RecordService menolak

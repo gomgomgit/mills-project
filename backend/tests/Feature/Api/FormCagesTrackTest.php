@@ -19,6 +19,7 @@ use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\CagesTrackRecord;
 use App\Models\Machinery;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 
@@ -113,7 +114,7 @@ it('returns 422 VALIDATION_ERROR when tipped_hour is not ascending across detail
 
 // Scenario: "Business Unit Tanpa Station Cages Track Aktif"
 it('returns 422 when production_line_id has no active cages-track station', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
 
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/cages-track-records', cagesApiPayload([
         'production_line_id' => $otherProductionLine->id,
@@ -173,7 +174,7 @@ it('berhasil: updates an existing record and its details', function () {
 
 it('does not change station_id even if production_line_id is sent on update', function () {
     $record = CagesTrackRecord::factory()->forStation($this->cagesTrackStation)->create();
-    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->create();
     Station::factory()->forProductionLine($otherProductionLine)->cagesTrack()->create();
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/cages-track-records/{$record->id}", cagesApiPayload([

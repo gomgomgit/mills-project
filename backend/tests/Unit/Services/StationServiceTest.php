@@ -27,6 +27,7 @@
  * layer here, and again from both the Api and Livewire Feature suites.
  */
 
+use App\Enums\StationType;
 use App\Exceptions\StationHasMachineryException;
 use App\Models\BusinessUnit;
 use App\Models\Machinery;
@@ -42,7 +43,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->service = new StationService();
+    $this->service = new StationService;
 });
 
 // --- create(): validation -------------------------------------------------
@@ -436,7 +437,7 @@ it('updates a station keeping its own code without a false-positive uniqueness e
 
 // CRITICAL — the cross-field rule also applies on update().
 it('throws a ValidationException when updating to is_active=true and type=other', function () {
-    $station = Station::factory()->create(['type' => \App\Enums\StationType::Weighbridge, 'is_active' => true]);
+    $station = Station::factory()->create(['type' => StationType::Weighbridge, 'is_active' => true]);
 
     try {
         $this->service->update($station->id, [

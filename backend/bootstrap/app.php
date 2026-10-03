@@ -6,6 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -18,7 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Sanctum stateful API middleware (session-based auth for Livewire web,
         // token-based for mobile) — implemented in shared-modules' auth-middleware.
         $middleware->api(prepend: [
-            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            EnsureFrontendRequestsAreStateful::class,
         ]);
 
         // Role-based route guard (auth-middleware, shared-modules) — every
@@ -49,7 +50,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // shared-modules' error-handler module. Only renders JSON for requests
         // expecting JSON (API routes); web/Livewire requests are unaffected.
         // See app/Exceptions/ApiExceptionHandler.
-        $exceptions->render(function (\Throwable $e, Request $request) {
+        $exceptions->render(function (Throwable $e, Request $request) {
             return ApiExceptionHandler::render($request, $e);
         });
     })->create();

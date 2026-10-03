@@ -12,10 +12,12 @@
  * reference layered on top.
  */
 
+use App\Enums\Uom;
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\GradingParameter;
 use App\Models\GradingRecord;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
@@ -25,7 +27,7 @@ beforeEach(function () {
     $this->weighbridgeStation = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->gradingStation = Station::factory()->forBusinessUnit($this->businessUnit)->grading()->create();
     $this->weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->weighbridgeStation)->create();
-    $this->gradingParameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $this->gradingParameter = GradingParameter::factory()->create(['uom' => Uom::Kg]);
     $this->supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
     $this->admin = User::factory()->role(UserRole::Admin)->create();
     $this->operator = User::factory()->role(UserRole::Operator)->forBusinessUnit($this->businessUnit)->create();
@@ -104,7 +106,7 @@ it('returns 422 VALIDATION_ERROR when two detail rows share the same grading_par
 
 // Scenario: "Business Unit Tanpa Station Grading Aktif"
 it('returns 422 when production_line_id has no active grading station', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
 
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/grading-records', gradingApiPayload([
         'production_line_id' => $otherProductionLine->id,
@@ -145,7 +147,7 @@ it('berhasil: updates an existing record and its details', function () {
 
 it('does not change station_id even if production_line_id is sent on update', function () {
     $record = GradingRecord::factory()->forStation($this->gradingStation)->create();
-    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->create();
     Station::factory()->forProductionLine($otherProductionLine)->grading()->create();
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/grading-records/{$record->id}", gradingApiPayload([

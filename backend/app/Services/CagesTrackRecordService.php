@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\RecordStatus;
 use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
@@ -93,7 +94,7 @@ class CagesTrackRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveCagesTrackStationException();
+            throw new NoActiveCagesTrackStationException;
         }
 
         $jumlahCages = $this->machineryCountForStation($station->id);
@@ -124,7 +125,7 @@ class CagesTrackRecordService
             // create() uses), insert the details, THEN flip status to
             // saved — by then cagesTippedTimes()->count() is > 0 so the
             // guard passes.
-            $attributes['status'] = \App\Enums\RecordStatus::Synced;
+            $attributes['status'] = RecordStatus::Synced;
             $record = CagesTrackRecord::create($attributes);
             $this->upsertDetails($record, $details, jumlahCages: $jumlahCages);
             $record->update(['status' => 'saved']);
@@ -364,7 +365,6 @@ class CagesTrackRecordService
             }
         }
 
-
     }
 
     /**
@@ -433,7 +433,7 @@ class CagesTrackRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('cagesTippedTimes')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -521,7 +521,7 @@ class CagesTrackRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -594,7 +594,7 @@ class CagesTrackRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = CagesTrackRecord::query();

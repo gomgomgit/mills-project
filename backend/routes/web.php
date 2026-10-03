@@ -1,5 +1,83 @@
 <?php
 
+use App\Livewire\Auth\LoginForm;
+use App\Livewire\Dashboard\DashboardHome;
+use App\Livewire\Dashboard\LaporanBoilerRoom;
+use App\Livewire\Dashboard\LaporanCagesTrack;
+use App\Livewire\Dashboard\LaporanClarification;
+use App\Livewire\Dashboard\LaporanStasiun;
+use App\Livewire\Dashboard\LaporanSterilizer;
+use App\Livewire\Dashboard\LaporanStorageTank;
+use App\Livewire\Dashboard\LaporanWeighbridge;
+use App\Livewire\Dashboard\ManagementReport;
+use App\Livewire\Data\DataBrowserBoilerRoom;
+use App\Livewire\Data\DataBrowserCagesTrack;
+use App\Livewire\Data\DataBrowserClarification;
+use App\Livewire\Data\DataBrowserCpoDispatch;
+use App\Livewire\Data\DataBrowserDepricarping;
+use App\Livewire\Data\DataBrowserEffluentPlant;
+use App\Livewire\Data\DataBrowserEngineRoom;
+use App\Livewire\Data\DataBrowserGrading;
+use App\Livewire\Data\DataBrowserKernelDispatch;
+use App\Livewire\Data\DataBrowserKernelPlant;
+use App\Livewire\Data\DataBrowserPressing;
+use App\Livewire\Data\DataBrowserProcessQualityControl;
+use App\Livewire\Data\DataBrowserProcessWater;
+use App\Livewire\Data\DataBrowserSolidWasteDisposal;
+use App\Livewire\Data\DataBrowserSterilizer;
+use App\Livewire\Data\DataBrowserStorageTank;
+use App\Livewire\Data\DataBrowserThreshing;
+use App\Livewire\Data\DataBrowserWeighbridge;
+use App\Livewire\Data\DetailBoilerRoom;
+use App\Livewire\Data\DetailCagesTrack;
+use App\Livewire\Data\DetailClarification;
+use App\Livewire\Data\DetailCpoDispatch;
+use App\Livewire\Data\DetailDepricarping;
+use App\Livewire\Data\DetailEffluentPlant;
+use App\Livewire\Data\DetailEngineRoom;
+use App\Livewire\Data\DetailGrading;
+use App\Livewire\Data\DetailKernelDispatch;
+use App\Livewire\Data\DetailKernelPlant;
+use App\Livewire\Data\DetailPressing;
+use App\Livewire\Data\DetailProcessQualityControl;
+use App\Livewire\Data\DetailProcessWater;
+use App\Livewire\Data\DetailSolidWasteDisposal;
+use App\Livewire\Data\DetailSterilizer;
+use App\Livewire\Data\DetailStorageTank;
+use App\Livewire\Data\DetailThreshing;
+use App\Livewire\Data\DetailWeighbridge;
+use App\Livewire\Data\FormBoilerRoom;
+use App\Livewire\Data\FormCagesTrack;
+use App\Livewire\Data\FormClarification;
+use App\Livewire\Data\FormCpoDispatch;
+use App\Livewire\Data\FormDepricarping;
+use App\Livewire\Data\FormEffluentPlant;
+use App\Livewire\Data\FormEngineRoom;
+use App\Livewire\Data\FormGrading;
+use App\Livewire\Data\FormKernelDispatch;
+use App\Livewire\Data\FormKernelPlant;
+use App\Livewire\Data\FormPressing;
+use App\Livewire\Data\FormProcessQualityControl;
+use App\Livewire\Data\FormProcessWater;
+use App\Livewire\Data\FormSolidWasteDisposal;
+use App\Livewire\Data\FormSterilizer;
+use App\Livewire\Data\FormStorageTank;
+use App\Livewire\Data\FormThreshing;
+use App\Livewire\Data\FormWeighbridge;
+use App\Livewire\MasterData\DetailPeriodePelaporan;
+use App\Livewire\MasterData\KelolaBusinessUnit;
+use App\Livewire\MasterData\KelolaCompany;
+use App\Livewire\MasterData\KelolaCorporate;
+use App\Livewire\MasterData\KelolaMachinery;
+use App\Livewire\MasterData\KelolaPeriodePelaporan;
+use App\Livewire\MasterData\KelolaProductionLine;
+use App\Livewire\MasterData\KelolaStation;
+use App\Livewire\MasterData\MasterDataTreeView;
+use App\Livewire\Settings\ChangePasswordForm;
+use App\Livewire\Settings\MillsSetting;
+use App\Livewire\UserManagement\KelolaUserRole;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -18,8 +96,8 @@ Route::get('/health', fn () => response()->json(['status' => 'ok']));
 // per Laravel's standard logout pattern: invalidate the session and
 // regenerate both the session id and CSRF token so a stale session cookie
 // can't be replayed, then redirect to Login.
-Route::middleware('auth')->post('/logout', function (\Illuminate\Http\Request $request) {
-    \Illuminate\Support\Facades\Auth::guard('web')->logout();
+Route::middleware('auth')->post('/logout', function (Request $request) {
+    Auth::guard('web')->logout();
 
     $request->session()->invalidate();
     $request->session()->regenerateToken();
@@ -30,21 +108,21 @@ Route::middleware('auth')->post('/logout', function (\Illuminate\Http\Request $r
 // === ASDLC_ROUTES_START ===
 // screen-025--dashboard-web
 Route::middleware(['auth', 'role:admin,supervisor,mill_management'])
-    ->get('/dashboard', \App\Livewire\Dashboard\DashboardHome::class)
+    ->get('/dashboard', DashboardHome::class)
     ->name('dashboard');
 
 // screen-026--laporan-manajemen — Mill Management only, per
 // screen_tech_spec.actor_permissions (narrower than Dashboard Web above).
 Route::middleware(['auth', 'role:mill_management'])
-    ->get('/reports/management', \App\Livewire\Dashboard\ManagementReport::class)
+    ->get('/reports/management', ManagementReport::class)
     ->name('reports.management');
 
 // screen-001--login-web
-Route::get('/login', \App\Livewire\Auth\LoginForm::class)->name('login');
+Route::get('/login', LoginForm::class)->name('login');
 
 // screen-003--ganti-password-web
 Route::middleware(['auth', 'role:admin,supervisor,mill_management'])
-    ->get('/settings/password', \App\Livewire\Settings\ChangePasswordForm::class)
+    ->get('/settings/password', ChangePasswordForm::class)
     ->name('settings.password');
 
 // screen-035--production-process-activity-web
@@ -57,7 +135,7 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 
 // screen-016--data-browser-weighbridge-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/weighbridge', \App\Livewire\Data\DataBrowserWeighbridge::class)
+    ->get('/data/weighbridge', DataBrowserWeighbridge::class)
     ->name('data.weighbridge');
 
 // screen-022--form-weighbridge-web
@@ -65,29 +143,29 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // '/data/weighbridge/{id}' (screen-019, right below) or Laravel would
 // match the literal "create" segment against {id} instead.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/weighbridge/create', \App\Livewire\Data\FormWeighbridge::class)
+    ->get('/data/weighbridge/create', FormWeighbridge::class)
     ->name('data.weighbridge.create');
 
 // screen-019--detail-weighbridge-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/weighbridge/{id}', \App\Livewire\Data\DetailWeighbridge::class)
+    ->get('/data/weighbridge/{id}', DetailWeighbridge::class)
     ->name('data.weighbridge.detail');
 
 // screen-022--form-weighbridge-web (edit mode) — extra '/edit' segment
 // never collides with '/data/weighbridge/{id}' above regardless of
 // registration order.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/weighbridge/{id}/edit', \App\Livewire\Data\FormWeighbridge::class)
+    ->get('/data/weighbridge/{id}/edit', FormWeighbridge::class)
     ->name('data.weighbridge.edit');
 
 // screen-017--data-browser-grading-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/grading', \App\Livewire\Data\DataBrowserGrading::class)
+    ->get('/data/grading', DataBrowserGrading::class)
     ->name('data.grading');
 
 // screen-018--data-browser-cages-track-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/cages-track', \App\Livewire\Data\DataBrowserCagesTrack::class)
+    ->get('/data/cages-track', DataBrowserCagesTrack::class)
     ->name('data.cages-track');
 
 // screen-023--form-grading-web
@@ -96,19 +174,19 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // the literal "create" segment against {id} instead. Mirrors
 // screen-022's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/grading/create', \App\Livewire\Data\FormGrading::class)
+    ->get('/data/grading/create', FormGrading::class)
     ->name('data.grading.create');
 
 // screen-020--detail-grading-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/grading/{id}', \App\Livewire\Data\DetailGrading::class)
+    ->get('/data/grading/{id}', DetailGrading::class)
     ->name('data.grading.detail');
 
 // screen-023--form-grading-web (edit mode) — extra '/edit' segment never
 // collides with '/data/grading/{id}' above regardless of registration
 // order.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/grading/{id}/edit', \App\Livewire\Data\FormGrading::class)
+    ->get('/data/grading/{id}/edit', FormGrading::class)
     ->name('data.grading.edit');
 
 // screen-024--form-cages-track-web
@@ -117,19 +195,19 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // the literal "create" segment against {id} instead. Mirrors
 // screen-022/023's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/cages-track/create', \App\Livewire\Data\FormCagesTrack::class)
+    ->get('/data/cages-track/create', FormCagesTrack::class)
     ->name('data.cages-track.create');
 
 // screen-021--detail-cages-track-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/cages-track/{id}', \App\Livewire\Data\DetailCagesTrack::class)
+    ->get('/data/cages-track/{id}', DetailCagesTrack::class)
     ->name('data.cages-track.detail');
 
 // screen-024--form-cages-track-web (edit mode) — extra '/edit' segment never
 // collides with '/data/cages-track/{id}' above regardless of registration
 // order.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/cages-track/{id}/edit', \App\Livewire\Data\FormCagesTrack::class)
+    ->get('/data/cages-track/{id}/edit', FormCagesTrack::class)
     ->name('data.cages-track.edit');
 
 // screen-127--master-data-tree-view
@@ -140,7 +218,7 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // Placed before screen-027 since it's the overview entry point for the
 // whole master-data section.
 Route::middleware(['auth', 'role:admin'])
-    ->get('/master-data/tree-view', \App\Livewire\MasterData\MasterDataTreeView::class)
+    ->get('/master-data/tree-view', MasterDataTreeView::class)
     ->name('master-data.tree-view');
 
 // screen-027--kelola-corporate
@@ -152,7 +230,7 @@ Route::middleware(['auth', 'role:admin'])
 // satisfies the "non-admin sees an access-denied state, no list/controls
 // rendered" requirement at the routing layer.
 Route::middleware(['auth', 'role:admin'])
-    ->get('/master-data/corporates', \App\Livewire\MasterData\KelolaCorporate::class)
+    ->get('/master-data/corporates', KelolaCorporate::class)
     ->name('master-data.corporates');
 
 // screen-028--kelola-company
@@ -163,7 +241,7 @@ Route::middleware(['auth', 'role:admin'])
 // Laravel's default HTML error page for any non-admin session before
 // App\Livewire\MasterData\KelolaCompany ever mounts.
 Route::middleware(['auth', 'role:admin'])
-    ->get('/master-data/companies', \App\Livewire\MasterData\KelolaCompany::class)
+    ->get('/master-data/companies', KelolaCompany::class)
     ->name('master-data.companies');
 
 // screen-029--kelola-business-unit
@@ -174,7 +252,7 @@ Route::middleware(['auth', 'role:admin'])
 // Laravel's default HTML error page for any non-admin session before
 // App\Livewire\MasterData\KelolaBusinessUnit ever mounts.
 Route::middleware(['auth', 'role:admin'])
-    ->get('/master-data/business-units', \App\Livewire\MasterData\KelolaBusinessUnit::class)
+    ->get('/master-data/business-units', KelolaBusinessUnit::class)
     ->name('master-data.business-units');
 
 // screen-036--kelola-production-line
@@ -187,7 +265,7 @@ Route::middleware(['auth', 'role:admin'])
 // (between Business Unit and Station) to mirror the hierarchy: Business
 // Unit → Production Line → Station.
 Route::middleware(['auth', 'role:admin'])
-    ->get('/master-data/production-lines', \App\Livewire\MasterData\KelolaProductionLine::class)
+    ->get('/master-data/production-lines', KelolaProductionLine::class)
     ->name('master-data.production-lines');
 
 // screen-030--kelola-station
@@ -198,7 +276,7 @@ Route::middleware(['auth', 'role:admin'])
 // Laravel's default HTML error page for any non-admin session before
 // App\Livewire\MasterData\KelolaStation ever mounts.
 Route::middleware(['auth', 'role:admin'])
-    ->get('/master-data/stations', \App\Livewire\MasterData\KelolaStation::class)
+    ->get('/master-data/stations', KelolaStation::class)
     ->name('master-data.stations');
 
 // screen-033--kelola-machinery-group — DISERAP ke screen-031 (2026-09-30).
@@ -228,7 +306,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 // KelolaMachinery ever mounts. This is the LAST screen of this
 // master-data round.
 Route::middleware(['auth', 'role:admin'])
-    ->get('/master-data/machinery', \App\Livewire\MasterData\KelolaMachinery::class)
+    ->get('/master-data/machinery', KelolaMachinery::class)
     ->name('master-data.machinery');
 
 // screen-034--mills-setting
@@ -240,7 +318,7 @@ Route::middleware(['auth', 'role:admin'])
 // not at this route-level middleware, since 'role:...' can only gate by
 // role, not by which mill is being configured.
 Route::middleware(['auth', 'role:admin,mill_management'])
-    ->get('/mill-settings', \App\Livewire\Settings\MillsSetting::class)
+    ->get('/mill-settings', MillsSetting::class)
     ->name('mill-settings');
 
 // screen-032--kelola-user-role
@@ -252,12 +330,12 @@ Route::middleware(['auth', 'role:admin,mill_management'])
 // page for any non-admin session before App\Livewire\UserManagement\
 // KelolaUserRole ever mounts.
 Route::middleware(['auth', 'role:admin'])
-    ->get('/users', \App\Livewire\UserManagement\KelolaUserRole::class)
+    ->get('/users', KelolaUserRole::class)
     ->name('users.index');
 
 // screen-049--data-browser-threshing-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/threshing', \App\Livewire\Data\DataBrowserThreshing::class)
+    ->get('/data/threshing', DataBrowserThreshing::class)
     ->name('data.threshing');
 
 // screen-057--form-threshing-web
@@ -266,24 +344,24 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // the literal 'create' segment as {id} instead. Mirrors
 // screen-024--form-cages-track-web's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/threshing/create', \App\Livewire\Data\FormThreshing::class)
+    ->get('/data/threshing/create', FormThreshing::class)
     ->name('data.threshing.create');
 
 // screen-053--detail-threshing-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/threshing/{id}', \App\Livewire\Data\DetailThreshing::class)
+    ->get('/data/threshing/{id}', DetailThreshing::class)
     ->name('data.threshing.detail');
 
 // screen-057--form-threshing-web (edit mode) — extra '/edit' segment never
 // collides with '/data/threshing/{id}' above regardless of registration
 // order (different path shape), but kept after 'create' for readability.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/threshing/{id}/edit', \App\Livewire\Data\FormThreshing::class)
+    ->get('/data/threshing/{id}/edit', FormThreshing::class)
     ->name('data.threshing.edit');
 
 // screen-050--data-browser-pressing-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/pressing', \App\Livewire\Data\DataBrowserPressing::class)
+    ->get('/data/pressing', DataBrowserPressing::class)
     ->name('data.pressing');
 
 // screen-058--form-pressing-web
@@ -292,24 +370,24 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // the literal 'create' segment as {id} instead. Mirrors
 // screen-057--form-threshing-web's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/pressing/create', \App\Livewire\Data\FormPressing::class)
+    ->get('/data/pressing/create', FormPressing::class)
     ->name('data.pressing.create');
 
 // screen-054--detail-pressing-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/pressing/{id}', \App\Livewire\Data\DetailPressing::class)
+    ->get('/data/pressing/{id}', DetailPressing::class)
     ->name('data.pressing.detail');
 
 // screen-058--form-pressing-web (edit mode) — extra '/edit' segment never
 // collides with '/data/pressing/{id}' above regardless of registration
 // order (different path shape), but kept after 'create' for readability.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/pressing/{id}/edit', \App\Livewire\Data\FormPressing::class)
+    ->get('/data/pressing/{id}/edit', FormPressing::class)
     ->name('data.pressing.edit');
 
 // screen-051--data-browser-depricarping-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/depricarping', \App\Livewire\Data\DataBrowserDepricarping::class)
+    ->get('/data/depricarping', DataBrowserDepricarping::class)
     ->name('data.depricarping');
 
 // screen-059--form-depricarping-web
@@ -318,12 +396,12 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // match the literal 'create' segment as {id} instead. Mirrors
 // screen-058--form-pressing-web's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/depricarping/create', \App\Livewire\Data\FormDepricarping::class)
+    ->get('/data/depricarping/create', FormDepricarping::class)
     ->name('data.depricarping.create');
 
 // screen-055--detail-depricarping-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/depricarping/{id}', \App\Livewire\Data\DetailDepricarping::class)
+    ->get('/data/depricarping/{id}', DetailDepricarping::class)
     ->name('data.depricarping.detail');
 
 // screen-059--form-depricarping-web (edit mode) — extra '/edit' segment
@@ -331,12 +409,12 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // registration order (different path shape), but kept after 'create' for
 // readability.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/depricarping/{id}/edit', \App\Livewire\Data\FormDepricarping::class)
+    ->get('/data/depricarping/{id}/edit', FormDepricarping::class)
     ->name('data.depricarping.edit');
 
 // screen-052--data-browser-kernel-plant-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/kernel-plant', \App\Livewire\Data\DataBrowserKernelPlant::class)
+    ->get('/data/kernel-plant', DataBrowserKernelPlant::class)
     ->name('data.kernel-plant');
 
 // screen-060--form-kernel-plant-web
@@ -345,12 +423,12 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // match the literal 'create' segment as {id} instead. Mirrors
 // screen-059--form-depricarping-web's registration pattern.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/kernel-plant/create', \App\Livewire\Data\FormKernelPlant::class)
+    ->get('/data/kernel-plant/create', FormKernelPlant::class)
     ->name('data.kernel-plant.create');
 
 // screen-056--detail-kernel-plant-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/kernel-plant/{id}', \App\Livewire\Data\DetailKernelPlant::class)
+    ->get('/data/kernel-plant/{id}', DetailKernelPlant::class)
     ->name('data.kernel-plant.detail');
 
 // screen-060--form-kernel-plant-web (edit mode) — extra '/edit' segment
@@ -358,12 +436,12 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // registration order (different path shape), but kept after 'create' for
 // readability.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/kernel-plant/{id}/edit', \App\Livewire\Data\FormKernelPlant::class)
+    ->get('/data/kernel-plant/{id}/edit', FormKernelPlant::class)
     ->name('data.kernel-plant.edit');
 
 // screen-091--data-browser-solid-waste-disposal-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/solid-waste-disposal', \App\Livewire\Data\DataBrowserSolidWasteDisposal::class)
+    ->get('/data/solid-waste-disposal', DataBrowserSolidWasteDisposal::class)
     ->name('data.solid-waste-disposal');
 
 // screen-111--form-solid-waste-disposal-web
@@ -371,22 +449,22 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // BEFORE '/data/solid-waste-disposal/{id}' (screen-101, right below) or
 // Laravel would match the literal 'create' segment as {id} instead.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/solid-waste-disposal/create', \App\Livewire\Data\FormSolidWasteDisposal::class)
+    ->get('/data/solid-waste-disposal/create', FormSolidWasteDisposal::class)
     ->name('data.solid-waste-disposal.create');
 
 // screen-101--detail-solid-waste-disposal-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/solid-waste-disposal/{id}', \App\Livewire\Data\DetailSolidWasteDisposal::class)
+    ->get('/data/solid-waste-disposal/{id}', DetailSolidWasteDisposal::class)
     ->name('data.solid-waste-disposal.detail');
 
 // screen-111--form-solid-waste-disposal-web (edit mode)
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/solid-waste-disposal/{id}/edit', \App\Livewire\Data\FormSolidWasteDisposal::class)
+    ->get('/data/solid-waste-disposal/{id}/edit', FormSolidWasteDisposal::class)
     ->name('data.solid-waste-disposal.edit');
 
 // screen-092--data-browser-process-water-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/process-water', \App\Livewire\Data\DataBrowserProcessWater::class)
+    ->get('/data/process-water', DataBrowserProcessWater::class)
     ->name('data.process-water');
 
 // screen-112--form-process-water-web
@@ -395,12 +473,12 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // match the literal 'create' segment as {id} instead. Mirrors
 // screen-057--form-threshing-web's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/process-water/create', \App\Livewire\Data\FormProcessWater::class)
+    ->get('/data/process-water/create', FormProcessWater::class)
     ->name('data.process-water.create');
 
 // screen-102--detail-process-water-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/process-water/{id}', \App\Livewire\Data\DetailProcessWater::class)
+    ->get('/data/process-water/{id}', DetailProcessWater::class)
     ->name('data.process-water.detail');
 
 // screen-112--form-process-water-web (edit mode) — extra '/edit' segment
@@ -408,12 +486,12 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // registration order (different path shape), but kept after 'create' for
 // readability.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/process-water/{id}/edit', \App\Livewire\Data\FormProcessWater::class)
+    ->get('/data/process-water/{id}/edit', FormProcessWater::class)
     ->name('data.process-water.edit');
 
 // screen-093--data-browser-kernel-dispatch-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/kernel-dispatch', \App\Livewire\Data\DataBrowserKernelDispatch::class)
+    ->get('/data/kernel-dispatch', DataBrowserKernelDispatch::class)
     ->name('data.kernel-dispatch');
 
 // screen-113--form-kernel-dispatch-web
@@ -422,22 +500,22 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // match the literal 'create' segment as {id} instead. Mirrors
 // screen-111--form-solid-waste-disposal-web's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/kernel-dispatch/create', \App\Livewire\Data\FormKernelDispatch::class)
+    ->get('/data/kernel-dispatch/create', FormKernelDispatch::class)
     ->name('data.kernel-dispatch.create');
 
 // screen-103--detail-kernel-dispatch-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/kernel-dispatch/{id}', \App\Livewire\Data\DetailKernelDispatch::class)
+    ->get('/data/kernel-dispatch/{id}', DetailKernelDispatch::class)
     ->name('data.kernel-dispatch.detail');
 
 // screen-113--form-kernel-dispatch-web (edit mode)
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/kernel-dispatch/{id}/edit', \App\Livewire\Data\FormKernelDispatch::class)
+    ->get('/data/kernel-dispatch/{id}/edit', FormKernelDispatch::class)
     ->name('data.kernel-dispatch.edit');
 
 // screen-094--data-browser-cpo-dispatch-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/cpo-dispatch', \App\Livewire\Data\DataBrowserCpoDispatch::class)
+    ->get('/data/cpo-dispatch', DataBrowserCpoDispatch::class)
     ->name('data.cpo-dispatch');
 
 // screen-114--form-cpo-dispatch-web
@@ -446,22 +524,22 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // match the literal 'create' segment as {id} instead. Mirrors
 // screen-113--form-kernel-dispatch-web's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/cpo-dispatch/create', \App\Livewire\Data\FormCpoDispatch::class)
+    ->get('/data/cpo-dispatch/create', FormCpoDispatch::class)
     ->name('data.cpo-dispatch.create');
 
 // screen-104--detail-cpo-dispatch-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/cpo-dispatch/{id}', \App\Livewire\Data\DetailCpoDispatch::class)
+    ->get('/data/cpo-dispatch/{id}', DetailCpoDispatch::class)
     ->name('data.cpo-dispatch.detail');
 
 // screen-114--form-cpo-dispatch-web (edit mode)
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/cpo-dispatch/{id}/edit', \App\Livewire\Data\FormCpoDispatch::class)
+    ->get('/data/cpo-dispatch/{id}/edit', FormCpoDispatch::class)
     ->name('data.cpo-dispatch.edit');
 
 // screen-095--data-browser-effluent-plant-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/effluent-plant', \App\Livewire\Data\DataBrowserEffluentPlant::class)
+    ->get('/data/effluent-plant', DataBrowserEffluentPlant::class)
     ->name('data.effluent-plant');
 
 // screen-115--form-effluent-plant-web
@@ -470,22 +548,22 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // match the literal 'create' segment as {id} instead. Mirrors
 // screen-112--form-process-water-web's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/effluent-plant/create', \App\Livewire\Data\FormEffluentPlant::class)
+    ->get('/data/effluent-plant/create', FormEffluentPlant::class)
     ->name('data.effluent-plant.create');
 
 // screen-105--detail-effluent-plant-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/effluent-plant/{id}', \App\Livewire\Data\DetailEffluentPlant::class)
+    ->get('/data/effluent-plant/{id}', DetailEffluentPlant::class)
     ->name('data.effluent-plant.detail');
 
 // screen-115--form-effluent-plant-web (edit mode)
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/effluent-plant/{id}/edit', \App\Livewire\Data\FormEffluentPlant::class)
+    ->get('/data/effluent-plant/{id}/edit', FormEffluentPlant::class)
     ->name('data.effluent-plant.edit');
 
 // screen-096--data-browser-storage-tank-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/storage-tank', \App\Livewire\Data\DataBrowserStorageTank::class)
+    ->get('/data/storage-tank', DataBrowserStorageTank::class)
     ->name('data.storage-tank');
 
 // screen-116--form-storage-tank-web
@@ -494,22 +572,22 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // match the literal 'create' segment as {id} instead. Mirrors
 // screen-115--form-effluent-plant-web's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/storage-tank/create', \App\Livewire\Data\FormStorageTank::class)
+    ->get('/data/storage-tank/create', FormStorageTank::class)
     ->name('data.storage-tank.create');
 
 // screen-106--detail-storage-tank-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/storage-tank/{id}', \App\Livewire\Data\DetailStorageTank::class)
+    ->get('/data/storage-tank/{id}', DetailStorageTank::class)
     ->name('data.storage-tank.detail');
 
 // screen-116--form-storage-tank-web (edit mode)
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/storage-tank/{id}/edit', \App\Livewire\Data\FormStorageTank::class)
+    ->get('/data/storage-tank/{id}/edit', FormStorageTank::class)
     ->name('data.storage-tank.edit');
 
 // screen-097--data-browser-engine-room-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/engine-room', \App\Livewire\Data\DataBrowserEngineRoom::class)
+    ->get('/data/engine-room', DataBrowserEngineRoom::class)
     ->name('data.engine-room');
 
 // screen-117--form-engine-room-web
@@ -518,22 +596,22 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // match the literal 'create' segment as {id} instead. Mirrors
 // screen-116--form-storage-tank-web's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/engine-room/create', \App\Livewire\Data\FormEngineRoom::class)
+    ->get('/data/engine-room/create', FormEngineRoom::class)
     ->name('data.engine-room.create');
 
 // screen-107--detail-engine-room-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/engine-room/{id}', \App\Livewire\Data\DetailEngineRoom::class)
+    ->get('/data/engine-room/{id}', DetailEngineRoom::class)
     ->name('data.engine-room.detail');
 
 // screen-117--form-engine-room-web (edit mode)
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/engine-room/{id}/edit', \App\Livewire\Data\FormEngineRoom::class)
+    ->get('/data/engine-room/{id}/edit', FormEngineRoom::class)
     ->name('data.engine-room.edit');
 
 // screen-098--data-browser-boiler-room-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/boiler-room', \App\Livewire\Data\DataBrowserBoilerRoom::class)
+    ->get('/data/boiler-room', DataBrowserBoilerRoom::class)
     ->name('data.boiler-room');
 
 // screen-118--form-boiler-room-web
@@ -542,22 +620,22 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // match the literal 'create' segment as {id} instead. Mirrors
 // screen-117--form-engine-room-web's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/boiler-room/create', \App\Livewire\Data\FormBoilerRoom::class)
+    ->get('/data/boiler-room/create', FormBoilerRoom::class)
     ->name('data.boiler-room.create');
 
 // screen-108--detail-boiler-room-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/boiler-room/{id}', \App\Livewire\Data\DetailBoilerRoom::class)
+    ->get('/data/boiler-room/{id}', DetailBoilerRoom::class)
     ->name('data.boiler-room.detail');
 
 // screen-118--form-boiler-room-web (edit mode)
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/boiler-room/{id}/edit', \App\Livewire\Data\FormBoilerRoom::class)
+    ->get('/data/boiler-room/{id}/edit', FormBoilerRoom::class)
     ->name('data.boiler-room.edit');
 
 // screen-099--data-browser-clarification-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/clarification', \App\Livewire\Data\DataBrowserClarification::class)
+    ->get('/data/clarification', DataBrowserClarification::class)
     ->name('data.clarification');
 
 // screen-119--form-clarification-web
@@ -566,22 +644,22 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // match the literal 'create' segment as {id} instead. Mirrors
 // screen-118--form-boiler-room-web's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/clarification/create', \App\Livewire\Data\FormClarification::class)
+    ->get('/data/clarification/create', FormClarification::class)
     ->name('data.clarification.create');
 
 // screen-109--detail-clarification-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/clarification/{id}', \App\Livewire\Data\DetailClarification::class)
+    ->get('/data/clarification/{id}', DetailClarification::class)
     ->name('data.clarification.detail');
 
 // screen-119--form-clarification-web (edit mode)
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/clarification/{id}/edit', \App\Livewire\Data\FormClarification::class)
+    ->get('/data/clarification/{id}/edit', FormClarification::class)
     ->name('data.clarification.edit');
 
 // screen-100--data-browser-process-quality-control-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/process-quality-control', \App\Livewire\Data\DataBrowserProcessQualityControl::class)
+    ->get('/data/process-quality-control', DataBrowserProcessQualityControl::class)
     ->name('data.process-quality-control');
 
 // screen-120--form-process-quality-control-web
@@ -590,24 +668,24 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // Laravel would match the literal 'create' segment as {id} instead. Mirrors
 // screen-119--form-clarification-web's registration pattern exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/process-quality-control/create', \App\Livewire\Data\FormProcessQualityControl::class)
+    ->get('/data/process-quality-control/create', FormProcessQualityControl::class)
     ->name('data.process-quality-control.create');
 
 // screen-110--detail-process-quality-control-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/process-quality-control/{id}', \App\Livewire\Data\DetailProcessQualityControl::class)
+    ->get('/data/process-quality-control/{id}', DetailProcessQualityControl::class)
     ->name('data.process-quality-control.detail');
 
 // screen-120--form-process-quality-control-web (edit mode)
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/process-quality-control/{id}/edit', \App\Livewire\Data\FormProcessQualityControl::class)
+    ->get('/data/process-quality-control/{id}/edit', FormProcessQualityControl::class)
     ->name('data.process-quality-control.edit');
 
 // screen-124--data-browser-sterilizer-web
 // This is the FINAL station of this project — after this, all 18
 // canonical stations have a full web Data Browser/Detail/Form.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/sterilizer', \App\Livewire\Data\DataBrowserSterilizer::class)
+    ->get('/data/sterilizer', DataBrowserSterilizer::class)
     ->name('data.sterilizer');
 
 // screen-126--form-sterilizer-web
@@ -617,17 +695,17 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // screen-120--form-process-quality-control-web's registration pattern
 // exactly.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/sterilizer/create', \App\Livewire\Data\FormSterilizer::class)
+    ->get('/data/sterilizer/create', FormSterilizer::class)
     ->name('data.sterilizer.create');
 
 // screen-125--detail-sterilizer-web
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/sterilizer/{id}', \App\Livewire\Data\DetailSterilizer::class)
+    ->get('/data/sterilizer/{id}', DetailSterilizer::class)
     ->name('data.sterilizer.detail');
 
 // screen-126--form-sterilizer-web (edit mode)
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/data/sterilizer/{id}/edit', \App\Livewire\Data\FormSterilizer::class)
+    ->get('/data/sterilizer/{id}/edit', FormSterilizer::class)
     ->name('data.sterilizer.edit');
 
 // screen-128--kelola-periode-pelaporan
@@ -639,7 +717,7 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // default HTML error page for any non-admin session before
 // App\Livewire\MasterData\KelolaPeriodePelaporan ever mounts.
 Route::middleware(['auth', 'role:admin'])
-    ->get('/master-data/periods', \App\Livewire\MasterData\KelolaPeriodePelaporan::class)
+    ->get('/master-data/periods', KelolaPeriodePelaporan::class)
     ->name('master-data.periods');
 
 // screen-142--detail-periode-pelaporan (usecase-145 lihat detail +
@@ -655,7 +733,7 @@ Route::middleware(['auth', 'role:admin'])
 // registration — the detail-* pattern this is the first Master Data
 // instance of.
 Route::middleware(['auth', 'role:admin'])
-    ->get('/master-data/periods/{id}', \App\Livewire\MasterData\DetailPeriodePelaporan::class)
+    ->get('/master-data/periods/{id}', DetailPeriodePelaporan::class)
     ->name('master-data.periods.detail');
 
 // screen-129--laporan-sterilizer-web (usecase-129 — Laporan Periode
@@ -667,7 +745,7 @@ Route::middleware(['auth', 'role:admin'])
 // (/reports/management, screen-026), and no route in this file uses
 // /laporan.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/reports/sterilizer', \App\Livewire\Dashboard\LaporanSterilizer::class)
+    ->get('/reports/sterilizer', LaporanSterilizer::class)
     ->name('reports.sterilizer');
 
 // screen-140--laporan-stasiun-web (usecase-142 — Pilih Stasiun untuk
@@ -682,7 +760,7 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // screens is the English /reports/* prefix (/reports/management,
 // /reports/sterilizer).
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/reports', \App\Livewire\Dashboard\LaporanStasiun::class)
+    ->get('/reports', LaporanStasiun::class)
     ->name('reports.stations');
 
 // screen-130--laporan-cages-track-web (usecase-130 — Laporan Periode
@@ -701,7 +779,7 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // StationReportService::REPORT_ROUTES now maps the 'cages-track' code to
 // this route name.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/reports/cages-track', \App\Livewire\Dashboard\LaporanCagesTrack::class)
+    ->get('/reports/cages-track', LaporanCagesTrack::class)
     ->name('reports.cages-track');
 
 // screen-131--laporan-boiler-room-web (usecase-131 — Laporan Periode Boiler
@@ -721,7 +799,7 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // the report exists, every test here passes, and the screen stays
 // unreachable.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/reports/boiler-room', \App\Livewire\Dashboard\LaporanBoilerRoom::class)
+    ->get('/reports/boiler-room', LaporanBoilerRoom::class)
     ->name('reports.boiler-room');
 
 // screen-132--laporan-clarification-web (Laporan Periode Clarification).
@@ -743,7 +821,7 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // line the report exists, every test here passes, and the screen stays
 // unreachable.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/reports/clarification', \App\Livewire\Dashboard\LaporanClarification::class)
+    ->get('/reports/clarification', LaporanClarification::class)
     ->name('reports.clarification');
 
 // screen-133--laporan-storage-tank-web (Laporan Periode Storage Tank).
@@ -771,7 +849,7 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // line the report exists, every test here passes, and the screen stays
 // unreachable.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/reports/storage-tank', \App\Livewire\Dashboard\LaporanStorageTank::class)
+    ->get('/reports/storage-tank', LaporanStorageTank::class)
     ->name('reports.storage-tank');
 
 // screen-143--laporan-weighbridge-web (Laporan Periode Weighbridge).
@@ -798,7 +876,7 @@ Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
 // maps the 'weighbridge' code to this route name. Without that one line the
 // report exists, every test here passes, and the screen stays unreachable.
 Route::middleware(['auth', 'role:supervisor,mill_management,admin'])
-    ->get('/reports/weighbridge', \App\Livewire\Dashboard\LaporanWeighbridge::class)
+    ->get('/reports/weighbridge', LaporanWeighbridge::class)
     ->name('reports.weighbridge');
 
 // === ASDLC_ROUTES_END ===

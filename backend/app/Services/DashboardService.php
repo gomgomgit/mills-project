@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Exceptions\InvalidDateRangeException;
-use App\Models\CagesTrackRecord;
 use App\Models\CagesTippedTime;
+use App\Models\CagesTrackRecord;
 use App\Models\GradingRecord;
 use App\Models\WeighbridgeRecord;
 use App\Support\Concerns\ScopesToActorMill;
@@ -73,7 +73,7 @@ class DashboardService
     protected function resolveDateRange(?string $dateFrom, ?string $dateTo): array
     {
         if ($dateFrom !== null && $dateTo !== null && Carbon::parse($dateFrom)->gt(Carbon::parse($dateTo))) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $today = Carbon::today()->toDateString();

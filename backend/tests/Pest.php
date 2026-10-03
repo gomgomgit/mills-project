@@ -1,5 +1,10 @@
 <?php
 
+use App\Enums\PeriodStatus;
+use App\Enums\StationType;
+use App\Models\Period;
+use App\Models\PeriodStation;
+use App\Models\Station;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -54,15 +59,15 @@ uses()->in('Unit');
  * memanggilnya untuk beberapa jenis stasiun di mill yang sama tidak melahirkan
  * periode bertumpuk.
  */
-function openPeriodFor(string $businessUnitId, string $stationType): \App\Models\Period
+function openPeriodFor(string $businessUnitId, string $stationType): Period
 {
-    $period = \App\Models\Period::query()
+    $period = Period::query()
         ->where('business_unit_id', $businessUnitId)
         ->where('name', 'Periode Prasyarat Test')
         ->first();
 
     if ($period === null) {
-        $period = \App\Models\Period::factory()
+        $period = Period::factory()
             ->forBusinessUnit($businessUnitId)
             ->named('Periode Prasyarat Test')
             ->range('2000-01-01', '2999-12-31')
@@ -70,18 +75,18 @@ function openPeriodFor(string $businessUnitId, string $stationType): \App\Models
             ->create();
     }
 
-    \App\Models\PeriodStation::query()->firstOrCreate(
+    PeriodStation::query()->firstOrCreate(
         ['period_id' => $period->id, 'station_type' => $stationType],
-        ['status' => \App\Enums\PeriodStatus::Open->value],
+        ['status' => PeriodStatus::Open->value],
     );
 
     return $period;
 }
 
 /** Varian yang menerima Station — bentuk yang dipegang hampir semua test. */
-function openPeriodForStation(\App\Models\Station $station): \App\Models\Period
+function openPeriodForStation(Station $station): Period
 {
-    $type = $station->type instanceof \App\Enums\StationType
+    $type = $station->type instanceof StationType
         ? $station->type->value
         : (string) $station->type;
 
@@ -117,27 +122,27 @@ function replacePrerequisiteWithClosedAndOpenPeriods(string $businessUnitId, str
     // Periode prasyarat dihapus seluruhnya (baris period_stations ikut terhapus
     // lewat cascadeOnDelete), supaya tidak ada rentang lebar yang diam-diam
     // menerima tanggal yang seharusnya ditolak.
-    \App\Models\Period::query()
+    Period::query()
         ->where('business_unit_id', $businessUnitId)
         ->where('name', 'Periode Prasyarat Test')
         ->get()
-        ->each(function (\App\Models\Period $period) {
-            \App\Models\PeriodStation::query()->where('period_id', $period->id)->delete();
+        ->each(function (Period $period) {
+            PeriodStation::query()->where('period_id', $period->id)->delete();
             $period->delete();
         });
 
     foreach ([
-        ['Periode Juli (Tertutup)', '2026-07-01', '2026-07-31', \App\Enums\PeriodStatus::Closed],
-        ['Periode Agustus (Terbuka)', PERIOD_LOCK_OPEN_START, PERIOD_LOCK_OPEN_END, \App\Enums\PeriodStatus::Open],
+        ['Periode Juli (Tertutup)', '2026-07-01', '2026-07-31', PeriodStatus::Closed],
+        ['Periode Agustus (Terbuka)', PERIOD_LOCK_OPEN_START, PERIOD_LOCK_OPEN_END, PeriodStatus::Open],
     ] as [$name, $start, $end, $status]) {
-        $period = \App\Models\Period::factory()
+        $period = Period::factory()
             ->forBusinessUnit($businessUnitId)
             ->named($name)
             ->range($start, $end)
             ->noStations()
             ->create();
 
-        \App\Models\PeriodStation::factory()
+        PeriodStation::factory()
             ->forPeriod($period)
             ->stationType($stationType)
             ->create(['status' => $status->value]);

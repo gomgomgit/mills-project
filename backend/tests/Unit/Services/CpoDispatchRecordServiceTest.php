@@ -45,7 +45,7 @@ function cpoDispatchFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new CpoDispatchRecordService();
+    $this->service = new CpoDispatchRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->cpoDispatch()->create();
     $this->creator = User::factory()->forBusinessUnit($this->businessUnit)->create();

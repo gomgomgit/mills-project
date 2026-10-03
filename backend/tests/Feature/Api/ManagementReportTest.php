@@ -19,7 +19,9 @@ use App\Models\BusinessUnit;
 use App\Models\Station;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
@@ -117,7 +119,7 @@ it('export: downloads a CSV file for Mill Management', function () {
 });
 
 it('export: also authenticates via Sanctum token (mobile-style guard, dual auth)', function () {
-    \Laravel\Sanctum\Sanctum::actingAs($this->millManagement, ['*']);
+    Sanctum::actingAs($this->millManagement, ['*']);
 
     $response = $this->get('/api/reports/management-summary');
 
@@ -132,7 +134,7 @@ it('export: also authenticates via Sanctum token (mobile-style guard, dual auth)
 // Diasersikan pada rute, karena actingAs() di test melewati sesi sama sekali.
 it('ekspor memakai grup middleware web seperti 18 rute ekspor Data Browser', function () {
     $route = app('router')->getRoutes()->match(
-        \Illuminate\Http\Request::create('/api/reports/management-summary/export', 'GET')
+        Request::create('/api/reports/management-summary/export', 'GET')
     );
 
     expect($route->gatherMiddleware())->toContain('web');

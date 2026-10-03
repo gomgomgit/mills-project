@@ -10,10 +10,14 @@
  * guarantee are tested here once rather than per station.
  */
 
+use App\Enums\PeriodStatus;
+use App\Enums\StationType;
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\CagesTrackRecord;
 use App\Models\GradingRecord;
+use App\Models\Period;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\User;
 
@@ -279,16 +283,16 @@ it('cakupan mill: Grading (bentuk verifikasi berbeda) juga dijaga — Mill Manag
 // struktural di tests/Unit/Support/EnforcesPeriodLockTest.php.
 
 it('menolak verifikasi 422 PERIOD_CLOSED ketika stasiun pada periode sudah ditutup', function () {
-    $stationType = $this->station->type instanceof \App\Enums\StationType
+    $stationType = $this->station->type instanceof StationType
         ? $this->station->type->value
         : (string) $this->station->type;
 
     // Tutup baris stasiun pada periode prasyarat yang dibuka beforeEach.
-    \App\Models\PeriodStation::query()
-        ->whereIn('period_id', \App\Models\Period::query()
+    PeriodStation::query()
+        ->whereIn('period_id', Period::query()
             ->where('business_unit_id', $this->businessUnit->id)->pluck('id'))
         ->where('station_type', $stationType)
-        ->update(['status' => \App\Enums\PeriodStatus::Closed->value]);
+        ->update(['status' => PeriodStatus::Closed->value]);
 
     $response = $this->actingAs($this->supervisor, 'web')
         ->patchJson(verifyUrl('cages-track', $this->record->id), ['level' => 'checked', 'value' => true]);
@@ -301,7 +305,7 @@ it('menolak verifikasi 422 PERIOD_CLOSED ketika stasiun pada periode sudah ditut
 });
 
 it('menolak PEMBATALAN verifikasi juga, karena arah false ikut menggeser angka laporan', function () {
-    $stationType = $this->station->type instanceof \App\Enums\StationType
+    $stationType = $this->station->type instanceof StationType
         ? $this->station->type->value
         : (string) $this->station->type;
 
@@ -312,11 +316,11 @@ it('menolak PEMBATALAN verifikasi juga, karena arah false ikut menggeser angka l
 
     expect($this->record->fresh()->checked_by)->toBe($this->supervisor->id);
 
-    \App\Models\PeriodStation::query()
-        ->whereIn('period_id', \App\Models\Period::query()
+    PeriodStation::query()
+        ->whereIn('period_id', Period::query()
             ->where('business_unit_id', $this->businessUnit->id)->pluck('id'))
         ->where('station_type', $stationType)
-        ->update(['status' => \App\Enums\PeriodStatus::Closed->value]);
+        ->update(['status' => PeriodStatus::Closed->value]);
 
     // Membatalkan atestasi yang sah sama merusaknya dengan menambahkannya:
     // keduanya mengubah apa yang dibaca laporan periode yang sudah ditutup.

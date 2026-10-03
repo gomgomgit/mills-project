@@ -17,7 +17,7 @@ class CompanyFactory extends Factory
     {
         return [
             'corporate_id' => Corporate::factory(),
-            'name' => $this->faker->companySuffix() . ' ' . $this->faker->company(),
+            'name' => $this->faker->companySuffix().' '.$this->faker->company(),
         ];
     }
 }

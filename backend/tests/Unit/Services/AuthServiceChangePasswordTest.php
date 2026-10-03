@@ -35,7 +35,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->authService = new AuthService();
+    $this->authService = new AuthService;
     $this->user = User::factory()
         ->role(UserRole::Supervisor)
         ->password('OldPass123!')

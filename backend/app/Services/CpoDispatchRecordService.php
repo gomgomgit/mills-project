@@ -67,7 +67,7 @@ class CpoDispatchRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveCpoDispatchStationException();
+            throw new NoActiveCpoDispatchStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
@@ -336,7 +336,7 @@ class CpoDispatchRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('cpoDispatchDetails')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -450,7 +450,7 @@ class CpoDispatchRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -500,7 +500,7 @@ class CpoDispatchRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = CpoDispatchRecord::query();

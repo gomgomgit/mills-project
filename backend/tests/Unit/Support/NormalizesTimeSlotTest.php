@@ -30,6 +30,7 @@
  *     EnforcesPeriodLockTest.
  */
 
+use App\Services\BoilerRoomRecordService;
 use App\Support\Concerns\NormalizesTimeSlot;
 use Tests\TestCase;
 
@@ -81,7 +82,7 @@ it('membiarkan nilai yang sudah kanonis apa adanya', function () {
 it('menormalkan seluruh 24 slot kanonis dari bentuk berdetiknya', function () {
     $normalizer = timeSlotNormalizer();
 
-    foreach (App\Services\BoilerRoomRecordService::canonicalTimeSlots() as $slot) {
+    foreach (BoilerRoomRecordService::canonicalTimeSlots() as $slot) {
         expect($normalizer->call($slot.':00'))->toBe($slot);
     }
 });

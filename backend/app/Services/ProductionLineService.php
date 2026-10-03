@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\StationType;
 use App\Exceptions\ProductionLineHasStationsException;
 use App\Models\BusinessUnit;
 use App\Models\Machinery;
@@ -10,6 +11,7 @@ use App\Models\Station;
 use App\Models\User;
 use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -184,7 +186,7 @@ class ProductionLineService
     public function listCurrentForUser(User $user): array
     {
         if ($user->business_unit_id === null) {
-            throw new ModelNotFoundException();
+            throw new ModelNotFoundException;
         }
 
         return ProductionLine::query()
@@ -241,7 +243,7 @@ class ProductionLineService
      * — on purpose: mobile then needs ONE mapper for both endpoints, and a
      * screen can switch source without touching how it reads the rows.
      *
-     * @throws \Illuminate\Auth\AuthenticationException 401
+     * @throws AuthenticationException 401
      * @throws ValidationException 422 — mill-bound actor without a mill
      */
     public function listForReport(?string $requestedMillId): array
@@ -295,7 +297,7 @@ class ProductionLineService
     public function currentStations(User $user, string $productionLineId): array
     {
         if ($user->business_unit_id === null) {
-            throw new ModelNotFoundException();
+            throw new ModelNotFoundException;
         }
 
         $productionLine = ProductionLine::query()
@@ -310,10 +312,10 @@ class ProductionLineService
             ->map(fn (Station $station) => [
                 'id' => $station->id,
                 'name' => $station->name,
-                'type' => $station->type instanceof \App\Enums\StationType ? $station->type->value : $station->type,
+                'type' => $station->type instanceof StationType ? $station->type->value : $station->type,
                 'icon' => $station->icon,
                 'is_active' => $station->is_active,
-                'machinery_count' => $station->type instanceof \App\Enums\StationType && $station->type->value === 'cages-track'
+                'machinery_count' => $station->type instanceof StationType && $station->type->value === 'cages-track'
                     ? Machinery::where('station_id', $station->id)->count()
                     : null,
             ])
@@ -404,7 +406,7 @@ class ProductionLineService
         $productionLine = ProductionLine::findOrFail($id);
 
         if ($productionLine->stations()->count() > 0) {
-            throw new ProductionLineHasStationsException();
+            throw new ProductionLineHasStationsException;
         }
 
         $productionLine->delete();

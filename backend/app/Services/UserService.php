@@ -150,7 +150,7 @@ class UserService
         $user = User::findOrFail($id);
 
         if (! $isActive && $id === $actingUserId) {
-            throw new CannotDeactivateSelfException();
+            throw new CannotDeactivateSelfException;
         }
 
         $user->update(['is_active' => $isActive]);

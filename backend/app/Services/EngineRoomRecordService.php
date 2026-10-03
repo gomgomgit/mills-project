@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\RecordStatus;
 use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
@@ -10,6 +11,7 @@ use App\Models\EngineRoomDetail;
 use App\Models\EngineRoomRecord;
 use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
+use App\Support\Concerns\NormalizesTimeSlot;
 use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +20,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
-use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * EngineRoomRecordService — screen-097--data-browser-engine-room-web /
@@ -59,7 +60,7 @@ use App\Support\Concerns\NormalizesTimeSlot;
  */
 class EngineRoomRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
+    use EnforcesPeriodLock, NormalizesTimeSlot, ScopesToActorMill;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -118,7 +119,7 @@ class EngineRoomRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveEngineRoomStationException();
+            throw new NoActiveEngineRoomStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
@@ -145,7 +146,7 @@ class EngineRoomRecordService
             // guard-satisfying placeholder pattern) before any detail rows
             // exist, insert the details, THEN flip status to saved.
             // Harmless no-op if no such guard exists on this model.
-            $attributes['status'] = \App\Enums\RecordStatus::Synced;
+            $attributes['status'] = RecordStatus::Synced;
             $record = EngineRoomRecord::create($attributes);
             $this->upsertDetails($record, $details);
             $record->update(['status' => 'saved']);
@@ -374,7 +375,6 @@ class EngineRoomRecordService
             }
         }
 
-
     }
 
     /**
@@ -445,7 +445,7 @@ class EngineRoomRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('engineRoomDetails')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -570,7 +570,7 @@ class EngineRoomRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -620,7 +620,7 @@ class EngineRoomRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = EngineRoomRecord::query();

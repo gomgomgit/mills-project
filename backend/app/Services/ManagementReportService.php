@@ -106,7 +106,7 @@ class ManagementReportService
                 'Content-Type' => $contentType,
             ]);
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -165,7 +165,7 @@ class ManagementReportService
     protected function resolveDateRange(?string $dateFrom, ?string $dateTo): array
     {
         if ($dateFrom !== null && $dateTo !== null && Carbon::parse($dateFrom)->gt(Carbon::parse($dateTo))) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $from = $dateFrom !== null ? Carbon::parse($dateFrom) : Carbon::today()->startOfMonth();

@@ -47,7 +47,7 @@ function threshingFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new ThreshingRecordService();
+    $this->service = new ThreshingRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->threshingStation = Station::factory()->forBusinessUnit($this->businessUnit)->threshing()->create();

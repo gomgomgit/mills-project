@@ -3,8 +3,8 @@
 namespace Database\Factories;
 
 use App\Enums\RecordStatus;
-use App\Models\StorageTankRecord;
 use App\Models\Station;
+use App\Models\StorageTankRecord;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 

@@ -44,7 +44,7 @@ function solidWasteFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new SolidWasteDisposalRecordService();
+    $this->service = new SolidWasteDisposalRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->solidWasteDisposal()->create();
     $this->creator = User::factory()->forBusinessUnit($this->businessUnit)->create();

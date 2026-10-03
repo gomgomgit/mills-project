@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\RecordStatus;
 use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
@@ -10,6 +11,7 @@ use App\Models\ClarificationDetail;
 use App\Models\ClarificationRecord;
 use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
+use App\Support\Concerns\NormalizesTimeSlot;
 use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +20,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
-use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * ClarificationRecordService — screen-099--data-browser-clarification-web /
@@ -55,7 +56,7 @@ use App\Support\Concerns\NormalizesTimeSlot;
  */
 class ClarificationRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
+    use EnforcesPeriodLock, NormalizesTimeSlot, ScopesToActorMill;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -116,7 +117,7 @@ class ClarificationRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveClarificationStationException();
+            throw new NoActiveClarificationStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
@@ -137,7 +138,7 @@ class ClarificationRecordService
         $this->applyVerification($attributes, $data, $actor);
 
         $record = DB::transaction(function () use ($attributes, $details) {
-            $attributes['status'] = \App\Enums\RecordStatus::Synced;
+            $attributes['status'] = RecordStatus::Synced;
             $record = ClarificationRecord::create($attributes);
             $this->upsertDetails($record, $details);
             $record->update(['status' => 'saved']);
@@ -359,7 +360,6 @@ class ClarificationRecordService
             }
         }
 
-
     }
 
     /**
@@ -430,7 +430,7 @@ class ClarificationRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('clarificationDetails')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -515,7 +515,7 @@ class ClarificationRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -565,7 +565,7 @@ class ClarificationRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = ClarificationRecord::query();

@@ -47,7 +47,7 @@ function sterilizerFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new SterilizerRecordService();
+    $this->service = new SterilizerRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->sterilizer()->create();
     $this->creator = User::factory()->forBusinessUnit($this->businessUnit)->create();

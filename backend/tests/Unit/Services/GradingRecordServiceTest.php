@@ -31,18 +31,22 @@
  */
 
 use App\Enums\RecordStatus;
+use App\Enums\Uom;
 use App\Enums\UserRole;
 use App\Exceptions\CrossMillWriteDeniedException;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
+use App\Exceptions\NoActiveGradingStationException;
 use App\Models\BusinessUnit;
 use App\Models\GradingDetail;
 use App\Models\GradingParameter;
 use App\Models\GradingRecord;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
 use App\Services\GradingRecordService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -53,7 +57,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->service = new GradingRecordService();
+    $this->service = new GradingRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     // Additive for screen-023--form-grading-web's create()/update() tests
@@ -247,7 +251,7 @@ it('returns a StreamedResponse with the correct content-type for csv and excel f
  */
 it('throws ModelNotFoundException when the id does not exist', function () {
     $this->service->getDetail((string) Str::uuid());
-})->throws(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+})->throws(ModelNotFoundException::class);
 
 it('returns the full record with resolved station_name and wb_card_number when id exists', function () {
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create(['wb_card_number' => 'WB-0099']);
@@ -313,7 +317,7 @@ function gradingFormPayload(array $overrides = []): array
 
 it('creates record with resolved station_id and inserted details when valid', function () {
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
-    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $parameter = GradingParameter::factory()->create(['uom' => Uom::Kg]);
 
     $result = $this->service->create(
         gradingFormPayload([
@@ -331,7 +335,7 @@ it('creates record with resolved station_id and inserted details when valid', fu
 
 it('computes detail percentage using netto when uom is kg', function () {
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
-    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $parameter = GradingParameter::factory()->create(['uom' => Uom::Kg]);
 
     $result = $this->service->create(
         gradingFormPayload([
@@ -348,7 +352,7 @@ it('computes detail percentage using netto when uom is kg', function () {
 
 it('computes detail percentage using quantity when uom is bunch', function () {
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
-    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Bunch]);
+    $parameter = GradingParameter::factory()->create(['uom' => Uom::Bunch]);
 
     $result = $this->service->create(
         gradingFormPayload([
@@ -375,7 +379,7 @@ it('throws ValidationException when a required field is empty', function () {
             'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
         ]),
         $this->creator
-    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+    ))->toThrow(ValidationException::class);
 });
 
 it('throws ValidationException when details array is empty', function () {
@@ -388,7 +392,7 @@ it('throws ValidationException when details array is empty', function () {
             'details' => [],
         ]),
         $this->creator
-    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+    ))->toThrow(ValidationException::class);
 });
 
 it('throws ValidationException when two detail rows share the same grading_parameter_id', function () {
@@ -405,11 +409,11 @@ it('throws ValidationException when two detail rows share the same grading_param
             ],
         ]),
         $this->creator
-    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+    ))->toThrow(ValidationException::class);
 });
 
 it('throws NoActiveGradingStationException when production_line_id has no active grading station', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
     $parameter = GradingParameter::factory()->create();
 
@@ -420,11 +424,11 @@ it('throws NoActiveGradingStationException when production_line_id has no active
             'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
         ]),
         $this->creator
-    ))->toThrow(\App\Exceptions\NoActiveGradingStationException::class);
+    ))->toThrow(NoActiveGradingStationException::class);
 });
 
 it('sets acknowledged_by to requester id when acknowledged=true and requester role=mill_management', function () {
-    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
+    $millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
     $parameter = GradingParameter::factory()->create();
 
@@ -442,7 +446,7 @@ it('sets acknowledged_by to requester id when acknowledged=true and requester ro
 });
 
 it('ignores acknowledged=true when requester role is not mill_management', function () {
-    $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
     $parameter = GradingParameter::factory()->create();
 
@@ -462,9 +466,9 @@ it('ignores acknowledged=true when requester role is not mill_management', funct
 it('updates record and upserts details: inserts new row, updates existing row, deletes removed row', function () {
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
     $record = GradingRecord::factory()->forStation($this->gradingStation)->create();
-    $keptParameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $keptParameter = GradingParameter::factory()->create(['uom' => Uom::Kg]);
     $removedParameter = GradingParameter::factory()->create();
-    $newParameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $newParameter = GradingParameter::factory()->create(['uom' => Uom::Kg]);
 
     $keptDetail = GradingDetail::factory()->forGradingRecord($record)->forGradingParameter($keptParameter)->create(['quantity' => 10]);
     GradingDetail::factory()->forGradingRecord($record)->forGradingParameter($removedParameter)->create();
@@ -489,7 +493,7 @@ it('updates record and upserts details: inserts new row, updates existing row, d
 });
 
 it('updates record without accepting a production_line_id change', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->create();
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
     $record = GradingRecord::factory()->forStation($this->gradingStation)->create();
     $parameter = GradingParameter::factory()->create();
@@ -521,7 +525,7 @@ it('throws ModelNotFoundException when updating a non-existent id', function () 
             'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 5]],
         ]),
         $this->creator
-    ))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+    ))->toThrow(ModelNotFoundException::class);
 });
 
 /*
@@ -540,7 +544,7 @@ it('throws ModelNotFoundException when updating a non-existent id', function () 
 
 it('menolak create() ke production line mill lain, tanpa menulis satu baris pun', function (UserRole $role) {
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
-    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $parameter = GradingParameter::factory()->create(['uom' => Uom::Kg]);
     $otherMill = BusinessUnit::factory()->create();
     $otherStation = Station::factory()->forBusinessUnit($otherMill)->grading()->create();
     $actor = User::factory()->role($role)->forBusinessUnit($this->businessUnit)->create();
@@ -561,7 +565,7 @@ it('menolak create() ke production line mill lain, tanpa menulis satu baris pun'
 
 it('menolak update() record milik mill lain, dan tidak mengubah satu kolom pun', function () {
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
-    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $parameter = GradingParameter::factory()->create(['uom' => Uom::Kg]);
     $otherMill = BusinessUnit::factory()->create();
     $otherStation = Station::factory()->forBusinessUnit($otherMill)->grading()->create();
     $record = GradingRecord::factory()->forStation($otherStation)->create(['grading_number' => 'SCOPE-MILIK-MILL-B']);
@@ -575,7 +579,7 @@ it('menolak update() record milik mill lain, dan tidak mengubah satu kolom pun',
 
 it('mengizinkan Admin menulis ke line mill mana pun (dibuktikan dengan dua mill berbeda)', function () {
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
-    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $parameter = GradingParameter::factory()->create(['uom' => Uom::Kg]);
     $millB = BusinessUnit::factory()->create();
     $stationB = Station::factory()->forBusinessUnit($millB)->grading()->create();
 
@@ -597,7 +601,7 @@ it('mengizinkan Admin menulis ke line mill mana pun (dibuktikan dengan dua mill 
 
 it('gagal tertutup dengan pesan actionable ketika akun aktor belum terhubung ke mill', function () {
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
-    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $parameter = GradingParameter::factory()->create(['uom' => Uom::Kg]);
     $actor = User::factory()->role(UserRole::Supervisor)->create(['business_unit_id' => null]);
     $recordsBefore = GradingRecord::count();
 
@@ -613,7 +617,7 @@ it('gagal tertutup dengan pesan actionable ketika akun aktor belum terhubung ke 
 
 it('tetap mengizinkan create() dan update() pada line mill sendiri', function () {
     $weighbridgeRecord = WeighbridgeRecord::factory()->forStation($this->station)->create();
-    $parameter = GradingParameter::factory()->create(['uom' => \App\Enums\Uom::Kg]);
+    $parameter = GradingParameter::factory()->create(['uom' => Uom::Kg]);
     $created = $this->service->create(gradingFormPayload(['production_line_id' => $this->gradingStation->production_line_id, 'weighbridge_record_id' => $weighbridgeRecord->id, 'grading_number' => 'SCOPE-OWN-1', 'details' => [['grading_parameter_id' => $parameter->id, 'quantity' => 250]]]), $this->creator);
 
     expect(GradingRecord::find($created['id'])->station_id)->toBe($this->gradingStation->id);

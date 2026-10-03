@@ -51,7 +51,7 @@ function kernelPlantFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new KernelPlantRecordService();
+    $this->service = new KernelPlantRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->kernelPlantStation = Station::factory()->forBusinessUnit($this->businessUnit)->kernelPlant()->create();

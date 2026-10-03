@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\RecordStatus;
 use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
@@ -10,6 +11,7 @@ use App\Models\DepricarpingDetail;
 use App\Models\DepricarpingRecord;
 use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
+use App\Support\Concerns\NormalizesTimeSlot;
 use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +20,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
-use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * DepricarpingRecordService — screen-051--data-browser-depricarping-web /
@@ -70,7 +71,7 @@ use App\Support\Concerns\NormalizesTimeSlot;
  */
 class DepricarpingRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
+    use EnforcesPeriodLock, NormalizesTimeSlot, ScopesToActorMill;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -115,7 +116,7 @@ class DepricarpingRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveDepricarpingStationException();
+            throw new NoActiveDepricarpingStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
@@ -143,7 +144,7 @@ class DepricarpingRecordService
             // (same guard-satisfying placeholder pattern
             // PressingRecordService::create() uses), insert the details,
             // THEN flip status to saved.
-            $attributes['status'] = \App\Enums\RecordStatus::Synced;
+            $attributes['status'] = RecordStatus::Synced;
             $record = DepricarpingRecord::create($attributes);
             $this->upsertDetails($record, $details);
             $record->update(['status' => 'saved']);
@@ -370,7 +371,6 @@ class DepricarpingRecordService
             }
         }
 
-
     }
 
     /**
@@ -445,7 +445,7 @@ class DepricarpingRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('depricarpingDetails')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -534,7 +534,7 @@ class DepricarpingRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -584,7 +584,7 @@ class DepricarpingRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = DepricarpingRecord::query();

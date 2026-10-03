@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\RecordStatus;
 use App\Enums\Uom;
 use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
@@ -82,7 +83,7 @@ class GradingRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveGradingStationException();
+            throw new NoActiveGradingStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
@@ -111,7 +112,7 @@ class GradingRecordService
             // definition() uses, see its docblock), insert the details,
             // THEN flip status to saved — by then gradingDetails()->count()
             // is > 0 so the guard passes.
-            $attributes['status'] = \App\Enums\RecordStatus::Synced;
+            $attributes['status'] = RecordStatus::Synced;
             $record = GradingRecord::create($attributes);
             $this->upsertDetails($record, $details, netto: $attributes['netto'], quantity: $attributes['quantity']);
             $record->update(['status' => 'saved']);
@@ -359,7 +360,7 @@ class GradingRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('gradingDetails')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -451,7 +452,7 @@ class GradingRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -523,7 +524,7 @@ class GradingRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = GradingRecord::query();

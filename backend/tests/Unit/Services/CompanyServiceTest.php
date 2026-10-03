@@ -60,7 +60,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->service = new CompanyService();
+    $this->service = new CompanyService;
 });
 
 // unit_test_case 6: create with a non-existent corporate_id -> 422

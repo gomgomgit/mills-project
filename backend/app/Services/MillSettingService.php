@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\StationType;
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\MillSetting;
@@ -216,7 +217,7 @@ class MillSettingService
     public function getCurrent(User $user): array
     {
         if ($user->business_unit_id === null) {
-            throw new ModelNotFoundException();
+            throw new ModelNotFoundException;
         }
 
         $businessUnit = BusinessUnit::findOrFail($user->business_unit_id);
@@ -234,7 +235,7 @@ class MillSettingService
     public function listCurrentStations(User $user): array
     {
         if ($user->business_unit_id === null) {
-            throw new ModelNotFoundException();
+            throw new ModelNotFoundException;
         }
 
         return $this->mapStations($user->business_unit_id);
@@ -253,7 +254,7 @@ class MillSettingService
             ->map(fn (Station $station) => [
                 'id' => $station->id,
                 'name' => $station->name,
-                'type' => $station->type instanceof \App\Enums\StationType ? $station->type->value : $station->type,
+                'type' => $station->type instanceof StationType ? $station->type->value : $station->type,
                 'icon' => $station->icon,
             ])
             ->all();
@@ -281,7 +282,7 @@ class MillSettingService
             ->first();
 
         if ($station === null) {
-            throw new ModelNotFoundException();
+            throw new ModelNotFoundException;
         }
 
         if ($icon !== null) {

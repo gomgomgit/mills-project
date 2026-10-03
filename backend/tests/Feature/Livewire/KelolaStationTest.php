@@ -58,6 +58,7 @@
  * corrected, blade-template-matching keys — 'form.code'/'form.name'.
  */
 
+use App\Enums\StationType;
 use App\Enums\UserRole;
 use App\Livewire\MasterData\KelolaStation;
 use App\Models\BusinessUnit;
@@ -270,7 +271,7 @@ it('Status/Type invalid (create): shows a validation error under is_active when 
 
 // CRITICAL — the cross-field rule (edit branch).
 it('Status/Type invalid (edit): shows a validation error under is_active when updating to is_active=true and type=other', function () {
-    $station = Station::factory()->forBusinessUnit($this->businessUnit)->create(['type' => \App\Enums\StationType::Weighbridge, 'is_active' => true]);
+    $station = Station::factory()->forBusinessUnit($this->businessUnit)->create(['type' => StationType::Weighbridge, 'is_active' => true]);
 
     Livewire::actingAs($this->admin)
         ->test(KelolaStation::class)

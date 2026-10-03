@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\RecordStatus;
 use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
@@ -10,6 +11,7 @@ use App\Models\EffluentPlantDetail;
 use App\Models\EffluentPlantRecord;
 use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
+use App\Support\Concerns\NormalizesTimeSlot;
 use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +20,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
-use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * EffluentPlantRecordService — screen-095--data-browser-effluent-plant-web /
@@ -58,7 +59,7 @@ use App\Support\Concerns\NormalizesTimeSlot;
  */
 class EffluentPlantRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
+    use EnforcesPeriodLock, NormalizesTimeSlot, ScopesToActorMill;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -115,7 +116,7 @@ class EffluentPlantRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveEffluentPlantStationException();
+            throw new NoActiveEffluentPlantStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
@@ -143,7 +144,7 @@ class EffluentPlantRecordService
             // any detail rows exist, insert the details, THEN flip status
             // to saved. Harmless no-op if no such guard exists on this
             // model.
-            $attributes['status'] = \App\Enums\RecordStatus::Synced;
+            $attributes['status'] = RecordStatus::Synced;
             $record = EffluentPlantRecord::create($attributes);
             $this->upsertDetails($record, $details);
             $record->update(['status' => 'saved']);
@@ -373,7 +374,6 @@ class EffluentPlantRecordService
             }
         }
 
-
     }
 
     /**
@@ -444,7 +444,7 @@ class EffluentPlantRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('effluentPlantDetails')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -553,7 +553,7 @@ class EffluentPlantRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -603,7 +603,7 @@ class EffluentPlantRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = EffluentPlantRecord::query();

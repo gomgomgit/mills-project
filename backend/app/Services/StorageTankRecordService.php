@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\RecordStatus;
 use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
@@ -10,6 +11,7 @@ use App\Models\StorageTankDetail;
 use App\Models\StorageTankRecord;
 use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
+use App\Support\Concerns\NormalizesTimeSlot;
 use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +20,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
-use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * StorageTankRecordService — screen-096--data-browser-storage-tank-web /
@@ -57,7 +58,7 @@ use App\Support\Concerns\NormalizesTimeSlot;
  */
 class StorageTankRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
+    use EnforcesPeriodLock, NormalizesTimeSlot, ScopesToActorMill;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -125,7 +126,7 @@ class StorageTankRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveStorageTankStationException();
+            throw new NoActiveStorageTankStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
@@ -152,7 +153,7 @@ class StorageTankRecordService
             // guard-satisfying placeholder pattern) before any detail rows
             // exist, insert the details, THEN flip status to saved.
             // Harmless no-op if no such guard exists on this model.
-            $attributes['status'] = \App\Enums\RecordStatus::Synced;
+            $attributes['status'] = RecordStatus::Synced;
             $record = StorageTankRecord::create($attributes);
             $this->upsertDetails($record, $details);
             $record->update(['status' => 'saved']);
@@ -388,7 +389,6 @@ class StorageTankRecordService
             }
         }
 
-
     }
 
     /**
@@ -459,7 +459,7 @@ class StorageTankRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('storageTankDetails')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -564,7 +564,7 @@ class StorageTankRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -614,7 +614,7 @@ class StorageTankRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = StorageTankRecord::query();

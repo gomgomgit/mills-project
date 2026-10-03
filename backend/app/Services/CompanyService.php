@@ -175,9 +175,8 @@ class CompanyService
      * present.
      *
      * @param  array<string, mixed>  $data  raw create() payload — any
-     *                                       'created_by'/'updated_by' keys
-     *                                       are ignored (see above)
-     * @param  \Illuminate\Http\UploadedFile|null  $logo
+     *                                      'created_by'/'updated_by' keys
+     *                                      are ignored (see above)
      *
      * @throws ValidationException
      */
@@ -211,7 +210,6 @@ class CompanyService
      * existing `logo` column untouched.
      *
      * @param  array<string, mixed>  $data
-     * @param  \Illuminate\Http\UploadedFile|null  $logo
      *
      * @throws ModelNotFoundException
      * @throws ValidationException
@@ -254,7 +252,7 @@ class CompanyService
         $company = Company::findOrFail($id);
 
         if (BusinessUnit::where('company_id', $company->id)->count() > 0) {
-            throw new CompanyHasBusinessUnitsException();
+            throw new CompanyHasBusinessUnitsException;
         }
 
         $company->delete();

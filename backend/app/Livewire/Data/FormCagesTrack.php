@@ -7,6 +7,7 @@ use App\Services\CagesTrackRecordService;
 use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -147,12 +148,12 @@ class FormCagesTrack extends Component
             $this->form[$field] = $record[$field] ?? '';
         }
 
-        $this->form['date'] = $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('Y-m-d') : '';
+        $this->form['date'] = $record['date'] ? Carbon::parse($record['date'])->format('Y-m-d') : '';
         $this->form['tippler_start_time'] = $record['tippler_start_time']
-            ? \Illuminate\Support\Carbon::parse($record['tippler_start_time'])->format('Y-m-d\TH:i')
+            ? Carbon::parse($record['tippler_start_time'])->format('Y-m-d\TH:i')
             : '';
         $this->form['tippler_stop_time'] = $record['tippler_stop_time']
-            ? \Illuminate\Support\Carbon::parse($record['tippler_stop_time'])->format('Y-m-d\TH:i')
+            ? Carbon::parse($record['tippler_stop_time'])->format('Y-m-d\TH:i')
             : '';
 
         $this->businessUnitName = $record['station_name'] ?? null;

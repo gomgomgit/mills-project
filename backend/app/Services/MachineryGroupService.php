@@ -221,7 +221,7 @@ class MachineryGroupService
         $machineryCount = Machinery::where('machinery_group_id', $id)->count();
 
         if ($machineryCount > 0) {
-            throw new MachineryGroupHasMachineryException();
+            throw new MachineryGroupHasMachineryException;
         }
 
         $machineryGroup->delete();

@@ -174,9 +174,8 @@ class BusinessUnitService
      * explicitly creates a Production Line for it via screen-036.
      *
      * @param  array<string, mixed>  $data  raw create() payload — any
-     *                                       'created_by'/'updated_by' keys
-     *                                       are ignored (see above)
-     * @param  \Illuminate\Http\UploadedFile|null  $logo
+     *                                      'created_by'/'updated_by' keys
+     *                                      are ignored (see above)
      *
      * @throws ValidationException
      */
@@ -211,7 +210,6 @@ class BusinessUnitService
      * untouched.
      *
      * @param  array<string, mixed>  $data
-     * @param  \Illuminate\Http\UploadedFile|null  $logo
      *
      * @throws ModelNotFoundException
      * @throws ValidationException
@@ -253,7 +251,7 @@ class BusinessUnitService
         $businessUnit = BusinessUnit::findOrFail($id);
 
         if ($businessUnit->stations()->count() > 0) {
-            throw new BusinessUnitHasStationsException();
+            throw new BusinessUnitHasStationsException;
         }
 
         $businessUnit->delete();

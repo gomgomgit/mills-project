@@ -25,6 +25,7 @@ use App\Models\Machinery;
 use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
+use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create(['name' => 'Mill Unit Awal']);
@@ -361,7 +362,7 @@ it('currentStations(): returns 404 when production_line_id belongs to a differen
 
 it('mobile sync (Sanctum): current()/currentStations() are reachable via Sanctum-authenticated Operator', function () {
     $productionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
-    \Laravel\Sanctum\Sanctum::actingAs($this->operator, ['*']);
+    Sanctum::actingAs($this->operator, ['*']);
 
     $this->getJson('/api/production-lines/current')->assertOk();
     $this->getJson("/api/production-lines/current/stations?production_line_id={$productionLine->id}")->assertOk();
@@ -492,7 +493,7 @@ it('options-for-report: is reachable with a mobile Sanctum token — the whole r
     $otherLine = ProductionLine::factory()->forBusinessUnit($otherBusinessUnit)->create(['name' => 'Line Mill Lain']);
 
     // Supervisor via Sanctum: own mill's line present, other mill's absent.
-    \Laravel\Sanctum\Sanctum::actingAs($this->supervisor, ['*']);
+    Sanctum::actingAs($this->supervisor, ['*']);
     $supervisorResponse = $this->getJson("/api/production-lines/options-for-report?business_unit_id={$otherBusinessUnit->id}");
     $supervisorResponse->assertOk();
     $supervisorResponse->assertJsonFragment(['id' => $line->id]);
@@ -501,7 +502,7 @@ it('options-for-report: is reachable with a mobile Sanctum token — the whole r
     // Admin via Sanctum: the picked mill's line, which is precisely what
     // /production-lines/current could never give them.
     $adminViaToken = User::factory()->role(UserRole::Admin)->create(['business_unit_id' => $this->businessUnit->id]);
-    \Laravel\Sanctum\Sanctum::actingAs($adminViaToken, ['*']);
+    Sanctum::actingAs($adminViaToken, ['*']);
     $adminResponse = $this->getJson("/api/production-lines/options-for-report?business_unit_id={$otherBusinessUnit->id}");
     $adminResponse->assertOk();
     expect(collect($adminResponse->json('data'))->pluck('id')->all())->toBe([$otherLine->id]);

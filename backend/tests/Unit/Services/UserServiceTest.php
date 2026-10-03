@@ -25,7 +25,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->service = new UserService();
+    $this->service = new UserService;
     $this->businessUnit = BusinessUnit::factory()->create();
 });
 

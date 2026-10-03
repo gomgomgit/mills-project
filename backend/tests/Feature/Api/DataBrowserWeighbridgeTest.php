@@ -37,6 +37,8 @@ use App\Models\Station;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
 use App\Services\WeighbridgeRecordService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 beforeEach(function () {
     $this->businessUnit = BusinessUnit::factory()->create();
@@ -201,7 +203,7 @@ it('Ekspor Gagal: returns 422 EXPORT_FAILED when the filtered dataset exceeds th
 
         for ($i = 0; $i < $batch; $i++) {
             $rows[] = [
-                'id' => (string) \Illuminate\Support\Str::uuid(),
+                'id' => (string) Str::uuid(),
                 'station_id' => $this->station->id,
                 'production_line_id' => $this->station->production_line_id,
                 'wb_card_number' => 'WB-BULK-'.($inserted + $i),
@@ -226,7 +228,7 @@ it('Ekspor Gagal: returns 422 EXPORT_FAILED when the filtered dataset exceeds th
             ];
         }
 
-        \Illuminate\Support\Facades\DB::table('weighbridge_records')->insert($rows);
+        DB::table('weighbridge_records')->insert($rows);
         $inserted += $batch;
     }
 

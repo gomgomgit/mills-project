@@ -38,6 +38,7 @@ use App\Livewire\MasterData\KelolaMachinery;
 use App\Models\BusinessUnit;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use Livewire\Livewire;
@@ -78,7 +79,7 @@ it('berhasil: picks a Station, fills the form and creates a machinery group that
 // always the real Station's production_line_id, never trusted from
 // client state.
 it('selectedProductionLineName is purely cosmetic and never affects the persisted production_line_id', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->create(['name' => 'Line Lain']);
+    $otherProductionLine = ProductionLine::factory()->create(['name' => 'Line Lain']);
 
     $component = Livewire::actingAs($this->admin)
         ->test(KelolaMachinery::class)

@@ -443,7 +443,6 @@ class MachineryService
     /**
      * Validates each row of the `insurances` array payload.
      *
-     * @param  mixed  $rows
      * @return array<int, array<string, mixed>>
      *
      * @throws ValidationException
@@ -490,7 +489,6 @@ class MachineryService
     /**
      * Validates each row of the `tax_purchases` array payload.
      *
-     * @param  mixed  $rows
      * @return array<int, array<string, mixed>>
      *
      * @throws ValidationException

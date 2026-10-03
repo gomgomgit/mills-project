@@ -12,6 +12,7 @@
 
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
@@ -89,7 +90,7 @@ it('returns 422 VALIDATION_ERROR when a required field is empty', function () {
 
 // Scenario: "Business Unit Tanpa Station Weighbridge Aktif"
 it('returns 422 when production_line_id has no active weighbridge station', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
 
     $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/weighbridge-records', weighbridgeApiPayload([
         'production_line_id' => $otherProductionLine->id,
@@ -142,7 +143,7 @@ it('berhasil: updates an existing record', function () {
 
 it('does not change station_id even if production_line_id is sent on update', function () {
     $record = WeighbridgeRecord::factory()->forStation($this->station)->create();
-    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->create();
     Station::factory()->forProductionLine($otherProductionLine)->create();
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/weighbridge-records/{$record->id}", weighbridgeApiPayload([

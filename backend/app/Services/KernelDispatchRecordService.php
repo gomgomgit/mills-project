@@ -68,7 +68,7 @@ class KernelDispatchRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveKernelDispatchStationException();
+            throw new NoActiveKernelDispatchStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
@@ -332,7 +332,7 @@ class KernelDispatchRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('kernelDispatchDetails')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -446,7 +446,7 @@ class KernelDispatchRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -496,7 +496,7 @@ class KernelDispatchRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = KernelDispatchRecord::query();

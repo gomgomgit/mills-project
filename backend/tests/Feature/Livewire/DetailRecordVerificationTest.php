@@ -15,12 +15,15 @@
  * the trait, so it is tested once here rather than duplicated 18 times.
  */
 
+use App\Enums\PeriodStatus;
+use App\Enums\StationType;
 use App\Enums\UserRole;
 use App\Livewire\Data\DetailCagesTrack;
 use App\Livewire\Data\DetailGrading;
 use App\Models\BusinessUnit;
 use App\Models\CagesTrackRecord;
 use App\Models\GradingRecord;
+use App\Models\PeriodStation;
 use App\Models\Station;
 use App\Models\User;
 use Livewire\Livewire;
@@ -219,10 +222,10 @@ it('cakupan mill: verifikasi record mill sendiri lewat layar Detail tetap berhas
 // HandlesRecordVerification, sehingga layar menerima respons 422 mentah dan
 // verificationMessage tetap null — datanya aman, pesannya hilang.
 it('kunci periode: verifikasi saat stasiun pada periode sudah ditutup muncul sebagai alert layar, dan kolomnya tidak berubah', function () {
-    \App\Models\PeriodStation::query()
-        ->where('station_type', $this->station->type instanceof \App\Enums\StationType ? $this->station->type->value : (string) $this->station->type)
+    PeriodStation::query()
+        ->where('station_type', $this->station->type instanceof StationType ? $this->station->type->value : (string) $this->station->type)
         ->whereHas('period', fn ($q) => $q->where('business_unit_id', $this->businessUnit->id))
-        ->update(['status' => \App\Enums\PeriodStatus::Closed->value]);
+        ->update(['status' => PeriodStatus::Closed->value]);
 
     $component = Livewire::actingAs($this->supervisor)
         ->test(DetailCagesTrack::class, ['id' => $this->record->id])

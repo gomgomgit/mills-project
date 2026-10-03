@@ -32,6 +32,7 @@ use App\Models\BusinessUnit;
 use App\Models\MillSetting;
 use App\Models\Station;
 use App\Models\User;
+use App\Services\MillSettingService;
 use Livewire\Livewire;
 
 beforeEach(function () {
@@ -158,7 +159,7 @@ it('leaves the toggle untouched when another field is saved without it', functio
         'immediate_sync_enabled' => true,
     ]);
 
-    app(\App\Services\MillSettingService::class)->update(
+    app(MillSettingService::class)->update(
         $this->admin,
         $this->businessUnit->id,
         ['app_name' => 'Nama Baru'],

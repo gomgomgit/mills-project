@@ -35,7 +35,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->service = new MillSettingService();
+    $this->service = new MillSettingService;
     $this->businessUnit = BusinessUnit::factory()->create(['name' => 'Mill Unit Alpha']);
     $this->admin = User::factory()->role(UserRole::Admin)->forBusinessUnit($this->businessUnit)->create();
     $this->millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();

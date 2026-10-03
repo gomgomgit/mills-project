@@ -36,6 +36,7 @@ use App\Models\Machinery;
 use App\Models\MachineryGroup;
 use App\Models\MachineryInsurance;
 use App\Models\MachineryTaxPurchase;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use App\Services\MachineryService;
@@ -79,7 +80,7 @@ it('berhasil: creates a machinery and returns 201 with the expected row shape', 
 
 it('ignores spoofed station_id/production_line_id sent in the request body', function () {
     $spoofedStation = Station::factory()->create();
-    $spoofedProductionLine = \App\Models\ProductionLine::factory()->create();
+    $spoofedProductionLine = ProductionLine::factory()->create();
 
     $response = $this->actingAs($this->admin, 'web')->postJson('/api/machinery', [
         'machinery_group_id' => $this->group->id,

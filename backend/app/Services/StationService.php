@@ -185,7 +185,7 @@ class StationService
         $machineryCount = Machinery::where('station_id', $id)->count();
 
         if ($machineryGroupCount > 0 || $machineryCount > 0) {
-            throw new StationHasMachineryException();
+            throw new StationHasMachineryException;
         }
 
         $station->delete();
@@ -211,8 +211,8 @@ class StationService
      * @param  string|null  $excludeId  the station's own id on update()
      *                                  (excluded from the code-uniqueness
      *                                  check), null on create()
-     * @return array<string, mixed>  validated attributes, ready for
-     *                                Station::create()/->update()
+     * @return array<string, mixed> validated attributes, ready for
+     *                              Station::create()/->update()
      *
      * @throws ValidationException
      */

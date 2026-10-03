@@ -27,6 +27,7 @@ use App\Exceptions\PeriodClosedException;
 use App\Models\BusinessUnit;
 use App\Models\Period;
 use App\Models\PeriodStation;
+use App\Models\StationType;
 use App\Support\Concerns\EnforcesPeriodLock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -282,7 +283,7 @@ it('RecordVerificationService — jalur tulis KEEMPAT — juga memanggil guard',
 });
 
 it('setiap kode jenis stasiun yang dipakai guard ada di master station_types', function () {
-    $master = \App\Models\StationType::query()->pluck('code')->all();
+    $master = StationType::query()->pluck('code')->all();
 
     // Kalau master-nya kosong di database test, asersi di bawah akan lolos
     // dengan sendirinya dan tidak membuktikan apa pun — jadi itu diasersi lebih

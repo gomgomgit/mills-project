@@ -35,6 +35,7 @@
  * Service unit level and the Livewire component level).
  */
 
+use App\Enums\StationType;
 use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\Machinery;
@@ -227,7 +228,7 @@ it('Status/Type invalid (create): returns 422 with errors.is_active when is_acti
 // CRITICAL — the cross-field rule (edit branch): same rule enforced on
 // update().
 it('Status/Type invalid (edit): returns 422 with errors.is_active when updating to is_active=true and type=other', function () {
-    $station = Station::factory()->forBusinessUnit($this->businessUnit)->create(['type' => \App\Enums\StationType::Weighbridge, 'is_active' => true]);
+    $station = Station::factory()->forBusinessUnit($this->businessUnit)->create(['type' => StationType::Weighbridge, 'is_active' => true]);
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/stations/{$station->id}", [
         'business_unit_id' => $this->businessUnit->id,

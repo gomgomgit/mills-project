@@ -45,7 +45,7 @@ function kernelDispatchFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new KernelDispatchRecordService();
+    $this->service = new KernelDispatchRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->kernelDispatch()->create();
     $this->creator = User::factory()->forBusinessUnit($this->businessUnit)->create();

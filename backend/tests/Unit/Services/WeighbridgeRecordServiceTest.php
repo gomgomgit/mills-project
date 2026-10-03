@@ -31,11 +31,14 @@ use App\Enums\UserRole;
 use App\Exceptions\CrossMillWriteDeniedException;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
+use App\Exceptions\NoActiveWeighbridgeStationException;
 use App\Models\BusinessUnit;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
 use App\Services\WeighbridgeRecordService;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -46,7 +49,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->service = new WeighbridgeRecordService();
+    $this->service = new WeighbridgeRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->creator = User::factory()->forBusinessUnit($this->businessUnit)->create();
@@ -258,7 +261,7 @@ it('returns a StreamedResponse with the correct content-type for csv and excel f
  */
 it('throws ModelNotFoundException when the id does not exist', function () {
     $this->service->getDetail((string) Str::uuid());
-})->throws(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+})->throws(ModelNotFoundException::class);
 
 it('returns the full record with resolved station_name when id exists', function () {
     $record = WeighbridgeRecord::factory()->forStation($this->station)->ofType('receive')->create();
@@ -342,27 +345,27 @@ it('throws ValidationException when destination is empty and type=dispatch', fun
     expect(fn () => $this->service->create(
         weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'weighbridge_type' => 'dispatch']),
         $this->creator
-    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+    ))->toThrow(ValidationException::class);
 });
 
 it('throws ValidationException when a required field is empty', function () {
     expect(fn () => $this->service->create(
         weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'wb_card_number' => '']),
         $this->creator
-    ))->toThrow(\Illuminate\Validation\ValidationException::class);
+    ))->toThrow(ValidationException::class);
 });
 
 it('throws NoActiveWeighbridgeStationException when production_line_id has no active weighbridge station', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
 
     expect(fn () => $this->service->create(
         weighbridgeFormPayload(['production_line_id' => $otherProductionLine->id]),
         $this->creator
-    ))->toThrow(\App\Exceptions\NoActiveWeighbridgeStationException::class);
+    ))->toThrow(NoActiveWeighbridgeStationException::class);
 });
 
 it('sets checked_by to requester id when checked=true and requester role=supervisor', function () {
-    $supervisor = User::factory()->role(\App\Enums\UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
+    $supervisor = User::factory()->role(UserRole::Supervisor)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'checked' => true]),
@@ -373,7 +376,7 @@ it('sets checked_by to requester id when checked=true and requester role=supervi
 });
 
 it('ignores checked=true when requester role is not supervisor', function () {
-    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
+    $millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'checked' => true]),
@@ -384,7 +387,7 @@ it('ignores checked=true when requester role is not supervisor', function () {
 });
 
 it('sets acknowledged_by to requester id when acknowledged=true and requester role=mill_management', function () {
-    $millManagement = User::factory()->role(\App\Enums\UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
+    $millManagement = User::factory()->role(UserRole::MillManagement)->forBusinessUnit($this->businessUnit)->create();
 
     $result = $this->service->create(
         weighbridgeFormPayload(['production_line_id' => $this->station->production_line_id, 'acknowledged' => true]),
@@ -395,7 +398,7 @@ it('sets acknowledged_by to requester id when acknowledged=true and requester ro
 });
 
 it('updates an existing record and does not accept a production_line_id change', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->create();
     $record = WeighbridgeRecord::factory()->forStation($this->station)->create();
 
     $result = $this->service->update(
@@ -413,7 +416,7 @@ it('throws ModelNotFoundException when updating a non-existent id', function () 
         (string) Str::uuid(),
         weighbridgeFormPayload(),
         $this->creator
-    ))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+    ))->toThrow(ModelNotFoundException::class);
 });
 
 it('recomputes net_weight via model event on update regardless of gross/tare change', function () {

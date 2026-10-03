@@ -45,7 +45,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->service = new CorporateService();
+    $this->service = new CorporateService;
 });
 
 // unit_test_case 1: create with an empty name (but a valid corporate_code,

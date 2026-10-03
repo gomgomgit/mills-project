@@ -8,6 +8,7 @@ use App\Services\WeighbridgeRecordService;
 use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -143,7 +144,7 @@ class FormWeighbridge extends Component
         }
 
         $this->form['record_datetime'] = $record['record_datetime']
-            ? \Illuminate\Support\Carbon::parse($record['record_datetime'])->format('Y-m-d\TH:i')
+            ? Carbon::parse($record['record_datetime'])->format('Y-m-d\TH:i')
             : '';
 
         $this->businessUnitName = $record['station_name'] ?? null;

@@ -45,7 +45,7 @@ function processWaterFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new ProcessWaterRecordService();
+    $this->service = new ProcessWaterRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->processWaterStation = Station::factory()->forBusinessUnit($this->businessUnit)->processWater()->create();

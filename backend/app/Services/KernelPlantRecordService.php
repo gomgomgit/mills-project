@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\RecordStatus;
 use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
@@ -10,6 +11,7 @@ use App\Models\KernelPlantDetail;
 use App\Models\KernelPlantRecord;
 use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
+use App\Support\Concerns\NormalizesTimeSlot;
 use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +20,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
-use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * KernelPlantRecordService — screen-052--data-browser-kernel-plant-web /
@@ -70,7 +71,7 @@ use App\Support\Concerns\NormalizesTimeSlot;
  */
 class KernelPlantRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
+    use EnforcesPeriodLock, NormalizesTimeSlot, ScopesToActorMill;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -115,7 +116,7 @@ class KernelPlantRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveKernelPlantStationException();
+            throw new NoActiveKernelPlantStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
@@ -143,7 +144,7 @@ class KernelPlantRecordService
             // (same guard-satisfying placeholder pattern
             // DepricarpingRecordService::create() uses), insert the
             // details, THEN flip status to saved.
-            $attributes['status'] = \App\Enums\RecordStatus::Synced;
+            $attributes['status'] = RecordStatus::Synced;
             $record = KernelPlantRecord::create($attributes);
             $this->upsertDetails($record, $details);
             $record->update(['status' => 'saved']);
@@ -370,7 +371,6 @@ class KernelPlantRecordService
             }
         }
 
-
     }
 
     /**
@@ -445,7 +445,7 @@ class KernelPlantRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('kernelPlantDetails')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -534,7 +534,7 @@ class KernelPlantRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -584,7 +584,7 @@ class KernelPlantRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = KernelPlantRecord::query();

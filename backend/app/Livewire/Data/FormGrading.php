@@ -11,6 +11,7 @@ use App\Services\StationService;
 use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -153,7 +154,7 @@ class FormGrading extends Component
             $this->form[$field] = $record[$field] ?? '';
         }
 
-        $this->form['date'] = $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('Y-m-d') : '';
+        $this->form['date'] = $record['date'] ? Carbon::parse($record['date'])->format('Y-m-d') : '';
         $this->businessUnitName = $record['station_name'] ?? null;
         $this->acknowledged = filled($record['acknowledged_by_name']);
 

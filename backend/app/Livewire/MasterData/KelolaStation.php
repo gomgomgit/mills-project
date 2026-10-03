@@ -4,6 +4,7 @@ namespace App\Livewire\MasterData;
 
 use App\Enums\StationType;
 use App\Exceptions\StationHasMachineryException;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Services\StationService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -210,7 +211,7 @@ class KelolaStation extends Component
             }
 
             if (! $validator->errors()->has('production_line_id') && ! $validator->errors()->has('business_unit_id')) {
-                $productionLine = \App\Models\ProductionLine::find($payload['production_line_id']);
+                $productionLine = ProductionLine::find($payload['production_line_id']);
 
                 if ($productionLine !== null && $productionLine->business_unit_id !== $payload['business_unit_id']) {
                     $validator->errors()->add(

@@ -159,7 +159,7 @@ it('shows detail-specific error when no valid Cages Tipped Time row exists on sa
 
 // Scenario: "Business Unit Tanpa Station Cages Track Aktif"
 it('shows an error when the selected Production Line has no active cages-track station', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
+    $otherProductionLine = ProductionLine::factory()->forBusinessUnit($this->businessUnit)->create();
     $component = Livewire::actingAs($this->supervisor)->test(FormCagesTrack::class);
 
     fillFormCagesTrack($component, ['form.production_line_id' => $otherProductionLine->id]);

@@ -34,7 +34,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->authService = new AuthService();
+    $this->authService = new AuthService;
     $this->businessUnit = BusinessUnit::factory()->create();
 });
 

@@ -133,9 +133,8 @@ class CorporateService
      * screen_tech_spec: "never accepted as user input").
      *
      * @param  array<string, mixed>  $data  raw create() payload — any
-     *                                       'created_by'/'updated_by' keys
-     *                                       are ignored (see above)
-     * @param  \Illuminate\Http\UploadedFile|null  $logo
+     *                                      'created_by'/'updated_by' keys
+     *                                      are ignored (see above)
      *
      * @throws ValidationException
      */
@@ -164,7 +163,6 @@ class CorporateService
      * existing `logo` column untouched.
      *
      * @param  array<string, mixed>  $data
-     * @param  \Illuminate\Http\UploadedFile|null  $logo
      *
      * @throws ModelNotFoundException
      * @throws ValidationException
@@ -203,7 +201,7 @@ class CorporateService
         $corporate = Corporate::findOrFail($id);
 
         if ($corporate->companies()->count() > 0) {
-            throw new CorporateHasCompaniesException();
+            throw new CorporateHasCompaniesException;
         }
 
         $corporate->delete();

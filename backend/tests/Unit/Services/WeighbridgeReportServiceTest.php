@@ -114,7 +114,6 @@ use App\Models\User;
 use App\Models\WeighbridgeRecord;
 use App\Services\WeighbridgeReportService;
 use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;

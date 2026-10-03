@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\RecordStatus;
 use App\Enums\UserRole;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
@@ -10,6 +11,7 @@ use App\Models\ThreshingDetail;
 use App\Models\ThreshingRecord;
 use App\Models\User;
 use App\Support\Concerns\EnforcesPeriodLock;
+use App\Support\Concerns\NormalizesTimeSlot;
 use App\Support\Concerns\ScopesToActorMill;
 use App\Support\Pagination;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,7 +20,6 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Throwable;
-use App\Support\Concerns\NormalizesTimeSlot;
 
 /**
  * ThreshingRecordService — screen-049--data-browser-threshing-web /
@@ -60,7 +61,7 @@ use App\Support\Concerns\NormalizesTimeSlot;
  */
 class ThreshingRecordService
 {
-    use EnforcesPeriodLock, ScopesToActorMill, NormalizesTimeSlot;
+    use EnforcesPeriodLock, NormalizesTimeSlot, ScopesToActorMill;
 
     public const EXPORT_ROW_LIMIT = 50000;
 
@@ -104,7 +105,7 @@ class ThreshingRecordService
         );
 
         if ($station === null) {
-            throw new NoActiveThreshingStationException();
+            throw new NoActiveThreshingStationException;
         }
 
         // KUNCI PERIODE (usecase-141) — sebelum satu baris pun ditulis, supaya
@@ -132,7 +133,7 @@ class ThreshingRecordService
             // guard-satisfying placeholder pattern
             // CagesTrackRecordService::create() uses), insert the details,
             // THEN flip status to saved.
-            $attributes['status'] = \App\Enums\RecordStatus::Synced;
+            $attributes['status'] = RecordStatus::Synced;
             $record = ThreshingRecord::create($attributes);
             $this->upsertDetails($record, $details);
             $record->update(['status' => 'saved']);
@@ -353,7 +354,6 @@ class ThreshingRecordService
             }
         }
 
-
     }
 
     /**
@@ -425,7 +425,7 @@ class ThreshingRecordService
         $recordsWithoutDetails = (clone $baseQuery)->doesntHave('threshingDetails')->count();
 
         if ($detailRowCount + $recordsWithoutDetails > self::EXPORT_ROW_LIMIT) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
 
         try {
@@ -508,7 +508,7 @@ class ThreshingRecordService
         } catch (ExportFailedException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw new ExportFailedException();
+            throw new ExportFailedException;
         }
     }
 
@@ -558,7 +558,7 @@ class ThreshingRecordService
         $productionLineId = $filters['production_line_id'] ?? null;
 
         if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
-            throw new InvalidDateRangeException();
+            throw new InvalidDateRangeException;
         }
 
         $query = ThreshingRecord::query();

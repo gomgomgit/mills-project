@@ -33,6 +33,7 @@ use App\Enums\UserRole;
 use App\Models\BusinessUnit;
 use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
 
@@ -85,7 +86,7 @@ it('berhasil: loads station options then creates a machinery group, returns 201 
 // request body is silently ignored on create(); the real one is always
 // derived from the selected Station.
 it('mengabaikan production_line_id yang dikirim manual: selalu diturunkan dari Station (create)', function () {
-    $otherProductionLine = \App\Models\ProductionLine::factory()->create();
+    $otherProductionLine = ProductionLine::factory()->create();
 
     $response = $this->actingAs($this->admin, 'web')->postJson('/api/machinery-groups', [
         'station_id' => $this->station->id,
@@ -108,7 +109,7 @@ it('mengabaikan production_line_id yang dikirim manual: selalu diturunkan dari S
     $otherStation = Station::factory()->forBusinessUnit(BusinessUnit::factory()->create())->create(['name' => 'Weighbridge Tujuan']);
     $machineryGroup = MachineryGroup::factory()->forStation($this->station)->create();
 
-    $spoofedProductionLine = \App\Models\ProductionLine::factory()->create();
+    $spoofedProductionLine = ProductionLine::factory()->create();
 
     $response = $this->actingAs($this->admin, 'web')->patchJson("/api/machinery-groups/{$machineryGroup->id}", [
         'station_id' => $otherStation->id,
@@ -404,7 +405,7 @@ it('filters the list by station_id when the query param is provided', function (
 // sehingga has_search_match_in_machinery selalu false lewat HTTP.
 it('flags has_search_match_in_machinery when ?search matches a machine inside the group', function () {
     $group = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-S1')->create();
-    \App\Models\Machinery::factory()->forFullMachineryGroup($group)->create(['name' => 'Screw Press Utama']);
+    Machinery::factory()->forFullMachineryGroup($group)->create(['name' => 'Screw Press Utama']);
 
     $response = $this->actingAs($this->admin, 'web')->getJson('/api/machinery-groups?search=press');
 

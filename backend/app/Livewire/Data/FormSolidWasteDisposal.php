@@ -7,6 +7,7 @@ use App\Services\SolidWasteDisposalRecordService;
 use App\Support\Concerns\ScopesToActorMill;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -102,7 +103,7 @@ class FormSolidWasteDisposal extends Component
 
         $this->form['solid_waste_disposal_id'] = $record['solid_waste_disposal_id'] ?? '';
         $this->form['note'] = $record['note'] ?? '';
-        $this->form['date'] = $record['date'] ? \Illuminate\Support\Carbon::parse($record['date'])->format('Y-m-d') : '';
+        $this->form['date'] = $record['date'] ? Carbon::parse($record['date'])->format('Y-m-d') : '';
 
         $this->stationName = $record['station_name'] ?? null;
         $this->checked = filled($record['checked_by_name']);

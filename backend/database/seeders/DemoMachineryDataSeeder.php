@@ -3,7 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\BusinessUnit;
+use App\Models\Machinery;
 use App\Models\MachineryGroup;
+use App\Models\MachineryInsurance;
+use App\Models\MachineryTaxPurchase;
 use App\Models\Station;
 use Illuminate\Database\Seeder;
 
@@ -77,7 +80,7 @@ class DemoMachineryDataSeeder extends Seeder
                         // pattern as CagesTippedTime in
                         // DemoOperationalDataSeeder) — manually replicating
                         // what forFullMachineryGroup() derives.
-                        $machinery = \App\Models\Machinery::create([
+                        $machinery = Machinery::create([
                             'machinery_group_id' => $group->id,
                             'station_id' => $group->station_id,
                             'production_line_id' => $group->production_line_id,
@@ -85,7 +88,7 @@ class DemoMachineryDataSeeder extends Seeder
                             'equipment_code' => 'EQ-'.str_pad((string) $machineryCounter, 8, '0', STR_PAD_LEFT),
                         ]);
 
-                        \App\Models\MachineryInsurance::factory()
+                        MachineryInsurance::factory()
                             ->forMachinery($machinery)
                             ->create([
                                 'insurance_expiry_date' => fake()->boolean(50)
@@ -93,7 +96,7 @@ class DemoMachineryDataSeeder extends Seeder
                                     : fake()->dateTimeBetween('+1 day', '+2 years')->format('Y-m-d'),
                             ]);
 
-                        \App\Models\MachineryTaxPurchase::factory()
+                        MachineryTaxPurchase::factory()
                             ->forMachinery($machinery)
                             ->create();
                     }

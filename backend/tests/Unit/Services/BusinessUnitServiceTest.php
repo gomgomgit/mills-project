@@ -50,7 +50,7 @@ use Tests\TestCase;
 uses(TestCase::class, RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->service = new BusinessUnitService();
+    $this->service = new BusinessUnitService;
 });
 
 // create with a non-existent company_id -> 422 validation error.

@@ -20,9 +20,9 @@ use App\Exceptions\CrossMillWriteDeniedException;
 use App\Exceptions\ExportFailedException;
 use App\Exceptions\InvalidDateRangeException;
 use App\Exceptions\NoActiveClarificationStationException;
+use App\Models\BusinessUnit;
 use App\Models\ClarificationDetail;
 use App\Models\ClarificationRecord;
-use App\Models\BusinessUnit;
 use App\Models\ProductionLine;
 use App\Models\Station;
 use App\Models\User;
@@ -48,7 +48,7 @@ function clarificationFormPayload(array $overrides = []): array
 }
 
 beforeEach(function () {
-    $this->service = new ClarificationRecordService();
+    $this->service = new ClarificationRecordService;
     $this->businessUnit = BusinessUnit::factory()->create();
     $this->station = Station::factory()->forBusinessUnit($this->businessUnit)->create();
     $this->clarificationStation = Station::factory()->forBusinessUnit($this->businessUnit)->clarification()->create();

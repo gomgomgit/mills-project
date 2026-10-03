@@ -17,7 +17,7 @@ class BusinessUnitFactory extends Factory
     {
         return [
             'company_id' => Company::factory(),
-            'name' => $this->faker->unique()->city() . ' Mill',
+            'name' => $this->faker->unique()->city().' Mill',
             'code' => strtoupper($this->faker->unique()->lexify('BU-????')),
         ];
     }

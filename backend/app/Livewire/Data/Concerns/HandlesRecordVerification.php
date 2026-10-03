@@ -4,6 +4,7 @@ namespace App\Livewire\Data\Concerns;
 
 use App\Services\RecordVerificationService;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\UnauthorizedException;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -26,7 +27,7 @@ trait HandlesRecordVerification
 {
     public ?string $verificationMessage = null;
 
-    /** @return class-string<\Illuminate\Database\Eloquent\Model> */
+    /** @return class-string<Model> */
     abstract protected function verificationModelClass(): string;
 
     /** Re-reads $this->record through the screen's own service after a write. */

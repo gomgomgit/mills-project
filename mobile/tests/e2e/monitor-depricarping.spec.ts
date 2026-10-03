@@ -106,7 +106,7 @@ test.describe('Monitor Depricarping (screen-039)', () => {
 
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/depricarping\/form\/[^/]+$/)
-    await expect(page).not.toHaveURL('**/stations/depricarping/form/e2e-depricarping-existing')
+    await expect(page).not.toHaveURL(/\/stations\/depricarping\/form\/e2e-depricarping-existing$/)
 
     // REVISED 2026-08-24 (entity-catalog v12): rows are no longer
     // pre-created — a fresh draft starts with zero detail rows.

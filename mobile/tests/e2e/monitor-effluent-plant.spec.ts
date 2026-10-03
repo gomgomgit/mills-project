@@ -103,7 +103,7 @@ test.describe('Monitor Effluent Plant (screen-065)', () => {
 
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/effluent-plant\/form\/[^/]+$/)
-    await expect(page).not.toHaveURL('**/stations/effluent-plant/form/e2e-effluent-plant-existing')
+    await expect(page).not.toHaveURL(/\/stations\/effluent-plant\/form\/e2e-effluent-plant-existing$/)
 
     // Rows are not pre-created — a fresh draft starts with zero detail rows.
     await expect(page.getByTestId('effluent-plant-detail-row')).toHaveCount(0)

@@ -112,7 +112,7 @@ test.describe('Monitor Weighbridge (screen-007)', () => {
 
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/weighbridge\/form\/[^/]+$/)
-    await expect(page).not.toHaveURL('**/stations/weighbridge/form/e2e-wb-existing')
+    await expect(page).not.toHaveURL(/\/stations\/weighbridge\/form\/e2e-wb-existing$/)
   })
 
   // Scenario 2: "Lanjutkan Draft/Pause"

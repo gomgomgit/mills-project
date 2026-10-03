@@ -94,6 +94,6 @@ test.describe('Data Preview Threshing (screen-045)', () => {
     await page.goto(`/stations/threshing/preview/e2e-threshing-preview-back`)
     await page.getByTestId('back-button').click()
 
-    await expect(page).toHaveURL('**/stations/threshing/preview')
+    await expect(page).toHaveURL(/\/stations\/threshing\/preview$/)
   })
 })

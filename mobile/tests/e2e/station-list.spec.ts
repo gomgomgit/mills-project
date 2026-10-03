@@ -18,12 +18,28 @@ import { login, getAuthUserId, getBusinessUnitId } from './helpers'
 // launcher — the old "Daftar Stasiun" button no longer exists; the
 // functional menu card is now labelled "Production Process Activity"
 // (data-testid="menu-card-production-process-activity", see HomeView.vue).
+//
+// Production Line picker (2026-08-20, entity-catalog v9): a mill with more
+// than one Production Line shows a picker BEFORE the station grid (the
+// seeded demo mill has three: Line 1/2/3, each with all 18 stations). The
+// choice is remembered per user in localStorage
+// (`msl_production_line_<userId>`), so a reload goes straight back to the
+// grid. beforeEach picks the first line when the picker shows, same as
+// reporting-pilih-stasiun.spec.ts.
 test.describe('Station List (screen-006)', () => {
   test.beforeEach(async ({ page }) => {
     await login(page)
 
     await page.getByTestId('menu-card-production-process-activity').click()
     await page.waitForURL('**/stations')
+
+    const picker = page.getByTestId('production-line-picker')
+    const firstTile = page.locator('[data-testid^="station-tile-"]').first()
+    await expect(picker.or(firstTile).first()).toBeVisible({ timeout: 15_000 })
+    if (await picker.isVisible()) {
+      await page.locator('[data-testid^="production-line-option-"]').first().click()
+    }
+    await expect(page.getByText('Weighbridge', { exact: true })).toBeVisible({ timeout: 15_000 })
   })
 
   test('Pilih Stasiun — success', async ({ page }) => {
@@ -31,8 +47,33 @@ test.describe('Station List (screen-006)', () => {
     await page.waitForURL('**/stations/weighbridge/monitor')
   })
 
+  // All 18 canonical stations are active since 2026-09-01 (Sterilizer was
+  // the last placeholder), so the seeded mill has no disabled tile left.
+  // A placeholder (is_active = 0) row is seeded locally for the selected
+  // Production Line to keep business_logic step 4 covered. The station sync
+  // on reload only upserts the backend's own rows, so this one survives.
   test('Pilih Stasiun — Tap Stasiun Disabled', async ({ page }) => {
-    await page.getByText('Sterilizer', { exact: true }).click()
+    const userId = await getAuthUserId(page)
+    const businessUnitId = await getBusinessUnitId(page)
+    await page.evaluate(
+      async ({ uid, buId }) => {
+        const lineId = localStorage.getItem(`msl_production_line_${uid}`)
+        const db = (window as unknown as { __mslTestDb: { run: (sql: string, params?: unknown[]) => Promise<unknown> } })
+          .__mslTestDb
+        const now = new Date().toISOString()
+        await db.run(
+          `INSERT OR REPLACE INTO station (id, business_unit_id, production_line_id, name, type, is_active, created_at, updated_at)
+           VALUES ('e2e-station-placeholder', ?, ?, 'Stasiun Cadangan 01', 'other', 0, ?, ?)`,
+          [buId, lineId, now, now],
+        )
+      },
+      { uid: userId, buId: businessUnitId },
+    )
+
+    await page.reload()
+    await page.waitForURL('**/stations')
+
+    await page.getByText('Stasiun Cadangan 01', { exact: true }).click()
 
     await expect(page.getByTestId('station-info-message')).toContainText('belum tersedia')
     await expect(page).toHaveURL(/\/stations$/)
@@ -124,6 +165,12 @@ test.describe('Station List (screen-006)', () => {
         .__mslTestDb
       await db.run(`UPDATE station SET icon = 'truck' WHERE business_unit_id = ? AND type = 'weighbridge'`, [buId])
     }, businessUnitId)
+
+    // On load the screen re-syncs the selected line's stations from the
+    // backend and upserts `icon` too, which would overwrite the local
+    // override with the seeded mill's NULL. Fail that one request so the
+    // grid renders from the local cache (the offline path).
+    await page.route('**/api/production-lines/current/stations**', (route) => route.abort())
 
     await page.reload()
     await page.waitForURL('**/stations')

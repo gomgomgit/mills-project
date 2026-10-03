@@ -106,7 +106,7 @@ test.describe('Monitor Kernel Plant (screen-040)', () => {
 
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/kernel-plant\/form\/[^/]+$/)
-    await expect(page).not.toHaveURL('**/stations/kernel-plant/form/e2e-kernel-plant-existing')
+    await expect(page).not.toHaveURL(/\/stations\/kernel-plant\/form\/e2e-kernel-plant-existing$/)
 
     // REVISED 2026-08-24 (entity-catalog v12): rows are no longer
     // pre-created — a fresh draft starts with zero detail rows.

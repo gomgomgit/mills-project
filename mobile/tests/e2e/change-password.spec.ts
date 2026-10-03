@@ -70,7 +70,12 @@ test.describe('Ganti Password Mobile (screen-004)', () => {
     await page.locator('#new_password').fill('abc') // too short, no symbol
     await page.locator('#new_password').blur()
 
-    await expect(page.locator('.field-error')).toContainText('Password baru minimal 6 karakter')
+    // validate() runs over the whole form on every blur, so the still-empty
+    // confirmation field also gets its own "wajib diisi" .field-error here —
+    // scope the assertion to the new-password message.
+    await expect(
+      page.locator('.field-error', { hasText: 'Password baru minimal 6 karakter' }),
+    ).toBeVisible()
 
     await page.getByRole('button', { name: 'Simpan' }).click()
     // Blocked client-side — no success/error banner from a network round-trip.
@@ -98,6 +103,10 @@ test.describe('Ganti Password Mobile (screen-004)', () => {
 
     // Go offline only after the page/form has loaded — an SPA served by
     // Vite has nothing to render from if navigation itself has no network.
+    // goto() resolves on the `load` event, but bootstrap() (main.ts) and the
+    // router's lazy ChangePasswordView chunk are fetched AFTER it — wait for
+    // the form itself to render before cutting the network.
+    await expect(page.locator('#old_password')).toBeVisible()
     await context.setOffline(true)
 
     await page.locator('#old_password').fill(USERS.supervisor.password)

@@ -95,6 +95,6 @@ test.describe('Data Preview Depricarping (screen-047)', () => {
     await page.goto(`/stations/depricarping/preview/e2e-depricarping-preview-back`)
     await page.getByTestId('back-button').click()
 
-    await expect(page).toHaveURL('**/stations/depricarping/preview')
+    await expect(page).toHaveURL(/\/stations\/depricarping\/preview$/)
   })
 })

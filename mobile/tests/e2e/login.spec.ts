@@ -80,6 +80,11 @@ test.describe('Login Mobile (screen-002)', () => {
     // THEN go offline — an SPA served by Vite has nothing to render from if
     // the very first navigation itself has no network to fetch from.
     await page.goto('/login')
+    // goto() resolves on the `load` event, but main.ts's bootstrap() still
+    // fetches sql-wasm.wasm (jeep-sqlite) and the lazy LoginView chunk after
+    // it, and only mounts the app once those resolve — wait for the form to
+    // actually render before cutting the network.
+    await expect(page.locator('#username')).toBeVisible()
     await context.setOffline(true)
 
     await page.locator('#username').fill(USERS.operator.username)

@@ -110,7 +110,16 @@ test.describe('Form Depricarping (screen-043)', () => {
   })
 
   test('Input Data Depricarping — Tabel Target Operasional Read-Only (4 kolom, 6 baris)', async ({ page }) => {
+    // "Target Operasional" lives in a CollapsibleSection, collapsed by
+    // default (2026-08-25 — keeps the Simpan/Pause/Clear footer close; see
+    // CollapsibleSection.vue). It renders via v-show, so the table exists
+    // but stays hidden until the header is tapped.
     const table = page.getByTestId('operational-target-table')
+    await expect(table).toBeHidden()
+    const toggle = page.getByRole('button', { name: 'Target Operasional' })
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    await toggle.click()
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
     await expect(table).toBeVisible()
     await expect(table.locator('tbody tr')).toHaveCount(6)
     await expect(table.locator('thead th')).toHaveCount(4)

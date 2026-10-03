@@ -14,8 +14,8 @@ import { login, getAuthUserId } from './helpers'
 // adapted for this screen's `cages_tipped_time` child-row detail grid
 // (parsed via hourLabel()/checkedCagesDisplay() rather than resolved
 // Quality Parameter names) and its DETAIL mode's Checked By / Acknowledged
-// By fields (rendered here, unlike Data Preview Grading, which renders
-// neither). The previous version of this file (a single "success" +
+// By verification status (both rendered here; Data Preview Grading renders
+// Acknowledged By only). The previous version of this file (a single "success" +
 // "Record Tidak Ditemukan" test targeting the old single-record-only
 // read-only view shape, driven entirely through the real Form Cages Track
 // UI) is known-broken against the new schema/UI — this is fully replaced
@@ -53,7 +53,9 @@ async function seedCagesTrackRecord(
     cagesTipped?: number | null
     note?: string | null
     checkedBy?: string | null
+    checkedByName?: string | null
     acknowledgedBy?: string | null
+    acknowledgedByName?: string | null
     updatedAt?: string
   },
 ): Promise<void> {
@@ -70,7 +72,9 @@ async function seedCagesTrackRecord(
       cagesTipped,
       note,
       checkedBy,
+      checkedByName,
       acknowledgedBy,
+      acknowledgedByName,
       updatedAt,
     }) => {
       const db = (window as unknown as { __mslTestDb: { run: (sql: string, params?: unknown[]) => Promise<unknown> } })
@@ -79,8 +83,9 @@ async function seedCagesTrackRecord(
       await db.run(
         `INSERT OR REPLACE INTO cages_track_record
            (id, status, cages_track_number, date, tippler_start_time, tippler_stop_time,
-            cages_out, cages_tipped, note, checked_by, acknowledged_by, created_by, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            cages_out, cages_tipped, note, checked_by, checked_by_name, acknowledged_by,
+            acknowledged_by_name, created_by, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
           status ?? 'saved',
@@ -92,7 +97,9 @@ async function seedCagesTrackRecord(
           cagesTipped ?? null,
           note ?? null,
           checkedBy ?? null,
+          checkedByName ?? null,
           acknowledgedBy ?? null,
+          acknowledgedByName ?? null,
           userId,
           now,
           now,
@@ -111,7 +118,9 @@ async function seedCagesTrackRecord(
       cagesTipped: overrides.cagesTipped,
       note: overrides.note,
       checkedBy: overrides.checkedBy,
+      checkedByName: overrides.checkedByName,
       acknowledgedBy: overrides.acknowledgedBy,
+      acknowledgedByName: overrides.acknowledgedByName,
       updatedAt: overrides.updatedAt,
     },
   )
@@ -191,8 +200,12 @@ test.describe('Data Preview Cages Track (screen-015)', () => {
       cagesOut: 20,
       cagesTipped: 18,
       note: 'Catatan e2e',
-      checkedBy: 'Supervisor Satu',
-      acknowledgedBy: 'Mill Management Satu',
+      // checked_by / acknowledged_by hold user ids; the display name comes
+      // from the *_by_name columns (RecordVerificationStatus.vue).
+      checkedBy: 'e2e-supervisor-id',
+      checkedByName: 'Supervisor Satu',
+      acknowledgedBy: 'e2e-mill-management-id',
+      acknowledgedByName: 'Mill Management Satu',
     })
     await seedCagesTrackRecord(page, userId, {
       id: 'e2e-cages-track-other',
@@ -247,8 +260,10 @@ test.describe('Data Preview Cages Track (screen-015)', () => {
     await expect(page.getByLabel('No. Cages Track')).toBeDisabled()
     await expect(page.getByLabel('Cages Out')).toHaveValue('20')
     await expect(page.getByLabel('Cages Tipped')).toHaveValue('18')
-    await expect(page.getByLabel('Checked By')).toHaveValue('Supervisor Satu')
-    await expect(page.getByLabel('Acknowledged By')).toHaveValue('Mill Management Satu')
+    // Verification is a read-only status (RecordVerificationStatus.vue,
+    // 2026-09-14), not a disabled input holding the raw user id.
+    await expect(page.getByTestId('verify-status-checked-by')).toContainText('Oleh Supervisor Satu')
+    await expect(page.getByTestId('verify-status-acknowledged-by')).toContainText('Oleh Mill Management Satu')
     await expect(page.getByLabel('Catatan')).toHaveValue('Catatan e2e')
 
     const tippedRows = page.getByTestId('tipped-time-rows-list')
@@ -268,7 +283,7 @@ test.describe('Data Preview Cages Track (screen-015)', () => {
     // state preserved.
     await page.getByRole('button', { name: 'Back' }).click()
     await page.waitForURL('**/stations/cages-track/preview')
-    await expect(page).not.toHaveURL('**/stations/cages-track/monitor')
+    await expect(page).not.toHaveURL(/\/stations\/cages-track\/monitor$/)
     await expect(page.getByTestId('record-item-e2e-cages-track-target')).toBeVisible()
 
     // Back again -> Monitor Cages Track.
@@ -430,7 +445,7 @@ test.describe('Data Preview Cages Track (screen-015)', () => {
     await page.getByRole('button', { name: 'Back' }).click()
 
     await page.waitForURL('**/stations/cages-track/preview')
-    await expect(page).not.toHaveURL('**/stations/cages-track/monitor')
+    await expect(page).not.toHaveURL(/\/stations\/cages-track\/monitor$/)
     await expect(page.getByTestId('record-item-e2e-cages-track-back')).toBeVisible()
 
     const markerSurvived = await page.evaluate(

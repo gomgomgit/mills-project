@@ -318,7 +318,7 @@ test.describe('Data Preview Weighbridge (screen-013)', () => {
     await page.getByRole('button', { name: 'Back' }).click()
 
     await page.waitForURL('**/stations/weighbridge/preview')
-    await expect(page).not.toHaveURL('**/stations/weighbridge/monitor')
+    await expect(page).not.toHaveURL(/\/stations\/weighbridge\/monitor$/)
     await expect(page.getByTestId('record-item-e2e-wb-back')).toBeVisible()
   })
 

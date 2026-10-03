@@ -95,6 +95,6 @@ test.describe('Data Preview Kernel Plant (screen-048)', () => {
     await page.goto(`/stations/kernel-plant/preview/e2e-kernel-plant-preview-back`)
     await page.getByTestId('back-button').click()
 
-    await expect(page).toHaveURL('**/stations/kernel-plant/preview')
+    await expect(page).toHaveURL(/\/stations\/kernel-plant\/preview$/)
   })
 })

@@ -238,9 +238,15 @@ test.describe('Data Preview Grading (screen-014)', () => {
     await expect(detailRows).toContainText('Brondolan Segar')
     await expect(detailRows).toContainText('Masak')
 
-    // 'Checked By' / 'Acknowledged By' are never rendered on this screen.
+    // Verification status (RecordVerificationStatus.vue, 2026-09-14):
+    // Grading is acknowledged by Mill Management only — it never collects
+    // Checked By (GradingRecordService::applyVerification()), so only the
+    // Acknowledged By status renders, pending for this unverified record.
     await expect(page.getByText('Checked By', { exact: false })).toHaveCount(0)
-    await expect(page.getByText('Acknowledged By', { exact: false })).toHaveCount(0)
+    await expect(page.getByTestId('verify-status-checked-by')).toHaveCount(0)
+    await expect(page.getByTestId('verify-status-acknowledged-by')).toContainText(
+      'Belum dikonfirmasi Mill Management',
+    )
   })
 
   // Scenario: "Tap Item Draft/Pause" — tap a draft/pause item -> navigates
@@ -397,7 +403,7 @@ test.describe('Data Preview Grading (screen-014)', () => {
     await page.getByRole('button', { name: 'Back' }).click()
 
     await page.waitForURL('**/stations/grading/preview')
-    await expect(page).not.toHaveURL('**/stations/grading/monitor')
+    await expect(page).not.toHaveURL(/\/stations\/grading\/monitor$/)
     await expect(page.getByTestId('record-item-e2e-grading-back')).toBeVisible()
 
     const markerSurvived = await page.evaluate(

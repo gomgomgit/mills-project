@@ -94,6 +94,6 @@ test.describe('Data Preview Pressing (screen-046)', () => {
     await page.goto(`/stations/pressing/preview/e2e-pressing-preview-back`)
     await page.getByTestId('back-button').click()
 
-    await expect(page).toHaveURL('**/stations/pressing/preview')
+    await expect(page).toHaveURL(/\/stations\/pressing\/preview$/)
   })
 })

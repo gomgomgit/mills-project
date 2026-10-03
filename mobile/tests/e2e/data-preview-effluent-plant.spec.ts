@@ -94,6 +94,6 @@ test.describe('Data Preview Effluent Plant (screen-085)', () => {
     await page.goto(`/stations/effluent-plant/preview/e2e-effluent-plant-preview-back`)
     await page.getByTestId('back-button').click()
 
-    await expect(page).toHaveURL('**/stations/effluent-plant/preview')
+    await expect(page).toHaveURL(/\/stations\/effluent-plant\/preview$/)
   })
 })

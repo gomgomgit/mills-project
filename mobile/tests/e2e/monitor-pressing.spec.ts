@@ -106,7 +106,7 @@ test.describe('Monitor Pressing (screen-038)', () => {
 
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/pressing\/form\/[^/]+$/)
-    await expect(page).not.toHaveURL('**/stations/pressing/form/e2e-pressing-existing')
+    await expect(page).not.toHaveURL(/\/stations\/pressing\/form\/e2e-pressing-existing$/)
 
     // REVISED 2026-08-24 (entity-catalog v12): rows are no longer
     // pre-created — a fresh draft starts with zero detail rows.

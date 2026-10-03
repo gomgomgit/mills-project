@@ -111,7 +111,7 @@ test.describe('Monitor Grading (screen-008)', () => {
 
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/grading\/form\/[^/]+$/)
-    await expect(page).not.toHaveURL('**/stations/grading/form/e2e-grading-existing')
+    await expect(page).not.toHaveURL(/\/stations\/grading\/form\/e2e-grading-existing$/)
   })
 
   // Scenario 2: "Lanjutkan Draft/Pause"

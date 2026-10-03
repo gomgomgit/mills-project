@@ -130,7 +130,7 @@ test.describe('Monitor Cages Track (screen-009)', () => {
 
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/cages-track\/form\/[^/]+$/)
-    await expect(page).not.toHaveURL('**/stations/cages-track/form/e2e-cages-track-existing')
+    await expect(page).not.toHaveURL(/\/stations\/cages-track\/form\/e2e-cages-track-existing$/)
   })
 
   // Scenario 2: "Lanjutkan Draft/Pause"

@@ -94,6 +94,6 @@ test.describe('Data Preview Process Water (screen-082)', () => {
     await page.goto(`/stations/process-water/preview/e2e-process-water-preview-back`)
     await page.getByTestId('back-button').click()
 
-    await expect(page).toHaveURL('**/stations/process-water/preview')
+    await expect(page).toHaveURL(/\/stations\/process-water\/preview$/)
   })
 })

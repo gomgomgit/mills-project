@@ -106,7 +106,7 @@ test.describe('Monitor Threshing (screen-037)', () => {
 
     await page.getByTestId('new-data-button').click()
     await page.waitForURL(/\/stations\/threshing\/form\/[^/]+$/)
-    await expect(page).not.toHaveURL('**/stations/threshing/form/e2e-threshing-existing')
+    await expect(page).not.toHaveURL(/\/stations\/threshing\/form\/e2e-threshing-existing$/)
 
     // REVISED 2026-08-24 (entity-catalog v12): rows are no longer
     // pre-created — a fresh draft starts with zero detail rows.

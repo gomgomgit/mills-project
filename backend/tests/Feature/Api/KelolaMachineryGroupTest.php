@@ -400,6 +400,19 @@ it('filters the list by station_id when the query param is provided', function (
     $response->assertJsonMissing(['group_code' => 'MG-API-B1']);
 });
 
+// ?search diteruskan ke service sejak 2026-10-03 — sebelumnya diabaikan
+// sehingga has_search_match_in_machinery selalu false lewat HTTP.
+it('flags has_search_match_in_machinery when ?search matches a machine inside the group', function () {
+    $group = MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-S1')->create();
+    \App\Models\Machinery::factory()->forFullMachineryGroup($group)->create(['name' => 'Screw Press Utama']);
+
+    $response = $this->actingAs($this->admin, 'web')->getJson('/api/machinery-groups?search=press');
+
+    $response->assertOk();
+    $response->assertJsonPath('data.0.group_code', 'MG-API-S1');
+    $response->assertJsonPath('data.0.has_search_match_in_machinery', true);
+});
+
 // List pagination — page/per_page query params respected.
 it('paginates the machinery group list by page and per_page query params', function () {
     MachineryGroup::factory()->forStation($this->station)->withGroupCode('MG-API-PA')->create();

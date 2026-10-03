@@ -227,6 +227,39 @@ it('filters the list by machinery_group_id', function () {
     $response->assertJsonCount(1, 'data');
 });
 
+// Query param `ungrouped` dan `search` (penggabungan Kelola Mesin). Sebelum
+// 2026-10-03 controller hanya meneruskan machinery_group_id: ?ungrouped=true
+// diam-diam mengembalikan SEMUA mesin dan ?search= diabaikan — suite tetap
+// hijau karena tidak ada test HTTP untuk keduanya.
+it('returns only ungrouped machinery for ?ungrouped=true', function () {
+    Machinery::factory()->forFullMachineryGroup($this->group)->create();
+    Machinery::factory()->create(['machinery_group_id' => null, 'name' => 'Mesin Tanpa Grup']);
+
+    $response = $this->actingAs($this->admin, 'web')->getJson('/api/machinery?ungrouped=true');
+
+    $response->assertOk();
+    $response->assertJsonCount(1, 'data');
+    $response->assertJsonPath('data.0.name', 'Mesin Tanpa Grup');
+});
+
+it('returns 422 when machinery_group_id and ungrouped are sent together', function () {
+    $response = $this->actingAs($this->admin, 'web')
+        ->getJson("/api/machinery?machinery_group_id={$this->group->id}&ungrouped=true");
+
+    $response->assertStatus(422);
+});
+
+it('filters the list by ?search on name and equipment_code', function () {
+    Machinery::factory()->forFullMachineryGroup($this->group)->create(['equipment_code' => 'EQ-HTTP-1', 'name' => 'Screw Press Utama']);
+    Machinery::factory()->forFullMachineryGroup($this->group)->create(['equipment_code' => 'EQ-HTTP-2', 'name' => 'Boiler Feed']);
+
+    $response = $this->actingAs($this->admin, 'web')->getJson('/api/machinery?search=PRESS');
+
+    $response->assertOk();
+    $response->assertJsonCount(1, 'data');
+    $response->assertJsonPath('data.0.equipment_code', 'EQ-HTTP-1');
+});
+
 it('returns machinery-groups/options with id/group_code/station_id/production_line_id', function () {
     $response = $this->actingAs($this->admin, 'web')->getJson('/api/machinery-groups/options');
 

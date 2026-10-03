@@ -76,17 +76,27 @@ class MachineryController extends Controller
      * index() — GET /api/machinery. business_logic step "list": paginate,
      * optional machinery_group_id filter, eager-load machineryGroup (for
      * machinery_group_code), NO child arrays.
+     *
+     * `ungrouped` dan `search` diteruskan sejak 2026-10-03. Kontraknya ada
+     * sejak penggabungan Kelola Mesin (tech-spec v3/v4) dan service-nya sudah
+     * menerimanya, tetapi controller ini hanya meneruskan machinery_group_id
+     * — `?ungrouped=true` diam-diam mengembalikan SEMUA mesin dan penolakan
+     * 422 machinery_group_id+ungrouped tidak terjangkau lewat HTTP. Layar
+     * web tidak terdampak karena Livewire memanggil service langsung.
      */
     public function index(Request $request): JsonResponse
     {
         $page = max((int) $request->query('page', Pagination::DEFAULT_PAGE), 1);
         $perPage = Pagination::resolvePerPage($request);
         $machineryGroupId = $request->query('machinery_group_id');
+        $search = $request->query('search');
 
         $result = $this->service->listMachinery(
             $page,
             $perPage,
-            $machineryGroupId !== null ? (string) $machineryGroupId : null
+            $machineryGroupId !== null ? (string) $machineryGroupId : null,
+            $request->boolean('ungrouped'),
+            $search !== null ? (string) $search : null,
         );
 
         return response()->json($result);

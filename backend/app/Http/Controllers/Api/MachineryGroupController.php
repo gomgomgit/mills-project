@@ -51,17 +51,22 @@ class MachineryGroupController extends Controller
      * index() — GET /api/machinery-groups. business_logic step "list":
      * paginate, optional station_id filter, eager-load station +
      * productionLine + withCount('machinery').
+     *
+     * `search` diteruskan sejak 2026-10-03 — sebelumnya diabaikan sehingga
+     * has_search_match_in_machinery selalu false lewat HTTP.
      */
     public function index(Request $request): JsonResponse
     {
         $page = max((int) $request->query('page', Pagination::DEFAULT_PAGE), 1);
         $perPage = Pagination::resolvePerPage($request);
         $stationId = $request->query('station_id');
+        $search = $request->query('search');
 
         $result = $this->service->listMachineryGroups(
             $page,
             $perPage,
-            $stationId !== null ? (string) $stationId : null
+            $stationId !== null ? (string) $stationId : null,
+            $search !== null ? (string) $search : null,
         );
 
         return response()->json($result);

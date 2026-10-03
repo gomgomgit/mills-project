@@ -28,9 +28,10 @@
  *    cannot represent an "one row = one hour slot with an N-checkbox
  *    checklist" grid at all. The Cages Tipped Time grid is implemented
  *    inline in this file instead (same reasoning FormGradingView.vue gave
- *    for not reusing GradingDetailGrid.vue). CagesTippedTimeGrid.vue
- *    itself is left untouched/unused — out of this rewrite's exact scope
- *    — see known_issues.
+ *    for not reusing GradingDetailGrid.vue). CagesTippedTimeGrid.vue was
+ *    left unused here and DELETED on 2026-10-03: nothing imported it, and
+ *    its pre-v3 types made `vue-tsc --noEmit` (the first step of
+ *    `npm run build`) fail.
  *
  *  - "Identitas Cages Track" section: `cages_track_number` (required,
  *    freely editable), `date` (auto-set once, in memory, ONLY for a

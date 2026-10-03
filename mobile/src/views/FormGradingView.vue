@@ -93,8 +93,9 @@
  * component) is deliberately NOT reused here — its props/emit contract is
  * built around the pre-v2 `category` free-text shape and does not support
  * a per-row Quality Parameter dropdown + disabled UOM + computed
- * Percentage. It remains untouched and in use by DataPreviewGradingView.vue
- * (screen-014, out of scope for this rewrite) — see known_issues.
+ * Percentage. Nothing else used it either, and it was DELETED on 2026-10-03:
+ * its pre-v2 types made `vue-tsc --noEmit` (the first step of
+ * `npm run build`) fail.
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'

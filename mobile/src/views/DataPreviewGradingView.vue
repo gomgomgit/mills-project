@@ -610,10 +610,9 @@ function goToMonitorGrading(): void {
           pending-label="Belum dikonfirmasi Mill Management"
         />
 
-        <!-- business_logic step 2 — grading_detail rows, read-only. Not
-             GradingDetailGrid.vue (that component is edit-only and
-             screen-011-specific — see its header comment) — a simple
-             read-only list is enough for this screen's needs. Quality
+        <!-- business_logic step 2 — grading_detail rows, read-only. A
+             simple read-only list is enough for this screen's needs (the
+             old edit-only GradingDetailGrid.vue was deleted 2026-10-03). Quality
              Parameter name resolved via parameterName() (see this file's
              header comment / implementation_notes), not hardcoded. -->
         <section class="detail-section" aria-label="Grading Detail">

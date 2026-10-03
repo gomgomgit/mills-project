@@ -211,3 +211,24 @@ it('cakupan mill: verifikasi record mill sendiri lewat layar Detail tetap berhas
 
     expect($this->record->fresh()->checked_by)->toBe($this->supervisor->id);
 });
+
+// Kunci periode (usecase-141) pada jalur verifikasi, DILIHAT DARI LAYAR.
+// Penolakannya sendiri sudah diuji di tests/Feature/Api/RecordVerificationTest.php;
+// yang diuji di sini adalah bahwa layar Detail MENAMPILKANNYA. Sebelum
+// 2026-10-03 PeriodClosedException (HttpException 422) lolos dari catch di
+// HandlesRecordVerification, sehingga layar menerima respons 422 mentah dan
+// verificationMessage tetap null — datanya aman, pesannya hilang.
+it('kunci periode: verifikasi saat stasiun pada periode sudah ditutup muncul sebagai alert layar, dan kolomnya tidak berubah', function () {
+    \App\Models\PeriodStation::query()
+        ->where('station_type', $this->station->type instanceof \App\Enums\StationType ? $this->station->type->value : (string) $this->station->type)
+        ->whereHas('period', fn ($q) => $q->where('business_unit_id', $this->businessUnit->id))
+        ->update(['status' => \App\Enums\PeriodStatus::Closed->value]);
+
+    $component = Livewire::actingAs($this->supervisor)
+        ->test(DetailCagesTrack::class, ['id' => $this->record->id])
+        ->call('toggleChecked')
+        ->assertStatus(200);
+
+    expect($component->get('verificationMessage'))->toContain('sudah ditutup');
+    expect($this->record->fresh()->checked_by)->toBeNull();
+});

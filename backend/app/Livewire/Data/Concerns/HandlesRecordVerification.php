@@ -6,6 +6,7 @@ use App\Services\RecordVerificationService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Validation\UnauthorizedException;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * HandlesRecordVerification — the approve/un-approve action shared by all
@@ -90,7 +91,7 @@ trait HandlesRecordVerification
             $this->verificationMessage = 'Anda tidak berhak melakukan verifikasi ini.';
 
             return;
-        } catch (AuthorizationException|ValidationException $e) {
+        } catch (AuthorizationException|ValidationException|HttpException $e) {
             // Sejak 2026-09-28 setVerification() juga menegakkan CAKUPAN
             // MILL, bukan cuma peran: CrossMillWriteDeniedException (403,
             // record milik mill lain) dan ValidationException (422, aktor
@@ -98,6 +99,12 @@ trait HandlesRecordVerification
             // sini supaya penolakannya muncul sebagai alert di layar Detail
             // — pola yang sama dipakai ke-18 Form*::save() sejak tahap 1a —
             // bukan halaman 403 yang membuang konteks layar.
+            //
+            // Sejak 2026-10-03 juga HttpException: PeriodClosedException
+            // (422 PERIOD_CLOSED, usecase-141) adalah HttpException, bukan
+            // ValidationException, sehingga sebelumnya lolos dan layar Detail
+            // menerima respons 422 mentah tanpa alert. Penolakannya sudah
+            // benar (nol baris berubah) — yang hilang hanya pesannya.
             //
             // Pesannya diambil dari exception, bukan ditulis ulang di sini,
             // supaya wording penolakan cuma ada satu tempat.

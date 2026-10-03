@@ -26,3 +26,9 @@ Sinkronisasi catatan uji 4-implement dengan uji yang ditambahkan 2026-10-03.
 Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser = 11/0.
 - Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): assert blok status verifikasi (Acknowledged By saja) alih-alih ketiadaannya; cek negatif not.toHaveURL dengan glob '**/…' (digabung ke baseURL, tak pernah cocok) diganti RegExp.
+
+## v7 — 2026-10-03
+
+Pembersihan rujukan komponen grid yang dihapus.
+- known_issue dead-code GradingDetailGrid.vue dihapus: komponen dihapus di 004aacd. Klaim lama bahwa error vue-tsc-nya 'tidak mempengaruhi build' ternyata keliru — vue-tsc adalah langkah pertama npm run build.
+- Ditambah satu catatan REVISI merujuk 004aacd.

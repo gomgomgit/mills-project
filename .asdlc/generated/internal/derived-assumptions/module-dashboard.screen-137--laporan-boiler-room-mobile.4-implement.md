@@ -15,3 +15,9 @@ Ukur ulang uji browser Playwright mobile 2026-10-03.
 - laporan-boiler-room.spec.ts: 32 lolos (naik dari 26 karena skenario bertambah).
 - Perbaikan asersi flaky expectSingleColumn() (menunggu kartu dirender sebelum cards.count()) dicatat sebagai perubahan berkas test saja, bukan kode produksi; verifikasi 60/60 dalam 5 ulangan dianggap cukup untuk menyatakan stabil.
 - Known_issue "test_results.browser tidak diukur ulang" dihapus karena pengukuran ulang kini menutupnya; known_issue lain dibiarkan apa adanya.
+
+## v4 — 2026-10-03
+
+Pembersihan rujukan komponen grid yang dihapus.
+- known_issue 'galat vue-tsc PRA-ADA di CagesTippedTimeGrid.vue dan GradingDetailGrid.vue' dihapus: kedua komponen dihapus di 004aacd; vue-tsc kini 0 galat dan vite build sukses.
+- Ditambah satu catatan REVISI merujuk 004aacd; kode layar tidak berubah.

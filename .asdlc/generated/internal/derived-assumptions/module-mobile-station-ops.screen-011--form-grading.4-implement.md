@@ -17,3 +17,9 @@ Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan 
 
 Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
 - test_results.browser = 10/0 (run_at diperbarui); spec tidak diubah.
+
+## v7 — 2026-10-03
+
+Pembersihan rujukan komponen grid yang dihapus.
+- known_issue dead-code GradingDetailGrid.vue dihapus: komponen itu sudah dihapus di commit 004aacd (tak diimpor, tipe pre-v2 menggagalkan vue-tsc --noEmit / npm run build).
+- Catatan historis v3 tentang GradingDetailGrid.vue dibiarkan; ditambah satu catatan REVISI merujuk 004aacd.

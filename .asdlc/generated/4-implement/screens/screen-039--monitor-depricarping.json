@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-039--monitor-depricarping",
   "name": "Monitor Depricarping",
@@ -28,19 +28,12 @@
     "REVISED 2026-08-24 (entity-catalog v12, correcting the original design the user explicitly rejected): createDraft() now inserts ONLY the header row -- the 24 pre-created depricarping_detail rows were a literal reading of the paper log-sheet mockup that wasted screen space; rows are now added one at a time by the user in Form Depricarping via 'Tambah baris', exactly mirroring pressingRecordRepo.ts's/threshingRecordRepo.ts's just-fixed pattern (itself mirroring cagesTrackRecordRepo.ts's cages_tipped_time pattern)",
     "'Jumlah Baris Time-Slot Tercatat' counter redefined as a plain COUNT(*) of depricarping_detail rows belonging to today's records -- no longer filtered by 'has >=1 of 8 reading columns filled', since row existence itself is now the meaningful signal (a row only exists because the user explicitly added it); MonitorDepricarpingView.vue's counter field renamed from filledSlotCount/counter-filled-slot-count to detailRowCount/counter-detail-row-count",
     "depricarpingOperationalTargets.ts uses the entity-catalog's own 4-column shape (parameter_metric/target_range/critical_limit/operational_consequence_justification) -- one column more than Threshing's/Pressing's 3-column shape -- UNTOUCHED by this revision",
-    "Router: route name 'monitor-depricarping' registered in router/index.ts, but StationListView.vue (screen-006, out of this 6-screen task's scope) has NOT been updated to link to it -- see known_issues, same known issue already documented for Threshing/Pressing"
+    "Router: route name 'monitor-depricarping' registered in router/index.ts, but StationListView.vue (screen-006, out of this 6-screen task's scope) has NOT been updated to link to it -- see known_issues, same known issue already documented for Threshing/Pressing",
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-depricarping.spec.ts 8/8 lulus — kini dijalankan nyata, bukan hanya review statis (known_issue 'tidak dapat dijalankan di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp.",
+    "REVISI (2026-10-03): known_issue 'StationListView belum menautkan Depricarping' dihapus karena basi — mobile/src/views/StationListView.vue:141-144 memetakan depricarping → monitor-depricarping, dan station-list.spec.ts bernavigasi lewat grid."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "StationListView.vue (screen-006, out of this 6-screen task's scope) has not been updated to add a Depricarping tile/link to 'monitor-depricarping' -- this screen is reachable directly by route/URL but not yet from the Station List grid. Needs a separate revision of screen-006 (shared across all 4 new-station agent runs, not owned by any single one -- Threshing's/Pressing's implement artifacts document the identical gap).",
-      "severity": "major"
-    },
-    {
-      "description": "Browser (Playwright) e2e spec (mobile/tests/e2e/monitor-depricarping.spec.ts) was originally authored following Threshing's/Pressing's e2e-spec pattern for the fixed-24-row design, then REVISED 2026-08-24 alongside this fix to seed only as many depricarping_detail rows as a real 'Tambah baris' flow would produce and assert the dynamic-grid counter/testids -- still could not be executed in this sandboxed environment against a running dev server + seeded backend, verified only by static review (syntax confirmed via `playwright test --list`).",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "2026-08-24T08:21:58Z",
@@ -59,8 +52,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 8,
       "failed": 0
     }
   }

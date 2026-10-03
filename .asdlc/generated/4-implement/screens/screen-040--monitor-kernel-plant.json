@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-040--monitor-kernel-plant",
   "name": "Monitor Kernel Plant",
@@ -29,19 +29,12 @@
     "'Jumlah Baris Time-Slot Terisi' counter redefined as a plain COUNT(*) of kernel_plant_detail rows belonging to today's records -- no longer filtered by 'has >=1 of 9 reading columns filled', since row existence itself is now the meaningful signal (a row only exists because the user explicitly added it); MonitorKernelPlantView.vue's counter field renamed from filledSlotCount/counter-filled-slot-count to detailRowCount/counter-detail-row-count, mirroring MonitorDepricarpingView.vue's already-renamed shape",
     "kernelPlantOperationalTargets.ts uses a 3-column shape (equipment_parameter/target_benchmark/corrective_action_plan) matching Threshing's/Pressing's shape, NOT Depricarping's 4-column shape -- UNTOUCHED by this revision",
     "Router: route name 'monitor-kernel-plant' registered in router/index.ts, but StationListView.vue (screen-006, out of this 6-screen task's scope) has NOT been updated to link to it -- see known_issues, same known issue already documented for Threshing/Pressing/Depricarping",
-    "Kernel Plant is genuinely unique among the 4 new stations: it combines Depricarping's split downtime_minutes(integer)+findings(text) reading-column shape with Threshing's/Pressing's 3-column Operational Target reference table shape -- this combination required cross-referencing both sibling fixes rather than mirroring a single one wholesale; the 3-column target table itself was left completely untouched by this row-mechanics revision, per the task's explicit instruction."
+    "Kernel Plant is genuinely unique among the 4 new stations: it combines Depricarping's split downtime_minutes(integer)+findings(text) reading-column shape with Threshing's/Pressing's 3-column Operational Target reference table shape -- this combination required cross-referencing both sibling fixes rather than mirroring a single one wholesale; the 3-column target table itself was left completely untouched by this row-mechanics revision, per the task's explicit instruction.",
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-kernel-plant.spec.ts 8/8 lulus — kini dijalankan ulang secara nyata (known_issue 'tidak dapat dijalankan ulang di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp.",
+    "REVISI (2026-10-03): known_issue 'StationListView belum menautkan Kernel Plant' dihapus karena basi — mobile/src/views/StationListView.vue:141-144 memetakan kernel-plant → monitor-kernel-plant, dan station-list.spec.ts bernavigasi lewat grid."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "StationListView.vue (screen-006, out of this 6-screen task's scope) has not been updated to add a Kernel Plant tile/link to 'monitor-kernel-plant' -- this screen is reachable directly by route/URL but not yet from the Station List grid. Needs a separate revision of screen-006 (shared across all 4 new-station agent runs, not owned by any single one -- Threshing's/Pressing's/Depricarping's implement artifacts document the identical gap; this is the cross-cutting cleanup the coordinating session will perform now that all 4 stations are done).",
-      "severity": "major"
-    },
-    {
-      "description": "Browser (Playwright) e2e spec (mobile/tests/e2e/monitor-kernel-plant.spec.ts) was originally authored and executed against a live dev server for the fixed-24-row design, then REVISED 2026-08-24 alongside this fix to exercise the New-Data-creates-zero-rows flow and the renamed detailRowCount counter -- could not be re-executed in this sandboxed environment against a running dev server + seeded backend after the revision, verified only by static review (syntax confirmed via `playwright test --list`), same verification depth now used by all 4 sibling stations' revised e2e specs.",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "2026-08-24T09:00:00Z",
@@ -60,8 +53,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 8,
       "failed": 0
     }
   }

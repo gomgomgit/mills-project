@@ -20,3 +20,8 @@
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); turunan dari re-track tech-spec, shared-decisions, entity-models, dan shared-modules pada putaran yang sama — penilaian agen, tidak dinyatakan user per layar
+
+## v5 — 2026-10-03
+
+Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
+- test_results.browser 5 → 6 (hitungan spec home.spec.ts saat ini); spec tidak diubah.

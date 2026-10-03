@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-009--monitor-cages-track",
   "name": "Monitor Cages Track",
@@ -25,7 +25,8 @@
     "Full rewrite (v3) mirroring MonitorGradingView.vue/gradingRecordRepo.ts's screen-008 v4 pattern: 2-card 'Hari Ini' counter (Jumlah Cages Track / Jumlah Cage/Lori Tercatat) + scrollable draft/pause list (uniform 'Pause' label) + New Data/Load Data buttons + tappable breadcrumb + hamburger. Old single-summary/primary-action/Pause-Clear-on-Monitor UI removed entirely.",
     "cagesTrackRecordRepo.ts screen-009 block added getTodaySummary(userId) (COUNT cages_track_record + SUM total_cages across their cages_tipped_time rows WHERE date(date)=today, any status — via 2 sequential queries with an empty-IN-list guard, since localDb.ts has no JOIN helper) and getDrafts(userId). createDraft() now also sets tippler_start_time=now at INSERT time, per entity-catalog v3's auto-fill-once rule. Pre-v3 screen-012/015 block (getDraftWithTippedTimes/saveDraft/etc.) left untouched, still targets pre-v3 columns — will be rewritten when screen-012 itself is implemented.",
     "Environment fix during verification (not a code defect, RECURRING issue — second time this session): task #27's backend migration work ran `php artisan migrate:fresh` again, wiping the demo business_unit/user rows a second time. This time fixed PERMANENTLY rather than ad hoc: created backend/database/seeders/DemoAccountSeeder.php (idempotent via firstOrCreate, seeds corporate/company/business_unit + admin/supervisor01/operator01), registered in DatabaseSeeder.php, and updated mobile/tests/e2e/helpers.ts's header comment to point to it. Future migrate:fresh + db:seed (or db:seed --class=DemoAccountSeeder alone) will no longer lose e2e login capability.",
-    "Independently re-verified (not just agent self-report): 324/324 vitest across all 20 files, 8/8 Playwright (monitor-cages-track.spec.ts) after the seeder fix — agent's own run had reported 0/8 blocked by the environment issue before the fix."
+    "Independently re-verified (not just agent self-report): 324/324 vitest across all 20 files, 8/8 Playwright (monitor-cages-track.spec.ts) after the seeder fix — agent's own run had reported 0/8 blocked by the environment issue before the fix.",
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-cages-track.spec.ts 8/8 lulus. Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -60,7 +61,7 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-08-19T08:35:00Z",
+      "run_at": "2026-10-03T00:00:00Z",
       "passed": 8,
       "failed": 0
     }

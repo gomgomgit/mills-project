@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-037--monitor-threshing",
   "name": "Monitor Threshing",
@@ -27,19 +27,12 @@
     "threshingRecordRepo.ts covers all 3 mobile Threshing screens (037/041/045) in one file, same convention as cagesTrackRecordRepo.ts covering screens 009/012/015; its full unit test coverage (threshingRecordRepo.spec.ts, 28 tests) is reported under this screen since it was authored first in sequence",
     "REVISED 2026-08-24 (entity-catalog v12, correcting the original design the user explicitly rejected): createDraft() now inserts ONLY the header row -- the 24 pre-created threshing_detail rows were a literal reading of the paper log-sheet mockup that wasted screen space; rows are now added one at a time by the user in Form Threshing via 'Tambah baris', exactly mirroring cagesTrackRecordRepo.ts's cages_tipped_time pattern",
     "'Jumlah Baris Time-Slot Tercatat' counter redefined as a plain COUNT(*) of threshing_detail rows belonging to today's records -- no longer filtered by 'has >=1 reading column filled', since row existence itself is now the meaningful signal (a row only exists because the user explicitly added it)",
-    "Router: route name 'monitor-threshing' registered in router/index.ts, but StationListView.vue (screen-006, explicitly out of this task's scope) has NOT been updated to link to it -- see known_issues"
+    "Router: route name 'monitor-threshing' registered in router/index.ts, but StationListView.vue (screen-006, explicitly out of this task's scope) has NOT been updated to link to it -- see known_issues",
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-threshing.spec.ts 8/8 lulus — kini dijalankan nyata, bukan hanya review statis (known_issue 'tidak dapat dijalankan di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp.",
+    "REVISI (2026-10-03): known_issue 'StationListView belum menautkan Threshing' dihapus karena basi — mobile/src/views/StationListView.vue:141-144 memetakan threshing → monitor-threshing, dan station-list.spec.ts bernavigasi lewat grid."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "StationListView.vue (screen-006, out of this 6-screen task's scope) has not been updated to add a Threshing tile/link to 'monitor-threshing' -- this screen is reachable directly by route/URL but not yet from the Station List grid. Needs a separate revision of screen-006.",
-      "severity": "major"
-    },
-    {
-      "description": "Browser (Playwright) e2e spec (mobile/tests/e2e/monitor-threshing.spec.ts) was authored following the exact pattern of the other mobile station screens' e2e specs, but could not be executed in this sandboxed environment against a running dev server + seeded backend -- verified only by static review, not a live run.",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "2026-08-24T07:15:13Z",
@@ -58,8 +51,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 8,
       "failed": 0
     }
   }

@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -33,7 +33,8 @@
   ],
   "fe_test_files_generated": [
     "mobile/tests/LoginForm.spec.ts",
-    "mobile/tests/auth.store.spec.ts"
+    "mobile/tests/auth.store.spec.ts",
+    "mobile/tests/e2e/login.spec.ts"
   ],
   "implementation_notes": [
     "Web-session dan mobile-token path digabung dalam satu AuthService::login() via parameter opsional $deviceName, branch web (tanpa device_name) tidak berubah sama sekali",
@@ -41,7 +42,8 @@
     "Round-1 fix: LoginForm.spec.ts gagal load (missing @vue/test-utils + no jsdom env) — diperbaiki dengan menambah dependency dan test.environment='jsdom' di vite.config.ts, retest semua lulus",
     "Fix gap sync data stasiun (2026-08-18, respons ke pertanyaan user 'kenapa halaman daftar stasiun kosong'): stores/auth.ts's login() sekarang memanggil localSchema.ts's seedDefaultStationsIfNeeded(businessUnit.id) tepat setelah businessUnit diketahui — men-seed 15 stasiun MVP default (3 aktif + 12 placeholder) ke tabel lokal station secara idempotent (INSERT OR IGNORE). Ini menggantikan 'sync flow terpisah' yang diasumsikan setiap screen mobile tapi tidak pernah dibangun di manapun dalam scope 32-screen project ini. Best-effort/non-blocking: dibungkus try/catch, kegagalan seed lokal tidak menggagalkan login yang sudah berhasil. LoginForm.spec.ts diperbarui: menambah vi.mock('@/services/localSchema') karena login() sungguhan (tidak di-mock di test ini) sekarang memanggil fungsi yang membuka koneksi SQLite nyata — tanpa mock ini test akan hang selamanya di customElements.whenDefined('jeep-sqlite') dalam environment jsdom. Diverifikasi end-to-end nyata: login segar tanpa seeding manual apa pun langsung menampilkan 15 stasiun di screen-006, sesuai urutan mock referensi.",
     "Regresi penuh setelah fix ini: 166/166 vitest (naik dari 161, +5 test baru localSchema.spec.ts) + 50/50 Playwright e2e, semua tetap hijau.",
-    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/.",
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/login.spec.ts 5/5 lulus. Perbaikan spec (drift, bukan cacat aplikasi): kasus offline kini menunggu #username tampil sebelum context.setOffline(true), sehingga bootstrap halaman tidak ikut terputus."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -84,8 +86,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 5,
       "failed": 0
     }
   }

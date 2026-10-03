@@ -1,9 +1,9 @@
 {
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
-  "ver": 5,
+  "ver": 6,
   "id": "screen-007--monitor-weighbridge",
   "name": "Monitor Weighbridge",
   "module_id": "module-mobile-station-ops",
@@ -26,7 +26,8 @@
     "Regresi penuh diverifikasi independen: 222/222 vitest (20 file). Playwright monitor-weighbridge.spec.ts sempat 8/8 gagal karena backend (php artisan serve) mati di tengah sesi — setelah backend dinyalakan ulang, 8/8 lulus (bukan bug kode, murni environment)",
     "entity-catalog v5 (2026-08-19): weighbridge-record field arrival_datetime/dispatch_datetime disatukan menjadi record_datetime (kolom tunggal, berlaku sama untuk tipe Receive maupun Dispatch); getTodaySummary()'s filter di weighbridgeRecordRepo.ts dan localSchema.ts sudah diperbarui oleh proses shared-rename terpisah (di luar scope screen ini) — tidak ada perubahan kode diperlukan di MonitorWeighbridgeView.vue maupun repo itu sendiri untuk screen ini, karena keduanya sudah konsisten dengan schema baru",
     "Diperbaiki dalam pass ini: 2 file test (weighbridgeRecordRepo.spec.ts, e2e/monitor-weighbridge.spec.ts) masih memakai fixture/kolom lama arrival_datetime/dispatch_datetime dan index parameter UPDATE yang sudah bergeser (destination menambah 1 kolom baru pada SET saveDraft()/pauseDraftWithFormData()) — diperbarui ke weighbridge_type/record_datetime/destination dan index yang benar (checked_by index 13, acknowledged_by 14, updated_at 15, recordId 16, division 7, block 8)",
-    "KETERBATASAN SCOPE: FormWeighbridgeView.vue (screen-010, bukan screen ini) saat ini GAGAL type-check (vue-tsc) karena masih memakai arrival_datetime/dispatch_datetime lama yang sudah dihapus dari WeighbridgeRecord/WeighbridgeFormData interface — di luar scope Phase 4 screen-007, akan diperbaiki saat screen-010 Phase 4 dijalankan"
+    "KETERBATASAN SCOPE: FormWeighbridgeView.vue (screen-010, bukan screen ini) saat ini GAGAL type-check (vue-tsc) karena masih memakai arrival_datetime/dispatch_datetime lama yang sudah dihapus dari WeighbridgeRecord/WeighbridgeFormData interface — di luar scope Phase 4 screen-007, akan diperbaiki saat screen-010 Phase 4 dijalankan",
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/monitor-weighbridge.spec.ts 8/8 lulus. Perbaikan spec (drift, bukan cacat aplikasi): cek negatif not.toHaveURL memakai glob '**/…' yang digabung ke baseURL sehingga tak pernah cocok — kini RegExp."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -57,7 +58,7 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-08-19T22:05:00Z",
+      "run_at": "2026-10-03T00:00:00Z",
       "passed": 8,
       "failed": 0
     }

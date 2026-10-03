@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -28,15 +28,11 @@
     "Every FormField id in the grid is set explicitly (e.g. fan-static-pressure-{index}, downtime-minutes-{index}, findings-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide",
     "Time-Slot per row is now a SearchableSelect.vue instance (was a read-only label) -- mirrors FormPressingView.vue exactly, WITH pendingDeletionIds for existing (has-id) rows removed via Hapus baris",
     "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak): FormDepricarpingView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('depricarping_record') → pushSavedRecordNow → POST /api/depricarping-records bila Mills Setting immediate_sync_enabled aktif. Penolakannya (termasuk 422 PERIOD_CLOSED) sejak 2026-10-03 ditampilkan langsung di form (lihat catatan REVISI 2026-10-03); di sinkron manual screen-006 alasannya tampil per record di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('depricarping', mill, date) di DepricarpingRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik), dan mobile/tests/writeThroughSync.spec.ts.",
-    "REVISI (2026-10-03): penolakan write-through kini ditampilkan — writeThroughSync.syncAfterSave() mengembalikan {synced, rejection}; respons server 4xx (mis. 422 PERIOD_CLOSED) mengisi rejection dengan pesan server, sedangkan offline/5xx/fitur nonaktif tetap {synced:false, rejection:null} dan diam. onSimpan() FormDepricarpingView menyimpan pesan itu ke writeThroughRejection, menampilkan ConfirmDialog satu tombol (cancel-label=\"\") berjudul 'Tersimpan, tetapi ditolak server' dengan pesan server, dan baru bernavigasi ke monitor-depricarping saat dialog ditutup (Mengerti atau klik overlay). Record tetap 'saved' di SQLite lokal, tidak ada rollback. Test: mobile/tests/writeThroughSync.spec.ts ('reports the server message when the push is rejected with 422 PERIOD_CLOSED' + kasus diam); tidak ada test per-form untuk dialog ini di layar Depricarping — pola identik dengan Threshing yang dicakup mobile/tests/FormThreshingView.spec.ts."
+    "REVISI (2026-10-03): penolakan write-through kini ditampilkan — writeThroughSync.syncAfterSave() mengembalikan {synced, rejection}; respons server 4xx (mis. 422 PERIOD_CLOSED) mengisi rejection dengan pesan server, sedangkan offline/5xx/fitur nonaktif tetap {synced:false, rejection:null} dan diam. onSimpan() FormDepricarpingView menyimpan pesan itu ke writeThroughRejection, menampilkan ConfirmDialog satu tombol (cancel-label=\"\") berjudul 'Tersimpan, tetapi ditolak server' dengan pesan server, dan baru bernavigasi ke monitor-depricarping saat dialog ditutup (Mengerti atau klik overlay). Record tetap 'saved' di SQLite lokal, tidak ada rollback. Test: mobile/tests/writeThroughSync.spec.ts ('reports the server message when the push is rejected with 422 PERIOD_CLOSED' + kasus diam); tidak ada test per-form untuk dialog ini di layar Depricarping — pola identik dengan Threshing yang dicakup mobile/tests/FormThreshingView.spec.ts.",
+    "REVISI (2026-10-03, run penuh Playwright mobile 430 lulus / 0 gagal): mobile/tests/e2e/form-depricarping.spec.ts 10/10 lulus — kini dijalankan nyata (known_issue 'tidak dapat dijalankan di sandbox' dihapus). Perbaikan spec (drift, bukan cacat aplikasi): tabel Target Operasional berada di CollapsibleSection yang tertutup secara default (disengaja, 2026-08-25) — spec kini membukanya dulu sebelum meng-assert isi tabel."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "Browser (Playwright) e2e spec (mobile/tests/e2e/form-depricarping.spec.ts) was originally authored for the fixed-24-row design, then REVISED 2026-08-24 alongside this fix to exercise Tambah baris/Hapus baris and the Time-Slot <select> -- still could not be executed in this sandboxed environment against a running dev server + seeded backend, verified only by static review (syntax confirmed via `playwright test --list`).",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "",
@@ -55,8 +51,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 10,
       "failed": 0
     }
   }

@@ -18,3 +18,10 @@ Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/ChangePasswordMobileTest.php` dihapus dari `test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
 - known_issue dihapus (semata soal berkas tests/Browser yang tidak dijalankan): "Browser test (tests/Browser/ChangePasswordMobileTest.php) dibuat tapi tidak dijalankan — t..."
 - Tidak ada spec e2e-web yang jelas cocok (layar mobile) — tidak ditambahkan.
+
+## v3 — 2026-10-03
+
+Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
+- test_results.browser = 5/0 (sebelumnya kosong).
+- mobile/tests/e2e/change-password.spec.ts ditambahkan ke fe_test_files_generated.
+- Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): locator .field-error strict-mode + timing offline-sebelum-bootstrap.

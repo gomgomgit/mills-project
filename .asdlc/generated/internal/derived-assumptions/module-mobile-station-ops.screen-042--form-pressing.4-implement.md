@@ -12,3 +12,10 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 - Catatan REVISI tech-spec (kunci periode) tidak lagi menyebut penolakan write-through DIAM; merujuk ke catatan REVISI 2026-10-03.
 - fe_files_generated ditambah mobile/src/services/writeThroughSync.ts dan mobile/src/components/ConfirmDialog.vue (berkas bersama yang diubah untuk perilaku ini).
 - Catatan baru REVISI (2026-10-03): untuk layar selain Threshing dicatat tidak ada test per-form; cakupan generik writeThroughSync.spec.ts + pola identik FormThreshingView.spec.ts.
+
+## v5 — 2026-10-03
+
+Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
+- test_results.browser = 9/0 (sebelumnya kosong).
+- known_issue 'spec tidak dapat dijalankan di sandbox' dihapus — kini dijalankan nyata.
+- Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): tabel Target Operasional di CollapsibleSection tertutup default (disengaja 2026-08-25) — spec kini membukanya.

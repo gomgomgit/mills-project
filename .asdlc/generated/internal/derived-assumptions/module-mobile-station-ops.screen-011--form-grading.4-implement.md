@@ -12,3 +12,8 @@
 Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan (49dc0c5, 0594c63); kode tidak diubah.
 - Berkas test yang dikutip dipilih sendiri: backend/tests/Unit/Support/EnforcesPeriodLockTest.php, backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php, mobile/tests/syncService.spec.ts. Tidak ada test (mobile) yang memakai respons PERIOD_CLOSED secara spesifik; test mobile yang dikutip hanya mencakup galat generik.
 - test_results tidak disentuh; tidak ada test dijalankan (sesuai brief).
+
+## v6 — 2026-10-03
+
+Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
+- test_results.browser = 10/0 (run_at diperbarui); spec tidak diubah.

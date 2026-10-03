@@ -33,3 +33,9 @@ Sinkronisasi catatan uji 4-implement dengan uji yang ditambahkan 2026-10-03.
 - Catatan lama 'Belum ada test mobile PERIOD_CLOSED' berada di implementation_notes (bukan known_issues), jadi tidak dihapus; disupersede oleh catatan REVISI v14.
 - mobile/src/services/syncService.ts ditambahkan ke fe_files_generated dan mobile/tests/syncService.spec.ts ke fe_test_files_generated karena keduanya belum tercatat.
 - test_results tidak diubah — hanya satu uji baru di syncService.spec.ts yang dikonfirmasi; jumlah total uji screen ini tidak dihitung ulang.
+
+## v15 — 2026-10-03
+
+Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
+- test_results.browser = 6/0.
+- Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): lewat pemilih Production Line dulu; kasus tile nonaktif men-seed placeholder inaktif; kasus override ikon memblokir re-sync stasiun.

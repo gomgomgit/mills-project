@@ -20,3 +20,10 @@ Pembersihan entri berkas uji yang sudah tidak ada.
 - `backend/tests/Browser/LoginMobileTest.php` dihapus dari `test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).
 - known_issue dihapus (semata soal berkas tests/Browser yang tidak dijalankan): "tests/Browser/LoginMobileTest.php (Playwright lawas) dibuat tapi tidak pernah dijalankan u..."
 - Tidak ada spec e2e-web yang jelas cocok (layar mobile) — tidak ditambahkan.
+
+## v4 — 2026-10-03
+
+Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
+- test_results.browser = 5/0 (sebelumnya kosong).
+- mobile/tests/e2e/login.spec.ts ditambahkan ke fe_test_files_generated.
+- Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): kasus offline menunggu #username sebelum setOffline.

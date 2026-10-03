@@ -10,3 +10,9 @@ Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10
 Ukur ulang uji browser Playwright mobile 2026-10-03.
 - Angka browser diambil dari run tujuh spec laporan mobile (Vite dev server + backend :8000, DemoAccountSeeder): 185 lolos, 0 gagal; failed = 0 dan run_at disetel 2026-10-03T00:00:00Z (jam tidak tercatat, dipakai tengah malam UTC).
 - dashboard-reporting.spec.ts: 9 lolos. Tidak ada known_issue "browser tidak diukur ulang" di artefak ini, jadi known_issues tidak diubah; known_issue lama tentang 19 kegagalan suite penuh dibiarkan karena run ini hanya mencakup spec laporan, bukan suite penuh.
+
+## v3 — 2026-10-03
+
+Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
+- known_issue '19 kegagalan suite e2e mobile (belum diverifikasi)' dihapus; batasan reproduksi offline dipertahankan.
+- test_results.browser sudah 9/0 per 2026-10-03, tidak diubah.

@@ -27,3 +27,9 @@ Ukur ulang uji browser Playwright mobile 2026-10-03.
 - laporan-cages-track.spec.ts: 31 lolos (naik dari 25 karena skenario bertambah).
 - Perbaikan asersi flaky expectSingleColumn() (menunggu kartu dirender sebelum cards.count()) dicatat sebagai perubahan berkas test saja, bukan kode produksi; verifikasi 60/60 dalam 5 ulangan dianggap cukup untuk menyatakan stabil.
 - Known_issue "test_results.browser tidak diukur ulang" dihapus karena pengukuran ulang kini menutupnya; known_issue lain dibiarkan apa adanya. Known_issue lama '19 test e2e mobile gagal' tidak disentuh karena menyangkut suite penuh, bukan run ini.
+
+## v4 — 2026-10-03
+
+Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
+- known_issue '19 test e2e mobile gagal, pra-ada' dihapus.
+- test_results.browser sudah 31/0 per 2026-10-03, tidak diubah.

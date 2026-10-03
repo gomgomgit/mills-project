@@ -20,3 +20,9 @@ Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan 
 Sinkronisasi catatan uji 4-implement dengan uji yang ditambahkan 2026-10-03.
 - Tidak ada known_issue yang menyatakan uji mobile PERIOD_CLOSED belum ada — celah itu hanya tercatat di catatan REVISI kunci periode (implementation_notes), jadi tidak ada yang dihapus; catatan REVISI v5 menyatakannya tertutup.
 - Uji baru berada di mobile/tests/recordVerification.spec.ts (komponen bersama RecordVerificationActions), bukan di spec layar ini; berkas itu tidak ditambahkan ke fe_test_files_generated dan test_results tidak diubah karena jumlah uji per layar tidak berubah.
+
+## v6 — 2026-10-03
+
+Run penuh Playwright mobile 2026-10-03: 430 lulus, 0 gagal.
+- test_results.browser = 11/0.
+- Spec diperbaiki hari ini (drift spec, bukan cacat aplikasi; hanya mobile/tests/e2e yang berubah): assert blok status verifikasi (Acknowledged By saja) alih-alih ketiadaannya; cek negatif not.toHaveURL dengan glob '**/…' (digabung ke baseURL, tak pernah cocok) diganti RegExp.

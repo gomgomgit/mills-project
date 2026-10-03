@@ -544,7 +544,10 @@ async function expectNoHorizontalPageScroll(page: Page): Promise<void> {
 /** Satu kolom: tidak ada dua kartu metrik yang berdampingan mendatar. */
 async function expectSingleColumn(page: Page): Promise<void> {
   const cards = page.locator('main.laporan-br-view > .metric-stack > .metric-card')
-  expect(await cards.count()).toBe(9)
+  // toHaveCount MENUNGGU render; count() dibaca seketika dan, karena
+  // pickPeriod() tidak menunggu respons laporan, sesekali membaca 0 sebelum
+  // kartu muncul (terbukti flaky 2026-10-03: 1 dari 5 run screen-138).
+  await expect(cards).toHaveCount(9)
 
   const boxes = await cards.evaluateAll((elements) =>
     elements.map((element) => {

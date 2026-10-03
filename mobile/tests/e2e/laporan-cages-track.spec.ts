@@ -448,6 +448,9 @@ async function expectNoHorizontalPageScroll(page: Page): Promise<void> {
 /** Satu kolom: tidak ada dua blok utama yang berdampingan mendatar. */
 async function expectSingleColumn(page: Page): Promise<void> {
   const cards = page.locator('.laporan-ct-view > .metric-stack > .metric-card')
+  // Tunggu kartu pertama dirender sebelum menghitung — count() dibaca
+  // seketika (lihat catatan yang sama di laporan-clarification.spec.ts).
+  await expect(cards.first()).toBeVisible()
   const count = await cards.count()
   expect(count).toBeGreaterThan(1)
 

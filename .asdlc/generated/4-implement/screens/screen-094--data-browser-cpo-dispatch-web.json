@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-094--data-browser-cpo-dispatch-web",
   "name": "Data Browser CPO Dispatch (Web)",
@@ -16,7 +16,8 @@
     "backend/database/factories/CpoDispatchDetailFactory.php",
     "backend/database/factories/StationFactory.php",
     "backend/routes/api.php",
-    "backend/routes/web.php"
+    "backend/routes/web.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/CpoDispatchRecordServiceTest.php",
@@ -39,7 +40,8 @@
     "StationFactory gained cpoDispatch() state (type=cpo-dispatch), additive, mirrors weighbridge()/grading()/cagesTrack()/solidWasteDisposal()/processWater()/kernelDispatch() yang sudah ada",
     "production-process-activity.blade.php: tile 'CPO Dispatch' (sebelumnya href=\"javascript:void(0)\", styled active tapi belum di-route) sekarang di-wire ke route('data.cpo-dispatch') karena screen ini kini terimplementasi — satu-satunya perubahan pada tile di file bersama ini; 6 tile stasiun lain yang masih belum di-route (Clarification/Boiler Room/Effluent Plant/Engine Room/Storage Tank/Process Quality Control) tetap tidak berubah. File-level doc comment juga diperbarui untuk mencerminkan 6 sisa tile unrouted (turun dari 7)",
     "tests/Feature/ProductionProcessActivityTest.php diupdate untuk mencerminkan perubahan di atas: assertion 'renders the N active station tiles' diperluas menjadi 9 (menambahkan CPO Dispatch), dan test 'still-unrouted tiles' menjadi 6 masih belum di-route (menghapus CPO Dispatch dari daftar tersebut) — test lain di file tersebut tidak disentuh",
-    "Detail fields (21 kolom, entity-catalog cpo-dispatch-detail) sama jumlahnya dengan Kernel Dispatch (21 kolom) namun set field berbeda: CPO Dispatch tidak punya weighbridge_ticket_no/remarks_gate_status, sebagai gantinya punya time_in, time_out, dan dobi"
+    "Detail fields (21 kolom, entity-catalog cpo-dispatch-detail) sama jumlahnya dengan Kernel Dispatch (21 kolom) namun set field berbeda: CPO Dispatch tidak punya weighbridge_ticket_no/remarks_gate_status, sebagai gantinya punya time_in, time_out, dan dobi",
+    "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -50,23 +52,27 @@
     {
       "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV di sandbox ini.",
       "severity": "minor"
+    },
+    {
+      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-cpo-dispatch.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
+      "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-09-01T00:00:00Z",
-      "passed": 8,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 32,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-09-01T00:00:00Z",
-      "passed": 7,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-01T00:00:00Z",
-      "passed": 5,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "browser": {

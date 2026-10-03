@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-016--data-browser-weighbridge-web",
   "name": "Data Browser Weighbridge (Web)",
@@ -17,7 +17,8 @@
     "backend/routes/api.php",
     "backend/database/factories/CompanyFactory.php",
     "backend/database/factories/StationFactory.php",
-    "backend/database/factories/WeighbridgeRecordFactory.php"
+    "backend/database/factories/WeighbridgeRecordFactory.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/WeighbridgeRecordServiceTest.php",
@@ -41,7 +42,8 @@
     "KEPUTUSAN HITL: Content-Type 'text/csv; charset=utf-8' diterima setara 'text/csv', assertion test dilonggarkan",
     "Full regression suite: 75/75 test backend lulus (semua screen 001-004 + 016), diverifikasi langsung oleh command setelah rekonsiliasi race condition",
     "REVISI v2 (entity-catalog v5, Weighbridge type/date restructure): arrival_datetime/dispatch_datetime diganti weighbridge_type + record_datetime; WeighbridgeRecordService/Controller/Livewire component/Blade view diperbarui untuk field baru + filter weighbridge_type baru + kolom Tujuan Muatan (destination); WeighbridgeRecordFactory.php diperbarui, ditambahkan factory state ofType(). Full regression suite re-run: 602/602 test backend lulus.",
-    "REVISI v3 (screen-019--detail-weighbridge-web Phase 4 selesai): route data.weighbridge.detail sekarang ada, baris tabel di Data Browser kini benar-benar clickable (onclick navigasi ke Detail) — known_issue lama tentang ini dihapus. Test Feature/Livewire scenario 'Klik Baris Membuka Detail' diperbarui untuk assert perilaku baru (bukan lagi assert non-clickable)."
+    "REVISI v3 (screen-019--detail-weighbridge-web Phase 4 selesai): route data.weighbridge.detail sekarang ada, baris tabel di Data Browser kini benar-benar clickable (onclick navigasi ke Detail) — known_issue lama tentang ini dihapus. Test Feature/Livewire scenario 'Klik Baris Membuka Detail' diperbarui untuk assert perilaku baru (bukan lagi assert non-clickable).",
+    "REVISI v4 (tech-spec v3, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v3, `php artisan test` untuk berkas uji layar ini hijau."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -68,23 +70,27 @@
     {
       "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV",
       "severity": "minor"
+    },
+    {
+      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-weighbridge.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
+      "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-08-19T00:00:00Z",
-      "passed": 8,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 36,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-19T00:00:05Z",
-      "passed": 8,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 15,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-20T00:00:00Z",
-      "passed": 6,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 15,
       "failed": 0
     },
     "browser": {

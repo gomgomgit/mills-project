@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-018--data-browser-cages-track-web",
   "name": "Data Browser Cages Track (Web)",
@@ -14,7 +14,8 @@
     "backend/database/factories/CagesTrackRecordFactory.php",
     "backend/database/factories/CagesTippedTimeFactory.php",
     "backend/routes/api.php",
-    "backend/routes/web.php"
+    "backend/routes/web.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/CagesTrackRecordServiceTest.php",
@@ -37,7 +38,8 @@
     "screen-021 (Detail Cages Track, Web) kini terimplementasi — affordance clickable-row (guarded via Route::has('data.cages-track.detail')) aktif, DataBrowserCagesTrackTest.php (Feature/Livewire) dan Browser test 'Klik Baris' diupdate untuk menguji navigasi nyata, bukan lagi guarded-rendering fallback",
     "Export CSV menyertakan kolom tipped_time_count terhitung, melebihi apa yang didokumentasikan literal di tech-spec response.success_schema export, karena itu adalah field utama layar ini (mirror endpoint list)",
     "1 skenario browser test (Ekspor Gagal) masih test.skip() — memerlukan dataset > EXPORT_ROW_LIMIT, sudah dicover di layer HTTP oleh Feature/Api test",
-    "Regresi backend penuh: 698/698 test lulus setelah screen-021 landed"
+    "Regresi backend penuh: 698/698 test lulus setelah screen-021 landed",
+    "REVISI v3 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -60,23 +62,27 @@
     {
       "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV di sandbox ini, sama seperti screen-016/017, tidak menghalangi status complete sesuai precedent",
       "severity": "minor"
+    },
+    {
+      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-cages-track.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
+      "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-08-20T00:00:00Z",
-      "passed": 13,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 37,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-20T00:00:00Z",
-      "passed": 7,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-20T00:00:00Z",
-      "passed": 5,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "browser": {

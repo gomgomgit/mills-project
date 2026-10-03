@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-092--data-browser-process-water-web",
   "name": "Data Browser Process Water (Web)",
@@ -17,7 +17,8 @@
     "backend/database/factories/ProcessWaterRecordFactory.php",
     "backend/database/factories/ProcessWaterDetailFactory.php",
     "backend/database/factories/StationFactory.php",
-    "backend/resources/views/data/production-process-activity.blade.php"
+    "backend/resources/views/data/production-process-activity.blade.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/ProcessWaterRecordServiceTest.php",
@@ -40,7 +41,8 @@
     "The Process Water tile in production-process-activity.blade.php (screen-035) already existed as an active-styled tile pointing to javascript:void(0) (added by an earlier task alongside the DEFAULT_STATIONS/StationType groundwork) -- this implementation changes ONLY that one tile's href to route('data.process-water'), leaving all 16 other tiles (7 previously-routed + 8 still-unrouted 2026-08-31-batch tiles + 2 placeholders) completely unchanged",
     "tests/Feature/ProductionProcessActivityTest.php (pre-existing, not owned by this screen) was updated additively: the Process Water assertion moved from the '9 still-unrouted' test into the '7 (now 8) active station tiles linking to their Data Browser routes' test, and both test names/counts were corrected from 9 to 8 remaining unrouted -- mirrors the exact precedent Solid Waste Disposal set for this same shared test file when its own Data Browser screen was implemented",
     "StationFactory::processWater() state added additively (mirrors weighbridge()/grading()/threshing()/etc. exactly) for this screen's and screen-112's test suites",
-    "Ran the full backend test suite (`php artisan test`) after all changes: 1468 passed (0 failed), confirming no regression to any pre-existing screen"
+    "Ran the full backend test suite (`php artisan test`) after all changes: 1468 passed (0 failed), confirming no regression to any pre-existing screen",
+    "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau."
   ],
   "deferred_items": [
     {
@@ -52,23 +54,27 @@
     {
       "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserProcessWaterTest.php) was authored following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
       "severity": "minor"
+    },
+    {
+      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-process-water.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
+      "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-08-31T23:30:00Z",
-      "passed": 31,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 39,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-31T23:30:00Z",
-      "passed": 7,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-31T23:30:00Z",
-      "passed": 5,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "browser": {

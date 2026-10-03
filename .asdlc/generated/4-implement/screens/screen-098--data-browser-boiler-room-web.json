@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-098--data-browser-boiler-room-web",
   "name": "Data Browser Boiler Room (Web)",
@@ -21,7 +21,8 @@
     "backend/database/factories/BoilerRoomRecordFactory.php",
     "backend/database/factories/BoilerRoomDetailFactory.php",
     "backend/database/factories/StationFactory.php",
-    "backend/resources/views/data/production-process-activity.blade.php"
+    "backend/resources/views/data/production-process-activity.blade.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/BoilerRoomRecordServiceTest.php",
@@ -46,7 +47,8 @@
     "The Boiler Room tile in production-process-activity.blade.php (screen-035) was updated from a javascript:void(0) placeholder to route('data.boiler-room') -- 2 of the 2026-08-31 batch (Clarification, Process Quality Control) now remain unrouted, decremented from 3",
     "tests/Feature/ProductionProcessActivityTest.php updated: Boiler Room moved from the 'still-unrouted' test into the routed-tiles test (renamed to 'renders the 2 still-unrouted...')",
     "StationFactory::boilerRoom() state added additively (mirrors engineRoom()/storageTank()/effluentPlant() exactly) for this screen's and screen-118's test suites",
-    "Ran the full backend test suite (`php artisan test`) after implementation: 1974 passed, 1 pre-existing unrelated flaky failure (Tests\\Unit\\Services\\CagesTrackRecordServiceTest -- a UNIQUE constraint collision from Faker-generated random data, reproduced in isolation as passing, confirmed unrelated to this station's changes). Boiler-Room-specific tests (`--filter=BoilerRoom`): 91 passed (0 failed) -- 34 unit (BoilerRoomRecordServiceTest), 7 integration (Feature/Api/DataBrowserBoilerRoomTest), 5 component (Feature/Livewire/DataBrowserBoilerRoomTest), reported under this screen; remaining 45 Boiler Room tests reported under screen-108/screen-118 below"
+    "Ran the full backend test suite (`php artisan test`) after implementation: 1974 passed, 1 pre-existing unrelated flaky failure (Tests\\Unit\\Services\\CagesTrackRecordServiceTest -- a UNIQUE constraint collision from Faker-generated random data, reproduced in isolation as passing, confirmed unrelated to this station's changes). Boiler-Room-specific tests (`--filter=BoilerRoom`): 91 passed (0 failed) -- 34 unit (BoilerRoomRecordServiceTest), 7 integration (Feature/Api/DataBrowserBoilerRoomTest), 5 component (Feature/Livewire/DataBrowserBoilerRoomTest), reported under this screen; remaining 45 Boiler Room tests reported under screen-108/screen-118 below",
+    "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau."
   ],
   "deferred_items": [
     {
@@ -58,23 +60,27 @@
     {
       "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserBoilerRoomTest.php) exists following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
       "severity": "minor"
+    },
+    {
+      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-boiler-room.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
+      "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-09-01T05:05:00Z",
-      "passed": 34,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 43,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-09-01T05:05:00Z",
-      "passed": 7,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-01T05:05:00Z",
-      "passed": 5,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "browser": {

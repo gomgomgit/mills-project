@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-051--data-browser-depricarping-web",
   "name": "Data Browser Depricarping (Web)",
@@ -18,7 +18,8 @@
     "backend/database/seeders/DatabaseSeeder.php",
     "backend/database/factories/DepricarpingRecordFactory.php",
     "backend/database/factories/DepricarpingDetailFactory.php",
-    "backend/database/factories/StationFactory.php"
+    "backend/database/factories/StationFactory.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/DepricarpingRecordServiceTest.php",
@@ -40,7 +41,8 @@
     "StationFactory gained a new depricarping() state (type=StationType::Depricarping), mirroring pressing()/threshing() exactly, needed by the whole Depricarping test suite",
     "DepricarpingRecordServiceTest.php rewritten to mirror PressingRecordServiceTest.php's dynamic-row test shape (create() with 1..N rows instead of always-24, update() upsert semantics including delete-on-removal) -- 32 tests total (up from the pre-fix 29)",
     "Ran the full backend Pest suite after this pass: 1287/1287 passing (up from the pre-fix baseline of 1275/1275), confirming zero regressions across Threshing/Pressing/Depricarping and every other station",
-    "DatabaseSeeder.php updated to call DepricarpingOperationalTargetSeeder (registered after PressingOperationalTargetSeeder) so a fresh `php artisan db:seed` run seeds the 6 reference rows going forward; migrations for all 3 depricarping_* tables were already applied on the dev database.sqlite prior to this pass (confirmed via `php artisan migrate:status`), consistent with the project-level entity-models groundwork"
+    "DatabaseSeeder.php updated to call DepricarpingOperationalTargetSeeder (registered after PressingOperationalTargetSeeder) so a fresh `php artisan db:seed` run seeds the 6 reference rows going forward; migrations for all 3 depricarping_* tables were already applied on the dev database.sqlite prior to this pass (confirmed via `php artisan migrate:status`), consistent with the project-level entity-models groundwork",
+    "REVISI v3 (tech-spec v3, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v3, `php artisan test` untuk berkas uji layar ini hijau."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -51,23 +53,27 @@
     {
       "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserDepricarpingTest.php) was authored following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
       "severity": "minor"
+    },
+    {
+      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-depricarping.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
+      "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-08-24T08:21:58Z",
-      "passed": 32,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 40,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-24T08:21:58Z",
-      "passed": 7,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-24T08:21:58Z",
-      "passed": 5,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "browser": {

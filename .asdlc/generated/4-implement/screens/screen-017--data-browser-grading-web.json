@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-017--data-browser-grading-web",
   "name": "Data Browser Grading (Web)",
@@ -13,7 +13,8 @@
     "backend/app/Services/GradingRecordService.php",
     "backend/routes/api.php",
     "backend/routes/web.php",
-    "backend/database/factories/GradingRecordFactory.php"
+    "backend/database/factories/GradingRecordFactory.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/GradingRecordServiceTest.php",
@@ -33,7 +34,8 @@
     "Export grading resolve checked_by/acknowledged_by ke nama user via eager load",
     "InvalidDateRangeException/ExportFailedException reuse langsung dari screen-016, tidak diduplikasi",
     "Full regression suite: 94/94 test backend lulus (semua 17 screen), tanpa spec_mismatch",
-    "2026-08-20: screen-020--detail-grading-web's Phase 4 landed, meregistrasikan route data.grading.detail — baris tabel di layar ini sekarang clickable (guarded via Route::has(), tidak ada perubahan pada file screen-017 sendiri selain test Feature/Livewire yang diupdate untuk mencerminkan perilaku baru ini)"
+    "2026-08-20: screen-020--detail-grading-web's Phase 4 landed, meregistrasikan route data.grading.detail — baris tabel di layar ini sekarang clickable (guarded via Route::has(), tidak ada perubahan pada file screen-017 sendiri selain test Feature/Livewire yang diupdate untuk mencerminkan perilaku baru ini)",
+    "REVISI v3 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -52,23 +54,27 @@
     {
       "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV",
       "severity": "minor"
+    },
+    {
+      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-grading.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
+      "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-08-20T00:00:00Z",
-      "passed": 7,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 31,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-20T00:00:00Z",
-      "passed": 7,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-08-20T00:00:00Z",
-      "passed": 5,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "browser": {

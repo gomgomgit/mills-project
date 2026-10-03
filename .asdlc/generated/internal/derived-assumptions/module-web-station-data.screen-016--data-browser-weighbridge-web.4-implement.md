@@ -13,3 +13,12 @@
 
 ## Catatan proses — race condition
 Dua invocation screen-impl-agent untuk screen ini sempat berjalan BERSAMAAN secara tidak sengaja (kegagalan komunikasi status sebelumnya membuat command mengira invocation pertama gagal lalu meluncurkan yang kedua, padahal yang pertama masih berjalan di background). Keduanya menulis ke file yang sama (Pagination.php, routes, CompanyFactory.php, dst) — invocation pertama "menang" race dan hasil akhirnya yang dipertahankan di disk. Command memverifikasi seluruh state file secara langsung (bukan hanya percaya laporan agent), lalu menerapkan sendiri kedua keputusan HITL di atas dan menjalankan full test suite untuk konfirmasi tidak ada regresi. Tidak ada file rusak atau hilang akibat race ini — hanya perlu rekonsiliasi manual.
+
+## v4 — 2026-10-03
+
+Sinkronisasi artefak dengan kode isolasi Production Line yang sudah ada (kode tidak diubah).
+- test_results.unit/integration/component ← dipetakan dari berkas uji: unit = tests/Unit/Services/*RecordServiceTest.php, integration = tests/Feature/Api/DataBrowser*Test.php, component = tests/Feature/Livewire/DataBrowser*Test.php; run_at memakai tanggal jalan (2026-10-03) tanpa jam yang tepat
+- test_results.unit.passed ← mencakup SELURUH uji unit service stasiun ini, termasuk metode yang dipakai layar Form/Detail, bukan hanya jalur Data Browser
+- test_results.browser ← dibiarkan apa adanya: uji Playwright tidak dijalankan pada sinkronisasi ini
+- files_generated += ScopesToActorMill.php ← trait bersama (dibuat 2026-09-28), dicatat di setiap layar Data Browser karena buildFilteredQuery() bergantung padanya
+- known_issues += celah uji browser Production Line ← diangkat dari catatan tech-spec, severity minor dipilih agen

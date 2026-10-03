@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-096--data-browser-storage-tank-web",
   "name": "Data Browser Storage Tank (Web)",
@@ -21,7 +21,8 @@
     "backend/database/factories/StorageTankRecordFactory.php",
     "backend/database/factories/StorageTankDetailFactory.php",
     "backend/database/factories/StationFactory.php",
-    "backend/resources/views/data/production-process-activity.blade.php"
+    "backend/resources/views/data/production-process-activity.blade.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/StorageTankRecordServiceTest.php",
@@ -45,7 +46,8 @@
     "The Storage Tank tile in production-process-activity.blade.php (screen-035) already existed as an active-styled tile pointing to route('data.storage-tank') -- verified against the pre-existing (crash-survived) blade file, no changes needed",
     "tests/Feature/ProductionProcessActivityTest.php (pre-existing, shared) already reflects Storage Tank's active routing (10 active station tiles, 4 remaining unrouted) -- verified by running the full suite, no changes needed",
     "StationFactory::storageTank() state already existed (mirrors processWater()/effluentPlant() exactly) for this screen's and screen-116's test suites -- verified, no changes needed",
-    "Ran the full backend test suite (`php artisan test`) after resuming this task: 1794 passed (0 failed), confirming no regression to any pre-existing screen. Storage-Tank-specific tests (`--filter=StorageTank`): 90 passed (0 failed) -- 33 unit (StorageTankRecordServiceTest), 7 integration (Feature/Api/DataBrowserStorageTankTest), 5 component (Feature/Livewire/DataBrowserStorageTankTest), reported under this screen; remaining 45 Storage Tank tests reported under screen-106/screen-116 below"
+    "Ran the full backend test suite (`php artisan test`) after resuming this task: 1794 passed (0 failed), confirming no regression to any pre-existing screen. Storage-Tank-specific tests (`--filter=StorageTank`): 90 passed (0 failed) -- 33 unit (StorageTankRecordServiceTest), 7 integration (Feature/Api/DataBrowserStorageTankTest), 5 component (Feature/Livewire/DataBrowserStorageTankTest), reported under this screen; remaining 45 Storage Tank tests reported under screen-106/screen-116 below",
+    "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau."
   ],
   "deferred_items": [
     {
@@ -57,23 +59,27 @@
     {
       "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserStorageTankTest.php) exists following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
       "severity": "minor"
+    },
+    {
+      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-storage-tank.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
+      "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-09-01T03:05:00Z",
-      "passed": 33,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 41,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-09-01T03:05:00Z",
-      "passed": 7,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-01T03:05:00Z",
-      "passed": 5,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "browser": {

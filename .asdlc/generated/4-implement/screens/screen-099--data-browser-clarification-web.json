@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-099--data-browser-clarification-web",
   "name": "Data Browser Clarification (Web)",
@@ -17,7 +17,8 @@
     "backend/database/factories/ClarificationRecordFactory.php",
     "backend/database/factories/ClarificationDetailFactory.php",
     "backend/database/factories/StationFactory.php",
-    "backend/resources/views/data/production-process-activity.blade.php"
+    "backend/resources/views/data/production-process-activity.blade.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/ClarificationRecordServiceTest.php",
@@ -41,7 +42,8 @@
     "The Clarification tile in production-process-activity.blade.php (screen-035) was updated from a javascript:void(0) placeholder to route('data.clarification') -- only Process Quality Control now remains unrouted, decremented from 2",
     "tests/Feature/ProductionProcessActivityTest.php updated: Clarification moved from the 'still-unrouted' test (renamed to 'renders the 1 still-unrouted...') into the routed-tiles test (renamed to 'renders the 12 active station tiles...')",
     "StationFactory::clarification() state added additively (mirrors boilerRoom()/engineRoom()/storageTank()/effluentPlant() exactly) for this screen's and screen-119's test suites",
-    "Ran the full backend test suite (`php artisan test`) after implementation: 2062 passed, 0 failed. Clarification-specific tests (`--filter=Clarification`): 87 passed (0 failed) -- 30 unit (ClarificationRecordServiceTest, reported under this screen), 7 integration (Feature/Api/DataBrowserClarificationTest), 5 component (Feature/Livewire/DataBrowserClarificationTest); remaining 45 Clarification tests reported under screen-109/screen-119 below"
+    "Ran the full backend test suite (`php artisan test`) after implementation: 2062 passed, 0 failed. Clarification-specific tests (`--filter=Clarification`): 87 passed (0 failed) -- 30 unit (ClarificationRecordServiceTest, reported under this screen), 7 integration (Feature/Api/DataBrowserClarificationTest), 5 component (Feature/Livewire/DataBrowserClarificationTest); remaining 45 Clarification tests reported under screen-109/screen-119 below",
+    "REVISI v3 (tech-spec v3, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v3, `php artisan test` untuk berkas uji layar ini hijau."
   ],
   "deferred_items": [
     {
@@ -53,23 +55,27 @@
     {
       "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserClarificationTest.php) exists following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
       "severity": "minor"
+    },
+    {
+      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-clarification.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
+      "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-09-01T00:00:00Z",
-      "passed": 30,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 38,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-09-01T00:00:00Z",
-      "passed": 7,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-01T00:00:00Z",
-      "passed": 5,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "browser": {

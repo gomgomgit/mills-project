@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-100--data-browser-process-quality-control-web",
   "name": "Data Browser Process Quality Control (Web)",
@@ -17,7 +17,8 @@
     "backend/database/factories/ProcessQualityControlRecordFactory.php",
     "backend/database/factories/ProcessQualityControlDetailFactory.php",
     "backend/database/factories/StationFactory.php",
-    "backend/resources/views/data/production-process-activity.blade.php"
+    "backend/resources/views/data/production-process-activity.blade.php",
+    "backend/app/Support/Concerns/ScopesToActorMill.php"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/ProcessQualityControlRecordServiceTest.php",
@@ -40,7 +41,8 @@
     "The Process Quality Control tile in production-process-activity.blade.php (screen-035) was updated from a javascript:void(0) placeholder to route('data.process-quality-control') -- this was the LAST remaining unrouted tile; 0 now remain",
     "tests/Feature/ProductionProcessActivityTest.php updated: the 'still-unrouted' test (previously asserting 1 remaining tile) was replaced -- the single 'berhasil' test now asserts all 17 active station tiles render with real route() hrefs, and a new assertDontSee('javascript:void(0)') confirms no placeholder links remain, since the scenario it used to cover became vacuous once Process Quality Control was routed",
     "StationFactory::processQualityControl() state added additively (mirrors clarification()/boilerRoom()/engineRoom()/storageTank()/effluentPlant() exactly) for this screen's and screen-120's test suites -- this is the FINAL station-type factory state added across all 10 of the 2026-08-31 batch",
-    "Ran the full backend test suite (`php artisan test`) after implementation: 2148 passed, 0 failed. Process-Quality-Control-specific tests (`--filter=ProcessQualityControl`): 86 passed (0 failed) -- 29 unit (ProcessQualityControlRecordServiceTest, reported under this screen), 7 integration (Feature/Api/DataBrowserProcessQualityControlTest), 5 component (Feature/Livewire/DataBrowserProcessQualityControlTest); remaining 45 Process Quality Control tests reported under screen-110/screen-120 below; ProductionProcessActivityTest (5 tests, project-level not station-specific) also passes"
+    "Ran the full backend test suite (`php artisan test`) after implementation: 2148 passed, 0 failed. Process-Quality-Control-specific tests (`--filter=ProcessQualityControl`): 86 passed (0 failed) -- 29 unit (ProcessQualityControlRecordServiceTest, reported under this screen), 7 integration (Feature/Api/DataBrowserProcessQualityControlTest), 5 component (Feature/Livewire/DataBrowserProcessQualityControlTest); remaining 45 Process Quality Control tests reported under screen-110/screen-120 below; ProductionProcessActivityTest (5 tests, project-level not station-specific) also passes",
+    "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau."
   ],
   "deferred_items": [
     {
@@ -52,23 +54,27 @@
     {
       "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserProcessQualityControlTest.php) exists following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
       "severity": "minor"
+    },
+    {
+      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-process-quality-control.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
+      "severity": "minor"
     }
   ],
   "test_results": {
     "unit": {
-      "run_at": "2026-09-01T06:00:00Z",
-      "passed": 29,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 38,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-09-01T06:00:00Z",
-      "passed": 7,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-01T06:00:00Z",
-      "passed": 5,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 14,
       "failed": 0
     },
     "browser": {

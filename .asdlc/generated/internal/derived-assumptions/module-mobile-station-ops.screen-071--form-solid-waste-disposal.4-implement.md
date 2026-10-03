@@ -12,3 +12,10 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 - Catatan REVISI tech-spec (kunci periode) tidak lagi menyebut penolakan write-through DIAM; merujuk ke catatan REVISI 2026-10-03.
 - fe_files_generated ditambah mobile/src/services/writeThroughSync.ts dan mobile/src/components/ConfirmDialog.vue (berkas bersama yang diubah untuk perilaku ini).
 - Catatan baru REVISI (2026-10-03): untuk layar selain Threshing dicatat tidak ada test per-form; cakupan generik writeThroughSync.spec.ts + pola identik FormThreshingView.spec.ts.
+
+## v4 — 2026-10-03
+
+Spec e2e mobile baru + run penuh 727 lulus / 0 gagal.
+- mobile/tests/e2e/form-solid-waste-disposal.spec.ts ditambahkan ke fe_test_files_generated; test_results.browser = 15 lulus / 0 gagal (run_at 2026-10-03T00:00:00Z, jumlah dari run penuh suite).
+- known_issue 'spec browser/E2E belum ada' dihapus; known_issue lain dibiarkan.
+- Cacat tanggal UTC di mobile/src/services/solidWasteDisposalRecordRepo.ts (todayDateString pakai toISOString → draft 00:00–06:59 WIB bertanggal kemarin) diperbaiki ke tanggal lokal; regresi: vitest 'mengisi tanggal draft dengan tanggal lokal, bukan UTC (dini hari WIB)' di mobile/tests/solidWasteDisposalRecordRepo.spec.ts + e2e 'New Data dini hari ...' di monitor-solid-waste-disposal.spec.ts (dari fixme ke lulus). File repo sudah tercantum di fe_files_generated.

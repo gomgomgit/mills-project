@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -16,7 +16,8 @@
     "mobile/src/components/ConfirmDialog.vue"
   ],
   "fe_test_files_generated": [
-    "mobile/tests/FormBoilerRoomView.spec.ts"
+    "mobile/tests/FormBoilerRoomView.spec.ts",
+    "mobile/tests/e2e/form-boiler-room.spec.ts"
   ],
   "implementation_notes": [
     "Boiler Room Detail grid renders whatever rows exist (0..24) loaded from boilerRoomRecordRepo.getDraftWithDetails(), with Tambah baris/Hapus baris controls -- the exact same dynamic add-row/remove-row pattern as Engine Room Detail (screen-077's mobile precedent)",
@@ -28,15 +29,11 @@
     "Every FormField id in the grid is set explicitly (e.g. steam-pressure-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide, same defensive pattern as FormEngineRoomView.vue",
     "Field order in the grid & template mirrors the migration column order exactly: Steam Pressure -> Steam Temp -> Feed Water Temp -> Feed Water Tank Level -> Boiler Water Level -> Water TDS -> Water pH -> Fuel Feed Rate -> ID Fan Load -> SA Fan Load -> Exhaust Gas Temp -> Dust Collector Differential Pressure -> Blowdown Executed -> Sootblowing Executed -> Findings = 15 total",
     "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak): FormBoilerRoomView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('boiler_room_record') → pushSavedRecordNow → POST /api/boiler-room-records bila Mills Setting immediate_sync_enabled aktif. Kegagalan offline/5xx diam; penolakan 4xx (termasuk 422 PERIOD_CLOSED) sejak 2026-10-03 ditampilkan langsung di form (lihat catatan REVISI 2026-10-03 di bawah), dan pada sinkron manual screen-006 alasannya tampil di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('boiler-room', mill, date) di BoilerRoomRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik), dan mobile/tests/writeThroughSync.spec.ts (hasil {synced, rejection} write-through).",
-    "REVISI (2026-10-03): penolakan write-through kini ditampilkan — writeThroughSync.syncAfterSave('boiler_room_record') mengembalikan {synced, rejection}; bila server menolak dengan 4xx (mis. 422 PERIOD_CLOSED, usecase-141) rejection berisi pesan server dan FormBoilerRoomView membuka ConfirmDialog satu tombol (cancel-label kosong) 'Tersimpan, tetapi ditolak server' berisi pesan tersebut, lalu bernavigasi ke Monitor Boiler Room saat ditutup (tombol 'Mengerti' maupun klik overlay). Record tetap 'saved' di SQLite lokal dan dapat dikirim ulang lewat sinkron Station List setelah masalahnya diselesaikan. Offline/5xx/fitur nonaktif tetap diam. Cakupan test: mobile/tests/writeThroughSync.spec.ts (generik, termasuk 422 PERIOD_CLOSED → rejection berisi pesan); tidak ada test komponen khusus untuk form ini — test komponen representatif ada di mobile/tests/FormThreshingView.spec.ts."
+    "REVISI (2026-10-03): penolakan write-through kini ditampilkan — writeThroughSync.syncAfterSave('boiler_room_record') mengembalikan {synced, rejection}; bila server menolak dengan 4xx (mis. 422 PERIOD_CLOSED, usecase-141) rejection berisi pesan server dan FormBoilerRoomView membuka ConfirmDialog satu tombol (cancel-label kosong) 'Tersimpan, tetapi ditolak server' berisi pesan tersebut, lalu bernavigasi ke Monitor Boiler Room saat ditutup (tombol 'Mengerti' maupun klik overlay). Record tetap 'saved' di SQLite lokal dan dapat dikirim ulang lewat sinkron Station List setelah masalahnya diselesaikan. Offline/5xx/fitur nonaktif tetap diam. Cakupan test: mobile/tests/writeThroughSync.spec.ts (generik, termasuk 422 PERIOD_CLOSED → rejection berisi pesan); tidak ada test komponen khusus untuk form ini — test komponen representatif ada di mobile/tests/FormThreshingView.spec.ts.",
+    "REVISI 2026-10-03 (e2e): spec Playwright mobile/tests/e2e/form-boiler-room.spec.ts ditulis (13 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec) — known issue 'spec e2e belum ada' ditutup."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "Browser (Playwright) e2e spec was not authored for this screen in this task -- component test coverage (FormBoilerRoomView.spec.ts, 20 tests) is complete and passing, but there is no browser-level verification of this screen's full Simpan/Pause/Clear/Back flow in a live dev server.",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "",
@@ -55,8 +52,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 13,
       "failed": 0
     }
   }

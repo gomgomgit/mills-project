@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-121--monitor-sterilizer",
   "name": "Monitor Sterilizer",
@@ -22,7 +22,8 @@
   "fe_test_files_generated": [
     "mobile/tests/sterilizerRecordRepo.spec.ts",
     "mobile/tests/MonitorSterilizerView.spec.ts",
-    "mobile/tests/StationListView.spec.ts"
+    "mobile/tests/StationListView.spec.ts",
+    "mobile/tests/e2e/monitor-sterilizer.spec.ts"
   ],
   "implementation_notes": [
     "Mirrors MonitorCpoDispatchView.vue's structural pattern (breadcrumb + hamburger header, draft/pause list, New Data/Load Data/Back footer) but with EVENT-LOG summary semantics: 'Hari Ini' shows Jumlah Sterilizer + Jumlah Siklus Tercatat (not a tipping-progress metric), plus a 'Siklus Terakhir' card (getLastCycleSummary()) showing the single most-recently-logged sterilization cycle across ALL of the user's records (not scoped to today), displaying sterilizer_no + close_door_time + duration_minutes",
@@ -31,14 +32,11 @@
     "StationListView.vue's draftStatusByType wiring updated: 'sterilizer' now calls sterilizerRecordRepo.getDrafts(userId).length > 0 instead of not existing at all; MONITOR_ROUTE_NAMES gained 'sterilizer: monitor-sterilizer'. Test file updated with a matching mock (getSterilizerDraftsMock) plus a default mockResolvedValue([]) added alongside every existing station default — registering this mock in beforeEach was verified required (a past station this session forgot this exact step and it silently broke Promise.all)",
     "StationGrid.vue: Sterilizer's icon moved from PLACEHOLDER_ICONS to ACTIVE_ICONS (identical SVG path reused, now rendered as an active tile) — the 'Skema Mendatang (Belum Tersedia)' section now renders nothing since placeholderStations.length === 0, no template change needed (already conditional)",
     "stationRepo.ts StationType union gained the 'sterilizer' literal",
-    "sterilizerRecordRepo.ts is a new, from-scratch repo file (no pre-existing block to extend) — createDraft()/getTodaySummary()/getLastCycleSummary()/getDrafts()/getAllRecords()/getDraftWithDetails()/saveDraft()/pauseDraftWithFormData()/deleteDraft()/computeDurationMinutes() all written together, with 13 detail columns per entity-catalog sterilizer-detail. Unlike CPO Dispatch, there is no per-row event_date column (all rows share the header's single Date) and no net_weight_mt-style computed float — instead duration_minutes is computed client-side (= open_door_time - close_door_time, wrapping across midnight) for immediate UX feedback, with the SERVER (SterilizerRecordService) always recomputing/overriding it on save"
+    "sterilizerRecordRepo.ts is a new, from-scratch repo file (no pre-existing block to extend) — createDraft()/getTodaySummary()/getLastCycleSummary()/getDrafts()/getAllRecords()/getDraftWithDetails()/saveDraft()/pauseDraftWithFormData()/deleteDraft()/computeDurationMinutes() all written together, with 13 detail columns per entity-catalog sterilizer-detail. Unlike CPO Dispatch, there is no per-row event_date column (all rows share the header's single Date) and no net_weight_mt-style computed float — instead duration_minutes is computed client-side (= open_door_time - close_door_time, wrapping across midnight) for immediate UX feedback, with the SERVER (SterilizerRecordService) always recomputing/overriding it on save",
+    "REVISI 2026-10-03: spec Playwright mobile/tests/e2e/monitor-sterilizer.spec.ts ditulis (9 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec). Penulisan spec ini menemukan cacat aplikasi: todayDateString() di mobile/src/services/sterilizerRecordRepo.ts memakai new Date().toISOString().slice(0,10) (UTC) untuk kolom date pada createDraft, sehingga draft yang dibuat pukul 00:00–06:59 WIB mendapat tanggal kemarin — hilang dari kartu 'Hari Ini' Monitor, tersembunyi oleh filter default hari ini di Data Preview, terkirim ke server dengan tanggal yang salah (dan dinilai kunci periode pada hari yang salah). Kini memakai tanggal lokal (getFullYear/getMonth/getDate), selaras dengan view Data Preview dan getTodaySummary (date('now','localtime')). Uji regresi: vitest 'mengisi tanggal draft dengan tanggal lokal, bukan UTC (dini hari WIB)' di mobile/tests/sterilizerRecordRepo.spec.ts (merah sebelum perbaikan, hijau sesudahnya) dan uji e2e 'New Data dini hari ...' di monitor-sterilizer.spec.ts (sebelumnya fixme, kini lulus)."
   ],
   "deferred_items": [],
   "known_issues": [
-    {
-      "description": "Browser/E2E test not generated for this pass (no Playwright infra wired into this sandbox run) — component-level (Vitest) coverage exercises the same navigation/business logic instead.",
-      "severity": "minor"
-    },
     {
       "description": "Unit test coverage % not measured — no Xdebug/PCOV in this environment, consistent with prior stations in this codebase.",
       "severity": "minor"
@@ -62,8 +60,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 9,
       "failed": 0
     }
   }

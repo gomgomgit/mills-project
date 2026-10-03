@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -14,7 +14,8 @@
     "mobile/src/views/DataPreviewStorageTankView.vue"
   ],
   "fe_test_files_generated": [
-    "mobile/tests/DataPreviewStorageTankView.spec.ts"
+    "mobile/tests/DataPreviewStorageTankView.spec.ts",
+    "mobile/tests/e2e/data-preview-storage-tank.spec.ts"
   ],
   "implementation_notes": [
     "Dual-mode component (list/detail driven by :id? route param), mirrors DataPreviewEffluentPlantView.vue's watch()-driven mode switch exactly",
@@ -22,15 +23,11 @@
     "Checked By/Acknowledged By rendered read-only with no role restriction on viewing, consistent with Data Preview Effluent Plant and this screen's business spec",
     "UNLIKE Data Preview Threshing/Effluent Plant: this screen has NO operational-target reference table section, per this station's explicit scope; all 17 non-time_slot detail columns (including the 1 enum status column) are rendered in the detail-row grid since there are no identifying/context columns to treat differently",
     "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): mode detail memasang RecordVerificationActions (station-type='storage-tank', local-table='storage_tank_record') yang memanggil PATCH /api/records/storage-tank/{server_id}/verification; backend RecordVerificationService::setVerification menerapkan peran + cakupan mill lalu assertPeriodOpenForWrite (EnforcesPeriodLock) atas `date` record sebelum menulis — periode stasiun tidak terbuka / tanggal di luar rentang → 422 PERIOD_CLOSED tanpa perubahan kolom; komponen menampilkan pesan server dan baris lokal tidak diperbarui (UPDATE lokal hanya setelah sukses); offline → pesan 'Butuh koneksi internet untuk verifikasi'. Tercakup oleh backend/tests/Feature/Api/RecordVerificationTest.php (blok 'kunci periode pada jalur verifikasi') dan backend/tests/Unit/Support/EnforcesPeriodLockTest.php; mobile/tests/recordVerification.spec.ts mencakup galat offline tetapi belum punya kasus PERIOD_CLOSED khusus.",
-    "REVISI v3 (2026-10-03, sinkronisasi catatan uji — kode tidak diubah): celah 'recordVerification.spec.ts belum punya kasus PERIOD_CLOSED khusus' pada catatan REVISI kunci periode di atas kini TERTUTUP — mobile/tests/recordVerification.spec.ts menambah 'shows the period-lock (422 PERIOD_CLOSED) message verbatim as an error and leaves the local row untouched' untuk komponen bersama RecordVerificationActions yang dipasang di mode detail layar ini: pesan server 422 PERIOD_CLOSED ditampilkan apa adanya sebagai galat dan baris lokal tidak di-UPDATE. Uji hijau."
+    "REVISI v3 (2026-10-03, sinkronisasi catatan uji — kode tidak diubah): celah 'recordVerification.spec.ts belum punya kasus PERIOD_CLOSED khusus' pada catatan REVISI kunci periode di atas kini TERTUTUP — mobile/tests/recordVerification.spec.ts menambah 'shows the period-lock (422 PERIOD_CLOSED) message verbatim as an error and leaves the local row untouched' untuk komponen bersama RecordVerificationActions yang dipasang di mode detail layar ini: pesan server 422 PERIOD_CLOSED ditampilkan apa adanya sebagai galat dan baris lokal tidak di-UPDATE. Uji hijau.",
+    "REVISI 2026-10-03 (e2e): spec Playwright mobile/tests/e2e/data-preview-storage-tank.spec.ts ditulis (12 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec) — known issue 'spec e2e belum ada' ditutup."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "Browser (Playwright) e2e spec was not authored for this screen in this task -- component test coverage (DataPreviewStorageTankView.spec.ts, 11 tests) is complete and passing, but there is no browser-level verification of this screen's list/detail navigation flow in a live dev server.",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "",
@@ -49,8 +46,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 12,
       "failed": 0
     }
   }

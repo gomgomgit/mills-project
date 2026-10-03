@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-01"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-064--monitor-cpo-dispatch",
   "name": "Monitor CPO Dispatch",
@@ -20,21 +20,19 @@
   "fe_test_files_generated": [
     "mobile/tests/cpoDispatchRecordRepo.spec.ts",
     "mobile/tests/MonitorCpoDispatchView.spec.ts",
-    "mobile/tests/StationListView.spec.ts"
+    "mobile/tests/StationListView.spec.ts",
+    "mobile/tests/e2e/monitor-cpo-dispatch.spec.ts"
   ],
   "implementation_notes": [
     "Mirrors MonitorKernelDispatchView.vue's structural pattern (breadcrumb + hamburger header, draft/pause list, New Data/Load Data/Back footer) but with EVENT-LOG summary semantics: 'Hari Ini' shows Jumlah CPO Dispatch + Jumlah Kejadian Tercatat (not a tipping-progress metric), plus a 'Kejadian Terakhir' card (getLastEventSummary()) showing the single most-recently-logged event across ALL of the user's records (not scoped to today), displaying destination/buyer + event date + tanker plate no instead of Kernel Dispatch's destination/buyer/date/vehicle-plate-no triple (tankerPlateNo is the CPO Dispatch analog of vehiclePlateNo)",
     "localSchema.ts gained 2 new tables (cpo_dispatch_record, cpo_dispatch_detail) via CREATE TABLE IF NOT EXISTS — no column-migration function needed since these are brand-new tables, not an existing-table schema change",
     "router/index.ts gained 3 new routes: monitor-cpo-dispatch, cpo-dispatch-form, data-preview-cpo-dispatch",
     "StationListView.vue's draftStatusByType wiring updated: 'cpo-dispatch' now calls cpoDispatchRecordRepo.getDrafts(userId).length > 0 instead of the previous hardcoded false placeholder — MONITOR_ROUTE_NAMES already had 'monitor-cpo-dispatch' mapped from an earlier station-list update, so the tile itself needed no further changes. Test file updated with a matching mock (getCpoDispatchDraftsMock) plus a default mockResolvedValue([]) added alongside every existing kernelDispatch default, following the exact convention used for Kernel Dispatch/Process Water/Solid Waste Disposal",
-    "cpoDispatchRecordRepo.ts is a new, from-scratch repo file (no pre-existing block to extend) — createDraft()/getTodaySummary()/getLastEventSummary()/getDrafts()/getAllRecords()/getDraftWithDetails()/saveDraft()/pauseDraftWithFormData()/deleteDraft() all written together, with 21 detail columns per entity-catalog cpo-dispatch-detail. Unlike Kernel Dispatch, there is no remarks_gate_status/weighbridge_ticket_no column — CPO Dispatch instead has time_in/time_out (two separate time columns, distinct from event_date) and dobi"
+    "cpoDispatchRecordRepo.ts is a new, from-scratch repo file (no pre-existing block to extend) — createDraft()/getTodaySummary()/getLastEventSummary()/getDrafts()/getAllRecords()/getDraftWithDetails()/saveDraft()/pauseDraftWithFormData()/deleteDraft() all written together, with 21 detail columns per entity-catalog cpo-dispatch-detail. Unlike Kernel Dispatch, there is no remarks_gate_status/weighbridge_ticket_no column — CPO Dispatch instead has time_in/time_out (two separate time columns, distinct from event_date) and dobi",
+    "REVISI 2026-10-03: spec Playwright mobile/tests/e2e/monitor-cpo-dispatch.spec.ts ditulis (12 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec). Penulisan spec ini menemukan cacat aplikasi: todayDateString() di mobile/src/services/cpoDispatchRecordRepo.ts memakai new Date().toISOString().slice(0,10) (UTC) untuk kolom date pada createDraft, sehingga draft yang dibuat pukul 00:00–06:59 WIB mendapat tanggal kemarin — hilang dari kartu 'Hari Ini' Monitor, tersembunyi oleh filter default hari ini di Data Preview, terkirim ke server dengan tanggal kejadian yang salah (dan dinilai kunci periode pada hari yang salah). Kini memakai tanggal lokal (getFullYear/getMonth/getDate), selaras dengan view Data Preview dan getTodaySummary (date('now','localtime')). Uji regresi: vitest 'mengisi tanggal draft dengan tanggal lokal, bukan UTC (dini hari WIB)' di mobile/tests/cpoDispatchRecordRepo.spec.ts (merah sebelum perbaikan, hijau sesudahnya) dan uji e2e 'New Data dini hari ...' di monitor-cpo-dispatch.spec.ts (sebelumnya fixme, kini lulus)."
   ],
   "deferred_items": [],
   "known_issues": [
-    {
-      "description": "Browser/E2E test not generated for this pass (no Playwright infra wired into this sandbox run) — component-level (Vitest) coverage exercises the same navigation/business logic instead.",
-      "severity": "minor"
-    },
     {
       "description": "Unit test coverage % not measured — no Xdebug/PCOV in this environment, consistent with prior stations in this codebase.",
       "severity": "minor"
@@ -58,8 +56,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 12,
       "failed": 0
     }
   }

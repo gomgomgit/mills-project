@@ -10,3 +10,9 @@ Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan 
 Sinkronisasi catatan uji 4-implement dengan uji yang ditambahkan 2026-10-03.
 - Tidak ada known_issue yang menyatakan uji mobile PERIOD_CLOSED belum ada — celah itu hanya tercatat di catatan REVISI kunci periode (implementation_notes), jadi tidak ada yang dihapus; catatan REVISI v3 menyatakannya tertutup.
 - Uji baru berada di mobile/tests/recordVerification.spec.ts (komponen bersama RecordVerificationActions), bukan di spec layar ini; berkas itu tidak ditambahkan ke fe_test_files_generated dan test_results tidak diubah karena jumlah uji per layar tidak berubah.
+
+## v4 — 2026-10-03
+
+Spec e2e mobile baru + run penuh 727 lulus / 0 gagal.
+- mobile/tests/e2e/data-preview-cpo-dispatch.spec.ts ditambahkan ke fe_test_files_generated; test_results.browser = 11 lulus / 0 gagal (run_at 2026-10-03T00:00:00Z, jumlah dari run penuh suite).
+- known_issue 'spec browser/E2E belum ada' dihapus; known_issue lain dibiarkan.

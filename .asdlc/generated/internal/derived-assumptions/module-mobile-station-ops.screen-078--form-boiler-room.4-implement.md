@@ -12,3 +12,9 @@ Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
 - Catatan REVISI kunci periode: klaim penolakan DIAM diganti dengan perilaku baru; daftar cakupan test menyebut writeThroughSync.spec.ts sebagai test hasil {synced, rejection}.
 - Ditambahkan catatan REVISI (2026-10-03) tentang dialog penolakan; diasumsikan tidak ada test komponen khusus form ini untuk dialog (hanya FormThreshingView.spec.ts sebagai representatif).
 - fe_files_generated ditambah writeThroughSync.ts dan ConfirmDialog.vue (berkas bersama yang diubah untuk perilaku ini).
+
+## v4 — 2026-10-03
+
+Spec e2e mobile baru + run penuh 727 lulus / 0 gagal.
+- mobile/tests/e2e/form-boiler-room.spec.ts ditambahkan ke fe_test_files_generated; test_results.browser = 13 lulus / 0 gagal (run_at 2026-10-03T00:00:00Z, jumlah dari run penuh suite).
+- known_issue 'spec browser/E2E belum ada' dihapus; known_issue lain dibiarkan.

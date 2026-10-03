@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-31"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-061--monitor-solid-waste-disposal",
   "name": "Monitor Solid Waste Disposal",
@@ -20,21 +20,19 @@
   "fe_test_files_generated": [
     "mobile/tests/solidWasteDisposalRecordRepo.spec.ts",
     "mobile/tests/MonitorSolidWasteDisposalView.spec.ts",
-    "mobile/tests/StationListView.spec.ts"
+    "mobile/tests/StationListView.spec.ts",
+    "mobile/tests/e2e/monitor-solid-waste-disposal.spec.ts"
   ],
   "implementation_notes": [
     "Mirrors MonitorCagesTrackView.vue's structural pattern (breadcrumb + hamburger header, draft/pause list, New Data/Load Data/Back footer) but with EVENT-LOG summary semantics: 'Hari Ini' shows Jumlah Solid Waste Disposal + Jumlah Kejadian Tercatat (not a tipping-progress metric), plus a new 'Kejadian Terakhir' card (getLastEventSummary()) showing the single most-recently-logged event across ALL of the user's records (not scoped to today) — there is no meaningful 'progress toward N' metric for a free event log",
     "localSchema.ts gained 2 new tables (solid_waste_disposal_record, solid_waste_disposal_detail) via CREATE TABLE IF NOT EXISTS — no column-migration function needed since these are brand-new tables, not an existing-table schema change",
     "router/index.ts gained 3 new routes: monitor-solid-waste-disposal, solid-waste-disposal-form, data-preview-solid-waste-disposal",
     "StationListView.vue's draftStatusByType wiring updated: 'solid-waste-disposal' now calls solidWasteDisposalRecordRepo.getDrafts(userId).length > 0 instead of the previous hardcoded false placeholder — MONITOR_ROUTE_NAMES already had 'monitor-solid-waste-disposal' mapped from an earlier station-list update, so the tile itself needed no further changes",
-    "solidWasteDisposalRecordRepo.ts is a new, from-scratch repo file (no pre-existing block to extend) — createDraft()/getTodaySummary()/getLastEventSummary()/getDrafts()/getAllRecords()/getDraftWithDetails()/saveDraft()/pauseDraftWithFormData()/deleteDraft() all written together"
+    "solidWasteDisposalRecordRepo.ts is a new, from-scratch repo file (no pre-existing block to extend) — createDraft()/getTodaySummary()/getLastEventSummary()/getDrafts()/getAllRecords()/getDraftWithDetails()/saveDraft()/pauseDraftWithFormData()/deleteDraft() all written together",
+    "REVISI 2026-10-03: spec Playwright mobile/tests/e2e/monitor-solid-waste-disposal.spec.ts ditulis (12 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec). Penulisan spec ini menemukan cacat aplikasi: todayDateString() di mobile/src/services/solidWasteDisposalRecordRepo.ts memakai new Date().toISOString().slice(0,10) (UTC) untuk kolom date pada createDraft, sehingga draft yang dibuat pukul 00:00–06:59 WIB mendapat tanggal kemarin — hilang dari kartu 'Hari Ini' Monitor, tersembunyi oleh filter default hari ini di Data Preview, terkirim ke server dengan tanggal kejadian yang salah (dan dinilai kunci periode pada hari yang salah). Kini memakai tanggal lokal (getFullYear/getMonth/getDate), selaras dengan view Data Preview dan getTodaySummary (date('now','localtime')). Uji regresi: vitest 'mengisi tanggal draft dengan tanggal lokal, bukan UTC (dini hari WIB)' di mobile/tests/solidWasteDisposalRecordRepo.spec.ts (merah sebelum perbaikan, hijau sesudahnya) dan uji e2e 'New Data dini hari ...' di monitor-solid-waste-disposal.spec.ts (sebelumnya fixme, kini lulus)."
   ],
   "deferred_items": [],
   "known_issues": [
-    {
-      "description": "Browser/E2E test not generated for this pass (no Playwright infra wired into this sandbox run) — component-level (Vitest) coverage exercises the same navigation/business logic instead.",
-      "severity": "minor"
-    },
     {
       "description": "Unit test coverage % not measured — no Xdebug/PCOV in this environment, consistent with prior stations in this codebase.",
       "severity": "minor"
@@ -58,8 +56,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 12,
       "failed": 0
     }
   }

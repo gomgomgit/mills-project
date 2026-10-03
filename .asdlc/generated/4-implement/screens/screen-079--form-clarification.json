@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -16,7 +16,8 @@
     "mobile/src/components/ConfirmDialog.vue"
   ],
   "fe_test_files_generated": [
-    "mobile/tests/FormClarificationView.spec.ts"
+    "mobile/tests/FormClarificationView.spec.ts",
+    "mobile/tests/e2e/form-clarification.spec.ts"
   ],
   "implementation_notes": [
     "Clarification Detail grid renders whatever rows exist (0..24) loaded from clarificationRecordRepo.getDraftWithDetails(), with Tambah baris/Hapus baris controls -- the exact same dynamic add-row/remove-row pattern as Boiler Room Detail (screen-078's mobile precedent)",
@@ -27,15 +28,11 @@
     "Every FormField id in the grid is set explicitly (e.g. clarification-tank-temp-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- same defensive pattern as FormBoilerRoomView.vue",
     "Field order in the grid & template mirrors the migration column order exactly: Clarification Tank Temp -> Oil Tank Temperature -> Sludge Tank Temp -> Buffer Tank Level -> Pure Oil Production Rate -> Downtime -> Findings = 7 total",
     "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak): FormClarificationView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('clarification_record') → pushSavedRecordNow → POST /api/clarification-records bila Mills Setting immediate_sync_enabled aktif. Kegagalan offline/5xx diam; penolakan 4xx (termasuk 422 PERIOD_CLOSED) sejak 2026-10-03 ditampilkan langsung di form (lihat catatan REVISI 2026-10-03 di bawah), dan pada sinkron manual screen-006 alasannya tampil di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('clarification', mill, date) di ClarificationRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik), dan mobile/tests/writeThroughSync.spec.ts (hasil {synced, rejection} write-through).",
-    "REVISI (2026-10-03): penolakan write-through kini ditampilkan — writeThroughSync.syncAfterSave('clarification_record') mengembalikan {synced, rejection}; bila server menolak dengan 4xx (mis. 422 PERIOD_CLOSED, usecase-141) rejection berisi pesan server dan FormClarificationView membuka ConfirmDialog satu tombol (cancel-label kosong) 'Tersimpan, tetapi ditolak server' berisi pesan tersebut, lalu bernavigasi ke Monitor Clarification saat ditutup (tombol 'Mengerti' maupun klik overlay). Record tetap 'saved' di SQLite lokal dan dapat dikirim ulang lewat sinkron Station List setelah masalahnya diselesaikan. Offline/5xx/fitur nonaktif tetap diam. Cakupan test: mobile/tests/writeThroughSync.spec.ts (generik, termasuk 422 PERIOD_CLOSED → rejection berisi pesan); tidak ada test komponen khusus untuk form ini — test komponen representatif ada di mobile/tests/FormThreshingView.spec.ts."
+    "REVISI (2026-10-03): penolakan write-through kini ditampilkan — writeThroughSync.syncAfterSave('clarification_record') mengembalikan {synced, rejection}; bila server menolak dengan 4xx (mis. 422 PERIOD_CLOSED, usecase-141) rejection berisi pesan server dan FormClarificationView membuka ConfirmDialog satu tombol (cancel-label kosong) 'Tersimpan, tetapi ditolak server' berisi pesan tersebut, lalu bernavigasi ke Monitor Clarification saat ditutup (tombol 'Mengerti' maupun klik overlay). Record tetap 'saved' di SQLite lokal dan dapat dikirim ulang lewat sinkron Station List setelah masalahnya diselesaikan. Offline/5xx/fitur nonaktif tetap diam. Cakupan test: mobile/tests/writeThroughSync.spec.ts (generik, termasuk 422 PERIOD_CLOSED → rejection berisi pesan); tidak ada test komponen khusus untuk form ini — test komponen representatif ada di mobile/tests/FormThreshingView.spec.ts.",
+    "REVISI 2026-10-03 (e2e): spec Playwright mobile/tests/e2e/form-clarification.spec.ts ditulis (11 test) dan lulus dalam run penuh suite Playwright mobile (727 lulus / 0 gagal, 65 spec) — known issue 'spec e2e belum ada' ditutup."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "Browser (Playwright) e2e spec was not authored for this screen in this task -- component test coverage (FormClarificationView.spec.ts, 20 tests) is complete and passing, but there is no browser-level verification of this screen's full Simpan/Pause/Clear/Back flow in a live dev server.",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "",
@@ -54,8 +51,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 11,
       "failed": 0
     }
   }

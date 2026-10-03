@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-022--form-weighbridge-web",
   "name": "Form Weighbridge (Web)",
@@ -18,7 +18,7 @@
     "Tombol 'Edit' dari Detail Weighbridge (Web) — mode ubah record"
   ],
   "information_displayed": [
-    "Business Unit (dropdown) — hanya pada mode buat baru, menentukan mill tujuan record; station Weighbridge otomatis di-resolve dari Business Unit terpilih (1 station Weighbridge aktif per mill)",
+    "Business Unit (dropdown) dan Production Line (dropdown) — hanya pada mode buat baru. Business Unit dibatasi ke mill pengguna dan hanya menentukan pilihan Production Line yang tersedia; station Weighbridge di-resolve otomatis dari Production Line terpilih (station Weighbridge aktif pada line itu), bukan dari Business Unit",
     "WB Card Number",
     "Tipe Weighbridge: Receive atau Dispatch — dipilih via 2 tombol tab bersebelahan, default Receive untuk record baru, mengikuti pola Form Weighbridge mobile",
     "Tanggal & Waktu — label mengikuti tipe ('Tanggal & Waktu Arrival' untuk Receive, 'Tanggal & Waktu Dispatch' untuk Dispatch); default waktu saat ini, DAPAT diedit manual oleh user (berbeda dari mobile yang mengunci field ini)",
@@ -32,8 +32,8 @@
   ],
   "available_actions": [
     {
-      "action": "Pilih Business Unit",
-      "description": "Menentukan mill tujuan record baru (hanya mode buat baru)",
+      "action": "Pilih Business Unit & Production Line",
+      "description": "Memilih Business Unit (memuat ulang daftar Production Line-nya) lalu Production Line tempat record dicatat; station Weighbridge ditentukan dari Production Line (hanya mode buat baru)",
       "actor_ids": [
         "actor-supervisor",
         "actor-mill-management",
@@ -91,7 +91,7 @@
     "Tujuan Muatan wajib diisi hanya saat tipe Dispatch",
     "Net Weight dihitung otomatis dari Gross Weight dikurangi Tare Weight dan tidak dapat diedit manual — nilai ini merupakan invariant data yang ditegakkan di level model untuk semua entry point (mobile, sync, web), bukan sekadar kenyamanan tampilan, sehingga dikecualikan dari konvensi 'input web tidak boleh disabled'",
     "Checked By hanya dapat diisi (via checkbox) oleh user dengan role Supervisor; Acknowledged By hanya oleh Mill Management — field disembunyikan untuk role lain, sesuai component_patterns 'form'",
-    "Business Unit (dan station Weighbridge terkait) tidak dapat diubah setelah record dibuat — pada mode edit, mill asal ditampilkan sebagai teks read-only",
+    "Business Unit, Production Line, dan station Weighbridge terkait tidak dapat diubah setelah record dibuat — pada mode edit, asal record ditampilkan sebagai teks read-only",
     "Label field berat (Gross, Tare, Net Weight) menampilkan satuan (kg); label Kuantitas menampilkan satuan (tandan)"
   ],
   "usecase_ids": [
@@ -100,7 +100,7 @@
   "edge_cases": [
     "Field wajib belum lengkap saat Simpan (termasuk Tujuan Muatan jika tipe Dispatch)",
     "Ganti tipe Weighbridge setelah field tanggal/tujuan muatan terisi — nilai lama dibuang, field menyesuaikan tipe baru",
-    "Business Unit terpilih belum memiliki station Weighbridge aktif (mode buat baru) — Simpan ditolak dengan pesan error",
+    "Production Line terpilih (atau belum dipilih) tidak memiliki station Weighbridge aktif (mode buat baru) — Simpan ditolak dengan pesan error; Production Line milik mill lain juga ditolak",
     "Record tidak ditemukan saat mode edit dibuka dengan id tidak valid",
     "User menekan Batal dengan perubahan belum tersimpan (perlu konfirmasi, mengikuti pola mobile)"
   ],

@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 5,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-03"
@@ -19,15 +19,17 @@
   "test_files_generated": [
     "backend/tests/Unit/Services/GradingRecordServiceTest.php",
     "backend/tests/Feature/Api/DataBrowserGradingTest.php",
-    "backend/tests/Feature/Livewire/DataBrowserGradingTest.php",
-    "backend/tests/Browser/DataBrowserGradingTest.php"
+    "backend/tests/Feature/Livewire/DataBrowserGradingTest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DataBrowserGrading.php",
     "backend/resources/views/livewire/data/data-browser-grading.blade.php",
     "backend/resources/views/data/grading.blade.php"
   ],
-  "fe_test_files_generated": [],
+  "fe_test_files_generated": [
+    "e2e-web/tests/data-browser-grading.spec.ts",
+    "e2e-web/tests/support/production-line-filter.ts"
+  ],
   "implementation_notes": [
     "GradingRecordService memfilter pada kolom date (whereDate()), bukan datetime seperti weighbridge",
     "Menggunakan Pagination::format() versi terkoreksi (total_pages=1 untuk hasil kosong)",
@@ -35,7 +37,9 @@
     "InvalidDateRangeException/ExportFailedException reuse langsung dari screen-016, tidak diduplikasi",
     "Full regression suite: 94/94 test backend lulus (semua 17 screen), tanpa spec_mismatch",
     "2026-08-20: screen-020--detail-grading-web's Phase 4 landed, meregistrasikan route data.grading.detail — baris tabel di layar ini sekarang clickable (guarded via Route::has(), tidak ada perubahan pada file screen-017 sendiri selain test Feature/Livewire yang diupdate untuk mencerminkan perilaku baru ini)",
-    "REVISI v3 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau."
+    "REVISI v3 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau.",
+    "REVISI v4 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-grading.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec dijalankan penuh: 2/2 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser test tidak dijalankan' dihapus.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -48,15 +52,7 @@
       "severity": "minor"
     },
     {
-      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox",
-      "severity": "minor"
-    },
-    {
       "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV",
-      "severity": "minor"
-    },
-    {
-      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-grading.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
       "severity": "minor"
     }
   ],
@@ -78,8 +74,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 2,
       "failed": 0
     }
   }

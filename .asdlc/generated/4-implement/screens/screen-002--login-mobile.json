@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-18"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-002--login-mobile",
   "name": "Login Mobile",
@@ -20,8 +20,7 @@
     "backend/tests/Unit/Services/AuthServiceTest.php",
     "backend/tests/Feature/Api/LoginMobileTest.php",
     "backend/tests/Feature/Api/LoginWebTest.php",
-    "backend/tests/Feature/Livewire/LoginFormTest.php",
-    "backend/tests/Browser/LoginMobileTest.php"
+    "backend/tests/Feature/Livewire/LoginFormTest.php"
   ],
   "fe_files_generated": [
     "mobile/src/views/LoginView.vue",
@@ -41,7 +40,8 @@
     "web middleware tetap dipertahankan di POST /api/login untuk kebutuhan session screen-001; CSRF dikecualikan khusus path ini karena request pertama mobile belum punya CSRF token",
     "Round-1 fix: LoginForm.spec.ts gagal load (missing @vue/test-utils + no jsdom env) — diperbaiki dengan menambah dependency dan test.environment='jsdom' di vite.config.ts, retest semua lulus",
     "Fix gap sync data stasiun (2026-08-18, respons ke pertanyaan user 'kenapa halaman daftar stasiun kosong'): stores/auth.ts's login() sekarang memanggil localSchema.ts's seedDefaultStationsIfNeeded(businessUnit.id) tepat setelah businessUnit diketahui — men-seed 15 stasiun MVP default (3 aktif + 12 placeholder) ke tabel lokal station secara idempotent (INSERT OR IGNORE). Ini menggantikan 'sync flow terpisah' yang diasumsikan setiap screen mobile tapi tidak pernah dibangun di manapun dalam scope 32-screen project ini. Best-effort/non-blocking: dibungkus try/catch, kegagalan seed lokal tidak menggagalkan login yang sudah berhasil. LoginForm.spec.ts diperbarui: menambah vi.mock('@/services/localSchema') karena login() sungguhan (tidak di-mock di test ini) sekarang memanggil fungsi yang membuka koneksi SQLite nyata — tanpa mock ini test akan hang selamanya di customElements.whenDefined('jeep-sqlite') dalam environment jsdom. Diverifikasi end-to-end nyata: login segar tanpa seeding manual apa pun langsung menampilkan 15 stasiun di screen-006, sesuai urutan mock referensi.",
-    "Regresi penuh setelah fix ini: 166/166 vitest (naik dari 161, +5 test baru localSchema.spec.ts) + 50/50 Playwright e2e, semua tetap hijau."
+    "Regresi penuh setelah fix ini: 166/166 vitest (naik dari 161, +5 test baru localSchema.spec.ts) + 50/50 Playwright e2e, semua tetap hijau.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -51,10 +51,6 @@
     },
     {
       "description": "Migration personal_access_tokens belum dijalankan terhadap database dev nyata (tidak ada driver pdo_mysql di sandbox ini) — perlu php artisan migrate sebelum live; test suite pakai test DB terpisah yang sudah otomatis menjalankannya",
-      "severity": "minor"
-    },
-    {
-      "description": "tests/Browser/LoginMobileTest.php (Playwright lawas) dibuat tapi tidak pernah dijalankan ulang — retrofit browser test 2026-08-18 membangun infrastruktur Playwright baru (tests/e2e/) untuk screen 005-015, tests/Browser/LoginMobileTest.php lama ini di luar scope retrofit itu (screen-001/002 tidak termasuk)",
       "severity": "minor"
     },
     {

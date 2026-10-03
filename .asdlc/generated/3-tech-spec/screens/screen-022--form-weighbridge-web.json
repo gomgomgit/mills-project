@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-03"
@@ -34,13 +34,13 @@
         {
           "method": "POST",
           "path": "/api/weighbridge-records",
-          "description": "Membuat record Weighbridge baru; station diresolve dari business_unit_id",
+          "description": "Membuat record Weighbridge baru; station diresolve dari production_line_id (Station aktif bertipe weighbridge pada production line itu), bukan dari business_unit_id",
           "auth_required": true,
           "request": {
             "path_params": [],
             "query_params": [],
             "body_schema": {
-              "business_unit_id": "uuid, required",
+              "production_line_id": "uuid, wajib secara praktis — dipakai HANYA untuk me-resolve station (kosong/tidak dikenal -> 422 NO_ACTIVE_WEIGHBRIDGE_STATION, bukan VALIDATION_ERROR); production_line_id yang disimpan diambil dari station hasil resolve, bukan dari body; business_unit_id TIDAK diterima endpoint ini",
               "wb_card_number": "string, required",
               "weighbridge_type": "enum(receive, dispatch), required",
               "record_datetime": "timestamp, required",
@@ -77,12 +77,17 @@
               {
                 "http_code": 422,
                 "error_code": "NO_ACTIVE_WEIGHBRIDGE_STATION",
-                "condition": "business unit tanpa station weighbridge aktif"
+                "condition": "production_line_id kosong/tidak dikenal, atau production line tersebut tidak punya station weighbridge aktif"
               },
               {
                 "http_code": 422,
                 "error_code": "PERIOD_CLOSED",
                 "condition": "tidak ada Periode Pelaporan dengan baris stasiun 'weighbridge' berstatus Terbuka di mill record ini (belum ada periode / masih Draft / sudah Tertutup), atau record_datetime di luar rentang periode terbuka itu (inklusif kedua ujung); juga bila record_datetime kosong"
+              },
+              {
+                "http_code": 403,
+                "error_code": "FORBIDDEN",
+                "condition": "production_line_id me-resolve ke station milik mill lain (CrossMillWriteDeniedException 'Production line yang dipilih bukan milik mill Anda.')"
               }
             ]
           },
@@ -156,13 +161,13 @@
       ],
       "business_logic": [
         "1. Create: validate field wajib termasuk destination jika dispatch -> 422 VALIDATION_ERROR",
-        "2. Create: resolve station = Station WHERE business_unit_id AND type=weighbridge AND is_active=true -> 422 NO_ACTIVE_WEIGHBRIDGE_STATION jika tidak ada",
+        "2. Create: resolve station lewat ScopesToActorMill::resolveActiveStationForActor(production_line_id, 'weighbridge', actor) = Station WHERE production_line_id AND type=weighbridge AND is_active=true ORDER BY created_at, id (yang tertua menang) -> 422 NO_ACTIVE_WEIGHBRIDGE_STATION jika production_line_id kosong/tidak ada station; 403 FORBIDDEN jika station milik mill lain; production_line_id record di-snapshot dari station hasil resolve",
         "3. checked=true+role=supervisor -> checked_by=requester id; acknowledged=true+role=mill_management -> acknowledged_by=requester id; role lain diabaikan",
         "4. INSERT record status=saved, net_weight dihitung model event, tidak menerima override",
         "5. Update: validate id -> 404 jika tidak ada -> validate field wajib -> 422 jika gagal",
-        "6. Update: business_unit_id/station_id tidak diterima dari body, tidak berubah",
+        "6. Update: production_line_id/business_unit_id/station_id tidak diterima dari body, tidak berubah",
         "7. UPDATE record, net_weight dihitung ulang model event",
-        "8. FE: mode create tampilkan dropdown Business Unit (GET /api/business-units); mode edit GET /api/weighbridge-records/{id} untuk prefill, BU ditampilkan read-only",
+        "8. FE (Livewire FormWeighbridge): mode create tampilkan dropdown Business Unit (businessUnitOptionsForActor, dikunci ke mill aktor) yang meng-cascade dropdown Production Line (StationService::productionLineOptions); production_line_id yang dipilih dikirim ke create(); mode edit memuat detail untuk prefill, BU/station ditampilkan read-only",
         "9. FE: tab Tipe default Receive (create) atau tersimpan (edit); ganti tab reset record_datetime & destination ke default",
         "10. FE: record_datetime input datetime-local, default waktu saat ini, tetap dapat diedit manual",
         "11. FE: Net Weight dihitung reaktif untuk preview tapi field disabled (invariant data, dikecualikan dari konvensi web-form-input)",
@@ -190,7 +195,7 @@
         {
           "entity_id": "station",
           "operation": "SELECT",
-          "description": "Resolve station aktif dari business_unit_id"
+          "description": "Resolve station aktif bertipe weighbridge dari production_line_id (lalu cek mill station = mill aktor)"
         }
       ],
       "edge_case_handling": [
@@ -199,7 +204,7 @@
           "handling": "422 VALIDATION_ERROR"
         },
         {
-          "condition": "BU tanpa station weighbridge aktif",
+          "condition": "Production Line kosong / tidak dikenal / tanpa station weighbridge aktif",
           "handling": "422 NO_ACTIVE_WEIGHBRIDGE_STATION"
         },
         {
@@ -225,6 +230,10 @@
         {
           "condition": "Update memindahkan record_datetime keluar dari periode Tertutup (tanggal lama di periode Tertutup, tanggal baru di periode Terbuka)",
           "handling": "Ditolak 422 PERIOD_CLOSED -- tanggal LAMA ikut diperiksa, sehingga record tidak bisa dikeluarkan dari periode tertutup (mengeluarkan baris menggeser angka laporan sama nyatanya dengan menambah); record tidak berubah"
+        },
+        {
+          "condition": "production_line_id milik mill lain (request dibuat-buat)",
+          "handling": "403 FORBIDDEN (CrossMillWriteDeniedException); di Livewire ditangkap dan ditampilkan sebagai $generalError; nol record tersimpan"
         }
       ],
       "business_rules_applied": [
@@ -232,13 +241,13 @@
         "record_datetime default sekarang, tetap dapat diedit",
         "Net Weight dihitung model event, tidak menerima override",
         "Checked By hanya Supervisor, Acknowledged By hanya Mill Management",
-        "Business Unit tidak berubah setelah dibuat",
+        "Business Unit / Production Line (station) tidak berubah setelah dibuat",
         "Kunci periode (usecase-141, whitelist): data Weighbridge hanya dapat dibuat/diubah bila mill record punya Periode Pelaporan yang baris stasiun 'weighbridge'-nya Terbuka DAN tanggal kejadian (record_datetime) berada di rentangnya (inklusif kedua ujung); tanpa periode, Draft, Tertutup, tanggal kosong, atau di luar rentang -> 422 PERIOD_CLOSED. Status dinilai per jenis stasiun saat request; periode mill lain atau jenis stasiun lain tidak membuka akses; update memeriksa tanggal lama DAN baru"
       ],
       "unit_test_cases": [
         {
           "description": "creates record with resolved station_id when valid (receive)",
-          "given": "valid body type=receive, BU punya 1 station weighbridge aktif",
+          "given": "valid body type=receive, production_line_id punya 1 station weighbridge aktif",
           "expect": "record insert dengan station_id sesuai, status=saved"
         },
         {
@@ -257,7 +266,7 @@
           "expect": "ValidationException errors.wb_card_number"
         },
         {
-          "description": "422 NO_ACTIVE_WEIGHBRIDGE_STATION when BU has no active weighbridge station",
+          "description": "422 NO_ACTIVE_WEIGHBRIDGE_STATION when the production line has no active weighbridge station",
           "given": "Station query kosong",
           "expect": "throw NoActiveWeighbridgeStationException"
         },
@@ -277,8 +286,8 @@
           "expect": "acknowledged_by=requester id"
         },
         {
-          "description": "updates record without accepting business_unit_id change",
-          "given": "PATCH tanpa business_unit_id",
+          "description": "updates record without accepting production_line_id/business_unit_id change",
+          "given": "PATCH tanpa production_line_id/business_unit_id",
           "expect": "station_id tidak berubah"
         },
         {
@@ -342,7 +351,7 @@
     "DIVERGENSI DARI MOBILE: record_datetime pada web default waktu saat ini namun TETAP dapat diedit manual - berbeda dari mobile (screen-010) yang menguncinya. Gunakan input type=datetime-local",
     "DIVERGENSI DARI MOBILE: data web dapat diedit setelah tersimpan (mode edit penuh), tidak ada draft/pause - status langsung saved",
     "PENGECUALIAN konvensi web-form-input: Net Weight tetap disabled karena WeighbridgeRecord model event selalu menghitung ulang net_weight=gross-tare untuk semua entry point - field editable akan menyesatkan karena nilai user akan ditimpa diam-diam saat disimpan. Setara pengecualian role-based Checked By/Acknowledged By, hanya beda alasan (data-integrity)",
-    "Business Unit dropdown reuse GET /api/business-units (sudah ada, publik)",
+    "Dropdown Business Unit (dikunci ke mill aktor) meng-cascade dropdown Production Line; station di-resolve dari production_line_id (bukan business_unit_id) di WeighbridgeRecordService::create() via resolveActiveStationForActor()",
     "Mode edit prefill reuse GET /api/weighbridge-records/{id} (screen-019)",
     "Route web /data/weighbridge/create HARUS didaftarkan SEBELUM /data/weighbridge/{id} agar tidak tertangkap sebagai {id}",
     "Checked/Acknowledged sebagai checkbox self-attestation, mengisi checked_by/acknowledged_by dengan id user login",
@@ -360,7 +369,7 @@
             "path": "/api/weighbridge-records"
           },
           "request_example": {
-            "business_unit_id": "{{business_unit_uuid}}",
+            "production_line_id": "{{production_line_uuid}}",
             "wb_card_number": "WB-WEB-001",
             "weighbridge_type": "receive",
             "record_datetime": "2026-08-20T08:00:00Z",
@@ -375,7 +384,7 @@
       ],
       "component_test": {
         "component": "FormWeighbridge",
-        "action": "pilih Business Unit, isi field wajib tipe Receive, klik Simpan",
+        "action": "pilih Business Unit dan Production Line, isi field wajib tipe Receive, klik Simpan",
         "assert": "record tersimpan, navigasi ke Detail Weighbridge"
       },
       "browser_test": {
@@ -460,7 +469,7 @@
             "path": "/api/weighbridge-records"
           },
           "request_example": {
-            "business_unit_id": "{{business_unit_uuid}}",
+            "production_line_id": "{{production_line_uuid}}",
             "weighbridge_type": "dispatch"
           },
           "expected_status": 422,
@@ -489,7 +498,7 @@
             "path": "/api/weighbridge-records"
           },
           "request_example": {
-            "business_unit_id": "{{business_unit_tanpa_weighbridge_uuid}}",
+            "production_line_id": "{{production_line_tanpa_weighbridge_uuid}}",
             "wb_card_number": "WB-X",
             "weighbridge_type": "receive",
             "record_datetime": "2026-08-20T08:00:00Z",
@@ -504,12 +513,12 @@
       ],
       "component_test": {
         "component": "FormWeighbridge",
-        "action": "pilih BU tanpa station weighbridge aktif, klik Simpan",
+        "action": "pilih Production Line tanpa station weighbridge aktif, klik Simpan",
         "assert": "error ditampilkan"
       },
       "browser_test": {
         "route": "/data/weighbridge/create",
-        "action": "pilih BU tanpa station weighbridge, klik Simpan",
+        "action": "pilih Production Line tanpa station weighbridge, klik Simpan",
         "assert": "error ditampilkan"
       }
     },

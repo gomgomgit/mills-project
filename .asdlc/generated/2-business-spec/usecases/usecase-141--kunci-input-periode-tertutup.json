@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-02"
+    "updated_at": "2026-10-03"
   },
   "id": "usecase-141--kunci-input-periode-tertutup",
   "name": "Penolakan Input, Edit & Verifikasi pada Periode Tertutup",
@@ -133,7 +133,8 @@
     "Periode milik mill lain maupun jenis stasiun lain tidak pernah membuka pintu",
     "Record yang tiba setelah penutupan ditolak walau kejadiannya di dalam rentang; pemulihannya lewat Admin membuka kembali stasiun itu",
     "Record tanpa tanggal kejadian ditolak, bukan ditempatkan pada periode yang berjalan hari ini — baris tanpa penanda waktu tidak bisa ditempatkan di periode mana pun, dan menebak 'hari ini' akan menyelundupkannya ke periode yang salah. Ditambahkan 2026-10-02: `weighbridge_records.record_datetime` nullable di database (migrasi penggabungan tidak dapat memakai ->change()), jadi keadaan ini dapat dicapai.",
-    "VERIFIKASI ADALAH JALUR TULIS KEEMPAT DAN TERPISAH. Ia tidak melewati satu pun service record per stasiun melainkan satu layanan verifikasi bersama lewat route generiknya sendiri, sehingga kunci yang dipasang pada jalur create/ubah TIDAK menutupinya. Dinyatakan sebagai aturan, bukan catatan teknis, karena ia yang membuat 'verifikasi ikut terkunci' benar-benar berlaku alih-alih hanya tertulis."
+    "VERIFIKASI ADALAH JALUR TULIS KEEMPAT DAN TERPISAH. Ia tidak melewati satu pun service record per stasiun melainkan satu layanan verifikasi bersama lewat route generiknya sendiri, sehingga kunci yang dipasang pada jalur create/ubah TIDAK menutupinya. Dinyatakan sebagai aturan, bukan catatan teknis, karena ia yang membuat 'verifikasi ikut terkunci' benar-benar berlaku alih-alih hanya tertulis.",
+    "DI MOBILE, PENOLAKAN MUNCUL SAAT DATA TIBA DI SERVER, BUKAN SAAT DISIMPAN. Simpan di perangkat tidak memeriksa periode (status periode tidak tersedia offline), jadi record tetap tersimpan lokal. Penolakannya tampil (a) saat sinkron dari Station List — per record, dengan alasan dari server, dan record tetap berstatus Tersimpan di perangkat sampai dikirim ulang; dan (b) untuk 15 stasiun yang mendukung pengiriman langsung (semua kecuali Weighbridge, Grading, dan Cages Track), bila pengiriman langsung saat Simpan diaktifkan di Mills Setting, segera setelah Simpan lewat dialog 'Tersimpan, tetapi ditolak server' yang memuat alasan dari server — record tetap Tersimpan di perangkat. Gagal karena offline atau gangguan server tidak dilaporkan sebagai penolakan; record cukup menunggu sinkron berikutnya. Ditambahkan 2026-10-03."
   ],
   "bdd_scenarios": [
     {
@@ -281,6 +282,7 @@
     "screen-120--form-process-quality-control-web",
     "screen-122--form-sterilizer",
     "screen-123--data-preview-sterilizer",
-    "screen-126--form-sterilizer-web"
+    "screen-126--form-sterilizer-web",
+    "screen-006--station-list"
   ]
 }

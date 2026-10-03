@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -31,7 +31,8 @@
   ],
   "fe_test_files_generated": [
     "backend/tests/Feature/Livewire/DataBrowserKernelDispatchTest.php",
-    "backend/tests/Browser/DataBrowserKernelDispatchTest.php"
+    "e2e-web/tests/data-browser-kernel-dispatch.spec.ts",
+    "e2e-web/tests/support/production-line-filter.ts"
   ],
   "implementation_notes": [
     "Mengikuti pola screen-091 (Data Browser Solid Waste Disposal) persis — KernelDispatchRecordController/Service delegasi penuh ke service layer yang sama dipakai Livewire component, reuse InvalidDateRangeException/ExportFailedException/Pagination::format() yang sudah ada di codebase, tidak diduplikasi",
@@ -41,20 +42,14 @@
     "production-process-activity.blade.php: tile 'Kernel Dispatch' (sebelumnya href=\"javascript:void(0)\", styled active tapi belum di-route) sekarang di-wire ke route('data.kernel-dispatch') karena screen ini kini terimplementasi — satu-satunya perubahan pada tile di file bersama ini; 7 tile stasiun lain yang masih belum di-route (Clarification/Boiler Room/Effluent Plant/Engine Room/Storage Tank/CPO Dispatch/Process Quality Control) tetap tidak berubah. File-level doc comment juga diperbarui untuk mencerminkan 7 sisa tile unrouted (turun dari 8)",
     "tests/Feature/ProductionProcessActivityTest.php diupdate untuk mencerminkan perubahan di atas: assertion 'renders the N active station tiles' diperluas menjadi 8 (menambahkan Kernel Dispatch), dan test 'still-unrouted tiles' menjadi 7 masih belum di-route (menghapus Kernel Dispatch dari daftar tersebut) — test lain di file tersebut tidak disentuh",
     "Detail fields (21 kolom, entity-catalog kernel-dispatch-detail) lebih banyak dari Solid Waste Disposal (17 kolom): tambahan waybill_number, transporter_contractor, kernel_moisture_percent, dirt_impurities_percent, ffa_percent, broken_kernel_percent, dan security_seal_no dipecah menjadi security_seal_no_top/security_seal_no_bottom",
-    "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau."
+    "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau.",
+    "REVISI v3 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-kernel-dispatch.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec yang sama juga diperbaiki dari pelanggaran strict mode di skenario empty-state (getByText('Tidak ada data') cocok ke judul DAN subtitle; kini memakai locator kelas judul empty-state). Spec dijalankan penuh: 4/4 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser test tidak dapat dijalankan' dihapus.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
   "known_issues": [
     {
-      "description": "Browser test file dibuat tapi tidak dapat dijalankan di sandbox ini (tidak ada infra Playwright/dev-server), konsisten dengan gap yang sama di screen-016/017/018/091/092.",
-      "severity": "minor"
-    },
-    {
       "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV di sandbox ini.",
-      "severity": "minor"
-    },
-    {
-      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-kernel-dispatch.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
       "severity": "minor"
     }
   ],
@@ -76,8 +71,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 4,
       "failed": 0
     }
   }

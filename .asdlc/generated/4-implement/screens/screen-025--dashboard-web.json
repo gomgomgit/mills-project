@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-025--dashboard-web",
   "name": "Dashboard Web",
@@ -15,7 +15,8 @@
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/DashboardServiceTest.php",
-    "backend/tests/Feature/Api/DashboardTest.php"
+    "backend/tests/Feature/Api/DashboardTest.php",
+    "e2e-web/tests/dashboard-home.spec.ts"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Dashboard/DashboardHome.php",
@@ -23,23 +24,19 @@
     "backend/resources/views/dashboard/index.blade.php"
   ],
   "fe_test_files_generated": [
-    "backend/tests/Feature/Livewire/DashboardHomeTest.php",
-    "backend/tests/Browser/DashboardHomeTest.php"
+    "backend/tests/Feature/Livewire/DashboardHomeTest.php"
   ],
   "implementation_notes": [
     "Menggantikan App\\Livewire\\Dashboard\\DashboardHome placeholder stub yang sudah ada sejak bootstrap project (route /dashboard sudah terdaftar sebelumnya, role admin/supervisor/mill_management) -- component & view diganti total, layout dashboard.index (resources/views/dashboard/index.blade.php) dipertahankan, hanya komentar placeholder-nya dihapus",
     "Satu endpoint agregat tunggal (GET /api/dashboard/summary), bukan 3 request terpisah, agar NFR <=2 detik tercapai",
     "total_cages_tipped dihitung dari SUM(cages-tipped-time.total_cages), bukan dari cages_out/cages_tipped header -- konsisten dengan business rule Mills Setting yang sudah ditetapkan sesi ini",
     "DashboardService::resolveDateRange() membandingkan Carbon langsung lalu throw InvalidDateRangeException, bukan Laravel Validator -- exception ini bukan error per-field, mengikuti pola WeighbridgeRecordService yang sudah ada",
-    "Ini screen pertama yang mengagregasi 3 entity (weighbridge-record, grading-record, cages-track-record+cages-tipped-time) dalam 1 query call"
+    "Ini screen pertama yang mengagregasi 3 entity (weighbridge-record, grading-record, cages-track-record+cages-tipped-time) dalam 1 query call",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/dashboard-home.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 3 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "Browser (Playwright) test ditulis lengkap tapi tidak dijalankan -- tidak ada browser/dev server di sandbox ini, known_issue yang sama seperti semua screen web lain sesi ini",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "2026-08-20T00:00:00Z",
@@ -58,8 +55,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 3,
       "failed": 0
     }
   }

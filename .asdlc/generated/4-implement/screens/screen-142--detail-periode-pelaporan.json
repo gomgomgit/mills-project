@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-02"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-142--detail-periode-pelaporan",
   "name": "Detail Periode Pelaporan",
@@ -26,7 +26,7 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-09-27T14:40:00Z",
+      "run_at": "2026-10-03T00:00:00Z",
       "passed": 23,
       "failed": 0
     }
@@ -63,7 +63,8 @@
     "Lajur tanggal e2e dipisahkan secara ARITMETIS dari spec screen-128, bukan probabilistik: epoch dan rumus RUN_OFFSET identik, digeser DETAIL_BASE 5.000 hari, sementara slot terjauh spec 128 hanya +1.260 hari. Sengaja TIDAK memakai period-lanes.ts, yang ber-epoch 2600 sementara kedua spec periode hidup di epoch 2100 — mencampurnya akan mengulang tepat kekeliruan 'lajur abad' yang berkas itu sendiri peringatkan.",
     "e2e dijalankan EMPAT kali berturut-turut (144 lolos / 5 skip / 0 gagal tiap kali) dan hitungan DB tidak bergerak satu baris pun melintasi keempatnya. Run berulang itu bukan kelebihan: residu periode memerahkan suite 1-2 run KEMUDIAN lewat paginasi 20-baris atau PERIOD_OVERLAP, bukan seketika. Diverifikasi ulang secara independen di luar agen implementasi: 144 lolos / 5 skip / 0 gagal.",
     "Penjaga Period (atribut dan query builder) tidak pernah melempar sepanjang pekerjaan ini — getDetail() hanya findOrFail + eager-load, dan satu-satunya filter status tetap where('period_stations.status', ...) yang sudah ada.",
-    "AKSI 'BUKA KEMBALI' DI LAYAR INI BERPINDAH ARTI SEJAK 2026-10-02. Sebelum kunci periode ditegakkan, membuka kembali sebuah stasiun hanyalah koreksi status. Sesudahnya, ia adalah SATU-SATUNYA jalan pulih bagi data yang tertahan: record yang ditangkap offline saat stasiun masih terbuka lalu tiba setelah penutupan ditolak 422 PERIOD_CLOSED — penilaiannya memakai status pada saat permintaan TIBA, bukan pada saat kejadian, karena alternatifnya adalah mempercayai waktu tangkap yang dikirim klien untuk memutuskan apakah sebuah kunci server berlaku. Pemulihannya: Admin membuka kembali baris stasiun itu di layar ini, lalu klien mengirim ulang. Konsekuensinya bagi UX layar ini: tombol Buka Kembali perlu tetap mudah ditemukan untuk baris yang sudah tertutup, dan itu sudah demikian."
+    "AKSI 'BUKA KEMBALI' DI LAYAR INI BERPINDAH ARTI SEJAK 2026-10-02. Sebelum kunci periode ditegakkan, membuka kembali sebuah stasiun hanyalah koreksi status. Sesudahnya, ia adalah SATU-SATUNYA jalan pulih bagi data yang tertahan: record yang ditangkap offline saat stasiun masih terbuka lalu tiba setelah penutupan ditolak 422 PERIOD_CLOSED — penilaiannya memakai status pada saat permintaan TIBA, bukan pada saat kejadian, karena alternatifnya adalah mempercayai waktu tangkap yang dikirim klien untuk memutuskan apakah sebuah kunci server berlaku. Pemulihannya: Admin membuka kembali baris stasiun itu di layar ini, lalu klien mengirim ulang. Konsekuensinya bagi UX layar ini: tombol Buka Kembali perlu tetap mudah ditemukan untuk baris yang sudah tertutup, dan itu sudah demikian.",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/detail-periode-pelaporan.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 23 lulus, 0 gagal; test_results.browser diperbarui."
   ],
   "deferred_items": [
     {

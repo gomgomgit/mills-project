@@ -26,3 +26,10 @@
 Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan (49dc0c5, 0594c63); kode tidak diubah.
 - Berkas test yang dikutip dipilih sendiri: backend/tests/Unit/Support/EnforcesPeriodLockTest.php, backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php, mobile/tests/syncService.spec.ts, mobile/tests/StationListView.spec.ts. Tidak ada test (mobile) yang memakai respons PERIOD_CLOSED secara spesifik; test mobile yang dikutip hanya mencakup galat generik.
 - test_results tidak disentuh; tidak ada test dijalankan (sesuai brief).
+
+## v14 — 2026-10-03
+
+Sinkronisasi catatan uji 4-implement dengan uji yang ditambahkan 2026-10-03.
+- Catatan lama 'Belum ada test mobile PERIOD_CLOSED' berada di implementation_notes (bukan known_issues), jadi tidak dihapus; disupersede oleh catatan REVISI v14.
+- mobile/src/services/syncService.ts ditambahkan ke fe_files_generated dan mobile/tests/syncService.spec.ts ke fe_test_files_generated karena keduanya belum tercatat.
+- test_results tidak diubah — hanya satu uji baru di syncService.spec.ts yang dikonfirmasi; jumlah total uji screen ini tidak dihitung ulang.

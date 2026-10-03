@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-026--laporan-manajemen",
   "name": "Laporan Manajemen",
@@ -25,22 +25,19 @@
   ],
   "fe_test_files_generated": [
     "backend/tests/Feature/Livewire/ManagementReportTest.php",
-    "backend/tests/Browser/ManagementReportTest.php"
+    "e2e-web/tests/management-report.spec.ts"
   ],
   "implementation_notes": [
     "ManagementReportService baru (bukan reuse DashboardService/screen-025) karena bentuk data berbeda: satu row PER HARI + baris Total, bukan satu snapshot rentang gabungan, dan business_unit_id selalu diresolve dari acting user (bukan query param) karena Mill Management hanya punya satu mill",
     "Route web /reports/management dan layout dashboard.management-report.blade.php dibuat baru (bukan reuse dashboard.index) supaya judul halaman & sidebar-active-state benar; sidebar 'Laporan Manajemen' ditambahkan ke seluruh 18 view yang punya shell-sidebar__nav di codebase ini untuk konsistensi navigasi",
     "Endpoint dual-guarded 'auth:web,sanctum' tapi role dibatasi hanya mill_management (bukan supervisor/admin seperti screen-025), sesuai actor_permissions",
     "export() reuse pola WeighbridgeRecordService::export() -- CSV native, format=excel fallback ke CSV dengan xlsx mimetype",
-    "Route registrations di routes/api.php dan routes/web.php untuk screen-025 sekaligus dibersihkan dari komentar PLACEHOLDER yang sudah usang (screen-025 sudah diimplementasikan penuh sesi sebelumnya)"
+    "Route registrations di routes/api.php dan routes/web.php untuk screen-025 sekaligus dibersihkan dari komentar PLACEHOLDER yang sudah usang (screen-025 sudah diimplementasikan penuh sesi sebelumnya)",
+    "REVISI v2 (2026-10-03, perbaikan kode + uji): di routes/api.php rute ekspor GET /reports/management-summary/export kini didaftarkan terpisah dengan middleware ['web', 'auth:web,sanctum', 'role:mill_management'] — sama seperti 18 rute ekspor Data Browser; rute summary tetap ['auth:web,sanctum', 'role:mill_management']. Sebab: 'Ekspor CSV' adalah link biasa, jadi browser menavigasinya hanya dengan cookie sesi; tanpa grup 'web' sesi tidak pernah dimulai di rute api dan auth:web hanya berhasil bila origin halaman kebetulan ada di SANCTUM_STATEFUL_DOMAINS — di host/port lain unduhan berupa 401 JSON, bukan berkas. Uji: tests/Feature/Api/ManagementReportTest.php 'ekspor memakai grup middleware web seperti 18 rute ekspor Data Browser'. e2e-web/tests/management-report.spec.ts diperbaiki (tiap skenario membuka halaman laporan sesudah login karena login mendarat di /dashboard; rentang filter 2026-08-01..2026-08-10 yang memuat fixture WB-BROWSER-EDIT; rentang kosong 2000-01-01..2000-01-02) dan lulus 5/5 (test_results.browser diperbarui). Known issue 'browser test tidak dijalankan' dihapus.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "Browser (Playwright) test ditulis lengkap tapi tidak dijalankan -- tidak ada browser/dev server di sandbox ini, known_issue yang sama seperti semua screen web lain sesi ini",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "2026-08-20T00:00:00Z",
@@ -59,8 +56,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 5,
       "failed": 0
     }
   }

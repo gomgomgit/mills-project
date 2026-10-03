@@ -1,8 +1,8 @@
 {
-  "ver": 3,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-02"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-029--kelola-business-unit",
   "name": "Kelola Business Unit",
@@ -20,15 +20,17 @@
   "test_files_generated": [
     "backend/tests/Unit/Services/BusinessUnitServiceTest.php",
     "backend/tests/Feature/Api/KelolaBusinessUnitTest.php",
-    "backend/tests/Feature/Livewire/KelolaBusinessUnitTest.php",
-    "backend/tests/Browser/KelolaBusinessUnitTest.php"
+    "backend/tests/Feature/Livewire/KelolaBusinessUnitTest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/MasterData/KelolaBusinessUnit.php",
     "backend/resources/views/livewire/master-data/kelola-business-unit.blade.php",
     "backend/resources/views/master-data/business-units.blade.php"
   ],
-  "fe_test_files_generated": [],
+  "fe_test_files_generated": [
+    "e2e-web/tests/kelola-business-unit.spec.ts",
+    "e2e-web/tests/support/paged-table.ts"
+  ],
   "implementation_notes": [
     "First-time implementation (never built before this round) — CRUD lengkap untuk Business Unit dengan field penuh ERD sejak awal (tidak melalui rework 2-tahap seperti Corporate/Company)",
     "code (sudah ada sejak entity-catalog ver 1) unik secara GLOBAL, mirip corporate_code/company_code. name TIDAK punya aturan keunikan sama sekali — divergensi disengaja dari Corporate (name global unik) maupun Company (name per-parent unik), diverifikasi eksplisit lewat test bahwa nama duplikat diizinkan bahkan dalam Company yang sama",
@@ -39,16 +41,15 @@
     "Independently re-verified oleh command: re-run `php artisan test` — 368/368 lulus (full suite gabungan 027+028+029); baca BusinessUnitController.php dan BusinessUnitService.php penuh untuk konfirmasi keputusan merge GET /api/business-units masuk akal dan didokumentasikan jelas, serta code-unik-global/name-tanpa-aturan diimplementasikan sesuai tech spec",
     "2026-08-20 (entity-catalog v9, di luar sesi impl-2-screen ini — dilakukan bersamaan dengan rework screen-036 Kelola Production Line): create() DIUBAH agar TIDAK LAGI auto-provision Station apapun — tanggung jawab itu dipindah sepenuhnya ke ProductionLineService::create(), karena stations.production_line_id menjadi FK NOT NULL dan setiap Production Line kini punya set 15 Station kanonisnya sendiri, bukan satu set berbagi per Business Unit. Test `it('does not auto-create any stations when a new business unit is created', ...)` ditambahkan saat itu juga dan sudah lulus sejak 2026-08-20.",
     "2026-08-31 (sinkronisasi dokumentasi, asdlc-fast-screen/impl-2-screen): screen-029 punya business-spec (v3) dan tech-spec (v4) yang tertinggal — masih mendeskripsikan Business Unit sebagai pembuat 15 Station kanonis (awalnya salah dikoreksi ke breakdown 7 aktif+8 placeholder tanpa menyadari fitur itu sendiri sudah tidak berlaku, lalu dikoreksi final dengan menghapus seluruh referensi fitur tersebut dari business-spec v5 dan tech-spec v6). Kode dan test TIDAK diubah pada sinkronisasi ini — sudah benar sejak 2026-08-20. Verifikasi ulang dijalankan: `php artisan test tests/Unit/Services/BusinessUnitServiceTest.php` (32 passed), `tests/Feature/Api/KelolaBusinessUnitTest.php` (34 passed), `tests/Feature/Livewire/KelolaBusinessUnitTest.php` (23 passed) — seluruhnya lulus tanpa perubahan kode, mengonfirmasi implementasi sudah selaras dengan tech-spec v6.",
-    "v3 (2026-09-02, screen-127--master-data-tree-view): filterCompanyId ditambah atribut #[Url] agar klik node Company di Master Data Tree View bisa membuka screen ini dengan filter sudah terisi lewat query string (?filterCompanyId=<id>). mount() tidak disentuh sama sekali, jadi perilaku dropdown filter in-page saat screen ini diakses langsung (tanpa query string) tidak berubah — diverifikasi lewat full re-run suite existing sebelum menambah skenario baru untuk hydration dari query string."
+    "v3 (2026-09-02, screen-127--master-data-tree-view): filterCompanyId ditambah atribut #[Url] agar klik node Company di Master Data Tree View bisa membuka screen ini dengan filter sudah terisi lewat query string (?filterCompanyId=<id>). mount() tidak disentuh sama sekali, jadi perilaku dropdown filter in-page saat screen ini diakses langsung (tanpa query string) tidak berubah — diverifikasi lewat full re-run suite existing sebelum menambah skenario baru untuk hydration dari query string.",
+    "REVISI v4 (2026-10-03, perbaikan spec e2e — kode aplikasi tidak diubah): e2e-web/tests/kelola-business-unit.spec.ts disesuaikan — selector modal kini .kcm-modal, data uji disediakan oleh backend/database/seeders/BrowserTestFixtureSeeder.php, dan pencarian baris di tabel berhalaman memakai helper e2e-web/tests/support/paged-table.ts. Satu skenario kini di-skip: 'menampilkan dropdown company kosong saat belum ada Company sama sekali' — kondisi 'tidak ada Company sama sekali' mustahil di DB e2e bersama; perilakunya tetap dicakup uji Livewire. test_results.browser tidak diubah (tidak ada hitungan per-layar yang dicatat).",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/kelola-business-unit.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 7 lulus, 0 gagal, 1 skip (skenario 'dropdown company kosong' yang di-skip di REVISI v4); test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
   "known_issues": [
     {
       "description": "Tech spec awal (ver 2) mengasumsikan GET /api/business-units role:admin-gated dengan 403 untuk non-admin — realita implementasi (endpoint sudah ada sebelumnya sebagai publik untuk screen-001/002) berbeda, sudah dikoreksi di tech spec ver 3. Skenario 'Akses ditolak untuk non-Admin' sekarang diuji lewat companyOptions, bukan GET list.",
-      "severity": "minor"
-    },
-    {
-      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada Playwright/Node infra di sandbox backend/, konsisten dengan keterbatasan yang sudah diterima di seluruh screen web lain",
       "severity": "minor"
     }
   ],
@@ -70,8 +71,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 7,
       "failed": 0
     }
   }

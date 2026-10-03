@@ -1,5 +1,5 @@
 {
-  "ver": 4,
+  "ver": 6,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-03"
@@ -23,8 +23,7 @@
   "test_files_generated": [
     "backend/tests/Unit/Services/WeighbridgeRecordServiceTest.php",
     "backend/tests/Feature/Api/DataBrowserWeighbridgeTest.php",
-    "backend/tests/Feature/Livewire/DataBrowserWeighbridgeTest.php",
-    "backend/tests/Browser/DataBrowserWeighbridgeTest.php"
+    "backend/tests/Feature/Livewire/DataBrowserWeighbridgeTest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DataBrowserWeighbridge.php",
@@ -32,7 +31,10 @@
     "backend/resources/views/data/weighbridge.blade.php",
     "backend/routes/web.php"
   ],
-  "fe_test_files_generated": [],
+  "fe_test_files_generated": [
+    "e2e-web/tests/data-browser-weighbridge.spec.ts",
+    "e2e-web/tests/support/production-line-filter.ts"
+  ],
   "implementation_notes": [
     "Export excel pakai fallback CSV dengan mimetype/ekstensi .xlsx (belum ada XLSX writer package, sesuai instruksi tidak menambah dependency baru)",
     "EXPORT_ROW_LIMIT = 50000 dipilih sebagai batas pragmatis",
@@ -43,7 +45,9 @@
     "Full regression suite: 75/75 test backend lulus (semua screen 001-004 + 016), diverifikasi langsung oleh command setelah rekonsiliasi race condition",
     "REVISI v2 (entity-catalog v5, Weighbridge type/date restructure): arrival_datetime/dispatch_datetime diganti weighbridge_type + record_datetime; WeighbridgeRecordService/Controller/Livewire component/Blade view diperbarui untuk field baru + filter weighbridge_type baru + kolom Tujuan Muatan (destination); WeighbridgeRecordFactory.php diperbarui, ditambahkan factory state ofType(). Full regression suite re-run: 602/602 test backend lulus.",
     "REVISI v3 (screen-019--detail-weighbridge-web Phase 4 selesai): route data.weighbridge.detail sekarang ada, baris tabel di Data Browser kini benar-benar clickable (onclick navigasi ke Detail) — known_issue lama tentang ini dihapus. Test Feature/Livewire scenario 'Klik Baris Membuka Detail' diperbarui untuk assert perilaku baru (bukan lagi assert non-clickable).",
-    "REVISI v4 (tech-spec v3, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v3, `php artisan test` untuk berkas uji layar ini hijau."
+    "REVISI v4 (tech-spec v3, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v3, `php artisan test` untuk berkas uji layar ini hijau.",
+    "REVISI v5 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-weighbridge.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec dijalankan penuh: 2/2 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser test tidak dijalankan' dihapus.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -60,19 +64,11 @@
       "severity": "minor"
     },
     {
-      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox",
-      "severity": "minor"
-    },
-    {
       "description": "Response error tidak punya field error_code mesin-terbaca, hanya message — test menguji teks pesan",
       "severity": "minor"
     },
     {
       "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV",
-      "severity": "minor"
-    },
-    {
-      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-weighbridge.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
       "severity": "minor"
     }
   ],
@@ -94,8 +90,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 2,
       "failed": 0
     }
   }

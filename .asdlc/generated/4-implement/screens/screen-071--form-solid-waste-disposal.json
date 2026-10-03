@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -13,7 +13,9 @@
   "fe_files_generated": [
     "mobile/src/services/solidWasteDisposalRecordRepo.ts",
     "mobile/src/views/FormSolidWasteDisposalView.vue",
-    "mobile/src/router/index.ts"
+    "mobile/src/router/index.ts",
+    "mobile/src/services/writeThroughSync.ts",
+    "mobile/src/components/ConfirmDialog.vue"
   ],
   "fe_test_files_generated": [
     "mobile/tests/solidWasteDisposalRecordRepo.spec.ts",
@@ -25,7 +27,8 @@
     "Net Weight (MT) computed client-side (gross_weight_mt - tare_weight_mt) via rowNetWeight()/buildDetailPayload(), recomputed immediately before every save call — same 'computed then persisted' pattern as CagesTippedTimeFormRow.total_cages",
     "Hapus baris follows the queue-for-deletion pattern (a row with an existing id is queued in pendingDeletionIds, only actually DELETEd by the repo on the next Simpan/Pause call) — consistent with Form Cages Track",
     "FormField ids given explicitly (id=\"solid_waste_disposal_id\", id=\"date\") rather than relying on FormField's auto-derived label-slug id, for stable, predictable test selectors",
-    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormSolidWasteDisposalView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('solid_waste_disposal_record') → pushSavedRecordNow → POST /api/solid-waste-disposal-records bila Mills Setting immediate_sync_enabled aktif, dan penolakannya (termasuk 422 PERIOD_CLOSED) DIAM — record tetap 'saved' dan alasannya baru tampil di SyncResultDialog pada sinkron manual screen-006. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('solid-waste-disposal', mill, date) di SolidWasteDisposalRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik). Kegagalan write-through yang diam dicakup secara generik oleh mobile/tests/writeThroughSync.spec.ts."
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak): FormSolidWasteDisposalView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('solid_waste_disposal_record') → pushSavedRecordNow → POST /api/solid-waste-disposal-records bila Mills Setting immediate_sync_enabled aktif. Penolakannya (termasuk 422 PERIOD_CLOSED) sejak 2026-10-03 ditampilkan langsung di form (lihat catatan REVISI 2026-10-03); di sinkron manual screen-006 alasannya tampil per record di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('solid-waste-disposal', mill, date) di SolidWasteDisposalRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik), dan mobile/tests/writeThroughSync.spec.ts.",
+    "REVISI (2026-10-03): penolakan write-through kini ditampilkan — writeThroughSync.syncAfterSave() mengembalikan {synced, rejection}; respons server 4xx (mis. 422 PERIOD_CLOSED) mengisi rejection dengan pesan server, sedangkan offline/5xx/fitur nonaktif tetap {synced:false, rejection:null} dan diam. onSimpan() FormSolidWasteDisposalView menyimpan pesan itu ke writeThroughRejection, menampilkan ConfirmDialog satu tombol (cancel-label=\"\") berjudul 'Tersimpan, tetapi ditolak server' dengan pesan server, dan baru bernavigasi ke monitor-solid-waste-disposal saat dialog ditutup (Mengerti atau klik overlay). Record tetap 'saved' di SQLite lokal, tidak ada rollback. Test: mobile/tests/writeThroughSync.spec.ts ('reports the server message when the push is rejected with 422 PERIOD_CLOSED' + kasus diam); tidak ada test per-form untuk dialog ini di layar Solid Waste Disposal — pola identik dengan Threshing yang dicakup mobile/tests/FormThreshingView.spec.ts."
   ],
   "deferred_items": [],
   "known_issues": [

@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 6,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -27,7 +27,7 @@
   ],
   "fe_test_files_generated": [
     "backend/tests/Feature/Livewire/FormKernelDispatchTest.php",
-    "backend/tests/Browser/FormKernelDispatchTest.php"
+    "e2e-web/tests/form-kernel-dispatch.spec.ts"
   ],
   "implementation_notes": [
     "Satu Livewire component (FormKernelDispatch) menangani mode create DAN edit — mode ditentukan oleh ada/tidaknya parameter $id di mount(), sama persis pola FormSolidWasteDisposal/FormCagesTrack/FormWeighbridge/FormGrading",
@@ -41,14 +41,14 @@
     "Route web /data/kernel-dispatch/create HARUS didaftarkan SEBELUM /data/kernel-dispatch/{id} (screen-103) — sama pola dengan screen-022/023/024/111",
     "Ditambahkan tombol 'Tambah Data' di Data Browser (screen-093) dan tombol 'Edit' di Detail (screen-103) sebagai entry point ke screen ini",
     "Station::factory()->kernelDispatch() state reused (ditambahkan bersama screen-093's implementation) untuk kebutuhan test suite screen ini",
-    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): KernelDispatchRecordService::create() memanggil assertPeriodOpenForWrite('kernel-dispatch', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormKernelDispatch::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/KernelDispatchRecordServiceTest.php, tests/Feature/Api/FormKernelDispatchTest.php, tests/Feature/Livewire/FormKernelDispatchTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): KernelDispatchRecordService::create() memanggil assertPeriodOpenForWrite('kernel-dispatch', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormKernelDispatch::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/KernelDispatchRecordServiceTest.php, tests/Feature/Api/FormKernelDispatchTest.php, tests/Feature/Livewire/FormKernelDispatchTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini).",
+    "REVISI v3 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormKernelDispatchTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 18 uji, semuanya hijau (test_results.integration diperbarui).",
+    "REVISI v4 (2026-10-03, perbaikan kode + uji): KernelDispatchRecordService::upsertDetails() kini menormalkan field angka detail yang kosong ('' → null) lewat helper baru numericOrNull() (filled($v) ? (float)$v : null) untuk gross_weight_mt, tare_weight_mt, kernel_moisture_percent, dirt_impurities_percent, ffa_percent, dan broken_kernel_percent. Sebelumnya '' dari input angka yang dikosongkan diteruskan apa adanya ke kolom float PostgreSQL → SQLSTATE 22P02 → HTTP 500 di form web (SQLite di suite menerimanya diam-diam), dan (float)'' menyimpan gross/tare kosong sebagai 0 sehingga Net Weight ikut terhitung palsu. Uji regresi: tests/Unit/Services/KernelDispatchRecordServiceTest.php 'stores blank numeric detail fields as null, not empty string or 0'. e2e-web/tests/form-kernel-dispatch.spec.ts juga diperbaiki: Production Line dipilih berdasarkan label 'PL Mill A' (bukan index 1, yang kini jatuh ke line fixture Kelola Machinery tanpa stasiun Kernel Dispatch); skenario simpan di baris :48 kini lulus. test_results tidak diubah.",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-kernel-dispatch.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 2 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
   "known_issues": [
-    {
-      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox.",
-      "severity": "minor"
-    },
     {
       "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV.",
       "severity": "minor"
@@ -66,8 +66,8 @@
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-31T00:00:00Z",
-      "passed": 13,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 18,
       "failed": 0
     },
     "component": {
@@ -76,8 +76,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 2,
       "failed": 0
     }
   }

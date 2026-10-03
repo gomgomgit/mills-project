@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 3,
   "meta": {
     "title": "Mills Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-034--mills-setting",
   "name": "Mills Setting",
@@ -22,7 +22,6 @@
     "backend/tests/Unit/Services/MillSettingServiceTest.php",
     "backend/tests/Feature/Api/MillSettingTest.php",
     "backend/tests/Feature/Livewire/MillsSettingTest.php",
-    "backend/tests/Browser/MillsSettingTest.php",
     "backend/database/factories/MillSettingFactory.php",
     "backend/database/factories/StationFactory.php"
   ],
@@ -31,7 +30,9 @@
     "backend/resources/views/settings/mill-settings.blade.php",
     "backend/resources/views/livewire/settings/mills-setting.blade.php"
   ],
-  "fe_test_files_generated": [],
+  "fe_test_files_generated": [
+    "e2e-web/tests/mills-setting.spec.ts"
+  ],
   "implementation_notes": [
     "First-time implementation of two new entity-catalog v7 pieces: `mill-setting` (new table, 1:1 with business_units, lazily auto-created via MillSettingService::getOrCreate() — no backfill migration needed, pre-existing Business Units get a default row on first access) and `station.icon` (new nullable string column, added via migration ONLY — no data existed to migrate since entity-catalog v6's short-lived `station.image` field was replaced by `icon` before any implementation ever touched it).",
     "Response fields `logo`/`home_page_image` are exposed as their fully-resolved Storage::url() under the BARE key name (no `_url` suffix) — deliberately matches GET /api/mill-settings/current's already-written tech-spec contract (screen-005--home, consumed directly as an <img> src by mobile) rather than BusinessUnitService's `logo` (raw path) + `logo_url` (resolved) pair convention, since this screen shares the exact same `mill-setting` entity/response shape with that sibling screen.",
@@ -41,14 +42,12 @@
     "New web route `/mill-settings` (name: mill-settings) added to routes/web.php, guarded by 'auth' + 'role:admin,mill_management' — the first web screen in this codebase accessible to a role set narrower than the existing 'admin,supervisor,mill_management'/'admin' patterns.",
     "Own shell layout (resources/views/settings/mill-settings.blade.php) added, listing all existing master-data/data-browser/settings nav links plus this screen's own — mirrors the newest existing shell (master-data/machinery.blade.php) but does NOT retrofit the new 'Mills Setting' nav link into any OTHER screen's own shell file, consistent with this codebase's established pattern (each shell is a static per-screen snapshot, never kept in sync retroactively — verified: machinery.blade.php's own nav also lacks links to some earlier screens' most-recent additions).",
     "GET/POST /api/mill-settings/{businessUnitId}/stations endpoints are DELIBERATELY separate from screen-030's existing /api/stations (Admin-only) rather than reusing it, so Mill Management can manage their own mill's station icons without being granted full Kelola Station access.",
-    "Independently re-verified: re-ran `php artisan test` (full suite) — 644/644 passed, no regressions in any other screen's tests."
+    "Independently re-verified: re-ran `php artisan test` (full suite) — 644/644 passed, no regressions in any other screen's tests.",
+    "REVISI v2 (2026-10-03, perbaikan tampilan + uji): subtitle halaman di resources/views/livewire/settings/mills-setting.blade.php tidak lagi menyebut 'jumlah cages' (field itu sudah dihapus 2026-08-20) — kini 'Atur nama aplikasi, logo, gambar halaman utama, pengiriman data langsung, dan icon station untuk mill Anda.' e2e-web/tests/mills-setting.spec.ts dijalankan: 6 lulus, 1 dilewati (skenario 'Validasi jumlah cages' di-skip karena field-nya tidak ada lagi); test_results.browser diperbarui. Known issue 'browser test tidak dijalankan' dihapus.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
   "known_issues": [
-    {
-      "description": "Browser test (Playwright) dibuat tapi tidak dijalankan — tidak ada Playwright/Node infra di sandbox backend/, konsisten dengan keterbatasan yang sudah diterima di seluruh screen web lain (mis. screen-027 s/d screen-031, screen-016 s/d screen-018).",
-      "severity": "minor"
-    },
     {
       "description": "Station-tile's type-default icon fallback rendering (Gauge/Layers/Package when station.icon is null) is NOT implemented here — that belongs to screen-006--station-list's own Phase 4 (mobile), which consumes this screen's data but is out of this screen's scope.",
       "severity": "minor"
@@ -72,8 +71,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 6,
       "failed": 0
     }
   }

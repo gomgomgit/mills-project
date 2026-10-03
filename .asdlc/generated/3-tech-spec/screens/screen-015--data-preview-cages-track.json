@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -201,7 +201,7 @@
     }
   ],
   "implementation_notes": [
-    "Layar ini murni membaca data lokal SQLite, tidak ada panggilan API",
+    "Layar ini membaca data dari SQLite lokal (mode list & detail). Satu-satunya panggilan server adalah aksi verifikasi di mode detail: RecordVerificationActions.vue → recordVerificationApi.setVerification('cages-track', 'cages_track_record', …) → PATCH /api/records/cages-track/{server_id}/verification, hanya tersedia untuk record yang sudah tersinkron (punya server id); record yang belum tersinkron menampilkan catatan bahwa verifikasi menunggu sinkron ('Record belum tersinkron ke server — sinkronkan dulu sebelum bisa diverifikasi.'). Kolom verifikasi baris lokal baru diperbarui setelah server menerima.",
     "Mode list dan detail berbagi 1 komponen/route yang sama (bedanya cuma ada/tidaknya :id param), mirror pola screen-013/014",
     "Filter tanggal & search dilakukan client-side terhadap hasil query getAllRecords",
     "Default dateFilter = tanggal lokal hari ini (format YYYY-MM-DD via todayLocalDateString()-style, BUKAN toISOString() yang UTC-based), diisi SEKALI saat komponen mount di mode list",

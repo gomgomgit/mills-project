@@ -8,3 +8,17 @@ Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan 
 - Tidak menambah endpoint ke api_contracts (endpoints tetap kosong, sesuai instruksi) meskipun ada jalur POST write-through.
 - Dikonfirmasi dari kode: form hanya membuka draft (draft_ongoing/draft_paused) — Data Preview mengarahkan record saved/synced ke layar preview, bukan form — sehingga tidak ada jalur edit/PATCH record tersinkron.
 - Kalimat edge case/aturan/catatan dirumuskan sendiri; 'pemulihan = Admin membuka kembali baris stasiun di screen-142 lalu sinkron ulang' mengikuti brief.
+
+## v3 — 2026-10-03
+
+Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
+- edge_case usecase-141: penolakan write-through 4xx kini ditampilkan lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' lalu navigasi ke Monitor; offline/5xx tetap diam (redaksi dipilih agen, diverifikasi terhadap writeThroughSync.ts + Form*View.vue).
+- implementation_notes[0]: 'sync manual terpisah' diganti — record 'saved' dikirim lewat sinkron manual Station List (STATION_PUSH_CONFIGS) dan write-through syncAfterSave() bila immediate_sync_enabled aktif.
+- Catatan REVISI kunci periode: frasa 'kegagalannya diam' diganti dengan pembedaan offline/5xx (diam) vs 4xx (dialog).
+- Klaim 'syncService.ts TIDAK diperluas … (deferred)' dinyatakan usang di implementation_notes[0].
+- Catatan kolom enum: 'jika/ketika sync diaktifkan nanti' diganti — sinkron sudah aktif.
+
+## v4 — 2026-10-03
+
+Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
+- business_logic 12/13 dan edge_case[10]: konversi '' -> null pada steam_heating_valve_status dijelaskan sebagai efek normalisasi generik `nilai || null` di applyDetailRowChanges(), bukan penanganan khusus enum; alasan CHECK constraint lokal dihapus (tidak ada di SQLite lokal).

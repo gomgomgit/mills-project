@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-02"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-130--laporan-cages-track-web",
   "name": "Laporan Cages & Tracks (Web)",
@@ -26,7 +26,7 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-10-02T05:20:00Z",
+      "run_at": "2026-10-03T00:00:00Z",
       "passed": 20,
       "failed": 0
     }
@@ -63,7 +63,8 @@
     "REPORT_ROUTES diurutkan mengikuti sort_order (cages-track sebelum sterilizer) agar asersi terurut di Feature/Api/LaporanStasiunTest tetap hijau. Jebakannya ditulis sebagai docblock di konstanta itu: tanpa satu baris ini laporan hidup, seluruh testnya hijau, dan tile-nya tetap kelabu — layarnya tidak terjangkau dari UI.",
     "Partial report-styles di-include lewat <x-slot:styles> pada view halaman, bukan @include di dalam komponen Livewire — alasannya sudah mahal dibayar di screen-140: partial ini memancarkan <style>, dan Livewire 3 memasang wire:id pada elemen ter-render pertama. Tepat dua modifier baru ditambahkan (.md-kpis--3, .md-trendchart__col--off) beserta legendanya.",
     "Seluruh agregasi dijalankan di PHP atas baris mentah. Ada unit test khusus yang merekam setiap statement SQL selama summary() dan menegakkan tidak ada SUM/AVG/GROUP BY maupun aritmetika timestamp di sisi SQL — test jalan di SQLite, produksi di PostgreSQL, dan justru aturan null-bukan-nol yang paling mudah berbeda di antara keduanya.",
-    "SPEC BROWSER DIPERBAIKI 2026-10-02. Terakhir disentuh 2026-09-27; kewajiban memilih Production Line mendarat 2026-09-28 (a5ccfba), sehingga 17 dari 22 test berhenti di empty state `select-production-line-hint`. Helper selectProductionLine() dipanggil sebelum tiap selectPeriod(), urutan mill -> line -> periode (keepProductionLineValid() mengosongkan pilihan line begitu mill berganti). Perburuan 'mill belum punya periode' juga butuh line dipilih per kandidat — di spec ini hint-nya bernama `no-periods`, bukan `no-period-hint` seperti di storage-tank/clarification, jadi penambalan massal berdasar satu nama testid akan melewatkannya; itu yang terjadi pada percobaan pertama dan tertangkap oleh run berikutnya. Hasil: 20 lolos, 2 skip (kedua skip sudah ada sebelumnya)."
+    "SPEC BROWSER DIPERBAIKI 2026-10-02. Terakhir disentuh 2026-09-27; kewajiban memilih Production Line mendarat 2026-09-28 (a5ccfba), sehingga 17 dari 22 test berhenti di empty state `select-production-line-hint`. Helper selectProductionLine() dipanggil sebelum tiap selectPeriod(), urutan mill -> line -> periode (keepProductionLineValid() mengosongkan pilihan line begitu mill berganti). Perburuan 'mill belum punya periode' juga butuh line dipilih per kandidat — di spec ini hint-nya bernama `no-periods`, bukan `no-period-hint` seperti di storage-tank/clarification, jadi penambalan massal berdasar satu nama testid akan melewatkannya; itu yang terjadi pada percobaan pertama dan tertangkap oleh run berikutnya. Hasil: 20 lolos, 2 skip (kedua skip sudah ada sebelumnya).",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/laporan-cages-track.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 20 lulus, 0 gagal, 2 skip (dua test.skip beralasan yang sudah tercatat di known_issues); test_results.browser diperbarui."
   ],
   "deferred_items": [
     {

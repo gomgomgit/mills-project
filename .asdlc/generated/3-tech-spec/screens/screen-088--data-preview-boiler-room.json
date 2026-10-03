@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -138,7 +138,7 @@
     }
   ],
   "implementation_notes": [
-    "Semua operasi lokal di SQLite via boilerRoomRecordRepo.ts (getAllRecords, getDraftWithDetails), tidak ada panggilan API",
+    "Pembacaan data dilakukan lokal di SQLite via boilerRoomRecordRepo.ts (getAllRecords, getDraftWithDetails). Satu-satunya panggilan server adalah aksi verifikasi di mode detail: RecordVerificationActions.vue → recordVerificationApi.setVerification('boiler-room', 'boiler_room_record', …) → PATCH /api/records/boiler-room/{server_id}/verification, hanya tersedia untuk record yang sudah tersinkron (punya server id); record yang belum tersinkron menampilkan catatan bahwa verifikasi menunggu sinkron ('Record belum tersinkron ke server — sinkronkan dulu sebelum bisa diverifikasi.'). Kolom verifikasi baris lokal baru diperbarui setelah server menerima.",
     "Dual-mode via watch() pada route :id param (immediate: true), Vue Router reuse instance komponen ini untuk navigasi param-only pada route record yang sama",
     "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak ada section untuk itu di mode detail",
     "Date filter membandingkan item.date.slice(0,10) karena boiler_room_record.date adalah datetime lokal penuh (YYYY-MM-DDTHH:mm:ss)",

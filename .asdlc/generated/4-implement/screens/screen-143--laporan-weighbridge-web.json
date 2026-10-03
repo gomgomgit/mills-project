@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-10-02"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-143--laporan-weighbridge-web",
   "name": "Laporan Weighbridge (Web)",
@@ -26,7 +26,7 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "2026-10-01T16:18:00Z",
+      "run_at": "2026-10-03T00:00:00Z",
       "passed": 36,
       "failed": 0
     }
@@ -65,7 +65,8 @@
     "SPEC BROWSER INI SEMPAT MENGGANTUNG TOTAL, 40 menit tanpa satu test jalan, dan penyebabnya BUKAN di layar ini: ia menyemai 14 periode dan puluhan trip lewat form web Weighbridge (screen-022), dan POST pertama ke /livewire/update menjawab 500 karena '' dikirim ke kolom double precision. Diperbaiki di WeighbridgeRecordService (lihat screen-022 4-implement); sesudahnya spec yang sama selesai 36/36 dalam 1,5 menit. Dicatat di sini karena gejalanya muncul di layar ini sementara sebabnya di layar lain — pembaca berikutnya yang melihat spec ini menggantung harus tahu ke mana melihat.",
     "SKENARIO 7 ('mill tanpa periode Weighbridge') HARUS MEMILIH PRODUCTION LINE LEBIH DULU. Empty state layar ini adalah rantai if/elseif dengan cabang 'pilih production line' di DEPAN cabang 'belum ada periode', jadi mill yang dipilih tanpa line selalu menampilkan cabang pertama dan no-period-hint mustahil muncul — perburuan test akan gagal pada SETIAP mill tanpa memandang periodenya. Pola berburu ini disalin dari laporan-storage-tank / clarification / boiler-room, dan ketiganya mengidap kerapuhan yang sama; di sini sudah diperbaiki, di sana belum.",
     "TIDAK ADA MASTER TARGET OPERASIONAL untuk Weighbridge (sama seperti Storage Tank), jadi laporan ini TIDAK menandai nilai di luar batas sama sekali. Dinyatakan sebagai open_question pada business spec, bukan dibiarkan sebagai ketiadaan yang ambigu.",
-    "LAMA KENDARAAN DI PABRIK TIDAK DILAPORKAN, dan itu mustahil bukan sekadar sulit: migrasi 2026_08_19_000010 menggabungkan arrival_datetime dan dispatch_datetime menjadi satu record_datetime lalu MEMBUANG keduanya. Tiap trip menyimpan tepat satu penanda waktu, sementara durasi menuntut dua pada trip yang sama. Diganti sebaran trip per jam + jam tersibuk + jumlah jam kosong, yang dapat dihitung dari satu penanda waktu. Bila durasi memang dibutuhkan, yang harus diubah adalah DATANYA (migrasi + form input), bukan laporannya."
+    "LAMA KENDARAAN DI PABRIK TIDAK DILAPORKAN, dan itu mustahil bukan sekadar sulit: migrasi 2026_08_19_000010 menggabungkan arrival_datetime dan dispatch_datetime menjadi satu record_datetime lalu MEMBUANG keduanya. Tiap trip menyimpan tepat satu penanda waktu, sementara durasi menuntut dua pada trip yang sama. Diganti sebaran trip per jam + jam tersibuk + jumlah jam kosong, yang dapat dihitung dari satu penanda waktu. Bila durasi memang dibutuhkan, yang harus diubah adalah DATANYA (migrasi + form input), bukan laporannya.",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/laporan-weighbridge.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 36 lulus, 0 gagal; test_results.browser diperbarui."
   ],
   "deferred_items": [
     {

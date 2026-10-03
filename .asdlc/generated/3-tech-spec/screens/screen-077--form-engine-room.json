@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -104,7 +104,7 @@
         },
         {
           "condition": "Periode untuk stasiun ini tidak terbuka / tanggal di luar rentang (usecase-141)",
-          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED baru terjadi saat sinkron dari Station List (screen-006): record tetap 'saved' di perangkat dan alasan dari server ditampilkan di SyncResultDialog. Pengecualian: bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mencoba mengirim record ini ke server (writeThroughSync.syncAfterSave('engine_room_record') → syncService.pushSavedRecordNow → POST /api/engine-room-records); penolakan 422 PERIOD_CLOSED pada kiriman langsung ini DIAM by design — form tetap bernavigasi ke Monitor tanpa pesan, record tetap 'saved', alasannya tidak disimpan — dan baru terlihat pada sinkron manual berikutnya di screen-006. Pemulihan: Admin membuka kembali baris stasiun Engine Room di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
+          "handling": "Simpan lokal TIDAK memeriksa periode (offline-first; status periode tidak tersedia di perangkat) — record tetap tersimpan lokal berstatus 'saved'. Penolakan 422 PERIOD_CLOSED terjadi saat record tiba di server: (a) pada sinkron manual dari Station List (screen-006) — record tetap 'saved' di perangkat dan alasan dari server ditampilkan per record di SyncResultDialog; (b) bila Mills Setting immediate_sync_enabled aktif, Simpan langsung mengirim record ini (writeThroughSync.syncAfterSave('engine_room_record') → syncService.pushSavedRecordNow → POST /api/engine-room-records). REVISI 2026-10-03: penolakan 4xx (termasuk 422 PERIOD_CLOSED) pada kiriman langsung ini TIDAK lagi diam — syncAfterSave() mengembalikan {synced: false, rejection: <pesan server>}, form menampilkan ConfirmDialog satu tombol 'Tersimpan, tetapi ditolak server' berisi pesan server, lalu bernavigasi ke Monitor Engine Room saat dialog ditutup; record tetap 'saved' di perangkat. Kegagalan karena offline/5xx tetap diam (record menunggu sinkron berikutnya). Pemulihan: Admin membuka kembali baris stasiun Engine Room di screen-142 (Detail Periode Pelaporan), lalu sinkron ulang."
         }
       ],
       "business_rules_applied": [
@@ -179,14 +179,14 @@
     }
   ],
   "implementation_notes": [
-    "Semua operasi lokal di SQLite via engineRoomRecordRepo.ts, tidak ada panggilan API",
+    "Simpan/Pause/Clear menulis ke SQLite lokal via engineRoomRecordRepo.ts. Record berstatus 'saved' dikirim ke server lewat sinkron manual Station List (screen-006, syncService STATION_PUSH_CONFIGS → POST /api/engine-room-records) dan — bila Mills Setting immediate_sync_enabled aktif — lewat write-through syncAfterSave('engine_room_record') segera setelah Simpan; Pause/Clear/Back tidak pernah memanggil server",
     "engineRoomRecordRepo.ts mencakup ketiga screen mobile Engine Room (067/077/087) dalam satu file, mirrors storageTankRecordRepo.ts/effluentPlantRecordRepo.ts",
     "canonicalTimeSlots() identik dengan storageTankRecordRepo.ts: for i in 0..23 -> hour = (7 + i) % 24, format 'HH:00', dimulai dari 07:00",
     "26 kolom non-time_slot per baris — field TERBANYAK dari seluruh stasiun di proyek ini; 2 di antaranya adalah kolom status/enum (diesel_gen_1_status, diesel_gen_2_status: run/standby/off) yang disimpan sebagai plain TEXT di SQLite lokal (tidak ada CHECK constraint di sisi mobile)",
     "isRowFilled() mengecek seluruh 26 kolom non-time_slot (numerik !== null ATAU string/enum bukan null dan bukan '')",
     "Stasiun ini TIDAK memiliki tabel referensi target operasional — tidak ada CollapsibleSection/read-only reference data pada layar ini",
     "Field urutan pada grid & form mengikuti urutan kolom migration engine_room_details persis: Steam Turbine (6 field) → Diesel Gen 1 (5 field) → Diesel Gen 2 (5 field) → Electrical Sync (4 field) → Air Compressor/Battery/Fuel/Energy (4 field) → Action Taken/Findings (2 field)",
-    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec, kode tidak diubah): FormEngineRoomView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('engine_room_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/engine-room-records, create), kegagalannya diam. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('engine-room', mill, date) berjalan di EngineRoomRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
+    "REVISI 2026-10-03 (kunci periode usecase-141, commit 49dc0c5; sinkronisasi spec): FormEngineRoomView tidak memanggil server untuk menyimpan, kecuali write-through syncAfterSave('engine_room_record') saat Mills Setting immediate_sync_enabled aktif — satu-satunya jalur tulis server dari form ini (POST /api/engine-room-records, create). Kegagalan offline/5xx diam; penolakan 4xx (mis. 422 PERIOD_CLOSED) sejak perbaikan 2026-10-03 ditampilkan lewat ConfirmDialog 'Tersimpan, tetapi ditolak server' sebelum navigasi ke Monitor Engine Room. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('engine-room', mill, date) berjalan di EngineRoomRecordService::create() saat record tiba di server, dinilai pada waktu request, bukan waktu pencatatan. Form hanya membuka draft lokal (draft_ongoing/draft_paused); tidak ada jalur edit/PATCH record yang sudah tersinkron dari mobile, sehingga pemeriksaan ganda tanggal lama+baru di update() tidak berlaku untuk layar ini. Konsekuensi terbuka: antrean offline membuat penolakan sinkron-terlambat pasti terjadi bila periode ditutup sebelum perangkat sinkron (alternative flow usecase-141 'Record tersinkron terlambat dari mobile'); record tertahan 'saved' di perangkat sampai Admin membuka kembali stasiunnya di screen-142."
   ],
   "test_scenarios": [
     {

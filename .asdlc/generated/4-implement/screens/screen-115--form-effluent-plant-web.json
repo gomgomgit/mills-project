@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -10,7 +10,8 @@
   "status": "complete",
   "files_generated": [],
   "test_files_generated": [
-    "backend/tests/Feature/Api/FormEffluentPlantTest.php"
+    "backend/tests/Feature/Api/FormEffluentPlantTest.php",
+    "e2e-web/tests/form-effluent-plant.spec.ts"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormEffluentPlant.php",
@@ -29,7 +30,9 @@
     "Route /data/effluent-plant/create registered BEFORE /data/effluent-plant/{id} (screen-105) so the literal 'create' segment is not swallowed by {id}",
     "checked/acknowledged self-attestation checkboxes mirror FormProcessWater's dual-checkbox pattern (both Checked By AND Acknowledged By)",
     "NoActiveEffluentPlantStationException (mirrors NoActiveProcessWaterStationException) thrown when production_line_id has no active station type=effluent-plant",
-    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): EffluentPlantRecordService::create() memanggil assertPeriodOpenForWrite('effluent-plant', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormEffluentPlant::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/EffluentPlantRecordServiceTest.php, tests/Feature/Api/FormEffluentPlantTest.php, tests/Feature/Livewire/FormEffluentPlantTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): EffluentPlantRecordService::create() memanggil assertPeriodOpenForWrite('effluent-plant', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormEffluentPlant::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/EffluentPlantRecordServiceTest.php, tests/Feature/Api/FormEffluentPlantTest.php, tests/Feature/Livewire/FormEffluentPlantTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini).",
+    "REVISI v3 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormEffluentPlantTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 19 uji, semuanya hijau (test_results.integration diperbarui).",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-effluent-plant.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 7 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated."
   ],
   "deferred_items": [
     {
@@ -37,12 +40,7 @@
       "reason": "Out of this 6-screen task's explicit scope (see screen-095's implement artifact for the full rationale) -- the dual-guarded route already supports this when a future syncService.ts addition wires it up."
     }
   ],
-  "known_issues": [
-    {
-      "description": "Browser (Playwright) spec (backend/tests/Browser/FormEffluentPlantTest.php) was authored but could not be executed in this sandboxed environment -- verified only by static review.",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "",
@@ -51,8 +49,8 @@
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-09-01T01:52:00Z",
-      "passed": 14,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 19,
       "failed": 0
     },
     "component": {
@@ -61,8 +59,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 7,
       "failed": 0
     }
   }

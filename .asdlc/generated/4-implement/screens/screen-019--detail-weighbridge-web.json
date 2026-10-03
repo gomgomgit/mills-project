@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 7,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-03"
@@ -17,8 +17,7 @@
     "backend/tests/Unit/Services/WeighbridgeRecordServiceTest.php",
     "backend/tests/Feature/Api/DetailWeighbridgeTest.php",
     "backend/tests/Feature/Livewire/DetailWeighbridgeTest.php",
-    "backend/tests/Feature/Livewire/DataBrowserWeighbridgeTest.php",
-    "backend/tests/Browser/DetailWeighbridgeTest.php"
+    "backend/tests/Feature/Livewire/DataBrowserWeighbridgeTest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/DetailWeighbridge.php",
@@ -26,7 +25,9 @@
     "backend/resources/views/data/weighbridge-detail.blade.php",
     "backend/routes/web.php"
   ],
-  "fe_test_files_generated": [],
+  "fe_test_files_generated": [
+    "e2e-web/tests/detail-weighbridge.spec.ts"
+  ],
   "implementation_notes": [
     "Dual entry point: GET /api/weighbridge-records/{id} (WeighbridgeRecordController::show()) dan Livewire DetailWeighbridge keduanya panggil WeighbridgeRecordService::getDetail() yang sama, mengikuti pola screen-016 (list) persis",
     "getDetail() eager-load station/checkedBy/acknowledgedBy dan resolve ke station_name/checked_by_name/acknowledged_by_name",
@@ -36,14 +37,14 @@
     "Route /data/weighbridge/{id} mengaktifkan kembali affordance clickable-row di screen-016's Blade view",
     "Layout Blade terpisah (weighbridge-detail.blade.php) dari screen-016 karena Blade #[Layout(...)] tidak menerima parameter judul header",
     "VER 2 (bersamaan dengan implementasi screen-022): tombol Edit ditambahkan, navigasi client-side ke route('data.weighbridge.edit', id) - tidak ada perubahan API",
-    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): aksi verifikasi langsung di layar Detail (approve/un-approve, 2026-09-14) sebelumnya TIDAK terdokumentasi sama sekali di artefak ini. backend/app/Livewire/Data/DetailWeighbridge.php memakai trait backend/app/Livewire/Data/Concerns/HandlesRecordVerification.php (verificationModelClass()=WeighbridgeRecord::class) dan blade-nya merender aksi lewat canCheck()/canAcknowledge() + :message=$verificationMessage — Checked By (Supervisor/Admin) dan Acknowledged By (Mill Management/Admin). Aksi memanggil backend/app/Services/RecordVerificationService.php::setVerification() (jalur tulis keempat): peran -> cakupan mill (403) -> assertPeriodOpenForWrite('weighbridge', mill stasiun record, `record_datetime` record) -> 422 PERIOD_CLOSED sebelum kolom berubah -> baru tulis checked_by/acknowledged_by. Sejak fix 0594c63 HandlesRecordVerification menangkap HttpException sehingga penolakan periode tampil sebagai alert $verificationMessage (sebelumnya 422 mentah). Padanan API: PATCH /api/records/{stationType}/{id}/verification (RecordVerificationController). Diuji: backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...'; trait bersama, diwakili DetailCagesTrack), backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED setujui & batalkan), backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist)."
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): aksi verifikasi langsung di layar Detail (approve/un-approve, 2026-09-14) sebelumnya TIDAK terdokumentasi sama sekali di artefak ini. backend/app/Livewire/Data/DetailWeighbridge.php memakai trait backend/app/Livewire/Data/Concerns/HandlesRecordVerification.php (verificationModelClass()=WeighbridgeRecord::class) dan blade-nya merender aksi lewat canCheck()/canAcknowledge() + :message=$verificationMessage — Checked By (Supervisor/Admin) dan Acknowledged By (Mill Management/Admin). Aksi memanggil backend/app/Services/RecordVerificationService.php::setVerification() (jalur tulis keempat): peran -> cakupan mill (403) -> assertPeriodOpenForWrite('weighbridge', mill stasiun record, `record_datetime` record) -> 422 PERIOD_CLOSED sebelum kolom berubah -> baru tulis checked_by/acknowledged_by. Sejak fix 0594c63 HandlesRecordVerification menangkap HttpException sehingga penolakan periode tampil sebagai alert $verificationMessage (sebelumnya 422 mentah). Padanan API: PATCH /api/records/{stationType}/{id}/verification (RecordVerificationController). Diuji: backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...'; trait bersama, diwakili DetailCagesTrack), backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED setujui & batalkan), backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist).",
+    "REVISI v4 (2026-10-03, sinkronisasi catatan uji — kode aplikasi tidak diubah): e2e-web/tests/detail-weighbridge.spec.ts diperbaiki — selector judul halaman dipersempit agar tidak melanggar strict mode Playwright (lebih dari satu elemen cocok).",
+    "REVISI v5 (2026-10-03, sinkronisasi catatan uji — kode aplikasi tidak diubah): known issue 'Browser test dibuat tapi tidak dijalankan' dihapus — uji browser layar ini kini dijalankan lewat e2e-web/tests/detail-weighbridge.spec.ts dan lulus (backend/tests/Browser sudah dihapus pada commit 8879d8d). test_results.browser tidak diubah (tidak ada hitungan per-layar yang dicatat).",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/detail-weighbridge.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 2 lulus, 0 gagal; test_results.browser diperbarui.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
   "known_issues": [
-    {
-      "description": "Browser test dibuat tapi tidak dijalankan - tidak ada browser di sandbox",
-      "severity": "minor"
-    },
     {
       "description": "Unit test coverage % tidak dapat diukur - tidak ada Xdebug/PCOV",
       "severity": "minor"
@@ -71,8 +72,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 2,
       "failed": 0
     }
   }

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-17"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-001--login-web",
   "name": "Login Web",
@@ -26,7 +26,7 @@
     "backend/tests/Unit/Services/AuthServiceTest.php",
     "backend/tests/Feature/Api/LoginWebTest.php",
     "backend/tests/Feature/Livewire/LoginFormTest.php",
-    "backend/tests/Browser/LoginWebTest.php"
+    "e2e-web/tests/login-web.spec.ts"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Auth/LoginForm.php",
@@ -41,7 +41,9 @@
     "login.blade.php diimplementasikan sebagai Livewire full-page layout (#[Layout('auth.login')])",
     "Design token (brand #249360, destructive #DC2626, radius, font Inter) di-inline sebagai CSS biasa karena belum ada pipeline Vite/Tailwind di scaffold backend-only ini",
     "AuthController dan LoginForm sama-sama memanggil AuthService::login() — ada seam komentar untuk cabang mobile/device_name di masa depan (usecase-002), belum diimplementasikan",
-    "Fix round 1: POST /api/login awalnya di grup middleware 'api' stateless; ditambahkan middleware('web') eksplisit karena business_logic step 6 mengharuskan Laravel session dibuat unconditional (bukan SPA cross-origin call)"
+    "Fix round 1: POST /api/login awalnya di grup middleware 'api' stateless; ditambahkan middleware('web') eksplisit karena business_logic step 6 mengharuskan Laravel session dibuat unconditional (bukan SPA cross-origin call)",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/login-web.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 4 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -52,10 +54,6 @@
     {
       "description": "ApiExceptionHandler belum mengeluarkan field error_code yang machine-readable (hanya message/errors), sehingga integration test menguji HTTP status + teks pesan, bukan error_code spesifik (INVALID_CREDENTIALS dll dari tech-spec) — gap antara kontrak tech-spec dan implementasi error-handler bersama, perlu diperbaiki di shared-modules atau iterasi berikutnya.",
       "severity": "major"
-    },
-    {
-      "description": "Browser test (tests/Browser/LoginWebTest.php) dibuat tapi TIDAK dijalankan — tidak ada dev server/browser di environment sandbox ini. File mengasumsikan seeded user (supervisor01/inactive01/otherarea01) yang perlu seeder nyata sebelum bisa dijalankan.",
-      "severity": "minor"
     },
     {
       "description": "AuthServiceTest.php pakai RefreshDatabase + sqlite in-memory dengan factories, bukan true mock terhadap Eloquent — deviasi pragmatis dari test_strategy.unit_test.mock_policy ('Mock all I/O') karena AuthService memakai Eloquent langsung tanpa abstraksi repository.",
@@ -80,8 +78,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 4,
       "failed": 0
     }
   }

@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -24,7 +24,6 @@
     "backend/tests/Unit/Services/ProcessWaterRecordServiceTest.php",
     "backend/tests/Feature/Api/DataBrowserProcessWaterTest.php",
     "backend/tests/Feature/Livewire/DataBrowserProcessWaterTest.php",
-    "backend/tests/Browser/DataBrowserProcessWaterTest.php",
     "backend/tests/Feature/ProductionProcessActivityTest.php"
   ],
   "fe_files_generated": [
@@ -32,7 +31,10 @@
     "backend/resources/views/data/process-water.blade.php",
     "backend/resources/views/livewire/data/data-browser-process-water.blade.php"
   ],
-  "fe_test_files_generated": [],
+  "fe_test_files_generated": [
+    "e2e-web/tests/data-browser-process-water.spec.ts",
+    "e2e-web/tests/support/production-line-filter.ts"
+  ],
   "implementation_notes": [
     "ProcessWaterRecordService/Controller/routes/factories are shared infrastructure for all 3 web Process Water screens (092/102/112), mirroring ThreshingRecordService's precedent -- reported under this screen since it is first in the implementation sequence",
     "Process Water follows the exact same hourly-grid (dynamic add-row/remove-row, 1..24 rows, unique + strictly ascending canonical time_slot) pattern as ThreshingRecordService -- create()/update()/listRecords()/export()/getDetail(), plus canonicalTimeSlots() helper returning 24 'HH:00' strings starting 07:00",
@@ -42,7 +44,9 @@
     "tests/Feature/ProductionProcessActivityTest.php (pre-existing, not owned by this screen) was updated additively: the Process Water assertion moved from the '9 still-unrouted' test into the '7 (now 8) active station tiles linking to their Data Browser routes' test, and both test names/counts were corrected from 9 to 8 remaining unrouted -- mirrors the exact precedent Solid Waste Disposal set for this same shared test file when its own Data Browser screen was implemented",
     "StationFactory::processWater() state added additively (mirrors weighbridge()/grading()/threshing()/etc. exactly) for this screen's and screen-112's test suites",
     "Ran the full backend test suite (`php artisan test`) after all changes: 1468 passed (0 failed), confirming no regression to any pre-existing screen",
-    "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau."
+    "REVISI v2 (tech-spec v2, isolasi Production Line 2026-09-28/29 — sinkronisasi artefak, kode tidak diubah): filter `production_line_id` (default '' = Semua Line) di Livewire + query param index()/export() controller API; buildFilteredQuery() memanggil ScopesToActorMill::scopeFiltersToActorMill() lebih dulu lalu memfilter kolom record `production_line_id` langsung (bukan whereHas('station')), sehingga record yang stasiunnya dipindah tetap di line asalnya; line milik mill lain dijepit ke null oleh clampProductionLineIdToMill() tanpa error; pilihan line direset oleh updatedBusinessUnitId(); kolom Production Line (dari relasi productionLine milik record) jadi kolom PERTAMA tabel dan CSV, filter aktif ikut ke ekspor. Diverifikasi 2026-10-03: kode cocok dengan tech-spec v2, `php artisan test` untuk berkas uji layar ini hijau.",
+    "REVISI v3 (uji browser 2026-10-03 — kode tidak diubah): e2e-web/tests/data-browser-process-water.spec.ts mendapat skenario 'filter production line menyempitkan tabel dan terbawa ke ekspor' via helper assertProductionLineFilter() (e2e-web/tests/support/production-line-filter.ts) dengan fixture productionLineFilterFixtures() di BrowserTestFixtureSeeder (dua record pada tanggal sama di 'PL Mill A' dan 'PL Mill B'; 'Semua Line' memuat keduanya, memilih satu line menyempitkan tabel, dan filter aktif ikut ke href ekspor). Spec dijalankan penuh: 5/5 lulus. Known_issue celah cakupan Production Line dan known_issue 'browser spec tidak dapat dijalankan' dihapus.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [
     {
@@ -50,16 +54,7 @@
       "reason": "Out of this 6-screen task's explicit scope; the most recent precedent station (Solid Waste Disposal) made the same deferral for the same reason. The route itself is already dual-guarded ('auth:web,sanctum' + operator role, see routes/api.php) so this is purely a mobile syncService.ts addition, not a backend change, when picked up later."
     }
   ],
-  "known_issues": [
-    {
-      "description": "Browser (Playwright) spec (backend/tests/Browser/DataBrowserProcessWaterTest.php) was authored following this codebase's established convention (a .php file containing Playwright TS syntax, excluded from phpunit.xml's testsuites, meant to be run separately via `playwright test` against a live dev server) but could not be executed in this sandboxed environment -- verified only by static review, consistent with every other Browser/* spec in this codebase.",
-      "severity": "minor"
-    },
-    {
-      "description": "Celah cakupan uji browser: e2e-web/tests/data-browser-process-water.spec.ts belum menguji filter/kolom Production Line ([data-testid=\"production_line_id\"]); perilaku ini baru terlindungi uji Livewire + API + unit",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "2026-10-03T00:00:00Z",
@@ -78,8 +73,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 5,
       "failed": 0
     }
   }

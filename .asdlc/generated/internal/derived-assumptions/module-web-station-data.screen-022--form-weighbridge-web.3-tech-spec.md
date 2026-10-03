@@ -9,3 +9,11 @@ Sinkronisasi spec dengan kunci periode usecase-141 yang sudah diimplementasikan 
 - Rumusan given/expect 3 unit_test_cases (termasuk contoh rentang 2026-10-01..2026-10-31) dipilih agen; kasus-kasus ini SPESIFIKASI — belum ada sebagai test khusus stasiun ini (test per-layar hanya membuka periode sebagai prasyarat), dicatat terus terang di implementation_notes.
 - Sitasi test: EnforcesPeriodLockTest.php dan KelolaPeriodePelaporanTest.php (jalur Sterilizer) dipilih sebagai bukti cakupan; file test per-layar disebut hanya sebagai pemakai prasyarat openPeriodFor()/openPeriodForStation().
 - Tanggal kejadian Weighbridge = bagian tanggal dari record_datetime (trait menormalkan ke Y-m-d); contoh batas inklusif memakai jam 08:00/17:00.
+
+## v3 — 2026-10-03
+
+Pembersihan teks spec usang / sinkronisasi dengan perbaikan 2026-10-03.
+- Body POST /api/weighbridge-records kini mendokumentasikan production_line_id sebagai 'wajib secara praktis' (bukan required di validator): kosong/tidak dikenal menghasilkan 422 NO_ACTIVE_WEIGHBRIDGE_STATION, bukan VALIDATION_ERROR — dibaca dari resolveActiveStationForActor() yang mengembalikan null.
+- Error code 403 FORBIDDEN (production line milik mill lain) dan edge case-nya ditambahkan karena terbukti di ScopesToActorMill::assertMillWritable(); tidak tercantum di versi spec sebelumnya.
+- request_example test_scenarios diganti ke production_line_id; scenario_ref 'Business Unit Tanpa Station Weighbridge Aktif' sengaja TIDAK diganti agar tetap cocok dengan nama BDD Phase 2.
+- business_rules_applied 'Business Unit tidak berubah' diperluas menjadi 'Business Unit / Production Line (station)'.

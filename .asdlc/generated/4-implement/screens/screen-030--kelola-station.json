@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-030--kelola-station",
   "name": "Kelola Station",
@@ -23,16 +23,20 @@
     "backend/tests/Unit/Services/StationServiceTest.php",
     "backend/tests/Feature/Api/KelolaStationTest.php",
     "backend/tests/Feature/Livewire/KelolaStationTest.php",
-    "backend/tests/Browser/KelolaStationTest.php",
     "backend/database/factories/MachineryGroupFactory.php",
     "backend/database/factories/MachineryFactory.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/MasterData/KelolaStation.php",
     "backend/resources/views/master-data/stations.blade.php",
-    "backend/resources/views/livewire/master-data/kelola-station.blade.php"
+    "backend/resources/views/livewire/master-data/kelola-station.blade.php",
+    "backend/resources/views/components/searchable-select.blade.php"
   ],
-  "fe_test_files_generated": [],
+  "fe_test_files_generated": [
+    "e2e-web/tests/kelola-station.spec.ts",
+    "e2e-web/tests/support/paged-table.ts",
+    "backend/database/seeders/BrowserTestFixtureSeeder.php"
+  ],
   "implementation_notes": [
     "First-time implementation — CRUD lengkap untuk Station dengan field ERD sejak awal, DIATAS field existing (business_unit_id, name, type, is_active) yang sudah dipakai luas oleh mobile screen 006/007-009 dan web screen 016/017/018 — field tersebut TIDAK diubah/dihapus, hanya ditambah code (opsional, unik jika diisi) dan description",
     "is_active punya aturan cross-field: hanya boleh true jika type in (weighbridge, grading, cages-track), ditegakkan via Validator::make()->after() closure",
@@ -41,15 +45,12 @@
     "409 STATION_HAS_MACHINERY memeriksa DUA entity anak (MachineryGroup DAN Machinery langsung)",
     "FIX ROUND 1 (bug nyata ditemukan test-writer-agent): KelolaStation::buildValidator() awalnya mem-key payload validasi client-side dengan 'name'/'code'/'description' polos, bukan 'form.name'/'form.code'/'form.description' bersarang — pesan error validasi gagal muncul di bawah field yang benar (hanya fallback validasi server-side di dalam catch save() yang benar). Diperbaiki dengan me-restrukturisasi payload jadi array bersarang genuine ['form' => [...]] (bukan flat key literal 'form.name', yang tidak resolve via dot-notation Laravel) — diverifikasi 3 assertion test diperbarui.",
     "Tidak ada field logo pada Station (sesuai entity-catalog/ERD)",
-    "Independently re-verified oleh command: re-run `php artisan test` — 454/454 lulus (full suite gabungan 027+028+029+030); baca StationService.php dan MachineryGroup.php/migration placeholder penuh untuk konfirmasi delete-guard dan pola placeholder-untuk-diperluas sesuai rencana"
+    "Independently re-verified oleh command: re-run `php artisan test` — 454/454 lulus (full suite gabungan 027+028+029+030); baca StationService.php dan MachineryGroup.php/migration placeholder penuh untuk konfirmasi delete-guard dan pola placeholder-untuk-diperluas sesuai rencana",
+    "REVISI v2 (2026-10-03, perbaikan komponen bersama + e2e): komponen bersama resources/views/components/searchable-select.blade.php kini mencerminkan opsi terkininya di atribut data-ss-options dan, lewat MutationObserver di init() Alpine, membaca ulang opsi setiap kali morph Livewire menulis ulang atribut itu (elemen tetap dipertahankan, fokus dan entangle wire:model utuh). Sebelumnya opsi hanya disalin sekali saat init sehingga picker dependen memakai opsi render pertama: di Kelola Station, memilih Business Unit membuat Production Line hanya berisi placeholder, dan di mode edit menawarkan line milik mill sebelumnya. e2e-web/tests/kelola-station.spec.ts diperbaiki (selector modal .kcm-modal, fixture di backend/database/seeders/BrowserTestFixtureSeeder.php, helper tabel berhalaman e2e-web/tests/support/paged-table.ts) dan lulus 9/9 (test_results.browser diperbarui). Known issue 'browser test tidak dijalankan' dihapus.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada Playwright/Node infra di sandbox backend/, konsisten dengan keterbatasan yang sudah diterima di seluruh screen web lain",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "2026-08-19T15:00:00Z",
@@ -68,8 +69,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 9,
       "failed": 0
     }
   }

@@ -13,3 +13,16 @@ Sinkronisasi artefak dengan kode isolasi Production Line yang sudah ada (kode ti
 
 Node dep-graph di-track ulang tanpa menulis artefak, atas keputusan user 2026-10-03 ("re-track tanpa ubah isi").
 - Penyebab stale: entity-catalog v20 (49dc0c5) hanya mengganti satu kalimat status implementasi kunci periode (BELUM → TERIMPLEMENTASI); turunan dari re-track tech-spec, shared-decisions, entity-models, dan shared-modules pada putaran yang sama — penilaian agen, tidak dinyatakan user per layar
+
+## v3 — 2026-10-03
+
+Sinkronisasi catatan uji 4-implement dengan uji yang ditambahkan 2026-10-03.
+- test_results.browser.passed = 4: dihitung dari jumlah deklarasi test( di spec e2e-web (test.skip tidak dihitung); failed = 0 karena spec lulus penuh.
+- Known_issue lama yang hanya menyatakan browser test (backend/tests/Browser/*.php) tidak dapat/tidak dijalankan ikut dihapus: suite browser yang benar-benar dieksekusi untuk layar ini adalah spec e2e-web Playwright, dan kini lulus penuh.
+- Spec e2e-web dan helper e2e-web/tests/support/production-line-filter.ts dicatat di fe_test_files_generated (sebelumnya tidak tercatat di daftar file uji mana pun).
+- Perbaikan strict mode empty-state (locator kelas judul, bukan getByText) dicatat sebagai perbaikan spec, bukan cacat aplikasi.
+
+## v4 — 2026-10-03
+
+Pembersihan entri berkas uji yang sudah tidak ada.
+- `backend/tests/Browser/DataBrowserKernelDispatchTest.php` dihapus dari `fe_test_files_generated` (berkas tidak ada; direktori dihapus di 8879d8d).

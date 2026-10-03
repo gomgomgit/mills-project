@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -11,7 +11,9 @@
   "files_generated": [],
   "test_files_generated": [],
   "fe_files_generated": [
-    "mobile/src/views/FormEngineRoomView.vue"
+    "mobile/src/views/FormEngineRoomView.vue",
+    "mobile/src/services/writeThroughSync.ts",
+    "mobile/src/components/ConfirmDialog.vue"
   ],
   "fe_test_files_generated": [
     "mobile/tests/FormEngineRoomView.spec.ts"
@@ -24,7 +26,8 @@
     "UNLIKE Form Threshing/Form Effluent Plant: this screen has NO operational-target reference table section -- no CollapsibleSection, no static-constant data file, per this station's explicit scope",
     "Every FormField id in the grid is set explicitly (e.g. steam-inlet-pressure-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide, same defensive pattern as FormStorageTankView.vue",
     "Field order in the grid & template mirrors the migration column order exactly: Steam Turbine (6 fields) -> Diesel Gen 1 (5) -> Diesel Gen 2 (5) -> Electrical Sync (4) -> Air Compressor/Battery/Fuel/Energy (4) -> Action Taken/Findings (2) = 27 total",
-    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormEngineRoomView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('engine_room_record') → pushSavedRecordNow → POST /api/engine-room-records bila Mills Setting immediate_sync_enabled aktif, dan penolakannya (termasuk 422 PERIOD_CLOSED) DIAM — record tetap 'saved' dan alasannya baru tampil di SyncResultDialog pada sinkron manual screen-006. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('engine-room', mill, date) di EngineRoomRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik). Kegagalan write-through yang diam dicakup secara generik oleh mobile/tests/writeThroughSync.spec.ts."
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak): FormEngineRoomView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('engine_room_record') → pushSavedRecordNow → POST /api/engine-room-records bila Mills Setting immediate_sync_enabled aktif. Kegagalan offline/5xx diam; penolakan 4xx (termasuk 422 PERIOD_CLOSED) sejak 2026-10-03 ditampilkan langsung di form (lihat catatan REVISI 2026-10-03 di bawah), dan pada sinkron manual screen-006 alasannya tampil di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('engine-room', mill, date) di EngineRoomRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik), dan mobile/tests/writeThroughSync.spec.ts (hasil {synced, rejection} write-through).",
+    "REVISI (2026-10-03): penolakan write-through kini ditampilkan — writeThroughSync.syncAfterSave('engine_room_record') mengembalikan {synced, rejection}; bila server menolak dengan 4xx (mis. 422 PERIOD_CLOSED, usecase-141) rejection berisi pesan server dan FormEngineRoomView membuka ConfirmDialog satu tombol (cancel-label kosong) 'Tersimpan, tetapi ditolak server' berisi pesan tersebut, lalu bernavigasi ke Monitor Engine Room saat ditutup (tombol 'Mengerti' maupun klik overlay). Record tetap 'saved' di SQLite lokal dan dapat dikirim ulang lewat sinkron Station List setelah masalahnya diselesaikan. Offline/5xx/fitur nonaktif tetap diam. Cakupan test: mobile/tests/writeThroughSync.spec.ts (generik, termasuk 422 PERIOD_CLOSED → rejection berisi pesan); tidak ada test komponen khusus untuk form ini — test komponen representatif ada di mobile/tests/FormThreshingView.spec.ts."
   ],
   "deferred_items": [],
   "known_issues": [

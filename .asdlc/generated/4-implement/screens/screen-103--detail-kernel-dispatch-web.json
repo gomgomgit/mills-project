@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -25,7 +25,7 @@
   ],
   "fe_test_files_generated": [
     "backend/tests/Feature/Livewire/DetailKernelDispatchTest.php",
-    "backend/tests/Browser/DetailKernelDispatchTest.php"
+    "e2e-web/tests/detail-kernel-dispatch.spec.ts"
   ],
   "implementation_notes": [
     "Dual entry point: GET /api/kernel-dispatch-records/{id} (KernelDispatchRecordController::show()) dan Livewire DetailKernelDispatch keduanya panggil KernelDispatchRecordService::getDetail() yang sama, mengikuti pola screen-101 (Detail Solid Waste Disposal) persis",
@@ -34,14 +34,13 @@
     "404 ditangani otomatis oleh ModelNotFoundException -> ApiExceptionHandler (findOrFail), sama seperti screen-019/020/021/101",
     "Field grouping & urutan field di blade view mengikuti struktur mobile/src/views/DataPreviewKernelDispatchView.vue mode detail, per arahan eksplisit: web station screens mengikuti flow/UX mobile",
     "Route /kernel-dispatch-records/{id} didaftarkan SETELAH /kernel-dispatch-records/export di routes/api.php agar segmen literal 'export' tidak ketangkap sebagai {id}",
-    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): aksi verifikasi langsung di layar Detail (approve/un-approve, 2026-09-14) sebelumnya TIDAK terdokumentasi sama sekali di artefak ini. backend/app/Livewire/Data/DetailKernelDispatch.php memakai trait backend/app/Livewire/Data/Concerns/HandlesRecordVerification.php (verificationModelClass()=KernelDispatchRecord::class) dan blade-nya merender aksi lewat canCheck()/canAcknowledge() + :message=$verificationMessage — Checked By (Supervisor/Admin) dan Acknowledged By (Mill Management/Admin). Aksi memanggil backend/app/Services/RecordVerificationService.php::setVerification() (jalur tulis keempat): peran -> cakupan mill (403) -> assertPeriodOpenForWrite('kernel-dispatch', mill stasiun record, `date` record) -> 422 PERIOD_CLOSED sebelum kolom berubah -> baru tulis checked_by/acknowledged_by. Sejak fix 0594c63 HandlesRecordVerification menangkap HttpException sehingga penolakan periode tampil sebagai alert $verificationMessage (sebelumnya 422 mentah). Padanan API: PATCH /api/records/{stationType}/{id}/verification (RecordVerificationController). Diuji: backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...'; trait bersama, diwakili DetailCagesTrack), backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED setujui & batalkan), backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist)."
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): aksi verifikasi langsung di layar Detail (approve/un-approve, 2026-09-14) sebelumnya TIDAK terdokumentasi sama sekali di artefak ini. backend/app/Livewire/Data/DetailKernelDispatch.php memakai trait backend/app/Livewire/Data/Concerns/HandlesRecordVerification.php (verificationModelClass()=KernelDispatchRecord::class) dan blade-nya merender aksi lewat canCheck()/canAcknowledge() + :message=$verificationMessage — Checked By (Supervisor/Admin) dan Acknowledged By (Mill Management/Admin). Aksi memanggil backend/app/Services/RecordVerificationService.php::setVerification() (jalur tulis keempat): peran -> cakupan mill (403) -> assertPeriodOpenForWrite('kernel-dispatch', mill stasiun record, `date` record) -> 422 PERIOD_CLOSED sebelum kolom berubah -> baru tulis checked_by/acknowledged_by. Sejak fix 0594c63 HandlesRecordVerification menangkap HttpException sehingga penolakan periode tampil sebagai alert $verificationMessage (sebelumnya 422 mentah). Padanan API: PATCH /api/records/{stationType}/{id}/verification (RecordVerificationController). Diuji: backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...'; trait bersama, diwakili DetailCagesTrack), backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED setujui & batalkan), backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist).",
+    "REVISI v3 (2026-10-03, perbaikan spec e2e — kode aplikasi tidak diubah): e2e-web/tests/detail-kernel-dispatch.spec.ts kini mengasersi judul lewat <h2> judul halaman (h2[class$=\"-page__title\"]) alih-alih getByText — shell header merender judul yang sama di <h1 class=\"shell-header__title\">, sehingga getByText cocok ke dua elemen dan strict mode Playwright menolaknya. test_results.browser tidak diubah (tidak ada hitungan per-layar yang dicatat).",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/detail-kernel-dispatch.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 2 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
   "known_issues": [
-    {
-      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox.",
-      "severity": "minor"
-    },
     {
       "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV.",
       "severity": "minor"
@@ -69,8 +68,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 2,
       "failed": 0
     }
   }

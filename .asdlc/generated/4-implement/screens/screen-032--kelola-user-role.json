@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-20"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-032--kelola-user-role",
   "name": "Kelola User & Role",
@@ -18,15 +18,17 @@
   "test_files_generated": [
     "backend/tests/Unit/Services/UserServiceTest.php",
     "backend/tests/Feature/Api/KelolaUserRoleTest.php",
-    "backend/tests/Feature/Livewire/KelolaUserRoleTest.php",
-    "backend/tests/Browser/KelolaUserRoleTest.php"
+    "backend/tests/Feature/Livewire/KelolaUserRoleTest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/UserManagement/KelolaUserRole.php",
     "backend/resources/views/livewire/user-management/kelola-user-role.blade.php",
     "backend/resources/views/user-management/users.blade.php"
   ],
-  "fe_test_files_generated": [],
+  "fe_test_files_generated": [
+    "e2e-web/tests/kelola-user-role.spec.ts",
+    "e2e-web/tests/support/paged-table.ts"
+  ],
   "implementation_notes": [
     "First-time implementation (never built before this round) — no new migration needed, the `users` table already had every field this screen manages (username, password_hash, name, role, business_unit_id, is_active) from project bootstrap",
     "No delete()/DELETE endpoint at all — users are only ever deactivated (is_active=false), never removed, to preserve referential integrity on created_by/checked_by/acknowledged_by across every other entity in the system",
@@ -35,15 +37,13 @@
     "business_unit_id requirement is conditional on role via Rule::requiredIf() — required for operator/supervisor/mill_management, optional for admin, both server-side (UserService) and client-side (KelolaUserRole::rules(), re-evaluated live via wire:model.live on the role field so the Business Unit field appears/disappears immediately)",
     "Sidebar 'Kelola User & Role' link added to all 19 other shell-sidebar views in this codebase (consistent with the Mills Setting/Laporan Manajemen sidebar passes earlier this session), positioned after 'Mills Setting' and before 'Data Browser Weighbridge'",
     "kc-* CSS class set reused verbatim from kelola-business-unit.blade.php per this codebase's established convention (copy, not duplicate-and-rename); one addition specific to this screen: kc-badge__active/inactive for the status pill, which has no equivalent in the master-data screens",
-    "Independently verified: full backend regression `php artisan test` — 877/877 passed (28 new for this screen, 849 pre-existing unaffected)"
+    "Independently verified: full backend regression `php artisan test` — 877/877 passed (28 new for this screen, 849 pre-existing unaffected)",
+    "REVISI v2 (2026-10-03, perbaikan spec e2e — kode aplikasi tidak diubah): e2e-web/tests/kelola-user-role.spec.ts kini memakai user fixture yang di-seed oleh backend/database/seeders/BrowserTestFixtureSeeder.php (bukan mengandalkan data yang kebetulan ada) dan mencari baris di tabel berhalaman lewat helper e2e-web/tests/support/paged-table.ts. test_results.browser tidak diubah (tidak ada hitungan per-layar yang dicatat).",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/kelola-user-role.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 7 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "Browser test written but not run — no Playwright/Node infra in this sandbox, consistent with every other web screen implemented this session",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "2026-08-20T00:30:00Z",
@@ -62,8 +62,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 7,
       "failed": 0
     }
   }

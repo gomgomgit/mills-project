@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -157,7 +157,7 @@
     }
   ],
   "implementation_notes": [
-    "Semua operasi dilakukan lokal di SQLite via kernelPlantRecordRepo.ts, tidak ada panggilan API",
+    "Pembacaan data dilakukan lokal di SQLite via kernelPlantRecordRepo.ts (mode list & detail). Satu-satunya panggilan server adalah aksi verifikasi di mode detail: RecordVerificationActions.vue → recordVerificationApi.setVerification('kernel-plant', 'kernel_plant_record', …) → PATCH /api/records/kernel-plant/{server_id}/verification, hanya tersedia untuk record yang sudah tersinkron (punya server id); record yang belum tersinkron menampilkan catatan bahwa verifikasi menunggu sinkron ('Record belum tersinkron ke server — sinkronkan dulu sebelum bisa diverifikasi.'). Kolom verifikasi baris lokal baru diperbarui setelah server menerima.",
     "Mode ditentukan oleh keberadaan route param id via watch() immediate:true, bukan onMounted sekali saja — Vue Router menggunakan ulang instance komponen ini untuk navigasi antar-param pada route record yang sama",
     "Grid detail mode-detail dirender langsung dari kolom tersimpan (findings/downtime_minutes/7 kolom numerik), tanpa perhitungan ulang — data historis; jumlah baris yang dirender sepenuhnya mengikuti `details.length` dari getDraftWithDetails(), tidak pernah diasumsikan 24",
     "TIDAK ADA perubahan fungsional pada layar ini akibat revisi 2026-08-24 (grid dinamis di Form Kernel Plant), karena layar ini sejak awal sudah dirancang menampilkan 'seluruh baris yang ada' dan sudah punya empty-state untuk grid kosong — hanya doc comment/wording di kode dan artifact ini yang diperbarui untuk mencerminkan pola baru secara eksplisit",

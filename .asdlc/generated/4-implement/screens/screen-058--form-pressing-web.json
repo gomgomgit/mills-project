@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -10,7 +10,8 @@
   "status": "complete",
   "files_generated": [],
   "test_files_generated": [
-    "backend/tests/Feature/Api/FormPressingTest.php"
+    "backend/tests/Feature/Api/FormPressingTest.php",
+    "e2e-web/tests/form-pressing.spec.ts"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormPressing.php",
@@ -27,15 +28,12 @@
     "Target Operasional table queried directly by FormPressing::render(), never sent as part of the create/update payload",
     "Route /data/pressing/create registered BEFORE /data/pressing/{id} (screen-054) so the literal 'create' segment is not swallowed by {id}",
     "checked/acknowledged self-attestation checkboxes mirror FormThreshing's dual-checkbox pattern (both Checked By AND Acknowledged By, unlike Form Weighbridge/Grading Web which only have Acknowledged)",
-    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): PressingRecordService::create() memanggil assertPeriodOpenForWrite('pressing', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormPressing::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/PressingRecordServiceTest.php, tests/Feature/Api/FormPressingTest.php, tests/Feature/Livewire/FormPressingTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): PressingRecordService::create() memanggil assertPeriodOpenForWrite('pressing', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormPressing::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/PressingRecordServiceTest.php, tests/Feature/Api/FormPressingTest.php, tests/Feature/Livewire/FormPressingTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini).",
+    "REVISI v4 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormPressingTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 19 uji, semuanya hijau (test_results.integration diperbarui).",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-pressing.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 7 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "Browser (Playwright) spec (backend/tests/Browser/FormPressingTest.php) was authored/revised for the dynamic grid but could not be executed in this sandboxed environment -- verified only by static review.",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "",
@@ -44,8 +42,8 @@
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-24T08:30:00Z",
-      "passed": 14,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 19,
       "failed": 0
     },
     "component": {
@@ -54,8 +52,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 7,
       "failed": 0
     }
   }

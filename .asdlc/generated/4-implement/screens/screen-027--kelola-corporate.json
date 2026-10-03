@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-08-19"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-027--kelola-corporate",
   "name": "Kelola Corporate",
@@ -22,15 +22,17 @@
   "test_files_generated": [
     "backend/tests/Unit/Services/CorporateServiceTest.php",
     "backend/tests/Feature/Api/KelolaCorporateTest.php",
-    "backend/tests/Feature/Livewire/KelolaCorporateTest.php",
-    "backend/tests/Browser/KelolaCorporateTest.php"
+    "backend/tests/Feature/Livewire/KelolaCorporateTest.php"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/MasterData/KelolaCorporate.php",
     "backend/resources/views/livewire/master-data/kelola-corporate.blade.php",
     "backend/resources/views/master-data/corporates.blade.php"
   ],
-  "fe_test_files_generated": [],
+  "fe_test_files_generated": [
+    "e2e-web/tests/kelola-corporate.spec.ts",
+    "e2e-web/tests/support/paged-table.ts"
+  ],
   "implementation_notes": [
     "REWORK ver 2 (2026-08-19, adopsi ERD docs/MMS_Weighbridge_ERD_Operational_MVP_v3.1.mermaid): field diperluas dari 2 (name) menjadi ~20 (corporate_code unik terpisah + 16 field kontak/legal/kepegawaian opsional + logo upload + created_by/updated_by audit). id TETAP uuid PK/FK (tidak diganti corporate_code) untuk menghindari cascading FK-type change ke Station/User.",
     "Logo disimpan via Laravel Filesystem local disk (FILESYSTEM_DISK=local, direktori corporate-logos) — memanfaatkan disk 'local' bawaan Laravel 11 yang punya 'serve'=>true (auto-registrasi route /storage/{path}), tanpa perlu disk 'public'/storage:link. Konvensi ini menjadi acuan untuk Company/Business Unit selanjutnya.",
@@ -38,7 +40,10 @@
     "corporate_code/created_by nullable di level DB (bukan NOT NULL) untuk menghindari ALTER TABLE gagal terhadap baris seed lama; 'wajib' ditegakkan di level validasi CorporateService saja",
     "FIX ROUND 1 (GD extension tidak tersedia di sandbox, tidak ada akses sudo untuk instal): 7 test yang memakai UploadedFile::fake()->image() diganti ke fake()->create('logo.jpg', sizeKb, 'image/jpeg') — binary fake tanpa dependensi GD, tidak mengurangi cakupan nyata karena yang diuji adalah aturan MIME/ukuran, bukan pemrosesan gambar",
     "FIX ROUND 2 (bug nyata, diperbaiki di kode): kelola-corporate.blade.php memanggil $logo->temporaryUrl() tanpa syarat, menyebabkan FileNotPreviewableException untuk mime tidak previewable (pdf dll) sebelum validasi sempat menghasilkan errors.logo yang bersih. Diperbaiki dengan computed property logoIsPreviewable (allowlist jpg/jpeg/png) yang menjaga pemanggilan temporaryUrl().",
-    "Independently re-verified oleh command: re-run `php artisan test` — 368/368 lulus (full suite gabungan 027+028+029); baca CorporateService.php penuh untuk konfirmasi validasi corporate_code/name/logo dan pola created_by/updated_by sesuai tech spec"
+    "Independently re-verified oleh command: re-run `php artisan test` — 368/368 lulus (full suite gabungan 027+028+029); baca CorporateService.php penuh untuk konfirmasi validasi corporate_code/name/logo dan pola created_by/updated_by sesuai tech spec",
+    "REVISI v3 (2026-10-03, perbaikan spec e2e — kode aplikasi tidak diubah): e2e-web/tests/kelola-corporate.spec.ts disesuaikan — selector modal kini .kcm-modal, data uji disediakan oleh backend/database/seeders/BrowserTestFixtureSeeder.php, dan pencarian baris di tabel berhalaman memakai helper e2e-web/tests/support/paged-table.ts. test_results.browser tidak diubah (tidak ada hitungan per-layar yang dicatat).",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/kelola-corporate.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 6 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -52,10 +57,6 @@
     },
     {
       "description": "7 test Corporate memakai UploadedFile::fake()->create() bukan ->image() sebagai workaround GD extension yang tidak ada di sandbox ini — jika suatu saat ext-gd tersedia, bisa dikembalikan ke ->image() untuk fake gambar yang lebih realistis, meski tidak wajib karena yang diuji adalah aturan MIME/ukuran bukan pemrosesan gambar",
-      "severity": "minor"
-    },
-    {
-      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada Playwright/Node infra di sandbox backend/, konsisten dengan keterbatasan yang sudah diterima di screen 016/027 (dan seterusnya)",
       "severity": "minor"
     }
   ],
@@ -77,8 +78,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 6,
       "failed": 0
     }
   }

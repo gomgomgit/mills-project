@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 4,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -11,7 +11,9 @@
   "files_generated": [],
   "test_files_generated": [],
   "fe_files_generated": [
-    "mobile/src/views/FormDepricarpingView.vue"
+    "mobile/src/views/FormDepricarpingView.vue",
+    "mobile/src/services/writeThroughSync.ts",
+    "mobile/src/components/ConfirmDialog.vue"
   ],
   "fe_test_files_generated": [
     "mobile/tests/FormDepricarpingView.spec.ts",
@@ -25,7 +27,8 @@
     "availableTimeSlotOptions() compares slots by their index in canonicalTimeSlots() rather than a raw hour number (since slots wrap starting at 07:00, not 0-23) -- the one structural difference from Cages Tipped Time's availableHourOptions(), otherwise the floor/exclusion logic is identical to Pressing's/Threshing's just-fixed version",
     "Every FormField id in the grid is set explicitly (e.g. fan-static-pressure-{index}, downtime-minutes-{index}, findings-{index}) to avoid duplicate DOM ids across rows sharing the same label text -- FormField.vue's default id-from-label slug would otherwise collide",
     "Time-Slot per row is now a SearchableSelect.vue instance (was a read-only label) -- mirrors FormPressingView.vue exactly, WITH pendingDeletionIds for existing (has-id) rows removed via Hapus baris",
-    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): FormDepricarpingView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('depricarping_record') → pushSavedRecordNow → POST /api/depricarping-records bila Mills Setting immediate_sync_enabled aktif, dan penolakannya (termasuk 422 PERIOD_CLOSED) DIAM — record tetap 'saved' dan alasannya baru tampil di SyncResultDialog pada sinkron manual screen-006. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('depricarping', mill, date) di DepricarpingRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Tidak ada test mobile khusus periode untuk layar ini (form tidak punya logika periode untuk diuji). Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), dan mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik). Kegagalan write-through yang diam dicakup secara generik oleh mobile/tests/writeThroughSync.spec.ts."
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak): FormDepricarpingView menyimpan ke SQLite lokal tanpa memeriksa periode; satu-satunya panggilan server dari form ini adalah write-through syncAfterSave('depricarping_record') → pushSavedRecordNow → POST /api/depricarping-records bila Mills Setting immediate_sync_enabled aktif. Penolakannya (termasuk 422 PERIOD_CLOSED) sejak 2026-10-03 ditampilkan langsung di form (lihat catatan REVISI 2026-10-03); di sinkron manual screen-006 alasannya tampil per record di SyncResultDialog. Guard EnforcesPeriodLock::assertPeriodOpenForWrite('depricarping', mill, date) di DepricarpingRecordService::create() menilai periode saat request tiba (bukan saat dicatat). Form hanya membuka draft lokal; tidak ada jalur edit/PATCH record tersinkron dari mobile. Cakupan: backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist + 'ke-18 *RecordService memanggil guard pada create MAUPUN update'), backend/tests/Feature/Api/KelolaPeriodePelaporanTest.php ('menolak 422 PERIOD_CLOSED untuk data mobile yang menyusul, lalu menerimanya setelah periode dibuka kembali'), mobile/tests/syncService.spec.ts (gagal per record dengan reason dari server, galat generik), dan mobile/tests/writeThroughSync.spec.ts.",
+    "REVISI (2026-10-03): penolakan write-through kini ditampilkan — writeThroughSync.syncAfterSave() mengembalikan {synced, rejection}; respons server 4xx (mis. 422 PERIOD_CLOSED) mengisi rejection dengan pesan server, sedangkan offline/5xx/fitur nonaktif tetap {synced:false, rejection:null} dan diam. onSimpan() FormDepricarpingView menyimpan pesan itu ke writeThroughRejection, menampilkan ConfirmDialog satu tombol (cancel-label=\"\") berjudul 'Tersimpan, tetapi ditolak server' dengan pesan server, dan baru bernavigasi ke monitor-depricarping saat dialog ditutup (Mengerti atau klik overlay). Record tetap 'saved' di SQLite lokal, tidak ada rollback. Test: mobile/tests/writeThroughSync.spec.ts ('reports the server message when the push is rejected with 422 PERIOD_CLOSED' + kasus diam); tidak ada test per-form untuk dialog ini di layar Depricarping — pola identik dengan Threshing yang dicakup mobile/tests/FormThreshingView.spec.ts."
   ],
   "deferred_items": [],
   "known_issues": [

@@ -1,5 +1,5 @@
 {
-  "ver": 3,
+  "ver": 5,
   "meta": {
     "title": "Mill Smart Log",
     "updated_at": "2026-10-03"
@@ -18,7 +18,9 @@
     "backend/resources/views/livewire/data/detail-threshing.blade.php"
   ],
   "fe_test_files_generated": [
-    "backend/tests/Feature/Livewire/DetailThreshingTest.php"
+    "backend/tests/Feature/Livewire/DetailThreshingTest.php",
+    "e2e-web/tests/detail-threshing.spec.ts",
+    "backend/database/seeders/BrowserTestFixtureSeeder.php"
   ],
   "implementation_notes": [
     "Reuses ThreshingRecordService::getDetail() (BE service shared with screen-049, see that screen's implement artifact for the service/controller/route files)",
@@ -26,15 +28,12 @@
     "Field grouping/order in the Blade view mirrors mobile/src/views/DataPreviewThreshingView.vue's detail mode exactly (Thresher ID, Tanggal, Inputted By, Checked By, Acknowledged By, Note, grid, Target Operasional table), per explicit product direction that web station screens mirror mobile flow/UX",
     "Route /data/threshing/{id} registered after /data/threshing/create (screen-057) so the literal 'create' segment is not swallowed by {id}",
     "REVISED 2026-08-24 (documentation-only correction, no functional code change needed): the Blade view (detail-threshing.blade.php) already iterated `$record['details']` directly with a plain @foreach and never assumed exactly 24 rows, so it required zero changes for the entity-catalog v12 dynamic-add-row revision to ThreshingRecordService -- it correctly renders however many rows a record actually has",
-    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): aksi verifikasi langsung di layar Detail (approve/un-approve, 2026-09-14) sebelumnya TIDAK terdokumentasi sama sekali di artefak ini. backend/app/Livewire/Data/DetailThreshing.php memakai trait backend/app/Livewire/Data/Concerns/HandlesRecordVerification.php (verificationModelClass()=ThreshingRecord::class) dan blade-nya merender aksi lewat canCheck()/canAcknowledge() + :message=$verificationMessage — Checked By (Supervisor/Admin) dan Acknowledged By (Mill Management/Admin). Aksi memanggil backend/app/Services/RecordVerificationService.php::setVerification() (jalur tulis keempat): peran -> cakupan mill (403) -> assertPeriodOpenForWrite('threshing', mill stasiun record, `date` record) -> 422 PERIOD_CLOSED sebelum kolom berubah -> baru tulis checked_by/acknowledged_by. Sejak fix 0594c63 HandlesRecordVerification menangkap HttpException sehingga penolakan periode tampil sebagai alert $verificationMessage (sebelumnya 422 mentah). Padanan API: PATCH /api/records/{stationType}/{id}/verification (RecordVerificationController). Diuji: backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...'; trait bersama, diwakili DetailCagesTrack), backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED setujui & batalkan), backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist)."
+    "REVISI (tech-spec v3, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): aksi verifikasi langsung di layar Detail (approve/un-approve, 2026-09-14) sebelumnya TIDAK terdokumentasi sama sekali di artefak ini. backend/app/Livewire/Data/DetailThreshing.php memakai trait backend/app/Livewire/Data/Concerns/HandlesRecordVerification.php (verificationModelClass()=ThreshingRecord::class) dan blade-nya merender aksi lewat canCheck()/canAcknowledge() + :message=$verificationMessage — Checked By (Supervisor/Admin) dan Acknowledged By (Mill Management/Admin). Aksi memanggil backend/app/Services/RecordVerificationService.php::setVerification() (jalur tulis keempat): peran -> cakupan mill (403) -> assertPeriodOpenForWrite('threshing', mill stasiun record, `date` record) -> 422 PERIOD_CLOSED sebelum kolom berubah -> baru tulis checked_by/acknowledged_by. Sejak fix 0594c63 HandlesRecordVerification menangkap HttpException sehingga penolakan periode tampil sebagai alert $verificationMessage (sebelumnya 422 mentah). Padanan API: PATCH /api/records/{stationType}/{id}/verification (RecordVerificationController). Diuji: backend/tests/Feature/Livewire/DetailRecordVerificationTest.php ('kunci periode: ...'; trait bersama, diwakili DetailCagesTrack), backend/tests/Feature/Api/RecordVerificationTest.php (422 PERIOD_CLOSED setujui & batalkan), backend/tests/Unit/Support/EnforcesPeriodLockTest.php (aturan whitelist).",
+    "REVISI v4 (2026-10-03, fixture e2e — kode aplikasi dan spec tidak diubah): backend/database/seeders/BrowserTestFixtureSeeder.php kini menanam record TH-BROWSER-DETAIL (stasiun threshing di line fixture, bertanggal hari ini agar tetap di halaman pertama Data Browser yang diurutkan tanggal menurun, 24 slot 07:00–06:00 terisi semua) yang dibuka berdasarkan nama oleh e2e-web/tests/detail-threshing.spec.ts. Sebelumnya tidak ada yang menanam record ini sehingga spec menunggu baris yang tidak ada sampai timeout. test_results.browser tidak diubah (tidak ada hitungan per-layar yang dicatat).",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/detail-threshing.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 3 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus."
   ],
   "deferred_items": [],
-  "known_issues": [
-    {
-      "description": "Browser (Playwright) spec (backend/tests/Browser/DetailThreshingTest.php) was authored but could not be executed in this sandboxed environment -- verified only by static review.",
-      "severity": "minor"
-    }
-  ],
+  "known_issues": [],
   "test_results": {
     "unit": {
       "run_at": "",
@@ -53,8 +52,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 3,
       "failed": 0
     }
   }

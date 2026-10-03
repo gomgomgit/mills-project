@@ -1,5 +1,5 @@
 {
-  "ver": 2,
+  "ver": 5,
   "meta": {
     "title": "Mills Smart Log",
     "updated_at": "2026-10-03"
@@ -19,7 +19,8 @@
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/CagesTrackRecordServiceTest.php",
-    "backend/tests/Feature/Api/FormCagesTrackTest.php"
+    "backend/tests/Feature/Api/FormCagesTrackTest.php",
+    "e2e-web/tests/form-cages-track.spec.ts"
   ],
   "fe_files_generated": [
     "backend/app/Livewire/Data/FormCagesTrack.php",
@@ -30,8 +31,7 @@
     "backend/resources/views/livewire/data/detail-cages-track.blade.php"
   ],
   "fe_test_files_generated": [
-    "backend/tests/Feature/Livewire/FormCagesTrackTest.php",
-    "backend/tests/Browser/FormCagesTrackTest.php"
+    "backend/tests/Feature/Livewire/FormCagesTrackTest.php"
   ],
   "implementation_notes": [
     "Satu Livewire component (FormCagesTrack) menangani mode create DAN edit — mode ditentukan oleh ada/tidaknya parameter $id di mount(), sama persis pola FormWeighbridge/FormGrading (screen-022/023)",
@@ -49,14 +49,13 @@
     "Ditambahkan tombol 'Tambah Data' di Data Browser Cages Track (screen-018) dan tombol 'Edit' di Detail Cages Track (screen-021) sebagai entry point ke screen ini",
     "Station::factory()->cagesTrack() state ditambahkan (mirrors weighbridge()/grading() states yang sudah ada) untuk kebutuhan test suite screen ini",
     "Model CagesTippedTime's docblock comment (cages_remain) diperbaiki — sebelumnya menyebut 'cages_tipped header minus total_cages' (belum pernah benar-benar diimplementasikan server-side sebelum screen ini), sekarang mencerminkan sumber sebenarnya (mill-setting.jumlah_cages)",
-    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): CagesTrackRecordService::create() memanggil assertPeriodOpenForWrite('cages-track', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormCagesTrack::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/CagesTrackRecordServiceTest.php, tests/Feature/Api/FormCagesTrackTest.php, tests/Feature/Livewire/FormCagesTrackTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini)."
+    "REVISI (tech-spec v2, kunci periode usecase-141 — sinkronisasi artefak, kode tidak diubah): CagesTrackRecordService::create() memanggil assertPeriodOpenForWrite('cages-track', station->business_unit_id, date) setelah validasi & resolve station dan sebelum penulisan pertama; update() memanggilnya dua kali (tanggal lama record dan tanggal baru dari body) setelah findOrFail/cek akses/validasi — jadi memindahkan record keluar dari periode tertutup juga ditolak. Penolakan = PeriodClosedException 422 PERIOD_CLOSED dengan salah satu dari 4 pesan (belum ada periode / masih Draft / sudah ditutup / di luar rentang + rentang yang berlaku), nol baris tersimpan. FormCagesTrack::save() menangkap HttpException dan menampilkan pesannya sebagai alert halaman ($generalError). Test yang menutupnya: tests/Unit/Support/EnforcesPeriodLockTest.php (aturan + cek statis ke-18 service) dan tests/Feature/Api/KelolaPeriodePelaporanTest.php (end-to-end via Sterilizer); test per-layar (tests/Unit/Services/CagesTrackRecordServiceTest.php, tests/Feature/Api/FormCagesTrackTest.php, tests/Feature/Livewire/FormCagesTrackTest.php) membuka periode Terbuka sebagai prasyarat via openPeriodFor()/openPeriodForStation(). test_results tidak diubah (suite tidak dijalankan ulang untuk sinkronisasi ini).",
+    "REVISI v3 (2026-10-03, uji ditambahkan — kode produksi tidak diubah): tests/Feature/Api/FormCagesTrackTest.php kini punya 3 uji HTTP kunci periode per-stasiun yang menutup celah 'penolakan kunci periode hanya diuji end-to-end via Sterilizer': (1) 'kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun'; (2) 'kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah'; (3) 'kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)'. Ketiganya mengganti periode prasyarat dengan sepasang periode tertutup + terbuka lewat helper replacePrerequisiteWithClosedAndOpenPeriods() di tests/Pest.php. Berkas kini 18 uji, semuanya hijau (test_results.integration diperbarui).",
+    "REVISI (2026-10-03, run penuh e2e-web): e2e-web/tests/form-cages-track.spec.ts dijalankan dalam run penuh suite e2e-web (530 lulus, 0 gagal, 9 skip di 77 spec) — spec layar ini 9 lulus, 0 gagal; test_results.browser diperbarui; known_issue 'browser test belum dijalankan' dihapus; path spec ditambahkan ke test_files_generated.",
+    "REVISI (2026-10-03): entri backend/tests/Browser/* dihapus dari daftar berkas — direktori itu dihapus di 8879d8d; uji browser kini di e2e-web/tests/."
   ],
   "deferred_items": [],
   "known_issues": [
-    {
-      "description": "Browser test dibuat tapi tidak dijalankan — tidak ada browser di sandbox",
-      "severity": "minor"
-    },
     {
       "description": "Unit test coverage % tidak dapat diukur — tidak ada Xdebug/PCOV",
       "severity": "minor"
@@ -78,8 +77,8 @@
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-08-20T00:00:00Z",
-      "passed": 13,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 18,
       "failed": 0
     },
     "component": {
@@ -88,8 +87,8 @@
       "failed": 0
     },
     "browser": {
-      "run_at": "",
-      "passed": 0,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 9,
       "failed": 0
     }
   }

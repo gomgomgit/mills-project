@@ -187,8 +187,18 @@ function nowIso(): string {
   return new Date().toISOString()
 }
 
+// Tanggal LOKAL perangkat, bukan UTC. `toISOString()` memakai UTC, jadi
+// draft yang dibuat 00:00–06:59 WIB mendapat tanggal KEMARIN: tidak masuk
+// hitungan "Hari Ini" di Monitor, tersembunyi oleh filter bawaan Data
+// Preview (yang sudah memakai tanggal lokal), dan terkirim ke server dengan
+// tanggal salah — sehingga juga dinilai kunci periode pada hari yang salah.
+// Ditemukan 2026-10-03 oleh e2e monitor-sterilizer.
 function todayDateString(): string {
-  return new Date().toISOString().slice(0, 10)
+  const today = new Date()
+  const yyyy = today.getFullYear()
+  const mm = String(today.getMonth() + 1).padStart(2, '0')
+  const dd = String(today.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
 }
 
 function generateId(): string {

@@ -136,6 +136,31 @@ describe('kernelDispatchRecordRepo', () => {
   })
 
   describe('createDraft()', () => {
+    // Tanggal draft = tanggal LOKAL perangkat. Sebelum 2026-10-03 repo memakai
+    // toISOString() (UTC), sehingga draft yang dibuat 00:00–06:59 WIB bertanggal
+    // kemarin. Zona waktu dipaku ke Asia/Jakarta supaya uji ini bermakna di
+    // mesin mana pun, dan jam dipaku ke 01:30 WIB = 18:30 UTC hari sebelumnya.
+    it('mengisi tanggal draft dengan tanggal lokal, bukan UTC (dini hari WIB)', async () => {
+      const originalTz = process.env.TZ
+      process.env.TZ = 'Asia/Jakarta'
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-10-02T18:30:00Z'))
+
+      try {
+        vi.mocked(run).mockResolvedValueOnce(undefined as never)
+
+        await createDraft(USER_ID)
+
+        const [sql, params] = vi.mocked(run).mock.calls.at(-1)!
+        expect(sql).toContain('INSERT INTO kernel_dispatch_record')
+        expect(params).toContain('2026-10-03')
+        expect(params).not.toContain('2026-10-02')
+      } finally {
+        vi.useRealTimers()
+        process.env.TZ = originalTz
+      }
+    })
+
     it('INSERTs a new draft record with status=draft_ongoing and date auto-filled to today', async () => {
       vi.mocked(run).mockResolvedValueOnce(undefined as never)
 

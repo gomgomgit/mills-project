@@ -13,6 +13,9 @@
  * keeps it a pure, easily component-testable presentational element, same
  * philosophy as PausedDraftsList.vue (router-agnostic, emits events, lets
  * the parent act).
+ *
+ * Pass cancel-label="" for a single-button acknowledgement dialog; the
+ * overlay click still emits `cancel`, so handle both the same way.
  */
 withDefaults(
   defineProps<{
@@ -42,7 +45,12 @@ const emit = defineEmits<{
       <p class="confirm-dialog-message">{{ message }}</p>
 
       <div class="confirm-dialog-actions">
-        <button type="button" class="confirm-dialog-button confirm-dialog-button--cancel" @click="emit('cancel')">
+        <button
+          v-if="cancelLabel"
+          type="button"
+          class="confirm-dialog-button confirm-dialog-button--cancel"
+          @click="emit('cancel')"
+        >
           {{ cancelLabel }}
         </button>
         <button type="button" class="confirm-dialog-button confirm-dialog-button--confirm" @click="emit('confirm')">

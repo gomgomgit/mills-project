@@ -68,6 +68,12 @@ export interface SyncItemResult {
   label: string
   ok: boolean
   reason?: string
+  /**
+   * HTTP status of a failed push, when the server answered at all. Absent
+   * for network failures. Lets write-through saving tell "the server said
+   * no" (will be refused again on every retry) from "could not reach it".
+   */
+  status?: number
 }
 
 export interface SyncSummary {
@@ -480,7 +486,7 @@ async function pushUniformRow(
 
     return { id, label, ok: true }
   } catch (error) {
-    return { id, label, ok: false, reason: extractErrorMessage(error) }
+    return { id, label, ok: false, reason: extractErrorMessage(error), status: (error as NormalizedApiError)?.status }
   }
 }
 
@@ -535,7 +541,7 @@ async function syncWeighbridgeRecords(productionLineId: string, userId: string):
       await run(`UPDATE weighbridge_record SET status = 'synced', server_id = ? WHERE id = ?`, [serverId, row.id])
       results.push({ id: row.id, label, ok: true })
     } catch (error) {
-      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error) })
+      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error), status: (error as NormalizedApiError)?.status })
     }
   }
 
@@ -603,7 +609,7 @@ async function syncGradingRecords(productionLineId: string, userId: string): Pro
       await run(`UPDATE grading_record SET status = 'synced', server_id = ? WHERE id = ?`, [serverId, row.id])
       results.push({ id: row.id, label, ok: true })
     } catch (error) {
-      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error) })
+      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error), status: (error as NormalizedApiError)?.status })
     }
   }
 
@@ -651,7 +657,7 @@ async function syncCagesTrackRecords(productionLineId: string, userId: string): 
       await run(`UPDATE cages_track_record SET status = 'synced', server_id = ? WHERE id = ?`, [serverId, row.id])
       results.push({ id: row.id, label, ok: true })
     } catch (error) {
-      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error) })
+      results.push({ id: row.id, label, ok: false, reason: extractErrorMessage(error), status: (error as NormalizedApiError)?.status })
     }
   }
 

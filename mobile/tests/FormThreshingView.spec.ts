@@ -87,6 +87,17 @@ vi.mock('@/services/threshingRecordRepo', async () => {
   }
 })
 
+// Write-through saving is mocked so a test can make the server REJECT the
+// push. Default = feature off / nothing to report, which is what every other
+// test in this file assumes.
+const { syncAfterSaveMock } = vi.hoisted(() => ({
+  syncAfterSaveMock: vi.fn(),
+}))
+
+vi.mock('@/services/writeThroughSync', () => ({
+  syncAfterSave: syncAfterSaveMock,
+}))
+
 function setCurrentUser(role: 'operator' | 'supervisor' | 'mill_management' = 'operator'): void {
   useAuthStoreMock.mockReturnValue({
     currentUser: { id: 'user-1', username: 'operator01', name: 'Operator Satu', role },
@@ -168,6 +179,7 @@ async function chooseSearchableOption(
 const T0 = '2026-08-24T08:00:00.000Z'
 
 beforeEach(() => {
+    syncAfterSaveMock.mockResolvedValue({ synced: false, rejection: null })
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(new Date(T0))
   vi.clearAllMocks()
@@ -349,6 +361,40 @@ describe('FormThreshingView', () => {
     expect(details).toHaveLength(1)
     expect(details[0].time_slot).toBe('07:00')
     expect(idsToDelete).toEqual([])
+    expect(pushMock).toHaveBeenCalledWith({ name: 'monitor-threshing' })
+  })
+
+  // 2026-10-03 — usecase-141: a write-through push REJECTED by the server
+  // (422 PERIOD_CLOSED) used to be swallowed, the form jumped to Monitor and
+  // the operator only found out on the manual sync screen. Now the server's
+  // message is shown first; the record is still saved locally either way.
+  it('shows the server rejection before leaving when write-through saving is refused', async () => {
+    saveDraftMock.mockResolvedValue({ record: makeRecord({ status: 'saved' }), details: [makeDetailRow()] })
+    syncAfterSaveMock.mockResolvedValue({
+      synced: false,
+      rejection: 'Periode "September" untuk stasiun ini sudah ditutup.',
+    })
+
+    const wrapper = mount(FormThreshingView)
+    await flushPromises()
+
+    await wrapper.find('#field-thresher-id').setValue('TH-01')
+    await wrapper.find('[data-testid="add-detail-row-button"]').trigger('click')
+    await chooseSearchableOption(wrapper, 'time-slot-select-0', '07:00')
+    await wrapper.find('#ffb-throughput-0').setValue('45.5')
+    await wrapper.find('[data-testid="save-button"]').trigger('click')
+    await flushPromises()
+
+    expect(syncAfterSaveMock).toHaveBeenCalledWith('threshing_record', 'draft-1')
+    expect(pushMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Tersimpan, tetapi ditolak server')
+    expect(wrapper.text()).toContain('sudah ditutup')
+
+    const acknowledge = wrapper.findAll('button').find((b) => b.text() === 'Mengerti')
+    expect(acknowledge).toBeDefined()
+    await acknowledge!.trigger('click')
+    await flushPromises()
+
     expect(pushMock).toHaveBeenCalledWith({ name: 'monitor-threshing' })
   })
 

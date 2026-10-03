@@ -168,6 +168,16 @@ const actionErrorMessage = ref<string | null>(null)
 // per-field header `errors` object above.
 const detailRowsError = ref<string | null>(null)
 const backDialogOpen = ref(false)
+
+// Server's message when write-through saving was REJECTED (not merely
+// offline). Non-null opens the acknowledgement dialog; closing it goes to
+// the Monitor exactly like a normal save — the record is saved locally.
+const writeThroughRejection = ref<string | null>(null)
+
+function onWriteThroughRejectionClose(): void {
+  writeThroughRejection.value = null
+  router.push({ name: 'monitor-clarification' })
+}
 const clearDialogOpen = ref(false)
 
 const actionInProgress = computed(() => saving.value || pausing.value || clearing.value)
@@ -437,10 +447,15 @@ async function onSimpan(): Promise<void> {
       authStore.currentUser?.role,
     )
     // Write-through saving (2026-09-14): push straight to the server
-    // when this mill has it enabled. Silent by design — the record is
-    // already saved locally, so a failure here just means it waits for
-    // the next manual sync.
-    await syncAfterSave('clarification_record', recordId)
+    // when this mill has it enabled. Offline stays silent — the record is
+    // already saved locally and waits for the next manual sync. A server
+    // REJECTION (e.g. 422 PERIOD_CLOSED, usecase-141) is shown before
+    // leaving, since it will be refused again on every retry.
+    const outcome = await syncAfterSave('clarification_record', recordId)
+    if (outcome.rejection) {
+      writeThroughRejection.value = outcome.rejection
+      return
+    }
     router.push({ name: 'monitor-clarification' })
   } catch (err) {
     if (err instanceof ClarificationDetailRequiredError) {
@@ -886,6 +901,16 @@ function goToMonitorClarification(): void {
       cancel-label="Batal"
       @confirm="onClearConfirm"
       @cancel="onClearCancel"
+    />
+
+    <ConfirmDialog
+      :open="writeThroughRejection !== null"
+      title="Tersimpan, tetapi ditolak server"
+      :message="`Data tersimpan di perangkat, tetapi server menolaknya: ${writeThroughRejection ?? ''} Data tetap berstatus Tersimpan dan dapat dikirim ulang lewat Sinkronisasi setelah masalahnya diselesaikan.`"
+      confirm-label="Mengerti"
+      cancel-label=""
+      @confirm="onWriteThroughRejectionClose"
+      @cancel="onWriteThroughRejectionClose"
     />
   </main>
 </template>

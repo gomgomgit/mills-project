@@ -21,11 +21,18 @@ import { useAuthStore } from '@/stores/auth'
  *   - the existing manual sync, which still picks up anything this could
  *     not push.
  *
- * Every failure here is therefore SILENT to the caller: the record is
+ * Transient failures here are therefore SILENT to the caller: the record is
  * already safely saved locally, and a failed push just means it waits for
  * the next sync — exactly the state it would have been in before this
  * feature existed. Surfacing an error would be actively misleading, since
  * nothing was lost.
+ *
+ * A REJECTION is different (2026-10-03). When the server answers 4xx — most
+ * importantly 422 PERIOD_CLOSED, usecase-141 — retrying will be refused
+ * again every time, and the operator only learned of it hours later on the
+ * manual sync screen. So a rejection is reported back with the server's own
+ * message; the record still stays 'saved' locally, nothing is lost or
+ * rolled back, and the caller decides how to show it.
  */
 
 /** Returns true when this mill has opted into write-through saving. */
@@ -46,27 +53,44 @@ export async function isImmediateSyncEnabled(): Promise<boolean> {
   }
 }
 
+export interface WriteThroughOutcome {
+  /** True when the record reached the server and is now 'synced'. */
+  synced: boolean
+  /**
+   * The server's message when it REJECTED the record (HTTP 4xx), else null.
+   * Offline, feature off, no production line — all null: those just wait
+   * for the next sync and must stay silent.
+   */
+  rejection: string | null
+}
+
 /**
  * Call right after a successful local save. Pushes that one record when the
  * mill has write-through enabled; otherwise does nothing at all.
  *
  * @param localTable  the station's local table, e.g. 'threshing_record'
  * @param recordId    the local row id that was just saved
- * @returns true when the record reached the server, false in every other
- *          case (feature off, offline, push rejected) — callers may use
- *          this for a "tersinkron" hint, but must not treat false as a
- *          save failure.
+ * @returns never throws; `synced` false is NOT a save failure — the record
+ *          is saved locally either way. Only a non-null `rejection` is
+ *          worth telling the operator about.
  */
-export async function syncAfterSave(localTable: string, recordId: string): Promise<boolean> {
+export async function syncAfterSave(localTable: string, recordId: string): Promise<WriteThroughOutcome> {
   if (!(await isImmediateSyncEnabled())) {
-    return false
+    return { synced: false, rejection: null }
   }
 
   try {
     const result = await pushSavedRecordNow(localTable, recordId)
-    return result?.ok ?? false
+
+    if (result?.ok) {
+      return { synced: true, rejection: null }
+    }
+
+    const rejected = result?.status !== undefined && result.status >= 400 && result.status < 500
+
+    return { synced: false, rejection: rejected ? (result?.reason ?? null) : null }
   } catch {
-    return false
+    return { synced: false, rejection: null }
   }
 }
 

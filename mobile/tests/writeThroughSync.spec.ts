@@ -84,9 +84,9 @@ describe('syncAfterSave()', () => {
     mockLocalReads({ immediateSync: true })
     vi.mocked(apiClient.post).mockResolvedValue({ data: { id: 'server-1' } })
 
-    const pushed = await syncAfterSave('threshing_record', 'local-1')
+    const outcome = await syncAfterSave('threshing_record', 'local-1')
 
-    expect(pushed).toBe(true)
+    expect(outcome).toEqual({ synced: true, rejection: null })
     expect(apiClient.post).toHaveBeenCalledWith(
       '/api/threshing-records',
       expect.objectContaining({ production_line_id: 'pl-1', thresher_id: 'TH-001' }),
@@ -100,7 +100,7 @@ describe('syncAfterSave()', () => {
   it('does nothing at all when the feature is off', async () => {
     mockLocalReads({ immediateSync: false })
 
-    expect(await syncAfterSave('threshing_record', 'local-1')).toBe(false)
+    expect(await syncAfterSave('threshing_record', 'local-1')).toEqual({ synced: false, rejection: null })
     expect(apiClient.post).not.toHaveBeenCalled()
   })
 
@@ -109,15 +109,34 @@ describe('syncAfterSave()', () => {
     vi.mocked(apiClient.post).mockRejectedValue({ message: 'Tidak dapat terhubung ke server.' })
 
     // No throw, and no 'synced' write: the row keeps status 'saved'.
-    expect(await syncAfterSave('threshing_record', 'local-1')).toBe(false)
+    expect(await syncAfterSave('threshing_record', 'local-1')).toEqual({ synced: false, rejection: null })
     expect(run).not.toHaveBeenCalledWith(expect.stringContaining("status = 'synced'"), expect.anything())
   })
 
   it('stays silent when the record cannot be traced to a production line', async () => {
     mockLocalReads({ immediateSync: true, productionLine: null })
 
-    expect(await syncAfterSave('threshing_record', 'local-1')).toBe(false)
+    expect(await syncAfterSave('threshing_record', 'local-1')).toEqual({ synced: false, rejection: null })
     expect(apiClient.post).not.toHaveBeenCalled()
+  })
+
+  // 2026-10-03 — a REJECTION is not a transient failure. 422 PERIOD_CLOSED
+  // (usecase-141) is refused again on every retry, so the caller gets the
+  // server's message to show; the row still stays 'saved' locally.
+  it('reports the server message when the push is rejected with 422 PERIOD_CLOSED', async () => {
+    mockLocalReads({ immediateSync: true })
+    const message = 'Periode "September" untuk stasiun ini sudah ditutup, sehingga data bertanggal 2026-09-14 tidak dapat disimpan atau diubah.'
+    vi.mocked(apiClient.post).mockRejectedValue({ status: 422, message })
+
+    expect(await syncAfterSave('threshing_record', 'local-1')).toEqual({ synced: false, rejection: message })
+    expect(run).not.toHaveBeenCalledWith(expect.stringContaining("status = 'synced'"), expect.anything())
+  })
+
+  it('stays silent on a 5xx — a server fault may well succeed on the next sync', async () => {
+    mockLocalReads({ immediateSync: true })
+    vi.mocked(apiClient.post).mockRejectedValue({ status: 503, message: 'Server sedang sibuk.' })
+
+    expect(await syncAfterSave('threshing_record', 'local-1')).toEqual({ synced: false, rejection: null })
   })
 })
 

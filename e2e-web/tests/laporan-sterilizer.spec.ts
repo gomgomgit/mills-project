@@ -204,7 +204,10 @@ async function createSterilizerRecord(
 ): Promise<void> {
   await page.goto(STERILIZER_FORM_PATH)
 
-  await page.locator('[data-testid="production-line-select"]').selectOption({ index: 1 })
+  // Berdasarkan LABEL, bukan index 1: opsi pertama mill ini menurut abjad adalah
+  // "Mill Machinery Group PL Baru", yang tidak memikul stasiun Sterilizer —
+  // Simpan ditolak dan beforeAll menggantung sampai batas waktunya.
+  await page.locator('[data-testid="production-line-select"]').selectOption({ label: 'PL Mill A' })
 
   // Rekam line yang benar-benar terpilih, sekali saja, supaya layar laporan
   // nanti membaca line yang sama dengan yang ditulis di sini.

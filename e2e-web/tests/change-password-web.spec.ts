@@ -46,6 +46,9 @@ const BUSINESS_UNIT_NAME = 'Mill A';
 const OLD_PASSWORD = CHANGE_PASSWORD_PASSWORD;
 
 
+// Tombol simpan disebut lewat kelasnya: `button[type="submit"]` kini cocok ke
+// TIGA tombol (Logout di shell header, Simpan, dan Kirim milik widget
+// chatbot) dan strict mode Playwright menolak klik ke locator ganda.
 async function gotoChangePassword(page) {
   await page.goto(CHANGE_PASSWORD_PATH);
 }
@@ -59,7 +62,7 @@ test.describe('Ganti Password Web', () => {
     await page.locator('#old_password').fill(OLD_PASSWORD);
     await page.locator('#new_password').fill('NewPass456!');
     await page.locator('#new_password_confirmation').fill('NewPass456!');
-    await page.locator('button[type="submit"]').click();
+    await page.locator('button.settings-button[type="submit"]').click();
 
     await expect(page.locator('.settings-toast--success')).toContainText('Password berhasil diubah.');
 
@@ -77,7 +80,7 @@ test.describe('Ganti Password Web', () => {
     await page.locator('#old_password').fill('WrongOldPass1!');
     await page.locator('#new_password').fill('NewPass456!');
     await page.locator('#new_password_confirmation').fill('NewPass456!');
-    await page.locator('button[type="submit"]').click();
+    await page.locator('button.settings-button[type="submit"]').click();
 
     await expect(page.locator('.settings-toast--error')).toContainText('Password lama salah.');
   });
@@ -90,7 +93,7 @@ test.describe('Ganti Password Web', () => {
     await page.locator('#old_password').fill(OLD_PASSWORD);
     await page.locator('#new_password').fill('abc');
     await page.locator('#new_password_confirmation').fill('abc');
-    await page.locator('button[type="submit"]').click();
+    await page.locator('button.settings-button[type="submit"]').click();
 
     await expect(page.locator('.form-field__error')).toContainText(/[Pp]assword/);
     // No success/error toast should appear — submission was blocked by
@@ -106,7 +109,7 @@ test.describe('Ganti Password Web', () => {
     await page.locator('#old_password').fill(OLD_PASSWORD);
     await page.locator('#new_password').fill('NewPass456!');
     await page.locator('#new_password_confirmation').fill('Different789!');
-    await page.locator('button[type="submit"]').click();
+    await page.locator('button.settings-button[type="submit"]').click();
 
     await expect(page.locator('.form-field__error')).toContainText(/[Kk]onfirmasi/);
     await expect(page.locator('.settings-toast--success')).toHaveCount(0);

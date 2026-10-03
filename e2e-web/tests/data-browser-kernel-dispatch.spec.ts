@@ -16,6 +16,7 @@
 
 import { test, expect } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { assertProductionLineFilter } from './support/production-line-filter'
 
 const DATA_BROWSER_PATH = '/data/kernel-dispatch';
 const USERNAME = 'kdtest-browse01';
@@ -39,7 +40,11 @@ test.describe('Data Browser Kernel Dispatch', () => {
     await page.locator('#date_from').fill('2020-01-01');
     await page.locator('#date_to').fill('2020-01-02');
 
-    await expect(page.getByText('Tidak ada data')).toBeVisible();
+    // Kelas judulnya, bukan getByText: SUBTITLE empty state juga memuat frasa
+    // "Tidak ada data", sehingga getByText cocok ke DUA elemen dan Playwright
+    // menolaknya dalam strict mode — sama dengan perbaikan di
+    // data-browser-sterilizer.
+    await expect(page.locator('.kd-empty__title')).toContainText('Tidak ada data');
   });
 
   test('klik baris membuka halaman detail', async ({ page }) => {
@@ -49,5 +54,20 @@ test.describe('Data Browser Kernel Dispatch', () => {
     await page.locator('.kd-table__row').first().click();
 
     await page.waitForURL(/\/data\/kernel-dispatch\/[0-9a-f-]+$/);
+  });
+
+  // Scenario: filter Production Line — record milik dua line di mill yang
+  // sama (fixture KD-BROWSER-PL-A / -PL-B, BrowserTestFixtureSeeder::
+  // productionLineFilterFixtures). "Semua Line" memuat keduanya dengan
+  // Production Line sebagai kolom pertama; memilih satu line menyempitkan
+  // tabel ke record line itu saja; tautan ekspor (dan CSV-nya) membawa
+  // production_line_id. Langkahnya di tests/support/production-line-filter.ts.
+  test('filter production line menyempitkan tabel dan terbawa ke ekspor', async ({ page }) => {
+    await assertProductionLineFilter(page, {
+      username: USERNAME,
+      path: '/data/kernel-dispatch',
+      cls: 'kd',
+      idPrefix: 'KD',
+    });
   });
 });

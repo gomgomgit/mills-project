@@ -22,7 +22,10 @@ test.describe('Detail Kernel Dispatch', () => {
     await page.locator('.kd-table__row').first().click();
 
     await page.waitForURL(/\/data\/kernel-dispatch\/[0-9a-f-]+$/);
-    await expect(page.getByText('Detail Kernel Dispatch')).toBeVisible();
+    // Judul HALAMAN, bukan getByText: shell header merender judul yang sama di
+    // <h1 class="shell-header__title">, sehingga getByText cocok ke dua elemen
+    // dan strict mode menolaknya.
+    await expect(page.locator('h2[class$="-page__title"]')).toContainText('Detail Kernel Dispatch');
     await expect(page.locator('[data-testid="detail-kernel-dispatch-id"]')).toBeVisible();
     await expect(page.locator('[data-testid="kernel-dispatch-detail-log"]')).toBeVisible();
   });

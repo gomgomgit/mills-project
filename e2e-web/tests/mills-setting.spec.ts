@@ -34,20 +34,26 @@ async function gotoMillSettings(page) {
 }
 
 test.describe('Mills Setting', () => {
-  test('Admin: pilih mill, ubah nama aplikasi dan jumlah cages, klik Simpan', async ({ page }) => {
+  // DIPERBARUI 2026-10-03. Tiga hal yang tidak pernah benar sejak spec ini
+  // ditulis: (1) mill "Mill A" tidak ada di database mana pun — fixture-nya
+  // kini "Mill Setting Uji" dari BrowserTestFixtureSeeder; (2) field
+  // #jumlah_cages DIHAPUS dari layar ini pada 2026-08-20 (jumlah cages kini
+  // dihitung dari machinery station Cages Track), jadi asersinya dibuang;
+  // (3) `button[type="submit"]` cocok juga ke tombol Logout dan Kirim chatbot,
+  // sehingga tombol Simpan disebut lewat kelasnya.
+  test('Admin: pilih mill, ubah nama aplikasi, klik Simpan', async ({ page }) => {
     await login(page, 'stest-admin01');
     await gotoMillSettings(page);
 
-    await page.locator('#selectedBusinessUnitId').selectOption({ label: 'Mill A' });
-    await page.locator('#app_name').fill('Mill Baru');
-    await page.locator('#jumlah_cages').fill('8');
-    await page.locator('button[type="submit"]').click();
+    const appName = `Mill Baru ${Date.now()}`;
+    await page.locator('#selectedBusinessUnitId').selectOption({ label: 'Mill Setting Uji' });
+    await page.locator('#app_name').fill(appName);
+    await page.locator('button.ms-button--primary[type="submit"]').click();
 
     await expect(page.locator('.ms-alert--success')).toBeVisible();
     await page.reload();
-    await page.locator('#selectedBusinessUnitId').selectOption({ label: 'Mill A' });
-    await expect(page.locator('#app_name')).toHaveValue('Mill Baru');
-    await expect(page.locator('#jumlah_cages')).toHaveValue('8');
+    await page.locator('#selectedBusinessUnitId').selectOption({ label: 'Mill Setting Uji' });
+    await expect(page.locator('#app_name')).toHaveValue(appName);
   });
 
   test('Mill Management: navigasi ke Mills Setting langsung menampilkan mill sendiri, tanpa pemilih', async ({ page }) => {
@@ -64,11 +70,17 @@ test.describe('Mills Setting', () => {
 
     await page.locator('#selectedBusinessUnitId').selectOption({ label: 'Mill Kosong' });
 
+    // #jumlah_cages (dulu default '1') dihapus dari layar 2026-08-20 — yang
+    // tersisa untuk diasersi adalah form yang tampil tanpa galat.
     await expect(page.locator('.ms-alert--error')).toHaveCount(0);
-    await expect(page.locator('#jumlah_cages')).toHaveValue('1');
+    await expect(page.locator('#app_name')).toBeVisible();
   });
 
-  test('Validasi jumlah cages: isi 0, klik Simpan, error ditampilkan', async ({ page }) => {
+  // DILEWATI SEJAK 2026-10-03: field #jumlah_cages beserta validasinya
+  // dihapus dari Mills Setting pada 2026-08-20 — jumlah cages kini dihitung
+  // dari machinery station Cages Track (CagesTrackRecordService::
+  // machineryCountForStation). Tidak ada lagi yang bisa diuji di layar ini.
+  test.skip('Validasi jumlah cages: isi 0, klik Simpan, error ditampilkan', async ({ page }) => {
     await login(page, 'stest-admin01');
     await gotoMillSettings(page);
 

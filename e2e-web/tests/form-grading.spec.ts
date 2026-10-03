@@ -141,7 +141,13 @@ test.describe('Form Grading (Web)', () => {
     // atas selesai, karena itu urutannya tidak boleh dibalik.
     await page.locator('[data-testid="production-line-select"]').selectOption({ label: PRODUCTION_LINE_NAME });
     await page.locator('[data-testid="date-input"]').fill('2020-01-01');
-    await page.locator('[data-testid="wb-card-no-select"]').selectOption({ index: 1 });
+    // selectLive, bukan selectOption biasa: WB Card No ber-wire:model.live, dan
+    // putarannya (auto-isi plat/estate) mendarat SETELAH fillAndKeep di bawah
+    // lalu me-render ulang form dengan grading_number kosong. Terukur
+    // 2026-10-03 dari respons /livewire/update: penyimpanan ditolak
+    // "Grading Number wajib diisi." dan URL tidak pernah keluar dari /create —
+    // timeout, bukan pesan. Skenario "berhasil" di atas sudah memakai pola ini.
+    await selectLive(page, 'wb-card-no-select', { index: 1 });
     const uniqueSuffix = Date.now();
     await fillAndKeep(page, 'grading-number-input', `GR-BROWSER-DT-${uniqueSuffix}`);
     await fillAndKeep(page, 'netto-input', '1000');
@@ -162,7 +168,15 @@ test.describe('Form Grading (Web)', () => {
 
     await page.locator('[data-testid="add-row-button"]').click();
     await page.locator('[data-testid="add-row-button"]').click();
-    await page.locator('[data-testid="detail-parameter-select-0"]').selectOption({ index: 1 });
+    // Kedua baris harus sudah ter-render sebelum memilih — putaran klik kedua
+    // yang mendarat belakangan akan me-render ulang dropdown baris pertama.
+    await expect(page.locator('[data-testid="detail-parameter-select-1"]')).toBeVisible();
+    // selectLive, bukan selectOption biasa: opsi baris kedua baru disusun ulang
+    // oleh putaran Livewire dari pemilihan ini (availableParameterOptions()).
+    // Tanpa menunggunya, asersi di bawah membaca DOM LAMA — dropdown baris
+    // kedua yang masih memuat ke-16 parameter — dan gagal padahal
+    // pengecualiannya bekerja. Terukur 2026-10-03.
+    await selectLive(page, 'detail-parameter-select-0', { index: 1 });
     const selectedValue = await page.locator('[data-testid="detail-parameter-select-0"]').inputValue();
 
     const row1SelectedLabel = await page
@@ -189,9 +203,11 @@ test.describe('Form Grading (Web)', () => {
     await expect(row2Select).toBeVisible();
     await expect(row2Labels.nth(1)).toHaveCount(1);
 
-    await expect(
-      await row2Labels.allInnerTexts(),
-      `parameter "${row1SelectedLabel}" yang sudah dipakai baris pertama tidak boleh ditawarkan di baris kedua`,
+    // expect.poll: membaca ulang sampai DOM baris kedua mencerminkan putaran
+    // di atas, alih-alih satu bidikan yang bisa mendahuluinya.
+    await expect.poll(
+      () => row2Labels.allInnerTexts(),
+      { message: `parameter "${row1SelectedLabel}" yang sudah dipakai baris pertama tidak boleh ditawarkan di baris kedua` },
     ).not.toContain(row1SelectedLabel);
   });
 

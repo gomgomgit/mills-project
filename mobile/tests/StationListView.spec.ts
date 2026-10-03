@@ -1174,14 +1174,12 @@ describe('StationListView — Production Line picker step', () => {
   it('passes the selected Production Line id through to syncAllRecords when Sinkronisasi is tapped', async () => {
     fetchCurrentProductionLinesMock.mockResolvedValue([{ id: 'pl-1', name: 'Line 01', code: null }])
     getActiveAndPlaceholderStationsForProductionLineMock.mockResolvedValue([])
+    // SyncSummary shape since 2026-09-14 (byStation + flattened items). The
+    // old seven-named-field fixture left `items` undefined, which made
+    // SyncResultDialog throw an unhandled render error after this test.
     syncAllRecordsMock.mockResolvedValue({
-      weighbridge: [],
-      grading: [],
-      cagesTrack: [],
-      threshing: [],
-      pressing: [],
-      depricarping: [],
-      kernelPlant: [],
+      byStation: {},
+      items: [],
       syncedCount: 0,
       failedCount: 0,
     })

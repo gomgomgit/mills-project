@@ -429,4 +429,46 @@ describe('syncService — syncAllRecords()', () => {
     expect(summary.failedCount).toBe(1)
     expect(run).not.toHaveBeenCalledWith(expect.stringContaining('UPDATE pressing_record'), expect.anything())
   })
+  it('keeps a record rejected by the period lock (422 PERIOD_CLOSED) as saved while the rest of the batch still syncs', async () => {
+    // usecase-141: the server refuses records dated in a closed period with
+    // HTTP 422 {code: 'PERIOD_CLOSED', message}. apiClient normalizes that
+    // to {status, message}; the sync must report it per record and must not
+    // let one locked record stop the others in the same batch.
+    const periodClosedMessage =
+      'Periode Oktober 2026 sudah ditutup. Data pada periode ini tidak dapat diubah.'
+
+    vi.mocked(query).mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM threshing_record')) {
+        return [
+          { id: 'local-th-locked', thresher_id: 'TH-LOCKED', date: '2026-09-30', note: null, checked_by: null, acknowledged_by: null, server_id: null },
+          { id: 'local-th-open', thresher_id: 'TH-OPEN', date: '2026-10-02', note: null, checked_by: null, acknowledged_by: null, server_id: null },
+        ]
+      }
+      return []
+    })
+    vi.mocked(apiClient.post).mockImplementation(async (_url: string, payload?: unknown) => {
+      if ((payload as { thresher_id?: string }).thresher_id === 'TH-LOCKED') {
+        throw { status: 422, message: periodClosedMessage }
+      }
+      return { data: { id: 'server-th-open' } }
+    })
+
+    const summary = await syncAllRecords(PRODUCTION_LINE_ID)
+
+    expect(apiClient.post).toHaveBeenCalledTimes(2)
+    expect(summary.byStation.threshing).toEqual([
+      { id: 'local-th-locked', label: 'TH-LOCKED', ok: false, reason: periodClosedMessage, status: 422 },
+      { id: 'local-th-open', label: 'TH-OPEN', ok: true },
+    ])
+    expect(summary.syncedCount).toBe(1)
+    expect(summary.failedCount).toBe(1)
+
+    // Only the accepted row is flipped to 'synced'; the locked one stays 'saved'.
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(run).toHaveBeenCalledWith(
+      `UPDATE threshing_record SET status = 'synced', server_id = ? WHERE id = ?`,
+      ['server-th-open', 'local-th-open'],
+    )
+    expect(run).not.toHaveBeenCalledWith(expect.any(String), expect.arrayContaining(['local-th-locked']))
+  })
 })

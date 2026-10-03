@@ -22,7 +22,10 @@ test.describe('Detail Solid Waste Disposal', () => {
     await page.locator('.sw-table__row').first().click();
 
     await page.waitForURL(/\/data\/solid-waste-disposal\/[0-9a-f-]+$/);
-    await expect(page.getByText('Detail Solid Waste Disposal')).toBeVisible();
+    // Judul HALAMAN, bukan getByText: shell header merender judul yang sama di
+    // <h1 class="shell-header__title">, sehingga getByText cocok ke dua elemen
+    // dan strict mode menolaknya.
+    await expect(page.locator('h2[class$="-page__title"]')).toContainText('Detail Solid Waste Disposal');
     await expect(page.locator('[data-testid="detail-solid-waste-disposal-id"]')).toBeVisible();
     await expect(page.locator('[data-testid="solid-waste-disposal-detail-log"]')).toBeVisible();
   });

@@ -237,3 +237,71 @@ it('menolak 403 FORBIDDEN saat PATCH record milik mill lain, dan tidak mengubah 
     $response->assertJsonPath('code', 'FORBIDDEN');
     expect($record->fresh()->getAttributes())->toBe($before);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Kunci Periode Pelaporan — kontrak HTTP (usecase-141)
+|--------------------------------------------------------------------------
+| Dulu hanya Sterilizer yang punya test HTTP penolakan kunci periode
+| (KelolaPeriodePelaporanTest). Blok ini — seragam di ke-18 berkas Form*Test —
+| membuktikan route stasiun ini benar-benar menolak 422 PERIOD_CLOSED. Periode
+| prasyarat yang lebar dari beforeEach diganti dengan dua periode sempit lewat
+| replacePrerequisiteWithClosedAndOpenPeriods() (tests/Pest.php): Juli 2026
+| TERTUTUP, Agustus 2026 TERBUKA. Tanggal kejadian stasiun ini: kolom `date`.
+*/
+
+function effluentPlantPeriodLockPayload($test, string $date, string $id): array
+{
+    return effluentPlantApiPayload([
+        'effluent_plant_id' => $id,
+        'date' => $date,
+    ]);
+}
+
+it('kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun', function () {
+    replacePrerequisiteWithClosedAndOpenPeriods($this->businessUnit->id, 'effluent-plant');
+    $recordsBefore = EffluentPlantRecord::count();
+
+    $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/effluent-plant-records', array_merge(
+        effluentPlantPeriodLockPayload($this, PERIOD_LOCK_CLOSED_DATE, 'EP-LOCK-CLOSED'),
+        ['production_line_id' => $this->effluentPlantStation->production_line_id],
+    ));
+
+    $response->assertStatus(422);
+    $response->assertJsonPath('code', 'PERIOD_CLOSED');
+    expect(EffluentPlantRecord::count())->toBe($recordsBefore);
+});
+
+it('kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah', function () {
+    replacePrerequisiteWithClosedAndOpenPeriods($this->businessUnit->id, 'effluent-plant');
+    // Record lama dibuat lewat factory (melewati service), tanggalnya di Juli yang tertutup.
+    $record = EffluentPlantRecord::factory()->forStation($this->effluentPlantStation)->create([
+        'effluent_plant_id' => 'EP-LOCK-OLD',
+        'date' => PERIOD_LOCK_CLOSED_DATE,
+    ]);
+    $before = $record->fresh()->getAttributes();
+
+    // Tanggal baru jatuh di Agustus yang terbuka — tetap harus ditolak, karena
+    // memindahkan record keluar dari periode tertutup sama saja mengubah isinya.
+    $response = $this->actingAs($this->admin, 'web')->patchJson(
+        "/api/effluent-plant-records/{$record->id}",
+        effluentPlantPeriodLockPayload($this, PERIOD_LOCK_OPEN_MID, 'EP-LOCK-MOVED'),
+    );
+
+    $response->assertStatus(422);
+    $response->assertJsonPath('code', 'PERIOD_CLOSED');
+    expect($record->fresh()->getAttributes())->toBe($before);
+});
+
+it('kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)', function () {
+    replacePrerequisiteWithClosedAndOpenPeriods($this->businessUnit->id, 'effluent-plant');
+
+    foreach ([PERIOD_LOCK_OPEN_START => 'EP-LOCK-START', PERIOD_LOCK_OPEN_END => 'EP-LOCK-END'] as $date => $id) {
+        $this->actingAs($this->supervisor, 'web')->postJson('/api/effluent-plant-records', array_merge(
+            effluentPlantPeriodLockPayload($this, $date, $id),
+            ['production_line_id' => $this->effluentPlantStation->production_line_id],
+        ))->assertCreated();
+    }
+
+    expect(EffluentPlantRecord::whereIn('effluent_plant_id', ['EP-LOCK-START', 'EP-LOCK-END'])->count())->toBe(2);
+});

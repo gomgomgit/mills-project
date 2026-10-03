@@ -42,6 +42,7 @@
 
 import { test, expect } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { assertProductionLineFilter } from './support/production-line-filter'
 
 const DATA_BROWSER_PATH = '/data/cages-track';
 const BUSINESS_UNIT_NAME = 'Mill A';
@@ -141,5 +142,20 @@ test.describe('Data Browser Cages Track', () => {
     // DataBrowserCagesTrackTest.php's "Ekspor Gagal" test, which bulk-
     // inserts EXPORT_ROW_LIMIT + 1 rows and asserts the 422 EXPORT_FAILED
     // response directly.
+  });
+
+  // Scenario: filter Production Line — record milik dua line di mill yang
+  // sama (fixture CT-BROWSER-PL-A / -PL-B, BrowserTestFixtureSeeder::
+  // productionLineFilterFixtures). "Semua Line" memuat keduanya dengan
+  // Production Line sebagai kolom pertama; memilih satu line menyempitkan
+  // tabel ke record line itu saja; tautan ekspor (dan CSV-nya) membawa
+  // production_line_id. Langkahnya di tests/support/production-line-filter.ts.
+  test('filter production line menyempitkan tabel dan terbawa ke ekspor', async ({ page }) => {
+    await assertProductionLineFilter(page, {
+      username: USERNAME,
+      path: '/data/cages-track',
+      cls: 'ct',
+      idPrefix: 'CT',
+    });
   });
 });

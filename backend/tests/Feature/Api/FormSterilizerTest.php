@@ -230,3 +230,72 @@ it('menolak 403 FORBIDDEN saat PATCH record milik mill lain, dan tidak mengubah 
     $response->assertJsonPath('code', 'FORBIDDEN');
     expect($record->fresh()->getAttributes())->toBe($before);
 });
+
+/*
+|--------------------------------------------------------------------------
+| Kunci Periode Pelaporan — kontrak HTTP (usecase-141)
+|--------------------------------------------------------------------------
+| Dulu hanya Sterilizer yang punya test HTTP penolakan kunci periode
+| (KelolaPeriodePelaporanTest). Blok ini — seragam di ke-18 berkas Form*Test —
+| membuktikan route stasiun ini benar-benar menolak 422 PERIOD_CLOSED. Periode
+| prasyarat yang lebar dari beforeEach diganti dengan dua periode sempit lewat
+| replacePrerequisiteWithClosedAndOpenPeriods() (tests/Pest.php): Juli 2026
+| TERTUTUP, Agustus 2026 TERBUKA. Tanggal kejadian stasiun ini: kolom `date`.
+*/
+
+function sterilizerPeriodLockPayload($test, string $date, string $id): array
+{
+    return sterilizerApiPayload([
+        'sterilizer_id' => $id,
+        'date' => $date,
+        'details' => [['close_door_time' => '07:00', 'open_door_time' => '08:10']],
+    ]);
+}
+
+it('kunci periode: menolak 422 PERIOD_CLOSED saat POST bertanggal di periode tertutup, tanpa menyimpan satu baris pun', function () {
+    replacePrerequisiteWithClosedAndOpenPeriods($this->businessUnit->id, 'sterilizer');
+    $recordsBefore = SterilizerRecord::count();
+
+    $response = $this->actingAs($this->supervisor, 'web')->postJson('/api/sterilizer-records', array_merge(
+        sterilizerPeriodLockPayload($this, PERIOD_LOCK_CLOSED_DATE, 'STR-LOCK-CLOSED'),
+        ['production_line_id' => $this->sterilizerStation->production_line_id],
+    ));
+
+    $response->assertStatus(422);
+    $response->assertJsonPath('code', 'PERIOD_CLOSED');
+    expect(SterilizerRecord::count())->toBe($recordsBefore);
+});
+
+it('kunci periode: menolak 422 PERIOD_CLOSED saat PATCH record yang tanggal lamanya di periode tertutup walau tanggal barunya di periode terbuka, dan record tidak berubah', function () {
+    replacePrerequisiteWithClosedAndOpenPeriods($this->businessUnit->id, 'sterilizer');
+    // Record lama dibuat lewat factory (melewati service), tanggalnya di Juli yang tertutup.
+    $record = SterilizerRecord::factory()->forStation($this->sterilizerStation)->create([
+        'sterilizer_id' => 'STR-LOCK-OLD',
+        'date' => PERIOD_LOCK_CLOSED_DATE,
+    ]);
+    $before = $record->fresh()->getAttributes();
+
+    // Tanggal baru jatuh di Agustus yang terbuka — tetap harus ditolak, karena
+    // memindahkan record keluar dari periode tertutup sama saja mengubah isinya.
+    $response = $this->actingAs($this->admin, 'web')->patchJson(
+        "/api/sterilizer-records/{$record->id}",
+        sterilizerPeriodLockPayload($this, PERIOD_LOCK_OPEN_MID, 'STR-LOCK-MOVED'),
+    );
+
+    $response->assertStatus(422);
+    $response->assertJsonPath('code', 'PERIOD_CLOSED');
+    expect($record->fresh()->getAttributes())->toBe($before);
+});
+
+it('kunci periode: menerima 201 saat POST tepat pada tanggal awal dan tanggal akhir periode terbuka (inklusif)', function () {
+    replacePrerequisiteWithClosedAndOpenPeriods($this->businessUnit->id, 'sterilizer');
+
+    foreach ([PERIOD_LOCK_OPEN_START => 'STR-LOCK-START', PERIOD_LOCK_OPEN_END => 'STR-LOCK-END'] as $date => $id) {
+        $this->actingAs($this->supervisor, 'web')->postJson('/api/sterilizer-records', array_merge(
+            sterilizerPeriodLockPayload($this, $date, $id),
+            ['production_line_id' => $this->sterilizerStation->production_line_id],
+        ))->assertCreated();
+    }
+
+    expect(SterilizerRecord::whereIn('sterilizer_id', ['STR-LOCK-START', 'STR-LOCK-END'])->count())->toBe(2);
+});

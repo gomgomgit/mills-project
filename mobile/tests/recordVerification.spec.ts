@@ -150,6 +150,30 @@ describe('RecordVerificationActions — role rule mirrors the backend', () => {
     expect(w.emitted('updated')).toBeUndefined()
   })
 
+  it('shows the period-lock (422 PERIOD_CLOSED) message verbatim as an error and leaves the local row untouched', async () => {
+    // usecase-141: the server refuses to change verification on a record in
+    // a closed period. apiClient normalizes the 422 to {status, message} —
+    // the `code` field is not carried over, the message is what the user sees.
+    const periodClosedMessage =
+      'Periode Oktober 2026 sudah ditutup. Data pada periode ini tidak dapat diubah.'
+    vi.mocked(apiClient.patch).mockRejectedValue({ status: 422, message: periodClosedMessage })
+
+    const w = mountWith('supervisor')
+    await w.find('[data-testid="toggle-checked-button"]').trigger('click')
+    await new Promise((r) => setTimeout(r, 0))
+
+    const msg = w.find('[data-testid="verification-message"]')
+    expect(msg.text()).toBe(periodClosedMessage)
+    expect(msg.classes()).toContain('rv-actions__message--error')
+    // Not mistaken for the offline case — a response did arrive.
+    expect(msg.text()).not.toMatch(/butuh koneksi/i)
+    // The local checked_by/acknowledged_by mirror only runs after server success.
+    expect(run).not.toHaveBeenCalled()
+    expect(w.emitted('updated')).toBeUndefined()
+    // Buttons are usable again after the failure.
+    expect(w.find('[data-testid="toggle-checked-button"]').attributes('disabled')).toBeUndefined()
+  })
+
   it('emits updated so the view reloads after a successful verification', async () => {
     vi.mocked(apiClient.patch).mockResolvedValue({
       data: { id: 'server-1', checked_by: 'u-1', checked_by_name: 'User', acknowledged_by: null, acknowledged_by_name: null },

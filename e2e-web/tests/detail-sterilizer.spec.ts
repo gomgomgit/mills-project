@@ -22,7 +22,10 @@ test.describe('Detail Sterilizer', () => {
     await page.locator('.sf-table__row').first().click();
 
     await page.waitForURL(/\/data\/sterilizer\/[0-9a-f-]+$/);
-    await expect(page.getByText('Detail Sterilizer')).toBeVisible();
+    // Judul HALAMAN, bukan getByText: shell header merender judul yang sama di
+    // <h1 class="shell-header__title">, sehingga getByText cocok ke dua elemen
+    // dan strict mode menolaknya.
+    await expect(page.locator('h2[class$="-page__title"]')).toContainText('Detail Sterilizer');
     await expect(page.locator('[data-testid="detail-sterilizer-id"]')).toBeVisible();
     await expect(page.locator('[data-testid="sterilizer-detail-log"]')).toBeVisible();
   });

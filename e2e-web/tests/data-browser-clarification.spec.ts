@@ -19,6 +19,7 @@
 
 import { test, expect } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { assertProductionLineFilter } from './support/production-line-filter'
 
 
 
@@ -69,5 +70,20 @@ test.describe('Data Browser Clarification (Web)', () => {
     await page.locator('.cl-table__row').first().click();
 
     await page.waitForURL((url) => url.pathname.startsWith('/data/clarification/') && !url.pathname.endsWith('/create'));
+  });
+
+  // Scenario: filter Production Line — record milik dua line di mill yang
+  // sama (fixture CLR-BROWSER-PL-A / -PL-B, BrowserTestFixtureSeeder::
+  // productionLineFilterFixtures). "Semua Line" memuat keduanya dengan
+  // Production Line sebagai kolom pertama; memilih satu line menyempitkan
+  // tabel ke record line itu saja; tautan ekspor (dan CSV-nya) membawa
+  // production_line_id. Langkahnya di tests/support/production-line-filter.ts.
+  test('filter production line menyempitkan tabel dan terbawa ke ekspor', async ({ page }) => {
+    await assertProductionLineFilter(page, {
+      username: 'cltest-admin01',
+      path: '/data/clarification',
+      cls: 'cl',
+      idPrefix: 'CLR',
+    });
   });
 });

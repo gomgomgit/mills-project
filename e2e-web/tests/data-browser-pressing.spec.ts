@@ -18,6 +18,7 @@
 
 import { test, expect } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { assertProductionLineFilter } from './support/production-line-filter'
 
 const DATA_BROWSER_PATH = '/data/pressing';
 const USERNAME = 'presstest-browse01';
@@ -90,8 +91,26 @@ test.describe('Data Browser Pressing', () => {
     await page.locator('#date_from').fill('2026-01-01');
     await page.locator('#date_to').fill('2026-12-31');
 
-    const exportHref = await page.locator('.pr-browser__export a', { hasText: 'Ekspor CSV' }).getAttribute('href');
-    expect(exportHref).toContain('date_from=2026-01-01');
-    expect(exportHref).toContain('date_to=2026-12-31');
+    // Tunggu putaran Livewire: href baru ditulis ulang SETELAH server
+    // menerima filter. Membaca getAttribute() langsung setelah fill() selalu
+    // mendapat href lama (tanpa date_from) — race, bukan cacat aplikasi.
+    const exportLink = page.locator('.pr-browser__export a', { hasText: 'Ekspor CSV' });
+    await expect(exportLink).toHaveAttribute('href', /date_from=2026-01-01/);
+    await expect(exportLink).toHaveAttribute('href', /date_to=2026-12-31/);
+  });
+
+  // Scenario: filter Production Line — record milik dua line di mill yang
+  // sama (fixture PR-BROWSER-PL-A / -PL-B, BrowserTestFixtureSeeder::
+  // productionLineFilterFixtures). "Semua Line" memuat keduanya dengan
+  // Production Line sebagai kolom pertama; memilih satu line menyempitkan
+  // tabel ke record line itu saja; tautan ekspor (dan CSV-nya) membawa
+  // production_line_id. Langkahnya di tests/support/production-line-filter.ts.
+  test('filter production line menyempitkan tabel dan terbawa ke ekspor', async ({ page }) => {
+    await assertProductionLineFilter(page, {
+      username: USERNAME,
+      path: '/data/pressing',
+      cls: 'pr',
+      idPrefix: 'PR',
+    });
   });
 });

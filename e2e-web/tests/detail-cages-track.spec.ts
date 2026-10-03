@@ -33,7 +33,10 @@ test.describe('Detail Cages Track', () => {
     await page.locator('.ct-table__row').first().click();
 
     await page.waitForURL(/\/data\/cages-track\/[0-9a-f-]+$/);
-    await expect(page.getByText('Detail Cages Track')).toBeVisible();
+    // Judul HALAMAN, bukan getByText: shell header merender judul yang sama di
+    // <h1 class="shell-header__title">, sehingga getByText cocok ke dua elemen
+    // dan strict mode menolaknya.
+    await expect(page.locator('h2[class$="-page__title"]')).toContainText('Detail Cages Track');
     await expect(page.locator('[data-testid="detail-cages-track-number"]')).toBeVisible();
     await expect(page.locator('[data-testid="cages-tipped-time-grid"]')).toBeVisible();
   });

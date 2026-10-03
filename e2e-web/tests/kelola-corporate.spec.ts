@@ -42,6 +42,7 @@
 
 import { test, expect } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { closeModal, expectNoRowOnAnyPage, expectRowCountOnAllPages, findRow } from './support/paged-table'
 
 const CORPORATES_PATH = '/master-data/corporates';
 const BUSINESS_UNIT_NAME = 'Mill A';
@@ -61,9 +62,13 @@ test.describe('Kelola Corporate', () => {
 
     const uniqueName = `PT Baru ${Date.now()}`;
     await page.locator('#name').fill(uniqueName);
+    // Kode WAJIB sejak layar ini memakai corporate_code (required+unique); spec ini
+    // lahir sebelumnya, jadi Simpan ditolak "Kode ... wajib diisi." dan modal
+    // tidak pernah tertutup.
+    await page.locator('#corporate_code').fill(`CORP-BROWSER-${Date.now()}`);
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
-    await expect(page.locator('.kc-table__row', { hasText: uniqueName })).toBeVisible();
+    await expect(await findRow(page, uniqueName)).toBeVisible();
   });
 
   // Scenario 2: "Kelola Corporate — Edit Corporate"
@@ -71,15 +76,15 @@ test.describe('Kelola Corporate', () => {
     await login(page, 'corptest-admin01', PASSWORD);
     await gotoCorporates(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'PT Sebelum Edit' });
+    const row = await findRow(page, 'PT Sebelum Edit');
     await row.locator('button', { hasText: 'Edit' }).click();
 
     const newName = `PT Sesudah Edit ${Date.now()}`;
     await page.locator('#name').fill(newName);
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
-    await expect(page.locator('.kc-table__row', { hasText: newName })).toBeVisible();
-    await expect(page.locator('.kc-table__row', { hasText: 'PT Sebelum Edit' })).toHaveCount(0);
+    await expect(await findRow(page, newName)).toBeVisible();
+    await expectNoRowOnAnyPage(page, 'PT Sebelum Edit');
   });
 
   // Scenario 3: "Kelola Corporate — Hapus Corporate — berhasil"
@@ -87,11 +92,11 @@ test.describe('Kelola Corporate', () => {
     await login(page, 'corptest-admin01', PASSWORD);
     await gotoCorporates(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'PT Hapus Bersih' });
+    const row = await findRow(page, 'PT Hapus Bersih');
     await row.locator('button', { hasText: 'Hapus' }).click();
     await row.locator('button', { hasText: 'Ya, Hapus' }).click();
 
-    await expect(page.locator('.kc-table__row', { hasText: 'PT Hapus Bersih' })).toHaveCount(0);
+    await expectNoRowOnAnyPage(page, 'PT Hapus Bersih');
   });
 
   // Scenario 4: "Kelola Corporate — Hapus Corporate — ditolak"
@@ -99,12 +104,12 @@ test.describe('Kelola Corporate', () => {
     await login(page, 'corptest-admin01', PASSWORD);
     await gotoCorporates(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'PT Ada Company' });
+    const row = await findRow(page, 'PT Ada Company');
     await row.locator('button', { hasText: 'Hapus' }).click();
     await row.locator('button', { hasText: 'Ya, Hapus' }).click();
 
     await expect(page.locator('.kc-alert')).toContainText('Company');
-    await expect(page.locator('.kc-table__row', { hasText: 'PT Ada Company' })).toBeVisible();
+    await expect(await findRow(page, 'PT Ada Company')).toBeVisible();
   });
 
   // Scenario 5: "Kelola Corporate — Nama duplikat"
@@ -116,11 +121,15 @@ test.describe('Kelola Corporate', () => {
     await page.locator('#name').fill('PT Nama Duplikat');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
-    await expect(page.locator('.kc-form-field__error')).toContainText(/sudah digunakan/i);
+    // Disaring ke galat "sudah digunakan": kode yang dibiarkan kosong ikut
+    // memunculkan "Kode ... wajib diisi.", dan strict mode menolak locator
+    // yang cocok ke dua elemen.
+    await expect(page.locator('.kc-form-field__error').filter({ hasText: /sudah digunakan/i })).toBeVisible();
     // The modal stays open — submission was blocked by validation, no
     // second row with the duplicate name was created.
-    await expect(page.locator('.kc-modal')).toBeVisible();
-    await expect(page.locator('.kc-table__row', { hasText: 'PT Nama Duplikat' })).toHaveCount(1);
+    await expect(page.locator('.kcm-modal')).toBeVisible();
+    await closeModal(page);
+    await expectRowCountOnAllPages(page, 'PT Nama Duplikat', 1);
   });
 
   // Scenario 6: "Kelola Corporate — akses ditolak untuk selain Admin"

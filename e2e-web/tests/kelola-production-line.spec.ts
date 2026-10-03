@@ -65,6 +65,12 @@ import { login, PASSWORD } from './support/auth'
 const PRODUCTION_LINES_PATH = '/master-data/production-lines';
 
 
+// Modal form dirender oleh komponen bersama <x-modal>
+// (resources/views/components/modal.blade.php) yang berkelas `.kcm-modal`,
+// bukan `.kc-modal` — sejak commit aae110b (web UX overhaul) memindahkan
+// modal per-layar ke komponen itu. `.kc-modal` tidak ada lagi di halaman ini,
+// jadi asersi "modal tetap terbuka" selalu gagal.
+
 async function gotoProductionLines(page) {
   await page.goto(PRODUCTION_LINES_PATH);
 }
@@ -161,7 +167,7 @@ test.describe('Kelola Production Line', () => {
     await expect(page.locator('.kc-form-field__error')).toContainText(/sudah digunakan/i);
     // The modal stays open — submission was blocked by validation, no new
     // row with the duplicate code was created.
-    await expect(page.locator('.kc-modal')).toBeVisible();
+    await expect(page.locator('.kcm-modal')).toBeVisible();
     await expect(page.locator('.kc-table__row', { hasText: 'Line Kode Duplikat' })).toHaveCount(0);
   });
 
@@ -177,7 +183,7 @@ test.describe('Kelola Production Line', () => {
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
     await expect(page.locator('.kc-form-field__error')).toContainText(/wajib dipilih/i);
-    await expect(page.locator('.kc-modal')).toBeVisible();
+    await expect(page.locator('.kcm-modal')).toBeVisible();
     await expect(page.locator('.kc-table__row', { hasText: 'Line Tanpa Business Unit' })).toHaveCount(0);
   });
 

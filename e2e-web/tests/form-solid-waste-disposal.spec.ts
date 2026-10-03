@@ -49,7 +49,13 @@ test.describe('Form Solid Waste Disposal', () => {
     await login(page, USERNAME, PASSWORD);
     await page.goto(FORM_CREATE_PATH);
 
-    await page.locator('[data-testid="production-line-select"]').selectOption({ index: 1 });
+    // Berdasarkan LABEL, bukan index 1: opsinya diurutkan menurut nama, dan
+    // opsi pertama "BU Browser Test" adalah "Mill Machinery Group PL Baru" —
+    // line milik fixture Kelola Machinery yang tidak memikul stasiun jenis ini,
+    // sehingga Simpan ditolak "Production Line yang dipilih belum memiliki
+    // station ... yang aktif." dan URL tidak pernah berpindah (timeout).
+    // "PL Mill A" adalah line yang memikul stasiun aktif setiap jenis.
+    await page.locator('[data-testid="production-line-select"]').selectOption({ label: 'PL Mill A' });
     await page.locator('[data-testid="solid-waste-disposal-id-input"]').fill('SWD-BROWSER-001');
     await page.locator('[data-testid="date-input"]').fill('2026-08-31');
     await page.locator('[data-testid="add-row-button"]').click();

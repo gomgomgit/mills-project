@@ -33,7 +33,10 @@ test.describe('Detail Weighbridge', () => {
     await page.locator('.wb-table__row').first().click();
 
     await page.waitForURL(/\/data\/weighbridge\/[0-9a-f-]+$/);
-    await expect(page.getByText('Detail Weighbridge')).toBeVisible();
+    // Judul HALAMAN, bukan getByText: shell header merender judul yang sama di
+    // <h1 class="shell-header__title">, jadi getByText cocok ke dua elemen dan
+    // strict mode menolaknya. Pola yang sama dengan data-browser-cages-track.
+    await expect(page.locator('.dw-page__title')).toContainText('Detail Weighbridge');
     await expect(page.locator('[data-testid="detail-weighbridge-type"]')).toBeVisible();
   });
 

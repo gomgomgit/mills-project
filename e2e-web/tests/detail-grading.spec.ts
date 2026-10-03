@@ -33,7 +33,10 @@ test.describe('Detail Grading', () => {
     await page.locator('.gr-table__row').first().click();
 
     await page.waitForURL(/\/data\/grading\/[0-9a-f-]+$/);
-    await expect(page.getByText('Detail Grading')).toBeVisible();
+    // Judul HALAMAN, bukan getByText: shell header merender judul yang sama di
+    // <h1 class="shell-header__title">, jadi getByText cocok ke dua elemen dan
+    // strict mode menolaknya. Pola yang sama dengan data-browser-cages-track.
+    await expect(page.locator('.dg-page__title')).toContainText('Detail Grading');
     await expect(page.locator('[data-testid="detail-grading-number"]')).toBeVisible();
     await expect(page.locator('[data-testid="grading-detail-grid"]')).toBeVisible();
   });

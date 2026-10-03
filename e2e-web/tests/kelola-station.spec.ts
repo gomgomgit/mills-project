@@ -75,6 +75,7 @@
 
 import { test, expect } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { closeModal, expectNoRowOnAnyPage, expectRowCountOnAllPages, findRow } from './support/paged-table'
 
 const STATIONS_PATH = '/master-data/stations';
 
@@ -119,7 +120,7 @@ test.describe('Kelola Station', () => {
     await page.locator('#code').fill(`STA-BROWSER-${uniqueSuffix}`);
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
-    const row = page.locator('.kc-table__row', { hasText: uniqueName });
+    const row = await findRow(page, uniqueName);
     await expect(row).toBeVisible();
     await expect(row).toContainText('Mill Station Baru');
     await expect(row).toContainText('Weighbridge');
@@ -132,7 +133,7 @@ test.describe('Kelola Station', () => {
     await login(page, 'stest-admin01', PASSWORD);
     await gotoStations(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'Weighbridge Sebelum Edit' });
+    const row = await findRow(page, 'Weighbridge Sebelum Edit');
     await row.locator('button', { hasText: 'Edit' }).click();
 
     await selectSearchable(page, 'business_unit_id', 'Mill Station Tujuan Edit');
@@ -145,11 +146,11 @@ test.describe('Kelola Station', () => {
     await page.locator('#name').fill(newName);
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
-    const updatedRow = page.locator('.kc-table__row', { hasText: newName });
+    const updatedRow = await findRow(page, newName);
     await expect(updatedRow).toBeVisible();
     await expect(updatedRow).toContainText('Mill Station Tujuan Edit');
     await expect(updatedRow).toContainText('Grading');
-    await expect(page.locator('.kc-table__row', { hasText: 'Weighbridge Sebelum Edit' })).toHaveCount(0);
+    await expectNoRowOnAnyPage(page, 'Weighbridge Sebelum Edit');
   });
 
   // Scenario: "Kelola Station — Hapus Station — berhasil"
@@ -157,11 +158,11 @@ test.describe('Kelola Station', () => {
     await login(page, 'stest-admin01', PASSWORD);
     await gotoStations(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'Weighbridge Hapus Bersih' });
+    const row = await findRow(page, 'Weighbridge Hapus Bersih');
     await row.locator('button', { hasText: 'Hapus' }).click();
     await row.locator('button', { hasText: 'Ya, Hapus' }).click();
 
-    await expect(page.locator('.kc-table__row', { hasText: 'Weighbridge Hapus Bersih' })).toHaveCount(0);
+    await expectNoRowOnAnyPage(page, 'Weighbridge Hapus Bersih');
   });
 
   // Scenario: "Kelola Station — Hapus Station — ditolak"
@@ -169,12 +170,12 @@ test.describe('Kelola Station', () => {
     await login(page, 'stest-admin01', PASSWORD);
     await gotoStations(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'Weighbridge Ada Machinery' });
+    const row = await findRow(page, 'Weighbridge Ada Machinery');
     await row.locator('button', { hasText: 'Hapus' }).click();
     await row.locator('button', { hasText: 'Ya, Hapus' }).click();
 
     await expect(page.locator('.kc-alert')).toContainText(/Machinery/i);
-    await expect(page.locator('.kc-table__row', { hasText: 'Weighbridge Ada Machinery' })).toBeVisible();
+    await expect(await findRow(page, 'Weighbridge Ada Machinery')).toBeVisible();
   });
 
   // Scenario: "Kelola Station — Kode duplikat"
@@ -193,8 +194,9 @@ test.describe('Kelola Station', () => {
     await expect(page.locator('.kc-form-field__error').first()).toContainText(/sudah digunakan/i);
     // The modal stays open — submission was blocked by validation, no new
     // row with the duplicate code was created.
-    await expect(page.locator('.kc-modal')).toBeVisible();
-    await expect(page.locator('.kc-table__row', { hasText: 'Weighbridge Kode Duplikat' })).toHaveCount(0);
+    await expect(page.locator('.kcm-modal')).toBeVisible();
+    await closeModal(page);
+    await expectNoRowOnAnyPage(page, 'Weighbridge Kode Duplikat');
   });
 
   // Scenario: "Kelola Station — Business Unit induk wajib dipilih"
@@ -214,8 +216,9 @@ test.describe('Kelola Station', () => {
     // whichever renders first in DOM order (business_unit_id's field
     // comes before production_line_id's in the form markup).
     await expect(page.locator('.kc-form-field__error').first()).toContainText(/wajib dipilih/i);
-    await expect(page.locator('.kc-modal')).toBeVisible();
-    await expect(page.locator('.kc-table__row', { hasText: 'Weighbridge Tanpa Business Unit' })).toHaveCount(0);
+    await expect(page.locator('.kcm-modal')).toBeVisible();
+    await closeModal(page);
+    await expectNoRowOnAnyPage(page, 'Weighbridge Tanpa Business Unit');
   });
 
   // CRITICAL — the cross-field rule: is_active=true with type=Other is
@@ -237,8 +240,9 @@ test.describe('Kelola Station', () => {
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
     await expect(page.locator('.kc-form-field__error').first()).toContainText(/Other/i);
-    await expect(page.locator('.kc-modal')).toBeVisible();
-    await expect(page.locator('.kc-table__row', { hasText: 'Station Other Aktif' })).toHaveCount(0);
+    await expect(page.locator('.kcm-modal')).toBeVisible();
+    await closeModal(page);
+    await expectNoRowOnAnyPage(page, 'Station Other Aktif');
   });
 
   // Scenario: "Kelola Station — Akses ditolak untuk non-Admin"

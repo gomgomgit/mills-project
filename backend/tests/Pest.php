@@ -87,3 +87,59 @@ function openPeriodForStation(\App\Models\Station $station): \App\Models\Period
 
     return openPeriodFor($station->business_unit_id, $type);
 }
+
+/*
+|--------------------------------------------------------------------------
+| Kunci Periode Pelaporan (usecase-141) — fixture kontrak HTTP per stasiun
+|--------------------------------------------------------------------------
+|
+| Dipakai oleh blok "kunci periode" di ke-18 tests/Feature/Api/Form*Test.php.
+| Berkas-berkas itu membuka periode prasyarat yang sangat lebar di beforeEach
+| (openPeriodFor()); selama periode itu ada, setiap tanggal lolos dan kunci
+| periodenya tidak pernah teruji. Helper ini MENGGANTI periode prasyarat itu
+| dengan dua periode sempit yang tanggalnya diketahui test:
+|
+|   - "Periode Juli (Tertutup)"  2026-07-01 s/d 2026-07-31, baris stasiun CLOSED
+|   - "Periode Agustus (Terbuka)" 2026-08-01 s/d 2026-08-31, baris stasiun OPEN
+|
+| Tanggal ditulis 'Y-m-d' polos: kunci periodenya membandingkan lewat
+| whereDate(), jadi bentuk ini sama-sama benar di SQLite dan PostgreSQL.
+*/
+
+/** Konstanta tanggal fixture — dipakai test agar angka ajaibnya tidak tersebar. */
+const PERIOD_LOCK_CLOSED_DATE = '2026-07-15';
+const PERIOD_LOCK_OPEN_START = '2026-08-01';
+const PERIOD_LOCK_OPEN_MID = '2026-08-15';
+const PERIOD_LOCK_OPEN_END = '2026-08-31';
+
+function replacePrerequisiteWithClosedAndOpenPeriods(string $businessUnitId, string $stationType): void
+{
+    // Periode prasyarat dihapus seluruhnya (baris period_stations ikut terhapus
+    // lewat cascadeOnDelete), supaya tidak ada rentang lebar yang diam-diam
+    // menerima tanggal yang seharusnya ditolak.
+    \App\Models\Period::query()
+        ->where('business_unit_id', $businessUnitId)
+        ->where('name', 'Periode Prasyarat Test')
+        ->get()
+        ->each(function (\App\Models\Period $period) {
+            \App\Models\PeriodStation::query()->where('period_id', $period->id)->delete();
+            $period->delete();
+        });
+
+    foreach ([
+        ['Periode Juli (Tertutup)', '2026-07-01', '2026-07-31', \App\Enums\PeriodStatus::Closed],
+        ['Periode Agustus (Terbuka)', PERIOD_LOCK_OPEN_START, PERIOD_LOCK_OPEN_END, \App\Enums\PeriodStatus::Open],
+    ] as [$name, $start, $end, $status]) {
+        $period = \App\Models\Period::factory()
+            ->forBusinessUnit($businessUnitId)
+            ->named($name)
+            ->range($start, $end)
+            ->noStations()
+            ->create();
+
+        \App\Models\PeriodStation::factory()
+            ->forPeriod($period)
+            ->stationType($stationType)
+            ->create(['status' => $status->value]);
+    }
+}

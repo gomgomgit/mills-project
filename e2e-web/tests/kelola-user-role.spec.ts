@@ -48,6 +48,7 @@
 
 import { test, expect } from '@playwright/test'
 import { login, PASSWORD } from './support/auth'
+import { findRow } from './support/paged-table'
 
 const USERS_PATH = '/users';
 
@@ -67,6 +68,9 @@ async function selectSearchableFirst(page, id) {
   await page.locator(`#${id}-listbox`).getByRole('option').nth(1).click();
 }
 
+// Baris dicari lewat findRow() (tests/support/paged-table.ts): daftar user
+// berhalaman 20 dan database dev memuat >100 akun, jadi akun fixture di bawah
+// tidak dijamin ada di halaman pertama.
 test.describe('Kelola User & Role', () => {
   // Scenario: "Kelola User & Role — Tambah User berhasil"
   test('menambah user baru dengan role dan Business Unit lalu menampilkannya di tabel', async ({ page }) => {
@@ -94,7 +98,7 @@ test.describe('Kelola User & Role', () => {
     await login(page, 'urtest-admin01', PASSWORD);
     await gotoUsers(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'urtest-existing01' });
+    const row = await findRow(page, 'urtest-existing01');
     await row.locator('button', { hasText: 'Edit' }).click();
 
     const newName = `Nama Sesudah Edit ${Date.now()}`;
@@ -103,7 +107,7 @@ test.describe('Kelola User & Role', () => {
     await selectSearchableFirst(page, 'business_unit_id');
     await page.locator('button[type="submit"]', { hasText: 'Simpan' }).click();
 
-    const updatedRow = page.locator('.kc-table__row', { hasText: 'urtest-existing01' });
+    const updatedRow = await findRow(page, 'urtest-existing01');
     await expect(updatedRow).toContainText(newName);
   });
 
@@ -143,7 +147,7 @@ test.describe('Kelola User & Role', () => {
     await login(page, 'urtest-admin01', PASSWORD);
     await gotoUsers(page);
 
-    const ownRow = page.locator('.kc-table__row', { hasText: 'urtest-admin01' });
+    const ownRow = await findRow(page, 'urtest-admin01');
     await expect(ownRow.locator('button', { hasText: 'Nonaktifkan' })).toBeDisabled();
   });
 
@@ -152,7 +156,7 @@ test.describe('Kelola User & Role', () => {
     await login(page, 'urtest-admin01', PASSWORD);
     await gotoUsers(page);
 
-    const row = page.locator('.kc-table__row', { hasText: 'urtest-other01' });
+    const row = await findRow(page, 'urtest-other01');
     await row.locator('button', { hasText: 'Nonaktifkan' }).click();
 
     await expect(row.locator('.kc-badge')).toContainText('Nonaktif');

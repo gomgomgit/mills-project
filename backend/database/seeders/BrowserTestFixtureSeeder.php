@@ -12,6 +12,10 @@ use App\Models\CagesTippedTime;
 use App\Models\CagesTrackRecord;
 use App\Models\ClarificationDetail;
 use App\Models\ClarificationRecord;
+use App\Models\Company;
+use App\Models\Corporate;
+use App\Models\CpoDispatchDetail;
+use App\Models\CpoDispatchRecord;
 use App\Models\DepricarpingDetail;
 use App\Models\DepricarpingRecord;
 use App\Models\EffluentPlantDetail;
@@ -21,6 +25,8 @@ use App\Models\EngineRoomRecord;
 use App\Models\GradingDetail;
 use App\Models\GradingParameter;
 use App\Models\GradingRecord;
+use App\Models\KernelDispatchDetail;
+use App\Models\KernelDispatchRecord;
 use App\Models\KernelPlantDetail;
 use App\Models\KernelPlantRecord;
 use App\Models\Machinery;
@@ -32,7 +38,9 @@ use App\Models\ProcessQualityControlRecord;
 use App\Models\ProcessWaterDetail;
 use App\Models\ProcessWaterRecord;
 use App\Models\ProductionLine;
+use App\Models\SolidWasteDisposalRecord;
 use App\Models\Station;
+use App\Models\SterilizerRecord;
 use App\Models\StorageTankDetail;
 use App\Models\StorageTankRecord;
 use App\Models\ThreshingDetail;
@@ -40,6 +48,7 @@ use App\Models\ThreshingRecord;
 use App\Models\User;
 use App\Models\WeighbridgeRecord;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -246,10 +255,7 @@ class BrowserTestFixtureSeeder extends Seeder
 
     public function run(): void
     {
-        $businessUnit = BusinessUnit::firstOrCreate(
-            ['name' => self::BUSINESS_UNIT_NAME],
-            BusinessUnit::factory()->make(['name' => self::BUSINESS_UNIT_NAME])->toArray(),
-        );
+        $businessUnit = $this->businessUnit(self::BUSINESS_UNIT_NAME);
 
         $mainLine = $this->productionLine($businessUnit, self::MAIN_PRODUCTION_LINE);
 
@@ -292,12 +298,24 @@ class BrowserTestFixtureSeeder extends Seeder
             $this->user($username, UserRole::Supervisor, $businessUnit);
         }
 
+        // Akun yang DIOPERASIKAN kelola-user-role.spec.ts berdasarkan nama:
+        // diedit (existing01), dinonaktifkan (other01), dan dipakai sebagai
+        // username yang sudah terpakai (duplicate01). user() memakai
+        // updateOrCreate dengan role dan is_active=true, jadi seed berikutnya
+        // memulihkan apa yang diubah skenario edit dan nonaktifkan.
+        foreach (['urtest-existing01', 'urtest-other01', 'urtest-duplicate01'] as $username) {
+            $this->user($username, UserRole::Supervisor, $businessUnit);
+        }
+
         foreach (self::CHANGE_PASSWORD_USERS as $username) {
             $this->user($username, UserRole::Supervisor, $businessUnit, self::CHANGE_PASSWORD_PASSWORD);
         }
 
         $this->cagesFixtures($businessUnit, $mainLine);
         $this->editRecords($mainLine);
+        $this->productionLineFilterFixtures($businessUnit, $mainLine);
+        $this->kelolaProductionLineFixtures();
+        $this->kelolaHierarchyFixtures();
         $this->machineryFixtures($businessUnit);
 
         $this->command?->info('Browser fixture: users, "'.self::MAIN_PRODUCTION_LINE.'" and per-station "PL Tanpa ..." lines are ready.');
@@ -518,6 +536,47 @@ class BrowserTestFixtureSeeder extends Seeder
             $this->promoteToSaved($record);
         }
 
+        // `*-BROWSER-DETAIL` — record yang dibuka BERDASARKAN NAMA oleh
+        // detail-{depricarping,kernel-plant,pressing,threshing}.spec.ts dari
+        // DAFTAR Data Browser tanpa filter. Tidak ada yang pernah menanamnya,
+        // jadi keempat spec itu menunggu baris yang tidak ada sampai timeout.
+        //
+        // Bertanggal HARI INI, bukan RECORD_DATE: daftarnya berhalaman 20 dan
+        // diurutkan tanggal menurun, dan spec form-* menambah record setiap run
+        // — record bertanggal 2026-08-05 cepat atau lambat terdorong keluar dari
+        // halaman pertama yang dilihat spec itu.
+        foreach (['depricarping' => 'DP', 'kernel-plant' => 'KP', 'pressing' => 'PR', 'threshing' => 'TH'] as $stationType => $prefix) {
+            [$recordClass, $detailClass, $idColumn, , $reading] = self::EDIT_RECORDS[$stationType];
+
+            $station = Station::where('production_line_id', $line->id)
+                ->where('type', $stationType)
+                ->firstOrFail();
+
+            $record = $recordClass::updateOrCreate(
+                [$idColumn => "{$prefix}-BROWSER-DETAIL"],
+                [
+                    'station_id' => $station->id,
+                    'production_line_id' => $station->production_line_id,
+                    'date' => now()->toDateString(),
+                    'status' => RecordStatus::DraftOngoing,
+                    'created_by' => $author->id,
+                ],
+            );
+
+            // SEMUA 24 slot terisi: grid detail hanya merender slot yang punya
+            // baris (detail-*.blade.php melakukan @foreach atas details), dan
+            // spec-spec itu mengasersi grid 24 baris — yaitu log sheet sehari
+            // penuh, 07:00 sampai 06:00.
+            for ($hour = 0; $hour < 24; $hour++) {
+                $detailClass::updateOrCreate(
+                    [$record->getForeignKey() => $record->id, 'time_slot' => sprintf('%02d:00', (7 + $hour) % 24)],
+                    $reading,
+                );
+            }
+
+            $this->promoteToSaved($record);
+        }
+
         // The Weighbridge record comes FIRST: the Grading record below needs
         // its id for the NOT NULL `weighbridge_record_id`, and Form Grading's
         // WB Card No dropdown is fed by exactly this row
@@ -525,8 +584,444 @@ class BrowserTestFixtureSeeder extends Seeder
         // record whose station belongs to the chosen mill). One row serves
         // both, which is why they are not seeded independently.
         $weighbridge = $this->weighbridgeEditRecord($line, $author);
+
+        // WB-BROWSER-REPORT — management-report.spec.ts membuka Laporan
+        // Manajemen TANPA filter (default: bulan berjalan) dan menuntut baris
+        // Total, yang hanya dirender bila ada record Weighbridge/Grading/Cages
+        // pada rentang itu. Bertanggal hari ini pukul 00:01 supaya record yang
+        // ditulis spec form-weighbridge hari ini tetap lebih baru (Form Grading
+        // memilih kartu WB TERBARU sebagai opsi pertama).
+        WeighbridgeRecord::updateOrCreate(
+            ['wb_card_number' => 'WB-BROWSER-REPORT'],
+            [
+                'station_id' => $weighbridge->station_id,
+                'production_line_id' => $weighbridge->production_line_id,
+                'weighbridge_type' => 'receive',
+                'record_datetime' => now()->toDateString().' 00:01:00',
+                'vehicle_number' => 'B 1234 RPT',
+                'driver_name' => 'Driver Laporan',
+                'estate_supplier' => 'Estate Laporan',
+                'division' => 'Divisi 1',
+                'gross_weight' => 15000,
+                'tare_weight' => 5000,
+                'net_weight' => 10000,
+                'status' => RecordStatus::Saved,
+                'created_by' => $author->id,
+            ],
+        );
         $this->gradingEditRecord($line, $author, $weighbridge);
         $this->cagesTrackEditRecord($line, $author);
+    }
+
+    /**
+     * Line KEDUA untuk skenario filter Production Line di ke-18 spec
+     * e2e-web/tests/data-browser-*.spec.ts.
+     *
+     * Filter itu menyaring berdasarkan `production_line_id` MILIK RECORD.
+     * Mengujinya butuh record di DUA line pada mill yang sama — dengan satu
+     * line saja, "pilih line A, hanya baris line A yang tampil" lulus juga
+     * ketika filternya tidak berbuat apa-apa.
+     */
+    public const FILTER_SECOND_LINE = 'PL Mill B';
+
+    /**
+     * Tanggal khusus record filter. Spec-nya menyaring tepat ke tanggal ini,
+     * sehingga yang tampil hanya dua record di bawah — tidak bercampur
+     * dengan record yang ditulis spec form-* (hari ini / 2020-01-01 /
+     * 2026-08-31) maupun *-BROWSER-EDIT (2026-08-05). Lebih tua dari semua
+     * fixture lain, jadi tidak pernah menjadi "baris pertama" yang diklik
+     * skenario lain (daftar diurutkan tanggal menurun), dan jauh di bawah
+     * ambang 2600 e2e:prune-records sehingga tidak ikut tersapu.
+     */
+    public const FILTER_RECORD_DATE = '2025-03-10';
+
+    /**
+     * station type => [record model, kolom id bisnis, awalan id bisnis].
+     * Id-nya `<awalan>-BROWSER-PL-A` / `<awalan>-BROWSER-PL-B`.
+     *
+     * @var array<string, array{0: class-string<Model>, 1: string, 2: string}>
+     */
+    protected const FILTER_RECORDS = [
+        'boiler-room' => [BoilerRoomRecord::class, 'boiler_room_id', 'BR'],
+        'cages-track' => [CagesTrackRecord::class, 'cages_track_number', 'CT'],
+        'clarification' => [ClarificationRecord::class, 'clarification_id', 'CLR'],
+        'cpo-dispatch' => [CpoDispatchRecord::class, 'cpo_dispatch_id', 'CD'],
+        'depricarping' => [DepricarpingRecord::class, 'presser_id', 'DP'],
+        'effluent-plant' => [EffluentPlantRecord::class, 'effluent_plant_id', 'EP'],
+        'engine-room' => [EngineRoomRecord::class, 'engine_room_id', 'ER'],
+        'grading' => [GradingRecord::class, 'grading_number', 'GR'],
+        'kernel-dispatch' => [KernelDispatchRecord::class, 'kernel_dispatch_id', 'KD'],
+        'kernel-plant' => [KernelPlantRecord::class, 'kernel_plant_id', 'KP'],
+        'pressing' => [PressingRecord::class, 'presser_id', 'PR'],
+        'process-quality-control' => [ProcessQualityControlRecord::class, 'process_qc_id', 'PQC'],
+        'process-water' => [ProcessWaterRecord::class, 'process_water_id', 'PW'],
+        'solid-waste-disposal' => [SolidWasteDisposalRecord::class, 'solid_waste_disposal_id', 'SWD'],
+        'sterilizer' => [SterilizerRecord::class, 'sterilizer_id', 'STER'],
+        'storage-tank' => [StorageTankRecord::class, 'storage_tank_id', 'ST'],
+        'threshing' => [ThreshingRecord::class, 'thresher_id', 'TH'],
+        'weighbridge' => [WeighbridgeRecord::class, 'wb_card_number', 'WB'],
+    ];
+
+    /**
+     * Satu record per jenis stasiun di PL Mill A dan satu di PL Mill B.
+     *
+     * Dibiarkan DRAFT, bukan saved: enam model menolak `saved` tanpa baris
+     * detail (lihat promoteToSaved()), dan Data Browser tidak menyaring status
+     * sama sekali — record draft tampil sama seperti record saved. Setiap record
+     * punya paling banyak SATU baris detail (hanya CPO/Kernel Dispatch, lihat di
+     * bawah), jadi setiap record menghasilkan tepat SATU baris di ekspor CSV.
+     *
+     * Ditulis langsung lewat model, jadi tidak melewati kunci periode
+     * (usecase-141, ditegakkan di *RecordService) — sama seperti editRecords().
+     */
+    protected function productionLineFilterFixtures(BusinessUnit $businessUnit, ProductionLine $mainLine): void
+    {
+        $author = User::where('username', 'eptest-supervisor01')->firstOrFail();
+
+        $secondLine = $this->productionLine($businessUnit, self::FILTER_SECOND_LINE);
+
+        foreach (StationType::cases() as $type) {
+            if ($type !== StationType::Other) {
+                $this->station($secondLine, $type, active: true);
+            }
+        }
+
+        foreach (['A' => $mainLine, 'B' => $secondLine] as $suffix => $line) {
+            $weighbridge = null;
+
+            // Weighbridge LEBIH DULU: Grading butuh weighbridge_record_id-nya.
+            foreach (['weighbridge', ...array_keys(self::FILTER_RECORDS)] as $stationType) {
+                if ($stationType === 'weighbridge' && $weighbridge !== null) {
+                    continue;
+                }
+
+                [$recordClass, $idColumn, $prefix] = self::FILTER_RECORDS[$stationType];
+
+                $station = Station::where('production_line_id', $line->id)
+                    ->where('type', $stationType)
+                    ->firstOrFail();
+
+                $attributes = [
+                    'station_id' => $station->id,
+                    'production_line_id' => $station->production_line_id,
+                    'status' => RecordStatus::DraftOngoing,
+                    'created_by' => $author->id,
+                ] + match ($stationType) {
+                    'weighbridge' => [
+                        'weighbridge_type' => 'receive',
+                        'record_datetime' => self::FILTER_RECORD_DATE.' 08:00:00',
+                        'vehicle_number' => "B 9{$suffix} PL",
+                        'driver_name' => 'Driver Filter Line',
+                        'estate_supplier' => 'Estate Filter Line',
+                        'division' => 'Divisi 1',
+                        'gross_weight' => 15000,
+                        'tare_weight' => 5000,
+                        'net_weight' => 10000,
+                    ],
+                    'grading' => [
+                        'date' => self::FILTER_RECORD_DATE,
+                        'weighbridge_record_id' => $weighbridge->id,
+                        'license_plate_no' => $weighbridge->vehicle_number,
+                        'estate_supplier' => $weighbridge->estate_supplier,
+                        'netto' => 10000,
+                        'quantity' => 120,
+                    ],
+                    'cages-track' => [
+                        'date' => self::FILTER_RECORD_DATE,
+                        'tippler_start_time' => self::FILTER_RECORD_DATE.' 06:00:00',
+                        'tippler_stop_time' => self::FILTER_RECORD_DATE.' 18:00:00',
+                        'cages_out' => 12,
+                        'cages_tipped' => 10,
+                    ],
+                    default => ['date' => self::FILTER_RECORD_DATE],
+                };
+
+                $record = $recordClass::updateOrCreate(
+                    [$idColumn => "{$prefix}-BROWSER-PL-{$suffix}"],
+                    $attributes,
+                );
+
+                if ($stationType === 'weighbridge') {
+                    $weighbridge = $record;
+                }
+
+                // Satu baris log untuk dua jenis Dispatch. detail-cpo-dispatch dan
+                // detail-kernel-dispatch.spec.ts membuka BARIS PERTAMA Data Browser
+                // dan menuntut tabel log-nya; tabel itu hanya dirender bila ada
+                // detail. Kedua spec itu berjalan SEBELUM form-*-dispatch (urutan
+                // abjad), jadi pada database yang baru di-seed record ini bisa
+                // menjadi satu-satunya — dan tanpa detail ia membuat keduanya merah.
+                if ($stationType === 'cpo-dispatch') {
+                    CpoDispatchDetail::updateOrCreate(
+                        ['cpo_dispatch_record_id' => $record->id, 'event_date' => self::FILTER_RECORD_DATE],
+                        ['waybill_number' => "SJ-PL-{$suffix}", 'net_weight_mt' => 30],
+                    );
+                } elseif ($stationType === 'kernel-dispatch') {
+                    KernelDispatchDetail::updateOrCreate(
+                        ['kernel_dispatch_record_id' => $record->id, 'event_date' => self::FILTER_RECORD_DATE],
+                        ['waybill_number' => "SJ-PL-{$suffix}", 'net_weight_mt' => 20],
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * Fixture untuk e2e-web/tests/kelola-production-line.spec.ts (2026-10-03).
+     *
+     * Spec itu menyebut lima data berdasarkan nama yang TIDAK PERNAH ditanam
+     * seeder mana pun — Business Unit "Mill PL Baru" / "Mill PL Tujuan Edit",
+     * line "PL Sebelum Edit", "PL Hapus Bersih" (0 station), "PL Ada Station"
+     * (>= 1 station) — dan kode "PL-DUP-01". Kelas yang sama dengan
+     * machineryFixtures(): skenario berbasis data gagal sejak ditulis.
+     *
+     * Kode PL-DUP-01 punya riwayat yang menjelaskan mengapa ia DIPAKSA ke satu
+     * baris: karena tidak ada yang menanamnya, skenario "Kode duplikat"
+     * pertama kali justru BERHASIL membuat "Line Kode Duplikat" berkode itu —
+     * lalu setiap run berikutnya gagal karena baris yang diasersi tidak ada
+     * itu kini ada. Baris itu (bila ada) dinamai ulang menjadi fixture-nya,
+     * bukan dihapus: ia sudah membawa 18 station yang mungkin sudah dirujuk
+     * record.
+     *
+     * Yang dimutasi spec dipulihkan setiap seed: "PL Sebelum Edit" dinamai
+     * ulang oleh skenario edit dan "PL Hapus Bersih" dihapus oleh skenario
+     * hapus. Sisa skenario tambah/edit (kode `PL-BROWSER-%`) disapu lebih
+     * dulu; station-nya ikut terhapus lewat FK cascade.
+     */
+    protected function kelolaProductionLineFixtures(): void
+    {
+        foreach (ProductionLine::where('code', 'LIKE', 'PL-BROWSER-%')->get() as $leftover) {
+            try {
+                $leftover->delete();
+            } catch (QueryException) {
+                // Station-nya sudah dirujuk record (FK RESTRICT) — dibiarkan,
+                // jangan pernah menghapus data record demi perapian.
+            }
+        }
+
+        $baru = $this->businessUnit('Mill PL Baru');
+        $this->businessUnit('Mill PL Tujuan Edit');
+
+        $this->productionLine($baru, 'PL Sebelum Edit');
+        $this->productionLine($baru, 'PL Hapus Bersih');
+
+        $adaStation = $this->productionLine($baru, 'PL Ada Station');
+        $this->station($adaStation, StationType::Weighbridge, active: true);
+
+        $duplicate = ProductionLine::where('code', 'PL-DUP-01')->first();
+
+        if ($duplicate === null) {
+            $this->productionLine($baru, 'PL Kode Duplikat')->update(['code' => 'PL-DUP-01']);
+        } else {
+            $duplicate->update(['name' => 'PL Kode Duplikat']);
+        }
+    }
+
+    /**
+     * Business Unit fixture, idempoten pada nama.
+     *
+     * MENGAPA TIDAK LAGI `firstOrCreate(..., factory()->make()->toArray())`.
+     * Argumen kedua firstOrCreate dievaluasi SETIAP kali, juga ketika barisnya
+     * sudah ada — dan BusinessUnitFactory::definition() memuat
+     * `company_id => Company::factory()`, yang oleh Laravel di-`create()` bahkan
+     * di dalam make(). Akibatnya setiap seed membocorkan satu Corporate + satu
+     * Company bernama faker per pemanggilan. Terukur 2026-10-03: satu seed
+     * menambah 3 corporate dan 3 company; tabel corporates sudah berisi
+     * puluhan nama faker yang mendorong fixture spec kelola-corporate ke
+     * halaman 2-3 daftarnya. Sekarang factory hanya dipanggil bila barisnya
+     * belum ada, dan induknya adalah Company fixture yang tetap, bukan
+     * buatan baru.
+     */
+    protected function businessUnit(string $name, ?Company $company = null): BusinessUnit
+    {
+        $existing = BusinessUnit::where('name', $name)->first();
+
+        if ($existing !== null) {
+            if ($company !== null && $existing->company_id !== $company->id) {
+                $existing->update(['company_id' => $company->id]);
+            }
+
+            return $existing;
+        }
+
+        return BusinessUnit::factory()->create([
+            'name' => $name,
+            'company_id' => ($company ?? $this->company('PT Browser Fixture', $this->corporate('Corp Browser Fixture')))->id,
+        ]);
+    }
+
+    /** Corporate fixture, idempoten pada nama (unik di database). */
+    protected function corporate(string $name): Corporate
+    {
+        return Corporate::where('name', $name)->first()
+            ?? Corporate::factory()->create(['name' => $name]);
+    }
+
+    /**
+     * Company fixture, idempoten pada nama. Dicari berdasarkan NAMA SAJA, bukan
+     * (corporate, nama): skenario edit memindahkan "PT Sebelum Edit" ke
+     * corporate lain, dan pemulihannya harus memindahkannya kembali, bukan
+     * membuat kembarannya.
+     */
+    protected function company(string $name, Corporate $corporate): Company
+    {
+        // company_code WAJIB di form (CompanyService: required+unique), tetapi
+        // CompanyFactory tidak mengisinya — tanpa kode, skenario edit ditolak
+        // "Kode company wajib diisi." dan modalnya tidak pernah tertutup.
+        $code = 'COMP-FX-'.strtoupper(substr(md5($name), 0, 8));
+        $existing = Company::where('name', $name)->first();
+
+        if ($existing !== null) {
+            $existing->update(array_filter([
+                'corporate_id' => $existing->corporate_id !== $corporate->id ? $corporate->id : null,
+                'company_code' => $existing->company_code === null ? $code : null,
+            ]));
+
+            return $existing;
+        }
+
+        return Company::factory()->create(['name' => $name, 'corporate_id' => $corporate->id, 'company_code' => $code]);
+    }
+
+    /**
+     * Fixture untuk kelola-corporate / kelola-company / kelola-business-unit /
+     * kelola-station.spec.ts (2026-10-03).
+     *
+     * Keempat spec itu menyebut data berdasarkan nama yang tidak pernah
+     * ditanam siapa pun — kelas yang sama dengan machineryFixtures() dan
+     * kelolaProductionLineFixtures(). Nama yang diasersi TIDAK ADA
+     * ("Mill Kode Duplikat", "Weighbridge Kode Duplikat", ...) sengaja tidak
+     * dipakai sebagai nama fixture, bahkan sebagai substring: spec mencari
+     * baris dengan `hasText`, yang mencocokkan substring.
+     *
+     * Yang dimutasi spec dipulihkan setiap seed (baris "Sebelum Edit" yang
+     * dinamai ulang dan dipindah induknya, baris "Hapus Bersih" yang dihapus),
+     * dan sisa skenario tambah/edit disapu — hanya bila ia tidak punya anak,
+     * persis aturan hapus layarnya sendiri, sehingga data yang sudah dirujuk
+     * tidak pernah ikut terhapus.
+     */
+    protected function kelolaHierarchyFixtures(): void
+    {
+        // ── Sapu sisa run sebelumnya ───────────────────────────────────────
+        foreach (Station::where('code', 'LIKE', 'STA-BROWSER-%')
+            ->orWhere('name', 'LIKE', 'Weighbridge Sesudah Edit %')->get() as $station) {
+            if (MachineryGroup::where('station_id', $station->id)->exists()
+                || Machinery::where('station_id', $station->id)->exists()) {
+                continue;
+            }
+
+            try {
+                $station->delete();
+            } catch (QueryException) {
+                // Sudah dirujuk record (FK RESTRICT) — dibiarkan.
+            }
+        }
+
+        BusinessUnit::where(fn ($q) => $q->where('code', 'LIKE', 'BU-BROWSER-%')
+            ->orWhere('name', 'LIKE', 'Mill Sesudah Edit %'))
+            ->whereDoesntHave('stations')
+            ->get()
+            ->each(function (BusinessUnit $bu) {
+                if (! ProductionLine::where('business_unit_id', $bu->id)->exists()
+                    && ! User::where('business_unit_id', $bu->id)->exists()) {
+                    $bu->delete();
+                }
+            });
+
+        Company::where(fn ($q) => $q->where('name', 'LIKE', 'PT Anak Baru %')
+            ->orWhere('name', 'LIKE', 'PT Sesudah Edit %'))
+            ->get()
+            ->each(function (Company $company) {
+                if (! BusinessUnit::where('company_id', $company->id)->exists()) {
+                    $company->delete();
+                }
+            });
+
+        Corporate::where(fn ($q) => $q->where('name', 'LIKE', 'PT Baru %')
+            ->orWhere('name', 'LIKE', 'PT Sesudah Edit %'))
+            ->get()
+            ->each(function (Corporate $corporate) {
+                if (! Company::where('corporate_id', $corporate->id)->exists()) {
+                    $corporate->delete();
+                }
+            });
+
+        // ── kelola-corporate ───────────────────────────────────────────────
+        $this->corporate('PT Sebelum Edit');
+        $this->corporate('PT Hapus Bersih');
+        $this->corporate('PT Nama Duplikat');
+        $this->company('PT Fixture Anak Corporate', $this->corporate('PT Ada Company'));
+
+        // ── kelola-company ─────────────────────────────────────────────────
+        $induk = $this->corporate('PT Induk Baru');
+        $this->corporate('PT Tujuan Edit');
+        $this->company('PT Sebelum Edit', $induk);
+        $this->company('PT Hapus Bersih', $induk);
+        $this->businessUnit('Mill Fixture Anak Company', $this->company('PT Ada Business Unit', $induk));
+        $this->company('PT Nama Duplikat', $this->corporate('PT Sama Corporate'));
+
+        // ── kelola-business-unit ───────────────────────────────────────────
+        $fixtureCorporate = $this->corporate('Corp Browser Fixture');
+        $companyBaru = $this->company('PT Company Baru', $fixtureCorporate);
+        $this->company('PT Company Tujuan Edit', $fixtureCorporate);
+        $this->businessUnit('Mill Sebelum Edit', $companyBaru);
+        $this->businessUnit('Mill Hapus Bersih', $companyBaru);
+        $adaStation = $this->businessUnit('Mill Ada Station', $companyBaru);
+        $this->station($this->productionLine($adaStation, 'PL Mill Ada Station'), StationType::Weighbridge, active: true);
+
+        // BU-DUP-01: seperti PL-DUP-01, skenario "kode duplikat" pernah
+        // MEMBUAT "Mill Kode Duplikat" berkode ini karena tidak ada yang
+        // memegangnya — lalu setiap run berikutnya gagal karena baris itu kini
+        // ada. Dinamai ulang, bukan dihapus.
+        $buDuplicate = BusinessUnit::where('code', 'BU-DUP-01')->first();
+
+        if ($buDuplicate === null) {
+            $this->businessUnit('Mill BU Duplikat', $companyBaru)->update(['code' => 'BU-DUP-01']);
+        } elseif ($buDuplicate->name !== 'Mill BU Duplikat') {
+            $buDuplicate->update(['name' => 'Mill BU Duplikat']);
+        }
+
+        // "Mill Kode Duplikat" — residu yang sama itu, sementara itu, sudah
+        // menjadi fixture yang DIANDALKAN: kelola-periode-pelaporan,
+        // detail-periode-pelaporan, form-weighbridge dan lima spec laporan-*
+        // memakainya sebagai "mill tanpa satu pun stasiun aktif" (OTHER_MILL).
+        // Kini ditanam dengan sengaja — kode lain, TANPA production line atau
+        // stasiun — dan skenario "kode duplikat" di kelola-business-unit memakai
+        // nama yang berbeda supaya keduanya tidak bertabrakan.
+        $this->businessUnit('Mill Kode Duplikat', $companyBaru);
+
+        // ── mills-setting ──────────────────────────────────────────────────
+        // Tiga mill yang dipilih spec itu berdasarkan nama. "Mill Kosong" sengaja
+        // tanpa production line maupun station (skenario "belum ada station"),
+        // dan tidak pernah disimpan oleh spec mana pun, jadi tetap "belum
+        // pernah diatur". Icon station fixture dikembalikan ke default setiap
+        // seed — skenario icon mengubahnya.
+        $this->businessUnit('Mill Setting Uji', $companyBaru);
+        $this->businessUnit('Mill Kosong', $companyBaru);
+        $iconStation = $this->namedStation(
+            $this->productionLine($this->businessUnit('Mill Station Icon', $companyBaru), 'PL Station Icon'),
+            'Weighbridge Icon Test',
+        );
+        $iconStation->update(['icon' => null]);
+
+        // ── kelola-station ─────────────────────────────────────────────────
+        $stationBaru = $this->businessUnit('Mill Station Baru', $companyBaru);
+        $stationBaruLine = $this->productionLine($stationBaru, 'PL Station Baru');
+        $this->productionLine($this->businessUnit('Mill Station Tujuan Edit', $companyBaru), 'PL Station Tujuan Edit');
+
+        foreach (['Weighbridge Sebelum Edit', 'Weighbridge Hapus Bersih', 'Weighbridge Ada Machinery'] as $name) {
+            $this->namedStation($stationBaruLine, $name)->update(['type' => StationType::Weighbridge]);
+        }
+
+        $adaMachinery = Station::where('production_line_id', $stationBaruLine->id)
+            ->where('name', 'Weighbridge Ada Machinery')->firstOrFail();
+        $this->machineryGroup($adaMachinery, 'MG-FIXTURE-STATION-ADA');
+
+        $staDuplicate = Station::where('code', 'STA-DUP-01')->first();
+
+        if ($staDuplicate === null) {
+            $this->namedStation($stationBaruLine, 'Weighbridge Fixture Kode')->update(['code' => 'STA-DUP-01']);
+        }
     }
 
     /**
@@ -554,6 +1049,21 @@ class BrowserTestFixtureSeeder extends Seeder
     protected function sweepEditLeftovers(): void
     {
         GradingRecord::where('grading_number', 'GR-BROWSER-EDIT-DONE')->delete();
+        // Grading SISA form-grading.spec.ts yang menunjuk WB-BROWSER-EDIT-DONE.
+        // Skenario "Simpan berhasil" di spec itu memilih kartu WB pertama
+        // (urut record_datetime terbaru) — dan setelah skenario edit Weighbridge
+        // jalan, kartu itu adalah WB-BROWSER-EDIT-DONE. FK
+        // grading_records.weighbridge_record_id RESTRICT, jadi tanpa baris ini
+        // DELETE di bawah ditolak dan SELURUH seeder berhenti di sini (terukur
+        // 2026-10-03: GR-BROWSER-1790934437740). Hanya baris berawalan
+        // GR-BROWSER- yang disapu — data pabrik tidak pernah memakai awalan itu.
+        // grading_details ikut terhapus lewat FK cascade.
+        GradingRecord::where('grading_number', 'LIKE', 'GR-BROWSER-%')
+            ->whereIn(
+                'weighbridge_record_id',
+                WeighbridgeRecord::where('wb_card_number', 'WB-BROWSER-EDIT-DONE')->select('id'),
+            )
+            ->delete();
         WeighbridgeRecord::where('wb_card_number', 'WB-BROWSER-EDIT-DONE')->delete();
         CagesTrackRecord::where('cages_track_number', 'CT-BROWSER-EDIT-DONE')->delete();
 

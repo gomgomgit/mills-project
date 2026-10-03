@@ -22,7 +22,10 @@ test.describe('Detail CPO Dispatch', () => {
     await page.locator('.cd-table__row').first().click();
 
     await page.waitForURL(/\/data\/cpo-dispatch\/[0-9a-f-]+$/);
-    await expect(page.getByText('Detail CPO Dispatch')).toBeVisible();
+    // Judul HALAMAN, bukan getByText: shell header merender judul yang sama di
+    // <h1 class="shell-header__title">, sehingga getByText cocok ke dua elemen
+    // dan strict mode menolaknya.
+    await expect(page.locator('h2[class$="-page__title"]')).toContainText('Detail CPO Dispatch');
     await expect(page.locator('[data-testid="detail-cpo-dispatch-id"]')).toBeVisible();
     await expect(page.locator('[data-testid="cpo-dispatch-detail-log"]')).toBeVisible();
   });

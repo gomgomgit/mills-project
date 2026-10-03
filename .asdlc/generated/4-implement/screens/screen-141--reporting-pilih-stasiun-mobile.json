@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-23"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-141--reporting-pilih-stasiun-mobile",
   "name": "Reporting — Pilih Stasiun (Mobile)",
@@ -10,8 +10,8 @@
   "status": "complete",
   "test_results": {
     "unit": {
-      "run_at": "2026-09-23T15:10:00Z",
-      "passed": 30,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 36,
       "failed": 0,
       "coverage": 0
     },
@@ -21,8 +21,8 @@
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-23T15:10:00Z",
-      "passed": 30,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 36,
       "failed": 0
     },
     "browser": {
@@ -56,7 +56,8 @@
     "Peta ikon disalin verbatim dari StationGrid.vue (yang tidak mengekspor petanya) agar ikon identik dengan Daftar Stasiun.",
     "Kartu 'Reporting' di screen-134 dihidupkan (routeName → 'report-stations'); kartu 'Dashboard' TETAP null. Dua berkas test screen-134 disesuaikan hanya pada bagian kartu Reporting; asersi kartu Dashboard nonaktif tidak dilemahkan.",
     "Test memock apiClient dan localDb agar MENOLAK setiap pemanggilan, lalu mengasersi keduanya tidak pernah dipanggil — nol jaringan dibuktikan, bukan diklaim.",
-    "RANTAI PENUH TERBUKTI di aplikasi nyata: Home → Dashboard & Reporting → Reporting → /reports (18 tile, 17 nonaktif, 1 aktif) → ketuk tile nonaktif memunculkan 'Laporan Weighbridge belum tersedia.' tanpa berpindah → ketuk Sterilizer sampai di /reports/sterilizer."
+    "RANTAI PENUH TERBUKTI di aplikasi nyata: Home → Dashboard & Reporting → Reporting → /reports (18 tile, 17 nonaktif, 1 aktif) → ketuk tile nonaktif memunculkan 'Laporan Weighbridge belum tersedia.' tanpa berpindah → ketuk Sterilizer sampai di /reports/sterilizer.",
+    "REVISI v2 (tech-spec v2, REPORT_ROUTES lima stasiun + Production Line dibawa ke layar laporan — sinkronisasi artefak, kode tidak diubah): diverifikasi 2026-10-03 terhadap delta tech-spec 1b35980. (1) REPORT_ROUTES di ReportingPilihStasiunView.vue berisi LIMA jenis — sterilizer, cages-track, boiler-room, clarification, storage-tank — ditambahkan satu baris per layar oleh 8b23ddd (136/137) dan 8658f6e (138/139); isReportAvailable() tetap HANYA `REPORT_ROUTES[station.type] != null` tanpa isActive. Catatan v1 ('18 tile, 17 nonaktif, 1 aktif') dan deferred_items 'laporan mobile untuk 17 stasiun lain' karena itu sudah usang: kini 5 tile berlaporan, 13 tanpa laporan. (2) Production Line ikut dibawa (98c812b): onTileTap() memanggil router.push({ name, query: reportQuery() }); reportQuery() membaca `msl_production_line_{userId}` dari localStorage lewat readActiveProductionLineId() — sumber yang SAMA dengan loadStations() dan kunci yang sama yang ditulis StationListView.vue — dibungkus try/catch, dan mengirim { production_line_id } hanya bila ada; tanpa ingatan query dibiarkan kosong (layar laporan tujuan yang bertanya); ingatan pengguna lain tidak terbawa karena kunci di-scope per userId; tetap nol pemanggilan jaringan. Tile tanpa laporan tetap tidak berpindah rute walau ada line aktif. Test 2026-10-03: unit 36 dan component 36 (keduanya mobile/tests/ReportingPilihStasiunView.spec.ts, mengikuti konvensi v1 yang mencatat berkas yang sama di kedua tipe) — lolos; DashboardReportingView.spec.ts 16 lolos (milik screen-134, tidak dihitung di sini); integration tetap kosong (layar tanpa backend); browser tidak dijalankan ulang."
   ],
   "deferred_items": [
     {
@@ -95,6 +96,10 @@
     },
     {
       "description": "PRE-EXISTING, bukan dari layar ini: satu unhandled rejection dari SyncResultDialog.vue (summary.items undefined) yang muncul lewat tests/StationListView.spec.ts. Seluruh 1686 test tetap hijau, tetapi vitest memperingatkan unhandled error dapat menyebabkan false positive. Layak diberesi tersendiri.",
+      "severity": "minor"
+    },
+    {
+      "description": "test_results.browser (13, 2026-09-23) TIDAK diukur ulang pada sinkronisasi v2 — mobile/tests/e2e/reporting-pilih-stasiun.spec.ts sejak itu diubah ke bentuk invarian (8b23ddd) dan bertambah skenario Production Line (98c812b); angka browser di artefak ini tidak mencerminkan isi berkasnya sekarang.",
       "severity": "minor"
     }
   ]

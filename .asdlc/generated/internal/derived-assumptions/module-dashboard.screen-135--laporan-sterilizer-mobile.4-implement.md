@@ -10,3 +10,11 @@ Artefak ini ditulis sehari setelah implementasinya selesai. Yang dicatat di sini
 - **`files_generated` menyertakan berkas milik screen-129** (`routes/api.php`, `SterilizerReportService.php`) ← perluasan akses Operator memang MENGUBAH layar yang sudah jadi, bukan hanya menambah. Mencatatnya di sini supaya jejaknya tidak hilang saat orang menelusuri kenapa screen-129 berubah.
 - **Tidak ada endpoint baru dan tidak ada tambahan api-index** ← keputusan user 2026-09-23. Dicatat karena artefak Phase 4 tanpa `files_generated` di sisi API mudah disalahbaca sebagai pekerjaan yang belum selesai.
 - **Dep-graph tidak dapat dipakai sendirian untuk menjawab "apa yang sudah jadi"** ← selama sehari ia menyatakan `not_started` sementara kodenya sudah berjalan. Dicatat sebagai `known_issue` tingkat rendah karena itu sifat prosesnya, bukan cacat satu layar.
+
+## v3 — 2026-10-03
+
+Sinkronisasi artefak 4-implement dengan kode (kode tidak diubah).
+- Pemetaan tipe test mengikuti konvensi artefak yang sudah ada, bukan konvensi brief backend: unit = spec repo mobile + productionLineRepo.spec; integration = Feature/Api Laporan*Test + Unit/Services *ReportServiceTest + KelolaProductionLineTest --filter options-for-report; component = spec view mobile.
+- productionLineRepo.ts, ProductionLineController.php, ProductionLineService.php, dan KelolaProductionLineTest.php ditambahkan ke daftar berkas karena layar ini kini bergantung pada GET /api/production-lines/options-for-report (98c812b), walau berkas-berkas itu dipakai bersama kelima layar laporan mobile.
+- Hitungan browser lama sengaja tidak diubah (Playwright tidak dijalankan); keusangannya dicatat sebagai known_issue severity low.
+- Entri known_issues lama yang kini usang (mis. bentuk galat response?.status di screen-136) tidak dihapus; keusangannya dijelaskan di catatan revisi.

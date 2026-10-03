@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-25"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-138--laporan-clarification-mobile",
   "name": "Laporan Clarification (Mobile)",
@@ -10,19 +10,19 @@
   "status": "complete",
   "test_results": {
     "unit": {
-      "run_at": "2026-09-25T08:40:00Z",
-      "passed": 26,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 44,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-09-25T08:40:00Z",
-      "passed": 186,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 93,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-25T08:40:00Z",
-      "passed": 31,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 45,
       "failed": 0
     },
     "browser": {
@@ -33,22 +33,28 @@
   },
   "files_generated": [
     "backend/routes/api.php",
-    "backend/app/Services/ClarificationReportService.php"
+    "backend/app/Services/ClarificationReportService.php",
+    "backend/app/Http/Controllers/Api/ClarificationReportController.php",
+    "backend/app/Http/Controllers/Api/ProductionLineController.php",
+    "backend/app/Services/ProductionLineService.php"
   ],
   "fe_files_generated": [
     "mobile/src/services/clarificationReportRepo.ts",
     "mobile/src/views/LaporanClarificationView.vue",
     "mobile/src/router/index.ts",
-    "mobile/src/views/ReportingPilihStasiunView.vue"
+    "mobile/src/views/ReportingPilihStasiunView.vue",
+    "mobile/src/services/productionLineRepo.ts"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/ClarificationReportServiceTest.php",
     "backend/tests/Feature/Api/LaporanClarificationTest.php",
-    "mobile/tests/e2e/laporan-clarification.spec.ts"
+    "mobile/tests/e2e/laporan-clarification.spec.ts",
+    "backend/tests/Feature/Api/KelolaProductionLineTest.php"
   ],
   "fe_test_files_generated": [
     "mobile/tests/clarificationReportRepo.spec.ts",
-    "mobile/tests/LaporanClarificationView.spec.ts"
+    "mobile/tests/LaporanClarificationView.spec.ts",
+    "mobile/tests/productionLineRepo.spec.ts"
   ],
   "implementation_notes": [
     "TIGA perubahan akses Operator, bukan empat — grup rute clarification-reports SUDAH memakai guard auth:web,sanctum sebelum run ini, jadi hanya daftar perannya yang perlu ditambah. Diverifikasi ulang di kode setelah implementasi, bukan dari ingatan: api.php:1103 role:supervisor,mill_management,admin,operator; guardAccess() memuat UserRole::Operator->value; resolveBusinessUnit():296-298 berbunyi Supervisor || MillManagement || Operator.",
@@ -66,7 +72,8 @@
     "Fixture unit test sengaja tidak konsisten secara aritmetika agar test 'nol aritmetika di repo' benar-benar membuktikan sesuatu: production.total_ton 128,5 tidak sama dengan jumlah daily.production_ton (66,0); metrics.pure_oil_production_rate_ton_hour.max 14,8 LEBIH KECIL daripada daily[0].rate_avg 42,1; reading_count 120 vs 96 vs 301 vs 412 saling bertentangan; coverage.expected_slots 144 bukan 288; downtime.total_mins 240 vs jumlah harian 95; total.days_with_records 11 vs daily.length 3. Implementasi yang diam-diam menghitung ulang pasti gagal.",
     "Rekap harian memakai v-if inline, BUKAN komponen bersama CollapsibleSection.vue yang memakai v-show — component test menuntut barisnya 'tidak lagi dirender', dan v-show menyisakannya di DOM. Tertutup bawaan; buka-tutup-buka menghasilkan tepat satu pemanggilan fetchSummary, dihitung dari mock, dan di browser test dari dua mekanisme independen (hits.summary dan page.on('request')).",
     "Browser test memakai test.use viewport 390x844 pada satu-satunya describe sehingga mencakup seluruh 29 skenario — project Playwright repo ini Desktop Chrome 1280px, tanpa itu tuntutan satu-kolom menjadi hampa. Nol skenario ditunda dengan alasan 'mobile-only'.",
-    "Verifikasi independen di luar agen implementasi: pest --filter=Clarification menghasilkan 186 lolos / 1739 asersi; cabang resolveBusinessUnit dibaca langsung di kode; businessUnitOptions dipastikan masih Admin-only; berkas e2e-web dipastikan tidak tersentuh lewat git status; test.use dipastikan berada di dalam describe tunggal, bukan di describe bersarang."
+    "Verifikasi independen di luar agen implementasi: pest --filter=Clarification menghasilkan 186 lolos / 1739 asersi; cabang resolveBusinessUnit dibaca langsung di kode; businessUnitOptions dipastikan masih Admin-only; berkas e2e-web dipastikan tidak tersentuh lewat git status; test.use dipastikan berada di dalam describe tunggal, bukan di describe bersarang.",
+    "REVISI v2 (tech-spec v3, pemisahan periods/period_stations + isolasi Production Line — sinkronisasi artefak, kode tidak diubah): diverifikasi 2026-10-03 terhadap delta tech-spec 02105a8 dan 1b35980. (1) Pemisahan induk-anak periode (83a4065, dirapikan di mobile oleh 02105a8): station_type pada opsi periode clarificationReportRepo.ts kini `string` non-nullable, status dibaca sebagai status baris period_stations Clarification, fixture station_type null/'Semua Jenis Stasiun' dibuang dari spec komponen, repo, dan e2e, dan klien tidak menyaring ulang daftar periode. (2) Isolasi Production Line (backend a5ccfba, mobile 98c812b): ClarificationReportController meneruskan production_line_id ke summary/export, dan ClarificationReportService menyaring pada kolom record `clarification_records.production_line_id` (bukan stations) sehingga record yang stasiunnya dipindah tetap terhitung di line asalnya; respons summary menambah blok `production_line` {id,name}|null secara aditif. clarificationReportRepo.ts mengirim production_line_id HANYA ke /summary dan /export lewat productionLineParams() (tanpa cabang peran), tidak pernah ke /periods; exportCsv kini juga membawa business_unit_id untuk Admin (cacat 422 pra-ada ditutup 98c812b). LaporanClarificationView.vue: daftar line dari productionLineRepo.fetchProductionLinesForReport() → GET /api/production-lines/options-for-report (endpoint baru 98c812b, ProductionLineController::optionsForReport + ProductionLineService, cakupan lewat ScopesToActorMill), resolveProductionLine() berurutan rute ?production_line_id= > ingatan msl_production_line_{userId} > satu-line-otomatis > pemilih, nilai rute/ingatan hanya dipercaya bila ada di daftar; loadSummary() dan onExport() berhenti tanpa line; tombol Ekspor hanya dirender bila periode DAN line ada; nama line dari summary.production_line.name lebih dulu; ganti mill (Admin) mengosongkan line + opsinya; kegagalan daftar line tampil sebagai production-line-unavailable + production-line-retry, bukan galat laporan; akun tanpa mill tetap nol permintaan. Known_issue artefak ini tentang LaporanCagesTrackView.vue (screen-136) yang membaca candidate?.response?.status kini USANG: cacat itu dibereskan di 98c812b (ErrorLike tanpa response di kelima view); entri lamanya dibiarkan sebagai riwayat. Test 2026-10-03: unit 44 (clarificationReportRepo.spec 34 + productionLineRepo.spec 10), integration 93 (Feature/Api/LaporanClarificationTest 36 + Unit/Services/ClarificationReportServiceTest 47 + KelolaProductionLineTest --filter options-for-report 10), component 45 (LaporanClarificationView.spec) — semuanya lolos; browser tidak dijalankan ulang. Angka integration 186 sebelumnya berasal dari pest --filter=Clarification yang lebih lebar (termasuk test Livewire/stasiun Clarification), jadi penurunan ke 93 adalah perbedaan cakupan pengukuran, bukan test yang hilang."
   ],
   "deferred_items": [
     {
@@ -93,6 +100,10 @@
     },
     {
       "description": "vitest memunculkan 'Aborted' bila dijalankan bersamaan dengan pest; dijalankan terpisah bersih. Bukan cacat produk, tapi perlu diketahui saat menjalankan suite.",
+      "severity": "low"
+    },
+    {
+      "description": "test_results.browser (2026-09-25) TIDAK diukur ulang pada sinkronisasi v2 — mobile/tests/e2e/laporan-clarification.spec.ts sejak itu bertambah skenario Production Line (98c812b) dan fixture periode dirapikan (02105a8); angka browser di artefak ini karena itu tidak mencerminkan isi berkasnya sekarang. Jalankan ulang terhadap Vite dev server untuk memperbaruinya.",
       "severity": "low"
     }
   ]

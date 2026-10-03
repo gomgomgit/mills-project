@@ -1,8 +1,8 @@
 {
-  "ver": 2,
+  "ver": 3,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-24"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-135--laporan-sterilizer-mobile",
   "name": "Laporan Sterilizer (Mobile)",
@@ -10,19 +10,19 @@
   "status": "complete",
   "test_results": {
     "unit": {
-      "run_at": "2026-09-25T11:20:00Z",
-      "passed": 22,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 40,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-09-24T07:55:00Z",
-      "passed": 58,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 77,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-24T07:55:00Z",
-      "passed": 39,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 53,
       "failed": 0
     },
     "browser": {
@@ -33,21 +33,27 @@
   },
   "files_generated": [
     "backend/routes/api.php",
-    "backend/app/Services/SterilizerReportService.php"
+    "backend/app/Services/SterilizerReportService.php",
+    "backend/app/Http/Controllers/Api/SterilizerReportController.php",
+    "backend/app/Http/Controllers/Api/ProductionLineController.php",
+    "backend/app/Services/ProductionLineService.php"
   ],
   "fe_files_generated": [
     "mobile/src/services/sterilizerReportRepo.ts",
     "mobile/src/views/LaporanSterilizerView.vue",
-    "mobile/src/router/index.ts"
+    "mobile/src/router/index.ts",
+    "mobile/src/services/productionLineRepo.ts"
   ],
   "test_files_generated": [
     "backend/tests/Feature/Api/LaporanSterilizerTest.php",
     "backend/tests/Unit/Services/SterilizerReportServiceTest.php",
-    "mobile/tests/e2e/laporan-sterilizer.spec.ts"
+    "mobile/tests/e2e/laporan-sterilizer.spec.ts",
+    "backend/tests/Feature/Api/KelolaProductionLineTest.php"
   ],
   "fe_test_files_generated": [
     "mobile/tests/LaporanSterilizerView.spec.ts",
-    "mobile/tests/sterilizerReportRepo.spec.ts"
+    "mobile/tests/sterilizerReportRepo.spec.ts",
+    "mobile/tests/productionLineRepo.spec.ts"
   ],
   "implementation_notes": [
     "ARTEFAK INI DITULIS SUSULAN pada 2026-09-24, setelah implementasinya selesai pada 2026-09-23. Phase 4 layar ini berjalan penuh dan hijau, tetapi langkah penulisan artefaknya tidak pernah tuntas sehingga dep-graph menandainya not_started selama sehari — kode ada, catatannya yang hilang. Seluruh angka di bawah adalah hasil PENGUKURAN ULANG pada 2026-09-24, bukan rekonstruksi dari ingatan: component 39 lolos (vitest), browser 18 lolos (playwright), dan 58 lolos pada dua berkas test backend Sterilizer.",
@@ -57,7 +63,8 @@
     "SterilizerReportServiceTest Case 16 semula mengunci perilaku lama (Operator ditolak 403) dan harus disesuaikan menjadi dua test: Operator lolos untuk mill sendiri, dan tetap 403 untuk period_id mill lain. Test itu tidak diantisipasi oleh briefing maupun oleh agen — ia ditemukan saat run.",
     "Dua docblock yang menyatakan 'Operator tidak punya akses web sama sekali' ditulis ulang, mencatat pemisahan API-vs-web dan menegaskan bahwa melebarkan middleware rute saja TIDAK cukup.",
     "UTANG DITUTUP 2026-09-25: mobile/tests/sterilizerReportRepo.spec.ts ditulis — 22 kasus, hijau, nol sentuhan ke mobile/src. Inilah yang menaikkan layar ini dari partial ke complete. Kasus intinya mengunci bahwa repo TIDAK memuat aritmetika KPI apa pun: fixture sengaja dibuat tidak konsisten secara aritmetika (total_cycles 312 bukan jumlah daily 24 maupun by_unit 299; avg_duration 96,4 bukan rata-rata min/max; ambang outlier 27/173 sengaja TIDAK sama dengan rumus IQR dari q1/q3), sehingga implementasi yang menurunkan angka sendiri pasti gagal. Tanpa fixture semacam itu, repo yang menghitung ulang akan lolos setiap test.",
-    "DEVIASI TERCATAT: unit_test_cases 17-19 pada tech spec layar ini menuliskan galat lewat response.status, bentuk yang TIDAK PERNAH sampai ke repo — apiClient::normalizeError selalu menolak dengan objek DATAR {message, errors?, status?} dan membuang response. Test ditulis terhadap perilaku nyata, dan penyimpangannya didokumentasikan di docblock berkas testnya. Ketiga butir itu juga menyangkut keputusan VIEW (rute login, pesan validasi, menyembunyikan pemilih Mill) yang memang sudah diuji di LaporanSterilizerView.spec.ts."
+    "DEVIASI TERCATAT: unit_test_cases 17-19 pada tech spec layar ini menuliskan galat lewat response.status, bentuk yang TIDAK PERNAH sampai ke repo — apiClient::normalizeError selalu menolak dengan objek DATAR {message, errors?, status?} dan membuang response. Test ditulis terhadap perilaku nyata, dan penyimpangannya didokumentasikan di docblock berkas testnya. Ketiga butir itu juga menyangkut keputusan VIEW (rute login, pesan validasi, menyembunyikan pemilih Mill) yang memang sudah diuji di LaporanSterilizerView.spec.ts.",
+    "REVISI v3 (tech-spec v3, pemisahan periods/period_stations + isolasi Production Line — sinkronisasi artefak, kode tidak diubah): diverifikasi 2026-10-03 terhadap delta tech-spec 02105a8 dan 1b35980. (1) Pemisahan induk-anak periode (83a4065, dirapikan di mobile oleh 02105a8): SterilizerReportPeriodOption.station_type kini `string` non-nullable, status dibaca sebagai status baris period_stations Sterilizer, fixture 'Semua Jenis Stasiun'/station_type null sudah dibuang dari spec komponen & e2e, dan klien tidak menyaring ulang daftar periode. Ketidakcocokan (a)/(b) yang dicatat tech-spec v2 sudah tertutup di kode. (2) Isolasi Production Line (backend a5ccfba, mobile 98c812b): SterilizerReportController::summary()/export() meneruskan production_line_id ke SterilizerReportService yang menyaring pada kolom record `sterilizer_records.production_line_id` (bukan stations), sehingga record yang stasiunnya dipindah tetap terhitung di line asalnya; respons summary menambah blok `production_line` {id,name}|null secara aditif. sterilizerReportRepo.ts mengirim production_line_id HANYA ke /summary dan /export lewat productionLineParams() (tidak bercabang per peran), tidak pernah ke /periods; exportCsv kini juga membawa business_unit_id untuk Admin (cacat 422 pra-ada ditutup 98c812b). LaporanSterilizerView.vue: daftar line dari productionLineRepo.fetchProductionLinesForReport() → GET /api/production-lines/options-for-report (endpoint baru 98c812b, ProductionLineController::optionsForReport + ProductionLineService, cakupan lewat ScopesToActorMill), resolveProductionLine() dengan urutan rute ?production_line_id= > ingatan msl_production_line_{userId} > satu-line-otomatis > pemilih, nilai rute/ingatan hanya dipercaya bila ada di daftar; loadSummary() dan onExport() berhenti tanpa line; tombol Ekspor hanya dirender bila periode DAN line ada; nama line dari summary.production_line.name lebih dulu; ganti mill (Admin) mengosongkan line + opsinya; kegagalan daftar line tampil sebagai production-line-unavailable + production-line-retry, bukan galat laporan; akun tanpa mill tetap nol permintaan. (3) success_schema /summary tidak terbungkus `data`: cocok dengan kode — controller memanggil response()->json($this->service->summary(...)) langsung, repo membaca body apa adanya lewat unwrap() yang toleran. Bentuk galat datar (ErrorLike tanpa response) juga ditegakkan di view ini oleh 98c812b. Test 2026-10-03: unit 40 (sterilizerReportRepo.spec 30 + productionLineRepo.spec 10), integration 77 (Feature/Api/LaporanSterilizerTest 27 + Unit/Services/SterilizerReportServiceTest 40 + KelolaProductionLineTest --filter options-for-report 10), component 53 (LaporanSterilizerView.spec) — semuanya lolos; browser tidak dijalankan ulang."
   ],
   "deferred_items": [],
   "known_issues": [
@@ -79,6 +86,10 @@
     },
     {
       "description": "Asimetri yang disengaja dan kini terkunci test: fetchSummary memakai unwrap (toleran terhadap respons berpembungkus maupun tanpa pembungkus) sementara fetchPeriods dan fetchBusinessUnits membaca response.data?.data ?? [] langsung sehingga mensyaratkan pembungkus. Cocok dengan bentuk yang dikirim controller. Dikunci eksplisit agar tidak 'dirapikan' tanpa sadar kelak.",
+      "severity": "low"
+    },
+    {
+      "description": "test_results.browser (18, 2026-09-24) TIDAK diukur ulang pada sinkronisasi v3 — berkas e2e laporan-sterilizer.spec.ts sejak itu bertambah skenario Production Line (98c812b) dan viewport 390x844 (02105a8); angka browser di artefak ini karena itu tidak mencerminkan isi berkasnya sekarang. Jalankan ulang terhadap Vite dev server untuk memperbaruinya.",
       "severity": "low"
     }
   ]

@@ -1,8 +1,8 @@
 {
-  "ver": 1,
+  "ver": 2,
   "meta": {
     "title": "Mill Smart Log",
-    "updated_at": "2026-09-25"
+    "updated_at": "2026-10-03"
   },
   "id": "screen-139--laporan-storage-tank-mobile",
   "name": "Laporan Storage Tank (Mobile)",
@@ -10,19 +10,19 @@
   "status": "complete",
   "test_results": {
     "unit": {
-      "run_at": "2026-09-25T09:31:00Z",
-      "passed": 29,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 47,
       "failed": 0,
       "coverage": 0
     },
     "integration": {
-      "run_at": "2026-09-25T09:33:00Z",
-      "passed": 190,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 91,
       "failed": 0
     },
     "component": {
-      "run_at": "2026-09-25T09:31:00Z",
-      "passed": 35,
+      "run_at": "2026-10-03T00:00:00Z",
+      "passed": 49,
       "failed": 0
     },
     "browser": {
@@ -33,22 +33,28 @@
   },
   "files_generated": [
     "backend/routes/api.php",
-    "backend/app/Services/StorageTankReportService.php"
+    "backend/app/Services/StorageTankReportService.php",
+    "backend/app/Http/Controllers/Api/StorageTankReportController.php",
+    "backend/app/Http/Controllers/Api/ProductionLineController.php",
+    "backend/app/Services/ProductionLineService.php"
   ],
   "fe_files_generated": [
     "mobile/src/services/storageTankReportRepo.ts",
     "mobile/src/views/LaporanStorageTankView.vue",
     "mobile/src/router/index.ts",
-    "mobile/src/views/ReportingPilihStasiunView.vue"
+    "mobile/src/views/ReportingPilihStasiunView.vue",
+    "mobile/src/services/productionLineRepo.ts"
   ],
   "test_files_generated": [
     "backend/tests/Unit/Services/StorageTankReportServiceTest.php",
     "backend/tests/Feature/Api/LaporanStorageTankTest.php",
-    "mobile/tests/e2e/laporan-storage-tank.spec.ts"
+    "mobile/tests/e2e/laporan-storage-tank.spec.ts",
+    "backend/tests/Feature/Api/KelolaProductionLineTest.php"
   ],
   "fe_test_files_generated": [
     "mobile/tests/storageTankReportRepo.spec.ts",
-    "mobile/tests/LaporanStorageTankView.spec.ts"
+    "mobile/tests/LaporanStorageTankView.spec.ts",
+    "mobile/tests/productionLineRepo.spec.ts"
   ],
   "implementation_notes": [
     "Layar ke-11 dan TERAKHIR dari fitur Full Cycle per Stasiun tahap pertama (5 stasiun x web+mobile, plus layar pemilih).",
@@ -67,7 +73,8 @@
     "Sesi berakhir memakai router.replace, bukan push — mengikuti preseden 135/136/137/138. Dikunci lewat asersi window.history.length tidak bertambah, sehingga layar tidak dapat dicapai kembali dengan tombol Back.",
     "Fixture unit dan browser test sengaja tidak konsisten secara aritmetika: movement_mt 280,5 tidak sama dengan closing-opening 300,0 maupun 260,5; ffa.max 4,4 LEBIH KECIL daripada daily[0].ffa_avg 5,8. Implementasi yang diam-diam menghitung ulang pasti gagal.",
     "Browser test 33 skenario dengan test.use viewport 390x844 pada describe tunggal; satu skenario mengulang asersi tata letak di 375x812 lewat page.setViewportSize setelah rangkaian 390px selesai, sehingga kedua lebar terbukti. Rekap harian buka/tutup/buka diasersi nol permintaan baru lewat DUA mekanisme independen (penghitung di handler page.route dan array dari page.on('request')).",
-    "AGEN IMPLEMENTASI TERHENTI DI TENGAH oleh batas kuota API tepat sebelum menulis browser test. Sisa pekerjaan diselesaikan terpisah dan seluruh suite diverifikasi ulang dari nol, bukan dilanjutkan atas asumsi."
+    "AGEN IMPLEMENTASI TERHENTI DI TENGAH oleh batas kuota API tepat sebelum menulis browser test. Sisa pekerjaan diselesaikan terpisah dan seluruh suite diverifikasi ulang dari nol, bukan dilanjutkan atas asumsi.",
+    "REVISI v2 (tech-spec v3, pemisahan periods/period_stations + isolasi Production Line — sinkronisasi artefak, kode tidak diubah): diverifikasi 2026-10-03 terhadap delta tech-spec 02105a8 dan 1b35980. (1) Pemisahan induk-anak periode (83a4065, dirapikan di mobile oleh 02105a8): station_type pada opsi periode storageTankReportRepo.ts kini `string` non-nullable, status dibaca sebagai status baris period_stations Storage Tank, fixture station_type null/'Semua Jenis Stasiun' dibuang dari spec komponen, repo, dan e2e, dan klien tidak menyaring ulang daftar periode. (2) Isolasi Production Line (backend a5ccfba, mobile 98c812b): StorageTankReportController meneruskan production_line_id ke summary/export, dan StorageTankReportService menyaring pada kolom record `storage_tank_records.production_line_id` (bukan stations) sehingga record yang stasiunnya dipindah tetap terhitung di line asalnya; respons summary menambah blok `production_line` {id,name}|null secara aditif. storageTankReportRepo.ts mengirim production_line_id HANYA ke /summary dan /export lewat productionLineParams() (tanpa cabang peran), tidak pernah ke /periods; exportCsv kini juga membawa business_unit_id untuk Admin (cacat 422 pra-ada ditutup 98c812b). LaporanStorageTankView.vue: daftar line dari productionLineRepo.fetchProductionLinesForReport() → GET /api/production-lines/options-for-report (endpoint baru 98c812b, ProductionLineController::optionsForReport + ProductionLineService, cakupan lewat ScopesToActorMill), resolveProductionLine() berurutan rute ?production_line_id= > ingatan msl_production_line_{userId} > satu-line-otomatis > pemilih, nilai rute/ingatan hanya dipercaya bila ada di daftar; loadSummary() dan onExport() berhenti tanpa line; tombol Ekspor hanya dirender bila periode DAN line ada; nama line dari summary.production_line.name lebih dulu; ganti mill (Admin) mengosongkan line + opsinya; kegagalan daftar line tampil sebagai production-line-unavailable + production-line-retry, bukan galat laporan; akun tanpa mill tetap nol permintaan. Known_issue artefak ini tentang LaporanCagesTrackView.vue:173 (screen-136) yang membaca candidate?.response?.status kini USANG: cacat itu dibereskan di 98c812b (ErrorLike tanpa response di kelima view); entri lamanya dibiarkan sebagai riwayat. Test 2026-10-03: unit 47 (storageTankReportRepo.spec 37 + productionLineRepo.spec 10), integration 91 (Feature/Api/LaporanStorageTankTest 35 + Unit/Services/StorageTankReportServiceTest 46 + KelolaProductionLineTest --filter options-for-report 10), component 49 (LaporanStorageTankView.spec) — semuanya lolos; browser tidak dijalankan ulang. Angka integration 190 sebelumnya berasal dari cakupan pengukuran yang lebih lebar, jadi penurunan ke 91 bukan test yang hilang."
   ],
   "deferred_items": [
     {
@@ -102,6 +109,10 @@
     },
     {
       "description": "Unhandled error PRA-ADA di SyncResultDialog.vue:36 dari tests/StationListView.spec.ts; tidak menggagalkan test apa pun.",
+      "severity": "low"
+    },
+    {
+      "description": "test_results.browser (2026-09-25) TIDAK diukur ulang pada sinkronisasi v2 — mobile/tests/e2e/laporan-storage-tank.spec.ts sejak itu bertambah skenario Production Line (98c812b) dan fixture periode dirapikan (02105a8); angka browser di artefak ini karena itu tidak mencerminkan isi berkasnya sekarang. Jalankan ulang terhadap Vite dev server untuk memperbaruinya.",
       "severity": "low"
     }
   ]
